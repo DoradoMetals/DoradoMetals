@@ -3,16 +3,12 @@ import {
   formatCurrency,
   getPayoutDelay,
 } from "#media/pdfs/render/format.ts";
-import type { OrderView, OrderViewItem, OrderPricingLine } from "@dorado/contracts";
+import type {
+  OrderView, OrderViewItem, OrderPricingLine, OrderPricingSpot,
+} from "@dorado/contracts";
 
 const inboundShipment = (order: OrderView): OrderView["shipments"][number] | null =>
   order.shipments.find((s) => s.direction !== "Return") ?? null;
-
-export type DocumentLabels = {
-  metals: readonly string[];
-  services: ReadonlyMap<string, string>;
-  packages: ReadonlyMap<string, string>;
-};
 
 export type PackageDetails = {
   label: string | null;
@@ -21,40 +17,21 @@ export type PackageDetails = {
   height: number | null;
 };
 
-const serviceOf = (
-  shipment: OrderView["shipments"][number] | null, labels: DocumentLabels
-): string =>
-  (shipment?.carrier_service_id ? labels.services.get(shipment.carrier_service_id) : null) || "-";
+// The service name and the package label are columns of the order view now
+// (db/orders/sql/view.sql), so a document reads them off the shipment instead
+// of indexing two id-to-name Maps (ruling 78).
+const serviceOf = (shipment: OrderView["shipments"][number] | null): string =>
+  shipment?.service_name || "-";
 
-const packageOf = (
-  shipment: OrderView["shipments"][number] | null, labels: DocumentLabels
-): string =>
-  (shipment?.package_id ? labels.packages.get(shipment.package_id) : null) || "-";
+const packageOf = (shipment: OrderView["shipments"][number] | null): string =>
+  shipment?.package_label || "-";
 
-const METAL_ORDER = ["Gold", "Silver", "Platinum", "Palladium"];
-
-const rank = (name: string): number => {
-  const at = METAL_ORDER.indexOf(name);
-  return at === -1 ? METAL_ORDER.length : at;
-};
-
-export function scrapItemNames(
-  lines: OrderViewItem[], metals: readonly string[]
-): Map<string, string> {
-  const known = new Set(metals);
-  const ordered = lines
-    .filter((line) => known.has(line.metal_id))
-    .sort((a, b) => rank(a.metal_id) - rank(b.metal_id));
-
-  const seen = new Map<string, number>();
-  const names = new Map<string, string>();
-  for (const line of ordered) {
-    const nth = (seen.get(line.metal_id) ?? 0) + 1;
-    seen.set(line.metal_id, nth);
-    names.set(line.id, `${line.metal_id} Item ${nth}`);
-  }
-  return names;
-}
+// A priced line is read out of the rows the pricing domain answered with. The
+// list is one order's lines - a handful - and reading one with .find is what
+// the profit rewrite settled on rather than a per-call index.
+const priceFor = (
+  prices: OrderPricingLine[], line: OrderViewItem
+): OrderPricingLine | undefined => prices.find((p) => p.id === line.id);
 
 export function returnShipment(order: OrderView): OrderView["shipments"][number] | null {
   return order.shipments.find((s) => s.direction === "Return") ?? null;
@@ -69,8 +46,7 @@ const oz = (value: number | null | undefined): string =>
 export function renderInvoiceHeader(
   order: OrderView,
   total: number,
-  bids: ReadonlyMap<string, number | null>,
-  labels: DocumentLabels
+  spots: OrderPricingSpot[]
 ): string {
   const orderPlaced = order.order.created_at
     ? new Date(order.order.created_at).toLocaleDateString("en-US", {
@@ -88,16 +64,16 @@ export function renderInvoiceHeader(
   const isDone = doneStatus.includes(status);
   const totalLabel = isDone ? "Total Payout" : "Total Estimate";
 
+  // Already ordered by the SQL read (Gold, Silver, Platinum, Palladium, then
+  // anything else by name), and holding only the metals this order has a line in.
   const spotRows =
-    [...labels.metals]
-      .sort((a, b) => rank(a) - rank(b))
-      .flatMap((metal_id) => {
-        const bid = bids.get(metal_id);
-        if (bid == null) return [];
+    spots
+      .flatMap((spot) => {
+        if (spot.bid == null) return [];
         return [`
           <div class="invoice-card-row">
-            <span>${metal_id}:</span>
-            <span>${formatCurrency(bid)}</span>
+            <span>${spot.metal_id}:</span>
+            <span>${formatCurrency(spot.bid)}</span>
           </div>
         `];
       })
@@ -159,7 +135,7 @@ export function renderInvoiceHeader(
 }
 
 export function renderInvoiceShippingAndPayout(
-  order: OrderView, payoutCost: number, labels: DocumentLabels
+  order: OrderView, payoutCost: number
 ): string {
   const inbound = inboundShipment(order);
   const outbound = returnShipment(order);
@@ -170,9 +146,9 @@ export function renderInvoiceShippingAndPayout(
   ): string => `
       <tr>
         <td class="text-left">${label}</td>
-        <td>${serviceOf(shipment, labels)}</td>
+        <td>${serviceOf(shipment)}</td>
         <td>${shipment.insured ? "Yes" : "No"}</td>
-        <td>${packageOf(shipment, labels)}</td>
+        <td>${packageOf(shipment)}</td>
         <td class="text-right">${formatCurrency(shipment.cost ?? 0)}</td>
       </tr>`;
 
@@ -224,7 +200,6 @@ export function renderInvoiceShippingAndPayout(
 
 export function renderPackingShippingSection(
   order: OrderView,
-  labels: DocumentLabels,
   isReturn: boolean,
   includePayoutFee: boolean,
   payoutFee: number
@@ -290,11 +265,11 @@ export function renderPackingShippingSection(
           </div>
           <div class="detail-row">
             <span class="detail-label">Service:</span>
-            <span class="detail-value">${serviceOf(shipment, labels)}</span>
+            <span class="detail-value">${serviceOf(shipment)}</span>
           </div>
           <div class="detail-row">
             <span class="detail-label">Package Size:</span>
-            <span class="detail-value">${packageOf(shipment, labels)}</span>
+            <span class="detail-value">${packageOf(shipment)}</span>
           </div>
           <div class="detail-row">
             <span class="detail-label">Pickup Type:</span>
@@ -365,16 +340,14 @@ export function renderOrderSummaryTable(
 }
 
 export function buildPackingScrapRows(
-  lines: OrderViewItem[], priceOf: ReadonlyMap<string, OrderPricingLine>, labels: DocumentLabels
+  lines: OrderViewItem[], prices: OrderPricingLine[]
 ): string {
-  const names = scrapItemNames(lines, labels.metals);
-
   return lines
     .map((line) => {
-      const price = priceOf.get(line.id)?.unit_price;
+      const price = priceFor(prices, line)?.unit_price;
       return `
         <tr>
-          <td>${names.get(line.id) ?? "Scrap Item"}</td>
+          <td>${line.item_name ?? "Scrap Item"}</td>
           <td>${line.pre_melt ?? "-"} ${line.unit ?? ""}</td>
           <td>${pct(line.purity)}</td>
           <td>${oz(line.content)}</td>
@@ -386,11 +359,11 @@ export function buildPackingScrapRows(
 }
 
 export function buildPackingBullionRows(
-  lines: OrderViewItem[], priceOf: ReadonlyMap<string, OrderPricingLine>, labels: DocumentLabels
+  lines: OrderViewItem[], prices: OrderPricingLine[]
 ): string {
   return lines
     .map((line) => {
-      const total = priceOf.get(line.id)?.line_total;
+      const total = priceFor(prices, line)?.line_total;
       return `
         <tr>
           <td>${line.product_name || "Bullion Product"}</td>
@@ -404,16 +377,14 @@ export function buildPackingBullionRows(
 }
 
 export function buildInvoiceScrapRows(
-  lines: OrderViewItem[], priceOf: ReadonlyMap<string, OrderPricingLine>, labels: DocumentLabels
+  lines: OrderViewItem[], prices: OrderPricingLine[]
 ): string {
-  const names = scrapItemNames(lines, labels.metals);
-
   return lines
     .map((line) => {
-      const price = priceOf.get(line.id)?.unit_price;
+      const price = priceFor(prices, line)?.unit_price;
       return `
         <tr>
-          <td class="text-left">${names.get(line.id) ?? "Scrap Item"}</td>
+          <td class="text-left">${line.item_name ?? "Scrap Item"}</td>
           <td>${line.pre_melt} ${line.unit ?? ""}</td>
           <td>${line.post_melt ?? line.pre_melt} ${line.unit ?? ""}</td>
           <td>${pct(line.purity)}</td>
@@ -426,11 +397,11 @@ export function buildInvoiceScrapRows(
 }
 
 export function buildInvoiceBullionRows(
-  lines: OrderViewItem[], priceOf: ReadonlyMap<string, OrderPricingLine>
+  lines: OrderViewItem[], prices: OrderPricingLine[]
 ): string {
   return lines
     .map((line) => {
-      const total = priceOf.get(line.id)?.line_total;
+      const total = priceFor(prices, line)?.line_total;
       return `
         <tr>
           <td class="text-left">${line.product_name || "Bullion Product"}</td>

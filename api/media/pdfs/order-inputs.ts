@@ -1,37 +1,20 @@
 import * as orderRead from "#orders/read.ts";
-import * as orderSpots from "#db/orders/spots/repo.ts";
-import * as metalsRepo from "#db/metals/repo.ts";
-import * as servicesRepo from "#db/shipping/services/repo.ts";
 import * as packagesRepo from "#db/shipping/packages/repo.ts";
-import * as spotsFeed from "#pricing/spots/service.ts";
 import * as pricing from "#pricing/index.ts";
 import * as rules from "#media/pdfs/rules.ts";
-import type { DocumentLabels, PackageDetails } from "#media/pdfs/service.ts";
+import type { PackageDetails } from "#media/pdfs/service.ts";
 import type { OrderView } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
-async function documentLabels(executor?: Executor): Promise<DocumentLabels> {
-  const services = await servicesRepo.getAll(executor);
-  return {
-    metals: (await metalsRepo.list(executor)).map((metal) => metal.id),
-    services: new Map(services.map((s) => [s.id, s.name])),
-    packages: await packagesRepo.labelsById(executor),
-  };
-}
+// Every document is the order view plus what the pricing domain answered for
+// it - two SQL reads, each parsed through its own contract (ruling 78). The
+// service names, package labels and per-metal spots that used to be assembled
+// into `DocumentLabels`, a bids Map and an asks Map are columns of those two
+// reads now: `OrderViewShipment.service_name` / `.package_label`,
+// `OrderViewItem.item_name`, and `OrderPricing.spots`.
 
 const inboundShipment = (order: OrderView): OrderView["shipments"][number] | null =>
   order.shipments.find((s) => s.direction !== "Return") ?? null;
-
-async function metalBidsFor(
-  order: OrderView, executor?: Executor
-): Promise<ReadonlyMap<string, number | null>> {
-  if (order.order.spots_locked) {
-    const frozen = await orderSpots.getRowsFor(order.order.id, executor);
-    return new Map(frozen.map((s) => [s.metal_id, s.bid]));
-  }
-  const live = await spotsFeed.getSpotPrices(executor);
-  return new Map(live.map((s) => [s.id, s.bid]));
-}
 
 async function loadOrder(order_id: string, executor?: Executor): Promise<OrderView> {
   const order = await orderRead.view(order_id, executor);
@@ -59,37 +42,21 @@ export async function packingListInputs(order_id: string, executor?: Executor) {
   return {
     order,
     pricing: await pricing.priceOrder(order_id, executor),
-    labels: await documentLabels(executor),
     package: await packageDetailsFor(order, executor),
   };
 }
 
 export async function returnPackingListInputs(order_id: string, executor?: Executor) {
   const order = await loadOrder(order_id, executor);
-  return {
-    order,
-    pricing: await pricing.priceOrder(order_id, executor),
-    labels: await documentLabels(executor),
-  };
+  return { order, pricing: await pricing.priceOrder(order_id, executor) };
 }
 
 export async function invoiceInputs(order_id: string, executor?: Executor) {
   const order = await loadOrder(order_id, executor);
-  return {
-    order,
-    pricing: await pricing.priceOrder(order_id, executor),
-    bids: await metalBidsFor(order, executor),
-    labels: await documentLabels(executor),
-  };
+  return { order, pricing: await pricing.priceOrder(order_id, executor) };
 }
 
 export async function salesOrderInvoiceInputs(order_id: string, executor?: Executor) {
   const order = await loadOrder(order_id, executor);
-  const frozen = await orderSpots.getRowsFor(order_id, executor);
-  return {
-    order,
-    asks: new Map(frozen.map((s) => [s.metal_id, s.ask])),
-    pricing: await pricing.priceOrder(order_id, executor),
-    labels: await documentLabels(executor),
-  };
+  return { order, pricing: await pricing.priceOrder(order_id, executor) };
 }

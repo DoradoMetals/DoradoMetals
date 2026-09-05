@@ -42,10 +42,14 @@ export async function saveCheckoutPayout(
     encryption_key_id: isBankMethod(method) ? key.id : null,
   };
 
+  // The envelope's AAD is the row's own id, so the row has to exist before the
+  // numbers can be sealed. Two writes, each naming only the columns it owns -
+  // `buildUpdate` leaves out what is not in the patch (ruling 78: no spreading
+  // one write's shape into the next).
   const id = existing_id ?? (await details.create(user_id, base, tx)).id;
+  if (existing_id) assertWrittenDetails(id, await details.update(id, base, tx));
 
-  const values: PaymentDetailsWrite = {
-    ...base,
+  const sealed: PaymentDetailsWrite = {
     routing_number_encrypted: routing
       ? seal(routing, key, aadFor(id, "routing_number"))
       : null,
@@ -54,7 +58,7 @@ export async function saveCheckoutPayout(
       : null,
   };
 
-  return assertWrittenDetails(id, await details.update(id, values, tx));
+  return assertWrittenDetails(id, await details.update(id, sealed, tx));
 }
 
 export async function decryptFor(

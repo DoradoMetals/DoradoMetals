@@ -30,42 +30,6 @@ export async function getByOrder(
   return await getById(link.shipment_id, executor);
 }
 
-export async function getByOrders(
-  order_ids: string[], executor?: Executor
-): Promise<Map<string, OrderViewShipment>> {
-  const out = new Map<string, OrderViewShipment>();
-  const ids = [...new Set(order_ids)];
-  if (ids.length === 0) return out;
-
-  const fulfillments = await fulfillmentsRepo.getByOrders(ids, executor);
-  if (fulfillments.length === 0) return out;
-
-  const links = await fulfillmentLinks.getMany(fulfillments.map((f) => f.id), executor);
-  const firstLinkOf = new Map<string, string>();
-  for (const link of links) {
-    if (!firstLinkOf.has(link.fulfillment_id)) {
-      firstLinkOf.set(link.fulfillment_id, link.shipment_id);
-    }
-  }
-
-  const shipmentOf = new Map<string, string>();
-  for (const f of fulfillments) {
-    const shipment_id = firstLinkOf.get(f.id);
-    if (shipment_id && f.order_id !== null) shipmentOf.set(f.order_id, shipment_id);
-  }
-  const wanted = [...new Set(shipmentOf.values())];
-  if (wanted.length === 0) return out;
-
-  const rows = await shipments.getMany(wanted, executor);
-  const byId = new Map(rows.map((r) => [r.id, r]));
-
-  for (const [order_id, shipment_id] of shipmentOf) {
-    const row = byId.get(shipment_id);
-    if (row) out.set(order_id, row);
-  }
-  return out;
-}
-
 export async function getOrderLink(
   shipment_id: string, executor?: Executor
 ): Promise<{ order_id: string; direction: Direction } | null> {

@@ -65,6 +65,13 @@ export async function update(
   return rows[0];
 }
 
+export async function clearFor(
+  user_id: string, direction: Direction, executor?: Executor
+): Promise<number> {
+  const { rowCount } = await query(sql("clear_for"), [user_id, direction], executor);
+  return rowCount ?? 0;
+}
+
 export async function reassign(
   id: string, user_id: string, executor?: Executor
 ): Promise<boolean> {

@@ -23,6 +23,15 @@ export async function freezeForOrder(
   return rows;
 }
 
+export async function setBidsFromFeed(
+  order_id: string, locked: boolean, executor?: Executor
+): Promise<number> {
+  const { rowCount } = await query(
+    sql("set_bids_from_feed"), [order_id, locked], executor
+  );
+  return rowCount ?? 0;
+}
+
 export const PATCHABLE = columnsOf(OrderSpotPatch);
 
 export async function update(

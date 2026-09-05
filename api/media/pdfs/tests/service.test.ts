@@ -7,14 +7,12 @@ import * as orderRead from "#orders/read.ts";
 import * as inputs from "#media/pdfs/order-inputs.ts";
 import * as pricing from "#pricing/index.ts";
 import { formatCurrency } from "#media/pdfs/render/format.ts";
-import type { DocumentLabels } from "#media/pdfs/render/sections.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 import type { PoolClient } from "pg";
-import type { OrderView } from "@dorado/contracts";
+import type { OrderPricing, OrderView } from "@dorado/contracts";
 
 let orders: OrderView[];
 let salesOrders: OrderView[];
-let labels: DocumentLabels;
 let lockClient: PoolClient;
 
 const viewsOf = async (direction: "purchase" | "sale") => {
@@ -38,8 +36,6 @@ beforeAll(async () => {
   orders = await viewsOf("purchase");
   salesOrders = await viewsOf("sale");
   assert.ok(orders.length > 0, "dev has no purchase orders to render");
-  ({ labels } = await inputsFor(orders[0]));
-  assert.ok(labels.metals.length > 0, "dev has no metals to label a document with");
 });
 
 afterAll(async () => {
@@ -61,7 +57,7 @@ test("every document renders for a real order", async () => {
 
   isPdf(
     await pdf.generatePackingList({
-      order, pricing: own.pricing, labels: own.labels,
+      order, pricing: own.pricing,
       package: { label: "Medium Box", length: 10, width: 8, height: 6 },
     }),
     "packing list"
@@ -143,25 +139,34 @@ test("a packing list with no package details draws no box, rather than a broken 
 });
 
 test("a sales order invoice builds with no spot prices at all", async () => {
-  const order = salesOrders[0];
+  const order = salesOrders.find((o) => o.items.length > 0) ?? salesOrders[0];
   assert.ok(order, "dev has no sales order");
   const salePricing = await pricing.priceOrder(order.order.id);
 
-  const html = pdf.buildSalesOrderInvoiceHtml({ order, asks: new Map(), pricing: salePricing, labels });
+  assert.ok(
+    salePricing.spots.length > 0,
+    "the sales order prices no metal at all - this case is untested"
+  );
+
+  const asked = (ask: (index: number) => number | null): OrderPricing => ({
+    ...salePricing,
+    spots: salePricing.spots.map((spot, index) => ({
+      metal_id: spot.metal_id, bid: spot.bid, ask: ask(index),
+    })),
+  });
+
+  const html = pdf.buildSalesOrderInvoiceHtml({ order, pricing: asked(() => null) });
   assert.ok(html.length > 500, "no document was produced");
   assert.ok(!html.includes("NaN"), "the invoice contains NaN");
   assert.ok(html.includes("&mdash;"), "a missing spot rendered as nothing at all");
 
-  const gold = labels.metals.find((metal) => metal === "Gold");
-  assert.ok(gold, "dev has no metal called Gold");
   const partial = pdf.buildSalesOrderInvoiceHtml({
-    order,
-    asks: new Map([[gold, 4000]]),
-    pricing: salePricing,
-    labels,
+    order, pricing: asked((index) => (index === 0 ? 4000 : null)),
   });
   assert.ok(partial.includes("$4,000.00"), "the quoted metal is missing");
-  assert.ok(partial.includes("&mdash;"), "the unquoted metals rendered as nothing at all");
+  if (salePricing.spots.length > 1) {
+    assert.ok(partial.includes("&mdash;"), "the unquoted metals rendered as nothing at all");
+  }
 });
 
 test("the packing list and the invoice report the same total", async () => {

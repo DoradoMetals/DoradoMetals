@@ -16113,3 +16113,25 @@ NOT EXISTS` with a required `tx`. Credit left `identity/users` for
 `api/payments/credit/`; the URL did not (ruling 13). `verify:genesis` fails on
 DEV BEING BEHIND ITS OWN CHAIN (no `auth.mirror_identity_to_exchange`, which
 122 creates) - not this lane's, and a `migrate` against dev is Jacob's.
+
+### Ruling 78 enforced (2026-09-06)
+
+`lint:no-dictionaries` joins `check.mjs`'s `api-lint` group: it walks
+`domainDirs()`, skips transport files and `rules.ts`, and refuses stitched Maps,
+`Object.fromEntries`, object-accumulator `.reduce`, `Record<`/index-signature
+results, a row spread into a return or an argument, and inline-typed parameter
+objects. 18 self-test cases, FLOOR 72, `--report` for the census. **Before: 48
+findings in 14 files. After: 2, both ACCEPTED in one file** - better-auth's
+plugin contract in `identity/auth/anonymous.ts`. The documents were the bulk:
+`DocumentLabels` and four Maps died into `view.sql` (`item_name` as a window
+function, `service_name`, `package_label`) and `order_pricing.sql`
+(`OrderPricing.spots`, frozen-or-live like every line), so a document is two SQL
+reads and nothing else. Two dead batch readers and one dead file
+(`PAYOUT_METHOD_FEES`) deleted; three writes became one SQL statement each
+(`clear_for`, `set_bids_from_feed`, `upsert`); the insurance ceiling became a
+decision in `rules.ts`. Five lint floors moved by the one deleted file and three
+ACCEPTED counts shrank, each re-measured, never lowered to pass;
+`audit:silent-mutations` is back at its unchanged ceiling of 14. 1347 tests
+green; `verify:genesis` still fails on DEV BEING BEHIND ITS OWN CHAIN and the
+eight dev-db members behind it were run individually and all pass. Full detail
+in `docs/waves/no-dictionaries.md`.

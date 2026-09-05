@@ -231,7 +231,7 @@ if (columnsByEntity.size < TABLES_FLOOR) {
   process.exit(1);
 }
 
-const FLOOR = Number(process.env.LINT_NO_COLUMN_ARRAYS_FLOOR ?? 138);
+const FLOOR = Number(process.env.LINT_NO_COLUMN_ARRAYS_FLOOR ?? 137);
 if (files.length < FLOOR) {
   console.error(
     `lint:no-column-arrays scanned ${files.length} file(s), fewer files than db/ and ` +

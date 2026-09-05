@@ -13,10 +13,10 @@ import {
   buildInvoiceScrapRows,
   buildInvoiceBullionRows,
 } from "#media/pdfs/render/sections.ts";
-import type { DocumentLabels, PackageDetails } from "#media/pdfs/render/sections.ts";
+import type { PackageDetails } from "#media/pdfs/render/sections.ts";
 import type { OrderView, OrderViewItem, OrderPricing } from "@dorado/contracts";
 
-export type { DocumentLabels, PackageDetails } from "#media/pdfs/render/sections.ts";
+export type { PackageDetails } from "#media/pdfs/render/sections.ts";
 
 const inboundShipment = (order: OrderView): OrderView["shipments"][number] | null =>
   order.shipments.find((s) => s.direction !== "Return") ?? null;
@@ -27,37 +27,35 @@ const scrapLines = (lines: OrderViewItem[]): OrderViewItem[] =>
 const bullionLines = (lines: OrderViewItem[]): OrderViewItem[] =>
   lines.filter((line) => line.bullion_id !== null);
 
+// A document is the order view plus what pricing answered for it. Both are one
+// SQL read parsed by its contract - there is no third bag of labels, spot maps
+// or price indexes to carry alongside them (ruling 78).
 export type PurchaseDocument = {
   order: OrderView;
   pricing: OrderPricing;
-  bids?: ReadonlyMap<string, number | null>;
-  labels: DocumentLabels;
   package?: PackageDetails | null;
 };
 
 export type SalesDocument = {
   order: OrderView;
-  asks: ReadonlyMap<string, number | null>;
   pricing: OrderPricing;
-  labels: DocumentLabels;
 };
 
 export function buildPackingListHtml({
   order,
   pricing,
-  labels,
   package: box = null,
 }: PurchaseDocument): string {
   const total = pricing.total;
-  const priceOf = new Map(pricing.items.map((l) => [l.id, l]));
 
-  const scrapRows = buildPackingScrapRows(scrapLines(order.items), priceOf, labels);
-  const bullionRows = buildPackingBullionRows(bullionLines(order.items), priceOf, labels);
+  const scrapRows = buildPackingScrapRows(scrapLines(order.items), pricing.items);
+  const bullionRows = buildPackingBullionRows(bullionLines(order.items), pricing.items);
 
   const shipment = inboundShipment(order);
   const packageLabel =
     box?.label ??
-    (shipment?.package_id ? (labels.packages.get(shipment.package_id) ?? null) : null);
+    shipment?.package_label ??
+    null;
   const selectedPackage = packageLabel || "Unknown Package";
 
   const boxDimensions = [box?.length, box?.width, box?.height].map(Number);
@@ -94,7 +92,7 @@ export function buildPackingListHtml({
       </p>
     `;
 
-  const shippingSection = renderPackingShippingSection(order, labels, false, false, 0);
+  const shippingSection = renderPackingShippingSection(order, false, false, 0);
 
   const bullionTable = bullionRows
     ? `
@@ -223,16 +221,14 @@ export function buildPackingListHtml({
 export function buildReturnPackingListHtml({
   order,
   pricing,
-  labels,
 }: PurchaseDocument): string {
   const outbound = returnShipment(order);
   const total = (inboundShipment(order)?.cost ?? 0) + (outbound?.cost ?? 0);
 
-  const priceOf = new Map(pricing.items.map((l) => [l.id, l]));
-  const scrapRows = buildPackingScrapRows(scrapLines(order.items), priceOf, labels);
-  const bullionRows = buildPackingBullionRows(bullionLines(order.items), priceOf, labels);
+  const scrapRows = buildPackingScrapRows(scrapLines(order.items), pricing.items);
+  const bullionRows = buildPackingBullionRows(bullionLines(order.items), pricing.items);
 
-  const shippingSection = renderPackingShippingSection(order, labels, true, false, 0);
+  const shippingSection = renderPackingShippingSection(order, true, false, 0);
 
   const bullionTable = bullionRows
     ? `
@@ -296,7 +292,7 @@ export function buildReturnPackingListHtml({
   });
 }
 
-export function buildInvoiceHtml({ order, pricing, bids, labels }: PurchaseDocument): string {
+export function buildInvoiceHtml({ order, pricing }: PurchaseDocument): string {
   const doneStatus = ["Payment Processing", "Completed"];
   const isDone = doneStatus.includes(order.order.status ?? "");
 
@@ -305,9 +301,8 @@ export function buildInvoiceHtml({ order, pricing, bids, labels }: PurchaseDocum
 
   const scrap = scrapLines(order.items);
   const bullion = bullionLines(order.items);
-  const priceOf = new Map(pricing.items.map((l) => [l.id, l]));
-  const scrapRows = buildInvoiceScrapRows(scrap, priceOf, labels);
-  const bullionRows = buildInvoiceBullionRows(bullion, priceOf);
+  const scrapRows = buildInvoiceScrapRows(scrap, pricing.items);
+  const bullionRows = buildInvoiceBullionRows(bullion, pricing.items);
   const scrapTotal = pricing.scrap_total;
   const bullionTotal = pricing.bullion_total;
 
@@ -406,8 +401,8 @@ export function buildInvoiceHtml({ order, pricing, bids, labels }: PurchaseDocum
   `;
 
   const bodyHtml = `
-    ${renderInvoiceHeader(order, total, bids ?? new Map<string, number | null>(), labels)}
-    ${renderInvoiceShippingAndPayout(order, payoutCost, labels)}
+    ${renderInvoiceHeader(order, total, pricing.spots)}
+    ${renderInvoiceShippingAndPayout(order, payoutCost)}
     ${bullionTable}
     ${scrapTable}
     ${totalsSection}
@@ -428,12 +423,9 @@ const money = (value: number | null | undefined): string =>
 
 export function buildSalesOrderInvoiceHtml({
   order,
-  asks,
   pricing,
-  labels,
 }: SalesDocument): string {
   const doneStatus = ["Preparing", "In Transit", "Completed"];
-  const priceOf = new Map(pricing.items.map((line) => [line.id, line]));
 
   const bullionItems = bullionLines(order.items)
     .map(
@@ -447,19 +439,19 @@ export function buildSalesOrderInvoiceHtml({
               : "&mdash;"
           }</td>
           <td class="text-right">
-            ${money(priceOf.get(line.id)?.line_total)}
+            ${money(pricing.items.find((p) => p.id === line.id)?.line_total)}
           </td>
         </tr>
       `
     )
     .join("");
 
-  const spotRows = [...labels.metals]
+  const spotRows = pricing.spots
     .map(
-      (metal_id) => `
+      (spot) => `
           <div class="detail-row">
-            <span class="detail-label">${metal_id}:</span>
-            <span class="detail-value">${money(asks.get(metal_id))}</span>
+            <span class="detail-label">${spot.metal_id}:</span>
+            <span class="detail-value">${money(spot.ask)}</span>
           </div>`
     )
     .join("");

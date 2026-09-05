@@ -6,7 +6,6 @@ import * as refinerSpots from "#db/refiners/spots/repo.ts";
 import * as refinerOrders from "#db/refiners/orders/repo.ts";
 import * as packagesRepo from "#db/shipping/packages/repo.ts";
 
-import * as spotsFeed from "#pricing/spots/service.ts";
 import * as refinerService from "#orders/refiners/service.ts";
 import * as shipmentService from "#logistics/shipping/shipments/service.ts";
 import * as carrierServices from "#logistics/shipping/services/service.ts";
@@ -91,9 +90,15 @@ export async function editLine(
   const purity = changes.purity !== undefined ? changes.purity : line.purity;
 
   return await withTransaction(async (tx) => {
+    // Two named patches rather than one spread of `changes` into a literal
+    // (ruling 78). The declared content is a fact of the row that results, so
+    // it is derived from the written row and not from a merge guessed here.
+    rules.assertLine(
+      await itemsRepo.update(line_id, changes, { order_id: line.order_id }, tx), line_id
+    );
     const written = await itemsRepo.update(
       line_id,
-      { content: fineContent(weight ?? preMelt, unit, purity), ...changes },
+      { content: fineContent(weight ?? preMelt, unit, purity) },
       { order_id: line.order_id },
       tx
     );
@@ -122,12 +127,7 @@ export async function finalizePricing(order_id: string): Promise<OrderView> {
   rules.assertDirection(order.order.direction, "purchase", "finalizing pricing");
 
   await withTransaction(async (tx) => {
-    if (!order.order.spots_locked) {
-      const live = new Map((await spotsFeed.getSpotPrices(tx)).map((s) => [s.id, s.bid]));
-      for (const spot of await orderSpots.getRowsFor(order_id, tx)) {
-        await orderSpots.update(order_id, spot.metal_id, { bid: live.get(spot.metal_id) ?? null }, tx);
-      }
-    }
+    if (!order.order.spots_locked) await orderSpots.setBidsFromFeed(order_id, true, tx);
     for (const spot of await orderSpots.getRowsFor(order_id, tx)) {
       await refinerSpots.update(order_id, spot.metal_id, { bid: spot.bid }, tx);
     }

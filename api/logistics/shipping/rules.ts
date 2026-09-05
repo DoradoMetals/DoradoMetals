@@ -2,7 +2,8 @@ import { convertToPounds } from "#shared/utils/convertWeights.ts";
 import { Conflict, Invalid, NotFound } from "#shared/errors.ts";
 import type {
   CarrierHandoff, CarrierRateQuote, CarrierServiceOption, CheckoutRate, LabelService,
-  FulfillmentPickup, OrderItem, Package, Parcel, ParcelSchedule, Shipment, ShipmentActions,
+  FulfillmentPickup, InsuranceCeiling, OrderItem, Package, Parcel, ParcelSchedule, Shipment,
+  ShipmentActions,
   ShipmentDecisions, ShipmentDirection, ShipmentViewFacts, ShippableCarrier, TrackingScan,
   TrackingStep,
 } from "@dorado/contracts";
@@ -362,6 +363,20 @@ export function assertLabelService<T extends { carrier_id: string | null; name: 
   if (!row.carrier_id) {
     throw new Invalid(`${row.name} is a sale delivery service, not a label service`);
   }
+}
+
+// The insurance ceiling a carrier service is offered at. A row of its own wins
+// when it names a finite one; otherwise the carrier's lowest active ceiling is
+// what the label may be insured for. The rows are the carrier's `shipping.services`
+// (`getInsuranceCeilings`) - read with `.find`, never indexed into a Map (ruling 78).
+export function lowestCeiling(rows: InsuranceCeiling[]): number {
+  const values = rows.map((r) => Number(r.max_insured_value)).filter((v) => Number.isFinite(v));
+  return values.length ? Math.min(...values) : 0;
+}
+
+export function ceilingFor(rows: InsuranceCeiling[], name: string): number {
+  const own = Number(rows.find((r) => r.name === name)?.max_insured_value);
+  return Number.isFinite(own) ? own : lowestCeiling(rows);
 }
 
 export function assertCatalogueEntry<T>(

@@ -23,8 +23,20 @@ SELECT to_jsonb(o)
                              WHEN i.bullion_id IS NULL THEN i.price
                              ELSE i.price * COALESCE(i.quantity, 1) END)
                    ORDER BY i.id ASC)
-            FROM orders.items i
-           WHERE i.order_id = o.id),
+            FROM (SELECT it.*,
+                         -- What a scrap lot is called on a document: numbered
+                         -- per metal across the order's scrap lines, in id
+                         -- order. A product line is named by its product, so it
+                         -- has no item_name. This is the numbering the packing
+                         -- list and the invoice used to stitch into a Map.
+                         CASE WHEN it.bullion_id IS NULL
+                              THEN it.metal_id || ' Item '
+                                   || row_number() OVER (
+                                        PARTITION BY (it.bullion_id IS NULL), it.metal_id
+                                            ORDER BY it.id ASC)
+                              END AS item_name
+                    FROM orders.items it
+                   WHERE it.order_id = o.id) i),
          '[]'::jsonb) AS items,
        (SELECT to_jsonb(a)
                || jsonb_build_object(
@@ -58,6 +70,12 @@ SELECT to_jsonb(o)
                      'pickup_type', s.pickup_type,
                      'pickup_date', s.pickup_date,
                      'pickup_time', s.pickup_time,
+                     'service_name',
+                     (SELECT cs.name FROM shipping.services cs
+                       WHERE cs.id = s.carrier_service_id),
+                     'package_label',
+                     (SELECT pk.label FROM shipping.packages pk
+                       WHERE pk.id = s.package_id),
                      'created_at', to_char(s.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'))
                    ORDER BY s.created_at ASC, s.id ASC)
             FROM shipping.shipments s

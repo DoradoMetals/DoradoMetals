@@ -1,4 +1,5 @@
 import withTransaction from "#shared/db/withTransaction.ts";
+import { withDecisions } from "#shared/views.ts";
 import * as services from "#db/shipping/services/repo.ts";
 import * as rules from "#logistics/shipping/rules.ts";
 import {
@@ -66,45 +67,30 @@ export async function getOfferedServices(
 ): Promise<CarrierServiceOption[]> {
   const id = await carrierIdOr(carrier_id, client);
   const { catalogue } = await resolveCarrier(id, client);
-  const ceilings = await ceilingsByName(id, client);
+  const ceilings = await services.getInsuranceCeilings(id, client);
 
-  return [...catalogue.services]
+  const offeredServices = catalogue.services;
+
+  return [...offeredServices]
     .sort((a, b) => a.display_order - b.display_order)
     .map((s) => ({
       code: s.code, name: s.name, carrier_code: s.carrier_code, display_order: s.display_order,
-      id: ceilings.get(s.name)?.id ?? null,
-      max_insured_value: ceilingOr(ceilings, s.name),
+      id: ceilings.find((c) => c.name === s.name)?.id ?? null,
+      max_insured_value: rules.ceilingFor(ceilings, s.name),
     }));
-}
-
-async function ceilingsByName(
-  carrier_id: string, executor?: Executor
-): Promise<Map<string, { id: string; ceiling: number }>> {
-  const rows = await services.getInsuranceCeilings(carrier_id, executor);
-  return new Map(rows.map((r) => [r.name, { id: r.id, ceiling: Number(r.max_insured_value) }]));
-}
-
-function lowestCeiling(ceilings: Map<string, { id: string; ceiling: number }>): number {
-  const values = [...ceilings.values()].map((v) => v.ceiling).filter((v) => Number.isFinite(v));
-  return values.length ? Math.min(...values) : 0;
-}
-
-function ceilingOr(ceilings: Map<string, { id: string; ceiling: number }>, name: string): number {
-  const own = ceilings.get(name)?.ceiling;
-  return own !== undefined && Number.isFinite(own) ? own : lowestCeiling(ceilings);
 }
 
 export async function insuranceCeilingFor(
   code: string | null | undefined, carrier_id?: string | null, client?: Executor
 ): Promise<number> {
   const id = await carrierIdOr(carrier_id, client);
-  const ceilings = await ceilingsByName(id, client);
-  if (!code) return lowestCeiling(ceilings);
+  const ceilings = await services.getInsuranceCeilings(id, client);
+  if (!code) return rules.lowestCeiling(ceilings);
 
   const { catalogue } = await resolveCarrier(id, client);
   const offeredServices = catalogue.services;
   const offered = offeredServices.find((s) => s.code === code);
-  return offered ? ceilingOr(ceilings, offered.name) : lowestCeiling(ceilings);
+  return offered ? rules.ceilingFor(ceilings, offered.name) : rules.lowestCeiling(ceilings);
 }
 
 export async function clampInsuredValue(
@@ -124,7 +110,7 @@ export async function labelServiceFor(
   const offered = await getOfferedServices(row.carrier_id, executor);
   const entry = offered.find((o) => o.name.toLowerCase() === row.name.toLowerCase());
   rules.assertCatalogueEntry(entry, row.name);
-  return { ...entry, carrier_id: row.carrier_id };
+  return withDecisions(entry, { carrier_id: row.carrier_id });
 }
 
 export async function getServiceById(

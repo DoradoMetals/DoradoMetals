@@ -39,17 +39,12 @@ const order = (over: Record<string, unknown> = {}): OrderView =>
     over
   );
 
-const labels = {
-  metals: [GOLD],
-  services: new Map<string, string>(),
-  packages: new Map<string, string>(),
-};
-const asks = new Map<string, number | null>([[GOLD, 4000]]);
-const pricing = {
+const pricing = (ask: number | null = 4000) => ({
   order_id: "00000000-0000-4000-8000-000000000000",
   direction: "sale",
   spots_at: new Date().toISOString(),
   spots_locked: false,
+  spots: [{ metal_id: GOLD, bid: null, ask }],
   items: [
     {
       id: "line-1",
@@ -72,16 +67,14 @@ const pricing = {
   payout_fee: 0,
   total: 200,
   declared_value: 200,
-} as OrderPricing;
+}) as OrderPricing;
 
 test("the supplier email renders the order it was given", () => {
   const html = renderSalesOrderToSupplierEmail({
     firstName: "Refiner",
     url: "https://example.com/orders",
     order: order(),
-    asks,
-    pricing,
-    labels,
+    pricing: pricing(),
   });
 
   assert.ok(html.includes("1 Refinery Row"), "the street is missing");
@@ -98,9 +91,7 @@ test("an order with no address renders rather than throwing", () => {
     firstName: "Refiner",
     url: "https://example.com/orders",
     order: order({ address: null }),
-    asks,
-    pricing,
-    labels,
+    pricing: pricing(),
   });
 
   assert.ok(html.length > 500, "no document was produced");
@@ -115,9 +106,7 @@ test("a spot with no ask renders rather than throwing", () => {
     firstName: "Refiner",
     url: "https://example.com/orders",
     order: order(),
-    asks: new Map([[GOLD, null]]),
-    pricing,
-    labels,
+    pricing: pricing(null),
   });
 
   assert.ok(html.includes("Gold"), "the metal row is missing");

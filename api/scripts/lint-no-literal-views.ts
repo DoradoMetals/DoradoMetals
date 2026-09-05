@@ -27,13 +27,13 @@ const ACCEPTED: Record<string, { count: number; why: string }> = {
   "checkout/adopt.ts": { count: 2, why: RESULT },
   "checkout/sweep.ts": { count: 2, why: RESULT },
   "media/images/service.ts": { count: 1, why: RESULT },
-  "media/pdfs/order-inputs.ts": { count: 6, why: RESULT },
+  "media/pdfs/order-inputs.ts": { count: 5, why: RESULT },
   "media/pdfs/serve.ts": { count: 4, why: RESULT },
   "orders/place.ts": { count: 3, why: RESULT },
   "payments/details/service.ts": { count: 2, why: CRUD },
   "payments/sweeps.ts": { count: 2, why: RESULT },
   "logistics/shipping/operations/resolver.ts": { count: 1, why: RESULT },
-  "logistics/shipping/services/service.ts": { count: 3, why: CRUD },
+  "logistics/shipping/services/service.ts": { count: 2, why: CRUD },
   "logistics/shipping/shipments/service.ts": { count: 1, why: RESULT },
 };
 
@@ -221,7 +221,7 @@ for (const [name, entry] of Object.entries(ACCEPTED)) {
   );
 }
 
-const FLOOR = Number(process.env.LINT_NO_LITERAL_VIEWS_FLOOR ?? 268);
+const FLOOR = Number(process.env.LINT_NO_LITERAL_VIEWS_FLOOR ?? 267);
 if (files.length < FLOOR) {
   console.error(
     `\nSCAN IS BROKEN: ${files.length} file(s) under ${ROOTS.join(", ")}, ` +

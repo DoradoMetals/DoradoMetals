@@ -3,7 +3,6 @@ import path from "path";
 import { formatSalesOrderNumber } from "#shared/utils/formatOrderNumbers.ts";
 import { fileURLToPath } from "url";
 import type { OrderPricing, OrderView } from "@dorado/contracts";
-import type { DocumentLabels } from "#media/pdfs/render/sections.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -69,9 +68,7 @@ type RefinerEmailInput = {
   firstName?: string | null;
   url?: string | null;
   order: OrderView;
-  asks: ReadonlyMap<string, number | null>;
   pricing: OrderPricing;
-  labels: DocumentLabels;
 };
 
 const orDash = (value: string | null | undefined): string =>
@@ -84,9 +81,7 @@ export function renderSalesOrderToSupplierEmail({
   firstName,
   url,
   order,
-  asks,
   pricing,
-  labels,
 }: RefinerEmailInput): string {
   const templatesDir = path.join(__dirname, "..", "templates");
   const layoutPath = path.join(templatesDir, "baseLayout.raw.html");
@@ -110,23 +105,25 @@ export function renderSalesOrderToSupplierEmail({
     .filter(Boolean)
     .join("");
 
-  const spotsHtml = [...labels.metals]
+  // The order's own metals, in the SQL read's order, priced the way every line
+  // on the order is priced (ruling 78 - no asks Map, no per-line index).
+  const spotsHtml = pricing.spots
     .map(
-      (metal_id) => `
+      (spot) => `
     <tr>
-      <td style="padding:4px 8px;">${metal_id}</td>
+      <td style="padding:4px 8px;">${spot.metal_id}</td>
       <td style="padding:4px 8px;text-align:right;">
-        ${money(asks.get(metal_id))}
+        ${money(spot.ask)}
       </td>
     </tr>
   `
     )
     .join("");
 
-  const priceOf = new Map(pricing.items.map((line) => [line.id, line]));
   const orderRows = order.items.filter((line) => line.bullion_id !== null)
     .map((line) => {
-      const subtotal = (priceOf.get(line.id)?.line_total ?? 0).toFixed(2);
+      const priced = pricing.items.find((p) => p.id === line.id);
+      const subtotal = (priced?.line_total ?? 0).toFixed(2);
       return `
       <tr>
         <td style="padding:8px 0">${line.product_name ?? ""}</td>

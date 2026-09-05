@@ -44,16 +44,6 @@ export async function getMany(
   return rows;
 }
 
-export async function getByOrders(
-  order_ids: string[], executor?: Executor
-): Promise<Fulfillment[]> {
-  if (order_ids.length === 0) return [];
-  const { rows } = await query<Fulfillment>(
-    sql("get_by_orders"), [order_ids], executor
-  );
-  return rows;
-}
-
 export async function create(
   order_id: string, method_id: string, status: string, executor?: Executor
 ): Promise<Fulfillment | undefined> {
