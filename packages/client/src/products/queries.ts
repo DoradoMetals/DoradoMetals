@@ -11,7 +11,7 @@ import { keys } from "../keys";
 export type ProductQuery = {
   side?: "ask" | "bid";
   placement?: "storefront" | "homepage";
-  metal?: string;
+  metal_id?: string;
   category?: string;
   type?: string;
   search?: string;

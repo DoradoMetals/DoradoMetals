@@ -8,7 +8,7 @@ import { LOCKS } from "#shared/testing/locks.ts";
 import * as place from "#orders/place.ts";
 import * as fulfillmentService from "#logistics/fulfillments/service.ts";
 import {
-  aUser, anAddress, aProduct, metalId,
+  aUser, anAddress, aProduct,
   packageId as builtPackageId, carrierServiceId, fulfillmentMethodId,
 } from "#shared/testing/builders/index.ts";
 
@@ -48,11 +48,11 @@ const carrierAnswers = (): typeof place.LIVE & { labelled: string[] } => {
 };
 
 type ScrapItem = {
-  metal: string | null; quantity?: number; pre_melt?: number; post_melt?: number;
+  metal_id: string | null; quantity?: number; pre_melt?: number; post_melt?: number;
   purity?: number; content?: number; unit?: string; premium?: number;
 };
 const GOLD: ScrapItem = {
-  metal: "Gold", quantity: 1, pre_melt: 10, post_melt: 9.5,
+  metal_id: "Gold", quantity: 1, pre_melt: 10, post_melt: 9.5,
   purity: 0.9999, content: 9.4991, unit: "g", premium: 0.8,
 };
 
@@ -105,11 +105,10 @@ async function primeCheckout(
          checkout_id, bullion_id, metal_id, pre_melt, post_melt, purity,
          content, unit, premium, quantity
        ) VALUES (
-         $1, NULL, (SELECT id FROM metals.metals WHERE lower(name) = lower($2)),
-         $3, $4, $5, $6, $7, $8, $9
+         $1, NULL, $2, $3, $4, $5, $6, $7, $8, $9
        )`,
       [
-        co.id, item.metal, item.pre_melt ?? null, item.post_melt ?? null,
+        co.id, item.metal_id, item.pre_melt ?? null, item.post_melt ?? null,
         item.purity ?? null, item.content ?? null, item.unit ?? null,
         item.premium ?? null, item.quantity ?? 1,
       ]
@@ -230,20 +229,19 @@ test("spots are frozen per metal the order actually contains", async () => {
     const order = await place.place(
       await primeCheckout(c, {
         items: [
-          { metal: "Gold", quantity: 1, content: 1 },
-          { metal: "Silver", quantity: 1, content: 2 },
+          { metal_id: "Gold", quantity: 1, content: 1 },
+          { metal_id: "Silver", quantity: 1, content: 2 },
         ],
       }),
       carrierAnswers()
     );
 
     const { rows } = await c.query(
-      `SELECT m.name, s.ask, s.bid FROM orders.spots s
-         JOIN metals.metals m ON m.id = s.metal_id
-        WHERE s.order_id = $1 ORDER BY m.name`,
+      `SELECT s.metal_id, s.ask, s.bid FROM orders.spots s
+        WHERE s.order_id = $1 ORDER BY s.metal_id`,
       [order.order.id]
     );
-    assert.deepEqual(rows.map((r) => r.name), ["Gold", "Silver"]);
+    assert.deepEqual(rows.map((r) => r.metal_id), ["Gold", "Silver"]);
     assert.ok(Number(rows[0].ask) > 0, "a frozen spot with no price is not frozen");
     assert.equal(rows.length, 2);
   });
@@ -283,7 +281,7 @@ test("an item whose metal cannot be resolved fails the order rather than being d
   await inPinned(async (c: PoolClient) => {
     await aWorld(c);
     const checkout_id = await primeCheckout(c, {
-      items: [{ metal: "Unobtainium", quantity: 1 }],
+      items: [{ metal_id: null, quantity: 1 }],
     });
     await assert.rejects(() => place.place(checkout_id, carrierAnswers()), /metal_id/);
   });
@@ -292,13 +290,13 @@ test("an item whose metal cannot be resolved fails the order rather than being d
 test("a placed bullion line takes the rate band, not the premium the cart carried", async () => {
   await inPinned(async (c: PoolClient) => {
     await aWorld(c);
-    const built = await aProduct(c, { metal: "Gold", content: 1, bid_premium: 1.5 });
+    const built = await aProduct(c, { metal_id: "Gold", content: 1, bid_premium: 1.5 });
     const { rows: [band] } = await c.query<{ bullion_pct: string }>(
       `SELECT r.bullion_pct FROM rates.rates r
         WHERE r.metal_id = $1 AND $2 >= r.min_qty
           AND (r.max_qty IS NULL OR $2 <= r.max_qty)
         ORDER BY r.min_qty`,
-      [await metalId(c, "Gold"), built.content]
+      ["Gold", built.content]
     );
     assert.ok(band, "the rates seed has no gold band for a one-ounce product");
     const product = {

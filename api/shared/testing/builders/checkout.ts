@@ -2,7 +2,7 @@ import type { PoolClient } from "pg";
 import { anUnknownId } from "#shared/testing/builders/ids.ts";
 import * as checkouts from "#db/checkout/checkouts/repo.ts";
 import * as items from "#db/checkout/items/repo.ts";
-import { metalId, type MetalName } from "#shared/testing/builders/reference.ts";
+import type { MetalName } from "#shared/testing/builders/reference.ts";
 import type { BuiltUser } from "#shared/testing/builders/users.ts";
 import type { BuiltProduct } from "#shared/testing/builders/products.ts";
 
@@ -18,7 +18,7 @@ export type BuiltCart = {
 export type CartOptions = { direction?: Direction };
 
 type LotOptions = {
-  metal?: MetalName;
+  metal_id?: MetalName;
   pre_melt?: number;
   purity?: number;
   unit?: string;
@@ -37,7 +37,7 @@ class CartPlan implements PromiseLike<BuiltCart> {
 
   withLots(n: number, options: LotOptions = {}): this {
     this.steps.push(async (c, cart) => {
-      const metal_id = await metalId(c, options.metal ?? "Gold");
+      const metal_id = options.metal_id ?? "Gold";
       for (let i = 0; i < n; i += 1) {
         const pre_melt = options.pre_melt ?? 10 + i;
         const purity = options.purity ?? 0.925;

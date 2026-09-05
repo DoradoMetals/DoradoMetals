@@ -10,7 +10,7 @@ export const RefinerItem = z.object({
   "order_item_id": z.string().uuid(),
   "refiner_id": z.string().uuid().nullable(),
   "bullion_id": z.string().uuid().nullable(),
-  "metal_id": z.string().uuid(),
+  "metal_id": z.string(),
   "pre_melt": z.number().nullable(),
   "post_melt": z.number().nullable(),
   "purity": z.number().nullable(),

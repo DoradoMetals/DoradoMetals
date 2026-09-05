@@ -23,7 +23,7 @@ test("a purchase order walks pricing, funds and status, and the money facts agre
     const admin = await anAdmin(c);
     const seller = await aUser(c, { funds: 0 });
     const order = await anOrder(c, seller, { direction: "purchase", status: "In Transit" })
-      .withLots(2, { metal: "Gold", pre_melt: 10, purity: 0.925 })
+      .withLots(2, { metal_id: "Gold", pre_melt: 10, purity: 0.925 })
       .withSpots({ bid: 2400, ask: 2450 })
       .withTotals({});
     await c.query(`UPDATE orders.orders SET spots_locked = true WHERE id = $1`, [order.id]);

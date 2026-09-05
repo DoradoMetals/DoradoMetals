@@ -13,7 +13,7 @@ import type { Executor } from "#shared/db/executor.ts";
 async function documentLabels(executor?: Executor): Promise<DocumentLabels> {
   const services = await servicesRepo.getAll(executor);
   return {
-    metals: await metalsRepo.namesById(executor),
+    metals: (await metalsRepo.list(executor)).map((metal) => metal.id),
     services: new Map(services.map((s) => [s.id, s.name])),
     packages: await packagesRepo.labelsById(executor),
   };

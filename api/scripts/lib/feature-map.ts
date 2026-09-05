@@ -55,7 +55,7 @@ export const FEATURES: FeatureMap = {
 export const RENAMES: RenameMap = {
   "exchange.products": { product_name: "name", product_description: "description", product_type: "type" },
   "exchange.images": { checksum_sha256: "checksum" },
-  "exchange.metals": { type: "name", ask_spot: "ask", bid_spot: "bid" },
+  "exchange.metals": { id: "-", type: "id", ask_spot: "ask", bid_spot: "bid" },
   "exchange.suppliers": { is_active: "enabled" },
   "exchange.carriers": { is_active: "enabled" },
   "exchange.purchase_orders": {
@@ -146,6 +146,9 @@ export const RENAMES: RenameMap = {
 };
 
 export const DELIBERATE: Record<string, string> = {
+  "exchange.metals.id":
+    "the metal's name is its id since ruling 79; the uuid identified nothing a " +
+    "name did not",
   "exchange.metals.scrap_percentage":
     "rate tiering moved to rates.rates, which supersedes a single percentage per metal",
   "exchange.metals.bullion_percentage": "same",

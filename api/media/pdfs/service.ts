@@ -456,9 +456,9 @@ export function buildSalesOrderInvoiceHtml({
 
   const spotRows = [...labels.metals]
     .map(
-      ([metal_id, name]) => `
+      (metal_id) => `
           <div class="detail-row">
-            <span class="detail-label">${name}:</span>
+            <span class="detail-label">${metal_id}:</span>
             <span class="detail-value">${money(asks.get(metal_id))}</span>
           </div>`
     )

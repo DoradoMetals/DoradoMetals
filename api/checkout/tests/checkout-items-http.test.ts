@@ -8,7 +8,7 @@ import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
 import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
-import { aProduct, aUser, anAdmin, metalId } from "#shared/testing/builders/index.ts";
+import { aProduct, aUser, anAdmin } from "#shared/testing/builders/index.ts";
 
 await mockSessions();
 const { default: app } = await import("#app");
@@ -78,7 +78,7 @@ test("GET answers the rows PUT stored, per direction", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const customer = asCaller(await aUser(c));
     const { live } = await products(c);
-    const metal_id = await metalId(c, "Gold");
+    const metal_id = "Gold";
     await as(customer, async () => {
       await put("sale", [{ bullion_id: live.id, quantity: 2 }]);
       await put("purchase", [
@@ -105,7 +105,7 @@ test("DELETE empties one direction and leaves the other alone", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const customer = asCaller(await aUser(c));
     const { live } = await products(c);
-    const metal_id = await metalId(c, "Gold");
+    const metal_id = "Gold";
     await as(customer, async () => {
       await put("sale", [{ bullion_id: live.id, quantity: 1 }]);
       await put("purchase", [
@@ -189,7 +189,7 @@ test("editing the product afterwards does not change the line already in the bas
 test("a purchase bullion line's premium is not the product's bid premium", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const customer = asCaller(await aUser(c));
-    const product = await aProduct(c, { bid_premium: 0.42, metal: "Gold", content: 1 });
+    const product = await aProduct(c, { bid_premium: 0.42, metal_id: "Gold", content: 1 });
     await as(customer, async () => {
       const res = await put("purchase", [{ bullion_id: product.id, quantity: 1 }]);
       assert.equal(res.status, 200, JSON.stringify(res.body));
@@ -205,7 +205,7 @@ test("a purchase bullion line's premium is not the product's bid premium", async
 test("a line with no product carries its own values and a derived content", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const customer = asCaller(await aUser(c));
-    const metal_id = await metalId(c, "Gold");
+    const metal_id = "Gold";
     await as(customer, async () => {
       const res = await put("purchase", [
         { metal_id, pre_melt: 8, purity: 0.5, unit: "t oz", quantity: 1 },
@@ -288,7 +288,7 @@ test("the sell basket accepts a product the buy side hides", async () => {
 test("a line with no product is refused when a load-bearing value is missing", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const customer = asCaller(await aUser(c));
-    const metal_id = await metalId(c, "Gold");
+    const metal_id = "Gold";
     const complete = { metal_id, pre_melt: 8, purity: 0.5, unit: "t oz", quantity: 1 };
     await as(customer, async () => {
       for (const missing of ["metal_id", "pre_melt", "purity", "unit"] as const) {
@@ -307,7 +307,7 @@ test("a line with no product is refused when a load-bearing value is missing", a
 test("the buy basket refuses a line with no product", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const customer = asCaller(await aUser(c));
-    const metal_id = await metalId(c, "Gold");
+    const metal_id = "Gold";
     await as(customer, async () => {
       const res = await put("sale", [
         { metal_id, pre_melt: 8, purity: 0.5, unit: "t oz", quantity: 1 },

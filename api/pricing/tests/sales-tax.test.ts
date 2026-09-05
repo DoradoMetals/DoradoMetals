@@ -45,7 +45,7 @@ afterAll(async () => {
 
 test("a basket with no delivery address is charged no tax", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
-    const product = await aProduct(c, { metal: "Gold", content: 1, gross: 1, purity: 0.999 });
+    const product = await aProduct(c, { metal_id: "Gold", content: 1, gross: 1, purity: 0.999 });
     const cart = await aCart(c, await aUser(c), { direction: "sale" }).withBullion(product, 1);
     const q = await saleQuote(cart.id);
     assert.equal(q.sales_tax, 0, "no state matches no rule");
@@ -63,7 +63,7 @@ test("the delivery address's state is what reaches the rules, and it charges", a
     const purity = Math.min(Math.max(0.999, Number(rule.purity_min)), Number(rule.purity_max));
     const gross = Math.min(Math.max(1, Number(rule.weight_min)), Number(rule.weight_max));
     const product = await aProduct(
-      c, { metal: "Gold", type: "Coin", content: 1, gross, purity }
+      c, { metal_id: "Gold", type: "Coin", content: 1, gross, purity }
     );
     const cart = await aCart(c, owner, { direction: "sale" })
       .withBullion(product, 1)
@@ -86,11 +86,10 @@ test("the delivery address's state is what reaches the rules, and it charges", a
 test("the price a line is taxed on is the server's, not anything a client sent", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const [spot] = await outside<{ ask: number }>(
-      `SELECT s.ask FROM spots.spots s JOIN metals.metals m ON m.id = s.metal_id
-        WHERE m.name = 'Gold'`
+      `SELECT s.ask FROM spots.spots s WHERE s.metal_id = 'Gold'`
     );
     assert.ok(spot, "dev has a gold spot");
-    const product = await aProduct(c, { metal: "Gold", content: 1, ask_premium: 1 });
+    const product = await aProduct(c, { metal_id: "Gold", content: 1, ask_premium: 1 });
     const cart = await aCart(c, await aUser(c), { direction: "sale" }).withBullion(product, 1);
     const q = await saleQuote(cart.id);
     assert.equal(

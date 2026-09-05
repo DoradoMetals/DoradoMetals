@@ -29,7 +29,7 @@ const TABLES = [
     key: "payment_intent_id",
     cols: "payment_intent_id, charge_id, created_at, amount, amount_refunded, fee, currency, captured, status, refunded_at, payment_source_type, stripe_customer_id, livemode",
   },
-  { name: "metals.metals", key: "id", cols: "id, name" },
+  { name: "metals.metals", key: "id", cols: "id" },
   {
     name: "spots.spots",
     key: "metal_id",
@@ -364,7 +364,7 @@ const TABLES = [
     cols: `order_id, metal_id, ask, bid, scrap_percentage, bullion_percentage,
            created_at, updated_at`,
     population: {
-      sql: `SELECT coalesce(m.purchase_order_id, m.sales_order_id) AS order_id, mt.id AS metal_id
+      sql: `SELECT coalesce(m.purchase_order_id, m.sales_order_id) AS order_id, mt.type AS metal_id
               FROM exchange.order_metals m
               JOIN exchange.metals mt ON mt.type = m.type
              WHERE coalesce(m.purchase_order_id, m.sales_order_id) IS NOT NULL

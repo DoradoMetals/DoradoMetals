@@ -16030,3 +16030,22 @@ is in `docs/waves/domains.md`.
 `route-guards` was already failing at the branch tip on a stale KNOWN_ROUTES
 control for `DELETE /api/purchase_orders/purge_cancelled`, a route the Great
 Purge deleted; it is removed, which is what the script's own message prescribes.
+
+## Ruling 79 executed (2026-09-06)
+
+`metals.metals.id` is the metal's NAME and `name` is gone (migration 132, dev
+only). Eight `metal_id` columns kept their names and became `text REFERENCES
+metals.metals(id) ON UPDATE CASCADE`, NOT NULL exactly where they were.
+
+**The conversion is `ALTER COLUMN ... TYPE ... USING`, never an UPDATE.** An
+UPDATE fires `audit_stamp` (116): the first draft rewrote `updated_at` on 62
+products and 16 rates, and `verify:backfill` caught all 78. A type change is
+not an edit; the uuid-to-name map lives in a plpgsql function the migration
+creates and drops, because `USING` refuses a subquery and dev's uuids are not
+production's.
+
+**47 joins died** — 17 in `api/db/**/sql/`, 5 in the backfills, 25 in tests and
+`validate-wire.ts`. `db/metals/repo.ts` lost `namesById`/`idsByName` (both the
+identity map now); `OrderSpotNamed`, `PricedLine` and five SQL reads are
+deleted. Wire changes and the 34 frontend files that break are listed in
+`docs/waves/metal-name.md`; the frontend is not updated here (ruling 44).

@@ -24,15 +24,15 @@ type QuoteLine = {
 
 const EXACT = 1e-9;
 
-type SpotFixture = { id: string; name: string; bid: number };
+type SpotFixture = { metal_id: string; bid: number };
 
 let gold: SpotFixture;
 
 beforeAll(async () => {
   const spots = await outside<SpotFixture>(
-    `SELECT m.id, m.name, s.bid FROM spots.spots s JOIN metals.metals m ON m.id = s.metal_id`
+    `SELECT s.metal_id, s.bid FROM spots.spots s`
   );
-  const found = spots.find((s) => s.name === "Gold");
+  const found = spots.find((s) => s.metal_id === "Gold");
   assert.ok(found?.bid, "dev's Gold spot is not priced - every estimate check here would be vacuous");
   gold = found;
 });
@@ -44,11 +44,11 @@ afterAll(async () => {
 
 async function aQuotableOrder(c: PoolClient) {
   const owner = await aUser(c);
-  const product = await aProduct(c, { metal: "Gold", content: 1 });
+  const product = await aProduct(c, { metal_id: "Gold", content: 1 });
 
   const specs = [
-    { bullion_id: null as string | null, metal_id: gold.id, content: 2, premium: 1, quantity: 1, price: 1500 as number | null },
-    { bullion_id: null as string | null, metal_id: gold.id, content: 0.5, premium: 0.9, quantity: 1, price: null as number | null },
+    { bullion_id: null as string | null, metal_id: gold.metal_id, content: 2, premium: 1, quantity: 1, price: 1500 as number | null },
+    { bullion_id: null as string | null, metal_id: gold.metal_id, content: 0.5, premium: 0.9, quantity: 1, price: null as number | null },
     { bullion_id: product.id, metal_id: product.metal_id, content: product.content, premium: 40, quantity: 1, price: 1999 as number | null },
     { bullion_id: product.id, metal_id: product.metal_id, content: product.content, premium: 45, quantity: 2, price: null as number | null },
   ];
@@ -83,7 +83,7 @@ test("the order quote is the owner's and the admins', and nobody else's", async 
     const owner = await aUser(c);
     const stranger = await aUser(c);
     const order = await anOrder(c, owner, { direction: "purchase", status: "Pending" })
-      .withLines({ metal_id: gold.id, content: 1, premium: 1, price: 100 });
+      .withLines({ metal_id: gold.metal_id, content: 1, premium: 1, price: 100 });
 
     await anonymous(async () => {
       const res = await request(app).post("/api/quotes/order").send({ order_id: order.id });
@@ -153,14 +153,14 @@ test("a locked order prices at its locked spots, an unlocked one at live", async
   await inPinnedTransaction(async (c: PoolClient) => {
     const owner = await aUser(c);
     const order = await anOrder(c, owner, { direction: "purchase", status: "Pending" })
-      .withLines({ metal_id: gold.id, content: 3, premium: 1, price: null })
+      .withLines({ metal_id: gold.metal_id, content: 3, premium: 1, price: null })
       .withSpots({ bid: null });
     const target = order.items[0]!;
 
     await as({ ...owner, role: "user" }, async () => {
       await c.query(
         `UPDATE orders.spots SET bid = $1 WHERE order_id = $2 AND metal_id = $3`,
-        [1234.56, order.id, gold.id]
+        [1234.56, order.id, gold.metal_id]
       );
 
       await c.query(`UPDATE orders.orders SET spots_locked = true WHERE id = $1`, [order.id]);
@@ -192,7 +192,7 @@ test("no body-supplied price, spot or order object is accepted at all", async ()
   await inPinnedTransaction(async (c: PoolClient) => {
     const owner = await aUser(c);
     const order = await anOrder(c, owner, { direction: "purchase", status: "Pending" })
-      .withLines({ metal_id: gold.id, content: 1, premium: 1, price: 100 });
+      .withLines({ metal_id: gold.metal_id, content: 1, premium: 1, price: 100 });
 
     await as({ ...owner, role: "user" }, async () => {
       const clean = await request(app).post("/api/quotes/order").send({ order_id: order.id });

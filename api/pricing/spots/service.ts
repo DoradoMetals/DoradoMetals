@@ -16,15 +16,14 @@ export async function listTicker(): Promise<SpotTicker[]> {
 
 export async function updateSpotPrices(): Promise<number> {
   const quotes = await fetchQuotes();
-  const ids = await metals.idsByName();
-  const known = new Set((await spots.list()).map((row) => row.id));
+  const known = new Set((await metals.list()).map((metal) => metal.id));
+  const quoted = new Set((await spots.list()).map((row) => row.id));
 
   return await withTransaction(async (tx) => {
     let written = 0;
-    for (const [name, patch] of quotes) {
-      const metal_id = ids.get(name);
-      if (!metal_id) continue;
-      if (known.has(metal_id)) await spots.update(metal_id, patch, tx);
+    for (const [metal_id, patch] of quotes) {
+      if (!known.has(metal_id)) continue;
+      if (quoted.has(metal_id)) await spots.update(metal_id, patch, tx);
       else await spots.create(metal_id, patch, tx);
       written += 1;
     }

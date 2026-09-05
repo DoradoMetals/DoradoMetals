@@ -23,7 +23,7 @@ test("a sales order is born Pending, moves to Preparing and Shipped, and cancels
   await inPinnedTransaction(async (c: PoolClient) => {
     const admin = await anAdmin(c);
     const buyer = await aUser(c);
-    const product = await aProduct(c, { metal: "Gold", content: 1, ask_premium: 75 });
+    const product = await aProduct(c, { metal_id: "Gold", content: 1, ask_premium: 75 });
     const order = await anOrder(c, buyer, { direction: "sale", status: "Pending" })
       .withBullion(product, 1)
       .withTotals({ total: 2475 });

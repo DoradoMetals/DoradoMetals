@@ -17,8 +17,8 @@ let bands: Band[];
 beforeAll(async () => {
   bands = await outside<Band>(
     `SELECT r.min_qty, r.max_qty, r.scrap_pct, r.bullion_pct
-       FROM rates.rates r JOIN metals.metals m ON m.id = r.metal_id
-      WHERE m.name = 'Gold' ORDER BY r.min_qty ASC`
+       FROM rates.rates r
+      WHERE r.metal_id = 'Gold' ORDER BY r.min_qty ASC`
   );
   assert.ok(bands.length >= 2, "dev has no Gold rate bands - these prove nothing");
 });
@@ -38,7 +38,7 @@ async function purchaseQuote(checkout_id: string): Promise<PurchaseQuote> {
 test("every scrap line is priced at the band the WHOLE basket's ounces earn", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const cart = await aCart(c, await aUser(c), { direction: "purchase" })
-      .withLots(2, { metal: "Gold", pre_melt: 3, purity: 1, unit: "t oz" });
+      .withLots(2, { metal_id: "Gold", pre_melt: 3, purity: 1, unit: "t oz" });
     const q = await purchaseQuote(cart.id);
     const earned = bandFor(6).scrap_pct;
 
@@ -52,7 +52,7 @@ test("every scrap line is priced at the band the WHOLE basket's ounces earn", as
 
 test("a bullion line reads the bullion column of the same band, and counts its quantity", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
-    const product = await aProduct(c, { metal: "Gold", content: 3, gross: 3, purity: 1 });
+    const product = await aProduct(c, { metal_id: "Gold", content: 3, gross: 3, purity: 1 });
     const cart = await aCart(c, await aUser(c), { direction: "purchase" })
       .withBullion(product, 2);
     const q = await purchaseQuote(cart.id);
@@ -70,9 +70,9 @@ test("a bullion line reads the bullion column of the same band, and counts its q
 
 test("scrap and bullion of one metal share the total but read different columns", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
-    const product = await aProduct(c, { metal: "Gold", content: 3, gross: 3, purity: 1 });
+    const product = await aProduct(c, { metal_id: "Gold", content: 3, gross: 3, purity: 1 });
     const cart = await aCart(c, await aUser(c), { direction: "purchase" })
-      .withLots(1, { metal: "Gold", pre_melt: 3, purity: 1, unit: "t oz" })
+      .withLots(1, { metal_id: "Gold", pre_melt: 3, purity: 1, unit: "t oz" })
       .withBullion(product, 1);
     const q = await purchaseQuote(cart.id);
     const earned = bandFor(6);
@@ -87,7 +87,7 @@ test("scrap and bullion of one metal share the total but read different columns"
 test("a total below the lowest band still earns the lowest band", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const cart = await aCart(c, await aUser(c), { direction: "purchase" })
-      .withLots(1, { metal: "Gold", pre_melt: 0.001, purity: 1, unit: "t oz" });
+      .withLots(1, { metal_id: "Gold", pre_melt: 0.001, purity: 1, unit: "t oz" });
     const q = await purchaseQuote(cart.id);
     assert.equal(Number(q.items[0]!.premium), Number(bandFor(0.001).scrap_pct));
   }, { actor: TEST_ACTOR.id, lock: ORDER_LOCKS });
@@ -97,7 +97,7 @@ test("a total above every band earns the highest band", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const beyond = (bands[bands.length - 1]!.max_qty ?? bands[bands.length - 1]!.min_qty) + 500;
     const cart = await aCart(c, await aUser(c), { direction: "purchase" })
-      .withLots(1, { metal: "Gold", pre_melt: beyond, purity: 1, unit: "t oz" });
+      .withLots(1, { metal_id: "Gold", pre_melt: beyond, purity: 1, unit: "t oz" });
     const q = await purchaseQuote(cart.id);
     assert.equal(
       Number(q.items[0]!.premium),
@@ -108,14 +108,14 @@ test("a total above every band earns the highest band", async () => {
 
 test("a metal with no bands keeps the premium the basket already stored", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
-    const unbanded = await outside<{ name: string }>(
-      `SELECT m.name FROM metals.metals m
+    const unbanded = await outside<{ id: string }>(
+      `SELECT m.id FROM metals.metals m
         WHERE NOT EXISTS (SELECT 1 FROM rates.rates r WHERE r.metal_id = m.id)
         LIMIT 1`
     );
     if (unbanded.length === 0) return;
     const cart = await aCart(c, await aUser(c), { direction: "purchase" })
-      .withLots(1, { metal: unbanded[0]!.name as "Gold", pre_melt: 1, purity: 1, unit: "t oz" });
+      .withLots(1, { metal_id: unbanded[0]!.id as "Gold", pre_melt: 1, purity: 1, unit: "t oz" });
     const q = await purchaseQuote(cart.id);
     assert.equal(Number(q.items[0]!.premium), 0, "no band and no stored premium is zero");
   }, { actor: TEST_ACTOR.id, lock: ORDER_LOCKS });

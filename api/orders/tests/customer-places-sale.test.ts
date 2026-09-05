@@ -26,7 +26,7 @@ async function aReadySaleCheckout(
   c: PoolClient, buyer: { id: string; name: string | null; email: string | null }
 ): Promise<string> {
   const address = await anAddress(c, buyer);
-  const product = await aProduct(c, { metal: "Gold", content: 0.001, ask_premium: 1 });
+  const product = await aProduct(c, { metal_id: "Gold", content: 0.001, ask_premium: 1 });
 
   const basket = await as(buyer, () =>
     request(app).put("/api/checkout/items").query({ direction: "sale" }).send({

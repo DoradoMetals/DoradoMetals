@@ -24,7 +24,7 @@ const lines = async (c: PoolClient) => {
   const product = await aProduct(c);
   const order = await anOrder(c, customer, { direction: "purchase", status: "Pending" })
     .withBullion(product, 1)
-    .withLots(1, { metal: "Gold", pre_melt: 10, purity: 0.585 })
+    .withLots(1, { metal_id: "Gold", pre_melt: 10, purity: 0.585 })
     .withSpots();
   await aRefinerEngagement(c, order);
   return {

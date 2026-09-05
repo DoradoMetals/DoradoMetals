@@ -4,7 +4,7 @@ import type { PoolClient } from "pg";
 import pool from "#pool";
 import { LOCKS } from "#shared/testing/locks.ts";
 import { rollbackIn } from "#shared/testing/rollback.ts";
-import { aUser, anOrder, metalId } from "#shared/testing/builders/index.ts";
+import { aUser, anOrder } from "#shared/testing/builders/index.ts";
 import * as spots from "#db/orders/spots/repo.ts";
 
 const inRollback = rollbackIn({ lock: LOCKS.ORDERS });
@@ -22,7 +22,7 @@ afterAll(async () => {
 
 const anOrderWithSpots = async (c: PoolClient) => {
   const order = await anOrder(c, await aUser(c), { direction: "purchase" }).withSpots();
-  return { order_id: order.id, metal_id: await metalId(c, "Gold") };
+  return { order_id: order.id, metal_id: "Gold" };
 };
 
 test("clearing a bid leaves the ask alone", async () => {
@@ -105,7 +105,7 @@ test("a bid for a metal the order does not carry changes nothing", async () => {
 test("freezing the same order twice does not raise", async () => {
   await inRollback(async (c: PoolClient) => {
     const order = await anOrder(c, await aUser(c), { direction: "purchase" })
-      .withLots(1, { metal: "Gold" });
+      .withLots(1, { metal_id: "Gold" });
 
     const first = await spots.freezeForOrder(order.id, c);
     assert.ok(first.length > 0, "the first freeze wrote no rows");

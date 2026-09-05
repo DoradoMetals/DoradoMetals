@@ -20,14 +20,14 @@ INSERT INTO refiners.items (
   pre_melt, post_melt, purity, content, premium, quantity, unit
 )
 SELECT
-  poi.id, NULL, poi.product_id, coalesce(s.metal_id, pr.metal_id),
+  poi.id, NULL, poi.product_id, em.type,
   s.pre_melt, s.post_melt_actual, s.purity_actual, s.content_actual,
   poi.refiner_premium, coalesce(poi.quantity, 1), s.gross_unit
 FROM exchange.purchase_order_items poi
 LEFT JOIN exchange.scrap s     ON s.id  = poi.scrap_id
 LEFT JOIN exchange.products pr ON pr.id = poi.product_id
+JOIN exchange.metals em ON em.id = coalesce(s.metal_id, pr.metal_id)
 WHERE EXISTS (SELECT 1 FROM orders.items i WHERE i.id = poi.id)
-  AND coalesce(s.metal_id, pr.metal_id) IS NOT NULL
 ON CONFLICT (order_item_id) DO UPDATE SET
   bullion_id = EXCLUDED.bullion_id,
   metal_id   = EXCLUDED.metal_id,

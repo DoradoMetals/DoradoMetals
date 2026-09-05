@@ -31,8 +31,8 @@ const MOVE_TO = "Payment Processing";
 const aBuiltOrder = async (c: PoolClient) => {
   const owner = await aUser(c);
   const order = await anOrder(c, owner, { direction: "purchase", status: "Pending" })
-    .withLots(1, { metal: "Gold" })
-    .withLots(1, { metal: "Silver" })
+    .withLots(1, { metal_id: "Gold" })
+    .withLots(1, { metal_id: "Silver" })
     .withSpots()
     .withTotals({ total: 1000 });
   assert.notEqual(order.status, MOVE_TO, "the fixture starts in the target status");
@@ -73,7 +73,7 @@ test("no admin order response carries a full bank number", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const owner = await aUser(c);
     const order = await anOrder(c, owner, { direction: "purchase", status: "Pending" })
-      .withLots(1, { metal: "Gold" })
+      .withLots(1, { metal_id: "Gold" })
       .withTotals({ total: 100 });
     const payout = await aPayout(c, owner, { order });
 

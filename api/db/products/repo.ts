@@ -34,7 +34,7 @@ function where(f: BullionFilter): { text: string; values: unknown[] } {
   if (f.homepage_display !== undefined) {
     conditions.push(`b.homepage_display = ${bind(f.homepage_display)}`);
   }
-  if (f.metal !== undefined) conditions.push(`m.name = ${bind(f.metal)}`);
+  if (f.metal_id !== undefined) conditions.push(`b.metal_id = ${bind(f.metal_id)}`);
   if (f.filter_category !== undefined) {
     conditions.push(`b.filter_category = ${bind(f.filter_category)}`);
   }
@@ -44,7 +44,7 @@ function where(f: BullionFilter): { text: string; values: unknown[] } {
     const term = bind(`%${f.search.trim()}%`);
     conditions.push(
       `(b.name ILIKE ${term} OR b.variant_label ILIKE ${term} ` +
-      `OR b.type ILIKE ${term} OR m.name ILIKE ${term})`
+      `OR b.type ILIKE ${term} OR b.metal_id ILIKE ${term})`
     );
   }
 

@@ -17,9 +17,8 @@
 -- values. It cannot lose a quote - the worst it can do is write the value
 -- exchange already holds.
 INSERT INTO spots.spots (metal_id, ask, bid, dollar_change, percent_change)
-SELECT m.id, e.ask_spot, e.bid_spot, e.dollar_change, e.percent_change
+SELECT e.type, e.ask_spot, e.bid_spot, e.dollar_change, e.percent_change
   FROM exchange.metals e
-  JOIN metals.metals m ON m.name = e.type
 ON CONFLICT (metal_id) DO UPDATE SET
   ask            = EXCLUDED.ask,
   bid            = EXCLUDED.bid,

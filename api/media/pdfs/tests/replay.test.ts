@@ -35,7 +35,7 @@ const anOrderToRender = async (c: PoolClient, direction: "purchase" | "sale") =>
   const product = await aProduct(c);
   const built = await anOrder(c, user, { direction })
     .withBullion(product, 2, { price: 2500 })
-    .withLots(1, { metal: "Gold", pre_melt: 5 })
+    .withLots(1, { metal_id: "Gold", pre_melt: 5 })
     .withSpots()
     .withAddress(address)
     .withTotals({ total: 5200, shipping: 24.5, items: 5000 });

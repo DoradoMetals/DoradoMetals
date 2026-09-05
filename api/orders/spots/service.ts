@@ -3,7 +3,7 @@ import * as spotsRepo from "#db/orders/spots/repo.ts";
 import * as spotsFeed from "#pricing/spots/service.ts";
 import * as rules from "#orders/rules.ts";
 import withTransaction from "#shared/db/withTransaction.ts";
-import type { OrderSpot, OrderSpotNamed, OrderSpotsPutBody } from "@dorado/contracts";
+import type { OrderSpot, OrderSpotsPutBody } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 export async function rowsFor(
@@ -12,15 +12,9 @@ export async function rowsFor(
   return await spotsRepo.getRowsFor(orderId, executor);
 }
 
-export async function namedFor(
-  orderId: string, executor?: Executor
-): Promise<OrderSpotNamed[]> {
-  return await spotsRepo.getFor(orderId, executor);
-}
-
 export async function setSpots(
   orderId: string, body: OrderSpotsPutBody
-): Promise<OrderSpotNamed[]> {
+): Promise<OrderSpot[]> {
   rules.assertDirection(await ordersRepo.directionOf(orderId), "purchase", "the spots PUT");
   rules.assertNamesASpotField(body);
 
@@ -45,5 +39,5 @@ export async function setSpots(
     }
   });
 
-  return await namedFor(orderId);
+  return await rowsFor(orderId);
 }

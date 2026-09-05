@@ -4,7 +4,6 @@ import { randomUUID } from "node:crypto";
 import type { PoolClient } from "pg";
 import pool from "#pool";
 import { inRollback } from "#shared/testing/rollback.ts";
-import { metalId } from "#shared/testing/builders/index.ts";
 import * as rates from "#db/rates/repo.ts";
 
 beforeAll(async () => {
@@ -21,7 +20,7 @@ afterAll(async () => {
 const aRateRow = async (c: PoolClient) =>
   rates.create(
     {
-      metal_id: await metalId(c, "Gold"),
+      metal_id: "Gold",
       unit: "oz", min_qty: 0, max_qty: 10, scrap_pct: 0.9, bullion_pct: 0.95,
     },
     c

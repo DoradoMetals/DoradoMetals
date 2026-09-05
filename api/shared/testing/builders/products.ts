@@ -1,7 +1,7 @@
 import type { PoolClient } from "pg";
 import { aTag } from "#shared/testing/builders/ids.ts";
 import * as products from "#db/products/repo.ts";
-import { metalId, mintId, supplierId, type MetalName } from "#shared/testing/builders/reference.ts";
+import { mintId, supplierId, type MetalName } from "#shared/testing/builders/reference.ts";
 import type { BullionCreate, BullionPatchColumns } from "@dorado/contracts";
 
 export type BuiltProduct = {
@@ -17,13 +17,13 @@ export type BuiltProduct = {
 };
 
 export async function aProduct(
-  c: PoolClient, options: BullionPatchColumns & { metal?: MetalName } = {}
+  c: PoolClient,
+  options: Omit<BullionPatchColumns, "metal_id"> & { metal_id?: MetalName } = {}
 ): Promise<BuiltProduct> {
   const tag = aTag();
-  const { metal, ...given } = options;
   const patch: BullionCreate = {
     name: `Test Bullion ${tag}`,
-    metal_id: await metalId(c, metal ?? "Gold"),
+    metal_id: "Gold",
     mint_id: await mintId(c),
     supplier_id: await supplierId(c),
     description: `Built by a fixture (${tag})`,
@@ -45,7 +45,7 @@ export async function aProduct(
     image_front: "test-front.png",
     image_back: "test-back.png",
     filter_category: null,
-    ...given,
+    ...options,
   };
 
   const id = await products.create(patch, c);

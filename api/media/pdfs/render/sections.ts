@@ -9,7 +9,7 @@ const inboundShipment = (order: OrderView): OrderView["shipments"][number] | nul
   order.shipments.find((s) => s.direction !== "Return") ?? null;
 
 export type DocumentLabels = {
-  metals: ReadonlyMap<string, string>;
+  metals: readonly string[];
   services: ReadonlyMap<string, string>;
   packages: ReadonlyMap<string, string>;
 };
@@ -39,19 +39,19 @@ const rank = (name: string): number => {
 };
 
 export function scrapItemNames(
-  lines: OrderViewItem[], metals: ReadonlyMap<string, string>
+  lines: OrderViewItem[], metals: readonly string[]
 ): Map<string, string> {
+  const known = new Set(metals);
   const ordered = lines
-    .filter((line) => metals.has(line.metal_id))
-    .sort((a, b) => rank(metals.get(a.metal_id)!) - rank(metals.get(b.metal_id)!));
+    .filter((line) => known.has(line.metal_id))
+    .sort((a, b) => rank(a.metal_id) - rank(b.metal_id));
 
   const seen = new Map<string, number>();
   const names = new Map<string, string>();
   for (const line of ordered) {
-    const metal = metals.get(line.metal_id)!;
-    const nth = (seen.get(metal) ?? 0) + 1;
-    seen.set(metal, nth);
-    names.set(line.id, `${metal} Item ${nth}`);
+    const nth = (seen.get(line.metal_id) ?? 0) + 1;
+    seen.set(line.metal_id, nth);
+    names.set(line.id, `${line.metal_id} Item ${nth}`);
   }
   return names;
 }
@@ -90,13 +90,13 @@ export function renderInvoiceHeader(
 
   const spotRows =
     [...labels.metals]
-      .sort(([, a], [, b]) => rank(a) - rank(b))
-      .flatMap(([metal_id, name]) => {
+      .sort((a, b) => rank(a) - rank(b))
+      .flatMap((metal_id) => {
         const bid = bids.get(metal_id);
         if (bid == null) return [];
         return [`
           <div class="invoice-card-row">
-            <span>${name}:</span>
+            <span>${metal_id}:</span>
             <span>${formatCurrency(bid)}</span>
           </div>
         `];
@@ -394,7 +394,7 @@ export function buildPackingBullionRows(
       return `
         <tr>
           <td>${line.product?.name || "Bullion Product"}</td>
-          <td>${labels.metals.get(line.metal_id) ?? "-"}</td>
+          <td>${line.metal_id}</td>
           <td>${line.quantity}</td>
           <td>${line.content ?? "-"}</td>
           <td>${total ? formatCurrency(total) : "-"}</td>

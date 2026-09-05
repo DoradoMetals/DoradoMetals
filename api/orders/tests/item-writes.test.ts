@@ -67,7 +67,7 @@ test("POST :id/items adds a scrap line and its scrap row", async () => {
       );
 
       const { rows: [gold] } = await client.query(
-        `SELECT id FROM metals.metals WHERE name = 'Gold'`
+        `SELECT id FROM metals.metals WHERE id = 'Gold'`
       );
       const res = await request(app)
         .post(`/api/orders/${order.id}/items`)

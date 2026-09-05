@@ -202,7 +202,7 @@ add("POST /quotes/catalog", c.ProductQuote, () =>
 );
 
 const { rows: quoteMetals } = await pool.query(
-  `SELECT id FROM metals.metals WHERE name = 'Gold' LIMIT 1`
+  `SELECT id FROM metals.metals WHERE id = 'Gold' LIMIT 1`
 );
 const checkoutService = await import("#checkout/service.ts");
 

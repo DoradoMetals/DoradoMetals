@@ -6,7 +6,7 @@ import {
 } from "#media/emails/utils/renderEmail.ts";
 import type { OrderPricing, OrderView } from "@dorado/contracts";
 
-const GOLD = "11111111-1111-4111-8111-111111111111";
+const GOLD = "Gold";
 
 const order = (over: Record<string, unknown> = {}): OrderView =>
   Object.assign(
@@ -40,7 +40,7 @@ const order = (over: Record<string, unknown> = {}): OrderView =>
   );
 
 const labels = {
-  metals: new Map([[GOLD, "Gold"]]),
+  metals: [GOLD],
   services: new Map<string, string>(),
   packages: new Map<string, string>(),
 };
@@ -56,7 +56,6 @@ const pricing = {
       kind: "product",
       source: "stored",
       metal_id: GOLD,
-      metal: "Gold",
       content: 1,
       quantity: 2,
       premium: 1,

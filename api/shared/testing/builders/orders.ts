@@ -5,7 +5,7 @@ import * as itemsRepo from "#db/orders/items/repo.ts";
 import * as totalsRepo from "#db/orders/transactions/repo.ts";
 import * as orderAddresses from "#db/orders/addresses/repo.ts";
 import * as checkoutsRepo from "#db/checkout/checkouts/repo.ts";
-import { metalId, metalIds, type MetalName } from "#shared/testing/builders/reference.ts";
+import { metalIds, type MetalName } from "#shared/testing/builders/reference.ts";
 import type { BuiltUser } from "#shared/testing/builders/users.ts";
 import type { BuiltProduct } from "#shared/testing/builders/products.ts";
 
@@ -27,7 +27,7 @@ export type OrderOptions = {
 };
 
 type LotOptions = {
-  metal?: MetalName;
+  metal_id?: MetalName;
   pre_melt?: number;
   post_melt?: number | null;
   purity?: number;
@@ -63,7 +63,7 @@ class OrderPlan implements PromiseLike<BuiltOrder> {
 
   withLots(n: number, options: LotOptions = {}): this {
     this.steps.push(async (c, order) => {
-      const metal_id = await metalId(c, options.metal ?? "Gold");
+      const metal_id = options.metal_id ?? "Gold";
       for (let i = 0; i < n; i += 1) {
         const pre_melt = options.pre_melt ?? 10 + i;
         const purity = options.purity ?? 0.925;
@@ -138,7 +138,7 @@ class OrderPlan implements PromiseLike<BuiltOrder> {
 
   withSpots({ bid = 100, ask = 200 }: { bid?: number | null; ask?: number | null } = {}): this {
     this.steps.push(async (c, order) => {
-      for (const metal_id of (await metalIds(c)).values()) {
+      for (const metal_id of await metalIds(c)) {
         await c.query(
           `INSERT INTO orders.spots (order_id, metal_id, ask, bid)
            VALUES ($1, $2, $3, $4)

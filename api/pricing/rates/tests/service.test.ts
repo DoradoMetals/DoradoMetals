@@ -4,7 +4,6 @@ import { randomUUID } from "node:crypto";
 import pool from "#pool";
 import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
-import { metalId } from "#shared/testing/builders/reference.ts";
 import * as service from "#pricing/rates/service.ts";
 
 afterAll(async () => {
@@ -15,7 +14,7 @@ const pinned = <T>(fn: (c: import("pg").PoolClient) => Promise<T>) =>
   inPinnedTransaction(fn, { actor: TEST_ACTOR.id });
 
 const patch = async (c: import("pg").PoolClient) => ({
-  metal_id: await metalId(c, "Gold"),
+  metal_id: "Gold",
   unit: "oz",
   min_qty: 0,
   max_qty: null,

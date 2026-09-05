@@ -7,54 +7,17 @@ import { RefinerSpot } from "@dorado/contracts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-type OrderSpotRow = {
-  id: string;
-  order_id: string | null;
-  type: string;
-  ask_spot: number | null;
-  bid_spot: number | null;
-  percent_change: number | null;
-  dollar_change: number | null;
-  created_at: Date | null;
-  updated_at: Date | null;
-};
-
-export async function getFor(
-  order_id: string, executor?: Executor
-): Promise<OrderSpotRow[]> {
-  const { rows } = await query<OrderSpotRow>(sql("get_for"), [order_id], executor);
-  return rows;
-}
-
-export async function getMany(
-  order_ids: string[], executor?: Executor
-): Promise<OrderSpotRow[]> {
-  if (order_ids.length === 0) return [];
-  const { rows } = await query<OrderSpotRow>(sql("get_many"), [order_ids], executor);
-  return rows;
-}
-
 export type RefinerSpotRow = {
   id: string; order_id: string; metal_id: string; refiner_id: string | null;
   ask: number | null; bid: number | null;
 };
 
-export type NamedSpotRow = {
-  id: string;
-  order_id: string | null;
-  name: string;
-  ask: number | null;
-  bid: number | null;
-  percent_change: number | null;
-  dollar_change: number | null;
-  created_at: Date | null;
-  updated_at: Date | null;
-};
+export type OrderBid = Pick<RefinerSpot, "id" | "order_id" | "metal_id" | "ask" | "bid">;
 
-export async function getNamed(
+export async function getForOrder(
   order_id: string, executor?: Executor
-): Promise<NamedSpotRow[]> {
-  const { rows } = await query<NamedSpotRow>(sql("get_named"), [order_id], executor);
+): Promise<OrderBid[]> {
+  const { rows } = await query<OrderBid>(sql("get_for_order"), [order_id], executor);
   return rows;
 }
 

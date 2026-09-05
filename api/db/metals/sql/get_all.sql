@@ -1,3 +1,3 @@
-SELECT id, name
+SELECT id
   FROM metals.metals
- ORDER BY name ASC
+ ORDER BY id ASC

@@ -26,9 +26,8 @@ SET scrap_percentage = m.scrap_percentage,
     created_at = m.created_at AT TIME ZONE 'UTC',
     updated_at = m.updated_at AT TIME ZONE 'UTC'
 FROM exchange.order_metals m
-JOIN metals.metals mt ON mt.name = m.type
 WHERE sp.order_id = coalesce(m.purchase_order_id, m.sales_order_id)
-  AND sp.metal_id = mt.id
+  AND sp.metal_id = m.type
   AND (sp.scrap_percentage IS DISTINCT FROM m.scrap_percentage
     OR sp.bullion_percentage IS DISTINCT FROM m.bullion_percentage
     OR sp.created_at IS DISTINCT FROM (m.created_at AT TIME ZONE 'UTC')

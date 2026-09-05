@@ -29,7 +29,6 @@ lines AS (
   SELECT ci.id,
          ci.bullion_id,
          ci.metal_id,
-         m.name AS metal,
          COALESCE(ci.quantity, 1) AS quantity,
          ci.content,
          ci.purity,
@@ -43,7 +42,6 @@ lines AS (
     FROM checkout.items ci
     JOIN checkout ON checkout.id = ci.checkout_id
     LEFT JOIN products.bullion b ON b.id = ci.bullion_id
-    LEFT JOIN metals.metals m ON m.id = ci.metal_id
     LEFT JOIN spots.spots s ON s.metal_id = ci.metal_id
 ),
 aggregate AS (
@@ -67,7 +65,7 @@ taxed AS (
             WHERE delivery.state IS NOT NULL
               AND r.state_code::text = delivery.state
               AND (r.metal_category::text = 'All'
-                   OR (l.metal IS NOT NULL AND r.metal_category::text = l.metal))
+                   OR (l.metal_id IS NOT NULL AND r.metal_category::text = l.metal_id))
               AND (r.product_type::text = 'All'
                    OR (l.product_type IS NOT NULL AND r.product_type::text = l.product_type))
               AND l.unit_ask BETWEEN r.min_price AND r.max_price
@@ -132,7 +130,6 @@ SELECT jsonb_build_object(
                        'kind', 'product',
                        'bullion_id', t.bullion_id,
                        'metal_id', t.metal_id,
-                       'metal', t.metal,
                        'content', COALESCE(t.content, 0),
                        'quantity', t.quantity,
                        'premium', COALESCE(t.ask_premium, 0),

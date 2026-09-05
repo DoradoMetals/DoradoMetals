@@ -74,7 +74,7 @@ test("an order builds with its lines, its money row and its address snapshot", a
     const address = await anAddress(c, seller);
     const product = await aProduct(c);
     const order = await anOrder(c, seller, { direction: "purchase" })
-      .withLots(2, { metal: "Silver", pre_melt: 20 })
+      .withLots(2, { metal_id: "Silver", pre_melt: 20 })
       .withBullion(product, 3)
       .withTotals({ total: 1234.56, shipping: 24.5 })
       .withAddress(address);
@@ -170,7 +170,7 @@ test("a payout is SEALED, links to the order, and leaves the plaintext columns N
 test("an intent, an engagement, a lead and a review all land", async () => {
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c);
-    const order = await anOrder(c, user).withLots(2, { metal: "Gold" });
+    const order = await anOrder(c, user).withLots(2, { metal_id: "Gold" });
 
     const intent = await aPaymentIntent(c, user, { order, amount_expected: 4200 });
     assert.equal(intent.order_id, order.id);

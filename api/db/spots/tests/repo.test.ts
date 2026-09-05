@@ -5,7 +5,6 @@ import type { PoolClient } from "pg";
 import pool from "#pool";
 import query from "#shared/db/query.ts";
 import { inRollback } from "#shared/testing/rollback.ts";
-import { metalId } from "#shared/testing/builders/index.ts";
 import * as spots from "#db/spots/repo.ts";
 
 beforeAll(async () => {
@@ -21,7 +20,7 @@ afterAll(async () => {
 
 test("update writes a real metal's quote and answers true", async () => {
   await inRollback(async (c: PoolClient) => {
-    const gold = await metalId(c, "Gold");
+    const gold = "Gold";
 
     const changed = await spots.update(gold, { bid: 2401.5, ask: 2415.25 }, c);
     assert.equal(changed, true, "update reported no row changed - Gold should already have a row");
@@ -42,7 +41,7 @@ test("update answers false for a metal_id with no spots row", async () => {
 
 test("create writes the one row a metal was missing, honoring the one-per-metal constraint", async () => {
   await inRollback(async (c: PoolClient) => {
-    const silver = await metalId(c, "Silver");
+    const silver = "Silver";
     await query(`DELETE FROM spots.spots WHERE metal_id = $1`, [silver], c);
 
     await spots.create(

@@ -142,8 +142,7 @@ INSERT INTO orders.items (
   premium, quantity, confirmed, sales_tax_charged, unit
 )
 SELECT
-  poi.id, poi.purchase_order_id, poi.product_id,
-  coalesce(s.metal_id, pr.metal_id),
+  poi.id, poi.purchase_order_id, poi.product_id, em.type,
   coalesce(s.pre_melt, pr.gross), coalesce(s.post_melt, pr.content),
   coalesce(s.purity, pr.purity), coalesce(s.content, pr.content),
   poi.premium, poi.quantity, coalesce(poi.confirmed, false), 0,
@@ -151,6 +150,7 @@ SELECT
 FROM exchange.purchase_order_items poi
 LEFT JOIN exchange.scrap s ON s.id = poi.scrap_id
 LEFT JOIN exchange.products pr ON pr.id = poi.product_id
+LEFT JOIN exchange.metals em ON em.id = coalesce(s.metal_id, pr.metal_id)
 WHERE EXISTS (SELECT 1 FROM orders.orders o WHERE o.id = poi.purchase_order_id)
 ON CONFLICT (id) DO NOTHING;
 
@@ -159,11 +159,12 @@ INSERT INTO orders.items (
   premium, quantity, confirmed, sales_tax_charged, unit
 )
 SELECT
-  soi.id, soi.sales_order_id, soi.product_id, pr.metal_id,
+  soi.id, soi.sales_order_id, soi.product_id, em.type,
   pr.gross, pr.content, pr.purity, pr.content,
   soi.premium, soi.quantity, false, soi.sales_tax_rate, 't oz'
 FROM exchange.sales_order_items soi
 JOIN exchange.products pr ON pr.id = soi.product_id
+LEFT JOIN exchange.metals em ON em.id = pr.metal_id
 WHERE EXISTS (SELECT 1 FROM orders.orders o WHERE o.id = soi.sales_order_id)
 ON CONFLICT (id) DO NOTHING;
 
@@ -187,17 +188,17 @@ INSERT INTO orders.spots (
   scrap_percentage, bullion_percentage, created_at, updated_at
 )
 SELECT
-  coalesce(m.purchase_order_id, m.sales_order_id), mt.id, m.ask_spot, m.bid_spot,
+  coalesce(m.purchase_order_id, m.sales_order_id), m.type, m.ask_spot, m.bid_spot,
   m.scrap_percentage, m.bullion_percentage,
   m.created_at AT TIME ZONE 'UTC', m.updated_at AT TIME ZONE 'UTC'
 FROM exchange.order_metals m
-JOIN metals.metals mt ON mt.name = m.type
+JOIN exchange.metals mt ON mt.type = m.type
 WHERE coalesce(m.purchase_order_id, m.sales_order_id) IS NOT NULL
   AND EXISTS (SELECT 1 FROM orders.orders o WHERE o.id = coalesce(m.purchase_order_id, m.sales_order_id))
   AND NOT EXISTS (
     SELECT 1 FROM orders.spots sp
     WHERE sp.order_id = coalesce(m.purchase_order_id, m.sales_order_id)
-      AND sp.metal_id = mt.id
+      AND sp.metal_id = m.type
   );
 
 -- addresses --------------------------------------------------------------

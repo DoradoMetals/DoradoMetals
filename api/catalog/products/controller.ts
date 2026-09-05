@@ -8,7 +8,7 @@ import * as productService from "#catalog/products/service.ts";
 const Query = z.object({
   side: z.enum(["ask", "bid"]).default("ask"),
   placement: z.enum(["storefront", "homepage"]).default("storefront"),
-  metal: z.string().optional(),
+  metal_id: z.string().optional(),
   category: z.string().optional(),
   type: z.string().optional(),
   search: z.string().optional(),
@@ -22,7 +22,7 @@ export const listProducts = asyncHandler(async (req, res) => {
     await productService.listGroups({
       display: q.side === "ask" ? true : undefined,
       homepage_display: q.placement === "homepage" ? true : undefined,
-      metal: q.metal,
+      metal_id: q.metal_id,
       filter_category: q.category,
       type: q.type,
       search: q.search,

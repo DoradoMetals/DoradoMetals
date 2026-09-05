@@ -14,13 +14,13 @@ afterAll(async () => {
 });
 
 test("updateSpotPrices writes a quote for a metal the feed named", async () => {
-  const [metal] = await outside<{ id: string; name: string }>(
-    `SELECT id, name FROM metals.metals ORDER BY name LIMIT 1`
+  const [metal] = await outside<{ id: string }>(
+    `SELECT id FROM metals.metals ORDER BY id LIMIT 1`
   );
   assert.ok(metal, "dev has no metal to update");
 
   vi.mocked(fetchQuotes).mockResolvedValueOnce(
-    new Map([[metal.name, { ask: 1234.56, bid: 1230.12, dollar_change: 1.5, percent_change: 0.1 }]])
+    new Map([[metal.id, { ask: 1234.56, bid: 1230.12, dollar_change: 1.5, percent_change: 0.1 }]])
   );
 
   await inPinnedTransaction(async (c) => {

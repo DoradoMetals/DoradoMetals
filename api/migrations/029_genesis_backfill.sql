@@ -38,7 +38,7 @@ BEGIN
     SELECT 'leads.leads' t WHERE EXISTS (SELECT 1 FROM leads.leads n WHERE NOT EXISTS (SELECT 1 FROM exchange.leads e WHERE e.id = n.id))
     UNION ALL SELECT 'rates.rates' WHERE EXISTS (SELECT 1 FROM rates.rates n WHERE NOT EXISTS (SELECT 1 FROM exchange.rates e WHERE e.id = n.id))
     UNION ALL SELECT 'reviews.reviews' WHERE EXISTS (SELECT 1 FROM reviews.reviews n WHERE NOT EXISTS (SELECT 1 FROM exchange.reviews e WHERE e.id = n.id))
-    UNION ALL SELECT 'metals.metals' WHERE EXISTS (SELECT 1 FROM metals.metals n WHERE NOT EXISTS (SELECT 1 FROM exchange.metals e WHERE e.id = n.id))
+    UNION ALL SELECT 'metals.metals' WHERE EXISTS (SELECT 1 FROM metals.metals n WHERE NOT EXISTS (SELECT 1 FROM exchange.metals e WHERE e.type = n.id))
     UNION ALL SELECT 'media.images' WHERE EXISTS (SELECT 1 FROM media.images n WHERE NOT EXISTS (SELECT 1 FROM exchange.images e WHERE e.id = n.id))
     UNION ALL SELECT 'products.bullion' WHERE EXISTS (SELECT 1 FROM products.bullion n WHERE NOT EXISTS (SELECT 1 FROM exchange.products e WHERE e.id = n.id))
     UNION ALL SELECT 'products.mints' WHERE EXISTS (SELECT 1 FROM products.mints n WHERE NOT EXISTS (SELECT 1 FROM exchange.mints e WHERE e.id = n.id))
@@ -84,11 +84,10 @@ ON CONFLICT (id) DO NOTHING;
 -- metals ---------------------------------------------------------------
 --
 -- exchange.metals is two things in one row: the metal, and the current spot
--- quote for it. They separate here. `type` becomes `name`, because on a table
--- called metals the column is the metal's name.
+-- quote for it. They separate here, and the metal's name is its id (ruling 79).
 
-INSERT INTO metals.metals (id, name)
-SELECT e.id, e.type FROM exchange.metals e
+INSERT INTO metals.metals (id)
+SELECT e.type FROM exchange.metals e
 ON CONFLICT (id) DO NOTHING;
 
 -- The quote half. One row per metal, which the unique index enforces, so the
@@ -96,7 +95,7 @@ ON CONFLICT (id) DO NOTHING;
 -- carries no timestamp, so updated_at takes its default.
 
 INSERT INTO spots.spots (metal_id, ask, bid, percent_change, dollar_change)
-SELECT e.id, e.ask_spot, e.bid_spot, e.percent_change, e.dollar_change
+SELECT e.type, e.ask_spot, e.bid_spot, e.percent_change, e.dollar_change
 FROM exchange.metals e
 ON CONFLICT (metal_id) DO NOTHING;
 
@@ -186,7 +185,7 @@ INSERT INTO products.bullion (
   created_by, updated_by, created_by_id, updated_by_id, created_at, updated_at
 )
 SELECT
-  e.id, e.metal_id, e.mint_id, e.supplier_id, e.product_name,
+  e.id, em.type, e.mint_id, e.supplier_id, e.product_name,
   e.product_description, e.product_type,
   e.bid_premium, e.ask_premium, e.display, e.homepage_display,
   e.legal_tender, e.domestic_tender, e.is_generic, e.content, e.gross, e.purity,
@@ -201,6 +200,7 @@ SELECT
      ELSE '8153712b-5477-4a97-86f9-08b0e65ad3f6'::uuid END),
   e.created_at AT TIME ZONE 'UTC', e.updated_at AT TIME ZONE 'UTC'
 FROM exchange.products e
+JOIN exchange.metals em ON em.id = e.metal_id
 ON CONFLICT (id) DO NOTHING;
 
 -- leads, rates, reviews -------------------------------------------------
@@ -231,7 +231,7 @@ INSERT INTO rates.rates (
   created_at, updated_at, created_by, updated_by, created_by_id, updated_by_id
 )
 SELECT
-  e.id, e.metal_id, e.unit, e.min_qty, e.max_qty, e.scrap_pct, e.bullion_pct,
+  e.id, em.type, e.unit, e.min_qty, e.max_qty, e.scrap_pct, e.bullion_pct,
   e.created_at, e.updated_at, e.created_by, e.updated_by,
   (SELECT u.id FROM auth.users u WHERE u.id = CASE WHEN e.created_by IS NULL THEN NULL
      WHEN e.created_by = 'Pedro Gonzalez' THEN '3a4fffbb-448b-4940-ba6f-640db4c75213'::uuid
@@ -240,6 +240,7 @@ SELECT
      WHEN e.updated_by = 'Pedro Gonzalez' THEN '3a4fffbb-448b-4940-ba6f-640db4c75213'::uuid
      ELSE '8153712b-5477-4a97-86f9-08b0e65ad3f6'::uuid END)
 FROM exchange.rates e
+JOIN exchange.metals em ON em.id = e.metal_id
 ON CONFLICT (id) DO NOTHING;
 
 -- reviews gains a user_id exchange never had. There is no key to derive it
