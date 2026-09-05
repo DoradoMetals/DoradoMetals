@@ -94,13 +94,6 @@ function ceilingOr(ceilings: Map<string, { id: string; ceiling: number }>, name:
   return own !== undefined && Number.isFinite(own) ? own : lowestCeiling(ceilings);
 }
 
-export async function insuranceCeiling(
-  carrier_id?: string | null, client?: Executor
-): Promise<number> {
-  const id = await carrierIdOr(carrier_id, client);
-  return lowestCeiling(await ceilingsByName(id, client));
-}
-
 export async function insuranceCeilingFor(
   code: string | null | undefined, carrier_id?: string | null, client?: Executor
 ): Promise<number> {

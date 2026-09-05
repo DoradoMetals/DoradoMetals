@@ -9,6 +9,7 @@ import {
   aUser, anOrder, anAddress, fulfillmentMethodId, anUnknownId,
 } from "#shared/testing/builders/index.ts";
 import * as methods from "#db/fulfillments/methods/repo.ts";
+import * as fulfillments from "#db/fulfillments/repo.ts";
 import * as service from "#domain/fulfillments/service.ts";
 import * as pickupService from "#domain/fulfillments/pickups/service.ts";
 import * as directService from "#domain/fulfillments/directs/service.ts";
@@ -401,5 +402,26 @@ test("an unlabelled draft may still move between categories", async () => {
     assert.equal(moved.method.category, "PICKUP");
     assert.ok(moved.pickup, "the new category has no detail row to fill in");
     assert.deepEqual(moved.missing, ["pickup_address_id", "start_time"]);
+  });
+});
+
+test("orderOwnerOf resolves through the fulfillment to the order's own owner", async () => {
+  await inRollback(async (c: PoolClient) => {
+    const { id: order_id, user_id } = await freeOrder(c, "purchase");
+    const method_id = (await methodOf(c, "CARRIER DROPOFF", "purchase")).id;
+    const fulfillment = await fulfillments.create(order_id, method_id, "Pending", c);
+
+    const owner = await service.orderOwnerOf(fulfillment!.id, c);
+    assert.equal(owner, user_id);
+  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
+});
+
+test("orderOwnerOf answers nothing for a fulfillment attached to no order", async () => {
+  await inRollback(async (c: PoolClient) => {
+    const method_id = (await methodOf(c, "CARRIER DROPOFF", "purchase")).id;
+    const draft = await service.createDraft(method_id, "purchase", c);
+
+    const owner = await service.orderOwnerOf(draft.fulfillment.id, c);
+    assert.equal(owner, null);
   });
 });

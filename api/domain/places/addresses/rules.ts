@@ -1,15 +1,8 @@
 import { Conflict, Invalid, NotFound } from "#shared/errors.ts";
 import type {
   Address, AddressBookActions, AddressBookEntryFacts, AddressPatch, AddressWriteColumns,
-  UserAddress, UserAddressPatch, UserAddressWriteColumns,
+  UserAddressPatch, UserAddressWriteColumns,
 } from "@dorado/contracts";
-
-export function assertInBook(
-  address_id: string, link: UserAddress | undefined
-): UserAddress {
-  if (!link) throw new NotFound(`no address ${address_id} in this address book`);
-  return link;
-}
 
 export function assertNotOnAnActiveOrder(locked: boolean, verb: "edited" | "deleted"): void {
   if (locked) {

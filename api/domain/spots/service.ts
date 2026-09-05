@@ -4,7 +4,7 @@ import * as rules from "#domain/spots/rules.ts";
 import { fetchQuotes } from "#providers/spots/feed.ts";
 import withTransaction from "#shared/db/withTransaction.ts";
 import type { Executor } from "#shared/db/executor.ts";
-import type { Metal, SpotPrice, SpotTicker } from "@dorado/contracts";
+import type { SpotPrice, SpotTicker } from "@dorado/contracts";
 
 export async function getSpotPrices(executor?: Executor): Promise<SpotPrice[]> {
   return await spots.list(executor);
@@ -12,10 +12,6 @@ export async function getSpotPrices(executor?: Executor): Promise<SpotPrice[]> {
 
 export async function listTicker(): Promise<SpotTicker[]> {
   return rules.ticker(await spots.list());
-}
-
-export async function listMetals(): Promise<Metal[]> {
-  return await metals.list();
 }
 
 export async function updateSpotPrices(): Promise<number> {

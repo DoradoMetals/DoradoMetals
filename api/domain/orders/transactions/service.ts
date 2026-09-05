@@ -1,24 +1,9 @@
 import { reportError } from "#shared/observability/report.ts";
 import * as transactionsRepo from "#db/orders/transactions/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";
-import type { OrderTotals, OrderTotalsGuard, OrderTotalsWrite } from "@dorado/contracts";
+import type { OrderTotalsGuard, OrderTotalsWrite } from "@dorado/contracts";
 
 export type { OrderTotals, OrderTotalsWrite } from "@dorado/contracts";
-
-export async function forOrder(
-  orderId: string, executor?: Executor
-): Promise<OrderTotals | undefined> {
-  return await transactionsRepo.getFor(orderId, executor);
-}
-
-export async function byOrderId(
-  orderIds: string[], executor?: Executor
-): Promise<Map<string, OrderTotals>> {
-  const rows = await transactionsRepo.getMany(orderIds, executor);
-  const by = new Map<string, OrderTotals>();
-  for (const t of rows) if (t.order_id) by.set(t.order_id, t);
-  return by;
-}
 
 export async function update(
   orderId: string,

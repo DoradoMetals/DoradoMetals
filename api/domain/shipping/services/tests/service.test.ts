@@ -230,3 +230,24 @@ test("an update naming an id nothing has changes nothing", async () => {
     assert.equal(after[0].n, before[0].n);
   }, { actor: TEST_ACTOR.id });
 });
+
+test("getSaleOptions answers the services a sale customer may pick from", async () => {
+  const rows = await service.getSaleOptions();
+  assert.ok(Array.isArray(rows));
+});
+
+test("insuranceCeilingFor with no code falls back to the lowest ceiling on offer", async () => {
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const carrier_id = await fedex(c);
+    const low = await service.createService(await draft(c, { code: "TEST_LOW" }));
+    const high = await service.createService(await draft(c, { code: "TEST_HIGH" }));
+    assert.ok(low && high, "the fixture services did not write");
+    await c.query("UPDATE shipping.services SET max_insured_value = 500 WHERE id = $1", [low!.id]);
+    await c.query(
+      "UPDATE shipping.services SET max_insured_value = 50000 WHERE id = $1", [high!.id]
+    );
+
+    const ceiling = await service.insuranceCeilingFor(null, carrier_id, c);
+    assert.ok(ceiling <= 500, `expected the lowest ceiling on offer, got ${ceiling}`);
+  }, { actor: TEST_ACTOR.id });
+});

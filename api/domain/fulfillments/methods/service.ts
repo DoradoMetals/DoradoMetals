@@ -21,10 +21,6 @@ export async function getOne(
   return await methods.getOne(id, executor);
 }
 
-export async function byId(executor?: Executor): Promise<Map<string, FulfillmentMethodRead>> {
-  return await methods.byId(executor);
-}
-
 export async function getDefault(
   direction: Direction, category: FulfillmentCategory, executor?: Executor
 ): Promise<FulfillmentMethodRead> {
