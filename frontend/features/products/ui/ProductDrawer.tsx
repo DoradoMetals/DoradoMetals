@@ -3,7 +3,6 @@
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useEffect, useMemo, useState } from 'react'
 import { formatFullDate } from '@/shared/utils/formatDates'
-import UpdatedByline from '@/shared/ui/UpdatedByline'
 import { useSpotPrices } from '@/features/spots/queries'
 import PremiumControl from '@/features/products/ui/PremiumControl'
 import QuantityBar from '@/features/products/ui/QuantityInput'
@@ -67,7 +66,6 @@ function Header({ product }: { product: AdminProduct }) {
           {activeProduct ? 'Active' : 'Inactive'}
         </Badge>
       </div>
-      <UpdatedByline name={product.updated_by} date={formatFullDate(product.updated_at)} />
     </div>
   )
 }

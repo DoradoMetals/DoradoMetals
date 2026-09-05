@@ -1,8 +1,7 @@
-import { FormField, FormItem } from '@/shared/ui/base/form'
 import { metalOptions, purityOptions, Scrap } from '@/features/scrap/types'
 import { useFormContext } from 'react-hook-form'
 import NumberFlow from '@number-flow/react'
-import { RadioGroup, RadioOption, Slider } from '@dorado/components'
+import { FormField, FormItem, RadioGroup, RadioOption, Slider } from '@dorado/components'
 
 export default function PurityStep() {
   const form = useFormContext<Scrap>()

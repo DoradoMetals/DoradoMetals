@@ -12,7 +12,6 @@ import { cn } from '@/shared/utils/cn'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useBasket, useCheckoutItemActions } from '@/features/checkout/items/queries'
 import { lineFromProduct } from '@/features/checkout/items/types'
-import { Lens } from '@/shared/ui/base/lens'
 import { paymentMethodIcon, transitLabel } from '@/features/orders/salesOrders/types'
 import { usePaymentMethods, useSaleShippingServices } from '@dorado/client'
 import { useSpotPrices } from '@dorado/client'
@@ -35,7 +34,6 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
   // (heaviest first), so there is nothing to sort here.
   const [selectedProduct, setSelectedProduct] = useState<Product>(product)
   const [selectedImage, setSelectedImage] = useState<string>(product.image_front)
-  const [hovering, setHovering] = useState(false)
 
   const [open, setOpen] = useState({
     description: false,
@@ -108,7 +106,6 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                 transition={{ duration: 0.15 }}
                 className="w-full h-full"
               >
-                <Lens hovering={hovering} setHovering={setHovering}>
                   <Image
                     src={selectedImage}
                     height={1000}
@@ -119,7 +116,6 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                   <p className="absolute bottom-0 left-1 flex justify-start eyebrow p-2">
                     {selectedImage === selectedProduct.image_front ? 'Obverse' : 'Reverse'}
                   </p>
-                </Lens>
               </motion.div>
             </AnimatePresence>
           </div>
@@ -450,7 +446,6 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                 transition={{ duration: 0.15 }}
                 className="w-full h-full"
               >
-                <Lens hovering={hovering} setHovering={setHovering}>
                   <Image
                     src={selectedImage}
                     height={1000}
@@ -458,7 +453,6 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                     className="relative z-20 pointer-events-none cursor-auto w-full h-full object-contain focus:outline-none"
                     alt="Selected product view"
                   />
-                </Lens>
                 <p className="absolute bottom-0 left-1 flex justify-start eyebrow p-2">
                   {selectedImage === selectedProduct.image_front ? 'Obverse' : 'Reverse'}
                 </p>

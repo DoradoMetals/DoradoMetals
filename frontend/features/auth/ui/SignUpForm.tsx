@@ -4,15 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/shared/ui/base/form'
-import { Button } from '@dorado/components'
+import { Button, Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@dorado/components'
 import { Checkbox } from '@dorado/components'
 import Link from 'next/link'
 import { useSignUp } from '@/features/auth/queries'

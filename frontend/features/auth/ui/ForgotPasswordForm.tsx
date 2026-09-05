@@ -1,6 +1,7 @@
 'use client'
 
 import { useForm } from 'react-hook-form'
+import { Form } from '@dorado/components'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import {
@@ -11,7 +12,6 @@ import {
   DialogDescription,
   Button,
 } from '@dorado/components'
-import { Form } from '@/shared/ui/base/form'
 import { useRequestPasswordReset } from '@/features/auth/queries'
 import { ValidatedField } from '@/shared/ui/form/ValidatedField'
 

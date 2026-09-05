@@ -1,5 +1,4 @@
-import { FormField, FormItem, FormMessage } from '@/shared/ui/base/form'
-import { RadioGroup, RadioOption } from '@dorado/components'
+import { FormField, FormItem, FormMessage, RadioGroup, RadioOption } from '@dorado/components'
 import { Scrap, weightOptions } from '@/features/scrap/types'
 import { useFormContext } from 'react-hook-form'
 import { FloatingLabelInput } from '@/shared/ui/inputs/FloatingLabelInput'

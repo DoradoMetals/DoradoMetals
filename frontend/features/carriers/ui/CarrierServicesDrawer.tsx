@@ -4,7 +4,6 @@ import { useMemo } from 'react'
 
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { formatFullDate } from '@/shared/utils/formatDates'
-import UpdatedByline from '@/shared/ui/UpdatedByline'
 
 import { SegmentedField } from '@/shared/ui/SegmentedField'
 
@@ -108,7 +107,6 @@ function Header({ service, carrier }: { service: CarrierService; carrier: Carrie
         </Badge>
       </div>
 
-      <UpdatedByline name={service.updated_by} date={formatFullDate(service.updated_at)} />
     </div>
   )
 }

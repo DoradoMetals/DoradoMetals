@@ -1,12 +1,11 @@
 'use client'
 
 import Link from 'next/link'
-import NavLink from '@/shared/ui/NavLink'
 import { usePathname } from 'next/navigation'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useBasket } from '@/features/checkout/items/queries'
 
-import { Badge, Button } from '@dorado/components'
+import { Badge, Button, Link as DsLink } from '@dorado/components'
 import { MenuIcon } from '@dorado/icons'
 import { CheckoutIcon } from '@/features/checkout/items/ui/CheckoutIcon'
 
@@ -53,18 +52,14 @@ export default function Shell() {
           </div>
 
           <nav aria-label="Primary site navigation" className="hidden lg:flex w-1/3 justify-center">
-            {/* `uppercase tracking-widest` moved off this <ul>: it was the nav
-                typography inherited by descendants, which is why the mobile
-                Sidebar silently disagreed with it. <NavLink> owns it now via
-                `.nav-link`. */}
-            <ul className="flex items-end gap-8">
+                        <ul className="flex items-end gap-8">
               {menuItems.map((item) => {
                 const isActive = pathname === item.href
                 return (
                   <li key={item.key}>
-                    <NavLink href={item.href} active={isActive}>
-                      {item.label}
-                    </NavLink>
+                    <DsLink asChild variant="nav" active={isActive}>
+                      <Link href={item.href}>{item.label}</Link>
+                    </DsLink>
                   </li>
                 )
               })}

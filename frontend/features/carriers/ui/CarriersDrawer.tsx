@@ -7,7 +7,6 @@ import { Badge, Button, DataTable, Drawer, Input, type DataTableColumn } from '@
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { formatFullDate } from '@/shared/utils/formatDates'
 import { SegmentedField } from '@/shared/ui/SegmentedField'
-import UpdatedByline from '@/shared/ui/UpdatedByline'
 import formatPhoneNumber, { normalizePhone } from '@/shared/utils/formatPhoneNumber'
 
 import type { Carrier, CarrierService } from '@/features/carriers/types'
@@ -69,7 +68,6 @@ function Header({ carrier }: { carrier: Carrier }) {
         </Badge>
       </div>
 
-      <UpdatedByline date={formatFullDate(carrier.updated_at ?? '')} />
     </div>
   )
 }

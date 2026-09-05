@@ -1,8 +1,7 @@
 'use client'
 
-import { FormField, FormItem, FormControl, FormMessage } from '@/shared/ui/base/form'
 import { FloatingLabelInput, FloatingLabelInputProps } from '@/shared/ui/inputs/FloatingLabelInput'
-import { Input } from '@dorado/components'
+import { FormControl, FormField, FormItem, FormMessage, Input } from '@dorado/components'
 import { InvalidXIcon, ValidCheckIcon } from '@/shared/ui/form/ValidCheckIcon'
 import { Control, FieldPath, FieldValues } from 'react-hook-form'
 import { Dispatch, SetStateAction } from 'react'

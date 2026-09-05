@@ -13,8 +13,7 @@
 import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Form, FormField, FormItem } from '@/shared/ui/base/form'
-import { Button, Field, Switch } from '@dorado/components'
+import { Button, Field, Form, FormField, FormItem, Switch } from '@dorado/components'
 import type { AddressBookEntry, PlaceLookup } from '@dorado/contracts'
 import { useCreateAddress, useUpdateAddress } from '@dorado/client'
 

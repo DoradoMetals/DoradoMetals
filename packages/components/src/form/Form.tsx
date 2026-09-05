@@ -13,8 +13,8 @@ import {
   type FieldValues,
 } from "react-hook-form"
 
-import { cn } from "@/shared/utils/cn"
-import { FieldLabel as Label } from "@dorado/components"
+import { cn } from "../cn"
+import { FieldLabel as Label } from "../field/Field"
 
 const Form = FormProvider
 

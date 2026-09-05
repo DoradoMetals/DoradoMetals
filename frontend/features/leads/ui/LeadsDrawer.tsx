@@ -5,7 +5,6 @@ import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { formatFullDate } from '@/shared/utils/formatDates'
-import UpdatedByline from '@/shared/ui/UpdatedByline'
 
 import { LeadPriority } from '@/features/leads/types'
 import { PrioritySelect } from '@/features/leads/ui/PrioritySelect'
@@ -56,7 +55,6 @@ function Header({ lead }: { lead: Lead }) {
           {lead.converted ? 'Converted' : 'Not Converted'}
         </Badge>
       </div>
-      <UpdatedByline name={lead.updated_by} date={formatFullDate(lead.updated_at)} />
     </div>
   )
 }
