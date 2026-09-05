@@ -90,7 +90,14 @@ backfill ever read that column, so on a rebuild every purchase order landed
 such column in `exchange` and keep the default. Additive, and it reproduces
 exactly what `exchange` holds.
 
-## The finding that is NOT fixed: `exchange.carrier_pickups` blocks 094
+## The finding that WAS not fixed: `exchange.carrier_pickups` blocks 094
+
+**Settled 2026-09-06** (Jacob: production holds none of these, dev's six are
+sandbox test rows, they are NOT carried). 094's third refusal is removed and
+`shipping.pickups`'s `NOT_REBUILT` entry now carries that ruling with no pinned
+count. The section below is why the question existed; see
+`production-day-fixes.md` for the answer.
+
 
 `shipping.pickups` holds 17 dev rows and no backfill writes it. That is not an
 oversight — `exchange.carrier_pickups` keys on the ORDER and `shipping.pickups`

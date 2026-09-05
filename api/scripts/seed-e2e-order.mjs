@@ -23,7 +23,7 @@ const world = {
 };
 const E2E_CUSTOMER = { email: "e2e-customer@example.invalid", name: "E2E Customer" };
 
-const { rows: users } = await query(`SELECT id FROM exchange.users WHERE email = $1`, [
+const { rows: users } = await query(`SELECT id FROM auth.users WHERE email = $1`, [
   E2E_CUSTOMER.email,
 ]);
 if (!users.length) {

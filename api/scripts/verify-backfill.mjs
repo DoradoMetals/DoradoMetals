@@ -416,10 +416,14 @@ const NOT_REBUILT = {
   "shipping.packages": "seed data from 047, no exchange source",
 
   "media.emails": "the mail log was created by 090, after the pivot; exchange never had one",
-  "shipping.pickups": {
-    why: "exchange.carrier_pickups keys on the ORDER and the chain models no home for one, so no backfill carries it - and migration 094 REFUSES while any row exists. See FOLLOWUPS, `verify:backfill is honest`.",
-    exchangeRows: { sql: "SELECT count(*)::int AS n FROM exchange.carrier_pickups", equals: 6 },
-  },
+  "shipping.pickups":
+    "NOT CARRIED, by ruling (Jacob, 2026-09-06): production holds no " +
+    "exchange.carrier_pickups rows at all and dev's are sandbox test rows, so " +
+    "there is nothing to migrate. exchange.carrier_pickups keys on the ORDER " +
+    "and shipping.pickups keys on the SHIPMENT, and no backfill bridges them. " +
+    "094 used to RAISE while any row existed; that refusal is removed and the " +
+    "count is no longer pinned, because the decision is not about how many " +
+    "there are. See docs/waves/production-day-fixes.md.",
 };
 
 // ---------------------------------------------------------------------------

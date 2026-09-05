@@ -23,6 +23,28 @@
 --
 -- Idempotent and guarded like the others. exchange is only ever read.
 
+-- THE PRECONDITION THIS MIGRATION USED TO ASSUME (fixed 2026-09-06, prod-day).
+--
+-- Every INSERT below writes a shipment with at most ONE of its two addresses:
+-- the customer side comes from the order, and the business side has no source
+-- in exchange at all. 048 is what makes that legal - it drops the
+-- shipments_addresses_required check that demands both - and 048 sits inside
+-- 000_genesis_schema.sql's `-- baseline: 002-049`, so on a database that
+-- already holds tables the baseline STAMPS it instead of running it.
+--
+-- Production is exactly that database. Its January shipping.shipments still
+-- carries the check, so the upsert below failed for EVERY row and the UAT
+-- rehearsal measured shipping.shipments stuck at 41 against exchange.shipments'
+-- 71 - thirty shipments that never migrated, with no error anyone would see
+-- after the fact. On dev and on a from-nothing build nothing showed, because
+-- genesis creates the post-048 shape and there is no constraint to hit.
+--
+-- So the backfill asserts its own precondition rather than inheriting it. This
+-- is 048's statement, verbatim and idempotent; where 048 really did run it is
+-- a no-op. It touches no row, drops no column and never names exchange.
+ALTER TABLE shipping.shipments
+  DROP CONSTRAINT IF EXISTS shipments_addresses_required;
+
 DO $$
 BEGIN
   IF EXISTS (
