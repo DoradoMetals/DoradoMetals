@@ -1,6 +1,6 @@
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs'
 import path from 'node:path'
-import { domainDirs, isTransportFile } from './lib/layout.ts'
+import { domainDirs, isTransportFile, sourceRoot } from './lib/layout.ts'
 
 const ROOT = process.env.LINT_NO_COLUMN_ARRAYS_ROOT
   ? path.resolve(process.env.LINT_NO_COLUMN_ARRAYS_ROOT)
@@ -250,9 +250,10 @@ if (process.argv.includes('--self-test')) {
 }
 
 const SYNTHETIC = Boolean(process.env.LINT_NO_COLUMN_ARRAYS_ROOT)
-const rel = (f: string) => path.relative(ROOT, f).split(path.sep).join('/')
+const SRC_ROOT = sourceRoot(ROOT)
+const rel = (f: string) => path.relative(SRC_ROOT, f).split(path.sep).join('/')
 const files = ['db', ...domainDirs(ROOT)]
-  .flatMap((d) => walk(path.join(ROOT, d)))
+  .flatMap((d) => walk(path.join(SRC_ROOT, d)))
   .filter((f) => !isTransportFile(rel(f)))
 
 const TABLES_FLOOR = Number(process.env.LINT_NO_COLUMN_ARRAYS_TABLES ?? 40)

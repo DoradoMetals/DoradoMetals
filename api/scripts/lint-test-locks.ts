@@ -1,11 +1,13 @@
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs'
 import path from 'node:path'
-import { domainDirs } from './lib/layout.ts'
+import { domainDirs, sourceRoot, wildcardRoots } from './lib/layout.ts'
 import { LOCKS } from '#shared/testing/locks.ts'
 
-const ROOT = process.env.LINT_TEST_LOCKS_ROOT ?? path.resolve(import.meta.dirname, '..')
+const API_ROOT = process.env.LINT_TEST_LOCKS_ROOT ?? path.resolve(import.meta.dirname, '..')
+const ROOT = sourceRoot(API_ROOT)
 
-const GRAPH_ROOTS = ['db', ...domainDirs(ROOT)]
+const GRAPH_ROOTS = ['db', ...domainDirs(API_ROOT)]
+const ALIAS = wildcardRoots(API_ROOT)
 
 if (process.argv.includes('--self-test')) {
   const { selfTest } = await import('./lib/self-test-harness.ts')
@@ -174,7 +176,8 @@ function ownLocks(absFile: string): Set<number> {
 
 function resolveSpecifier(fromRel: string, spec: string): string | null {
   const head = /^#([^/]+)\//.exec(spec)?.[1]
-  if (head && GRAPH_ROOTS.includes(head)) return spec.slice(1)
+  const dir = head ? (ALIAS[head] ?? head) : undefined
+  if (dir && GRAPH_ROOTS.includes(dir)) return `${dir}/${spec.slice(head!.length + 2)}`
   if (spec.startsWith('.')) {
     return path
       .normalize(path.join(path.dirname(fromRel), spec))
@@ -225,7 +228,7 @@ function computeLocks(fileRel: string, visiting: Set<string> = new Set()): Set<n
 
 for (const f of graphByRel.keys()) computeLocks(f)
 
-const testFiles = walk(ROOT)
+const testFiles = walk(API_ROOT)
   .filter((f) => /\.test\.ts$/.test(f))
   .map((f) => ({ abs: f, rel: rel(f) }))
 

@@ -1,8 +1,8 @@
 // MIRRORED. The same conversion exists in the API and in the database:
-//   api/shared/utils/convertWeights.ts
+//   api/src/shared/utils/convertWeights.ts
 //   the SQL function metals.convert_to_troy_oz
 // Every price is per troy ounce, so the three disagreeing is a pricing bug.
-// api/shared/mirror.test.js fails if this file and the API's drift apart.
+// api/src/shared/tests/mirror.test.ts fails if this file and the API's drift apart.
 // convertToPounds below is frontend-only - it sizes a parcel, not a payout.
 export function convertTroyOz(num: number, unit: string): number {
   if (isNaN(num)) return 0

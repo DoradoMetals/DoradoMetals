@@ -1,10 +1,12 @@
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs'
 import path from 'node:path'
-import { domainDirs } from './lib/layout.ts'
+import { domainDirs, sourceRoot, wildcardRoots } from './lib/layout.ts'
 
-const ROOT = process.env.LINT_TEST_ACTOR_ROOT ?? path.resolve(import.meta.dirname, '..')
+const API_ROOT = process.env.LINT_TEST_ACTOR_ROOT ?? path.resolve(import.meta.dirname, '..')
+const ROOT = sourceRoot(API_ROOT)
 
-const GRAPH_ROOTS = ['db', ...domainDirs(ROOT)]
+const GRAPH_ROOTS = ['db', ...domainDirs(API_ROOT)]
+const ALIAS = wildcardRoots(API_ROOT)
 
 if (process.argv.includes('--self-test')) {
   const { selfTest } = await import('./lib/self-test-harness.ts')
@@ -70,7 +72,7 @@ if (process.argv.includes('--self-test')) {
 const SELF_TEST_MODE = process.env.LINT_TEST_ACTOR_ROOT != null
 
 function auditedTables(): Set<string> {
-  const dir = path.join(ROOT, 'migrations')
+  const dir = path.join(API_ROOT, 'migrations')
   const files = existsSync(dir)
     ? readdirSync(dir).filter((f) => /audit|stamp/i.test(f) && f.endsWith('.sql'))
     : []
@@ -157,7 +159,8 @@ function ownAudited(absFile: string): Set<string> {
 
 function resolveSpecifier(fromRel: string, spec: string): string | null {
   const head = /^#([^/]+)\//.exec(spec)?.[1]
-  if (head && GRAPH_ROOTS.includes(head)) return spec.slice(1)
+  const dir = head ? (ALIAS[head] ?? head) : undefined
+  if (dir && GRAPH_ROOTS.includes(dir)) return `${dir}/${spec.slice(head!.length + 2)}`
   if (spec.startsWith('.')) {
     return path
       .normalize(path.join(path.dirname(fromRel), spec))
@@ -248,7 +251,7 @@ function enclosingTestName(src: string, callIdx: number): string {
   return last
 }
 
-const testFiles = walk(ROOT)
+const testFiles = walk(API_ROOT)
   .filter((f) => /\.test\.ts$/.test(f))
   .map((f) => ({ abs: f, rel: rel(f) }))
 

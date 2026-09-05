@@ -3,7 +3,7 @@ import { Order } from '../orders/orders.js'
 import { Metal } from '../metals/metals.js'
 
 // The admin margin report for one purchase order. It is ROWS, not a
-// dictionary: `api/db/pricing/sql/profit_breakdown.sql` returns this whole
+// dictionary: `api/src/db/pricing/sql/profit_breakdown.sql` returns this whole
 // object as one jsonb, and nothing in TypeScript assembles it (ruling 78).
 //
 // The old shape carried a fixed `{ gold, silver, platinum, palladium }` object

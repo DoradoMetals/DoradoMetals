@@ -1,13 +1,14 @@
 import '#env'
 import fs from 'node:fs'
 import path from 'node:path'
-import { domainDirs } from './lib/layout.ts'
+import { domainDirs, sourceRoot } from './lib/layout.ts'
 import pool from '#pool'
 import { NATIVE_SCHEMAS as SCHEMAS } from './lib/schemas.ts'
 
-const ROOT = process.env.AUDIT_QP_ROOT
+const API_ROOT = process.env.AUDIT_QP_ROOT
   ? path.resolve(process.env.AUDIT_QP_ROOT)
   : path.join(import.meta.dirname, '..')
+const ROOT = sourceRoot(API_ROOT)
 const S = SCHEMAS.join('|')
 
 if (process.argv.includes('--self-test')) {
@@ -120,7 +121,7 @@ const scan = (sql, file, line) => {
   for (const g of groups) if (/\b(FROM|UPDATE|JOIN|WHERE)\b/i.test(g)) scan(g, file, line)
 }
 
-for (const f of ['db', 'shared', ...domainDirs(ROOT)]
+for (const f of ['db', 'shared', ...domainDirs(API_ROOT)]
   .filter((l) => fs.existsSync(path.join(ROOT, l)))
   .flatMap((l) => walk(path.join(ROOT, l)))) {
   const src = fs.readFileSync(f, 'utf8')

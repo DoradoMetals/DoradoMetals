@@ -1,7 +1,7 @@
 import '#env'
 import pool from '#pool'
 import * as orders from '#db/orders/repo.ts'
-import { sweepSettledIntents, sweepAbandoned } from '#payments/sweeps.ts'
+import { sweepSettledIntents, sweepAbandoned } from '#transactions/sweeps.ts'
 
 const COMMIT = process.argv.includes('--commit')
 const ttlFlag = process.argv.indexOf('--ttl-hours')

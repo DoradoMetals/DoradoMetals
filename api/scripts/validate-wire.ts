@@ -30,7 +30,7 @@ const { rows: withAddresses } = await pool.query(
    GROUP BY user_id ORDER BY count(*) DESC LIMIT 1`
 )
 const addressUser = withAddresses[0]?.user_id
-const addressesService = await import('#identity/places/addresses/service.ts')
+const addressesService = await import('#accounts/places/addresses/service.ts')
 const addressBook = async () => (addressUser ? await addressesService.list(addressUser) : [])
 add('GET /addresses', c.AddressBookEntry, addressBook)
 add('GET /addresses/:id', c.AddressBookEntry, async () => {
@@ -49,7 +49,7 @@ if (!ledgerUser) {
     throw new Error('dev has no payments.ledger rows - the ledger check would be vacuous')
   })
 } else {
-  const transactionsService = await import('#payments/transactions/service.ts')
+  const transactionsService = await import('#transactions/ledger/service.ts')
   add('GET /transactions', c.AccountTransaction, () => transactionsService.history(ledgerUser))
 }
 

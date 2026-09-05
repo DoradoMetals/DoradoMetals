@@ -16299,3 +16299,23 @@ quotes, one-call-per-line) and were fixed, not exempted:
 `pnpm check` green except the pre-existing `figma:inventory`; hook proven
 against a staged mis-formatted file. See `docs/waves/prettier.md`. Merge is
 staged, uncommitted - Jacob's to commit.
+
+## Ruling 84 executed (2026-09-07)
+
+Application code lives under `api/src/`, the nine domains under
+`api/src/domains/`. **762 files moved with `git mv`**; `scripts/`, `migrations/`,
+`tests/` and the configs stay at the api root. Three domains renamed:
+`identity` -> `accounts` (with `media/images` folded in as `accounts/images`),
+`media/{emails,pdfs}` -> `documents/{emails,pdfs}` so `media` disappears, and
+`payments` -> `transactions` with `payments/transactions/` becoming
+`transactions/ledger/`. `db/<schema>` keeps its Postgres names — ruling 77's
+split stands. `db.ts` -> `src/pool.ts`, `domains.ts` -> `src/domains/index.ts`,
+`tests-external/` -> `tests/external/`. **No URL moved** (ruling 13): the
+`router.<verb>(` census diffs empty and `route-guards` reports the same
+134 / 70 / 53 / 10 both sides. `scripts/lib/layout.ts` stays the single source of
+truth, gaining `sourceRoot()` and `wildcardRoots()`, both derived from
+`package.json` `imports` — no script names `src` or a domain by hand. Every lint
+population and floor is unchanged (measured against a `git archive HEAD` copy),
+every ACCEPTED key renamed rather than dropped, all 35 `--self-test`s green,
+coverage keys re-pointed at the SAME numbers and proved to bind. 237 test files,
+1359 tests green. Detail in `docs/waves/domains.md`.

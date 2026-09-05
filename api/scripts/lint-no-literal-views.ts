@@ -1,6 +1,6 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import path from 'node:path'
-import { domainDirs, isTransportFile } from './lib/layout.ts'
+import { domainDirs, isTransportFile, sourceRoot } from './lib/layout.ts'
 
 const DOMAINS = domainDirs(
   process.env.LINT_NO_LITERAL_VIEWS_ROOT
@@ -11,9 +11,10 @@ const ROOTS = ['db', 'shared', ...DOMAINS]
 const underDomain = (rel: string): boolean =>
   DOMAINS.some((d) => rel === d || rel.startsWith(`${d}/`))
 
-const ROOT = process.env.LINT_NO_LITERAL_VIEWS_ROOT
+const API_ROOT = process.env.LINT_NO_LITERAL_VIEWS_ROOT
   ? path.resolve(process.env.LINT_NO_LITERAL_VIEWS_ROOT)
   : path.resolve(import.meta.dirname, '..')
+const ROOT = sourceRoot(API_ROOT)
 
 const HOME = 'shared/views.ts'
 
@@ -23,17 +24,17 @@ const CRUD =
 const RESULT = 'a small result record (counts, ids) a caller reads once - it names no table row'
 
 const ACCEPTED: Record<string, { count: number; why: string }> = {
-  'checkout/adopt.ts': { count: 2, why: RESULT },
-  'checkout/sweep.ts': { count: 2, why: RESULT },
-  'media/images/service.ts': { count: 1, why: RESULT },
-  'media/pdfs/order-inputs.ts': { count: 5, why: RESULT },
-  'media/pdfs/serve.ts': { count: 4, why: RESULT },
-  'orders/place.ts': { count: 3, why: RESULT },
-  'payments/details/service.ts': { count: 2, why: CRUD },
-  'payments/sweeps.ts': { count: 2, why: RESULT },
-  'logistics/shipping/operations/resolver.ts': { count: 1, why: RESULT },
-  'logistics/shipping/services/service.ts': { count: 2, why: CRUD },
-  'logistics/shipping/shipments/service.ts': { count: 1, why: RESULT },
+  'domains/checkout/adopt.ts': { count: 2, why: RESULT },
+  'domains/checkout/sweep.ts': { count: 2, why: RESULT },
+  'domains/accounts/images/service.ts': { count: 1, why: RESULT },
+  'domains/documents/pdfs/order-inputs.ts': { count: 5, why: RESULT },
+  'domains/documents/pdfs/serve.ts': { count: 4, why: RESULT },
+  'domains/orders/place.ts': { count: 3, why: RESULT },
+  'domains/transactions/details/service.ts': { count: 2, why: CRUD },
+  'domains/transactions/sweeps.ts': { count: 2, why: RESULT },
+  'domains/logistics/shipping/operations/resolver.ts': { count: 1, why: RESULT },
+  'domains/logistics/shipping/services/service.ts': { count: 2, why: CRUD },
+  'domains/logistics/shipping/shipments/service.ts': { count: 1, why: RESULT },
 }
 
 const acceptedHit = new Map<string, number>()

@@ -290,11 +290,15 @@ pnpm workspace, Node 24, deployed on Railway from `master` with auto-deploy.
 
 ```
 api/                 @dorado/api        Express, ESM, TypeScript (Node runs .ts natively)
-  db/<schema>/         repos + sql, laid out BY POSTGRES SCHEMA
-  catalog/ checkout/ crm/ identity/ logistics/ media/ orders/ payments/ pricing/
-                       the nine domains: service, rules, routes, controller, tests together
-  domains.ts           the service barrel (`#domains`)
-  shared/ providers/ scripts/ migrations/ types/
+  src/                 ALL application code (ruling 84)
+    db/<schema>/         repos + sql, laid out BY POSTGRES SCHEMA
+    domains/             accounts/ catalog/ checkout/ crm/ documents/ logistics/
+                         orders/ pricing/ transactions/ - the nine domains:
+                         service, rules, routes, controller, tests together
+    domains/index.ts     the service barrel (`#domains`)
+    shared/ providers/ types/
+    app.ts server.ts env.ts pool.ts
+  scripts/ migrations/ tests/    tooling, SQL, cassettes + the external suite
 frontend/            @dorado/frontend   Next.js app router, TypeScript, strict. NO `features/` dir: a route's own code is `app/<route>/_src_/`, cross-route code is `shared/<kind>/` (ui, hooks, types, utils, store, providers, tests)
 packages/contracts/  @dorado/contracts  zod schemas, imported by api only
 ```
@@ -305,9 +309,10 @@ themselves (Jacob's single-source ruling, executed 2026-08-28). Frontend
 files keep local names for UI concerns and alias contract imports as
 `<Name>Contract` on collision.
 
-`api` uses subpath imports — `#db/*`, `#shared/*`, `#providers/*`, `#domains`
-and one per domain (`#catalog/*`, `#checkout/*`, `#crm/*`, `#identity/*`,
-`#logistics/*`, `#media/*`, `#orders/*`, `#payments/*`, `#pricing/*`). Never a
+`api` uses subpath imports — `#db/*`, `#shared/*`, `#providers/*`, `#domains`,
+`#pool`, `#app`, `#env` and one per domain (`#accounts/*`, `#catalog/*`,
+`#checkout/*`, `#crm/*`, `#documents/*`, `#logistics/*`, `#orders/*`,
+`#pricing/*`, `#transactions/*`), every target under `./src/`. Never a
 relative path that crosses between two of those roots.
 
 **Ruling 77 (executed 2026-09-06): `api/domain/` and `api/transport/` are
@@ -323,6 +328,24 @@ its coverage keys derive from it, so a new domain is one `imports` line and
 nothing is hand-listed. `db/<schema>` stays laid out by Postgres schema. No URL
 moved: the route census is identical before and after (136 routes, 70
 requireAdmin / 55 requireUser / 10 unguarded). See `docs/waves/domains.md`.
+
+**Ruling 84 (executed 2026-09-07): application code lives under `api/src/`,
+the nine domains under `api/src/domains/`.** Three were renamed with the move:
+`identity` -> `accounts` (and `media/images` into `accounts/images` - customer
+uploads, no other consumer), `media/{emails,pdfs}` -> `documents/{emails,pdfs}`
+so `media` disappears, and `payments` -> `transactions` with its credit-ledger
+sub-feature `payments/transactions/` becoming `transactions/ledger/`. `db/`
+keeps its SCHEMA names (`db/payments`, `db/media`): ruling 77's split is
+unchanged - database by schema, code by domain. `api/db.ts` is `src/pool.ts`,
+`api/domains.ts` is `src/domains/index.ts`, `tests-external/` is
+`tests/external/`. `scripts/`, `migrations/`, `tests/` and the configs stay at
+the api root. **No URL moved** (ruling 13): the `router.<verb>(` census is
+byte-identical before and after, and `route-guards` reports the same 134
+routes / 70 requireAdmin / 53 requireUser / 10 unguarded. `scripts/lib/layout.ts`
+is still the single source of truth - it gained `sourceRoot()` and
+`wildcardRoots()`, both DERIVED from `package.json` `imports`, so no script,
+lint or config names `src` or a domain folder by hand. See
+`docs/waves/domains.md`.
 
 ## How a feature is laid out
 

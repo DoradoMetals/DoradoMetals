@@ -1,5 +1,6 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import path from 'node:path'
+import { sourceRoot, wildcardRoots } from './lib/layout.ts'
 
 const ROOT = process.env.LINT_NO_MINTED_IDS_ROOT
   ? path.resolve(process.env.LINT_NO_MINTED_IDS_ROOT)
@@ -135,6 +136,20 @@ if (process.argv.includes('--self-test')) {
 
 const SYNTHETIC = Boolean(process.env.LINT_NO_MINTED_IDS_ROOT)
 
+// Alias -> directory, relative to the api root, so a specifier resolves to the
+// same key `rel()` produces for the file it names.
+const ALIAS: Record<string, string> = Object.fromEntries(
+  Object.entries(wildcardRoots(ROOT)).map(([name, dir]) => [
+    name,
+    path
+      .relative(ROOT, path.join(sourceRoot(ROOT), dir))
+      .split(path.sep)
+      .join('/'),
+  ])
+)
+const DB_DIR = ALIAS.db ?? 'db'
+const SHARED_DIR = ALIAS.shared ?? 'shared'
+
 const SKIP_DIRS = new Set([
   'node_modules',
   '.git',
@@ -142,7 +157,6 @@ const SKIP_DIRS = new Set([
   'migrations',
   'scripts',
   'sandbox',
-  'tests-external',
   'tests',
 ])
 
@@ -177,7 +191,7 @@ const FLOOR = Number(process.env.LINT_NO_MINTED_IDS_FLOOR ?? 200)
 if (!SYNTHETIC && allFiles.length < FLOOR) {
   console.error(
     `lint:no-minted-ids scanned ${allFiles.length} file(s), fewer than the ${FLOOR} api/ ` +
-      'actually holds outside migrations/scripts/sandbox/tests-external. The walk broke, ' +
+      'actually holds outside migrations/scripts/sandbox/tests. The walk broke, ' +
       'not the tree shrank.'
   )
   process.exit(1)
@@ -185,7 +199,7 @@ if (!SYNTHETIC && allFiles.length < FLOOR) {
 
 const eligibleFiles = allFiles.filter((f) => {
   const r = rel(f)
-  if (r.startsWith('shared/testing/')) return false
+  if (r.startsWith(`${SHARED_DIR}/testing/`)) return false
   if (r.includes('/tests/')) return false
   if (/\.test\.(ts|mjs|js)$/.test(r)) return false
   return true
@@ -227,14 +241,15 @@ for (const f of repoFiles) {
 
 const BARREL = new Map<string, string>()
 try {
-  const barrel = readFileSync(path.join(ROOT, 'db', 'index.ts'), 'utf8')
+  const barrel = readFileSync(path.join(ROOT, DB_DIR, 'index.ts'), 'utf8')
   for (const m of barrel.matchAll(/export\s+\*\s+as\s+(\w+)\s+from\s+["']#db\/([^"']+)["']/g)) {
-    BARREL.set(m[1]!, `db/${m[2]!}`)
+    BARREL.set(m[1]!, `${DB_DIR}/${m[2]!}`)
   }
 } catch {}
 
 function resolveSpecifier(fromFile: string, spec: string): string | null {
-  if (/^#[^/]+\//.test(spec)) return spec.slice(1)
+  const head = /^#([^/]+)\//.exec(spec)?.[1]
+  if (head) return `${ALIAS[head] ?? head}/${spec.slice(head.length + 2)}`
   if (spec.startsWith('.')) return path.normalize(path.join(path.dirname(fromFile), spec))
   return null
 }
@@ -268,7 +283,7 @@ function extractArgs(src: string, openParenIndex: number): { text: string; end: 
 }
 
 const ACCEPTED: Record<string, string> = {
-  'payments/service.ts::attempts.create':
+  'src/domains/transactions/service.ts::attempts.create':
     "reuses its intent's already-assigned id as this attempt's own primary key - a " +
     'deliberate shared-key extension row, not a fresh mint. Every other caller still ' +
     'gets DEFAULT gen_random_uuid() from payments.attempts.id.',
