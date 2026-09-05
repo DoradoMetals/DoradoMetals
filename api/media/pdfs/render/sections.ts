@@ -43,6 +43,12 @@ const pct = (value: number | null | undefined): string =>
 const oz = (value: number | null | undefined): string =>
   value == null ? "&mdash;" : value.toFixed(3);
 
+// A declared scrap lot with no recorded weight, purity or quantity still
+// shows what it has and never a computed total - never "NaN", never the
+// literal string "null" a bare template interpolation would print.
+export const qty = (value: number | null | undefined): string =>
+  value == null ? "-" : String(value);
+
 export function renderInvoiceHeader(
   order: OrderView,
   total: number,
@@ -368,7 +374,7 @@ export function buildPackingBullionRows(
         <tr>
           <td>${line.product_name || "Bullion Product"}</td>
           <td>${line.metal_id}</td>
-          <td>${line.quantity}</td>
+          <td>${qty(line.quantity)}</td>
           <td>${line.content ?? "-"}</td>
           <td>${total ? formatCurrency(total) : "-"}</td>
         </tr>`;
@@ -385,8 +391,8 @@ export function buildInvoiceScrapRows(
       return `
         <tr>
           <td class="text-left">${line.item_name ?? "Scrap Item"}</td>
-          <td>${line.pre_melt} ${line.unit ?? ""}</td>
-          <td>${line.post_melt ?? line.pre_melt} ${line.unit ?? ""}</td>
+          <td>${line.pre_melt ?? "-"} ${line.unit ?? ""}</td>
+          <td>${(line.post_melt ?? line.pre_melt) ?? "-"} ${line.unit ?? ""}</td>
           <td>${pct(line.purity)}</td>
           <td>${line.content != null ? `${line.content.toFixed(3)} t oz` : "&mdash;"}</td>
           <td>${pct(line.premium)}</td>
@@ -405,7 +411,7 @@ export function buildInvoiceBullionRows(
       return `
         <tr>
           <td class="text-left">${line.product_name || "Bullion Product"}</td>
-          <td>${line.quantity}</td>
+          <td>${qty(line.quantity)}</td>
           <td>${
             line.content != null
               ? `${line.content.toFixed(3)} t oz`

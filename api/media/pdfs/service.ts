@@ -12,6 +12,7 @@ import {
   buildPackingBullionRows,
   buildInvoiceScrapRows,
   buildInvoiceBullionRows,
+  qty,
 } from "#media/pdfs/render/sections.ts";
 import type { PackageDetails } from "#media/pdfs/render/sections.ts";
 import type { OrderView, OrderViewItem, OrderPricing } from "@dorado/contracts";
@@ -432,7 +433,7 @@ export function buildSalesOrderInvoiceHtml({
       (line) => `
         <tr>
           <td class="text-left">${line.product_name || "Bullion Product"}</td>
-          <td>${line.quantity}</td>
+          <td>${qty(line.quantity)}</td>
           <td>${
             line.content != null
               ? `${line.content.toFixed(3)} t oz`

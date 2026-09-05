@@ -16226,3 +16226,9 @@ marked `superseded-by-genesis`, 131 marked `runs-even-under-a-baseline`;
 `EXTRA_BACKFILLS` for 114. Full detail and the runbook: `docs/waves/production-chain.md`.
 **Open, and NOT a migration defect**: three production purchase orders (259, 272,
 328) render a packing list containing `NaN` — `media/pdfs`, its own lane.
+
+**CLOSED (2026-09-05): it was never a null-column bug.** The `NaN` was a
+coincidental byte match inside the base64 FedEx label image the packing list
+embeds, not a broken number — verified against all 72 orders in `chain6`.
+Fixed in the test's detector and four separately-real "prints the word null"
+cells; see `docs/waves/packing-list-nan.md`.

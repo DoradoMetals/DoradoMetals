@@ -8,6 +8,8 @@ import * as inputs from "#media/pdfs/order-inputs.ts";
 import * as pricing from "#pricing/index.ts";
 import { formatCurrency } from "#media/pdfs/render/format.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
+import { inRollback } from "#shared/testing/rollback.ts";
+import { aUser, anOrder } from "#shared/testing/builders/index.ts";
 import type { PoolClient } from "pg";
 import type { OrderPricing, OrderView } from "@dorado/contracts";
 
@@ -44,6 +46,18 @@ afterAll(async () => {
   await closeBrowser();
   await pool.end();
 });
+
+// A packing list and a return packing list embed the FedEx label as a base64
+// PNG inside an <img> tag. Base64 is 64 arbitrary characters per byte-and-a-
+// bit of binary pixel data - a 13KB label has good odds of containing "NaN"
+// as pure coincidence somewhere in that noise, with no numeric column, no
+// arithmetic and no rendering defect behind it (verified against a rebuilt
+// production copy: orders 259, 272 and 328 each carry a label whose base64
+// happens to contain "NaN" inside the <img> tag, and NOWHERE ELSE in any of
+// the 72 orders' rendered text). A bare `.includes("NaN")` cannot tell that
+// apart from an actual broken number, so it must not look inside the image.
+const hasNaN = (html: string): boolean =>
+  html.replace(/<img\b[^>]*>/g, "").includes("NaN");
 
 const isPdf = (buf: Uint8Array, what: string) => {
   assert.ok(buf instanceof Uint8Array, `${what} did not return bytes`);
@@ -102,7 +116,7 @@ test("every purchase order in dev builds both documents", async () => {
         if (typeof html !== "string" || html.length < 500) {
           failures.push(`order ${order.order.number}: ${name} built ${html?.length ?? 0} chars`);
         }
-        if (typeof html === "string" && html.includes("NaN")) {
+        if (typeof html === "string" && hasNaN(html)) {
           failures.push(`order ${order.order.number}: ${name} contains NaN`);
         }
       } catch (err) {
@@ -127,14 +141,14 @@ test("a packing list with no package details draws no box, rather than a broken 
   const own = await inputsFor(order);
 
   const html = pdf.buildPackingListHtml(own);
-  assert.ok(!html.includes("NaN"), "the packing list contains NaN");
+  assert.ok(!hasNaN(html), "the packing list contains NaN");
   assert.ok(!html.includes("<svg"), "a box was drawn from dimensions that do not exist");
 
   const withBox = pdf.buildPackingListHtml(
     Object.assign({ package: { label: "Small Box", length: 9, width: 6, height: 2 } }, own)
   );
   assert.ok(withBox.includes("<svg"), "no box was drawn for a real package");
-  assert.ok(!withBox.includes("NaN"), "a real package produced NaN coordinates");
+  assert.ok(!hasNaN(withBox), "a real package produced NaN coordinates");
   assert.ok(withBox.includes("Length: 9 in"), "the dimensions are not printed");
 });
 
@@ -200,4 +214,67 @@ test("every order item appears as a row in the packing list", async () => {
     }
   }
   assert.deepEqual(missing, []);
+});
+
+// Reproduces the exact shape of production orders 259, 272 and 328: a scrap
+// line declared with no weight, purity, content or quantity recorded yet.
+// docs/waves/packing-list-nan.md has the full finding - the columns render
+// clean today (pct()/oz()/"-" already guarded them); this pins that contract
+// so it stays true, on all three documents, not just the packing list.
+test("a scrap line with no recorded weight, purity or quantity shows a dash, never NaN or the word null", async () => {
+  await inRollback(async (c: PoolClient) => {
+    const user = await aUser(c);
+    const order = await anOrder(c, user, { direction: "purchase" }).withLines({
+      metal_id: "Gold",
+      pre_melt: null,
+      post_melt: null,
+      purity: null,
+      content: null,
+      premium: null,
+      quantity: null,
+      unit: "g",
+    });
+
+    const own = await inputs.invoiceInputs(order.id, c);
+    const documents: Array<[string, string]> = [
+      ["packing list", pdf.buildPackingListHtml(own)],
+      ["invoice", pdf.buildInvoiceHtml(own)],
+      ["return packing list", pdf.buildReturnPackingListHtml(own)],
+    ];
+
+    for (const [name, html] of documents) {
+      assert.ok(!hasNaN(html), `${name} contains NaN for a null-shaped scrap line`);
+      assert.ok(!/>\s*null\s*</.test(html), `${name} prints the literal word "null"`);
+    }
+
+    assert.ok(
+      documents[0][1].includes("<td>- g</td>"),
+      "the packing list does not show the declared weight as a dash"
+    );
+    assert.ok(
+      documents[1][1].includes(">- g</td>"),
+      "the invoice does not show pre-melt and post-melt as dashes"
+    );
+  });
+});
+
+// The check itself is what let 259/272/328 go unnoticed as false positives:
+// a bare substring scan cannot tell a coincidental "NaN" inside a base64
+// label from a genuinely broken number.
+test("the NaN detector ignores base64 image bytes but still catches a broken number", () => {
+  const withCoincidentalLabel = `
+    <html><body>
+      <table><tr><td>$1,234.00</td></tr></table>
+      <div style="page-break-before: always;">
+        <img src="data:image/png;base64,aGVsbG9NaNvd29ybGQ=" alt="Shipping Label" />
+      </div>
+    </body></html>
+  `;
+  assert.ok(
+    !hasNaN(withCoincidentalLabel),
+    "a coincidental NaN inside a base64 label falsely failed the check"
+  );
+
+  const withRealBug = withCoincidentalLabel.replace("$1,234.00", "$NaN");
+  assert.ok(hasNaN(withRealBug), "a genuine NaN in rendered text was not caught");
 });
