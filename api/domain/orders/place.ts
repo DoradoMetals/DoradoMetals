@@ -169,12 +169,13 @@ async function placeSale(
   );
   const cents = rules.chargeCents(prices.post_charges_amount);
   const intent = cents > 0 ? await openIntentFor(checkout.user_id, cents) : null;
+  const status = rules.statusAtPlacement(cents, intent?.settled === true);
 
   const lines = rules.pricedSaleLines(cart, priced, (line) => calculateItemAsk(line, spots));
 
   const order_id = await withTransaction(async (tx) => {
     const id = await writeOrder(
-      checkout, rules.statusAtPlacement(cents, intent?.settled === true), cart,
+      checkout, status, cart,
       (order, client) => orderItems.createSold(order, checkout.id, lines, client),
       tx
     );
@@ -208,6 +209,7 @@ async function placeSale(
   });
 
   if (intent && !intent.settled) await world.authorize(intent.payment_intent_id, cents);
+  if (rules.confirmsAtPlacement(status)) await world.confirm(order_id);
   return order_id;
 }
 

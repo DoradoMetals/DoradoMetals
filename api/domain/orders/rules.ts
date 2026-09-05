@@ -142,6 +142,10 @@ export function statusAtPlacement(cents: number, alreadySucceeded: boolean): str
   return cents > 0 && !alreadySucceeded ? "Pending" : "Preparing";
 }
 
+export function confirmsAtPlacement(status: string): boolean {
+  return status !== "Pending";
+}
+
 export function attachmentVerdict(
   intent: Partial<Pick<PaymentIntentFacts, "order_id" | "direction" | "payment_status">>
 ): "proceed" | "supersede" | "conflict" {
