@@ -17,15 +17,15 @@ export function Stat({ label, value, format, size = "default", trend, align = "l
   const centered = align === "center";
   return (
     <div className={cn("flex flex-col gap-1", centered ? "items-center text-center" : "items-start", className)}>
-      <span className="text-small tracking-wider text-muted-foreground">{label}</span>
+      <small>{label}</small>
       <span className={cn("flex items-center gap-2", centered && "justify-center")}>
-        <span className={cn("text-foreground", size === "default" ? "stat" : "stat-sm")}>
+        <span className={size === "default" ? "stat" : "stat-sm"}>
           {typeof value === "number" ? <Amount value={value} format={format} /> : value}
         </span>
         {trend && (
           <span
             className={cn(
-              "text-micro font-medium tabular-nums",
+              "micro tabular-nums",
               trend.direction === "up" ? "text-success" : "text-destructive"
             )}
           >

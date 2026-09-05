@@ -55,9 +55,17 @@ describe("QuantityStepper", () => {
 
   it("the default border is border/border (132:1016), not the field input token", () => {
     const { getByRole } = render(<QuantityStepper value={2} onChange={() => {}} />);
-    const group = getByRole("group");
+    const group = getByRole("spinbutton");
     expect(group.className).toContain("border-border");
     expect(group.className).not.toContain("border-input");
+  });
+
+  it("the group carries spinbutton semantics with aria-valuenow (132:1016)", () => {
+    const { getByRole } = render(<QuantityStepper value={2} onChange={() => {}} min={1} max={9} />);
+    const group = getByRole("spinbutton");
+    expect(group.getAttribute("aria-valuenow")).toBe("2");
+    expect(group.getAttribute("aria-valuemin")).toBe("1");
+    expect(group.getAttribute("aria-valuemax")).toBe("9");
   });
 
   it("the value text uses the theme's small size token, not Tailwind's default text-sm", () => {
@@ -68,7 +76,7 @@ describe("QuantityStepper", () => {
 
   it("disabled reads as a muted fill, not an opacity fade", () => {
     const { getByRole } = render(<QuantityStepper value={2} onChange={() => {}} disabled />);
-    const group = getByRole("group");
+    const group = getByRole("spinbutton");
     expect(group.className).toContain("bg-muted");
     expect(group.className).not.toContain("opacity-50");
     const input = getByRole("textbox") as HTMLInputElement;

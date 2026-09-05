@@ -35,6 +35,16 @@ describe("Input", () => {
     expect(input.className).toContain("disabled:text-foreground-disabled");
   });
 
+  it("disabled dims the label to foreground-disabled too (26:391)", () => {
+    const { getByText } = render(<Input label="Weight" disabled />);
+    expect(getByText("Weight").className).toContain("text-foreground-disabled");
+  });
+
+  it("value text binds to size/h5, not size/body (26:391, 2026-09-04)", () => {
+    const { getByLabelText } = render(<Input label="Weight" />);
+    expect((getByLabelText("Weight") as HTMLInputElement).className).toContain("text-h5");
+  });
+
   it("a number field hides its spinners and asks for the decimal keypad", () => {
     const { getByLabelText } = render(<Input label="Weight" type="number" />)
     const el = getByLabelText("Weight") as HTMLInputElement

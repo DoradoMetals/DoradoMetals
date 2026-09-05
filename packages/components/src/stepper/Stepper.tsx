@@ -30,7 +30,7 @@ export function Stepper({ steps, current, className }: StepperProps) {
               )}
             >
               {state === "complete" ? (
-                <Check aria-hidden className="size-3" strokeWidth={3} />
+                <Check aria-hidden className="size-3.5" strokeWidth={(2 * 14) / 24} />
               ) : (
                 i + 1
               )}

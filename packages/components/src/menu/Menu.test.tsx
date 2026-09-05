@@ -63,11 +63,13 @@ describe("Menu", () => {
     expect(item.className).not.toContain("text-sm ");
   });
 
-  it("group label is eyebrow-styled; shortcut carries no extra tracking", () => {
+  it("group label is eyebrow-styled (packages/theme/typography.css .eyebrow), not raw utilities", () => {
     const { getByText } = openMenu();
     const label = getByText("Order PO-2189");
-    expect(label.className).toContain("font-mono");
-    expect(label.className).toContain("tracking-widest");
+    expect(label.className).toContain("eyebrow");
+    expect(label.className).toContain("text-placeholder");
+    expect(label.className).not.toContain("font-mono");
+    expect(label.className).not.toContain("tracking-widest");
     const shortcut = getByText("⌘E");
     expect(shortcut.className).toContain("text-micro");
     expect(shortcut.className).not.toContain("tracking-widest");

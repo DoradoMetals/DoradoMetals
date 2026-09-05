@@ -37,7 +37,7 @@ export function Avatar({ className, size, shape, src, alt, fallback, children, .
       {src && (
         <AvatarPrimitive.Image src={src} alt={alt} className="size-full object-cover" />
       )}
-      <AvatarPrimitive.Fallback className="flex size-full items-center justify-center font-medium text-foreground">
+      <AvatarPrimitive.Fallback className="flex size-full items-center justify-center text-foreground">
         {fallback ?? children}
       </AvatarPrimitive.Fallback>
     </AvatarPrimitive.Root>

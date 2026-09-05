@@ -11,12 +11,15 @@ export type TrackerStepData = {
   state: TrackerStepState;
 };
 
+export type TrackerOrientation = "vertical" | "horizontal";
+
 export type TrackerProps = {
   steps: TrackerStepData[];
   trackingNumber?: React.ReactNode;
   etaLabel?: React.ReactNode;
   eta?: React.ReactNode;
   header?: boolean;
+  orientation?: TrackerOrientation;
   className?: string;
 };
 
@@ -69,11 +72,17 @@ function TrackerNode({ state }: { state: TrackerStepState }) {
   );
 }
 
+function resolveStepText(step: TrackerStepData) {
+  const isUpcoming = step.state === "upcoming";
+  return {
+    location: isUpcoming ? (step.location ?? "Pending") : step.location,
+    timestamp: isUpcoming ? "—" : step.timestamp,
+  };
+}
+
 function TrackerRow({ step, connector }: { step: TrackerStepData; connector: boolean }) {
   const { label, state } = step;
-  const isUpcoming = state === "upcoming";
-  const location = isUpcoming ? (step.location ?? "Pending") : step.location;
-  const timestamp = isUpcoming ? "—" : step.timestamp;
+  const { location, timestamp } = resolveStepText(step);
 
   return (
     <li aria-current={state === "current" ? "step" : undefined} className="flex w-full items-start gap-sm">
@@ -82,7 +91,7 @@ function TrackerRow({ step, connector }: { step: TrackerStepData; connector: boo
         {connector && <span aria-hidden className={cn("w-0.5 min-h-px flex-1", CONNECTOR_STYLES[state])} />}
       </span>
       <span className={cn("flex min-w-0 flex-1 flex-col gap-3xs", connector && "pb-lg")}>
-        <span className={cn("w-full text-small font-medium", LABEL_STYLES[state])}>{label}</span>
+        <small className={cn("w-full", LABEL_STYLES[state])}>{label}</small>
         {location != null && <span className={cn("w-full text-micro", META_STYLES[state])}>{location}</span>}
       </span>
       {timestamp != null && (
@@ -94,12 +103,55 @@ function TrackerRow({ step, connector }: { step: TrackerStepData; connector: boo
   );
 }
 
+function TrackerRail({ steps }: { steps: TrackerStepData[] }) {
+  return (
+    <ol aria-label="Shipment timeline" className="flex w-full items-start">
+      {steps.map((step, i) => {
+        const isFirst = i === 0;
+        const isLast = i === steps.length - 1;
+        const { location, timestamp } = resolveStepText(step);
+        return (
+          <li
+            key={i}
+            aria-current={step.state === "current" ? "step" : undefined}
+            className={cn(
+              "flex flex-col gap-2xs",
+              isFirst && "shrink-0 items-start",
+              isLast && "shrink-0 items-end",
+              !isFirst && !isLast && "min-w-0 flex-1 items-center"
+            )}
+          >
+            <span className="flex w-full items-center">
+              {!isFirst && (
+                <span aria-hidden className={cn("h-0.5 min-w-px flex-1", CONNECTOR_STYLES[steps[i - 1].state])} />
+              )}
+              <TrackerNode state={step.state} />
+              {!isLast && <span aria-hidden className={cn("h-0.5 min-w-px flex-1", CONNECTOR_STYLES[step.state])} />}
+            </span>
+            <span
+              className={cn(
+                "flex w-full flex-col gap-3xs",
+                isFirst ? "items-start text-left" : isLast ? "items-end text-right" : "items-center text-center"
+              )}
+            >
+              <small className={LABEL_STYLES[step.state]}>{step.label}</small>
+              {location != null && <span className={cn("text-micro", META_STYLES[step.state])}>{location}</span>}
+              {timestamp != null && <span className={cn("text-micro", META_STYLES[step.state])}>{timestamp}</span>}
+            </span>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 export function Tracker({
   steps,
   trackingNumber,
   etaLabel = "ETA",
   eta,
   header = true,
+  orientation = "vertical",
   className,
 }: TrackerProps) {
   return (
@@ -109,22 +161,26 @@ export function Tracker({
           {trackingNumber != null && (
             <span className="flex flex-col gap-3xs">
               <span className="text-micro text-muted-foreground">Tracking #</span>
-              <span className="text-small font-medium text-foreground">{trackingNumber}</span>
+              <small data-emphasis="default">{trackingNumber}</small>
             </span>
           )}
           {eta != null && (
             <span className="flex flex-col items-end gap-3xs text-right">
               <span className="text-micro text-muted-foreground">{etaLabel}</span>
-              <span className="text-small font-medium text-foreground">{eta}</span>
+              <small data-emphasis="default">{eta}</small>
             </span>
           )}
         </div>
       )}
-      <ol aria-label="Shipment timeline" className="flex w-full flex-col items-start">
-        {steps.map((step, i) => (
-          <TrackerRow key={i} step={step} connector={i < steps.length - 1} />
-        ))}
-      </ol>
+      {orientation === "horizontal" ? (
+        <TrackerRail steps={steps} />
+      ) : (
+        <ol aria-label="Shipment timeline" className="flex w-full flex-col items-start">
+          {steps.map((step, i) => (
+            <TrackerRow key={i} step={step} connector={i < steps.length - 1} />
+          ))}
+        </ol>
+      )}
     </div>
   );
 }

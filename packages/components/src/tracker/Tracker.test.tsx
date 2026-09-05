@@ -84,4 +84,51 @@ describe("Tracker", () => {
     );
     expect(getByText("Delivery Exception").className).toContain("text-destructive");
   });
+
+  describe("Orientation=Horizontal (597:108, rebuilt 2026-09-04): a single rail, markers evenly spaced", () => {
+    it("is a single rail: first stage flush left, last stage flush right, middles grow to fill", async () => {
+      const { container } = render(<Tracker steps={steps} orientation="horizontal" header={false} />);
+      const stages = container.querySelectorAll('[aria-label="Shipment timeline"] > li');
+      expect(stages.length).toBe(4);
+      expect(stages[0].className).toContain("items-start");
+      expect(stages[0].className).not.toContain("flex-1");
+      expect(stages[stages.length - 1].className).toContain("items-end");
+      expect(stages[stages.length - 1].className).not.toContain("flex-1");
+      expect(stages[1].className).toContain("flex-1");
+      expect(stages[1].className).toContain("items-center");
+      expect(await axeViolations(container)).toEqual([]);
+    });
+
+    it("the first stage has no left connector, the last has no right connector", () => {
+      const { container } = render(<Tracker steps={steps} orientation="horizontal" header={false} />);
+      const stages = container.querySelectorAll('[aria-label="Shipment timeline"] > li');
+      const firstRail = stages[0].querySelector(":scope > span")!;
+      expect(firstRail.querySelectorAll('span[aria-hidden="true"].h-0\\.5').length).toBe(1);
+      const lastRail = stages[stages.length - 1].querySelector(":scope > span")!;
+      expect(lastRail.querySelectorAll('span[aria-hidden="true"].h-0\\.5').length).toBe(1);
+    });
+
+    it("a connector segment's colour comes from the state on its travelled side, same law as Vertical", () => {
+      const { container } = render(<Tracker steps={steps} orientation="horizontal" header={false} />);
+      const stages = container.querySelectorAll('[aria-label="Shipment timeline"] > li');
+      const inTransitRail = stages[1].querySelector(":scope > span")!;
+      const [left, right] = inTransitRail.querySelectorAll('span[aria-hidden="true"].h-0\\.5');
+      expect(left.className).toContain("bg-primary");
+      expect(right.className).toContain("bg-border-strong");
+    });
+
+    it("Pending/em-dash apply on Horizontal too - the rule is per state, not per orientation", () => {
+      const { getByText, getAllByText } = render(
+        <Tracker steps={[{ label: "Delivered", state: "upcoming" }]} orientation="horizontal" header={false} />,
+      );
+      expect(getByText("Pending")).toBeTruthy();
+      expect(getAllByText("—").length).toBe(1);
+    });
+
+    it("marks the current stage for AT with aria-current, same as Vertical", () => {
+      const { container } = render(<Tracker steps={steps} orientation="horizontal" header={false} />);
+      const current = container.querySelector('[aria-current="step"]') as HTMLElement;
+      expect(current.textContent).toContain("In Transit");
+    });
+  });
 });

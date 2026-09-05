@@ -56,16 +56,19 @@ export function Alert({ intent = "neutral", title, children, icon, onDismiss, cl
     >
       {icon !== false && (
         <span className={cn("mt-[2px] shrink-0", TITLE[intent])}>
-          {icon ?? <DefaultIcon aria-hidden className="size-4" />}
+          {icon ?? <DefaultIcon aria-hidden className="size-7" />}
         </span>
       )}
-      <span className="flex min-w-0 flex-1 flex-col gap-0.5 text-small">
-        <span className={cn("font-medium", TITLE[intent])}>{title}</span>
-        {children != null && <span className="text-muted-foreground">{children}</span>}
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <small className={TITLE[intent]}>{title}</small>
+        {children != null && (
+          <small data-emphasis={intent === "neutral" ? undefined : "default"}>{children}</small>
+        )}
       </span>
       {onDismiss && (
         <Button
           variant="tertiary"
+          intent={intent}
           size="iconXs"
           aria-label="Dismiss"
           className="-mr-1 shrink-0 self-center"

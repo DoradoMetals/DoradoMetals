@@ -21,7 +21,7 @@ export function Chip({ label, selected = false, onDismiss, icon, avatar, count, 
       aria-pressed={selected}
       disabled={disabled}
       className={cn(
-        "inline-flex h-8 cursor-pointer items-center gap-1 rounded-full px-3 text-small font-medium transition-colors",
+        "inline-flex h-8 cursor-pointer items-center gap-1 rounded-full px-3 text-small transition-colors",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background",
         "disabled:pointer-events-none disabled:opacity-50",
         selected

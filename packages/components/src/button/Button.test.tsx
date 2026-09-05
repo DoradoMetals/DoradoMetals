@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { render } from '@testing-library/react'
 import * as React from 'react'
 
+import { ArrowLeft } from '@dorado/icons'
 import { Button, buttonVariants } from './Button'
 import { cn } from '../cn'
 import { axeViolations } from '../test/axe'
@@ -102,5 +103,19 @@ describe('rendered Button', () => {
     expect(rendered({ variant: 'tertiary' })).toContain('text-subtle')
     expect(rendered({ variant: 'tertiary', intent: 'danger' })).toContain('text-destructive')
     expect(rendered({ variant: 'secondary' })).not.toContain('text-subtle')
+  })
+
+  it('icon-only sizes match Icon Button 457:75, not the labeled tier: SM 32/16, Default 40/20', () => {
+    expect(rendered({ size: 'iconSm' })).toContain('[&_svg]:size-4')
+    expect(rendered({ size: 'icon' })).toContain('[&_svg]:size-5')
+  })
+
+  it('icon stroke weight is scale-true, 2 x (size/24), for every icon tier', () => {
+    const { container: sm } = render(<Button size="sm" icon={ArrowLeft}>Go</Button>)
+    const { container: def } = render(<Button icon={ArrowLeft}>Go</Button>)
+    const { container: lg } = render(<Button size="lg" icon={ArrowLeft}>Go</Button>)
+    expect(sm.querySelector('svg')?.getAttribute('stroke-width')).toBe(String((2 * 14) / 24))
+    expect(def.querySelector('svg')?.getAttribute('stroke-width')).toBe(String((2 * 16) / 24))
+    expect(lg.querySelector('svg')?.getAttribute('stroke-width')).toBe(String((2 * 20) / 24))
   })
 })

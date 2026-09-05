@@ -23,15 +23,9 @@ export function Banner({ label, eyebrow, title, description, action, className }
       )}
     >
       <span className="flex flex-col gap-3xs">
-        {eyebrow != null && (
-          <span className="font-mono text-micro font-medium uppercase tracking-widest text-placeholder">
-            {eyebrow}
-          </span>
-        )}
-        <span className="text-h4 font-semibold text-foreground">{title}</span>
-        {description != null && (
-          <span className="text-small text-muted-foreground">{description}</span>
-        )}
+        {eyebrow != null && <span className="eyebrow text-placeholder">{eyebrow}</span>}
+        <h4>{title}</h4>
+        {description != null && <small>{description}</small>}
       </span>
       {action != null && <span className="shrink-0">{action}</span>}
     </section>

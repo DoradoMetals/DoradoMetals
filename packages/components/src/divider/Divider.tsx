@@ -29,7 +29,7 @@ export function Divider({
     return (
       <div className={cn("flex items-center gap-sm", className)} {...semantics} {...props}>
         <span aria-hidden className="h-px min-w-px flex-1 bg-border" />
-        <span className="shrink-0 text-micro text-muted-foreground">{label}</span>
+        <span className="micro shrink-0">{label}</span>
         <span aria-hidden className="h-px min-w-px flex-1 bg-border" />
       </div>
     );

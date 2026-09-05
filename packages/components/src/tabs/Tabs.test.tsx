@@ -34,4 +34,36 @@ describe("Tabs", () => {
     fireEvent.mouseDown(getByRole("tab", { name: "Sell" }), { button: 0 });
     expect(getByRole("tabpanel").textContent).toBe("Sell panel");
   });
+
+  it("underline (Tab Bar / Underline 160:45): a single sliding rail segment, not a per-trigger border", () => {
+    const { getByRole, container } = renderTabs();
+    const tablist = getByRole("tablist");
+    expect(tablist.className).toMatch(/border-b border-border/);
+
+    const indicator = container.querySelector('[aria-hidden="true"]');
+    expect(indicator).toBeTruthy();
+    expect(indicator?.className).toMatch(/bg-primary/);
+    expect(indicator?.className).toMatch(/transition-\[left,width\]/);
+    expect(indicator?.className).toMatch(/motion-reduce:transition-none/);
+
+    const sell = getByRole("tab", { name: "Sell" });
+    expect(sell.className).not.toMatch(/border-b-2/);
+    fireEvent.focus(sell);
+    expect(container.querySelector('[aria-hidden="true"]')).toBeTruthy();
+  });
+
+  it("boxed variant carries no sliding rail", () => {
+    const { container, getByRole } = render(
+      <Tabs defaultValue="buy">
+        <TabsList variant="boxed">
+          <TabsTrigger value="buy">Buy</TabsTrigger>
+          <TabsTrigger value="sell">Sell</TabsTrigger>
+        </TabsList>
+        <TabsContent value="buy">Buy panel</TabsContent>
+        <TabsContent value="sell">Sell panel</TabsContent>
+      </Tabs>,
+    );
+    expect(getByRole("tablist").className).toMatch(/bg-muted/);
+    expect(container.querySelector('[aria-hidden="true"]')).toBe(null);
+  });
 });

@@ -17,7 +17,7 @@ export function Slider({ className, "aria-label": ariaLabel, "aria-labelledby": 
       {...props}
     >
       <SliderPrimitive.Track className="relative h-1 w-full grow overflow-hidden rounded-full bg-muted">
-        <SliderPrimitive.Range className="absolute h-full rounded-full bg-primary" />
+        <SliderPrimitive.Range className="absolute h-full rounded-full bg-primary data-[disabled]:bg-border-strong" />
       </SliderPrimitive.Track>
       <SliderPrimitive.Thumb
         aria-label={ariaLabel}

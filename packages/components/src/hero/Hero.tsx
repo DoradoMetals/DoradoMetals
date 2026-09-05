@@ -11,10 +11,10 @@ export type HeroProps = {
 
 export function Hero({ sellerCount }: HeroProps) {
   return (
-    <section className="flex flex-col items-center gap-5 bg-background px-6 py-16 text-center sm:p-24">
+    <section className="flex flex-col items-center gap-md bg-background px-6 py-16 text-center sm:p-3xl">
       <Badge>Live spot pricing, locked at checkout</Badge>
 
-      <h1 className="max-w-2xl text-balance text-h1 font-semibold text-foreground sm:text-display">
+      <h1 className="max-w-2xl text-balance">
         Sell your precious metals without the guesswork
       </h1>
 

@@ -46,7 +46,10 @@ export { AreaChart, BarChart, DonutChart, LineChart, Sparkline, type Series } fr
 export { DataTable, type DataTableProps, type DataTableColumn, type DataTableColumnMeta } from "./data-table/DataTable";
 export { EmptyState, type EmptyStateProps } from "./empty-state/EmptyState";
 export { Hero, type HeroProps } from "./hero/Hero";
+export { Header, type HeaderProps } from "./header/Header";
+export { Footer, type FooterProps, type FooterColumn } from "./footer/Footer";
 export { Marquee, type MarqueeProps } from "./marquee/Marquee";
+export { MarqueeItem, type MarqueeItemProps } from "./marquee/MarqueeItem";
 export { MaskedField, type MaskedFieldProps, type MaskKind } from "./masked-field/MaskedField";
 export { Paperwork, type PaperworkProps, type PaperworkDocument, type PaperworkDocumentState } from "./paperwork/Paperwork";
 export { ScrollArea, ScrollBar, type ScrollAreaProps } from "./scroll-area/ScrollArea";

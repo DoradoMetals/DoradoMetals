@@ -29,7 +29,7 @@ const Progress = React.forwardRef<
   )
   if (!showValue) return bar
   return (
-    <span className="flex w-full items-center gap-2.5">
+    <span className="flex w-full items-center gap-2">
       {bar}
       <span aria-hidden className="shrink-0 text-micro tabular-nums text-placeholder">
         {Math.round(clamped)}%

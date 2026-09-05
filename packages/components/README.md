@@ -45,14 +45,19 @@ Audited 2026-09-03 against file `8A73quhBLBqotJlX95jN9j`.
 | Chip | 32:121 | Spinner | 32:191 |
 | DataTable | 56:82 | Stat | 53:39 |
 | DatePicker | 104:438 | Stepper | 54:74 |
-| Dialog | 41:55 | Swiper | 59:63 |
+| Dialog | 41:55 | Carousel | 59:63, Swiper usage 626:3 |
 | EmptyState | 127:49 | Switch | 17:14 |
-| Field | 106:213 | Table | 56:82 |
+| Field | 106:213 (Figma page calls it Popover, renamed 2026-08-31) | Table | 56:82 |
 | Hero | 163:35 | Tabs | 39:23 |
 | Input | 26:391 | Textarea | 37:63 |
 | Link | 26:513 | Tooltip | 32:177 |
 | List | 97:35 | Upload | 349:340 |
-| Paperwork | 549:63 | Tracker | 546:10 |
+| Paperwork | 549:63 | Tracker | 597:108 |
+| Footer | 76:177 | Header | 51:58 |
+| Radio | 15:27, Tile 31:59, Chip 31:78, Card 99:119 | | |
+| Amount | 612:12 | Banner | 125:4 |
+| Divider | 431:15 | Drawer | 127:32 |
+| Pagination | 132:966, Page Item 132:965 | | |
 
 Chart's five sub-drawings: Bar 57:36, Line 57:60, Area 140:961, Donut 140:964,
 Sparkline 140:968.
@@ -78,27 +83,87 @@ because DatePicker's own props take them.
 
 Tracker composes Tracker Step (542:1417) and Tracker Node (541:14); Paperwork
 composes Paperwork Row (548:41). Both keep their row components internal.
+ScrollArea composes Scrollbar (320:16) the same way.
+
+**Tracker was recorded at 546:10, which is now the Orientation=Vertical variant
+only.** The audited node was renamed/promoted 2026-09-04: 597:108 is the actual
+Tracker component with an Orientation axis (Vertical/Horizontal), and 546:10's
+own description is now just "Orientation=Vertical" - identical content, narrower
+scope. REVISED 2026-09-04 (Jacob): Horizontal was REBUILT as a single rail -
+markers evenly spaced, first flush left and last flush right, connectors filling
+between them, text in one block under each marker (ends aligned outward, middles
+centred). Code had no Horizontal orientation at all before this pass; it now
+takes `orientation="horizontal" | "vertical"` and renders the rail via the same
+per-step colour law as Vertical (a stage's own state colours the connector
+leaving it; the next stage's left half is the same colour). "Pending" for an
+unscanned location and an em dash for its time apply on both orientations now.
 
 ## Known defects in the Figma file, not in this code
 
-- **Attachment (40:54) is damaged.** Its three `Layout=Row` variants (343:2,
-  343:11, 343:20) sit at exactly the same x and y as the three `Layout=Card`
-  variants (40:19, 40:36, 40:53), so the frame renders every label twice and
-  looks bolded. The variants are correctly named and their specs read fine
-  individually, so the code is right; the canvas is what needs fixing.
+- **Attachment's (40:54) `Layout=Row`/`Layout=Card` overlap is FIXED, not
+  outstanding.** This entry previously said the three Row variants (343:2,
+  343:11, 343:20) sat on top of the three Card ones (40:19, 40:36, 40:53) and
+  drew every label twice. Verified 2026-09-04 against a fresh pull: the
+  component's own description now says "LAYOUT FIXED 2026-09-03: ... Card is
+  now the left column, Row the right, states down the rows." Nothing in code
+  changed because nothing in code was wrong; the canvas caught up.
 - **Attachment's remove icon is FINE, and a first reading said otherwise.**
   Every variant's remove button sets `Leading icon` to 226:12, which resolves to
   `trash-2`. The layer is merely still NAMED `arrow-left`, inherited from
   Button's default icon slot, and the design-context output shows that stale
   layer name rather than the swapped component. Renaming those six layers would
   stop the next audit making the same mistake.
-- **The Hero headline is not bound to a text style.** It is typed raw at 44px
-  while the Display style, which names `--text-display` outright, is 64px.
+- **The Hero headline entry above is stale; it was fixed 2026-09-03.** This
+  used to say the headline was typed raw at 44px against Display's 64px.
+  Jacob's own call ("change the hero") landed it on Heading/H1 (36px) instead -
+  "every text node in the file is now on a ramp style." Code carried a
+  `sm:text-display` escalation left over from the old assumption; removed
+  2026-09-04, headline is `text-h1` at every size now.
+- **Hero's column gap and frame padding read as off-token in prose that the
+  frame itself no longer matches.** The description still says gap 20 (Scale
+  has md 16, lg 24) and frame padding 96 (Scale stops at 3xl 64), but the
+  current frame's own layer values are `spacing-md` (16) and `spacing-3xl` (64)
+  - both real tokens. Code had literally been written to the STALE numbers
+  (`gap-5`=20, `sm:p-24`=96); fixed 2026-09-04 to `gap-md` and `sm:p-3xl`.
+- **Hero's eyebrow is described as "a bordered pill (Badge outline language)"
+  but both the frame and the code render Badge's default Soft treatment** (a
+  translucent fill, no border). Resolved in favour of the frame + code, which
+  agree with each other; the prose is what's stale.
 - **Two descriptions disagree with their own frames.** EmptyState's says a 32px
   glyph where the frame measures 64px; Link's says a 10px icon where the frame
   measures 12px. Both were resolved in favour of the frame.
 - **Chip's description mentions a 7px X**, which matches no token and no
   rendered geometry. Treated as stale prose.
+- **Dialog's (41:55) drawn "Cancel" button is bordered - Secondary's box, not
+  Tertiary's bare text - while the description calls it "Tertiary/Neutral to
+  dismiss."** Not a code issue: `DialogFooter` is a layout shell and the
+  buttons inside it are call-site composition, so there is nothing here to fix
+  against a contradiction in the drawing itself. Reported, not guessed.
+- **Dialog Overlay's (64:517) own layer values contradict its own prose.** The
+  description says an 8px blur over a 70% background scrim, but the raw frame
+  bakes in `backdrop-blur-[4px]` and a fully opaque `bg-background` with no
+  alpha at all. Code is written to the PROSE (8px / 70%), which is also the
+  more specific, dated, and internally consistent of the two - the frame reads
+  like it predates a later blur-radius correction that never got re-drawn.
+- **Icon Button's (457:75) Default size doesn't balance.** SM checks out - a
+  32px box, 8px padding each side, 16px icon, 8+16+8=32. Default does not: a
+  40px box with the drawn 12px padding (spacing/sm) leaves only 16px for an
+  icon the description says is 20px - 12+20+12=44, four pixels over the frame.
+  Either the padding token or the icon size is wrong in Figma; not reachable
+  from a padding-based read, so Button's `icon`/`iconSm` cva sizes were set
+  from the description's plain-language sizes (SM 16, Default 20) rather than
+  back-computed from the padding.
+- **Menu Item's (132:18) drawn hover fill uses `--secondary`, not `--accent`.**
+  Every other "quiet hover" surface in this file and in this codebase (Field's
+  option, Table's row, Chip, Calendar, Accordion, tertiary Button) uses
+  `--accent`, and Menu Item's own prose says "same quiet-hover language ... as
+  tertiary Button." `--secondary` and `--accent` happen to be the same hex
+  today, so nothing renders wrong yet; treated as a stale colour pick in the
+  frame rather than a reason to introduce the only `bg-secondary` hover in the
+  package.
+- **Breadcrumb's (126:16) description claims "Code counterpart exists
+  (base/breadcrumb)."** Searched the whole repo; no such file exists anywhere,
+  under any name. Breadcrumb has no code counterpart - see below.
 
 ## The library cannot absorb the app yet
 
@@ -126,8 +191,8 @@ agent's opinion.
   search, row click and column visibility.
 - **Nothing exists for** drawer, form, separator, popover, rating, command,
   lens, radio group, pagination or breadcrumb. Figma has pages for Divider,
-  Drawer, Radio, Pagination and Breadcrumb, plus Banner, Icon Button, Loader,
-  Header and Footer, none of which is built.
+  Drawer, Radio, Pagination and Breadcrumb, plus Banner, Icon Button and
+  Loader, none of which is built.
 
 Two smaller ones found the same day: `FloatingLabelInput` and
 `FloatingLabelTextarea` in the app reference `text-error` and `border-error`,

@@ -44,4 +44,9 @@ describe("Select", () => {
     expect(trigger.className).toContain("disabled:text-foreground-disabled");
     expect(trigger.className).not.toContain("opacity-50");
   });
+
+  it("the trigger binds to size/h5, not size/body (38:75, 2026-09-04)", () => {
+    const { getByRole } = render(<Select label="Method" items={items} />);
+    expect(getByRole("combobox").className).toContain("text-h5");
+  });
 });

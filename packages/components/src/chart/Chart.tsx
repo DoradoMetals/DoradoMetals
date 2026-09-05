@@ -91,7 +91,7 @@ export function LineChart({ labels, series, label, title, className, area = fals
             datasets: series.map((s, i) => ({
               ...s,
               borderColor: i === 0 ? C.info : C.mutedForeground,
-              backgroundColor: area ? "rgba(250,250,250,0.08)" : "transparent",
+              backgroundColor: area ? "color-mix(in srgb, var(--color-primary) 8%, transparent)" : "transparent",
               fill: area,
               borderWidth: 1.5,
               pointRadius: i === 0 ? s.data.map((_, idx) => (idx === last ? 4 : 0)) : 0,
@@ -126,7 +126,7 @@ export function BarChart({ labels, series, label, title, className }: ChartBaseP
                 i === 0
                   ? s.data.map((_, idx) => (idx === s.data.length - 1 ? C.primary : C.borderStrong))
                   : C.mutedForeground,
-              borderRadius: 4,
+              borderRadius: { topLeft: 4, topRight: 4, bottomLeft: 0, bottomRight: 0 },
             })),
           }}
         />
@@ -161,7 +161,7 @@ export function Sparkline({
 }: { data: number[]; label: string; className?: string }) {
   const up = data.length > 1 && data[data.length - 1] >= data[0];
   return (
-    <div className={cn("relative h-10 w-28", className)}>
+    <div className={cn("relative h-10 w-30", className)}>
       <Line
         aria-label={label}
         role="img"

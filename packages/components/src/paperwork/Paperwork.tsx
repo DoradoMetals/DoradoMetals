@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Download, FileText } from "@dorado/icons";
 
+import { Accordion } from "../accordion/Accordion";
 import { Button } from "../button/Button";
 import { cn } from "../cn";
 
@@ -18,6 +19,9 @@ export type PaperworkDocument = {
 
 export type PaperworkProps = {
   documents: PaperworkDocument[];
+  open?: boolean;
+  onToggle?: () => void;
+  defaultOpen?: boolean;
   className?: string;
 };
 
@@ -79,18 +83,19 @@ function PaperworkRow({ doc }: { doc: PaperworkDocument }) {
   );
 }
 
-export function Paperwork({ documents, className }: PaperworkProps) {
+export function Paperwork({ documents, open, onToggle, defaultOpen = true, className }: PaperworkProps) {
   const isEmpty = documents.length === 0;
 
   return (
-    <div className={cn("flex w-full flex-col rounded-lg border border-border bg-card", className)}>
-      <div className="flex w-full items-center justify-between p-sm">
-        <span className="text-h6 font-semibold text-foreground">Paperwork</span>
-        <span className="text-micro text-muted-foreground">
-          {isEmpty ? "None yet" : `${documents.length} document${documents.length === 1 ? "" : "s"}`}
-        </span>
-      </div>
-      <div aria-hidden className="h-px w-full bg-border" />
+    <Accordion
+      label="Paperwork"
+      trailing={isEmpty ? "None yet" : `${documents.length} document${documents.length === 1 ? "" : "s"}`}
+      chevron="leading"
+      open={open}
+      onToggle={onToggle}
+      defaultOpen={defaultOpen}
+      className={className}
+    >
       {isEmpty ? (
         <div className="flex w-full flex-col items-center gap-xs px-lg py-xl text-center">
           <FileText aria-hidden className="size-8 text-muted-foreground" />
@@ -106,6 +111,6 @@ export function Paperwork({ documents, className }: PaperworkProps) {
           ))}
         </ul>
       )}
-    </div>
+    </Accordion>
   );
 }

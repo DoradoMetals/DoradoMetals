@@ -54,7 +54,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
           aria-invalid={invalid || undefined}
           aria-describedby={message != null ? messageId : undefined}
           className={cn(
-            "min-h-24 w-full resize-y rounded-lg border border-border bg-card px-3 py-2 text-body text-foreground outline-none transition-colors",
+            "min-h-24 w-full resize-y rounded-lg border border-border bg-card px-3 py-2 text-h5 text-foreground outline-none transition-colors",
             "placeholder:text-placeholder focus-visible:border-primary",
             invalid && "border-destructive",
             success && "border-success",
@@ -62,27 +62,21 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
           )}
           {...props}
         />
-        {(message != null || showCount) && (
-          <span className="flex items-baseline justify-between gap-2">
-            {showCount ? (
-              <span className={cn("text-micro", over ? "text-destructive" : "text-muted-foreground")}>
-                {count}
-                {maxLength != null && ` / ${maxLength}`}
-              </span>
-            ) : (
-              <span />
+        {message != null && (
+          <p
+            id={messageId}
+            className={cn(
+              "text-micro w-full",
+              invalid ? "text-destructive" : success ? "text-success" : "text-muted-foreground"
             )}
-            {message != null && (
-              <p
-                id={messageId}
-                className={cn(
-                  "text-micro",
-                  invalid ? "text-destructive" : success ? "text-success" : "text-muted-foreground"
-                )}
-              >
-                {message}
-              </p>
-            )}
+          >
+            {message}
+          </p>
+        )}
+        {showCount && (
+          <span className={cn("text-micro w-full text-right", over ? "text-destructive" : "text-muted-foreground")}>
+            {count}
+            {maxLength != null && ` / ${maxLength}`}
           </span>
         )}
       </div>

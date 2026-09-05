@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ArrowDownWideNarrow, ArrowUpDown, ArrowUpNarrowWide } from "@dorado/icons";
+import { ArrowDownWideNarrow, ArrowUpDown, ArrowUpNarrowWide, Funnel } from "@dorado/icons";
 import { cn } from "../cn";
 
 export function Table({ className, ...props }: React.TableHTMLAttributes<HTMLTableElement>) {
@@ -78,6 +78,8 @@ export function TableHead({
   sorted,
   onSort,
   filter,
+  filtered,
+  onFilter,
   children,
   ...props
 }: React.ThHTMLAttributes<HTMLTableCellElement> & {
@@ -85,6 +87,8 @@ export function TableHead({
   sorted?: SortDirection;
   onSort?: () => void;
   filter?: React.ReactNode;
+  filtered?: boolean;
+  onFilter?: () => void;
 }) {
   const sortable = onSort != null;
   const SortIcon = sorted === "asc" ? ArrowUpNarrowWide : sorted === "desc" ? ArrowDownWideNarrow : ArrowUpDown;
@@ -112,6 +116,17 @@ export function TableHead({
           </button>
         ) : (
           children
+        )}
+        {onFilter && (
+          <button
+            type="button"
+            onClick={onFilter}
+            aria-pressed={filtered ?? false}
+            aria-label="Filter"
+            className="inline-flex cursor-pointer items-center text-muted-foreground hover:text-foreground aria-pressed:text-foreground"
+          >
+            <Funnel aria-hidden className="size-3" />
+          </button>
         )}
         {filter}
       </span>
