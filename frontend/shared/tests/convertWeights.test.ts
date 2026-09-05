@@ -1,6 +1,6 @@
 // Weight conversion, which exists three times.
 //
-// This file, `api/shared/utils/convertWeights.js`, and the SQL function
+// This file, `api/src/shared/utils/convertWeights.ts`, and the SQL function
 // `metals.convert_to_troy_oz`. Every scrap line's content is a weight, and
 // content times spot times premium is what a customer gets paid, so the three
 // disagreeing is a pricing bug rather than a tidiness problem.

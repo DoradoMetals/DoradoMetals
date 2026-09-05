@@ -1,10 +1,11 @@
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs'
 import { join, relative } from 'node:path'
-import { domainDirs } from './lib/layout.ts'
+import { domainDirs, sourceRoot, wildcardRoots } from './lib/layout.ts'
 
-const ROOT = process.env.ROUTE_GUARDS_ROOT
+const API_ROOT = process.env.ROUTE_GUARDS_ROOT
   ? process.env.ROUTE_GUARDS_ROOT.replace(/\/?$/, '/')
   : new URL('..', import.meta.url).pathname
+const ROOT = sourceRoot(API_ROOT)
 
 if (process.argv.includes('--self-test')) {
   const { selfTest } = await import('./lib/self-test-harness.ts')
@@ -126,7 +127,8 @@ function walk(dir: string, out: string[] = []): string[] {
   return out
 }
 
-const DOMAINS = domainDirs(ROOT)
+const DOMAINS = domainDirs(API_ROOT)
+const ALIAS = wildcardRoots(API_ROOT)
 const DOMAIN_DIRS = DOMAINS.map((d) => join(ROOT, d)).filter((d) => existsSync(d))
 if (!existsSync(join(ROOT, 'app.ts')) || !DOMAIN_DIRS.length) {
   console.error(
@@ -143,17 +145,19 @@ const routerImports = (src: string): Map<string, string> => {
   const def = /import\s+(\w+)\s+from\s+["']#([^/"']+)\/([^"']+?)\.(?:js|ts)["']/g
   let m
   while ((m = def.exec(src))) {
-    if (!DOMAINS.includes(m[2])) continue
-    if (/(^|[\/.])routes$/.test(m[3])) out.set(m[1], `${m[2]}/${m[3]}`)
+    const dir = ALIAS[m[2]]
+    if (!dir || !DOMAINS.includes(dir)) continue
+    if (/(^|[\/.])routes$/.test(m[3])) out.set(m[1], `${dir}/${m[3]}`)
   }
   const named = /import\s+\{([^}]+)\}\s+from\s+["']#([^/"']+)\/([^"']+?)\.(?:js|ts)["']/g
   while ((m = named.exec(src))) {
-    if (!DOMAINS.includes(m[2]) || !/routes$/.test(m[3])) continue
+    const dir = ALIAS[m[2]]
+    if (!dir || !DOMAINS.includes(dir) || !/routes$/.test(m[3])) continue
     for (const raw of m[1].split(',')) {
       const parts = raw.trim().split(/\s+as\s+/)
       const exported = parts[0].trim()
       const local = (parts[1] ?? parts[0]).trim()
-      if (exported) out.set(local, `${m[2]}/${m[3]}::${exported}`)
+      if (exported) out.set(local, `${dir}/${m[3]}::${exported}`)
     }
   }
   return out

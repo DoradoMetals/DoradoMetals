@@ -1,15 +1,16 @@
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs'
 import path from 'node:path'
-import { domainDirs, isTransportFile } from './lib/layout.ts'
+import { domainDirs, isTransportFile, sourceRoot } from './lib/layout.ts'
 
 const API_ROOT = process.env.LINT_NO_THROW_ROOT
   ? path.resolve(process.env.LINT_NO_THROW_ROOT)
   : path.join(import.meta.dirname, '..')
 
-const DOMAIN_ROOTS = domainDirs(API_ROOT).map((d) => path.join(API_ROOT, d))
+const SRC_ROOT = sourceRoot(API_ROOT)
+const DOMAIN_ROOTS = domainDirs(API_ROOT).map((d) => path.join(SRC_ROOT, d))
 
 const ACCEPTED: Record<string, { count: number; why: string }> = {
-  'logistics/fulfillments/owner.ts': {
+  'domains/logistics/fulfillments/owner.ts': {
     count: 1,
     why:
       'a transport helper, not a domain file - it takes an express Request and ' +
@@ -162,7 +163,7 @@ if (process.argv.includes('--self-test')) {
 }
 
 const SYNTHETIC = Boolean(process.env.LINT_NO_THROW_ROOT)
-const rel = (f: string) => path.relative(API_ROOT, f).split(path.sep).join('/')
+const rel = (f: string) => path.relative(SRC_ROOT, f).split(path.sep).join('/')
 const files = DOMAIN_ROOTS.flatMap((d) => walk(d)).filter((f) => !isTransportFile(rel(f)))
 
 if (!DOMAIN_ROOTS.some((d) => existsSync(d)) || files.length === 0) {

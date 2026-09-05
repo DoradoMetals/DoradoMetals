@@ -1,8 +1,9 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import path from 'node:path'
-import { domainDirs } from './lib/layout.ts'
+import { domainDirs, sourceRoot, wildcardRoots } from './lib/layout.ts'
 
-const ROOT = process.env.AUDIT_SILENT_ROOT ?? path.resolve(import.meta.dirname, '..')
+const API_ROOT = process.env.AUDIT_SILENT_ROOT ?? path.resolve(import.meta.dirname, '..')
+const ROOT = sourceRoot(API_ROOT)
 
 if (process.argv.includes('--self-test')) {
   const { selfTest } = await import('./lib/self-test-harness.ts')
@@ -73,9 +74,9 @@ if (process.argv.includes('--self-test')) {
 const FAIL_ON_FINDINGS = process.env.AUDIT_SILENT_ROOT != null
 
 const ACCEPTED: Record<string, string> = {
-  'checkout/service.ts::checkouts.clearFor':
+  'domains/checkout/service.ts::checkouts.clearFor':
     'a user with no basket in that direction has nothing to clear, and sql/clear_for.sql keys on (user_id, direction) precisely so the read-then-branch this replaced is gone: zero rows is the correct outcome, exactly as the early return it replaced was.',
-  'pricing/sales-tax/service.ts::tax.accrue':
+  'domains/pricing/sales-tax/service.ts::tax.accrue':
     'scoped to `reached_nexus = true`, and sql/accrue.sql says so in its own ' +
     'header: a state below its threshold accrues nothing, so an UPDATE matching ' +
     'no row is the correct outcome and not a failure. The legacy implementation ' +
@@ -105,7 +106,8 @@ function walk(dir: string, out: string[] = []): string[] {
   return out
 }
 
-const LAYERS = ['db', ...domainDirs(ROOT)]
+const LAYERS = ['db', ...domainDirs(API_ROOT)]
+const ALIAS = wildcardRoots(API_ROOT)
 const files = LAYERS.flatMap((layer) => walk(path.join(ROOT, layer)))
 const rel = (f: string) => path.relative(ROOT, f)
 
@@ -172,7 +174,8 @@ try {
 
 function resolveSpecifier(fromFile: string, spec: string): string | null {
   const head = /^#([^/]+)\//.exec(spec)?.[1]
-  if (head && LAYERS.includes(head)) return spec.slice(1)
+  const dir = head ? (ALIAS[head] ?? head) : undefined
+  if (dir && LAYERS.includes(dir)) return `${dir}/${spec.slice(head!.length + 2)}`
   if (spec.startsWith('.')) {
     return path.normalize(path.join(path.dirname(fromFile), spec))
   }

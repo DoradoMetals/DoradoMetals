@@ -231,3 +231,99 @@ failure. 233 test files, 1327 tests, 1 skipped, green.
 - **`identity/authorization/tests/admin-routes.test.ts` still imports
   `../../../scripts/route-guards.ts` relatively.** It did before; the depth is
   unchanged (3 either way) so it still resolves.
+
+## Ruling 84 (executed 2026-09-07): `api/src/` and `api/src/domains/`
+
+Jacob, 2026-09-07: application code moves under `api/src/`, the nine domains
+under `api/src/domains/`, and three of them are renamed. `identity` ->
+`accounts`, with `media/images` folded in as `accounts/images` (customer
+uploads, no other consumer); `media/{emails,pdfs}` -> `documents/{emails,pdfs}`
+so `media` disappears; `payments` -> `transactions`, and inside it the
+credit-ledger sub-feature `payments/transactions/` becomes `transactions/ledger/`
+so the name does not stutter. `db/<schema>` keeps its Postgres schema names
+(`db/payments`, `db/media` stay) — ruling 77's split is unchanged. `api/db.ts`
+became `src/pool.ts`, `api/domains.ts` became `src/domains/index.ts`,
+`api/types/` became `src/types/`, `tests-external/` became `tests/external/`;
+`scripts/`, `migrations/`, `tests/`, `vitest.config.ts`, `tsconfig.json`,
+`package.json` and both Dockerfiles stay at the api root.
+
+**762 files moved, all with `git mv`** (95 of them also edited). 86 files had specifiers rewritten by
+script from the RESOLVED old target, never by text substitution — alias renames
+(`#identity` -> `#accounts`, `#media/{images,emails,pdfs}` ->
+`#accounts/images` / `#documents/*`, `#payments/transactions` ->
+`#transactions/ledger`, `#payments` -> `#transactions`) plus every relative
+specifier whose depth changed. `grep` for `#identity`, `#media/`, `#payments/`
+or `tests-external` finds nothing outside this file's own history.
+
+**No URL moved** (ruling 13). The `app.use("/api…")` + `router.<verb>(`/
+`router.use(` inventory is byte-identical before and after — 143 lines, `diff`
+empty — and `route-guards` agrees from the other side: **134 routes, 70
+requireAdmin, 53 requireUser, 10 unguarded**, before and after.
+
+**The layout still has ONE source of truth.** `scripts/lib/layout.ts` gained
+`sourceRoot(root)` and `wildcardRoots(root)`, both DERIVED from `package.json`
+`imports`: `sourceRoot` returns `<root>/src` when every import target is under
+`./src/` and the root itself otherwise (which is what keeps every lint's
+fixture tree working unchanged), and `wildcardRoots` maps an alias to its
+directory, which is what the specifier resolvers in `lint-test-locks`,
+`lint-test-actor`, `audit-silent-mutations` and `lint-no-minted-ids` now use
+instead of assuming the alias name IS the folder name. `domainDirs()` returns
+`domains/<name>`, relative to the source root. Nothing hardcodes `src` or a
+domain folder.
+
+### Populations and floors: UNCHANGED, measured both sides
+
+Baselines taken by running each lint from a `git archive HEAD` copy of the
+pre-move tree. Every number is identical:
+
+| lint | before -> after |
+|---|---|
+| `lint-domain-boundaries` | 50 files / 3 lanes, both |
+| `lint-pricing-owner` | 303 files, both |
+| `lint-type-homes` | 137 files, 14 accepted, both |
+| `lint-no-throw-in-services` | 72 files, 1 accepted, both |
+| `lint-domain-errors` | 90 files, both |
+| `lint-one-catch` | 167 files, both |
+| `lint-no-column-arrays` | 137 files, both |
+| `lint-no-literal-views` | 267 files, 11 accepted, both |
+| `lint-db-calls` | 116 calls in 409 files, both |
+| `lint-input-shapes` | 90 domain files, 15 builders, both |
+| `lint-row-vs-list` | 8 calls checked, both |
+| `lint-test-locks` | 214 modules, 239 test files, 106 calls, both |
+| `lint-test-actor` | 214 modules, 239 test files, 148 calls, both |
+| `lint-no-dictionaries` | 72 files, both |
+| `lint-no-minted-ids` | 266 files, 46 repos, 39 create-shaped exports, both |
+| `audit-silent-mutations` | 14 discarded, 0 unobservable, 2 accepted, both |
+| `route-guards` | 134 routes, both |
+
+No floor moved. Every ACCEPTED key was RENAMED, never removed:
+`media/pdfs/serve.ts` -> `domains/documents/pdfs/serve.ts`,
+`payments/details/service.ts` -> `domains/transactions/details/service.ts`,
+`identity/auth/anonymous.ts` -> `domains/accounts/auth/anonymous.ts`, and so on.
+All 35 `--self-test`s green (`lint:script-guards` runs them).
+
+### Coverage
+
+The three threshold keys became `src/db/**`, `src/shared/**` and
+`src/{domains/…}/**` at the SAME numbers (88/74/94/94, 80/74/86/83,
+86/73/89/88). Proved to bind by setting each to 99 and watching vitest name the
+glob it failed against; measured statements are 92.83 / 84.28 / 87.64.
+237 test files, 1359 tests, 1 skipped, green.
+
+### Changed beyond the move
+
+- `src/env.ts` reads `../.env` — `api/.env` did NOT move, and this is the one
+  path where getting the depth wrong would have loaded no environment at all.
+- `scripts/lib/test-layers.ts` excludes `tests/external` by relative path now
+  that the old `tests-external` directory name is gone.
+- `shared/http/tests/endpoints.test.ts` resolves a URL to a routes file by
+  trying the segments with AND without the first one: the first segment is the
+  MOUNT name, and `/api/payments/methods` is served by
+  `domains/transactions/methods/` now that mount and folder no longer share a
+  name.
+- `authorization/tests/admin-routes.test.ts` resolves a controller through
+  `wildcardRoots()` rather than by stripping the `#` off the specifier.
+- Dockerfile/Dockerfile.dev `CMD` run `src/server.ts`; `package.json` `main`,
+  `dev`, `start`, `test:external` and `test:record` follow their files.
+  `docker build` was NOT run — no daemon in this environment; the paths were
+  changed by reading both files.

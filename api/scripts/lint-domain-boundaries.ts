@@ -1,5 +1,6 @@
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs'
 import path from 'node:path'
+import { domainDirs, sourceRoot } from './lib/layout.ts'
 
 const ROOT = process.env.LINT_DOMAIN_BOUNDARIES_ROOT
   ? path.resolve(process.env.LINT_DOMAIN_BOUNDARIES_ROOT)
@@ -8,6 +9,14 @@ const ROOT = process.env.LINT_DOMAIN_BOUNDARIES_ROOT
 const CONTRACTS = existsSync(path.join(ROOT, 'contracts'))
   ? path.join(ROOT, 'contracts')
   : path.join(ROOT, '..', 'packages', 'contracts', 'src')
+
+const SRC_ROOT = sourceRoot(ROOT)
+const DOMAIN_DIR = new Map(domainDirs(ROOT).map((d) => [path.basename(d), d]))
+// A lane is named by its domain; where that domain lives is the manifest's answer.
+const laneDir = (dir: string): string => {
+  const [head, ...rest] = dir.split('/')
+  return path.join(SRC_ROOT, DOMAIN_DIR.get(head!) ?? head!, ...rest)
+}
 
 const LANES: { dir: string; forbidden: string[]; why: string }[] = [
   {
@@ -28,7 +37,7 @@ const LANES: { dir: string; forbidden: string[]; why: string }[] = [
 ]
 
 const ACCEPTED: Record<string, { count: number; why: string }> = {
-  'orders/service.ts': {
+  'domains/orders/service.ts': {
     count: 10,
     why:
       'the ADMIN cancel and the hand-entered tracking number. `cancel` takes ' +
@@ -39,7 +48,7 @@ const ACCEPTED: Record<string, { count: number; why: string }> = {
       "logistics/shipping's own service, so the parcel's columns are still " +
       "shipping's to write - what is named here is the admin's INPUT.",
   },
-  'orders/rules.ts': {
+  'domains/orders/rules.ts': {
     count: 1,
     why:
       '`OrderActions.buy_label` and `update_tracking` are answered from the ' +
@@ -373,12 +382,12 @@ if (!SYNTHETIC) {
   }
 }
 
-const rel = (f: string) => path.relative(ROOT, f).split(path.sep).join('/')
+const rel = (f: string) => path.relative(SRC_ROOT, f).split(path.sep).join('/')
 
 let scanned = 0
 const byFile = new Map<string, Finding[]>()
 for (const lane of LANES) {
-  for (const file of walk(path.join(ROOT, lane.dir))) {
+  for (const file of walk(laneDir(lane.dir))) {
     scanned += 1
     const found = findingsIn(rel(file), readFileSync(file, 'utf8'), lane.forbidden, lane.why)
     if (found.length) byFile.set(rel(file), found)

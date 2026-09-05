@@ -1,13 +1,14 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { domainDirs, isTransportFile } from './lib/layout.ts'
+import { domainDirs, isTransportFile, sourceRoot } from './lib/layout.ts'
 
 const ROOT = process.env.LINT_DOMAIN_ERRORS_ROOT
   ? path.resolve(process.env.LINT_DOMAIN_ERRORS_ROOT)
   : path.join(import.meta.dirname, '..')
 
-const ROOTS = domainDirs(ROOT).map((d) => path.join(ROOT, d))
-const rel = (f: string) => path.relative(ROOT, f).split(path.sep).join('/')
+const SRC_ROOT = sourceRoot(ROOT)
+const ROOTS = domainDirs(ROOT).map((d) => path.join(SRC_ROOT, d))
+const rel = (f: string) => path.relative(SRC_ROOT, f).split(path.sep).join('/')
 
 if (process.argv.includes('--self-test')) {
   const { selfTest } = await import('./lib/self-test-harness.ts')

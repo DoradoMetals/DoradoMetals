@@ -6,7 +6,7 @@ import query from '#shared/db/query.ts'
 import * as checkoutService from '#checkout/service.ts'
 import * as fulfillmentDrafts from '#logistics/fulfillments/drafts.ts'
 import * as fulfillmentService from '#logistics/fulfillments/service.ts'
-import * as addressService from '#identity/places/addresses/service.ts'
+import * as addressService from '#accounts/places/addresses/service.ts'
 import { place } from '#orders/place.ts'
 
 const world = {

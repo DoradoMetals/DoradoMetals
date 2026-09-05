@@ -1,12 +1,13 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { domainDirs } from './lib/layout.ts'
+import { domainDirs, sourceRoot } from './lib/layout.ts'
 
 const API_ROOT = process.env.LINT_ONE_CATCH_ROOT
   ? path.resolve(process.env.LINT_ONE_CATCH_ROOT)
   : path.join(import.meta.dirname, '..')
 
-const WALK_ROOTS = domainDirs(API_ROOT).map((d) => path.join(API_ROOT, d))
+const SRC_ROOT = sourceRoot(API_ROOT)
+const WALK_ROOTS = domainDirs(API_ROOT).map((d) => path.join(SRC_ROOT, d))
 
 if (process.argv.includes('--self-test')) {
   const { selfTest } = await import('./lib/self-test-harness.ts')
@@ -272,7 +273,7 @@ if (files.length < FLOOR) {
   process.exit(1)
 }
 
-const rel = (f: string) => path.relative(API_ROOT, f)
+const rel = (f: string) => path.relative(SRC_ROOT, f)
 const problems: string[] = []
 
 for (const file of files) {

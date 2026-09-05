@@ -1,6 +1,6 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import path from 'node:path'
-import { domainDirs, isTransportFile } from './lib/layout.ts'
+import { domainDirs, isTransportFile, sourceRoot } from './lib/layout.ts'
 
 const ROOT = process.env.LINT_PRICING_OWNER_ROOT
   ? path.resolve(process.env.LINT_PRICING_OWNER_ROOT)
@@ -9,9 +9,16 @@ const ROOT = process.env.LINT_PRICING_OWNER_ROOT
 const OWNER = 'pricing'
 const PUBLIC_ENTRY = '#pricing/index.ts'
 
+const SRC_ROOT = sourceRoot(ROOT)
+const OWNER_DIR = domainDirs(ROOT).find((d) => path.basename(d) === OWNER) ?? OWNER
+const OWNER_PATH = path.relative(ROOT, path.join(SRC_ROOT, OWNER_DIR)).split(path.sep).join('/')
+
 const MONEY = ['price', 'premium', 'content', 'spot', 'ask', 'bid', 'fee', 'tax']
 
-const SCANNED = ['db', 'shared', 'providers', 'scripts', ...domainDirs(ROOT)]
+const SCANNED = [
+  ...['db', 'shared', 'providers', ...domainDirs(ROOT)].map((d) => path.join(SRC_ROOT, d)),
+  path.join(ROOT, 'scripts'),
+]
 
 const ACCEPTED: Record<string, { count: number; why: string }> = {}
 
@@ -248,9 +255,9 @@ let scanned = 0
 const byFile = new Map<string, Finding[]>()
 
 for (const dir of SCANNED) {
-  for (const file of walk(path.join(ROOT, dir))) {
+  for (const file of walk(dir)) {
     const name = rel(file)
-    if (name.startsWith(`${OWNER}/`)) continue
+    if (name.startsWith(`${OWNER_PATH}/`)) continue
     scanned += 1
     const found = findingsIn(readFileSync(file, 'utf8'))
     if (found.length) byFile.set(name, found)

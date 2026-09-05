@@ -1,12 +1,13 @@
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs'
 import path from 'node:path'
-import { domainDirs, isTransportFile } from './lib/layout.ts'
+import { domainDirs, isTransportFile, sourceRoot } from './lib/layout.ts'
 
 const ROOT = process.env.LINT_INPUT_SHAPES_ROOT ?? path.resolve(import.meta.dirname, '..', '..')
 const API_DIR = path.join(ROOT, 'api')
-const DOMAIN_ROOTS = domainDirs(API_DIR).map((d) => path.join(API_DIR, d))
-const DB_ROOT = path.join(ROOT, 'api', 'db')
-const BUILDERS_ROOT = path.join(ROOT, 'api', 'shared', 'testing', 'builders')
+const SRC_DIR = sourceRoot(API_DIR)
+const DOMAIN_ROOTS = domainDirs(API_DIR).map((d) => path.join(SRC_DIR, d))
+const DB_ROOT = path.join(SRC_DIR, 'db')
+const BUILDERS_ROOT = path.join(SRC_DIR, 'shared', 'testing', 'builders')
 const CONTRACTS_ROOT = path.join(ROOT, 'packages', 'contracts', 'src')
 
 const ACCEPTED: Record<string, string> = {
@@ -255,7 +256,7 @@ function reachableColumns(
 
 function checkInputShapes(lines: string[]): { findings: number; inScope: number; scanned: number } {
   const files = DOMAIN_ROOTS.flatMap((d) => walk(d)).filter(
-    (f) => !isTransportFile(path.relative(API_DIR, f))
+    (f) => !isTransportFile(path.relative(SRC_DIR, f))
   )
   const suffix = /(Create|New|Patch|Input|Body)$/
   let findings = 0,

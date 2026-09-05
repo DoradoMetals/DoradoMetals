@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { domainDirs, importMap, isTransportFile } from '../layout.ts'
+import { domainDirs, importMap, isTransportFile, sourceRoot } from '../layout.ts'
 
 const API = path.resolve(import.meta.dirname, '..', '..', '..')
 
@@ -39,28 +39,33 @@ test('db, shared and providers are layers, not domains', () => {
   assert.deepEqual(domainDirs(root), [])
 })
 
-test("the api's own manifest yields the nine domains of ruling 77", () => {
+test("the api's own manifest yields the nine domains of ruling 84", () => {
   assert.deepEqual(domainDirs(API), [
-    'catalog',
-    'checkout',
-    'crm',
-    'identity',
-    'logistics',
-    'media',
-    'orders',
-    'payments',
-    'pricing',
+    'domains/accounts',
+    'domains/catalog',
+    'domains/checkout',
+    'domains/crm',
+    'domains/documents',
+    'domains/logistics',
+    'domains/orders',
+    'domains/pricing',
+    'domains/transactions',
   ])
 })
 
 test('every domain dir named by the manifest exists on disk', () => {
-  for (const dir of domainDirs(API)) assert.ok(fs.existsSync(path.join(API, dir)), dir)
+  for (const dir of domainDirs(API)) assert.ok(fs.existsSync(path.join(sourceRoot(API), dir)), dir)
+})
+
+test('sourceRoot is derived from the manifest, not hardcoded per caller', () => {
+  assert.equal(sourceRoot(API), path.join(API, 'src'))
+  assert.equal(sourceRoot(tree({ '#orders/*': './orders/*' })).endsWith('src'), false)
 })
 
 test('importMap carries the exact specifiers alongside the wildcards', () => {
   const map = importMap(API)
-  assert.equal(map['#domains'], './domains.ts')
-  assert.equal(map['#db'], './db/index.ts')
+  assert.equal(map['#domains'], './src/domains/index.ts')
+  assert.equal(map['#db'], './src/db/index.ts')
 })
 
 test('isTransportFile is the role the transport folder used to encode', () => {

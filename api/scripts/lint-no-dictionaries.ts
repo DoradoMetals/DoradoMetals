@@ -18,7 +18,7 @@
 
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import path from 'node:path'
-import { domainDirs, isTransportFile } from './lib/layout.ts'
+import { domainDirs, isTransportFile, sourceRoot } from './lib/layout.ts'
 
 const ROOT = process.env.LINT_NO_DICTIONARIES_ROOT
   ? path.resolve(process.env.LINT_NO_DICTIONARIES_ROOT)
@@ -31,7 +31,7 @@ const SYNTHETIC = Boolean(process.env.LINT_NO_DICTIONARIES_ROOT)
 // ways: a new dictionary in an accepted file fails, and a fixed one forces the
 // entry out.
 const ACCEPTED: Record<string, { count: number; why: string }> = {
-  'identity/auth/anonymous.ts': {
+  'domains/accounts/auth/anonymous.ts': {
     count: 2,
     why: "better-auth's own plugin contract - the { data: user } hook shape and the plugin object are the library's, not ours",
   },
@@ -372,9 +372,10 @@ if (process.argv.includes('--self-test')) {
   })
 }
 
-const rel = (f: string) => path.relative(ROOT, f).split(path.sep).join('/')
+const SRC_ROOT = sourceRoot(ROOT)
+const rel = (f: string) => path.relative(SRC_ROOT, f).split(path.sep).join('/')
 const files = domainDirs(ROOT)
-  .flatMap((d) => walk(path.join(ROOT, d)))
+  .flatMap((d) => walk(path.join(SRC_ROOT, d)))
   .filter((f) => !isTransportFile(rel(f)) && path.basename(f) !== 'rules.ts')
 
 const FLOOR = Number(process.env.LINT_NO_DICTIONARIES_FLOOR ?? 72)

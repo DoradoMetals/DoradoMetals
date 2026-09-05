@@ -9,7 +9,7 @@ import type { Lead, LeadPatch } from '@dorado/contracts'
 // The create body, as the API's own statement takes it.
 
 // The update body's `patch`: the ten columns leads.update() writes
-// (api/db/leads/repo.ts PATCHABLE), now the contract's own export.
+// (api/src/db/leads/repo.ts PATCHABLE), now the contract's own export.
 
 // *** NOT A CONTRACT, AND DELIBERATELY SO - D103's second arm. ***
 //

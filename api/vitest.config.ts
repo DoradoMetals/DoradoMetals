@@ -1,8 +1,8 @@
 import { defineConfig } from 'vitest/config'
 import path from 'node:path'
-import './env.ts'
+import './src/env.ts'
 import { classifyTestFiles } from './scripts/lib/test-layers.ts'
-import { domainDirs, importMap } from './scripts/lib/layout.ts'
+import { domainDirs, importMap, SRC } from './scripts/lib/layout.ts'
 
 const ROOT = import.meta.dirname
 
@@ -30,7 +30,7 @@ const alias = Object.entries(importMap(ROOT)).map(([specifier, target]) =>
     : exact(specifier, target.replace(/^\.\//, ''))
 )
 
-const DOMAIN_GLOB = `{${domainDirs(ROOT).join(',')}}/**`
+const DOMAIN_GLOB = `${SRC}/{${domainDirs(ROOT).join(',')}}/**`
 
 const layers = classifyTestFiles(ROOT)
 const rel = (files: string[]) => files.map((f) => path.relative(ROOT, f))
@@ -50,12 +50,12 @@ export default defineConfig({
     globals: false,
     pool: 'forks',
     isolate: true,
-    setupFiles: ['./shared/testing/vitest-setup.ts'],
+    setupFiles: ['./src/shared/testing/vitest-setup.ts'],
     env: sharedEnv,
     testTimeout: 20_000,
     hookTimeout: 20_000,
     maxWorkers: 12,
-    exclude: ['node_modules/**', 'tests-external/**'],
+    exclude: ['node_modules/**', 'tests/external/**'],
     projects: [
       project('unit', layers.unit),
       project('db', layers.db),
@@ -70,18 +70,18 @@ export default defineConfig({
         '**/tests/**',
         '**/*.test.ts',
         'scripts/**',
-        'tests-external/**',
+        'tests/external/**',
         'migrations/**',
       ],
       thresholds: {
-        'db/**': { statements: 88, branches: 74, functions: 94, lines: 94 },
+        'src/db/**': { statements: 88, branches: 74, functions: 94, lines: 94 },
         // functions 90 -> 89 when profitBreakdown became SQL (profit-sql.md).
         // Nothing lost coverage: `pricing/profit.ts` was 34 functions at
         // 34/34, and deleting a block that far ABOVE the population's own
         // average drags the average down - 812/901 = 90.12% before,
         // 778/868 = 89.63% after. Measured, floored, never rounded up.
         [DOMAIN_GLOB]: { statements: 86, branches: 73, functions: 89, lines: 88 },
-        'shared/**': { statements: 80, branches: 74, functions: 86, lines: 83 },
+        'src/shared/**': { statements: 80, branches: 74, functions: 86, lines: 83 },
       },
     },
   },

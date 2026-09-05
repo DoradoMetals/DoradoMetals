@@ -1,10 +1,11 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { domainDirs } from './lib/layout.ts'
+import { domainDirs, sourceRoot } from './lib/layout.ts'
 
-const ROOT = process.env.LINT_DB_ROOT
+const API_ROOT = process.env.LINT_DB_ROOT
   ? path.resolve(process.env.LINT_DB_ROOT)
   : path.resolve(import.meta.dirname, '..')
+const ROOT = sourceRoot(API_ROOT)
 
 if (process.argv.includes('--self-test')) {
   const { selfTest } = await import('./lib/self-test-harness.ts')
@@ -122,7 +123,7 @@ const problems: string[] = []
 let filesScanned = 0
 let callsChecked = 0
 
-const LAYER_ROOTS = ['db', ...domainDirs(ROOT)]
+const LAYER_ROOTS = ['db', ...domainDirs(API_ROOT)]
 const existingRoots = LAYER_ROOTS.filter((l) => fs.existsSync(path.join(ROOT, l)))
 if (!existingRoots.length) {
   console.error(

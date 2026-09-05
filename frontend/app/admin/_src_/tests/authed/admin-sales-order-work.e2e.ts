@@ -11,7 +11,7 @@ import { test, expect, request as pwRequest } from '@playwright/test'
 // useAdminCreateSalesOrder drives: retrieve the admin-flavoured intent for the
 // customer and re-price it (`{ user_id, type }` - the row supplies the rest),
 // sync the customer's buy cart through the admin-scoped accessor
-// (PUT /api/checkout/items?user_id=, admin-only - api/checkout/controller.ts),
+// (PUT /api/checkout/items?user_id=, admin-only - api/src/domains/checkout/controller.ts),
 // and then place with ONE `AdminSaleCreate` body against POST /api/orders/admin
 // (orders pass 2), which runs the checkout steps server-side in one transaction. The intent is a REAL Stripe TEST-MODE object
 // (Jacob: "as long as we're hitting the stripe sandbox in testing it's

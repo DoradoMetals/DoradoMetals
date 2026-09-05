@@ -33,7 +33,7 @@
 // READS api/.env, NOT ITS OWN COPY. `import "dotenv/config"` loads .env
 // relative to the CURRENT WORKING DIRECTORY, and this package had its own -
 // carrying a second copy of the database password and a connection string
-// naming a database that no longer exists. api/env.ts resolves from its own
+// naming a database that no longer exists. api/src/env.ts resolves from its own
 // file location for exactly this reason.
 import dotenv from 'dotenv'
 import { fileURLToPath } from 'node:url'

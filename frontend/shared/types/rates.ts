@@ -9,7 +9,7 @@
 //
 // AND `utils/resolveRate.ts` IS GONE. It carried `getRateBand`, `getRatePct`
 // and `sumContentByMetal` - three functions duplicated from the API and held
-// in step by `api/shared/tests/mirror.test.ts`, because one side quoted a
+// in step by `api/src/shared/tests/mirror.test.ts`, because one side quoted a
 // customer a payout rate and the other paid it. NOTHING in the browser called
 // them: every rate a customer sees comes from a /quotes endpoint. Deleting the
 // copy retires the drift risk rather than policing it.

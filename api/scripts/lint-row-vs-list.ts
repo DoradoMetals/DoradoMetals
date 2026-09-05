@@ -1,10 +1,11 @@
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs'
 import { join, relative } from 'node:path'
-import { domainDirs } from './lib/layout.ts'
+import { domainDirs, sourceRoot } from './lib/layout.ts'
 
-const ROOT = process.env.LINT_ROW_ROOT
+const API_ROOT = process.env.LINT_ROW_ROOT
   ? process.env.LINT_ROW_ROOT.replace(/\/?$/, '/')
   : new URL('..', import.meta.url).pathname
+const ROOT = sourceRoot(API_ROOT)
 
 if (process.argv.includes('--self-test')) {
   const { selfTest } = await import('./lib/self-test-harness.ts')
@@ -86,7 +87,7 @@ export async function getOne(id) {
   })
 }
 
-const DOMAINS = domainDirs(ROOT)
+const DOMAINS = domainDirs(API_ROOT)
 if (!existsSync(join(ROOT, 'db')) || !DOMAINS.some((d) => existsSync(join(ROOT, d)))) {
   console.error(
     `lint:row-vs-list cannot read ${join(ROOT, 'db')} or any of ${DOMAINS.join(', ')} - ` +
