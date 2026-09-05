@@ -16193,3 +16193,13 @@ ACCEPTED counts shrank, each re-measured, never lowered to pass;
 green; `verify:genesis` still fails on DEV BEING BEHIND ITS OWN CHAIN and the
 eight dev-db members behind it were run individually and all pass. Full detail
 in `docs/waves/no-dictionaries.md`.
+
+### Lots proposal complete (2026-09-06)
+
+`docs/model/lots.md` is the full design now (1222 lines, DOCS ONLY - no code,
+no migration, no commit): every column/type/FK/index/CHECK, lifecycle state
+tables, ruling-77 domain fit (`refining` is a new domain), the REST surface and
+contracts, the changed pricing/profit CTEs, two worked examples, the additive
+134-140 path with its `verify:backfill` declarations, and 12 questions - 7 new,
+led by `refining.orders.direction` (the live SALE-side `sendToRefiner` had no
+home) and the bullion snapshot that would have applied purity twice.
