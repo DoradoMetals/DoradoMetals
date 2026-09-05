@@ -45,12 +45,21 @@ import { OrderActions } from "../computed/orders.js";
 export const OrderRead = Order.extend({ totals: OrderTotals.nullable() });
 export type OrderRead = z.infer<typeof OrderRead>;
 
+// A shipment as an order shows it: the row, plus the two labels a document
+// prints instead of an id. Both are scalar subselects in `db/orders/sql/view.sql`
+// (ruling 78 - the shape is the SQL read's, not a services/packages Map).
+export const OrderViewShipmentDetail = OrderViewShipment.extend({
+  service_name: CarrierService.shape.name.nullable(),
+  package_label: Package.shape.label.nullable(),
+});
+export type OrderViewShipmentDetail = z.infer<typeof OrderViewShipmentDetail>;
+
 export const OrderViewFacts = z.object({
   order: Order,
   totals: OrderTotals.nullable(),
   items: z.array(OrderViewItem),
   address: Address.nullable(),
-  shipments: z.array(OrderViewShipment),
+  shipments: z.array(OrderViewShipmentDetail),
   pickup: ShipmentPickup.nullable(),
   payout: OrderViewPayout.nullable(),
   user: UserSummary.nullable(),

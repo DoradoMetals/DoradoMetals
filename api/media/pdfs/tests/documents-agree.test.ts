@@ -49,9 +49,8 @@ test("every order's packing list and invoice quote the same premiums", async () 
     const own = await inputs.invoiceInputs(order.order.id);
     compared++;
 
-    const priceOf = new Map(own.pricing.items.map((l) => [l.id, l]));
-    const packing = percentages(buildPackingScrapRows(scrap, priceOf, own.labels));
-    const invoice = percentages(buildInvoiceScrapRows(scrap, priceOf, own.labels));
+    const packing = percentages(buildPackingScrapRows(scrap, own.pricing.items));
+    const invoice = percentages(buildInvoiceScrapRows(scrap, own.pricing.items));
 
     if (JSON.stringify(packing) !== JSON.stringify(invoice)) {
       disagreements.push(
@@ -89,15 +88,10 @@ test("a line with no premium renders unpriced on both documents, not differently
     unit: "t oz",
   } as unknown as OrderViewItem;
 
-  const priceOf = new Map<string, OrderPricingLine>();
-  const labels = {
-    metals: [GOLD],
-    services: new Map<string, string>(),
-    packages: new Map<string, string>(),
-  };
+  const prices: OrderPricingLine[] = [];
 
-  const packing = buildPackingScrapRows([line], priceOf, labels);
-  const invoice = buildInvoiceScrapRows([line], priceOf, labels);
+  const packing = buildPackingScrapRows([line], prices);
+  const invoice = buildInvoiceScrapRows([line], prices);
 
   assert.deepEqual(
     percentages(packing), percentages(invoice),

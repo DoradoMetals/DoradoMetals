@@ -21,7 +21,7 @@ const ACCEPTED: Record<string, { count: number; why: string }> = {
   "media/emails/record.ts": { count: 4, why: SMALL_FEATURES },
   "media/emails/utils/renderEmail.ts": { count: 2, why: SMALL_FEATURES },
   "media/pdfs/render/layout.ts": { count: 1, why: SMALL_FEATURES },
-  "media/pdfs/render/sections.ts": { count: 2, why: SMALL_FEATURES },
+  "media/pdfs/render/sections.ts": { count: 1, why: SMALL_FEATURES },
   "media/pdfs/serve.ts": { count: 3, why: SMALL_FEATURES },
   "media/pdfs/service.ts": { count: 3, why: SMALL_FEATURES },
   "media/pdfs/store.ts": { count: 2, why: SMALL_FEATURES },
@@ -299,7 +299,7 @@ for (const [name, entry] of Object.entries(ACCEPTED)) {
   );
 }
 
-const FILE_FLOOR = Number(process.env.LINT_TYPE_HOMES_FLOOR ?? 138);
+const FILE_FLOOR = Number(process.env.LINT_TYPE_HOMES_FLOOR ?? 137);
 if (files.length < FILE_FLOOR) {
   console.error(
     `\nSCAN IS BROKEN: ${files.length} file(s) under ${ROOTS.join(", ")}, ` +

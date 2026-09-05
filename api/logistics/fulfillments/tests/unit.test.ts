@@ -64,7 +64,7 @@ test("every statement loads and is not empty", () => {
   }
   assert.ok(builtPickup().trim().length > 0, "the built pickups UPDATE is empty");
   assert.ok(builtDirect().trim().length > 0, "the built directs UPDATE is empty");
-  for (const n of ["get_for", "get_many", "get_by_shipment", "exists_for", "create"]) {
+  for (const n of ["get_for", "get_by_shipment", "exists_for", "create", "upsert"]) {
     assert.ok(linksSql(n).trim().length > 0, `shipments/${n} is empty`);
   }
   assert.ok(builtLink().trim().length > 0, "the built shipments UPDATE is empty");
@@ -85,7 +85,7 @@ test("no statement joins a second table", () => {
       ]),
     ["pickups/update", builtPickup()] as [string, string],
     ["directs/update", builtDirect()] as [string, string],
-    ...["get_for", "get_many", "get_by_shipment", "exists_for", "create"]
+    ...["get_for", "get_by_shipment", "exists_for", "create", "upsert"]
       .map((n) => [`shipments/${n}`, linksSql(n)] as [string, string]),
     ["shipments/update", builtLink()] as [string, string],
   ];

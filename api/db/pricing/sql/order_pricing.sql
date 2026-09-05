@@ -20,6 +20,22 @@ lines AS (
     LEFT JOIN orders.spots os ON os.order_id = oi.order_id AND os.metal_id = oi.metal_id
     LEFT JOIN spots.spots s ON s.metal_id = oi.metal_id
 ),
+-- The bid and ask each of the order's metals is priced at, resolved exactly as
+-- `lines` resolves a line's bid: the frozen orders.spots row when the order is
+-- locked, the live feed when it is not. A metal appears only when the order has
+-- a line in it, so a document prints the order's metals and no others.
+metal_spots AS (
+  SELECT DISTINCT ON (oi.metal_id)
+         oi.metal_id,
+         CASE WHEN ord.spots_locked THEN os.bid ELSE s.bid END AS bid,
+         CASE WHEN ord.spots_locked THEN os.ask ELSE s.ask END AS ask
+    FROM orders.items oi
+   CROSS JOIN ord
+    LEFT JOIN orders.spots os ON os.order_id = oi.order_id AND os.metal_id = oi.metal_id
+    LEFT JOIN spots.spots s ON s.metal_id = oi.metal_id
+   WHERE oi.order_id = ord.id
+   ORDER BY oi.metal_id, oi.id
+),
 by_metal AS (
   SELECT metal_id, sum(weighed) AS total FROM lines GROUP BY metal_id
 ),
@@ -116,6 +132,16 @@ SELECT jsonb_build_object(
                        'line_total', l.line_total)
                      ORDER BY l.id ASC)
               FROM lined l),
+           '[]'::jsonb),
+         'spots', COALESCE(
+           (SELECT jsonb_agg(
+                     jsonb_build_object(
+                       'metal_id', ms.metal_id, 'bid', ms.bid, 'ask', ms.ask)
+                     ORDER BY array_position(
+                                ARRAY['Gold','Silver','Platinum','Palladium'],
+                                ms.metal_id) NULLS LAST,
+                              ms.metal_id ASC)
+              FROM metal_spots ms),
            '[]'::jsonb),
          'unpriceable', COALESCE(
            (SELECT jsonb_agg(l.id ORDER BY l.id ASC)

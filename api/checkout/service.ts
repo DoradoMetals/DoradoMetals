@@ -173,14 +173,8 @@ export async function getRowFor(user_id: string, direction: Direction, client?: 
   return await ensure(user_id, direction, client);
 }
 
-const CLEARED: CheckoutWrite = Object.fromEntries(
-  checkouts.PATCHABLE.map((column) => [column, null])
-);
-
 export async function resetAfterOrder(
   user_id: string, direction: Direction, client?: Executor
 ): Promise<void> {
-  const row = await checkouts.findFor(user_id, direction, client);
-  if (!row) return;
-  await checkouts.update(row.id, CLEARED, client);
+  await checkouts.clearFor(user_id, direction, client);
 }

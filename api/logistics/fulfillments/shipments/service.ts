@@ -10,17 +10,6 @@ export async function link(
   executor?: Executor
 ): Promise<FulfillmentView | null> {
   await fulfillmentService.assertCategory(fulfillment_id, "SHIPMENT", executor);
-  const [existing] = await shipmentLinks.getByShipment([shipment_id], executor);
-  const columns = {
-    recipient_location_id: places.recipient_location_id,
-    shipper_location_id: places.shipper_location_id,
-  };
-  if (existing) {
-    await shipmentLinks.update(shipment_id, { fulfillment_id, ...columns }, executor);
-  } else {
-    await shipmentLinks.create(
-      { fulfillment_id, shipment_id, ...columns }, executor
-    );
-  }
+  await shipmentLinks.upsert(fulfillment_id, shipment_id, places, executor);
   return await fulfillmentService.getById(fulfillment_id, executor);
 }

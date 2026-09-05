@@ -72,6 +72,8 @@ if (process.argv.includes("--self-test")) {
 const FAIL_ON_FINDINGS = process.env.AUDIT_SILENT_ROOT != null;
 
 const ACCEPTED: Record<string, string> = {
+  "checkout/service.ts::checkouts.clearFor":
+    "a user with no basket in that direction has nothing to clear, and sql/clear_for.sql keys on (user_id, direction) precisely so the read-then-branch this replaced is gone: zero rows is the correct outcome, exactly as the early return it replaced was.",
   "pricing/sales-tax/service.ts::tax.accrue":
     "scoped to `reached_nexus = true`, and sql/accrue.sql says so in its own " +
     "header: a state below its threshold accrues nothing, so an UPDATE matching " +

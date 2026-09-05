@@ -14,12 +14,6 @@ export async function getFor(
   return rows;
 }
 
-export async function getMany(ids: string[], executor?: Executor): Promise<FulfillmentShipment[]> {
-  if (ids.length === 0) return [];
-  const { rows } = await query<FulfillmentShipment>(sql("get_many"), [ids], executor);
-  return rows;
-}
-
 export async function getByShipment(
   shipment_ids: string[], executor?: Executor
 ): Promise<FulfillmentShipment[]> {
@@ -55,6 +49,23 @@ export async function create(
     [
       row.fulfillment_id, row.shipment_id,
       row.recipient_location_id ?? null, row.shipper_location_id ?? null,
+    ],
+    executor
+  );
+  return rows[0];
+}
+
+export async function upsert(
+  fulfillment_id: string,
+  shipment_id: string,
+  places: FulfillmentShipmentPatch,
+  executor?: Executor
+): Promise<FulfillmentShipment> {
+  const { rows } = await query<FulfillmentShipment>(
+    sql("upsert"),
+    [
+      fulfillment_id, shipment_id,
+      places.recipient_location_id ?? null, places.shipper_location_id ?? null,
     ],
     executor
   );

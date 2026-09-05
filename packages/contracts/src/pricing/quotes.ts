@@ -5,6 +5,7 @@ import { Checkout } from "../checkout/checkouts.js";
 import { CheckoutItem } from "../checkout/items.js";
 import { Order } from "../orders/orders.js";
 import { OrderItem } from "../orders/items.js";
+import { OrderSpot } from "../orders/spots.js";
 import { Metal } from "../metals/metals.js";
 
 export const PriceSide = z.enum(["ask", "bid"]);
@@ -116,12 +117,23 @@ export const OrderPricingLine = z.object({
 });
 export type OrderPricingLine = z.infer<typeof OrderPricingLine>;
 
+// The bid and ask each of the order's metals is priced at, resolved the same
+// way every line is: the order's frozen row when it is locked, the live feed
+// when it is not. A metal appears only when the order has a line in it.
+export const OrderPricingSpot = z.object({
+  metal_id: OrderSpot.shape.metal_id,
+  bid: OrderSpot.shape.bid,
+  ask: OrderSpot.shape.ask,
+});
+export type OrderPricingSpot = z.infer<typeof OrderPricingSpot>;
+
 export const OrderPricing = z.object({
   order_id: Order.shape.id,
   direction: Direction,
   spots_at: z.string(),
   spots_locked: z.boolean(),
   items: z.array(OrderPricingLine),
+  spots: z.array(OrderPricingSpot),
   unpriceable: z.array(OrderItem.shape.id),
   scrap_total: z.number(),
   bullion_total: z.number(),

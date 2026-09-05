@@ -1,6 +1,6 @@
+import { reportError } from "#shared/observability/report.ts";
 import * as ordersRepo from "#db/orders/repo.ts";
 import * as spotsRepo from "#db/orders/spots/repo.ts";
-import * as spotsFeed from "#pricing/spots/service.ts";
 import * as rules from "#orders/rules.ts";
 import withTransaction from "#shared/db/withTransaction.ts";
 import type { OrderSpot, OrderSpotsPutBody } from "@dorado/contracts";
@@ -18,19 +18,19 @@ export async function setSpots(
   rules.assertDirection(await ordersRepo.directionOf(orderId), "purchase", "the spots PUT");
   rules.assertNamesASpotField(body);
 
-  const live = body.lock === true ? await spotsFeed.getSpotPrices() : [];
-  const bidByMetal = new Map(live.map((quote) => [quote.id, quote.bid]));
-
   await withTransaction(async (tx) => {
     if (body.lock !== undefined) {
       await ordersRepo.update(orderId, { spots_locked: body.lock }, {}, tx);
-      for (const row of await spotsRepo.getRowsFor(orderId, tx)) {
-        await spotsRepo.update(
-          orderId,
-          row.metal_id,
-          { bid: body.lock === true ? (bidByMetal.get(row.metal_id) ?? null) : null },
-          tx
-        );
+      const repriced = await spotsRepo.setBidsFromFeed(orderId, body.lock, tx);
+      if (repriced === 0) {
+        reportError({
+          at: "orders.spots.setSpots",
+          message:
+            `order ${orderId} has no orders.spots rows, so the ` +
+            `${body.lock ? "lock" : "unlock"} repriced nothing and the caller was ` +
+            `told it succeeded`,
+          extra: { order_id: orderId, lock: body.lock },
+        });
       }
     }
 

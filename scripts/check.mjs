@@ -95,6 +95,10 @@ const GROUPS = [
         name: "api:lint:no-literal-views",
         cmd: pnpm("@dorado/api", "lint:no-literal-views"),
       },
+      {
+        name: "api:lint:no-dictionaries",
+        cmd: pnpm("@dorado/api", "lint:no-dictionaries"),
+      },
       { name: "api:lint:client-boundary", cmd: pnpm("@dorado/api", "lint:client-boundary") },
       { name: "api:lint:test-locks", cmd: pnpm("@dorado/api", "lint:test-locks") },
       { name: "api:lint:test-actor", cmd: pnpm("@dorado/api", "lint:test-actor") },

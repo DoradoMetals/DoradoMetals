@@ -91,3 +91,53 @@ test("an id nobody owns reads back nothing rather than an empty view", async () 
     );
   });
 });
+
+test("a scrap line is named by the SQL read, numbered per metal; a product line is not", async () => {
+  await inRollback(async (c: PoolClient) => {
+    const user = await aUser(c);
+    const product = await aProduct(c);
+    const order = await anOrder(c, user, { direction: "purchase" })
+      .withLots(2, { metal_id: "Gold" })
+      .withLots(1, { metal_id: "Silver" })
+      .withBullion(product, 1, { price: 10 });
+
+    const view = await orders.view(order.id, c);
+    assert.ok(view);
+
+    const scrap = view.items
+      .filter((i) => i.bullion_id === null)
+      .sort((a, b) => (a.id < b.id ? -1 : 1));
+    assert.equal(scrap.length, 3, "the three scrap lots did not all come back");
+    assert.deepEqual(
+      scrap.map((i) => i.item_name).sort(),
+      ["Gold Item 1", "Gold Item 2", "Silver Item 1"],
+      "the per-metal numbering is not the window function's"
+    );
+
+    const bullion = view.items.find((i) => i.bullion_id === product.id);
+    assert.ok(bullion, "the bullion line is missing");
+    assert.equal(bullion.item_name, null, "a product line was given a scrap name");
+  });
+});
+
+test("a shipment carries its service name and package label, not just their ids", async () => {
+  await inRollback(async (c: PoolClient) => {
+    const user = await aUser(c);
+    const order = await anOrder(c, user, { direction: "purchase" }).withLots(1);
+    await aShipment(c, order);
+
+    const view = await orders.view(order.id, c);
+    assert.ok(view);
+    const [shipment] = view.shipments;
+    assert.ok(shipment, "the shipment did not nest");
+
+    const { rows: services } = await c.query(
+      "SELECT name FROM shipping.services WHERE id = $1", [shipment.carrier_service_id]
+    );
+    const { rows: boxes } = await c.query(
+      "SELECT label FROM shipping.packages WHERE id = $1", [shipment.package_id]
+    );
+    assert.equal(shipment.service_name, services[0].name, "the service name is not the row's");
+    assert.equal(shipment.package_label, boxes[0].label, "the package label is not the row's");
+  });
+});

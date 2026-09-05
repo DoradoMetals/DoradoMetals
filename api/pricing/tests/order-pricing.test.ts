@@ -8,6 +8,7 @@ import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 import { aUser, aProduct, anOrder, aPayout, aShipment } from "#shared/testing/builders/index.ts";
+import * as pricing from "#pricing/index.ts";
 
 await mockSessions();
 const { default: app } = await import("#app");
@@ -213,5 +214,29 @@ test("no body-supplied price, spot or order object is accepted at all", async ()
       assert.equal(poisoned.status, 400, "the order quote accepted something price-shaped");
       assert.ok(clean.body.total !== 0.01, "the clean quote itself came back at the poison value");
     });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
+});
+
+test("the quote carries the order's own metals, priced frozen-or-live like every line", async () => {
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const owner = await aUser(c);
+    const order = await anOrder(c, owner, { direction: "purchase", status: "Pending" })
+      .withLines({ metal_id: gold.metal_id, content: 1, premium: 1, price: null })
+      .withSpots({ bid: 7, ask: 9 });
+
+    const live = await pricing.priceOrder(order.id, c);
+    assert.deepEqual(
+      live.spots.map((s) => s.metal_id), [gold.metal_id],
+      "the quote priced metals the order has no line in"
+    );
+    assert.equal(
+      live.spots[0].bid, gold.bid,
+      "an unlocked order did not take the live feed's bid"
+    );
+
+    await c.query("UPDATE orders.orders SET spots_locked = true WHERE id = $1", [order.id]);
+    const frozen = await pricing.priceOrder(order.id, c);
+    assert.equal(frozen.spots[0].bid, 7, "a locked order did not take its own frozen bid");
+    assert.equal(frozen.spots[0].ask, 9, "a locked order did not take its own frozen ask");
   }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });

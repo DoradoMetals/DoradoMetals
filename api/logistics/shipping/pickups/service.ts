@@ -21,33 +21,6 @@ export async function getByOrder(
   return await pickups.getByShipments([shipment.id], executor);
 }
 
-export async function getByOrders(
-  order_ids: string[], executor?: Executor
-): Promise<Map<string, ShipmentPickup[]>> {
-  const out = new Map<string, ShipmentPickup[]>();
-  if (order_ids.length === 0) return out;
-
-  const shipmentOf = await shipmentService.getByOrders(order_ids, executor);
-  for (const order_id of order_ids) out.set(order_id, []);
-  if (shipmentOf.size === 0) return out;
-
-  const shipments = [...new Map([...shipmentOf.values()].map((s) => [s.id, s])).values()];
-  const rows = await pickups.getByShipments(shipments.map((s) => s.id), executor);
-  if (rows.length === 0) return out;
-
-  const byShipment = new Map<string, ShipmentPickup[]>();
-  for (const row of rows) {
-    if (row.shipment_id === null) continue;
-    if (!byShipment.has(row.shipment_id)) byShipment.set(row.shipment_id, []);
-    byShipment.get(row.shipment_id)!.push(row);
-  }
-
-  for (const [order_id, shipment] of shipmentOf) {
-    out.set(order_id, byShipment.get(shipment.id) ?? []);
-  }
-  return out;
-}
-
 export async function recordForShipment(
   shipment_id: string, date: string, time: string,
   confirmation_number: string | number | null, location: string | null,
