@@ -134,6 +134,11 @@ test("an order with nothing left to charge is born Preparing", () => {
   assert.equal(rules.statusAtPlacement(12649, true), "Preparing");
 });
 
+test("a sale confirms once paid, not while a card charge is still pending", () => {
+  assert.equal(rules.confirmsAtPlacement("Preparing"), true);
+  assert.equal(rules.confirmsAtPlacement("Pending"), false);
+});
+
 test("an attached intent is a conflict when it settled and superseded when it did not", () => {
   assert.equal(
     rules.attachmentVerdict({ order_id: "s1", direction: "sale", payment_status: "succeeded" }),

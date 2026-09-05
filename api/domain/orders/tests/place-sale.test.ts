@@ -19,9 +19,32 @@ import { calculateSalesOrderTotal } from "#domain/pricing/ask.ts";
 import * as productService from "#domain/products/service.ts";
 import * as taxService from "#domain/sales-tax/service.ts";
 import * as spotsService from "#domain/spots/service.ts";
+import * as emailService from "#domain/media/emails/service.ts";
+import { closeBrowser } from "#providers/pdfs/puppeteer.ts";
+import { formatSalesOrderNumber } from "#shared/utils/formatOrderNumbers.ts";
+import type { Transport } from "#providers/emails/nodemailer.ts";
+
+type Message = Parameters<Transport["sendMail"]>[0];
+
+function recorder(): Transport & { sent: Message[] } {
+  const sent: Message[] = [];
+  return {
+    sent,
+    sendMail: async (message: Message) => {
+      sent.push(message);
+      return { messageId: "recorded", accepted: [message.to] };
+    },
+  };
+}
+
+const NO_SIDE_EFFECTS: typeof place.LIVE = {
+  buyLabel: async () => {},
+  authorize: async () => {},
+  confirm: async () => {},
+};
 
 beforeAll(async () => { await mockSessions(); });
-afterAll(() => { restoreSessions(); });
+afterAll(async () => { restoreSessions(); await closeBrowser(); });
 
 async function seedSale(c: PoolClient, status: string): Promise<string> {
   const { rows } = await query<{ id: string }>(
@@ -259,7 +282,7 @@ test("a paid-but-orderless intent is honoured: the order is created already Prep
       status: "succeeded", cents, settledCents: cents, user_id: f.user_id,
     });
 
-    const order = await place.place(checkout_id);
+    const order = await place.place(checkout_id, NO_SIDE_EFFECTS);
     assert.ok(order, "no order came back");
     const got = await statusOf(c, order.order.id);
     assert.equal(got.native, "Preparing", "a PAID order was born awaiting payment");
@@ -300,7 +323,7 @@ test("an order fully covered by credit is born Preparing, with no intent attache
       [f.user_id], c
     );
 
-    const order = await place.place(checkout_id);
+    const order = await place.place(checkout_id, NO_SIDE_EFFECTS);
     assert.ok(order, "no order came back");
     assert.equal(order.order.status, "Preparing", "a fully-paid order was born awaiting payment");
     assert.ok(
@@ -320,7 +343,7 @@ test("placing a sale empties the checkout row it came from", async () => {
       `UPDATE auth.users SET dorado_funds = 10000000 WHERE id = $1`,
       [f.user_id], c
     );
-    await place.place(checkout_id);
+    await place.place(checkout_id, NO_SIDE_EFFECTS);
 
     const { rows } = await query<{ recipient_address_id: string | null; payment_method_id: string | null }>(
       `SELECT recipient_address_id, payment_method_id FROM checkout.checkouts WHERE id = $1`,
@@ -328,5 +351,78 @@ test("placing a sale empties the checkout row it came from", async () => {
     );
     assert.equal(rows[0]?.recipient_address_id, null);
     assert.equal(rows[0]?.payment_method_id, null);
+  });
+});
+
+test("a sale paid entirely by credit sends its confirmation at placement", async () => {
+  await inPinned(async (c: PoolClient) => {
+    const f = await fixtures(c);
+    assert.ok(f, "no fixtures");
+    const checkout_id = await primeSaleCheckout(c, f);
+    await query(
+      `UPDATE auth.users SET dorado_funds = 10000000 WHERE id = $1`,
+      [f.user_id], c
+    );
+    const t = recorder();
+    const world: typeof place.LIVE = {
+      buyLabel: async () => {},
+      authorize: async () => {},
+      confirm: (order_id) => emailService.sendOrderPlacedConfirmation(order_id, t),
+    };
+
+    const placed = await place.place(checkout_id, world);
+
+    assert.equal(placed.order.status, "Preparing");
+    assert.equal(t.sent.length, 1, "expected the confirmation to go out at placement");
+    const [msg] = t.sent;
+    assert.match(String(msg.subject), /Order Has Been Placed/);
+    assert.ok((msg.html ?? "").includes("prepared for shipment"), "the sale template did not render");
+    assert.ok(msg.attachments, "the confirmation carries no attachments at all");
+    assert.equal(msg.attachments.length, 1);
+    const [pdf] = msg.attachments;
+    assert.equal(pdf.filename, `${formatSalesOrderNumber(placed.order.number)}_packing_list.pdf`);
+  });
+});
+
+test("a sale paid by card waits for the webhook before it confirms", async () => {
+  await inPinned(async (c: PoolClient) => {
+    const f = await fixtures(c);
+    assert.ok(f, "no fixtures");
+    const checkout_id = await primeSaleCheckout(c, f);
+    const cents = await pricedCents(c, f);
+    assert.ok(cents > 0, "the fixture order priced to zero, which defeats this test");
+    const pi = `pi_p9_confirm_${Date.now()}`;
+    await seedIntent(c, pi, { cents, user_id: f.user_id });
+
+    const t = recorder();
+    const world: typeof place.LIVE = {
+      buyLabel: async () => {},
+      authorize: async () => {},
+      confirm: (order_id) => emailService.sendOrderPlacedConfirmation(order_id, t),
+    };
+
+    const placed = await place.place(checkout_id, world);
+    assert.equal(placed.order.status, "Pending");
+    assert.equal(t.sent.length, 0, "the confirmation went out before the card was even charged");
+
+    const webhookWorld: typeof paymentsWebhook.LIVE = {
+      retrieve: async () => ({ id: "unused" }),
+      confirm: (order_id) => emailService.sendOrderPlacedConfirmation(order_id, t),
+    };
+    await paymentsWebhook.applyIntentEvent(
+      { id: pi, status: "succeeded", amount: cents, amount_received: cents },
+      undefined,
+      webhookWorld
+    );
+
+    assert.equal((await statusOf(c, placed.order.id)).native, "Preparing");
+    assert.equal(t.sent.length, 1, "expected the confirmation once the webhook landed");
+    const [msg] = t.sent;
+    assert.match(String(msg.subject), /Order Has Been Placed/);
+    assert.ok((msg.html ?? "").includes("prepared for shipment"), "the sale template did not render");
+    assert.ok(msg.attachments, "the confirmation carries no attachments at all");
+    assert.equal(msg.attachments.length, 1);
+    const [pdf] = msg.attachments;
+    assert.equal(pdf.filename, `${formatSalesOrderNumber(placed.order.number)}_packing_list.pdf`);
   });
 });

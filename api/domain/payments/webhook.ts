@@ -6,15 +6,19 @@ import {
   assertWebhookMatched, instrumentValues, methodTypeFor,
 } from "#domain/payments/rules.ts";
 import { findIntentByRef, updateFromProvider } from "#domain/payments/service.ts";
+import * as emailService from "#domain/media/emails/service.ts";
 import withTransaction from "#shared/db/withTransaction.ts";
 import type { StripeIntentLike, StripePaymentMethodLike, Instruments } from "#providers/payment/stripe.ts";
 
-export const LIVE: Instruments = { retrieve: stripe.retrievePaymentMethod };
+export const LIVE: Instruments & { confirm: (order_id: string) => Promise<void> } = {
+  retrieve: stripe.retrievePaymentMethod,
+  confirm: (order_id: string) => emailService.sendOrderPlacedConfirmation(order_id),
+};
 
 export async function applyIntentEvent(
   paymentIntent: StripeIntentLike,
   payment_method_ref?: unknown,
-  world: Instruments = LIVE
+  world: typeof LIVE = LIVE
 ): Promise<void> {
   const prior = await findIntentByRef(paymentIntent.id);
   assertWebhookMatched(
@@ -29,6 +33,7 @@ export async function applyIntentEvent(
     prior?.order_id
   ) {
     await withTransaction((tx) => ordersRepo.update(prior.order_id!, { status: "Preparing" }, {}, tx));
+    await world.confirm(prior.order_id!);
   }
 
   if (typeof payment_method_ref !== "string") return;
