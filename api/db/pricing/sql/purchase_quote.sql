@@ -60,9 +60,11 @@ priced AS (
     FROM tiered t
 ),
 totals AS (
-  SELECT COALESCE(sum(CASE WHEN p.bullion_id IS NULL
-                           THEN p.unit_price
-                           ELSE p.unit_price * p.quantity END), 0) AS total
+  SELECT COALESCE(sum(CASE WHEN p.bullion_id IS NULL THEN p.unit_price ELSE 0 END), 0)
+           AS scrap_total,
+         COALESCE(sum(CASE WHEN p.bullion_id IS NULL THEN 0
+                           ELSE p.unit_price * p.quantity END), 0)
+           AS bullion_total
     FROM priced p
 ),
 charge AS (
@@ -95,10 +97,14 @@ SELECT jsonb_build_object(
                      ORDER BY p.id ASC)
               FROM priced p),
            '[]'::jsonb),
-         'total', totals.total,
+         'scrap_total', totals.scrap_total,
+         'bullion_total', totals.bullion_total,
+         'total', totals.scrap_total + totals.bullion_total,
          'shipping_charge', 0,
          'payout_charge', charge.payout_charge,
-         'declared_value', LEAST(totals.total, ceiling.insured),
-         'estimated_payout', GREATEST(0, totals.total - charge.payout_charge)
+         'declared_value',
+           LEAST(totals.scrap_total + totals.bullion_total, ceiling.insured),
+         'estimated_payout',
+           GREATEST(0, totals.scrap_total + totals.bullion_total - charge.payout_charge)
        ) AS quote
   FROM checkout, totals, charge, ceiling

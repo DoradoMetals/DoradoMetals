@@ -31,7 +31,7 @@ import { User } from '@/features/users/types'
 //   address          useOrderAddress(order.id)        features/orders/reads
 //   shipment /       useOrderShipments(order.id)      features/shipping
 //   return_shipment    + outboundOf / returnOf
-//   payout           useOrderPayouts(order.id)        features/payouts
+//   payout           useOrderPaymentDetails(order.id)        features/payouts
 //   carrier_pickup   useShipmentPickups(shipment.id)  features/shipping
 //   user             user_id, mapped off useAdminUsers
 //   the assay        useRefinerItems(order.id)        features/refiners

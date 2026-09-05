@@ -20,7 +20,7 @@ import {
   useSaleCheckoutRow,
   usePlaceOrderFromCheckout,
 } from '@/features/checkout/queries'
-import { useSaleQuoteFor } from '@/features/checkout/sales-order-checkout/saleQuote'
+import { useCheckoutQuote } from '@/features/quotes/queries'
 import { readyForPayment, readyToPlace } from '@/features/checkout/gates'
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
@@ -57,7 +57,11 @@ export default function SalesOrderCheckout() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [needsDraft, row?.id])
-  const quote = useSaleQuoteFor(row, items, fulfillment)
+  // THE QUOTE IS THE ROW, PRICED. Its body used to be assembled here from the
+  // row, the basket and the draft fulfillment's parcel; the server reads all
+  // three itself.
+  const { data: answer } = useCheckoutQuote('sale', { enabled: !!row })
+  const quote = answer?.direction === 'sale' ? answer : undefined
   const placeOrder = usePlaceOrderFromCheckout('sale')
 
   const address = addresses.find((a) => a.id === row?.recipient_address_id)

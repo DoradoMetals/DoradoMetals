@@ -7,13 +7,13 @@ import { cn } from '@/shared/utils/cn'
 import { useDecoratedLines, type DecoratedLine } from '@/features/checkout/items/flair'
 import { formatRate } from '@/features/rates/types'
 import { usePaymentMethods } from '@dorado/client'
-import { usePurchaseOrderQuote } from '@/features/quotes/queries'
-import type { CheckoutRate, CheckoutView, PurchaseOrderQuoteLine } from "@dorado/contracts";
+import { useCheckoutQuote } from '@/features/quotes/queries'
+import type { CheckoutRate, CheckoutView, PurchaseQuoteLine } from "@dorado/contracts";
 
 // A basket line paired with its quote line. Absent until the first quote lands
 // (or if the server refused the quote) - those rows price at zero, never
 // client-side.
-type QuotedRow = DecoratedLine & { quoted: PurchaseOrderQuoteLine | undefined }
+type QuotedRow = DecoratedLine & { quoted: PurchaseQuoteLine | undefined }
 
 // The two deductions come from the row and the joined rate now, not from a
 // store: `carrier_service_id` picks the rate the carrier quoted, and
@@ -32,30 +32,23 @@ export default function ReviewItemTables({
 
   const items = useBasket('purchase')
   const decorated = useDecoratedLines(items)
-  const { data: quote } = usePurchaseOrderQuote(items, {
-    shipping_charge: shippingCost ?? undefined,
-    payout_method: payoutMethod?.type,
-  })
+  // THE QUOTE IS THE ROW'S, and it is priced from the checkout's own columns -
+  // the shipping charge and the payout method are read server-side, not passed.
+  const { data: answer } = useCheckoutQuote('purchase')
+  const quote = answer?.direction === 'purchase' ? answer : undefined
 
-  // Quote lines carry the request array position, and the store's items array
-  // IS the request array - so the pairing happens by index, BEFORE any
-  // filtering into scrap and bullion.
   const rows: QuotedRow[] = useMemo(() => {
-    const byIndex = new Map((quote?.items ?? []).map((line) => [line.index, line]))
-    return decorated.map((row) => ({ ...row, quoted: byIndex.get(row.index) }))
+    const byId = new Map((quote?.items ?? []).map((line) => [line.id, line]))
+    return decorated.map((row) => ({ ...row, quoted: byId.get(row.line.id) }))
   }, [decorated, quote])
 
   const scrapRows = useMemo(() => rows.filter((row) => !row.line.bullion_id), [rows])
   const bullionRows = useMemo(() => rows.filter((row) => !!row.line.bullion_id), [rows])
 
-  const scrapTotal = useMemo(
-    () => scrapRows.reduce((acc, row) => acc + (row.quoted?.line_total ?? 0), 0),
-    [scrapRows]
-  )
-  const bullionTotal = useMemo(
-    () => bullionRows.reduce((acc, row) => acc + (row.quoted?.line_total ?? 0), 0),
-    [bullionRows]
-  )
+  // The two bucket totals are the quote's own, split by the same CASE over
+  // `bullion_id IS NULL` that prices each line.
+  const scrapTotal = quote?.scrap_total ?? 0
+  const bullionTotal = quote?.bullion_total ?? 0
 
   // THE SERVER'S NUMBER, not ours (D82, D97).
   //

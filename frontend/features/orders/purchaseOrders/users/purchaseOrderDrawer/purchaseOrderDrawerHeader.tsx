@@ -5,7 +5,6 @@ import { useFormatPurchaseOrderNumber } from '@/features/orders/utils/formatOrde
 import { useSpotPrices } from '@/features/spots/queries'
 import { OrderDrawerHeader } from '@/features/orders/ui/OrderDrawerHeader'
 import { useOrderSpots } from '@dorado/client'
-import { nameSpots } from '@/features/orders/display'
 
 export default function PurchaseOrderDrawerHeader({ view }: PurchaseOrderDrawerHeaderProps) {
   const { order } = view
@@ -15,7 +14,7 @@ export default function PurchaseOrderDrawerHeader({ view }: PurchaseOrderDrawerH
   const { formatPurchaseOrderNumber } = useFormatPurchaseOrderNumber()
   const { data: spotPrices = [] } = useSpotPrices()
   const { data: orderSpots = [] } = useOrderSpots(order.id)
-  const namedOrderSpots = nameSpots(orderSpots, spotPrices)
+  const namedOrderSpots = orderSpots
 
   const status = statusConfig[order.status ?? '']
   const Icon = status?.icon

@@ -1,18 +1,14 @@
 import { payoutMethodIcon, PayoutMethodType } from '@/features/payouts/types'
 import { usePaymentMethods } from '@dorado/client'
 import { PurchaseOrderDrawerContentProps } from '@/features/orders/purchaseOrders/types'
-import { useOrderPayouts } from '@dorado/client'
 
 export default function PaymentProcessingPurchaseOrder({ view }: PurchaseOrderDrawerContentProps) {
   const { order } = view
 
-  // A CONTAINER for the order's payout (ruling 14). The composed wire carried
-  // a `payout` member that was an OBJECT OF NULLS when the order had none - a
-  // LEFT JOIN feeding jsonb_build_object - so `payout?.method` read
-  // `undefined` rather than throwing. It is its own read now, last-four only,
-  // and an order with no payout answers [].
-  const { data: payouts = [] } = useOrderPayouts(order.id)
-  const payout = payouts[0] ?? null
+  // THE PAYOUT COMES WITH THE VIEW. It was a read of its own beside a view
+  // that already carries `OrderViewPayout` - the method, the holder and the
+  // two last-fours - which is a second request for data in hand.
+  const payout = view.payout
   // The client-side option list (icon, label, expected delay) is UI
   // vocabulary, not a column - matched on the row's method.
   const { data: payoutMethods = [] } = usePaymentMethods('purchase')

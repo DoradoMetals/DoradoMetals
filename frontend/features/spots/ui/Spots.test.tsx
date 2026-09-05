@@ -4,10 +4,10 @@ import { renderWithClient } from "@/shared/tests/renderWithClient";
 import React from "react";
 
 const wireSpots = () => [
-  { id: "m-au", name: "Gold", ask: 3400.1, bid: 3390.5, dollar_change: 12.34, percent_change: 0.36, direction: "up" },
-  { id: "m-ag", name: "Silver", ask: 41.2, bid: 40.9, dollar_change: -0.56, percent_change: -1.34, direction: "down" },
-  { id: "m-pt", name: "Platinum", ask: 1310.7, bid: 1298.2, dollar_change: 4.05, percent_change: 0.31, direction: "up" },
-  { id: "m-pd", name: "Palladium", ask: 955.3, bid: 941.8, dollar_change: -8.6, percent_change: -0.9, direction: "down" },
+  { id: "Gold", ask: 3400.1, bid: 3390.5, dollar_change: 12.34, percent_change: 0.36, direction: "up" },
+  { id: "Silver", ask: 41.2, bid: 40.9, dollar_change: -0.56, percent_change: -1.34, direction: "down" },
+  { id: "Platinum", ask: 1310.7, bid: 1298.2, dollar_change: 4.05, percent_change: 0.31, direction: "up" },
+  { id: "Palladium", ask: 955.3, bid: 941.8, dollar_change: -8.6, percent_change: -0.9, direction: "down" },
 ];
 
 vi.mock("@dorado/client", async (importOriginal) => ({

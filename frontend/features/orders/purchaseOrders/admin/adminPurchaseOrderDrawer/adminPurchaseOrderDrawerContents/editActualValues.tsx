@@ -3,7 +3,6 @@
 import { Divider, Input, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@dorado/components'
 import { cn } from '@/shared/utils/cn'
 import { PurchaseOrderDrawerContentProps } from '@/features/orders/purchaseOrders/types'
-import { assignScrapItemNames } from '@/features/orders/display'
 import { useSpotPrices } from '@/features/spots/queries'
 import { usePatchShipment, outboundOf } from '@/features/shipping/queries'
 import { useOrderShipments } from '@dorado/client'
@@ -13,7 +12,6 @@ import {
   useRefinerOrder,
   useRefinerItems,
 } from '@/features/refiners/queries'
-import { nameOf } from '@/features/orders/display'
 
 export default function ActualsEditor({ view }: PurchaseOrderDrawerContentProps) {
   const { order, items } = view
@@ -31,10 +29,7 @@ export default function ActualsEditor({ view }: PurchaseOrderDrawerContentProps)
   const { data: shipments = [] } = useOrderShipments(order.id)
   const shipment = outboundOf(shipments)
 
-  const scrapItems = assignScrapItemNames(
-    items.filter((it) => it.bullion_id === null),
-    (metal_id: string) => nameOf(spotPrices, metal_id)
-  )
+  const scrapItems = items.filter((it) => it.bullion_id === null)
   const refinerOf = (item_id: string) =>
     refinerItems.find((r) => r.order_item_id === item_id) ?? null
 
@@ -102,7 +97,7 @@ export default function ActualsEditor({ view }: PurchaseOrderDrawerContentProps)
                 </TableHeader>
                 <TableBody>
                   {scrapItems.map((item) => {
-                    const label = item.name ?? item.metal ?? 'Scrap'
+                    const label = item.item_name ?? item.metal_id
                     const s = refinerOf(item.id)
                     return (
                       <TableRow key={item.id}>

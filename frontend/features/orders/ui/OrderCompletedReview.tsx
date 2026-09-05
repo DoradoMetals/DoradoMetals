@@ -39,7 +39,7 @@ export default function OrderCompletedReview({
         name: user?.name ?? '',
         hidden: false,
       })
-      await setCreated.mutateAsync({ id: orderId, direction })
+      await setCreated.mutateAsync({ id: orderId })
     } catch (e: any) {
       setError(e?.message || 'Something went wrong. Please try again.')
     } finally {

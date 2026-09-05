@@ -54,6 +54,11 @@ export const PurchaseQuote = z.object({
   checkout_id: Checkout.shape.id,
   spots_at: z.string(),
   items: z.array(PurchaseQuoteLine),
+  // The same split `OrderPricing` carries, from the same CASE over
+  // `bullion_id IS NULL`: a sell basket's review step shows what the scrap is
+  // worth beside what the bullion is worth, and `total` is their sum.
+  scrap_total: z.number(),
+  bullion_total: z.number(),
   total: z.number(),
   shipping_charge: z.number(),
   payout_charge: z.number(),

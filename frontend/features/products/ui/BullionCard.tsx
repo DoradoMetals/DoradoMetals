@@ -11,19 +11,15 @@ import { Tooltip, TooltipProvider } from '@dorado/components'
 import { cn } from '@/shared/utils/cn'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useBasket, useCheckoutItemActions } from '@/features/checkout/items/queries'
-import { lineFromProduct } from '@/features/checkout/items/types'
+import { useProductQuote } from '@/features/quotes/queries'
 import { useSpotPrices } from '@dorado/client'
 
 type BullionCardProps = {
   product: Product
   variants: Product[]
-  // The page's batch catalog quote (bid side), unit_price by product id - the
-  // page quotes ONCE for the whole list and every selectable variant, so a
-  // card never fires its own request (see features/quotes/catalogPrices.ts).
-  unitPrices: Record<string, number>
 }
 
-export default function BullionCard({ product, variants, unitPrices }: BullionCardProps) {
+export default function BullionCard({ product, variants }: BullionCardProps) {
   // The server picks the family's headline row and orders the siblings
   // (heaviest first), so there is nothing to sort here.
   const [selectedProduct, setSelectedProduct] = useState<Product>(product)
@@ -32,19 +28,20 @@ export default function BullionCard({ product, variants, unitPrices }: BullionCa
   const items = useBasket('purchase')
   const { addItem, removeOne } = useCheckoutItemActions()
 
-  const quantity = items.find((i) => i.bullion_id === selectedProduct.id)?.quantity ?? 0
+  const row = items.find((i) => i.bullion_id === selectedProduct.id)
+  const quantity = row?.quantity ?? 0
+  const removeOneOf = (direction: 'purchase') => row && removeOne(direction, row)
 
   const { data: spotPrices = [] } = useSpotPrices()
 
   const spot = spotPrices.find((s) => s.id === selectedProduct.metal_id)
-  const price = unitPrices[selectedProduct.id] ?? 0
+  const { data: quote } = useProductQuote(selectedProduct.id, 'bid')
+  const price = quote?.unit_price ?? 0
 
-  // DERIVED, like ProductCard's ask popover: quoted unit_price minus melt
-  // (content * ticker bid) is the same over/under the old client math
-  // (content * bid * (premium - 1)) showed whenever the quote and the ticker
-  // read the same spot tick; between their 10s refreshes it can differ by
-  // content * the spot's movement. Zero until the quote lands.
-  const overOrUnder = price === 0 ? 0 : price - selectedProduct.content * (spot?.bid ?? 0)
+  // OVER OR UNDER SPOT IS THE QUOTE'S OWN `premium`. It used to be
+  // `unit_price - content * ticker`, whose own comment admitted it drifted by
+  // content * the spot's movement between two independent 10s refreshes.
+  const overOrUnder = quote?.premium ?? 0
   const isOver = overOrUnder >= 0
 
   return (
@@ -102,7 +99,7 @@ export default function BullionCard({ product, variants, unitPrices }: BullionCa
                       <div className="flex w-56 flex-col gap-2">
                         <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
                           <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-8')}>
-                            <small>{spot?.name} Bid Price</small>
+                            <small>{selectedProduct.metal_id} Bid Price</small>
                             <p>
                               <Amount value={spot?.bid ?? 0} />
                             </p>
@@ -193,7 +190,7 @@ export default function BullionCard({ product, variants, unitPrices }: BullionCa
         {quantity === 0 ? (
           <Button
             className="w-full"
-            onClick={() => addItem('purchase', lineFromProduct(selectedProduct))}
+            onClick={() => addItem('purchase', { bullion_id: selectedProduct.id, quantity: 1 })}
           >
             Sell to Us
           </Button>
@@ -201,7 +198,7 @@ export default function BullionCard({ product, variants, unitPrices }: BullionCa
           <div className="flex items-center justify-center gap-3">
             <Button
               size="icon"
-              onClick={() => removeOne('purchase', lineFromProduct(selectedProduct))}
+              onClick={() => removeOneOf('purchase')}
             >
               <Minus size={20} />
             </Button>
@@ -209,7 +206,7 @@ export default function BullionCard({ product, variants, unitPrices }: BullionCa
             <Button
               size="icon"
               onClick={() =>
-                addItem('purchase', lineFromProduct(selectedProduct))
+                addItem('purchase', { bullion_id: selectedProduct.id, quantity: 1 })
               }
             >
               <Plus size={20} />

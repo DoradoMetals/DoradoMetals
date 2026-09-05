@@ -46,7 +46,7 @@ function LabelWithIcon({
 export default function RatesPage() {
   const { data: tiers = [] } = useRateTiers()
   const ordered = [...tiers].sort(
-    (a, b) => ORDER.indexOf(a.metal) - ORDER.indexOf(b.metal)
+    (a, b) => ORDER.indexOf(a.metal_id) - ORDER.indexOf(b.metal_id)
   )
 
   return (
@@ -66,7 +66,7 @@ export default function RatesPage() {
       <section className="relative w-full px-4 sm:px-6 lg:px-8 pb-10 sm:pb-14">
         <div className="max-w-6xl mx-auto flex flex-col gap-6">
           {ordered.map((tier) => (
-            <MetalCard key={tier.metal} tier={tier} />
+            <MetalCard key={tier.metal_id} tier={tier} />
           ))}
           {!tiers.length && <p className="text-center">Loading current rates…</p>}
         </div>
@@ -89,13 +89,13 @@ const columns = (bands: RateBand[]): RateBand[] =>
 
 function MetalCard({ tier }: { tier: RateTier }) {
   const cols = columns(tier.bands)
-  const Icon = METAL_ICONS[tier.metal]
+  const Icon = METAL_ICONS[tier.metal_id]
   return (
     <article className="rounded-lg bg-card border border-border">
       <div className="px-4 sm:px-6 pt-4 md:hidden">
         <h2>
           <LabelWithIcon Icon={Icon} className="flex items-center gap-2">
-            {tier.metal}
+            {tier.metal_id}
           </LabelWithIcon>
         </h2>
       </div>
@@ -111,7 +111,7 @@ function MetalCard({ tier }: { tier: RateTier }) {
       <div className="hidden md:grid px-4 sm:px-6 pt-4 pb-4 grid-cols-5">
         <h2 className="col-span-1">
           <LabelWithIcon Icon={Icon} className="flex items-center gap-2">
-            {tier.metal}
+            {tier.metal_id}
           </LabelWithIcon>
         </h2>
         <div className="col-span-4">

@@ -5,7 +5,7 @@ import query from "#shared/db/query.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
-import { aCart, aUser } from "#shared/testing/builders/index.ts";
+import { aCart, aProduct, aUser } from "#shared/testing/builders/index.ts";
 import type { PurchaseQuote } from "@dorado/contracts";
 
 const ORDER_LOCKS = [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.ADDRESSES];
@@ -112,5 +112,41 @@ test("a line's price is its content x the bid x the premium the band earns", asy
     );
     assert.equal(line.line_total, line.unit_price, "a scrap lot is one lot, not a quantity");
     assert.equal(q.total, line.line_total);
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCKS });
+});
+
+// THE SPLIT IS THE SAME `CASE` `OrderPricing` USES: a scrap line's total is
+// its own unit price, a bullion line's is unit price times quantity, and the
+// two buckets are the halves of `total`. The sell basket's review step shows
+// them side by side, so the browser never sums lines to find either.
+test("scrap_total and bullion_total split the goods total by kind", async () => {
+  await inPinnedTransaction(async (c) => {
+    const product = await aProduct(c, { metal_id: "Gold", content: 1, bid_premium: 1 });
+
+    const scrapOnly = await purchaseQuote(
+      (await aCart(c, await aUser(c), { direction: "purchase" })
+        .withLots(1, { metal_id: "Gold", pre_melt: 1, purity: 1, unit: "t oz" })).id
+    );
+    assert.equal(scrapOnly.bullion_total, 0, "no bullion line, no bullion total");
+    assert.equal(scrapOnly.scrap_total, scrapOnly.total, "the scrap IS the whole total");
+
+    const bullionOnly = await purchaseQuote(
+      (await aCart(c, await aUser(c), { direction: "purchase" })
+        .withBullion(product, 3)).id
+    );
+    assert.equal(bullionOnly.scrap_total, 0, "no scrap line, no scrap total");
+    assert.equal(bullionOnly.bullion_total, bullionOnly.total, "the bullion IS the whole total");
+
+    const both = await purchaseQuote(
+      (await aCart(c, await aUser(c), { direction: "purchase" })
+        .withLots(1, { metal_id: "Gold", pre_melt: 1, purity: 1, unit: "t oz" })
+        .withBullion(product, 3)).id
+    );
+    assert.equal(
+      Number(both.total.toFixed(4)),
+      Number((both.scrap_total + both.bullion_total).toFixed(4)),
+      "total is the two buckets summed and nothing else"
+    );
+    assert.ok(both.scrap_total > 0 && both.bullion_total > 0, "both buckets carry a line");
   }, { actor: TEST_ACTOR.id, lock: ORDER_LOCKS });
 });

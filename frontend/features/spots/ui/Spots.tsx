@@ -18,7 +18,7 @@ export default function Spots() {
       {spots.map((spot) => (
         <NumberFlowGroup key={spot.id}>
           <MarqueeItem
-            label={spot.name}
+            label={spot.id}
             value={<Amount value={(type === 'Bid' ? spot.bid : spot.ask) ?? 0} />}
             delta={<Amount value={spot.dollar_change ?? 0} format={DELTA_FORMAT} />}
             trend={spot.direction}

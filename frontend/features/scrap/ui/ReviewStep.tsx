@@ -1,7 +1,7 @@
 import { getGrossLabel, getPurityLabel, Scrap } from '@/features/scrap/types'
 import { useFormContext } from 'react-hook-form'
 import { motion, AnimatePresence } from 'framer-motion'
-import { usePurchaseOrderQuote } from '@/features/quotes/queries'
+import { useCheckoutQuote } from '@/features/quotes/queries'
 import { formatRate } from '@/features/rates/types'
 import { useBasket } from '@/features/checkout/items/queries'
 import { useSpotPrices } from '@/features/spots/queries'
@@ -18,15 +18,16 @@ export default function ReviewStep({ showBanner }: { showBanner: boolean }) {
 
   const items = useBasket('purchase')
   const { data: metals = [] } = useSpotPrices()
-  const metal_id = metals.find((m) => m.name === metal)?.id
+  const metal_id = metal
 
-  // The WHOLE basket is quoted, not just this line: the premium bands on the
-  // metal's total content across the order, so this line's rate depends on
-  // every other line. Quote lines come back index-aligned with the store
-  // array, and the reviewed item - already added by the time this step shows -
-  // is found by its declaration, because addItem merges identical lots.
-  const { data: quote } = usePurchaseOrderQuote(items)
-  const reviewedIndex = items.findIndex(
+  // The WHOLE basket is quoted, not just this line: the premium bands run on
+  // the metal's total content across the order, so this line's rate depends on
+  // every other line. THE REVIEWED ROW IS FOUND BY ITS ID - it was re-matched
+  // by metal, weight, purity and unit against the declaration, because the
+  // quote used to key lines by request position rather than by row.
+  const { data: answer } = useCheckoutQuote('purchase')
+  const quote = answer?.direction === 'purchase' ? answer : undefined
+  const reviewed = items.find(
     (i) =>
       !i.bullion_id &&
       i.metal_id === metal_id &&
@@ -34,7 +35,7 @@ export default function ReviewStep({ showBanner }: { showBanner: boolean }) {
       Number(i.purity) === Number(purity) &&
       i.unit === unit
   )
-  const line = quote?.items.find((l) => l.index === reviewedIndex)
+  const line = quote?.items.find((l) => l.id === reviewed?.id)
 
   const bid_premium = line?.premium
   const price = line?.line_total ?? 0

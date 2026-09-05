@@ -7,7 +7,7 @@ import { useDrawerStore } from '@/shared/store/drawerStore'
 import { PurchaseOrder, statusConfig } from '@/features/orders/purchaseOrders/types'
 import { usePurchaseOrderDownloads } from '@/features/orders/purchaseOrders/useDownloads'
 import { formatFullDate } from '@/shared/utils/formatDates'
-import { useOrderQuote } from '@/features/quotes/queries'
+import { useOrderPricing } from '@/features/quotes/queries'
 import { useFormatPurchaseOrderNumber } from '@/features/orders/utils/formatOrderNumbers'
 import { OrderCardShell } from '@/features/orders/ui/OrderCardShell'
 import { useOrderItems } from '@dorado/client'
@@ -28,7 +28,7 @@ export default function PurchaseOrderCard({
   const status = statusConfig[order.status ?? '']
   const Icon = status?.icon
 
-  const { data: quote } = useOrderQuote(order.id)
+  const { data: quote } = useOrderPricing(order.id)
 
   const handleOpen = () => {
     setActivePurchaseOrder(order.id)

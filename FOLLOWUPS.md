@@ -16226,3 +16226,28 @@ marked `superseded-by-genesis`, 131 marked `runs-even-under-a-baseline`;
 `EXTRA_BACKFILLS` for 114. Full detail and the runbook: `docs/waves/production-chain.md`.
 **Open, and NOT a migration defect**: three production purchase orders (259, 272,
 328) render a packing list containing `NaN` — `media/pdfs`, its own lane.
+## Next.js factor N1 (2026-09-06)
+
+Logic left the browser: 19 DELETE, 6 MOVE, 12 KEEP, inventoried in
+`docs/waves/nextjs-factor.md` before anything changed. No money or weight is
+computed in `frontend/` now - the over/under-spot line on every product card
+was `unit_price - content * ticker` and is `quote.premium`; the review step's
+bucket subtotals, the drawer footer's payable weight and the profit
+breakdown's four-metal sums all read server fields. Migration 132 made a
+metal's id its name, so `display.ts` lost three of its four exports and the
+`['Gold','Silver',...]` ordering dictionary with them. The admin sale create
+went from a five-call browser orchestration to one `POST /orders/admin`, and
+`adminSalesOrderCheckoutStore.items` - a persisted copy of `checkout.items` -
+was deleted in favour of the customer's own basket. THE ONE API CHANGE is
+`PurchaseQuote.scrap_total` / `bullion_total`, the split `OrderPricing` already
+carried, from the same `CASE` in the same SQL read, tested three ways.
+43 route files added under `app/` (error/loading per folder, plus root
+error/loading/not-found and a rewritten global-error), all from
+`@dorado/components`, each with an action. `PremiumControl`'s effect was a BUG
+as well as a sync: it reformatted the input box from the live spot feed, so the
+ticker's ten-second refresh rewrote what an admin was typing. Typecheck
+183 -> 0, 154 frontend tests green, `next build` green, API 1347, `pnpm check`
+and `check:fast` green except the pre-existing `figma:inventory`. STILL OPEN: `salesOrderCheckout.tsx`
+creates its draft fulfillment from a `useEffect` - an effect that writes, not
+one that syncs - and retiring it means deciding whether the checkout GET
+should create the row.

@@ -8,14 +8,12 @@ import { test, expect, request as pwRequest } from "@playwright/test";
 // is session-coupled top to bottom (it re-reads the session, prices the named
 // customer's funds, and is deliberately 403 for customers - sales are
 // admin-created for now). So this drives the same calls the admin drawer's
-// useAdminCreateSalesOrder drives (D214 item 2): retrieve the admin-flavoured
-// intent for the customer and price it with items (unchanged - the payments
-// surface, not this pass's), then sync the customer's buy cart and PATCH
-// their checkout row through the admin-scoped accessor
-// (GET/PATCH /api/checkout?user_id=, PUT /api/checkout/items?user_id= with an admin-only
-// user_id - api/transport/checkout/controller.ts), and create the order from
-// the checkout_id it answers - the same one-id create createOrderFromCheckout
-// already let an admin name. The intent is a REAL Stripe TEST-MODE object
+// useAdminCreateSalesOrder drives: retrieve the admin-flavoured intent for the
+// customer and re-price it (`{ user_id, type }` - the row supplies the rest),
+// sync the customer's buy cart through the admin-scoped accessor
+// (PUT /api/checkout/items?user_id=, admin-only - api/checkout/controller.ts),
+// and then place with ONE `AdminSaleCreate` body against POST /api/orders/admin
+// (orders pass 2), which runs the checkout steps server-side in one transaction. The intent is a REAL Stripe TEST-MODE object
 // (Jacob: "as long as we're hitting the stripe sandbox in testing it's
 // fine"); nothing is ever confirmed or captured, and the order ends Cancelled
 // like every disposable e2e order.
@@ -88,19 +86,11 @@ test.beforeAll(async ({ playwright }) => {
   const method = methodRows.find((m: { type?: string }) => m?.type === "CARD") ?? methodRows[0];
   expect(method?.id, "no sale payment method to put on the checkout").toBeTruthy();
 
-  // THE PRICING UPDATE IS IDS NOW (D214 item 11): no `user` object (the
-  // customer is named by `user_id`, admin only), no `using_funds` or
-  // `spots`, and the service/method are the ROW IDS above, not
-  // `shipping_service`/`payment_method` code/type strings.
+  // THE PRICING UPDATE IS TWO FIELDS NOW: `UpdatePaymentIntentBody` is
+  // `{ user_id, type }`, and the items, service, method and address are read
+  // off the named customer's own checkout row server-side.
   const update = await admin.post(`${API}/stripe/update_payment_intent`, {
-    data: {
-      type: "admin",
-      user_id: customerId,
-      address_id: seedAddress.id,
-      items: [{ id: product.id, quantity: 1 }],
-      carrier_service_id: service.id,
-      payment_method_id: method.id,
-    },
+    data: { type: "admin", user_id: customerId },
   });
   expect(update.ok(), `update_payment_intent failed: ${await update.text()}`).toBeTruthy();
   // The intent this priming call answers is the one `place()` finds on its
@@ -115,37 +105,39 @@ test.beforeAll(async ({ playwright }) => {
   );
   expect(synced.ok(), `admin basket sync failed: ${await synced.text()}`).toBeTruthy();
 
-  const patched = await admin.patch(`${API}/checkout?user_id=${customerId}`, {
+  const fulfillmentMethods = await admin.get(`${API}/fulfillments/methods?direction=sale`);
+  expect(
+    fulfillmentMethods.ok(),
+    `fulfillment methods failed: ${await fulfillmentMethods.text()}`
+  ).toBeTruthy();
+  const shipment = (await fulfillmentMethods.json()).find(
+    (m: { type?: string }) => m?.type === "SHIPMENT"
+  );
+  expect(shipment?.id, "no SHIPMENT fulfillment method to place against").toBeTruthy();
+
+  // ONE CALL, ONE BODY (orders pass 2): `POST /orders/admin` takes the whole
+  // `AdminSaleCreate` and runs the four checkout steps server-side, inside one
+  // transaction, before placing. The four requests that used to build that
+  // checkout from the browser are the four this body replaces.
+  const created = await admin.post(`${API}/orders/admin`, {
     data: {
       direction: "sale",
-      recipient_address_id: seedAddress.id,
+      user_id: customerId,
+      items: [{ bullion_id: product.id, quantity: 1 }],
+      fulfillment: {
+        method_id: shipment.id,
+        choices: {
+          shipment: {
+            carrier_service_id: service.id,
+            recipient_address_id: seedAddress.id,
+          },
+        },
+      },
       payment_method_id: method.id,
+      recipient_address_id: seedAddress.id,
     },
   });
-  expect(patched.ok(), `admin checkout PATCH failed: ${await patched.text()}`).toBeTruthy();
-  const { id: checkout_id } = await patched.json();
-  expect(checkout_id, "the admin checkout PATCH answered no id").toBeTruthy();
-
-  // THE HANDOVER IS THE FULFILLMENT'S (rulings 69/70, migration 128): every
-  // checkout needs a draft to be placeable, and the delivery service is a
-  // column of that draft's parcel rather than of the checkout row.
-  const draft = await admin.post(`${API}/fulfillments`, { data: { checkout_id } });
-  expect(draft.ok(), `draft fulfillment failed: ${await draft.text()}`).toBeTruthy();
-  const { fulfillment } = await draft.json();
-  const parcel = await admin.patch(`${API}/fulfillments/${fulfillment.id}`, {
-    data: { shipment: { carrier_service_id: service.id } },
-  });
-  expect(parcel.ok(), `fulfillment PATCH failed: ${await parcel.text()}`).toBeTruthy();
-
-  // admin_create_sales_order, NOT create_sales_order: the latter is the
-  // mothballed customer flow (admin-gated but ownership-checked against the
-  // SESSION user, so an admin creating for a customer is refused by design).
-  // ONE ID NOW (D214 item 11) - the address, items, service and payment
-  // method all live on the checkout row PATCHed above.
-  const created = await admin.post(`${API}/sales_orders/admin_create_sales_order`, {
-    data: { checkout_id },
-  });
-  expect(created.ok(), `create_sales_order failed: ${await created.text()}`).toBeTruthy();
+  expect(created.ok(), `admin order create failed: ${await created.text()}`).toBeTruthy();
   const order = await created.json();
   orderId = order?.id ?? order?.order?.id ?? "";
   orderNumber = order?.number ?? order?.order?.number ?? 0;

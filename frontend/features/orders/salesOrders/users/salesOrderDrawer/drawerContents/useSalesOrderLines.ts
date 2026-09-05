@@ -10,17 +10,17 @@ import type { SalesOrderLine } from './displayProducts'
 // come with the view now, each carrying the catalogue row behind it
 // (`item.product`) and its own `line_total`, so nothing here computes money.
 //
-// The one lookup left is `mint_name`, which is a JOIN the storefront read
-// performs and `BullionPublic` does not carry - the mapping ruling 12 asks
-// the client to do against a list it already caches.
+// The name is the view's own (`product_name` for a catalogue line,
+// `item_name` for a scrap lot); the mint and the picture are the mapping
+// ruling 12 asks the client to do against a catalogue it already caches.
 export function useSalesOrderLines(view: OrderView): SalesOrderLine[] {
   const { data: catalogue = [] } = useProducts()
 
   return view.items.map((item) => ({
     id: item.id,
-    name: item.product?.name ?? null,
+    name: item.product_name ?? item.item_name,
     mint_name: byId(catalogue, item.bullion_id)?.mint_name ?? null,
-    image_front: item.product?.image_front ?? null,
+    image_front: byId(catalogue, item.bullion_id)?.image_front ?? null,
     quantity: item.quantity,
     price: item.price,
     line_total: item.line_total,

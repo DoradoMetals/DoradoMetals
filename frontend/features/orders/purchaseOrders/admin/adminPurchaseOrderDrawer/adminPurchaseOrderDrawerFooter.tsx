@@ -3,7 +3,6 @@ import { Accordion, Amount, Table, TableBody, TableCell, TableHead, TableHeader,
 
 import { useMemo, useState } from 'react'
 import { PurchaseOrderDrawerFooterProps, statusConfig } from '@/features/orders/purchaseOrders/types'
-import { assignScrapItemNames } from '@/features/orders/display'
 
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 import { PurchaseOrderActionButtons } from './adminPurchaseOrderDrawerContents/adminPurchaseOrderActionButtons'
@@ -16,15 +15,14 @@ import { formatRate } from '@/features/rates/types'
 // Every dollar figure below comes from the order quote - the server prices
 // the order's own items at its own spots, honouring a lock (Jacob's
 // no-previews ruling). The client keeps only weight/rate display math.
-import { useOrderQuote } from '@/features/quotes/queries'
-import { nameOf } from '@/features/orders/display'
+import { useOrderPricing } from '@/features/quotes/queries'
 
 export default function AdminPurchaseOrderDrawerFooter({ view }: PurchaseOrderDrawerFooterProps) {
   const { order } = view
 
   const valueLabel = statusConfig[order.status ?? '']?.value_label ?? ''
 
-  const { data: quote } = useOrderQuote(order.id)
+  const { data: quote } = useOrderPricing(order.id)
   // Quote lines pair to order items BY ID - these are stored rows, unlike the
   // purchase basket quote's index pairing.
   const quoteLineById = useMemo(
@@ -56,10 +54,7 @@ export default function AdminPurchaseOrderDrawerFooter({ view }: PurchaseOrderDr
 
   // bullion_id IS the discriminator - null means scrap; `item_type` was
   // derived in the compose layer and has no column.
-  const scrapItems = assignScrapItemNames(
-    items.filter((item) => item.bullion_id === null),
-    (metal_id: string) => nameOf(spotPrices, metal_id)
-  )
+  const scrapItems = items.filter((item) => item.bullion_id === null)
   const bullionItems = items.filter((item) => item.bullion_id !== null)
   const { data: payoutMethods = [] } = usePaymentMethods('purchase')
   const payoutMethod = payoutMethods.find((p) => p.type === payout?.method)
@@ -96,7 +91,7 @@ export default function AdminPurchaseOrderDrawerFooter({ view }: PurchaseOrderDr
                 <TableBody>
                   {scrapItems.map((item, i) => (
                     <TableRow key={i}>
-                      <TableCell className="text-left">{item.name}</TableCell>
+                      <TableCell className="text-left">{item.item_name}</TableCell>
                       <TableCell className="text-right">{item.content?.toFixed(3)}</TableCell>
                       {/* One premium, read once: 085 folded scrap into the
                           items table, and the composed wire's
@@ -132,7 +127,7 @@ export default function AdminPurchaseOrderDrawerFooter({ view }: PurchaseOrderDr
                   {bullionItems.map((item, i) => (
                     <TableRow key={i}>
                       <TableCell>{item.quantity}</TableCell>
-                      <TableCell>{nameOf(catalogue, item.bullion_id)}</TableCell>
+                      <TableCell>{item.product_name}</TableCell>
                       <TableCell className="text-right p-0">
                         {/* line_total is already unit_price * quantity. */}
                         <Amount value={quoteLineById.get(item.id)?.line_total ?? 0} />

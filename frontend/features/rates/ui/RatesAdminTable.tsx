@@ -12,9 +12,9 @@ export default function RatesPage() {
   const byMetal = useMemo(() => {
     const m = new Map<string, AdminRate[]>()
     for (const r of rates) {
-      const arr = m.get(r.metal) ?? []
+      const arr = m.get(r.metal_id) ?? []
       arr.push(r)
-      m.set(r.metal, arr)
+      m.set(r.metal_id, arr)
     }
     for (const [k, arr] of m) {
       // WAS `a.material === b.material ? a.min_qty - b.min_qty :

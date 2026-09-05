@@ -58,8 +58,7 @@ export default function ScrapForm() {
   const handleSubmit = (values: Scrap) => {
     // Only the declaration: content and premium are the server's.
     addItem('purchase', {
-      id: values.id,
-      metal_id: metals.find((m) => m.name === values.metal)?.id,
+      metal_id: values.metal,
       pre_melt: values.pre_melt,
       post_melt: values.post_melt,
       purity: values.purity,

@@ -9,7 +9,7 @@ import { FloatingButton, FloatingButtonItem } from '@/features/products/ui/Float
 
 import { useState } from 'react'
 import { useBasket, useCheckoutItemActions } from '@/features/checkout/items/queries'
-import { lineFromProduct } from '@/features/checkout/items/types'
+import { useProductQuote } from '@/features/quotes/queries'
 
 import { Tooltip, TooltipProvider } from '@dorado/components'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -20,13 +20,9 @@ import { cn } from '@/shared/utils/cn'
 type ProductCardProps = {
   product: Product
   variants: Product[]
-  // The page's batch catalog quote, unit_price by product id - the page
-  // quotes ONCE for the whole grid and every selectable variant, so a card
-  // never fires its own request (see features/quotes/catalogPrices.ts).
-  unitPrices: Record<string, number>
 }
 
-export default function ProductCard({ product, variants, unitPrices }: ProductCardProps) {
+export default function ProductCard({ product, variants }: ProductCardProps) {
   const router = useRouter()
   // The server picks the family's headline row and orders the siblings
   // (heaviest first), so there is nothing to sort here.
@@ -36,21 +32,21 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
   const items = useBasket('sale')
   const { addItem, removeOne } = useCheckoutItemActions()
 
-  const quantity = items.find((i) => i.bullion_id === selectedProduct.id)?.quantity ?? 0
+  const row = items.find((i) => i.bullion_id === selectedProduct.id)
+  const quantity = row?.quantity ?? 0
+  const removeOneOf = (direction: 'sale') => row && removeOne(direction, row)
   const { data: spotPrices = [] } = useSpotPrices()
 
   // Keyed by the metal's ID, which the row carries - matching on the NAME
   // was a string comparison between two independent reads.
   const spot = spotPrices.find((s) => s.id === selectedProduct.metal_id)
-  const price = unitPrices[selectedProduct.id] ?? 0
+  const { data: quote } = useProductQuote(selectedProduct.id, 'ask')
+  const price = quote?.unit_price ?? 0
 
-  // The popover's premium line, DERIVED: quoted unit_price minus melt
-  // (content * ticker ask). Same number the old client math (content * ask *
-  // (premium - 1)) showed whenever the quote and the ticker read the same
-  // spot tick; between their 10s refreshes it can differ by content * the
-  // spot's movement. Zero until the quote lands, so a loading card never
-  // shows melt as a discount.
-  const overOrUnder = price === 0 ? 0 : price - selectedProduct.content * (spot?.ask ?? 0)
+  // OVER OR UNDER SPOT IS THE QUOTE'S OWN `premium`. It used to be
+  // `unit_price - content * ticker`, whose own comment admitted it drifted by
+  // content * the spot's movement between two independent 10s refreshes.
+  const overOrUnder = quote?.premium ?? 0
   return (
     <div
       role="button"
@@ -159,7 +155,7 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
                       <div className="flex w-56 flex-col gap-2">
                         <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
                           <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-8')}>
-                            <small>{spot?.name} Spot Price</small>
+                            <small>{selectedProduct.metal_id} Spot Price</small>
                             <p>
                               <Amount value={spot?.ask ?? 0} />
                             </p>
@@ -241,7 +237,7 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
                 className="w-full"
                 onClick={(e) => {
                   e.stopPropagation()
-                  addItem('sale', lineFromProduct(selectedProduct))
+                  addItem('sale', { bullion_id: selectedProduct.id, quantity: 1 })
                 }}
               >
                 Add to Checkout
@@ -252,7 +248,7 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
                   size="icon"
                   onClick={(e) => {
                     e.stopPropagation()
-                    removeOne('sale', lineFromProduct(selectedProduct))
+                    removeOneOf('sale')
                   }}
                 >
                   <Minus size={20} />
@@ -262,7 +258,7 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
                   size="icon"
                   onClick={(e) => {
                     e.stopPropagation()
-                    addItem('sale', lineFromProduct(selectedProduct))
+                    addItem('sale', { bullion_id: selectedProduct.id, quantity: 1 })
                   }}
                 >
                   <Plus size={20} />
