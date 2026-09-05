@@ -34,10 +34,11 @@ END $$;
 -- dangling value still raises 23503, which is exactly what a from-scratch
 -- verify:backfill build hit here - genesis now creates the FK before this
 -- file ever runs. So the two dangling ids are left NULL on a rebuild rather
--- than reproduced; payments.intents is registered in verify-backfill.mjs's
--- NOT_REBUILT (row content is not compared there), so this cannot be seen as
--- a mismatch, and it does not touch what is already live on dev - an
--- already-applied migration only re-executes on an empty database.
+-- than reproduced. verify-backfill.mjs DOES compare payments.intents row by
+-- row now, and declares this column under `rebuildDiffers` with this reason -
+-- a difference the rebuild makes on purpose, counted and named rather than
+-- hidden. It does not touch what is already live on dev: an already-applied
+-- migration only re-executes on an empty database.
 UPDATE payments.intents i
 SET session_id = e.session_id,
     user_id    = CASE WHEN EXISTS (SELECT 1 FROM auth.users u WHERE u.id = e.user_id)

@@ -49,6 +49,11 @@ END $$;
 -- (direction, number) is unique - exchange enforced that on purchase orders
 -- and, for no particular reason, not on sales orders.
 --
+-- spots_locked comes across HERE. 086 carried it from orders.offers, a table a
+-- from-nothing build never creates, so on a rebuild the value came from nowhere
+-- and every purchase order landed false - eight of dev's are true. Sales orders
+-- have no such column in exchange and keep the default.
+--
 -- refinery_id used to be seeded here and the COLUMN IS GONE (dropped by 094;
 -- the engagement owns which refinery has an order's metal). The value this
 -- used to copy - exchange.sales_orders.supplier_id - lands on
@@ -58,11 +63,12 @@ END $$;
 
 INSERT INTO orders.orders (
   id, user_id, direction, status, number, notes, review_created,
-  created_by, updated_by, created_at, updated_at
+  spots_locked, created_by, updated_by, created_at, updated_at
 )
 SELECT
   p.id, p.user_id, 'purchase', p.purchase_order_status, p.order_number,
-  p.notes, p.review_created, p.created_by, p.updated_by,
+  p.notes, p.review_created, coalesce(p.spots_locked, false),
+  p.created_by, p.updated_by,
   p.created_at AT TIME ZONE 'UTC', p.updated_at AT TIME ZONE 'UTC'
 FROM exchange.purchase_orders p
 ON CONFLICT (id) DO NOTHING;
