@@ -72,3 +72,17 @@ test("an empty patch changes nothing and is not a failure", async () => {
     assert.equal(await totals.update(orderId, {}, {}, c), true);
   });
 });
+
+test("getMany answers the rows that exist and skips ids with none", async () => {
+  await inRollback(async (c: PoolClient) => {
+    const orderId = await anOrderWithTotals(c, "purchase");
+    await totals.update(orderId, { total: 55 }, {}, c);
+
+    const rows = await totals.getMany([orderId, randomUUID()], c);
+    assert.equal(rows.length, 1, "getMany answered an id with no orders.transactions row");
+    assert.equal(rows[0]?.order_id, orderId);
+    assert.equal(Number(rows[0]?.total), 55);
+
+    assert.deepEqual(await totals.getMany([], c), []);
+  });
+});

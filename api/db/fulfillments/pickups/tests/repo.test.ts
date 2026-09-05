@@ -1,5 +1,6 @@
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import type { PoolClient } from "pg";
 import pool from "#pool";
 import { inRollback } from "#shared/testing/rollback.ts";
@@ -66,5 +67,19 @@ test("remove deletes the pickup and answers false the second time", async () => 
 
     const removedAgain = await pickups.remove(fulfillment_id, c);
     assert.equal(removedAgain, false, "remove reported a change for a pickup already gone");
+  });
+});
+
+test("getMany answers [] for an empty id list and skips ids with no pickup", async () => {
+  await inRollback(async (c: PoolClient) => {
+    assert.deepEqual(await pickups.getMany([], c), [], "an empty id list queried anyway");
+
+    const fulfillment_id = await aDraftFulfillment(c);
+    const pickup_address_id = await anAddressId(c);
+    const row = await pickups.create({ fulfillment_id, pickup_address_id }, c);
+
+    const rows = await pickups.getMany([fulfillment_id, randomUUID()], c);
+    assert.equal(rows.length, 1, "getMany answered a fulfillment with no pickup row");
+    assert.equal(rows[0]?.id, row.id);
   });
 });

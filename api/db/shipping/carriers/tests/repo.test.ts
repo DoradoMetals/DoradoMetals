@@ -58,3 +58,15 @@ test("remove deletes a real carrier and answers false the second time", async ()
     assert.equal(removedAgain, false, "remove reported a change for a carrier already gone");
   });
 });
+
+test("getAll answers every carrier row, this one included", async () => {
+  await inRollback(async (c: PoolClient) => {
+    const organization_id = await anOrganization(c);
+    const row = await carriers.create({ organization_id, logo: "https://example.com/a.png" }, c);
+
+    const rows = await carriers.getAll(c);
+    const found = rows.find((r) => r.id === row.id);
+    assert.ok(found, "getAll did not answer the carrier just created");
+    assert.equal(found.logo, "https://example.com/a.png");
+  });
+});

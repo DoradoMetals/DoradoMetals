@@ -4,7 +4,6 @@
 //
 // Postgres table: orders.transactions
 import { z } from "zod/v4";
-import { Direction } from "./enums.js";
 
 export const OrderTotals = z.object({
   "id": z.string().uuid(),
@@ -38,6 +37,7 @@ export const OrderTotals = z.object({
 });
 export type OrderTotals = z.infer<typeof OrderTotals>;
 // generated:end
+import { Direction } from "./enums.js";
 
 export const OrderTotalsPatch = OrderTotals.omit({
   id: true,
