@@ -94,7 +94,7 @@ try {
 
   const customerIds = [...new Set(charges.map((c) => c.stripe_customer_id).filter(Boolean))];
   const { rows: users } = await prod.query(
-    `SELECT id, "stripeCustomerId" AS cus FROM exchange.users WHERE "stripeCustomerId" = ANY($1)`,
+    `SELECT id, "stripeCustomerId" AS cus FROM auth.users WHERE "stripeCustomerId" = ANY($1)`,
     [customerIds]
   );
   const userByCustomer = new Map(users.map((u) => [u.cus, u.id]));
@@ -159,7 +159,7 @@ try {
   console.log(`${unknown} intent(s) in the Stripe export have no row in exchange at all`);
 
   const { rows: [cust] } = await prod.query(
-    `SELECT count(*)::int total, count("stripeCustomerId")::int linked FROM exchange.users`
+    `SELECT count(*)::int total, count("stripeCustomerId")::int linked FROM auth.users`
   );
   console.log(`${cust.linked} of ${cust.total} users carry a stripeCustomerId, so charges can be attributed`);
 } finally {

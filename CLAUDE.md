@@ -113,11 +113,20 @@ stops meaning anything. That record — 15 pairs, 10 byte-identical,
 `only_in_target` zero on all fifteen, every exception measured — is in
 `docs/waves/write-pivot.md`. Do not expect to re-derive it.
 
-**NO APPLICATION CODE WRITES `exchange` ANY MORE (D214, 2026-09-03).** The list
-below was three live writes; the last of them is gone. What still reaches
-`exchange` is two mirror TRIGGERS, both feeding it from `auth.*` on purpose so
-that features joining `exchange.users` keep seeing fresh identity — and no
-statement in `api/` names an exchange table in an INSERT, UPDATE or DELETE.
+**NOTHING WRITES `exchange` ANY MORE — NOT CODE, NOT A TRIGGER (D214
+2026-09-03, finished by migration 133 on 2026-09-06).** The list below was
+three live writes; the last of them went in D214. What was left after that was
+two mirror TRIGGERS feeding `exchange` from `auth.*` so that features joining
+`exchange.users` kept seeing fresh identity, and **migration 133 RETIRED both**
+(Jacob: "Yes migrate and retire") — `mirror_identity_to_exchange_insert` /
+`_update` on `auth.users` and `mirror_sessions_to_exchange` on `auth.sessions`,
+with their two functions. It was safe because nothing reads them: grepped
+across `api/` excluding migrations, tests, `scripts/lib/feature-map.ts` and the
+test-db preflight, `exchange.users` and `exchange.session` appear in ZERO
+application files (the only hits were tooling, repointed at `auth.users` in the
+same pass). So no statement in `api/` names an exchange table in an INSERT,
+UPDATE or DELETE, and no trigger writes one either. Every exchange row still
+stands, frozen and readable; identity and sessions live only in `auth.*`.
 
 - **`exchange.users.dorado_funds` IS FROZEN.** The customer credit balance
   moved to `auth.users.dorado_funds` — the column 107 was already mirroring —
@@ -128,17 +137,21 @@ statement in `api/` names an exchange table in an INSERT, UPDATE or DELETE.
   in one transaction. 118 also SPLIT the identity mirror's trigger into an
   INSERT half and an `AFTER UPDATE OF <identity columns>` half, because a
   balance write is now an update of `auth.users` and the old trigger would have
-  written `exchange.users` through the back door on every one. The exchange
-  column keeps the value it held and is readable forever; it simply stops
-  changing, which is ruling 36.
+  written `exchange.users` through the back door on every one. **Both halves
+  are GONE as of 133**, so the split no longer protects anything and is history.
+  The exchange column keeps the value it held and is readable forever; it simply
+  stops changing, which is ruling 36.
 - **`exchange.users` identity columns** — **THE AUTH CUTOVER HAPPENED**
   (2026-09-01, Jacob's call, migration 107 + `features/auth/client.ts`).
   better-auth writes
   `auth.users` / `auth.sessions` / `auth.account` / `auth.verification` now.
-  The row has two owners split by COLUMN, each mirrored by a depth-guarded
+  The row had two owners split by COLUMN, each mirrored by a depth-guarded
   trigger that cannot loop: identity (email, name, role, ban state, stripe
-  customer) flows `auth -> exchange`, so every feature joining
-  `exchange.users` stays fresh. `dorado_funds` used to flow the other way,
+  customer) flowed `auth -> exchange`, so every feature joining
+  `exchange.users` stayed fresh. **That mirror was RETIRED by migration 133
+  (2026-09-06)** once the grep proved no application file reads
+  `exchange.users` at all; `auth.users` is the only owner now.
+  `dorado_funds` used to flow the other way,
   `exchange -> auth`; migration 118 retired that half and the balance is
   written auth-side directly, so the session object the frontend reads shows
   it without a mirror. 056's one-way mirror — the one that
@@ -148,11 +161,10 @@ statement in `api/` names an exchange table in an INSERT, UPDATE or DELETE.
   accounts on the auth side (one sharing Jacob's email under a different id,
   with a January-era password that would have become loginable) were removed
   in 107; sessions/credentials were reconciled from exchange the same day.
-  Sessions and credentials now land only in `auth.*`. **`auth.sessions` still
-  carries `mirror_sessions_to_exchange` (108), so a login does write
-  `exchange.session`** — trigger, not code, and out of D214's scope; retiring
-  it is a one-line migration whenever someone wants it (ruling 36 already
-  allows it; a stale session is a re-login, not lost data).
+  Sessions and credentials now land only in `auth.*`. **`mirror_sessions_to_exchange`
+  (108) IS RETIRED — migration 133, 2026-09-06** — so a login no longer writes
+  `exchange.session` at all. The rows it already holds stay; a stale session is
+  a re-login, not lost data, which is why ruling 36 always allowed this.
   better-auth itself is PINNED EXACT at 1.6.9 (with `@better-auth/core` and
   `utils` held by root overrides): 1.7 cannot resolve the dotted schema
   `modelName` this whole arrangement stands on, and the pin's commit says so.

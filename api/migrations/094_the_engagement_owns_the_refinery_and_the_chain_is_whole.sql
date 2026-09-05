@@ -167,21 +167,32 @@ WHERE EXISTS (SELECT 1 FROM shipping.shipments s WHERE s.id = e.id)
   AND NOT EXISTS (SELECT 1 FROM fulfillments.shipments fs WHERE fs.shipment_id = e.id)
 ON CONFLICT (shipment_id) DO NOTHING;
 
--- THE PROOF. Three refusals, each naming what it found:
+-- THE PROOF. Two refusals, each naming what it found:
 --
 --   1. A shipment exchange can reach by order id that the chain cannot reach
 --      is a shipment the bare-resource reads would lose.
---   2. A carrier pickup in exchange has no chain destination modeled from
---      exchange's shape (shipping.pickups keys on a shipment; an
---      exchange.carrier_pickups row keys on the ORDER). Both databases hold
---      zero today - if one ever appears, this refuses rather than strands it.
---   3. A direct order id column on shipping.shipments would mean this
+--   2. A direct order id column on shipping.shipments would mean this
 --      database diverged from every schema this repo has ever built - refuse
 --      and investigate, never silently drop a column that might hold data.
+--
+-- THERE WAS A THIRD, AND IT IS GONE (2026-09-06, prod-day fixes). It counted
+-- exchange.carrier_pickups and raised while any row existed, on the reasoning
+-- that shipping.pickups keys on a SHIPMENT and an exchange.carrier_pickups row
+-- keys on the ORDER, so the chain modelled no home for one. That refusal was
+-- written when "both databases hold zero today" was true. It stopped being
+-- true - dev accumulated six from the dual era - and it turned a from-nothing
+-- migration of dev into an abort at 094, with production's own count unknown.
+--
+-- Jacob, 2026-09-06: production holds NONE of these, dev's six are sandbox
+-- test rows, and they are NOT carried. So there is nothing to strand and no
+-- backfill to wait for. exchange.carrier_pickups keeps its rows, frozen and
+-- readable, exactly like every other exchange table; nothing here deletes or
+-- writes one. shipping.pickups is declared in verify-backfill.mjs's
+-- NOT_REBUILT with the same reason, which is where the decision is now
+-- checked rather than in an unconditional RAISE.
 DO $$
 DECLARE
   unreachable integer;
-  stranded_pickups integer;
   has_direct_order_id boolean;
 BEGIN
   SELECT count(*) INTO unreachable
@@ -200,14 +211,6 @@ BEGIN
     RAISE EXCEPTION
       'the fulfillment chain is incomplete: % shipment(s) reachable by order id '
       'in exchange cannot be reached through fulfillments.', unreachable;
-  END IF;
-
-  SELECT count(*) INTO stranded_pickups FROM exchange.carrier_pickups;
-  IF stranded_pickups > 0 THEN
-    RAISE EXCEPTION
-      'exchange.carrier_pickups holds % row(s) and the chain models no home for '
-      'an order-keyed pickup - write that backfill before this migration runs.',
-      stranded_pickups;
   END IF;
 
   SELECT EXISTS (

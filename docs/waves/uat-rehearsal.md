@@ -276,6 +276,11 @@ residue.** It assumes empty tables. `places.locations` went **3 → 6**: it seed
 duplicates of the business's own locations. It also collides on
 `services_carrier_name_key` (production already holds 11 `shipping.services`).
 Four of its statements error.
+**FIXED 2026-09-06** — every insert is now guarded by NOT EXISTS on the fact
+that identifies the row, and every reference is a lookup by that fact rather
+than a literal id. Re-measured on a production-shaped copy: locations 3, hours
+18, services 11, packages 12, methods 11/10, employees 2, stable over three
+runs. See `production-day-fixes.md`.
 
 **F9 — `049_backfill_shipping.sql` cannot write a single shipment.**
 `048_shipments_addresses_optional.sql` is what drops the
@@ -283,6 +288,9 @@ Four of its statements error.
 constraint survives on production's January `shipping.shipments`, so 049's
 upsert fails for every row: **`shipping.shipments` stays at 41 against
 `exchange.shipments`' 71 — 30 shipments never migrate.**
+**FIXED 2026-09-06** — 049 now asserts its own precondition, carrying 048's
+`DROP CONSTRAINT IF EXISTS` at the top. Re-measured on a production-shaped
+copy: `shipping.shipments` **71 of 71**. See `production-day-fixes.md`.
 
 **F10 — `verify:backfill` is broken on this branch and is not in `pnpm check`.**
 It fails with the same `column "stock" of relation "bullion" does not exist`,
@@ -482,13 +490,19 @@ that 071 was written to remove.
 ```bash
 MIGRATE_ALLOW_DB=<db> pnpm --filter @dorado/api migrate
 ```
-It will stop six times, at 088, 090, 092, 101, 102 and 129 (F3, F5). Nothing in
-the runner stamps a migration without running it, so **each stop needs a
-decision**; the rehearsal stamped them by hand into
-`exchange.schema_migrations`. 088/090/092/101/102 are provably no-ops against a
-genesis-built database — their objects already exist or their columns are gone
-by 131. **129 is not**: it is a guard, and it is correct. Do not stamp past it
-without first adding the two defaults:
+It will stop repeatedly (F3, F5). Nothing in the runner stamps a migration
+without running it, so **each stop needs a decision**; the rehearsal stamped
+them by hand into `exchange.schema_migrations`. Re-run 2026-09-06 with the
+migrations as they now stand, the stops were 064, 066, 070, 083, 088, 090, 092,
+093, 094, 101, 102, 120, 129 and 132. 088/090/092/101/102 are provably no-ops
+against a genesis-built database — their objects already exist or their columns
+are gone by 131. **The metal-typed ones (064, 066, 070, 083, 120, 132, and 093
+/ 094 behind them) are the newest face of F6**: 132 made `metals.metals.id`
+text, genesis therefore cannot add the metal foreign keys to production's
+January `uuid` columns, and ten genesis statements fail with it. That wants a
+migration that converts those columns the way 132 does, not a stamp.
+**129 is not a no-op either**: it is a guard, and it is correct. Do not stamp
+past it without first adding the two defaults:
 
 ```sql
 ALTER TABLE orders.orders       ALTER COLUMN id SET DEFAULT gen_random_uuid();
@@ -502,17 +516,17 @@ In order: 029, 031, 034, 036, 038, 040, 042, 047, 049. Three need care:
 
 - **029** — remove `stock` and `quantity` from the `products.bullion` INSERT
   (131 drops both). Without this the catalogue is empty (F7). Expect 95 rows.
-- **047** — will duplicate `places.locations` and collide on
-  `shipping.services` (F8). Needs guards before it is run against a database
-  that already holds January reference data.
-- **049** — drop the `shipments_addresses_required` check first (048 is what
-  removes it, and 048 is baselined away), or 30 shipments never migrate (F9).
+- **047** — FIXED (2026-09-06). It is idempotent by natural key now and needs
+  nothing; expect locations 3, hours 18, services 11, packages 12, methods
+  11/10, employees 2.
+- **049** — FIXED (2026-09-06). It drops `shipments_addresses_required` itself;
+  expect `shipping.shipments` to equal `exchange.shipments`, 71 of 71.
 
 ### 7. Verify
 
 ```bash
 pnpm --filter @dorado/api verify:genesis          # will report drift; read §3
-pnpm --filter @dorado/api verify:backfill         # broken today — F10
+pnpm --filter @dorado/api verify:backfill         # green since 2026-09-06
 pnpm --filter @dorado/api audit:coverage
 pnpm --filter @dorado/api audit:precision         # floor will fire — F11
 pnpm --filter @dorado/api audit:plaintext-secrets

@@ -16077,3 +16077,33 @@ scalar subselect - and the renderers read it directly. A first pass stitched a
 dictionary ruling 78 forbids, and it is gone. 74 frontend type
 errors across 16 files, listed with their two roots in
 `docs/waves/products-are-flair.md`; the frontend is not updated here (ruling 44).
+
+## Production-day fixes (2026-09-06)
+
+Four rehearsal findings closed in the migrations and their verifier; detail and
+proof counts in `docs/waves/production-day-fixes.md`.
+
+- **047 is idempotent by NATURAL KEY** (generator `dump-seed.mjs` emits
+  `SELECT … FROM (VALUES …) WHERE NOT EXISTS`, references resolved by the same
+  key). Production's January reference data has its own ids, so `ON CONFLICT
+  (id)` never fired: locations went 3 → 6 and services aborted on
+  `services_carrier_name_key`. On a production-shaped copy: locations 3, hours
+  18, services 11, packages 12, methods 11/10, employees 2, stable over three runs.
+- **049 carries 048's `DROP CONSTRAINT IF EXISTS shipments_addresses_required`**
+  because 048 is inside the `002-049` baseline and is stamped, never run, on a
+  database that already holds tables. `shipping.shipments` 41 → **71 of 71**.
+- **094's carrier-pickup refusal is REMOVED** (Jacob: production holds none,
+  dev's six are sandbox rows, not carried). `shipping.pickups` declared in
+  `NOT_REBUILT` with that reason, pinned count of 6 dropped. Nothing in
+  `exchange` is written or deleted.
+- **Migration 133 retires both `auth -> exchange` mirror triggers and their
+  functions** (Jacob: "Yes migrate and retire") after grepping `api/` proved no
+  application file reads `exchange.users` or `exchange.session`; three tooling
+  scripts repointed at `auth.users`, the builders test moved with its subject,
+  genesis regenerated, `verify:genesis` green. Nothing writes `exchange` now —
+  not code, not a trigger.
+- Consequential: **073 resolves a payout's method under either vocabulary**
+  (`DORADO CREDIT` before 109, `DORADO_ACCOUNT` after), 62 of 62 on a
+  production-shaped copy. And a NEW crop of F6 is recorded, not fixed: since 132
+  made `metals.metals.id` text, genesis cannot add the metal FKs to production's
+  January `uuid` columns, and 064/066/070/083/120/132 fail in the chain.

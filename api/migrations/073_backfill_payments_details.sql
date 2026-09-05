@@ -6,8 +6,11 @@
 -- fees on orders.transactions.
 --
 --   method               -> method_id, resolved against payments.methods on
---                           (direction 'purchase', type). DORADO_ACCOUNT is
---                           called DORADO CREDIT there; the other three match.
+--                           (direction 'purchase', type), under EITHER
+--                           vocabulary: DORADO_ACCOUNT was called DORADO CREDIT
+--                           until 109 renamed it, and which name is present
+--                           depends on whether 109 or 047 got there first. The
+--                           other three match under both.
 --   account_holder_name  -> account_holder
 --   order_id             -> not carried. payments.details describes an account,
 --                           and the same account serves many orders; the order
@@ -72,9 +75,24 @@ SELECT
   p.created_at,
   p.created_at
 FROM exchange.payouts p
-LEFT JOIN payments.methods m
-  ON m.direction = 'purchase'
- AND m.type = CASE p.method WHEN 'DORADO_ACCOUNT' THEN 'DORADO CREDIT' ELSE p.method END
+-- THE METHOD IS RESOLVED UNDER EITHER VOCABULARY (2026-09-06, prod-day fixes).
+-- This used to be a plain join on the January spelling: DORADO_ACCOUNT mapped
+-- to 'DORADO CREDIT' because that is what 047 seeded. 109 then RENAMED that row
+-- to DORADO_ACCOUNT, and 047 - regenerated from dev with the same pass that
+-- made it idempotent - now seeds the new name. Which spelling is present
+-- depends on the ORDER: on production the chain reaches 073 before 109, so the
+-- row still says 'DORADO CREDIT'; on a from-nothing build 047 has already
+-- seeded the post-109 name. Accepting both, exact match first, is what makes
+-- the resolution independent of that order - and a null method_id here is a
+-- payout account with no method, which is a silent loss no constraint catches.
+LEFT JOIN LATERAL (
+  SELECT m.id
+    FROM payments.methods m
+   WHERE m.direction = 'purchase'
+     AND m.type IN (p.method, CASE WHEN p.method = 'DORADO_ACCOUNT' THEN 'DORADO CREDIT' END)
+   ORDER BY (m.type = p.method) DESC, m.id
+   LIMIT 1
+) m ON true
 WHERE p.user_id IS NOT NULL
 ON CONFLICT (id) DO UPDATE SET
   user_id        = EXCLUDED.user_id,

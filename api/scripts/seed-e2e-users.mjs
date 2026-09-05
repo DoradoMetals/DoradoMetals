@@ -21,7 +21,7 @@ export const E2E_USERS = {
 };
 
 async function ensure({ email, password, name, role }) {
-  const { rows } = await query(`SELECT id, role FROM exchange.users WHERE email = $1`, [email]);
+  const { rows } = await query(`SELECT id, role FROM auth.users WHERE email = $1`, [email]);
 
   if (!rows.length) {
     try {
@@ -31,11 +31,11 @@ async function ensure({ email, password, name, role }) {
     }
   }
 
-  const after = await query(`SELECT id, role FROM exchange.users WHERE email = $1`, [email]);
+  const after = await query(`SELECT id, role FROM auth.users WHERE email = $1`, [email]);
   if (!after.rows.length) throw new Error(`${email} was not created`);
 
   await query(
-    `UPDATE exchange.users SET role = $1, "emailVerified" = true WHERE email = $2`,
+    `UPDATE auth.users SET role = $1, "emailVerified" = true WHERE email = $2`,
     [role, email]
   );
 
