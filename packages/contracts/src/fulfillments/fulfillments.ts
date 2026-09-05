@@ -3,50 +3,56 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: fulfillments.fulfillments
-import { z } from "zod/v4";
+import { z } from 'zod/v4'
 
 export const Fulfillment = z.object({
-  "id": z.string().uuid(),
-  "method_id": z.string().uuid(),
-  "order_id": z.string().uuid().nullable(),
-  "status": z.string(),
-  "created_by": z.string().nullable(),
-  "updated_by": z.string().nullable(),
-  "created_at": z.string(),
-  "updated_at": z.string(),
-  "created_by_id": z.string().uuid().nullable(),
-  "updated_by_id": z.string().uuid().nullable(),
-});
-export type Fulfillment = z.infer<typeof Fulfillment>;
+  'id': z.string().uuid(),
+  'method_id': z.string().uuid(),
+  'order_id': z.string().uuid().nullable(),
+  'status': z.string(),
+  'created_by': z.string().nullable(),
+  'updated_by': z.string().nullable(),
+  'created_at': z.string(),
+  'updated_at': z.string(),
+  'created_by_id': z.string().uuid().nullable(),
+  'updated_by_id': z.string().uuid().nullable(),
+})
+export type Fulfillment = z.infer<typeof Fulfillment>
 // generated:end
-import { FulfillmentMethod } from "./methods.js";
-import { FulfillmentDirect } from "./directs.js";
-import { FulfillmentPickup } from "./pickups.js";
-import { Shipment } from "../shipping/shipments.js";
+import { FulfillmentMethod } from './methods.js'
+import { FulfillmentDirect } from './directs.js'
+import { FulfillmentPickup } from './pickups.js'
+import { Shipment } from '../shipping/shipments.js'
 
 export const FulfillmentPatch = Fulfillment.pick({
   method_id: true,
   order_id: true,
   status: true,
-}).partial();
-export type FulfillmentPatch = z.infer<typeof FulfillmentPatch>;
+}).partial()
+export type FulfillmentPatch = z.infer<typeof FulfillmentPatch>
 
-export const FulfillmentSetMethodBody = z.object({
-  fulfillment_id: Fulfillment.shape.id,
-  method_id: FulfillmentMethod.shape.id,
-}).strict();
-export type FulfillmentSetMethodBody = z.infer<typeof FulfillmentSetMethodBody>;
+export const FulfillmentSetMethodBody = z
+  .object({
+    fulfillment_id: Fulfillment.shape.id,
+    method_id: FulfillmentMethod.shape.id,
+  })
+  .strict()
+export type FulfillmentSetMethodBody = z.infer<typeof FulfillmentSetMethodBody>
 
-export const FulfillmentSetStatusBody = z.object({
-  fulfillment_id: Fulfillment.shape.id,
-  status: Fulfillment.shape.status,
-}).strict();
-export type FulfillmentSetStatusBody = z.infer<typeof FulfillmentSetStatusBody>;
+export const FulfillmentSetStatusBody = z
+  .object({
+    fulfillment_id: Fulfillment.shape.id,
+    status: Fulfillment.shape.status,
+  })
+  .strict()
+export type FulfillmentSetStatusBody = z.infer<typeof FulfillmentSetStatusBody>
 
-export const FulfillmentCancelScheduleBody = z.object({
-  fulfillment_id: Fulfillment.shape.id,
-}).strict();
-export type FulfillmentCancelScheduleBody = z.infer<typeof FulfillmentCancelScheduleBody>;
+export const FulfillmentCancelScheduleBody = z
+  .object({
+    fulfillment_id: Fulfillment.shape.id,
+  })
+  .strict()
+export type FulfillmentCancelScheduleBody = z.infer<typeof FulfillmentCancelScheduleBody>
 
 export const FulfillmentShipmentChoices = Shipment.pick({
   shipper_address_id: true,
@@ -55,36 +61,42 @@ export const FulfillmentShipmentChoices = Shipment.pick({
   carrier_service_id: true,
   pickup_date: true,
   pickup_time: true,
-}).partial().strict();
-export type FulfillmentShipmentChoices = z.infer<typeof FulfillmentShipmentChoices>;
+})
+  .partial()
+  .strict()
+export type FulfillmentShipmentChoices = z.infer<typeof FulfillmentShipmentChoices>
 
 export const FulfillmentPickupChoices = FulfillmentPickup.pick({
   pickup_address_id: true,
   start_time: true,
-}).partial().strict();
-export type FulfillmentPickupChoices = z.infer<typeof FulfillmentPickupChoices>;
+})
+  .partial()
+  .strict()
+export type FulfillmentPickupChoices = z.infer<typeof FulfillmentPickupChoices>
 
 export const FulfillmentDirectChoices = FulfillmentDirect.pick({
   location_id: true,
   start_time: true,
-}).partial().strict();
-export type FulfillmentDirectChoices = z.infer<typeof FulfillmentDirectChoices>;
+})
+  .partial()
+  .strict()
+export type FulfillmentDirectChoices = z.infer<typeof FulfillmentDirectChoices>
 
 export const FulfillmentPatchBody = z.union([
   z.object({ shipment: FulfillmentShipmentChoices }).strict(),
   z.object({ pickup: FulfillmentPickupChoices }).strict(),
   z.object({ direct: FulfillmentDirectChoices }).strict(),
-]);
-export type FulfillmentPatchBody = z.infer<typeof FulfillmentPatchBody>;
+])
+export type FulfillmentPatchBody = z.infer<typeof FulfillmentPatchBody>
 
 export const FulfillmentStep = z.enum([
-  "shipper_address_id",
-  "package_id",
-  "carrier_service_id",
-  "pickup_date",
-  "pickup_time",
-  "pickup_address_id",
-  "location_id",
-  "start_time",
-]);
-export type FulfillmentStep = z.infer<typeof FulfillmentStep>;
+  'shipper_address_id',
+  'package_id',
+  'carrier_service_id',
+  'pickup_date',
+  'pickup_time',
+  'pickup_address_id',
+  'location_id',
+  'start_time',
+])
+export type FulfillmentStep = z.infer<typeof FulfillmentStep>

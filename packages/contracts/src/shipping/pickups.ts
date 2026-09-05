@@ -3,39 +3,46 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: shipping.pickups
-import { z } from "zod/v4";
+import { z } from 'zod/v4'
 
 export const ShipmentPickup = z.object({
-  "id": z.string().uuid(),
-  "shipment_id": z.string().uuid(),
-  "requested_at": z.string().nullable(),
-  "status": z.string(),
-  "confirmation_number": z.string().nullable(),
-  "location": z.string().nullable(),
-});
-export type ShipmentPickup = z.infer<typeof ShipmentPickup>;
+  'id': z.string().uuid(),
+  'shipment_id': z.string().uuid(),
+  'requested_at': z.string().nullable(),
+  'status': z.string(),
+  'confirmation_number': z.string().nullable(),
+  'location': z.string().nullable(),
+})
+export type ShipmentPickup = z.infer<typeof ShipmentPickup>
 // generated:end
-import { Carrier } from "./carriers.js";
-import { Address } from "../places/addresses.js";
+import { Carrier } from './carriers.js'
+import { Address } from '../places/addresses.js'
 
-export const ShippingCheckPickupBody = z.object({
-  carrier_id: Carrier.shape.id.optional(),
-  address_id: Address.shape.id,
-}).extend({
-  code: z.string(),
-  readyDate: z.string(),
-}).strict();
-export type ShippingCheckPickupBody = z.infer<typeof ShippingCheckPickupBody>;
+export const ShippingCheckPickupBody = z
+  .object({
+    carrier_id: Carrier.shape.id.optional(),
+    address_id: Address.shape.id,
+  })
+  .extend({
+    code: z.string(),
+    readyDate: z.string(),
+  })
+  .strict()
+export type ShippingCheckPickupBody = z.infer<typeof ShippingCheckPickupBody>
 
-export const ShippingCancelPickupBody = z.object({
-  pickup_id: ShipmentPickup.shape.id,
-  carrier_id: Carrier.shape.id.optional(),
-}).strict();
-export type ShippingCancelPickupBody = z.infer<typeof ShippingCancelPickupBody>;
+export const ShippingCancelPickupBody = z
+  .object({
+    pickup_id: ShipmentPickup.shape.id,
+    carrier_id: Carrier.shape.id.optional(),
+  })
+  .strict()
+export type ShippingCancelPickupBody = z.infer<typeof ShippingCancelPickupBody>
 
 export const ShipmentPickupWrite = ShipmentPickup.pick({
-  status: true, confirmation_number: true, location: true,
+  status: true,
+  confirmation_number: true,
+  location: true,
 }).extend({
   requested_at: z.union([z.string(), z.date()]).nullable(),
-});
-export type ShipmentPickupWrite = z.infer<typeof ShipmentPickupWrite>;
+})
+export type ShipmentPickupWrite = z.infer<typeof ShipmentPickupWrite>

@@ -1,6 +1,6 @@
 'use client'
 
-import type { AdminUser } from "@dorado/contracts";
+import type { AdminUser } from '@dorado/contracts'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useDrawerRecord } from '../../hooks/useDrawerRecord'
 import { useState } from 'react'
@@ -108,8 +108,8 @@ function DoradoCredit({ user }: { user: AdminUser }) {
     mode === 'add'
       ? (user.dorado_funds ?? 0) + amount
       : mode === 'subtract'
-      ? (user.dorado_funds ?? 0) - amount
-      : amount
+        ? (user.dorado_funds ?? 0) - amount
+        : amount
 
   const handleSubmit = () => {
     const current = user.dorado_funds ?? 0

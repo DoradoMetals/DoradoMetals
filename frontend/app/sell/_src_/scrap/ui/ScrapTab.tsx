@@ -103,11 +103,7 @@ export default function ScrapForm() {
                 <Button variant="secondary" type="button" onClick={handleAddAnother}>
                   Add Another
                 </Button>
-                <Button
-                  type="button"
-                  className="ml-auto"
-                  onClick={() => router.push('/checkout')}
-                >
+                <Button type="button" className="ml-auto" onClick={() => router.push('/checkout')}>
                   Go to Checkout
                 </Button>
               </>

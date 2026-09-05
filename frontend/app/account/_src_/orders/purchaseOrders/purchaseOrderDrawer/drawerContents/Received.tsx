@@ -17,7 +17,7 @@ export default function ReceivedPurchaseOrder({ view }: PurchaseOrderDrawerConte
   return (
     <div className="flex flex-col items-center justify-center sm:px-6 w-full h-full rounded-lg">
       <h2 className="mb-2">Your package has arrived!</h2>
-      <config.icon className='mb-6 text-primary' size={128} strokeWidth={1.5} />
+      <config.icon className="mb-6 text-primary" size={128} strokeWidth={1.5} />
 
       <p className="mb-6 lg:px-14 text-left">
         We have received your package and are now in the process of evaluating and assaying your
@@ -26,9 +26,7 @@ export default function ReceivedPurchaseOrder({ view }: PurchaseOrderDrawerConte
 
       <div className="flex flex-col items-center w-full gap-1 mt-4">
         <div className="w-full flex justify-between">
-          <span>
-            {percent === 100 ? 'Evaluation Complete!' : 'Assaying metals...'}
-          </span>
+          <span>{percent === 100 ? 'Evaluation Complete!' : 'Assaying metals...'}</span>
           <span>{percent}%</span>
         </div>
 
@@ -36,8 +34,7 @@ export default function ReceivedPurchaseOrder({ view }: PurchaseOrderDrawerConte
           <div
             className={cn(
               'h-full transition-all duration-300 bg-linear-to-r from-primary/50 via-primary/75 to-primary',
-              percent === 100 ? 'rounded-full' : 'rounded-l-full',
-              
+              percent === 100 ? 'rounded-full' : 'rounded-l-full'
             )}
             style={{ width: `${percent}%` }}
           />

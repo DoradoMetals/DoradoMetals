@@ -1,6 +1,6 @@
 import { z } from 'zod/v4'
 
-import type { Address, UserAddressRead } from "@dorado/contracts";
+import type { Address, UserAddressRead } from '@dorado/contracts'
 
 import { Truck, PackageOpen, CreditCard, Ban, ShieldCheck } from '@dorado/icons'
 import { pickupSchema } from '@/shared/types/handoff'
@@ -17,9 +17,7 @@ import { User } from '@/shared/types/users'
 // the names this tree's components already use (CLAUDE.md: the frontend keeps
 // local names for UI concerns).
 export type { Order as PurchaseOrder } from '@/shared/types/orders'
-export {
-  orderReturnShipmentSchema as purchaseOrderReturnShipmentSchema,
-} from '@/shared/types/orders'
+export { orderReturnShipmentSchema as purchaseOrderReturnShipmentSchema } from '@/shared/types/orders'
 export type {
   OrderReturnShipment as PurchaseOrderReturnShipment,
   StatusConfigEntry,

@@ -1,6 +1,6 @@
 'use client'
 
-import type { AdminUser } from "@dorado/contracts";
+import type { AdminUser } from '@dorado/contracts'
 import * as React from 'react'
 
 import { useCreateUser } from '@/shared/hooks/auth/queries'

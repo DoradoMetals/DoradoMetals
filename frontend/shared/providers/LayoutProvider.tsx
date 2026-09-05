@@ -97,11 +97,7 @@ export default function LayoutProvider({ children }: { children: React.ReactNode
                   Please be very careful of any changes you make while impersonating a user.
                 </small>
               </div>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={() => stopImpersonation.mutate()}
-              >
+              <Button variant="primary" size="sm" onClick={() => stopImpersonation.mutate()}>
                 Stop Impersonating
               </Button>
             </div>

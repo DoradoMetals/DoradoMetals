@@ -1,5 +1,5 @@
 const config = {
-  plugins: ["@tailwindcss/postcss"],
+  plugins: ['@tailwindcss/postcss'],
   extend: {
     keyframes: {
       shine: {
@@ -14,4 +14,4 @@ const config = {
   },
 }
 
-export default config;
+export default config

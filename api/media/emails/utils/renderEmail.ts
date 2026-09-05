@@ -1,81 +1,78 @@
-import fs from "fs";
-import path from "path";
-import { formatSalesOrderNumber } from "#shared/utils/formatOrderNumbers.ts";
-import { fileURLToPath } from "url";
-import type { OrderPricing, OrderView } from "@dorado/contracts";
+import fs from 'fs'
+import path from 'path'
+import { formatSalesOrderNumber } from '#shared/utils/formatOrderNumbers.ts'
+import { fileURLToPath } from 'url'
+import type { OrderPricing, OrderView } from '@dorado/contracts'
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 type TemplateVars = {
-  firstName?: string | null;
-  url?: string | null;
-};
+  firstName?: string | null
+  url?: string | null
+}
 
-function renderTemplate(
-  contentFile: string,
-  { firstName = "there", url }: TemplateVars
-): string {
-  const templatesDir = path.join(__dirname, "..", "templates");
+function renderTemplate(contentFile: string, { firstName = 'there', url }: TemplateVars): string {
+  const templatesDir = path.join(__dirname, '..', 'templates')
 
-  const layoutPath = path.join(templatesDir, "baseLayout.raw.html");
-  const contentPath = path.join(templatesDir, contentFile);
+  const layoutPath = path.join(templatesDir, 'baseLayout.raw.html')
+  const contentPath = path.join(templatesDir, contentFile)
 
-  const layout = fs.readFileSync(layoutPath, "utf8");
-  const content = fs.readFileSync(contentPath, "utf8");
+  const layout = fs.readFileSync(layoutPath, 'utf8')
+  const content = fs.readFileSync(contentPath, 'utf8')
 
-  const safeUrl = url ?? "https://www.doradometals.com";
+  const safeUrl = url ?? 'https://www.doradometals.com'
 
   return layout
-    .replace("[BODY]", content)
-    .replace(/\[First Name\]/g, firstName ?? "there")
-    .replace(/\[URL\]/g, safeUrl);
+    .replace('[BODY]', content)
+    .replace(/\[First Name\]/g, firstName ?? 'there')
+    .replace(/\[URL\]/g, safeUrl)
 }
 
 export function renderAccountCreatedEmail({ firstName, url }: TemplateVars): string {
-  return renderTemplate("accountCreated.raw.html", { firstName, url });
+  return renderTemplate('accountCreated.raw.html', { firstName, url })
 }
 
 export function renderResetPasswordEmail({ firstName, url }: TemplateVars): string {
-  return renderTemplate("resetPassword.raw.html", { firstName, url });
+  return renderTemplate('resetPassword.raw.html', { firstName, url })
 }
 
 export function renderVerifyEmail({ firstName, url }: TemplateVars): string {
-  return renderTemplate("verifyEmail.raw.html", { firstName, url });
+  return renderTemplate('verifyEmail.raw.html', { firstName, url })
 }
 
 export function renderChangeEmail({ firstName, url }: TemplateVars): string {
-  return renderTemplate("changeEmail.raw.html", { firstName, url });
+  return renderTemplate('changeEmail.raw.html', { firstName, url })
 }
 
 export function renderCreateAccountEmail({ firstName, url }: TemplateVars): string {
-  return renderTemplate("createAccount.raw.html", { firstName, url });
+  return renderTemplate('createAccount.raw.html', { firstName, url })
 }
 
 export function renderPurchaseOrderPlacedEmail({ firstName, url }: TemplateVars): string {
-  return renderTemplate("purchaseOrderPlaced.raw.html", { firstName, url });
+  return renderTemplate('purchaseOrderPlaced.raw.html', { firstName, url })
 }
 
 export function renderSalesOrderPlacedEmail({ firstName, url }: TemplateVars): string {
-  return renderTemplate("salesOrderPlaced.raw.html", { firstName, url });
+  return renderTemplate('salesOrderPlaced.raw.html', { firstName, url })
 }
 
 export function renderOrderPricedEmail({ firstName, url }: TemplateVars): string {
-  return renderTemplate("orderPriced.raw.html", { firstName, url });
+  return renderTemplate('orderPriced.raw.html', { firstName, url })
 }
 
 type RefinerEmailInput = {
-  firstName?: string | null;
-  url?: string | null;
-  order: OrderView;
-  pricing: OrderPricing;
-};
+  firstName?: string | null
+  url?: string | null
+  order: OrderView
+  pricing: OrderPricing
+}
 
 const orDash = (value: string | null | undefined): string =>
-  value == null || value === "" ? "&mdash;" : value;
+  value == null || value === '' ? '&mdash;' : value
 
 const money = (value: number | null | undefined): string =>
-  value == null ? "&mdash;" : `$${value.toFixed(2)}`;
+  value == null ? '&mdash;' : `$${value.toFixed(2)}`
 
 export function renderSalesOrderToSupplierEmail({
   firstName,
@@ -83,17 +80,17 @@ export function renderSalesOrderToSupplierEmail({
   order,
   pricing,
 }: RefinerEmailInput): string {
-  const templatesDir = path.join(__dirname, "..", "templates");
-  const layoutPath = path.join(templatesDir, "baseLayout.raw.html");
-  const contentPath = path.join(templatesDir, "salesOrderToSupplier.raw.html");
-  const layout = fs.readFileSync(layoutPath, "utf8");
-  let content = fs.readFileSync(contentPath, "utf8");
+  const templatesDir = path.join(__dirname, '..', 'templates')
+  const layoutPath = path.join(templatesDir, 'baseLayout.raw.html')
+  const contentPath = path.join(templatesDir, 'salesOrderToSupplier.raw.html')
+  const layout = fs.readFileSync(layoutPath, 'utf8')
+  let content = fs.readFileSync(contentPath, 'utf8')
 
   content = content
-    .replace(/\[First Name\]/g, firstName ?? "there")
-    .replace(/href=""/g, `href="${url ?? ""}"`);
+    .replace(/\[First Name\]/g, firstName ?? 'there')
+    .replace(/href=""/g, `href="${url ?? ''}"`)
 
-  const addr = order.address;
+  const addr = order.address
   const shippingHtml = [
     `<tr><td style="padding:4px 8px;"><strong>Street 1:</strong> ${orDash(addr?.line_1)}</td></tr>`,
     addr?.line_2 &&
@@ -103,7 +100,7 @@ export function renderSalesOrderToSupplierEmail({
     `<tr><td style="padding:4px 8px;"><strong>Zip Code:</strong> ${orDash(addr?.zip)}</td></tr>`,
   ]
     .filter(Boolean)
-    .join("");
+    .join('')
 
   // The order's own metals, in the SQL read's order, priced the way every line
   // on the order is priced (ruling 78 - no asks Map, no per-line index).
@@ -118,31 +115,32 @@ export function renderSalesOrderToSupplierEmail({
     </tr>
   `
     )
-    .join("");
+    .join('')
 
-  const orderRows = order.items.filter((line) => line.bullion_id !== null)
+  const orderRows = order.items
+    .filter((line) => line.bullion_id !== null)
     .map((line) => {
-      const priced = pricing.items.find((p) => p.id === line.id);
-      const subtotal = (priced?.line_total ?? 0).toFixed(2);
+      const priced = pricing.items.find((p) => p.id === line.id)
+      const subtotal = (priced?.line_total ?? 0).toFixed(2)
       return `
       <tr>
-        <td style="padding:8px 0">${line.product_name ?? ""}</td>
+        <td style="padding:8px 0">${line.product_name ?? ''}</td>
         <td style="padding:8px 0;text-align:center">${line.quantity}</td>
         <td style="padding:8px 0;text-align:right">$${subtotal}</td>
       </tr>
-    `;
+    `
     })
-    .join("");
+    .join('')
 
-  const total = (order.totals?.items ?? 0).toFixed(2);
+  const total = (order.totals?.items ?? 0).toFixed(2)
 
   content = content
-    .replace("[SHIPPING_ROWS]", shippingHtml)
-    .replace("[SPOTS_ROWS]", spotsHtml)
-    .replace("[ORDER_ROWS]", orderRows)
-    .replace("[ORDER_TOTAL]", total)
-    .replace("[ORDER_NUMBER]", formatSalesOrderNumber(order.order.number))
-    .replace("[CUSTOMER_NAME]", order.user?.name ?? "");
+    .replace('[SHIPPING_ROWS]', shippingHtml)
+    .replace('[SPOTS_ROWS]', spotsHtml)
+    .replace('[ORDER_ROWS]', orderRows)
+    .replace('[ORDER_TOTAL]', total)
+    .replace('[ORDER_NUMBER]', formatSalesOrderNumber(order.order.number))
+    .replace('[CUSTOMER_NAME]', order.user?.name ?? '')
 
-  return layout.replace("[BODY]", content);
+  return layout.replace('[BODY]', content)
 }

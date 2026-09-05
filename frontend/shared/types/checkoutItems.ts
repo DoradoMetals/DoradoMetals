@@ -1,4 +1,4 @@
-import type { CheckoutItem, CheckoutItemPatch } from "@dorado/contracts";
+import type { CheckoutItem, CheckoutItemPatch } from '@dorado/contracts'
 
 // A BASKET LINE IS THE SERVER'S ROW. `useBasket` answers `checkout.items`,
 // which already carries the content, the purity and the premium the API

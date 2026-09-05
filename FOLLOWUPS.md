@@ -16282,3 +16282,20 @@ green, 19 e2e specs still discovered in the same four Playwright projects.
 STILL OPEN: `shared/ui/` holds the app chrome (`Shell`, `Sidebar`, `Footer`,
 `ProfileMenu`) as components imported by one page rather than as a `layout.tsx`
 - a question about where chrome renders, not about where files live.
+
+## Prettier hook + repo-wide format (2026-09-05)
+
+`prettier-hook` (f2999b2e) merged; 1080 files swept (ts/tsx/js/mjs/cjs/json/
+css/yaml/yml under root, api/, packages/, frontend/, scripts/, .claude/ - not
+markdown, not SQL, not migrations, not cassettes). `packages/contracts`'
+generator now runs its own output through prettier so a regeneration never
+fights the hook - `quoteProps: "preserve"` had to be pinned in `.prettierrc`
+too (not just inside the generator), because the hook re-formats the whole
+staged tree with the base config on every commit. Five static-analysis
+scripts under `api/scripts/` assumed the pre-hook style (semicolons, double
+quotes, one-call-per-line) and were fixed, not exempted:
+`lint-imports.mjs`, `lint-row-vs-list.ts`, `lint-domain-boundaries.ts`,
+`lint-no-column-arrays.ts`, `lint-type-homes.ts`, `audit-silent-mutations.ts`.
+`pnpm check` green except the pre-existing `figma:inventory`; hook proven
+against a staged mis-formatted file. See `docs/waves/prettier.md`. Merge is
+staged, uncommitted - Jacob's to commit.

@@ -27,78 +27,93 @@
 // api/env.js resolves from its own file location for exactly this reason - a
 // cwd-relative .env once pointed a migration runner at the wrong database. Same
 // fix here: one source of truth, and one fewer copy of the credentials on disk.
-import dotenv from "dotenv";
-import { fileURLToPath } from "node:url";
-import fs from "node:fs";
-import path from "node:path";
-import pg from "pg";
+import dotenv from 'dotenv'
+import { fileURLToPath } from 'node:url'
+import fs from 'node:fs'
+import path from 'node:path'
+import pg from 'pg'
 
 // Every schema the API reads. exchange is the one still serving traffic; the
 // rest are the per-feature schemas it is migrating to.
 dotenv.config({
-  path: path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "api", ".env"),
-});
+  path: path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'api', '.env'),
+})
 
 const DEFAULT_SCHEMAS = [
-  "exchange",
-  "leads", "reviews", "rates", "spots", "products",
-  "media", "organizations", "metals",
-  "orders", "shipping", "tax", "payments", "fulfillments", "places",
+  'exchange',
+  'leads',
+  'reviews',
+  'rates',
+  'spots',
+  'products',
+  'media',
+  'organizations',
+  'metals',
+  'orders',
+  'shipping',
+  'tax',
+  'payments',
+  'fulfillments',
+  'places',
   // Added after a conversion found them missing: these three schemas exist in
   // the database and had no generated types at all, so anything reading them
   // could not be typed from the contracts and validate:wire could not cover
   // them. auth holds users, sessions and accounts; checkout holds the carts;
   // refiners holds the refiners and their spots.
-  "auth", "checkout", "refiners",
-].join(",");
+  'auth',
+  'checkout',
+  'refiners',
+].join(',')
 
 const SCHEMAS = (process.env.CONTRACT_SCHEMAS ?? DEFAULT_SCHEMAS)
-  .split(",")
+  .split(',')
   .map((s) => s.trim())
-  .filter(Boolean);
+  .filter(Boolean)
 
 // Overridable so a freshness check can generate somewhere else and compare,
 // rather than overwriting the committed files to find out whether they differ.
 const OUTDIR =
-  process.env.CONTRACT_OUTDIR ??
-  path.join(import.meta.dirname, "..", "src", "generated");
+  process.env.CONTRACT_OUTDIR ?? path.join(import.meta.dirname, '..', 'src', 'generated')
 
 // Contracts describe what crosses the wire, not what the driver hands back.
 // Timestamps are therefore strings: they are ISO-8601 by the time they have
 // been through JSON.stringify, whatever pg returned in process.
 const TYPE_MAP = {
-  uuid: "z.string().uuid()",
-  text: "z.string()",
-  character: "z.string()",
-  "character varying": "z.string()",
-  boolean: "z.boolean()",
-  numeric: "z.number()",
-  integer: "z.number().int()",
-  bigint: "z.number().int()",
-  smallint: "z.number().int()",
-  "double precision": "z.number()",
-  real: "z.number()",
-  date: "z.string()",
-  "time without time zone": "z.string()",
-  "time with time zone": "z.string()",
-  "timestamp with time zone": "z.string()",
-  "timestamp without time zone": "z.string()",
-  jsonb: "z.unknown()",
-  json: "z.unknown()",
-  bytea: "z.string()", // encoded to base64 in the queries that select it
-};
+  uuid: 'z.string().uuid()',
+  text: 'z.string()',
+  character: 'z.string()',
+  'character varying': 'z.string()',
+  boolean: 'z.boolean()',
+  numeric: 'z.number()',
+  integer: 'z.number().int()',
+  bigint: 'z.number().int()',
+  smallint: 'z.number().int()',
+  'double precision': 'z.number()',
+  real: 'z.number()',
+  date: 'z.string()',
+  'time without time zone': 'z.string()',
+  'time with time zone': 'z.string()',
+  'timestamp with time zone': 'z.string()',
+  'timestamp without time zone': 'z.string()',
+  jsonb: 'z.unknown()',
+  json: 'z.unknown()',
+  bytea: 'z.string()', // encoded to base64 in the queries that select it
+}
 
 const pascal = (s) =>
-  s.split(/[_\s]+/).map((w) => w[0].toUpperCase() + w.slice(1)).join("");
+  s
+    .split(/[_\s]+/)
+    .map((w) => w[0].toUpperCase() + w.slice(1))
+    .join('')
 
 const client = new pg.Client({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
-});
-await client.connect();
+})
+await client.connect()
 
-const target = new URL(process.env.DATABASE_URL);
-console.log(`reading from ${target.pathname.slice(1)} @ ${target.hostname}`);
+const target = new URL(process.env.DATABASE_URL)
+console.log(`reading from ${target.pathname.slice(1)} @ ${target.hostname}`)
 
 // Enums are keyed by schema AND name, never by name alone. Two schemas can
 // hold different types with the same name - this database has orders.direction
@@ -111,15 +126,15 @@ const { rows: enumRows } = await client.query(`
   JOIN pg_namespace n ON n.oid = t.typnamespace
   JOIN pg_enum e ON e.enumtypid = t.oid
   ORDER BY n.nspname, t.typname, e.enumsortorder
-`);
-const enums = {};
+`)
+const enums = {}
 for (const r of enumRows) {
-  (enums[`${r.schema}.${r.name}`] ??= new Set()).add(r.label);
+  ;(enums[`${r.schema}.${r.name}`] ??= new Set()).add(r.label)
 }
 
-fs.mkdirSync(OUTDIR, { recursive: true });
-const unmapped = new Set();
-const written = [];
+fs.mkdirSync(OUTDIR, { recursive: true })
+const unmapped = new Set()
+const written = []
 
 for (const schema of SCHEMAS) {
   const { rows: tables } = await client.query(
@@ -127,10 +142,10 @@ for (const schema of SCHEMAS) {
      WHERE table_schema = $1 AND table_type = 'BASE TABLE'
      ORDER BY table_name`,
     [schema]
-  );
+  )
   if (!tables.length) {
-    console.log(`  ${schema}: no tables, skipped`);
-    continue;
+    console.log(`  ${schema}: no tables, skipped`)
+    continue
   }
 
   const { rows: columns } = await client.query(
@@ -139,9 +154,9 @@ for (const schema of SCHEMAS) {
      WHERE table_schema = $1
      ORDER BY table_name, ordinal_position`,
     [schema]
-  );
-  const byTable = {};
-  for (const c of columns) (byTable[c.table_name] ??= []).push(c);
+  )
+  const byTable = {}
+  for (const c of columns) (byTable[c.table_name] ??= []).push(c)
 
   const parts = [
     `// GENERATED by packages/contracts/scripts/generate-tables.mjs
@@ -150,54 +165,54 @@ for (const schema of SCHEMAS) {
 // Postgres schema: ${schema}
 import { z } from "zod/v4";
 `,
-  ];
+  ]
 
   // Only emit the enums this schema actually uses, so each file stands alone.
   const used = new Set(
     columns
-      .filter((c) => c.data_type === "USER-DEFINED" && enums[`${c.udt_schema}.${c.udt_name}`])
+      .filter((c) => c.data_type === 'USER-DEFINED' && enums[`${c.udt_schema}.${c.udt_name}`])
       .map((c) => `${c.udt_schema}.${c.udt_name}`)
-  );
+  )
   for (const qualified of used) {
-    const values = [...enums[qualified]].map((l) => JSON.stringify(l)).join(", ");
-    parts.push(`export const ${pascal(qualified.split(".")[1])} = z.enum([${values}]);`);
+    const values = [...enums[qualified]].map((l) => JSON.stringify(l)).join(', ')
+    parts.push(`export const ${pascal(qualified.split('.')[1])} = z.enum([${values}]);`)
   }
-  if (used.size) parts.push("");
+  if (used.size) parts.push('')
 
   for (const { table_name } of tables) {
     const lines = (byTable[table_name] ?? []).map((c) => {
-      let zod;
-      if (c.data_type === "USER-DEFINED" && enums[`${c.udt_schema}.${c.udt_name}`]) {
-        zod = pascal(c.udt_name);
-      } else if (c.data_type === "ARRAY") {
-        zod = `z.array(${TYPE_MAP[c.udt_name.replace(/^_/, "")] ?? "z.unknown()"})`;
+      let zod
+      if (c.data_type === 'USER-DEFINED' && enums[`${c.udt_schema}.${c.udt_name}`]) {
+        zod = pascal(c.udt_name)
+      } else if (c.data_type === 'ARRAY') {
+        zod = `z.array(${TYPE_MAP[c.udt_name.replace(/^_/, '')] ?? 'z.unknown()'})`
       } else {
-        zod = TYPE_MAP[c.data_type];
+        zod = TYPE_MAP[c.data_type]
         if (!zod) {
-          unmapped.add(`${c.data_type} (${schema}.${table_name}.${c.column_name})`);
-          zod = "z.unknown()";
+          unmapped.add(`${c.data_type} (${schema}.${table_name}.${c.column_name})`)
+          zod = 'z.unknown()'
         }
       }
-      if (c.is_nullable === "YES") zod += ".nullable()";
-      return `  ${JSON.stringify(c.column_name)}: ${zod},`;
-    });
+      if (c.is_nullable === 'YES') zod += '.nullable()'
+      return `  ${JSON.stringify(c.column_name)}: ${zod},`
+    })
 
-    const name = `${pascal(table_name)}Row`;
+    const name = `${pascal(table_name)}Row`
     parts.push(`export const ${name} = z.object({
-${lines.join("\n")}
+${lines.join('\n')}
 });
 export type ${name} = z.infer<typeof ${name}>;
-`);
+`)
   }
 
-  fs.writeFileSync(path.join(OUTDIR, `${schema}.ts`), parts.join("\n") + "\n");
-  written.push(`${schema}.ts (${tables.length} tables)`);
+  fs.writeFileSync(path.join(OUTDIR, `${schema}.ts`), parts.join('\n') + '\n')
+  written.push(`${schema}.ts (${tables.length} tables)`)
 }
 
-await client.end();
+await client.end()
 
-console.log(`wrote ${written.join(", ")}`);
+console.log(`wrote ${written.join(', ')}`)
 if (unmapped.size) {
-  console.log("unmapped types (fell back to z.unknown()):");
-  for (const u of unmapped) console.log("  " + u);
+  console.log('unmapped types (fell back to z.unknown()):')
+  for (const u of unmapped) console.log('  ' + u)
 }

@@ -3,33 +3,33 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: payments.intents
-import { z } from "zod/v4";
+import { z } from 'zod/v4'
 
 export const PaymentIntent = z.object({
-  "id": z.string().uuid(),
-  "order_id": z.string().uuid().nullable(),
-  "method_id": z.string().uuid().nullable(),
-  "details_id": z.string().uuid().nullable(),
-  "amount_expected": z.number().nullable(),
-  "status": z.string(),
-  "created_at": z.string(),
-  "updated_at": z.string(),
-  "created_by": z.string().nullable(),
-  "updated_by": z.string().nullable(),
-  "created_by_id": z.string().uuid().nullable(),
-  "updated_by_id": z.string().uuid().nullable(),
-  "session_id": z.string().uuid().nullable(),
-  "user_id": z.string().uuid().nullable(),
-  "type": z.string(),
-});
-export type PaymentIntent = z.infer<typeof PaymentIntent>;
+  'id': z.string().uuid(),
+  'order_id': z.string().uuid().nullable(),
+  'method_id': z.string().uuid().nullable(),
+  'details_id': z.string().uuid().nullable(),
+  'amount_expected': z.number().nullable(),
+  'status': z.string(),
+  'created_at': z.string(),
+  'updated_at': z.string(),
+  'created_by': z.string().nullable(),
+  'updated_by': z.string().nullable(),
+  'created_by_id': z.string().uuid().nullable(),
+  'updated_by_id': z.string().uuid().nullable(),
+  'session_id': z.string().uuid().nullable(),
+  'user_id': z.string().uuid().nullable(),
+  'type': z.string(),
+})
+export type PaymentIntent = z.infer<typeof PaymentIntent>
 // generated:end
-import { PaymentAttempt, IntentAttempt } from "./attempts.js";
-import { IntentDetails } from "./details.js";
-import { User } from "../auth/users.js";
-import { Direction } from "../orders/enums.js";
+import { PaymentAttempt, IntentAttempt } from './attempts.js'
+import { IntentDetails } from './details.js'
+import { User } from '../auth/users.js'
+import { Direction } from '../orders/enums.js'
 
-const money = z.union([z.number(), z.string()]).nullable();
+const money = z.union([z.number(), z.string()]).nullable()
 
 export const PaymentIntentView = PaymentIntent.pick({
   id: true,
@@ -49,8 +49,8 @@ export const PaymentIntentView = PaymentIntent.pick({
   amount_capturable: money,
   attempt: IntentAttempt,
   details: IntentDetails.nullable(),
-});
-export type PaymentIntentView = z.infer<typeof PaymentIntentView>;
+})
+export type PaymentIntentView = z.infer<typeof PaymentIntentView>
 
 export const PaymentIntentPatch = PaymentIntent.pick({
   session_id: true,
@@ -61,33 +61,42 @@ export const PaymentIntentPatch = PaymentIntent.pick({
   order_id: true,
   details_id: true,
   method_id: true,
-}).extend({
-  type: PaymentIntent.shape.type.nullable(),
-  status: PaymentIntent.shape.status.nullable(),
-}).partial();
-export type PaymentIntentPatch = z.infer<typeof PaymentIntentPatch>;
+})
+  .extend({
+    type: PaymentIntent.shape.type.nullable(),
+    status: PaymentIntent.shape.status.nullable(),
+  })
+  .partial()
+export type PaymentIntentPatch = z.infer<typeof PaymentIntentPatch>
 
-export const UpdatePaymentIntentBody = z.object({
-  user_id: User.shape.id.optional(),
-  type: PaymentIntent.shape.type.optional(),
-}).strict();
-export type UpdatePaymentIntentBody = z.infer<typeof UpdatePaymentIntentBody>;
+export const UpdatePaymentIntentBody = z
+  .object({
+    user_id: User.shape.id.optional(),
+    type: PaymentIntent.shape.type.optional(),
+  })
+  .strict()
+export type UpdatePaymentIntentBody = z.infer<typeof UpdatePaymentIntentBody>
 
-export const CancelPaymentIntentBody = z.object({
-  payment_intent_id: PaymentAttempt.shape.provider_ref,
-}).strict();
-export type CancelPaymentIntentBody = z.infer<typeof CancelPaymentIntentBody>;
+export const CancelPaymentIntentBody = z
+  .object({
+    payment_intent_id: PaymentAttempt.shape.provider_ref,
+  })
+  .strict()
+export type CancelPaymentIntentBody = z.infer<typeof CancelPaymentIntentBody>
 
 export const BillingIdentity = User.pick({
-  id: true, name: true, email: true, stripeCustomerId: true,
-});
-export type BillingIdentity = z.infer<typeof BillingIdentity>;
+  id: true,
+  name: true,
+  email: true,
+  stripeCustomerId: true,
+})
+export type BillingIdentity = z.infer<typeof BillingIdentity>
 
 export const PaymentCaller = z.object({
   session_id: PaymentIntent.shape.session_id.unwrap(),
   user_id: PaymentIntent.shape.user_id.unwrap(),
-});
-export type PaymentCaller = z.infer<typeof PaymentCaller>;
+})
+export type PaymentCaller = z.infer<typeof PaymentCaller>
 
 export const PaymentIntentFacts = PaymentIntent.pick({
   user_id: true,
@@ -101,5 +110,5 @@ export const PaymentIntentFacts = PaymentIntent.pick({
   payment_status: PaymentIntent.shape.status.nullable(),
   amount: z.number().nullable(),
   direction: Direction.nullable(),
-});
-export type PaymentIntentFacts = z.infer<typeof PaymentIntentFacts>;
+})
+export type PaymentIntentFacts = z.infer<typeof PaymentIntentFacts>

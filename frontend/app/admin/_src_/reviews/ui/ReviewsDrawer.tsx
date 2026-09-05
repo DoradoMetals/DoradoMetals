@@ -1,11 +1,22 @@
 'use client'
 
-import type { Review } from "@dorado/contracts";
+import type { Review } from '@dorado/contracts'
 import { useMemo } from 'react'
 import { useDrawerRecord } from '../../hooks/useDrawerRecord'
 
 import { formatFullDate } from '@/shared/utils/formatDates'
-import { Badge, Drawer, Rating, RatingButton, Calendar, Field, Input, RadioGroup, RadioOption, Textarea } from '@dorado/components'
+import {
+  Badge,
+  Drawer,
+  Rating,
+  RatingButton,
+  Calendar,
+  Field,
+  Input,
+  RadioGroup,
+  RadioOption,
+  Textarea,
+} from '@dorado/components'
 import { Eye, EyeOff } from '@dorado/icons'
 import { useUpdateReview } from '@/shared/hooks/reviews/queries'
 

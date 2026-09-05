@@ -3,17 +3,17 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: media.pdfs
-import { z } from "zod/v4";
-import { PdfKind } from "./enums.js";
+import { z } from 'zod/v4'
+import { PdfKind } from './enums.js'
 
 export const Pdf = z.object({
-  "id": z.string().uuid(),
-  "kind": PdfKind,
-  "order_id": z.string().uuid().nullable(),
-  "path": z.string(),
-  "size_bytes": z.number().int().nullable(),
-  "checksum": z.string().nullable(),
-  "created_at": z.string(),
-});
-export type Pdf = z.infer<typeof Pdf>;
+  'id': z.string().uuid(),
+  'kind': PdfKind,
+  'order_id': z.string().uuid().nullable(),
+  'path': z.string(),
+  'size_bytes': z.number().int().nullable(),
+  'checksum': z.string().nullable(),
+  'created_at': z.string(),
+})
+export type Pdf = z.infer<typeof Pdf>
 // generated:end

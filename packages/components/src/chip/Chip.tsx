@@ -1,32 +1,42 @@
 'use client'
 
-import * as React from "react";
-import { X } from "@dorado/icons";
-import { cn } from "../cn";
-import { Button } from "../button/Button";
+import * as React from 'react'
+import { X } from '@dorado/icons'
+import { cn } from '../cn'
+import { Button } from '../button/Button'
 
-export type ChipProps = Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "children"> & {
-  label: React.ReactNode;
-  selected?: boolean;
-  onDismiss?: () => void;
-  icon?: React.ReactNode;
-  avatar?: React.ReactNode;
-  count?: number;
-};
+export type ChipProps = Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'children'> & {
+  label: React.ReactNode
+  selected?: boolean
+  onDismiss?: () => void
+  icon?: React.ReactNode
+  avatar?: React.ReactNode
+  count?: number
+}
 
-export function Chip({ label, selected = false, onDismiss, icon, avatar, count, className, disabled, ...props }: ChipProps) {
+export function Chip({
+  label,
+  selected = false,
+  onDismiss,
+  icon,
+  avatar,
+  count,
+  className,
+  disabled,
+  ...props
+}: ChipProps) {
   return (
     <button
       type="button"
       aria-pressed={selected}
       disabled={disabled}
       className={cn(
-        "inline-flex h-8 cursor-pointer items-center gap-1 rounded-full px-3 text-small transition-colors",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background",
-        "disabled:pointer-events-none disabled:opacity-50",
+        'inline-flex h-8 cursor-pointer items-center gap-1 rounded-full px-3 text-small transition-colors',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background',
+        'disabled:pointer-events-none disabled:opacity-50',
         selected
-          ? "bg-primary text-primary-foreground hover:opacity-85"
-          : "border border-border bg-card text-muted-foreground hover:border-border-strong hover:bg-accent hover:text-foreground",
+          ? 'bg-primary text-primary-foreground hover:opacity-85'
+          : 'border border-border bg-card text-muted-foreground hover:border-border-strong hover:bg-accent hover:text-foreground',
         className
       )}
       {...props}
@@ -46,20 +56,20 @@ export function Chip({ label, selected = false, onDismiss, icon, avatar, count, 
           variant="tertiary"
           size="iconXs"
           className="-mr-1 size-4"
-          aria-label={`Remove ${typeof label === "string" ? label : "chip"}`}
+          aria-label={`Remove ${typeof label === 'string' ? label : 'chip'}`}
         >
           <span
             role="button"
             tabIndex={0}
             onClick={(e) => {
-              e.stopPropagation();
-              onDismiss();
+              e.stopPropagation()
+              onDismiss()
             }}
             onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                e.stopPropagation();
-                onDismiss();
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                e.stopPropagation()
+                onDismiss()
               }
             }}
           >
@@ -68,5 +78,5 @@ export function Chip({ label, selected = false, onDismiss, icon, avatar, count, 
         </Button>
       )}
     </button>
-  );
+  )
 }

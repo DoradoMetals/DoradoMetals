@@ -1,4 +1,13 @@
-import { CreditCard, DollarSign, Hourglass, Landmark, Package, Plane, ShieldCheck, Truck } from '@dorado/icons'
+import {
+  CreditCard,
+  DollarSign,
+  Hourglass,
+  Landmark,
+  Package,
+  Plane,
+  ShieldCheck,
+  Truck,
+} from '@dorado/icons'
 import { z } from 'zod/v4'
 
 import { packageSchema } from '@/shared/types/packaging'
@@ -6,7 +15,7 @@ import { pickupSchema } from '@/shared/types/handoff'
 import { serviceSchema } from '@/shared/types/service'
 import { insuranceSchema } from '@/shared/types/insurance'
 import { User } from '@/shared/types/users'
-import { Address, AdminUser, UserAddressRead } from "@dorado/contracts";
+import { Address, AdminUser, UserAddressRead } from '@dorado/contracts'
 
 // THE SHARED HALF LIVES IN ../types.ts - the order type, the return-shipment
 // schema, the status-config types and the drawer prop interfaces, declared once
@@ -19,9 +28,7 @@ import { Address, AdminUser, UserAddressRead } from "@dorado/contracts";
 // they are `order.totals?.used_funds` and `order.totals?.shipping_service`; the
 // refinery is the ENGAGEMENT's refiner_id, useRefinerOrder(order.id).
 export type { Order as SalesOrder } from '@/shared/types/orders'
-export {
-  orderReturnShipmentSchema as salesOrderReturnShipmentSchema,
-} from '@/shared/types/orders'
+export { orderReturnShipmentSchema as salesOrderReturnShipmentSchema } from '@/shared/types/orders'
 export type {
   OrderReturnShipment as SalesOrderReturnShipment,
   StatusConfigEntry,

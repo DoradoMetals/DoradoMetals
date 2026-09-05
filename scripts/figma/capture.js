@@ -55,7 +55,7 @@ const textStyles = (await figma.getLocalTextStylesAsync()).map((s) => ({
 
 const pages = figma.root.children.map((p) => ({ id: p.id, name: p.name }));
 return { collections, textStyles, pages };
-`;
+`
 
 // ===========================================================================
 // PART 2 - the hygiene sweep. Fills snapshot.json's `hygiene`.
@@ -172,4 +172,4 @@ for (const page of figma.root.children) {
 const totals = {};
 for (const c of CATS) totals[c] = Object.values(perPage).reduce((s, p) => s + p[c], 0);
 return { scanned, totals, perPage, samples };
-`;
+`

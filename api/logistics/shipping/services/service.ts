@@ -1,22 +1,23 @@
-import withTransaction from "#shared/db/withTransaction.ts";
-import { withDecisions } from "#shared/views.ts";
-import * as services from "#db/shipping/services/repo.ts";
-import * as rules from "#logistics/shipping/rules.ts";
-import {
-  carrierIdOr,
-  resolveCarrier,
-} from "#logistics/shipping/operations/resolver.ts";
+import withTransaction from '#shared/db/withTransaction.ts'
+import { withDecisions } from '#shared/views.ts'
+import * as services from '#db/shipping/services/repo.ts'
+import * as rules from '#logistics/shipping/rules.ts'
+import { carrierIdOr, resolveCarrier } from '#logistics/shipping/operations/resolver.ts'
 
-import type { Executor } from "#shared/db/executor.ts";
+import type { Executor } from '#shared/db/executor.ts'
 import type {
-  CarrierServiceOption, CarrierServicePatch, CarrierServiceRead,
-  CarrierServiceWrite, LabelService, SaleShippingService,
-} from "@dorado/contracts";
+  CarrierServiceOption,
+  CarrierServicePatch,
+  CarrierServiceRead,
+  CarrierServiceWrite,
+  LabelService,
+  SaleShippingService,
+} from '@dorado/contracts'
 
 function toNewRow(body: CarrierServicePatch): CarrierServiceWrite {
   return {
     carrier_id: body.carrier_id ?? null,
-    name: body.name ?? "",
+    name: body.name ?? '',
     description: body.description ?? null,
     code: body.code ?? null,
     provider_code: body.provider_code ?? null,
@@ -35,115 +36,136 @@ function toNewRow(body: CarrierServicePatch): CarrierServiceWrite {
     min_transit_days: body.min_transit_days ?? 0,
     max_transit_days: body.max_transit_days ?? 0,
     display_order: body.display_order ?? 0,
-  };
+  }
 }
 
 function toPatchRow(body: CarrierServicePatch): Partial<CarrierServiceWrite> {
   return {
-    carrier_id: body.carrier_id, name: body.name, description: body.description,
-    code: body.code, provider_code: body.provider_code,
-    supports_pickups: body.supports_pickup, supports_dropoffs: body.supports_dropoff,
-    supports_returns: body.supports_returns, supports_insurance: body.supports_insurance,
-    is_international: body.is_international, is_residential: body.is_residential,
+    carrier_id: body.carrier_id,
+    name: body.name,
+    description: body.description,
+    code: body.code,
+    provider_code: body.provider_code,
+    supports_pickups: body.supports_pickup,
+    supports_dropoffs: body.supports_dropoff,
+    supports_returns: body.supports_returns,
+    supports_insurance: body.supports_insurance,
+    is_international: body.is_international,
+    is_residential: body.is_residential,
     is_active: body.is_active,
-    max_weight_lb: body.max_weight_lbs, max_length_in: body.max_length_in,
-    max_width_in: body.max_width_in, max_height_in: body.max_height_in,
+    max_weight_lb: body.max_weight_lbs,
+    max_length_in: body.max_length_in,
+    max_width_in: body.max_width_in,
+    max_height_in: body.max_height_in,
     max_declared_value: body.max_declared_value,
-    min_transit_days: body.min_transit_days, max_transit_days: body.max_transit_days,
+    min_transit_days: body.min_transit_days,
+    max_transit_days: body.max_transit_days,
     display_order: body.display_order,
-  };
+  }
 }
 
 export async function getAllServices(): Promise<CarrierServiceRead[]> {
-  return await services.getAll();
+  return await services.getAll()
 }
 
 export async function getSaleOptions(): Promise<SaleShippingService[]> {
-  return await services.getSaleOptions();
+  return await services.getSaleOptions()
 }
 
 export async function getOfferedServices(
-  carrier_id?: string | null, client?: Executor
+  carrier_id?: string | null,
+  client?: Executor
 ): Promise<CarrierServiceOption[]> {
-  const id = await carrierIdOr(carrier_id, client);
-  const { catalogue } = await resolveCarrier(id, client);
-  const ceilings = await services.getInsuranceCeilings(id, client);
+  const id = await carrierIdOr(carrier_id, client)
+  const { catalogue } = await resolveCarrier(id, client)
+  const ceilings = await services.getInsuranceCeilings(id, client)
 
-  const offeredServices = catalogue.services;
+  const offeredServices = catalogue.services
 
   return [...offeredServices]
     .sort((a, b) => a.display_order - b.display_order)
     .map((s) => ({
-      code: s.code, name: s.name, carrier_code: s.carrier_code, display_order: s.display_order,
+      code: s.code,
+      name: s.name,
+      carrier_code: s.carrier_code,
+      display_order: s.display_order,
       id: ceilings.find((c) => c.name === s.name)?.id ?? null,
       max_insured_value: rules.ceilingFor(ceilings, s.name),
-    }));
+    }))
 }
 
 export async function insuranceCeilingFor(
-  code: string | null | undefined, carrier_id?: string | null, client?: Executor
+  code: string | null | undefined,
+  carrier_id?: string | null,
+  client?: Executor
 ): Promise<number> {
-  const id = await carrierIdOr(carrier_id, client);
-  const ceilings = await services.getInsuranceCeilings(id, client);
-  if (!code) return rules.lowestCeiling(ceilings);
+  const id = await carrierIdOr(carrier_id, client)
+  const ceilings = await services.getInsuranceCeilings(id, client)
+  if (!code) return rules.lowestCeiling(ceilings)
 
-  const { catalogue } = await resolveCarrier(id, client);
-  const offeredServices = catalogue.services;
-  const offered = offeredServices.find((s) => s.code === code);
-  return offered ? rules.ceilingFor(ceilings, offered.name) : rules.lowestCeiling(ceilings);
+  const { catalogue } = await resolveCarrier(id, client)
+  const offeredServices = catalogue.services
+  const offered = offeredServices.find((s) => s.code === code)
+  return offered ? rules.ceilingFor(ceilings, offered.name) : rules.lowestCeiling(ceilings)
 }
 
 export async function clampInsuredValue(
-  amount: unknown, code?: string | null, carrier_id?: string | null, client?: Executor
+  amount: unknown,
+  code?: string | null,
+  carrier_id?: string | null,
+  client?: Executor
 ): Promise<number> {
-  const ceiling = await insuranceCeilingFor(code, carrier_id, client);
-  const n = Number(amount);
-  if (!Number.isFinite(n) || n <= 0) return 0;
-  return Math.min(n, ceiling);
+  const ceiling = await insuranceCeilingFor(code, carrier_id, client)
+  const n = Number(amount)
+  if (!Number.isFinite(n) || n <= 0) return 0
+  return Math.min(n, ceiling)
 }
 
 export async function labelServiceFor(
-  carrier_service_id: string, executor?: Executor
+  carrier_service_id: string,
+  executor?: Executor
 ): Promise<LabelService> {
-  const row = await services.getOne(carrier_service_id, executor);
-  rules.assertLabelService(row, carrier_service_id);
-  const offered = await getOfferedServices(row.carrier_id, executor);
-  const entry = offered.find((o) => o.name.toLowerCase() === row.name.toLowerCase());
-  rules.assertCatalogueEntry(entry, row.name);
-  return withDecisions(entry, { carrier_id: row.carrier_id });
+  const row = await services.getOne(carrier_service_id, executor)
+  rules.assertLabelService(row, carrier_service_id)
+  const offered = await getOfferedServices(row.carrier_id, executor)
+  const entry = offered.find((o) => o.name.toLowerCase() === row.name.toLowerCase())
+  rules.assertCatalogueEntry(entry, row.name)
+  return withDecisions(entry, { carrier_id: row.carrier_id })
 }
 
 export async function getServiceById(
-  id: string, executor?: Executor
+  id: string,
+  executor?: Executor
 ): Promise<CarrierServiceRead | null> {
-  return (await services.getOne(id, executor)) ?? null;
+  return (await services.getOne(id, executor)) ?? null
 }
 
 export async function getServicesByCarrierId(
-  carrier_id: string, executor?: Executor
+  carrier_id: string,
+  executor?: Executor
 ): Promise<CarrierServiceRead[]> {
-  return await services.getByCarrier(carrier_id, executor);
+  return await services.getByCarrier(carrier_id, executor)
 }
 
 export async function createService(body: CarrierServicePatch): Promise<CarrierServiceRead | null> {
   return await withTransaction(async (tx) => {
-    return await services.create(toNewRow(body), tx);
-  });
+    return await services.create(toNewRow(body), tx)
+  })
 }
 
 export async function updateService(body: CarrierServicePatch): Promise<CarrierServiceRead | null> {
-  const id = body.id;
-  rules.assertServiceId(id);
+  const id = body.id
+  rules.assertServiceId(id)
   return await withTransaction(async (tx) => {
-    const changed = await services.update(id, toPatchRow(body), tx);
-    if (!changed) return null;
-    return (await services.getOne(id, tx)) ?? null;
-  });
+    const changed = await services.update(id, toPatchRow(body), tx)
+    if (!changed) return null
+    return (await services.getOne(id, tx)) ?? null
+  })
 }
 
 export async function removeService(id: string): Promise<boolean> {
   return await withTransaction(async (tx) => {
-    await services.remove(id, tx);
-    return true;
-  });
+    await services.remove(id, tx)
+    return true
+  })
 }

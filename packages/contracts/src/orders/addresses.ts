@@ -3,13 +3,13 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: orders.addresses
-import { z } from "zod/v4";
+import { z } from 'zod/v4'
 
 export const OrderAddressLink = z.object({
-  "id": z.string().uuid(),
-  "address_id": z.string().uuid(),
-  "order_id": z.string().uuid(),
-  "source_address_id": z.string().uuid().nullable(),
-});
-export type OrderAddressLink = z.infer<typeof OrderAddressLink>;
+  'id': z.string().uuid(),
+  'address_id': z.string().uuid(),
+  'order_id': z.string().uuid(),
+  'source_address_id': z.string().uuid().nullable(),
+})
+export type OrderAddressLink = z.infer<typeof OrderAddressLink>
 // generated:end

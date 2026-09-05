@@ -46,7 +46,7 @@ const QuantityStepper = React.forwardRef<HTMLDivElement, QuantityStepperProps>(
         className={cn(
           'inline-flex h-9 items-center overflow-hidden rounded-lg border border-border bg-card transition-colors focus-within:border-primary',
           disabled && 'pointer-events-none bg-muted',
-          className,
+          className
         )}
       >
         <button
@@ -69,8 +69,14 @@ const QuantityStepper = React.forwardRef<HTMLDivElement, QuantityStepperProps>(
           onFocus={(e) => e.target.select()}
           onKeyDown={(e) => {
             if (e.key === 'Enter') commit((e.target as HTMLInputElement).value)
-            if (e.key === 'ArrowUp') { e.preventDefault(); step(1) }
-            if (e.key === 'ArrowDown') { e.preventDefault(); step(-1) }
+            if (e.key === 'ArrowUp') {
+              e.preventDefault()
+              step(1)
+            }
+            if (e.key === 'ArrowDown') {
+              e.preventDefault()
+              step(-1)
+            }
           }}
           className="h-full w-7 cursor-text bg-transparent text-center text-small font-medium tabular-nums text-foreground outline-none disabled:text-foreground-disabled"
         />
@@ -85,7 +91,7 @@ const QuantityStepper = React.forwardRef<HTMLDivElement, QuantityStepperProps>(
         </button>
       </div>
     )
-  },
+  }
 )
 QuantityStepper.displayName = 'QuantityStepper'
 

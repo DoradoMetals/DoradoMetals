@@ -4,7 +4,14 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { WirePayout } from '@/shared/types/payouts'
 import { UseFormReturn } from 'react-hook-form'
 import { usePayoutDraft } from './payoutDraft'
-import { Checkbox, Form, FormControl, FormField, FormItem, ValidatedField } from '@dorado/components'
+import {
+  Checkbox,
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  ValidatedField,
+} from '@dorado/components'
 
 export default function WireForm({
   form,

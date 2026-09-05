@@ -9,11 +9,7 @@ import { useMemo, useState } from 'react'
 import ShippingStep from './shippingStep/shippingStep'
 import PayoutStep from './payoutStep/payoutStep'
 import ReviewStep from './reviewStep/reviewStep'
-import {
-  isPayoutComplete,
-  toPayoutForm,
-  usePayoutDraft,
-} from './payoutStep/payoutDraft'
+import { isPayoutComplete, toPayoutForm, usePayoutDraft } from './payoutStep/payoutDraft'
 import { readyForPayment, resolveHandoff } from '@/shared/utils/gates'
 
 import { useGetSession } from '@/shared/hooks/auth/queries'
@@ -151,12 +147,7 @@ export default function CheckoutStepper() {
             ),
             payout: () => <PayoutStep user={user} />,
             review: () => (
-              <ReviewStep
-                row={row}
-                fulfillment={fulfillment}
-                rates={rates}
-                handoff={handoff}
-              />
+              <ReviewStep row={row} fulfillment={fulfillment} rates={rates} handoff={handoff} />
             ),
           })}
 
@@ -191,8 +182,8 @@ export default function CheckoutStepper() {
                 {stepper.current.id === 'shipping'
                   ? 'Go to Payment'
                   : savePayout.isPending
-                  ? 'Saving…'
-                  : 'Review Order'}
+                    ? 'Saving…'
+                    : 'Review Order'}
               </Button>
             )}
           </div>

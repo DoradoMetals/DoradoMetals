@@ -30,8 +30,8 @@
 // it will drop, each table's row count and the newest timestamp in it. An
 // operator can then see for themselves that what is going is January residue.
 
-import fs from "node:fs";
-import pg from "pg";
+import fs from 'node:fs'
+import pg from 'pg'
 
 // ---------------------------------------------------------------- the rules
 //
@@ -44,236 +44,242 @@ import {
   PROTECTED_SCHEMAS as PROTECTED,
   isProtectedSchema as isProtected,
   droppableSchemas as droppable,
-} from "./lib/schemas.ts";
+} from './lib/schemas.ts'
 
-export { PROTECTED, isProtected, droppable };
+export { PROTECTED, isProtected, droppable }
 
 // ------------------------------------------------------------- the self-test
 
-if (process.argv.includes("--self-test")) {
-  const os = await import("node:os");
-  const path = await import("node:path");
-  const { selfTest } = await import("./lib/self-test-harness.ts");
+if (process.argv.includes('--self-test')) {
+  const os = await import('node:os')
+  const path = await import('node:path')
+  const { selfTest } = await import('./lib/self-test-harness.ts')
 
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "reset-january-"));
-  const REAL = path.join(dir, "prod.dump");
-  const EMPTY = path.join(dir, "empty.dump");
-  fs.writeFileSync(REAL, "PGDMP pretend");
-  fs.writeFileSync(EMPTY, "");
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'reset-january-'))
+  const REAL = path.join(dir, 'prod.dump')
+  const EMPTY = path.join(dir, 'empty.dump')
+  fs.writeFileSync(REAL, 'PGDMP pretend')
+  fs.writeFileSync(EMPTY, '')
   // selfTest() exits the process, so the cleanup has to be a hook.
-  process.on("exit", () => fs.rmSync(dir, { recursive: true, force: true }));
+  process.on('exit', () => fs.rmSync(dir, { recursive: true, force: true }))
 
   const p = (schemas: string, ...rest: string[]) => [
-    "--check-plan", "--schemas", schemas, "--database", "x", ...rest,
-  ];
+    '--check-plan',
+    '--schemas',
+    schemas,
+    '--database',
+    'x',
+    ...rest,
+  ]
   await selfTest({
     script: new URL(import.meta.url).pathname,
     cases: [
       {
-        name: "exchange is never in the drop list, however it is presented",
-        args: p("exchange,orders,payments,core,auctions", "--dump", REAL),
-        expect: "pass",
-        mustPrint: "would drop: auctions, core, orders, payments",
+        name: 'exchange is never in the drop list, however it is presented',
+        args: p('exchange,orders,payments,core,auctions', '--dump', REAL),
+        expect: 'pass',
+        mustPrint: 'would drop: auctions, core, orders, payments',
       },
       {
-        name: "a database holding only exchange has nothing to drop",
-        args: p("exchange,public", "--dump", REAL),
-        expect: "pass",
-        mustPrint: "nothing to drop",
+        name: 'a database holding only exchange has nothing to drop',
+        args: p('exchange,public', '--dump', REAL),
+        expect: 'pass',
+        mustPrint: 'nothing to drop',
       },
       {
-        name: "public, information_schema and pg_* are protected by construction",
-        args: p("public,information_schema,pg_catalog,pg_toast,pg_temp_3,orders", "--dump", REAL),
-        expect: "pass",
-        mustPrint: "would drop: orders",
+        name: 'public, information_schema and pg_* are protected by construction',
+        args: p('public,information_schema,pg_catalog,pg_toast,pg_temp_3,orders', '--dump', REAL),
+        expect: 'pass',
+        mustPrint: 'would drop: orders',
       },
       {
-        name: "a protected name planted in the drop list is caught before anything runs",
-        args: p("exchange,orders", "--dump", REAL),
-        env: { RESET_JANUARY_INJECT_PROTECTED: "exchange" },
-        expect: "fail",
-        mustPrint: "protected schema reached the drop list",
+        name: 'a protected name planted in the drop list is caught before anything runs',
+        args: p('exchange,orders', '--dump', REAL),
+        env: { RESET_JANUARY_INJECT_PROTECTED: 'exchange' },
+        expect: 'fail',
+        mustPrint: 'protected schema reached the drop list',
       },
       {
-        name: "refuses without --database",
-        args: ["--check-plan", "--schemas", "orders", "--dump", REAL],
-        expect: "fail",
-        mustPrint: "--database",
+        name: 'refuses without --database',
+        args: ['--check-plan', '--schemas', 'orders', '--dump', REAL],
+        expect: 'fail',
+        mustPrint: '--database',
       },
       {
-        name: "refuses without --dump",
-        args: p("orders"),
-        expect: "fail",
-        mustPrint: "--dump",
+        name: 'refuses without --dump',
+        args: p('orders'),
+        expect: 'fail',
+        mustPrint: '--dump',
       },
       {
-        name: "refuses a dump file that does not exist",
-        args: p("orders", "--dump", path.join(dir, "nope.dump")),
-        expect: "fail",
-        mustPrint: "does not exist as a file",
+        name: 'refuses a dump file that does not exist',
+        args: p('orders', '--dump', path.join(dir, 'nope.dump')),
+        expect: 'fail',
+        mustPrint: 'does not exist as a file',
       },
       {
-        name: "refuses a zero-byte dump",
-        args: p("orders", "--dump", EMPTY),
-        expect: "fail",
-        mustPrint: "is zero bytes",
+        name: 'refuses a zero-byte dump',
+        args: p('orders', '--dump', EMPTY),
+        expect: 'fail',
+        mustPrint: 'is zero bytes',
       },
       {
-        name: "refuses when --url names a different database than --database",
-        args: ["--database", "uat", "--dump", REAL, "--url", "postgresql://h/other"],
-        expect: "fail",
-        mustPrint: "Refusing rather than dropping schemas",
+        name: 'refuses when --url names a different database than --database',
+        args: ['--database', 'uat', '--dump', REAL, '--url', 'postgresql://h/other'],
+        expect: 'fail',
+        mustPrint: 'Refusing rather than dropping schemas',
       },
     ],
-  });
+  })
 }
 
 // ------------------------------------------------------------------ the flags
 
-const argv = process.argv.slice(2);
+const argv = process.argv.slice(2)
 const flag = (name: string): string | undefined => {
-  const i = argv.indexOf(name);
-  return i === -1 ? undefined : argv[i + 1];
-};
-const has = (name: string) => argv.includes(name);
+  const i = argv.indexOf(name)
+  return i === -1 ? undefined : argv[i + 1]
+}
+const has = (name: string) => argv.includes(name)
 
-const CHECK_PLAN = has("--check-plan");
-const COMMIT = has("--commit");
-const DATABASE = flag("--database");
-const URL_FLAG = flag("--url");
-const DUMP = flag("--dump");
+const CHECK_PLAN = has('--check-plan')
+const COMMIT = has('--commit')
+const DATABASE = flag('--database')
+const URL_FLAG = flag('--url')
+const DUMP = flag('--dump')
 
 // Annotated on the CONST, not just the arrow: that is what lets TypeScript
 // narrow after a call and know the code below is unreachable.
 const die: (msg: string) => never = (msg) => {
-  console.error(msg);
-  process.exit(1);
-};
+  console.error(msg)
+  process.exit(1)
+}
 
 if (!DATABASE) {
   die(
-    "refusing to run without --database <name>.\n" +
-      "This script drops schemas. It will not infer its target from the " +
-      "environment, and it will not read DATABASE_URL on its own: name the " +
-      "database you mean, and the URL must resolve to it."
-  );
+    'refusing to run without --database <name>.\n' +
+      'This script drops schemas. It will not infer its target from the ' +
+      'environment, and it will not read DATABASE_URL on its own: name the ' +
+      'database you mean, and the URL must resolve to it.'
+  )
 }
 
 if (!DUMP) {
   die(
-    "refusing to run without --dump <file>.\n" +
-      "Ruling 82 drops the January schemas AFTER the dump. Name the dump of " +
+    'refusing to run without --dump <file>.\n' +
+      'Ruling 82 drops the January schemas AFTER the dump. Name the dump of ' +
       `"${DATABASE}" that already exists; this script checks it is there and ` +
-      "is not empty before it drops anything."
-  );
+      'is not empty before it drops anything.'
+  )
 }
 
-const dumpStat = fs.existsSync(DUMP) ? fs.statSync(DUMP) : null;
+const dumpStat = fs.existsSync(DUMP) ? fs.statSync(DUMP) : null
 if (!dumpStat || !dumpStat.isFile()) {
-  die(`--dump ${DUMP} does not exist as a file. Take the dump first.`);
+  die(`--dump ${DUMP} does not exist as a file. Take the dump first.`)
 }
 if (dumpStat.size === 0) {
-  die(`--dump ${DUMP} is zero bytes. That is not a dump.`);
+  die(`--dump ${DUMP} is zero bytes. That is not a dump.`)
 }
 
 // ------------------------------------------------------------- the drop plan
 
 function plan(present: string[]): string[] {
-  const list = droppable(present);
+  const list = droppable(present)
   // Second assertion, deliberately not the same expression as the first: the
   // list is re-read against the protected set after it is built. The injection
   // hook exists so the self-test can prove this gate fires; it is added to what
   // is CHECKED and never to what is returned, so it cannot itself drop anything.
-  const injected = process.env.RESET_JANUARY_INJECT_PROTECTED;
-  const bad = [...list, ...(injected ? [injected] : [])].filter((s) => isProtected(s));
+  const injected = process.env.RESET_JANUARY_INJECT_PROTECTED
+  const bad = [...list, ...(injected ? [injected] : [])].filter((s) => isProtected(s))
   if (bad.length) {
     die(
-      `a protected schema reached the drop list: ${bad.join(", ")}.\n` +
-        "Refusing. This is the covenant and there is no flag for it."
-    );
+      `a protected schema reached the drop list: ${bad.join(', ')}.\n` +
+        'Refusing. This is the covenant and there is no flag for it.'
+    )
   }
-  return list;
+  return list
 }
 
 function report(list: string[]): void {
   if (!list.length) {
-    console.log(`${DATABASE}: nothing to drop - no schema outside the protected set.`);
-    return;
+    console.log(`${DATABASE}: nothing to drop - no schema outside the protected set.`)
+    return
   }
-  console.log(`${DATABASE}: would drop: ${list.join(", ")}`);
-  console.log(`protected, never dropped: ${PROTECTED.join(", ")}, pg_*`);
+  console.log(`${DATABASE}: would drop: ${list.join(', ')}`)
+  console.log(`protected, never dropped: ${PROTECTED.join(', ')}, pg_*`)
 }
 
 if (CHECK_PLAN) {
-  const schemas = (flag("--schemas") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
-  if (!schemas.length) die("--check-plan needs --schemas a,b,c");
-  report(plan(schemas));
-  process.exit(0);
+  const schemas = (flag('--schemas') ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+  if (!schemas.length) die('--check-plan needs --schemas a,b,c')
+  report(plan(schemas))
+  process.exit(0)
 }
 
 // ---------------------------------------------------------------- the target
 
-const connectionString = URL_FLAG ?? process.env.RESET_JANUARY_URL;
+const connectionString = URL_FLAG ?? process.env.RESET_JANUARY_URL
 if (!connectionString) {
   die(
-    "refusing to run without --url <connection string> (or RESET_JANUARY_URL).\n" +
-      "Naming the database is not enough - the URL must be passed too, and it " +
-      "must resolve to the database named."
-  );
+    'refusing to run without --url <connection string> (or RESET_JANUARY_URL).\n' +
+      'Naming the database is not enough - the URL must be passed too, and it ' +
+      'must resolve to the database named.'
+  )
 }
 
-const parsed = new URL(connectionString);
-const urlDatabase = decodeURIComponent(parsed.pathname.replace(/^\//, ""));
+const parsed = new URL(connectionString)
+const urlDatabase = decodeURIComponent(parsed.pathname.replace(/^\//, ''))
 if (urlDatabase !== DATABASE) {
   die(
     `--database ${DATABASE} but --url points at "${urlDatabase}". ` +
-      "Refusing rather than dropping schemas in a database nobody named."
-  );
+      'Refusing rather than dropping schemas in a database nobody named.'
+  )
 }
 
-const loopback = ["127.0.0.1", "::1", "localhost"].includes(
-  parsed.hostname.replace(/^\[|\]$/g, "")
-);
+const loopback = ['127.0.0.1', '::1', 'localhost'].includes(parsed.hostname.replace(/^\[|\]$/g, ''))
 const client = new pg.Client({
   connectionString,
   ...(loopback ? {} : { ssl: { rejectUnauthorized: false } }),
-});
+})
 
 const q = async <T = Record<string, unknown>>(sql: string, params: unknown[] = []) =>
-  (await client.query(sql, params)).rows as T[];
+  (await client.query(sql, params)).rows as T[]
 
-await client.connect();
+await client.connect()
 try {
   const [{ current_database: live }] = await q<{ current_database: string }>(
-    "SELECT current_database()"
-  );
+    'SELECT current_database()'
+  )
   if (live !== DATABASE) {
-    die(`connected to "${live}" but --database says "${DATABASE}". Refusing.`);
+    die(`connected to "${live}" but --database says "${DATABASE}". Refusing.`)
   }
 
-  const present = (
-    await q<{ nspname: string }>("SELECT nspname FROM pg_namespace ORDER BY 1")
-  ).map((r) => r.nspname);
+  const present = (await q<{ nspname: string }>('SELECT nspname FROM pg_namespace ORDER BY 1')).map(
+    (r) => r.nspname
+  )
 
-  if (!present.includes("exchange")) {
+  if (!present.includes('exchange')) {
     die(
       `"${DATABASE}" has no exchange schema. That is not a Dorado database, or ` +
-        "it is one this script has already been misaimed at. Refusing."
-    );
+        'it is one this script has already been misaimed at. Refusing.'
+    )
   }
 
-  const list = plan(present);
-  report(list);
-  if (!list.length) process.exit(0);
+  const list = plan(present)
+  report(list)
+  if (!list.length) process.exit(0)
 
   // -------------------------------------------------- ruling 82's precondition
   //
   // Print what is about to go: every table, its row count, and the newest
   // timestamp any of its timestamp columns holds. Counts and dates only - no
   // row is ever selected.
-  console.log("\nwhat is in them (ruling 82's precondition - counts only, never rows):");
-  let totalRows = 0;
-  let newest: string | null = null;
+  console.log("\nwhat is in them (ruling 82's precondition - counts only, never rows):")
+  let totalRows = 0
+  let newest: string | null = null
 
   const tables = await q<{ schema: string; name: string }>(
     `SELECT table_schema AS schema, table_name AS name
@@ -281,7 +287,7 @@ try {
       WHERE table_schema = ANY($1) AND table_type = 'BASE TABLE'
       ORDER BY 1, 2`,
     [list]
-  );
+  )
 
   for (const t of tables) {
     const stamps = (
@@ -292,57 +298,57 @@ try {
           ORDER BY column_name`,
         [t.schema, t.name]
       )
-    ).map((r) => r.column_name);
+    ).map((r) => r.column_name)
 
     const newestExpr = stamps.length
-      ? `GREATEST(${stamps.map((c) => `max("${c.replace(/"/g, '""')}")`).join(", ")})`
-      : "NULL::timestamptz";
+      ? `GREATEST(${stamps.map((c) => `max("${c.replace(/"/g, '""')}")`).join(', ')})`
+      : 'NULL::timestamptz'
     const [row] = await q<{ n: string; newest: Date | null }>(
       `SELECT count(*)::text AS n, ${newestExpr}::timestamptz AS newest
          FROM "${t.schema}"."${t.name}"`
-    );
-    const n = Number(row.n);
-    totalRows += n;
-    const stamp = row.newest ? row.newest.toISOString().slice(0, 10) : "-";
-    if (row.newest && (!newest || stamp > newest)) newest = stamp;
-    console.log(`  ${`${t.schema}.${t.name}`.padEnd(38)} ${String(n).padStart(7)}  newest ${stamp}`);
+    )
+    const n = Number(row.n)
+    totalRows += n
+    const stamp = row.newest ? row.newest.toISOString().slice(0, 10) : '-'
+    if (row.newest && (!newest || stamp > newest)) newest = stamp
+    console.log(`  ${`${t.schema}.${t.name}`.padEnd(38)} ${String(n).padStart(7)}  newest ${stamp}`)
   }
 
   console.log(
     `\n${tables.length} table(s) across ${list.length} schema(s), ${totalRows} row(s), ` +
-      `newest timestamp anywhere: ${newest ?? "none"}.`
-  );
+      `newest timestamp anywhere: ${newest ?? 'none'}.`
+  )
   console.log(
     `The dump is ${DUMP} (${dumpStat.size} bytes). Everything above is in it, and ` +
-      "genesis plus the backfills rebuild all of it from exchange."
-  );
+      'genesis plus the backfills rebuild all of it from exchange.'
+  )
 
   if (!COMMIT) {
-    console.log("\ndry run. Add --commit to drop them.");
-    process.exit(0);
+    console.log('\ndry run. Add --commit to drop them.')
+    process.exit(0)
   }
 
-  console.log("\ndropping:");
+  console.log('\ndropping:')
   for (const s of list) {
-    if (isProtected(s)) die(`refusing: ${s} is protected`); // third and last gate
-    await client.query(`DROP SCHEMA "${s.replace(/"/g, '""')}" CASCADE`);
-    console.log(`  dropped ${s}`);
+    if (isProtected(s)) die(`refusing: ${s} is protected`) // third and last gate
+    await client.query(`DROP SCHEMA "${s.replace(/"/g, '""')}" CASCADE`)
+    console.log(`  dropped ${s}`)
   }
 
-  const left = (
-    await q<{ nspname: string }>("SELECT nspname FROM pg_namespace ORDER BY 1")
-  ).map((r) => r.nspname);
-  const survivors = droppable(left);
+  const left = (await q<{ nspname: string }>('SELECT nspname FROM pg_namespace ORDER BY 1')).map(
+    (r) => r.nspname
+  )
+  const survivors = droppable(left)
   if (survivors.length) {
-    die(`schemas survived the drop: ${survivors.join(", ")}`);
+    die(`schemas survived the drop: ${survivors.join(', ')}`)
   }
-  if (!left.includes("exchange")) {
-    die("exchange is gone. This should be impossible; stop and restore the dump.");
+  if (!left.includes('exchange')) {
+    die('exchange is gone. This should be impossible; stop and restore the dump.')
   }
   console.log(
-    `\n${DATABASE} now holds: ${left.filter((s) => !s.startsWith("pg_")).join(", ")}. ` +
-      "exchange is intact. Run `migrate` next."
-  );
+    `\n${DATABASE} now holds: ${left.filter((s) => !s.startsWith('pg_')).join(', ')}. ` +
+      'exchange is intact. Run `migrate` next.'
+  )
 } finally {
-  await client.end();
+  await client.end()
 }

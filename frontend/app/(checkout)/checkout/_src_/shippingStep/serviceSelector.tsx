@@ -58,17 +58,13 @@ export function ServiceSelector({
                 {rate.transitTime
                   ? formatTimeDiff(new Date(rate.transitTime))
                   : rate.deliveryDay
-                  ? `Arrives ${rate.deliveryDay}`
-                  : isLoading
-                  ? 'Getting estimated delivery...'
-                  : 'Not available for this parcel'}
+                    ? `Arrives ${rate.deliveryDay}`
+                    : isLoading
+                      ? 'Getting estimated delivery...'
+                      : 'Not available for this parcel'}
               </small>
               <strong>
-                {rate.netCharge != null ? (
-                  <Amount value={rate.netCharge} />
-                ) : (
-                  <>&nbsp;</>
-                )}
+                {rate.netCharge != null ? <Amount value={rate.netCharge} /> : <>&nbsp;</>}
               </strong>
             </div>
           </RadioOption>

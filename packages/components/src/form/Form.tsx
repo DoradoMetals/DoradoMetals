@@ -1,8 +1,8 @@
-"use client"
+'use client'
 
-import * as React from "react"
-import * as LabelPrimitive from "@radix-ui/react-label"
-import { Slot } from "@radix-ui/react-slot"
+import * as React from 'react'
+import * as LabelPrimitive from '@radix-ui/react-label'
+import { Slot } from '@radix-ui/react-slot'
 import {
   Controller,
   FormProvider,
@@ -11,10 +11,10 @@ import {
   type ControllerProps,
   type FieldPath,
   type FieldValues,
-} from "react-hook-form"
+} from 'react-hook-form'
 
-import { cn } from "../cn"
-import { FieldLabel as Label } from "../field/Field"
+import { cn } from '../cn'
+import { FieldLabel as Label } from '../field/Field'
 
 const Form = FormProvider
 
@@ -25,9 +25,7 @@ type FormFieldContextValue<
   name: TName
 }
 
-const FormFieldContext = React.createContext<FormFieldContextValue>(
-  {} as FormFieldContextValue
-)
+const FormFieldContext = React.createContext<FormFieldContextValue>({} as FormFieldContextValue)
 
 const FormField = <
   TFieldValues extends FieldValues = FieldValues,
@@ -50,7 +48,7 @@ const useFormField = () => {
   const fieldState = getFieldState(fieldContext.name, formState)
 
   if (!fieldContext) {
-    throw new Error("useFormField should be used within <FormField>")
+    throw new Error('useFormField should be used within <FormField>')
   }
 
   const { id } = itemContext
@@ -69,35 +67,26 @@ type FormItemContextValue = {
   id: string
 }
 
-const FormItemContext = React.createContext<FormItemContextValue>(
-  {} as FormItemContextValue
-)
+const FormItemContext = React.createContext<FormItemContextValue>({} as FormItemContextValue)
 
-function FormItem({ className, ...props }: React.ComponentProps<"div">) {
+function FormItem({ className, ...props }: React.ComponentProps<'div'>) {
   const id = React.useId()
 
   return (
     <FormItemContext.Provider value={{ id }}>
-      <div
-        data-slot="form-item"
-        className={cn("", className)}
-        {...props}
-      />
+      <div data-slot="form-item" className={cn('', className)} {...props} />
     </FormItemContext.Provider>
   )
 }
 
-function FormLabel({
-  className,
-  ...props
-}: React.ComponentProps<typeof LabelPrimitive.Root>) {
+function FormLabel({ className, ...props }: React.ComponentProps<typeof LabelPrimitive.Root>) {
   const { error, formItemId } = useFormField()
 
   return (
     <Label
       data-slot="form-label"
       data-error={!!error}
-      className={cn("data-[error=true]:text-destructive-foreground", className)}
+      className={cn('data-[error=true]:text-destructive-foreground', className)}
       htmlFor={formItemId}
       {...props}
     />
@@ -111,33 +100,29 @@ function FormControl({ ...props }: React.ComponentProps<typeof Slot>) {
     <Slot
       data-slot="form-control"
       id={formItemId}
-      aria-describedby={
-        !error
-          ? `${formDescriptionId}`
-          : `${formDescriptionId} ${formMessageId}`
-      }
+      aria-describedby={!error ? `${formDescriptionId}` : `${formDescriptionId} ${formMessageId}`}
       aria-invalid={!!error}
       {...props}
     />
   )
 }
 
-function FormDescription({ className, ...props }: React.ComponentProps<"small">) {
+function FormDescription({ className, ...props }: React.ComponentProps<'small'>) {
   const { formDescriptionId } = useFormField()
 
   return (
     <small
       data-slot="form-description"
       id={formDescriptionId}
-      className={cn("block", className)}
+      className={cn('block', className)}
       {...props}
     />
   )
 }
 
-function FormMessage({ className, ...props }: React.ComponentProps<"small">) {
+function FormMessage({ className, ...props }: React.ComponentProps<'small'>) {
   const { error, formMessageId } = useFormField()
-  const body = error ? String(error?.message ?? "") : props.children
+  const body = error ? String(error?.message ?? '') : props.children
 
   if (!body) {
     return null
@@ -147,7 +132,7 @@ function FormMessage({ className, ...props }: React.ComponentProps<"small">) {
     <small
       data-slot="form-message"
       id={formMessageId}
-      className={cn("block text-destructive", className)}
+      className={cn('block text-destructive', className)}
       {...props}
     >
       {body}

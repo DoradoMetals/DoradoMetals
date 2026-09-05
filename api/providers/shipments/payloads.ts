@@ -1,49 +1,49 @@
 import {
   DEFAULT_EMAIL_NOTIFICATION_DETAIL,
   DEFAULT_HOLD_AT_LOCATION_DETAIL,
-} from "#providers/shipments/constants.ts";
-import { accountNumber } from "#providers/shipments/endpoints.ts";
+} from '#providers/shipments/constants.ts'
+import { accountNumber } from '#providers/shipments/endpoints.ts'
 import {
   formatFedexTime,
   normalizeTime,
   formatFedexFullDateTime,
   addHours,
-} from "#providers/shipments/utils/formatting.ts";
+} from '#providers/shipments/utils/formatting.ts'
 
-type FedexAddress = Record<string, unknown>;
-type PackageDetails = Record<string, unknown>;
+type FedexAddress = Record<string, unknown>
+type PackageDetails = Record<string, unknown>
 
 type RateQuoteInput = {
-  shipperAddress: FedexAddress;
-  recipientAddress: FedexAddress;
-  packageDetails: PackageDetails;
-  pickupType?: string;
-  declaredValue?: { amount?: number; currency?: string } | null;
-  carrierCodes?: string[];
-};
+  shipperAddress: FedexAddress
+  recipientAddress: FedexAddress
+  packageDetails: PackageDetails
+  pickupType?: string
+  declaredValue?: { amount?: number; currency?: string } | null
+  carrierCodes?: string[]
+}
 
 type CreateShipmentInput = {
-  shipper: Record<string, unknown>;
-  recipient: Record<string, unknown>;
-  serviceType?: string;
-  pickupType?: string;
-  packageDetails: PackageDetails;
-  totalDeclaredValue?: { amount?: number; currency?: string } | null;
-  label?: Record<string, unknown>;
-  specialServices?: Record<string, unknown> | null;
-  emailNotificationDetail?: Record<string, unknown> | null;
-  options?: { holdAtLocation?: boolean; emailNotifications?: boolean };
-};
+  shipper: Record<string, unknown>
+  recipient: Record<string, unknown>
+  serviceType?: string
+  pickupType?: string
+  packageDetails: PackageDetails
+  totalDeclaredValue?: { amount?: number; currency?: string } | null
+  label?: Record<string, unknown>
+  specialServices?: Record<string, unknown> | null
+  emailNotificationDetail?: Record<string, unknown> | null
+  options?: { holdAtLocation?: boolean; emailNotifications?: boolean }
+}
 
 type PickupAvailabilityInput = {
-  pickupAddress: FedexAddress;
-  code?: string;
-  readyDate: Date;
-};
+  pickupAddress: FedexAddress
+  code?: string
+  readyDate: Date
+}
 
-type SchedulePickupInput = Record<string, any>;
-type CancelPickupInput = Record<string, any>;
-type LocationsInput = Record<string, any>;
+type SchedulePickupInput = Record<string, any>
+type CancelPickupInput = Record<string, any>
+type LocationsInput = Record<string, any>
 
 export function validateAddressPayload(address: FedexAddress) {
   return {
@@ -61,7 +61,7 @@ export function validateAddressPayload(address: FedexAddress) {
         },
       },
     ],
-  };
+  }
 }
 
 export function rateQuotePayload({
@@ -70,28 +70,28 @@ export function rateQuotePayload({
   packageDetails,
   pickupType,
   declaredValue,
-  carrierCodes = ["FDXE"],
+  carrierCodes = ['FDXE'],
 }: RateQuoteInput) {
   return {
     accountNumber: { value: accountNumber() },
     rateRequestControlParameters: { returnTransitTimes: true },
     requestedShipment: {
-      shipDateStamp: new Date().toISOString().split("T")[0],
+      shipDateStamp: new Date().toISOString().split('T')[0],
       shipper: { address: shipperAddress },
       recipient: { address: recipientAddress },
       pickupType,
-      packagingType: "YOUR_PACKAGING",
-      preferredCurrency: "USD",
-      rateRequestType: ["PREFERRED", "LIST"],
+      packagingType: 'YOUR_PACKAGING',
+      preferredCurrency: 'USD',
+      rateRequestType: ['PREFERRED', 'LIST'],
       requestedPackageLineItems: [
         {
           ...packageDetails,
-          groupPackageCount: "1",
+          groupPackageCount: '1',
           declaredValue,
         },
       ],
       shippingChargesPayment: {
-        paymentType: "SENDER",
+        paymentType: 'SENDER',
         payor: {
           responsibleParty: {
             accountNumber: { value: accountNumber() },
@@ -100,7 +100,7 @@ export function rateQuotePayload({
       },
     },
     carrierCodes,
-  };
+  }
 }
 
 export function createShipmentPayload({
@@ -115,40 +115,40 @@ export function createShipmentPayload({
   emailNotificationDetail,
   options,
 }: CreateShipmentInput) {
-  const wantsHoldAtLocation = options?.holdAtLocation !== false;
-  const wantsEmailNotifications = options?.emailNotifications !== false;
+  const wantsHoldAtLocation = options?.holdAtLocation !== false
+  const wantsEmailNotifications = options?.emailNotifications !== false
 
   const resolvedSpecialServices =
     wantsHoldAtLocation && !specialServices
       ? {
-          specialServiceTypes: ["HOLD_AT_LOCATION"],
+          specialServiceTypes: ['HOLD_AT_LOCATION'],
           holdAtLocationDetail: DEFAULT_HOLD_AT_LOCATION_DETAIL,
         }
-      : specialServices;
+      : specialServices
 
   const resolvedEmailNotificationDetail =
     wantsEmailNotifications && !emailNotificationDetail
       ? DEFAULT_EMAIL_NOTIFICATION_DETAIL
-      : emailNotificationDetail;
+      : emailNotificationDetail
 
   return {
     accountNumber: { value: accountNumber() },
-    labelResponseOptions: "LABEL",
+    labelResponseOptions: 'LABEL',
     requestedShipment: {
       shipper,
       recipients: [recipient],
-      packagingType: "YOUR_PACKAGING",
+      packagingType: 'YOUR_PACKAGING',
       serviceType,
       pickupType,
       groupPackageCount: 1,
       totalDeclaredValue: totalDeclaredValue ?? undefined,
       requestedPackageLineItems: [packageDetails],
       labelSpecification: {
-        imageType: label?.imageType ?? "PNG",
-        labelStockType: label?.labelStockType ?? "PAPER_4X6",
+        imageType: label?.imageType ?? 'PNG',
+        labelStockType: label?.labelStockType ?? 'PAPER_4X6',
       },
       shippingChargesPayment: {
-        paymentType: "SENDER",
+        paymentType: 'SENDER',
         payor: {
           responsibleParty: {
             accountNumber: { value: accountNumber() },
@@ -158,14 +158,14 @@ export function createShipmentPayload({
       shipmentSpecialServices: resolvedSpecialServices ?? undefined,
       emailNotificationDetail: resolvedEmailNotificationDetail ?? undefined,
     },
-  };
+  }
 }
 
 export function cancelShipmentPayload(trackingNumber: string) {
   return {
     accountNumber: { value: accountNumber() },
     trackingNumber,
-  };
+  }
 }
 
 export function pickupAvailabilityPayload({
@@ -173,17 +173,17 @@ export function pickupAvailabilityPayload({
   code,
   readyDate,
 }: PickupAvailabilityInput) {
-  const packageReadyTime = formatFedexTime(readyDate);
+  const packageReadyTime = formatFedexTime(readyDate)
 
   return {
     pickupAddress,
-    pickupRequestType: ["FUTURE_DAY"],
+    pickupRequestType: ['FUTURE_DAY'],
     carriers: [code],
-    countryRelationship: "DOMESTIC",
+    countryRelationship: 'DOMESTIC',
     numberOfBusinessDays: 3,
     associatedAccountNumber: accountNumber(),
     packageReadyTime,
-  };
+  }
 }
 
 export function schedulePickupPayload({
@@ -193,14 +193,14 @@ export function schedulePickupPayload({
   pickupTime,
   carrierCode,
   trackingNumber,
-  packageLocation = "FRONT",
+  packageLocation = 'FRONT',
 }: SchedulePickupInput) {
-  const time = normalizeTime(pickupTime);
-  const readyDate = new Date(`${pickupDate}T${time}`);
+  const time = normalizeTime(pickupTime)
+  const readyDate = new Date(`${pickupDate}T${time}`)
 
-  const readyDateTimestamp = formatFedexFullDateTime(readyDate);
-  const closeDate = addHours(readyDate, 2);
-  const customerCloseTime = formatFedexTime(closeDate);
+  const readyDateTimestamp = formatFedexFullDateTime(readyDate)
+  const closeDate = addHours(readyDate, 2)
+  const customerCloseTime = formatFedexTime(closeDate)
 
   return {
     associatedAccountNumber: { value: accountNumber() },
@@ -215,47 +215,39 @@ export function schedulePickupPayload({
     },
     trackingNumber,
     carrierCode,
-  };
+  }
 }
 
-export function cancelPickupPayload({
-  confirmationCode,
-  pickupDate,
-  location,
-}: CancelPickupInput) {
+export function cancelPickupPayload({ confirmationCode, pickupDate, location }: CancelPickupInput) {
   return {
     associatedAccountNumber: { value: accountNumber() },
     pickupConfirmationCode: confirmationCode,
     scheduledDate: pickupDate,
     location,
-  };
+  }
 }
 
-export function locationsPayload({
-  address,
-  radiusMiles = 25,
-  maxResults = 10,
-}: LocationsInput) {
+export function locationsPayload({ address, radiusMiles = 25, maxResults = 10 }: LocationsInput) {
   return {
     locationsSummaryRequestControlParameters: {
-      distance: { units: "MI", value: radiusMiles },
+      distance: { units: 'MI', value: radiusMiles },
       maxResults,
     },
     constraints: {
-      locationContentOptions: ["LOCATION_DROPOFF_TIMES"],
+      locationContentOptions: ['LOCATION_DROPOFF_TIMES'],
       excludeUnavailableLocations: true,
     },
-    locationSearchCriterion: "ADDRESS",
+    locationSearchCriterion: 'ADDRESS',
     location: { address },
-    multipleMatchesAction: "RETURN_ALL",
-    sort: { criteria: "DISTANCE", order: "ASCENDING" },
-    locationTypes: ["FEDEX_AUTHORIZED_SHIP_CENTER", "FEDEX_OFFICE"],
-  };
+    multipleMatchesAction: 'RETURN_ALL',
+    sort: { criteria: 'DISTANCE', order: 'ASCENDING' },
+    locationTypes: ['FEDEX_AUTHORIZED_SHIP_CENTER', 'FEDEX_OFFICE'],
+  }
 }
 
 export function trackingPayload(trackingNumber: string) {
   return {
     includeDetailedScans: true,
     trackingInfo: [{ trackingNumberInfo: { trackingNumber } }],
-  };
+  }
 }

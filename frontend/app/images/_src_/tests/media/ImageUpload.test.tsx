@@ -59,9 +59,7 @@ describe('Attachment states carry their hallmarks', () => {
   })
 
   test('error turns the border destructive and the meta carries the reason', () => {
-    const { container } = render(
-      <Attachment filename="chain.jpg" state="error" meta="Too large" />
-    )
+    const { container } = render(<Attachment filename="chain.jpg" state="error" meta="Too large" />)
     expect((container.firstChild as HTMLElement).className).toContain('border-destructive')
     expect(screen.getByText('Too large').className).toContain('text-destructive')
   })

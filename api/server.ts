@@ -1,8 +1,8 @@
-import app from "#app";
-import { setupScheduler } from "#shared/cron/scheduler.ts";
+import app from '#app'
+import { setupScheduler } from '#shared/cron/scheduler.ts'
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5000
 
-setupScheduler();
+setupScheduler()
 
-app.listen(PORT, () => {});
+app.listen(PORT, () => {})

@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from '@playwright/test'
 
 // A VISITOR'S BASKET, WITH NOBODY SIGNED IN (ruling 63).
 //
@@ -18,7 +18,7 @@ import { test, expect } from "@playwright/test";
 // the visitor sweep's (api domain/checkout/sweep.ts, seven days), which is
 // exactly the lifecycle this spec is here to exercise - so it is not cleaned
 // up by hand.
-const API = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api").replace(/\/$/, "");
+const API = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api').replace(/\/$/, '')
 
 test.afterEach(async ({ page }) => {
   // Through the PAGE, not `request`: the visitor's session is a cookie in the
@@ -27,23 +27,23 @@ test.afterEach(async ({ page }) => {
     .evaluate(
       (api) =>
         fetch(`${api}/checkout/items?direction=sale`, {
-          method: "DELETE",
-          credentials: "include",
+          method: 'DELETE',
+          credentials: 'include',
         }).then(() => undefined),
       API
     )
-    .catch(() => undefined);
-});
+    .catch(() => undefined)
+})
 
 test("a signed-out visitor's basket is the server's", async ({ page }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(120_000)
 
-  await page.goto("/buy");
-  const addButton = page.getByRole("button", { name: /^Add to Checkout$/i }).first();
-  await expect(addButton, "no buyable product card rendered on /buy").toBeVisible({
+  await page.goto('/buy')
+  const addButton = page.getByRole('button', { name: /^Add to Checkout$/i }).first()
+  await expect(addButton, 'no buyable product card rendered on /buy').toBeVisible({
     timeout: 30_000,
-  });
-  await addButton.click();
+  })
+  await addButton.click()
 
   // THE ASSERTION THAT MATTERS: the API - not localStorage - now holds a line
   // for a caller who has never signed in. `signIn.anonymous()` ran inside the
@@ -53,7 +53,7 @@ test("a signed-out visitor's basket is the server's", async ({ page }) => {
       async () =>
         await page.evaluate(
           (api) =>
-            fetch(`${api}/checkout/items?direction=sale`, { credentials: "include" })
+            fetch(`${api}/checkout/items?direction=sale`, { credentials: 'include' })
               .then((r) => (r.ok ? r.json() : []))
               .then((rows: unknown[]) => rows.length),
           API
@@ -61,20 +61,20 @@ test("a signed-out visitor's basket is the server's", async ({ page }) => {
       {
         message:
           "the visitor's basket never reached the server - either the anonymous " +
-          "sign-in did not happen or the basket is still browser-local",
+          'sign-in did not happen or the basket is still browser-local',
         timeout: 30_000,
       }
     )
-    .toBeGreaterThan(0);
+    .toBeGreaterThan(0)
 
   // And the drawer renders those rows, from the same place a customer's come
   // from - there is no second code path left for a signed-out surface.
-  await page.getByRole("button", { name: /open checkout/i }).click();
+  await page.getByRole('button', { name: /open checkout/i }).click()
   await expect(
-    page.locator("number-flow-react").first(),
+    page.locator('number-flow-react').first(),
     "the visitor's basket rendered no price element"
-  ).toBeVisible({ timeout: 20_000 });
-});
+  ).toBeVisible({ timeout: 20_000 })
+})
 
 // THE TWO WALLS - the payout step and the placement - are NOT driven here.
 // Both are refusals the API makes about the account, and both are pinned over

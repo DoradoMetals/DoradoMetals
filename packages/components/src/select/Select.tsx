@@ -1,29 +1,29 @@
 'use client'
 
-import * as React from "react";
-import * as SelectPrimitive from "@radix-ui/react-select";
-import { Check, ChevronDown } from "@dorado/icons";
-import { fieldOption, fieldPanel, fieldTrigger, FieldLabel } from "../field/Field";
-import { cn } from "../cn";
+import * as React from 'react'
+import * as SelectPrimitive from '@radix-ui/react-select'
+import { Check, ChevronDown } from '@dorado/icons'
+import { fieldOption, fieldPanel, fieldTrigger, FieldLabel } from '../field/Field'
+import { cn } from '../cn'
 
-export type SelectItemShape = { value: string; label: React.ReactNode; disabled?: boolean };
+export type SelectItemShape = { value: string; label: React.ReactNode; disabled?: boolean }
 
 export type SelectProps = {
-  label?: React.ReactNode;
-  placeholder?: string;
-  items: SelectItemShape[];
-  value?: string;
-  onValueChange?: (value: string) => void;
-  defaultValue?: string;
-  name?: string;
-  disabled?: boolean;
-  invalid?: boolean;
-  className?: string;
-};
+  label?: React.ReactNode
+  placeholder?: string
+  items: SelectItemShape[]
+  value?: string
+  onValueChange?: (value: string) => void
+  defaultValue?: string
+  name?: string
+  disabled?: boolean
+  invalid?: boolean
+  className?: string
+}
 
 export function Select({
   label,
-  placeholder = "Select an option",
+  placeholder = 'Select an option',
   items,
   value,
   onValueChange,
@@ -33,11 +33,11 @@ export function Select({
   invalid,
   className,
 }: SelectProps) {
-  const id = React.useId();
+  const id = React.useId()
   return (
-    <div className={cn("flex w-full flex-col gap-0.5", className)}>
+    <div className={cn('flex w-full flex-col gap-0.5', className)}>
       {label != null && (
-        <FieldLabel htmlFor={id} className={cn(invalid && "text-destructive")}>
+        <FieldLabel htmlFor={id} className={cn(invalid && 'text-destructive')}>
           {label}
         </FieldLabel>
       )}
@@ -51,7 +51,7 @@ export function Select({
         <SelectPrimitive.Trigger
           id={id}
           aria-invalid={invalid || undefined}
-          className={cn(fieldTrigger(), "justify-between [&>span]:truncate")}
+          className={cn(fieldTrigger(), 'justify-between [&>span]:truncate')}
         >
           <SelectPrimitive.Value
             placeholder={<span className="text-muted-foreground">{placeholder}</span>}
@@ -67,7 +67,7 @@ export function Select({
           <SelectPrimitive.Content
             position="popper"
             sideOffset={4}
-            className={cn(fieldPanel(), "w-[var(--radix-select-trigger-width)]")}
+            className={cn(fieldPanel(), 'w-[var(--radix-select-trigger-width)]')}
           >
             <SelectPrimitive.Viewport className="flex flex-col gap-2">
               {items.map((item) => (
@@ -88,5 +88,5 @@ export function Select({
         </SelectPrimitive.Portal>
       </SelectPrimitive.Root>
     </div>
-  );
+  )
 }

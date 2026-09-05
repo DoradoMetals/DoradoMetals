@@ -1,53 +1,52 @@
-import { formatPhoneNumber } from "#shared/utils/formatPhoneNumber.ts";
-import {
-  formatCurrency,
-  getPayoutDelay,
-} from "#media/pdfs/render/format.ts";
+import { formatPhoneNumber } from '#shared/utils/formatPhoneNumber.ts'
+import { formatCurrency, getPayoutDelay } from '#media/pdfs/render/format.ts'
 import type {
-  OrderView, OrderViewItem, OrderPricingLine, OrderPricingSpot,
-} from "@dorado/contracts";
+  OrderView,
+  OrderViewItem,
+  OrderPricingLine,
+  OrderPricingSpot,
+} from '@dorado/contracts'
 
-const inboundShipment = (order: OrderView): OrderView["shipments"][number] | null =>
-  order.shipments.find((s) => s.direction !== "Return") ?? null;
+const inboundShipment = (order: OrderView): OrderView['shipments'][number] | null =>
+  order.shipments.find((s) => s.direction !== 'Return') ?? null
 
 export type PackageDetails = {
-  label: string | null;
-  length: number | null;
-  width: number | null;
-  height: number | null;
-};
+  label: string | null
+  length: number | null
+  width: number | null
+  height: number | null
+}
 
 // The service name and the package label are columns of the order view now
 // (db/orders/sql/view.sql), so a document reads them off the shipment instead
 // of indexing two id-to-name Maps (ruling 78).
-const serviceOf = (shipment: OrderView["shipments"][number] | null): string =>
-  shipment?.service_name || "-";
+const serviceOf = (shipment: OrderView['shipments'][number] | null): string =>
+  shipment?.service_name || '-'
 
-const packageOf = (shipment: OrderView["shipments"][number] | null): string =>
-  shipment?.package_label || "-";
+const packageOf = (shipment: OrderView['shipments'][number] | null): string =>
+  shipment?.package_label || '-'
 
 // A priced line is read out of the rows the pricing domain answered with. The
 // list is one order's lines - a handful - and reading one with .find is what
 // the profit rewrite settled on rather than a per-call index.
-const priceFor = (
-  prices: OrderPricingLine[], line: OrderViewItem
-): OrderPricingLine | undefined => prices.find((p) => p.id === line.id);
+const priceFor = (prices: OrderPricingLine[], line: OrderViewItem): OrderPricingLine | undefined =>
+  prices.find((p) => p.id === line.id)
 
-export function returnShipment(order: OrderView): OrderView["shipments"][number] | null {
-  return order.shipments.find((s) => s.direction === "Return") ?? null;
+export function returnShipment(order: OrderView): OrderView['shipments'][number] | null {
+  return order.shipments.find((s) => s.direction === 'Return') ?? null
 }
 
 const pct = (value: number | null | undefined): string =>
-  value == null ? "&mdash;" : `${(value * 100).toFixed(1)}%`;
+  value == null ? '&mdash;' : `${(value * 100).toFixed(1)}%`
 
 const oz = (value: number | null | undefined): string =>
-  value == null ? "&mdash;" : value.toFixed(3);
+  value == null ? '&mdash;' : value.toFixed(3)
 
 // A declared scrap lot with no recorded weight, purity or quantity still
 // shows what it has and never a computed total - never "NaN", never the
 // literal string "null" a bare template interpolation would print.
 export const qty = (value: number | null | undefined): string =>
-  value == null ? "-" : String(value);
+  value == null ? '-' : String(value)
 
 export function renderInvoiceHeader(
   order: OrderView,
@@ -55,38 +54,39 @@ export function renderInvoiceHeader(
   spots: OrderPricingSpot[]
 ): string {
   const orderPlaced = order.order.created_at
-    ? new Date(order.order.created_at).toLocaleDateString("en-US", {
-        month: "long",
-        day: "numeric",
-        year: "numeric",
+    ? new Date(order.order.created_at).toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
       })
-    : "&mdash;";
+    : '&mdash;'
 
-  const orderNumber = `PO-${String(order.order.number ?? "").padStart(6, "0")}`;
-  const status = order.order.status ?? "";
-  const userName = order.user?.name ?? "";
+  const orderNumber = `PO-${String(order.order.number ?? '').padStart(6, '0')}`
+  const status = order.order.status ?? ''
+  const userName = order.user?.name ?? ''
 
-  const doneStatus = ["Payment Processing", "Completed"];
-  const isDone = doneStatus.includes(status);
-  const totalLabel = isDone ? "Total Payout" : "Total Estimate";
+  const doneStatus = ['Payment Processing', 'Completed']
+  const isDone = doneStatus.includes(status)
+  const totalLabel = isDone ? 'Total Payout' : 'Total Estimate'
 
   // Already ordered by the SQL read (Gold, Silver, Platinum, Palladium, then
   // anything else by name), and holding only the metals this order has a line in.
   const spotRows =
     spots
       .flatMap((spot) => {
-        if (spot.bid == null) return [];
-        return [`
+        if (spot.bid == null) return []
+        return [
+          `
           <div class="invoice-card-row">
             <span>${spot.metal_id}:</span>
             <span>${formatCurrency(spot.bid)}</span>
           </div>
-        `];
+        `,
+        ]
       })
-      .join("") ||
-    `<div class="invoice-card-row"><span>Spots unavailable</span></div>`;
+      .join('') || `<div class="invoice-card-row"><span>Spots unavailable</span></div>`
 
-  const spotsStatus = order.order.spots_locked ? "Locked" : "Unlocked";
+  const spotsStatus = order.order.spots_locked ? 'Locked' : 'Unlocked'
 
   return `
     <div class="invoice-header">
@@ -137,32 +137,28 @@ export function renderInvoiceHeader(
         </div>
       </div>
     </div>
-  `;
+  `
 }
 
-export function renderInvoiceShippingAndPayout(
-  order: OrderView, payoutCost: number
-): string {
-  const inbound = inboundShipment(order);
-  const outbound = returnShipment(order);
-  const isCancelled = order.order.status === "Cancelled";
+export function renderInvoiceShippingAndPayout(order: OrderView, payoutCost: number): string {
+  const inbound = inboundShipment(order)
+  const outbound = returnShipment(order)
+  const isCancelled = order.order.status === 'Cancelled'
 
-  const leg = (
-    label: string, shipment: OrderView["shipments"][number]
-  ): string => `
+  const leg = (label: string, shipment: OrderView['shipments'][number]): string => `
       <tr>
         <td class="text-left">${label}</td>
         <td>${serviceOf(shipment)}</td>
-        <td>${shipment.insured ? "Yes" : "No"}</td>
+        <td>${shipment.insured ? 'Yes' : 'No'}</td>
         <td>${packageOf(shipment)}</td>
         <td class="text-right">${formatCurrency(shipment.cost ?? 0)}</td>
-      </tr>`;
+      </tr>`
 
-  const inboundRow = inbound ? leg("Inbound", inbound) : "";
-  const outboundRow = isCancelled && outbound ? leg("Return", outbound) : "";
+  const inboundRow = inbound ? leg('Inbound', inbound) : ''
+  const outboundRow = isCancelled && outbound ? leg('Return', outbound) : ''
 
-  const payoutMethod = order.payout?.method ?? "-";
-  const payoutDelay = getPayoutDelay(payoutMethod);
+  const payoutMethod = order.payout?.method ?? '-'
+  const payoutDelay = getPayoutDelay(payoutMethod)
 
   return `
     <div class="order-info">
@@ -201,7 +197,7 @@ export function renderInvoiceShippingAndPayout(
         </tbody>
       </table>
     </div>
-  `;
+  `
 }
 
 export function renderPackingShippingSection(
@@ -211,30 +207,30 @@ export function renderPackingShippingSection(
   payoutFee: number
 ): string {
   const customer = {
-    name: order.user?.name ?? "",
-    line_1: order.address?.line_1 ?? "",
-    line_2: order.address?.line_2 ?? "",
-    city: order.address?.city ?? "",
-    state: order.address?.state ?? "",
-    zip: order.address?.zip ?? "",
-    phone: order.address?.phone_number ?? "",
-  };
+    name: order.user?.name ?? '',
+    line_1: order.address?.line_1 ?? '',
+    line_2: order.address?.line_2 ?? '',
+    city: order.address?.city ?? '',
+    state: order.address?.state ?? '',
+    zip: order.address?.zip ?? '',
+    phone: order.address?.phone_number ?? '',
+  }
 
   const dorado = {
-    name: process.env.FEDEX_DORADO_NAME ?? "",
-    line_1: process.env.FEDEX_RETURN_ADDRESS_LINE_1 ?? "",
-    line_2: process.env.FEDEX_RETURN_ADDRESS_LINE_2 ?? "",
-    city: process.env.FEDEX_RETURN_CITY ?? "",
-    state: process.env.FEDEX_RETURN_STATE ?? "",
-    zip: process.env.FEDEX_RETURN_ZIP ?? "",
-    phone: process.env.FEDEX_DORADO_PHONE_NUMBER ?? "",
-  };
+    name: process.env.FEDEX_DORADO_NAME ?? '',
+    line_1: process.env.FEDEX_RETURN_ADDRESS_LINE_1 ?? '',
+    line_2: process.env.FEDEX_RETURN_ADDRESS_LINE_2 ?? '',
+    city: process.env.FEDEX_RETURN_CITY ?? '',
+    state: process.env.FEDEX_RETURN_STATE ?? '',
+    zip: process.env.FEDEX_RETURN_ZIP ?? '',
+    phone: process.env.FEDEX_DORADO_PHONE_NUMBER ?? '',
+  }
 
-  const from = isReturn ? dorado : customer;
-  const to = isReturn ? customer : dorado;
+  const from = isReturn ? dorado : customer
+  const to = isReturn ? customer : dorado
 
-  const shipment = isReturn ? returnShipment(order) : inboundShipment(order);
-  const pickupType = shipment?.pickup_type || "-";
+  const shipment = isReturn ? returnShipment(order) : inboundShipment(order)
+  const pickupType = shipment?.pickup_type || '-'
 
   return `
     <div class="shipping-info">
@@ -267,7 +263,7 @@ export function renderPackingShippingSection(
         <div class="detail-content">
           <div class="detail-row">
             <span class="detail-label">Tracking Number:</span>
-            <span class="detail-value">${shipment?.tracking_number || "-"}</span>
+            <span class="detail-value">${shipment?.tracking_number || '-'}</span>
           </div>
           <div class="detail-row">
             <span class="detail-label">Service:</span>
@@ -282,16 +278,16 @@ export function renderPackingShippingSection(
             <span class="detail-value">${pickupType}</span>
           </div>
           ${
-            pickupType === "Store Dropoff"
-              ? ""
+            pickupType === 'Store Dropoff'
+              ? ''
               : `
           <div class="detail-row">
             <span class="detail-label">Pickup Date:</span>
             <span class="detail-value">
-              8:30AM ${new Date().toLocaleDateString("en-US", {
-                month: "long",
-                day: "numeric",
-                year: "numeric",
+              8:30AM ${new Date().toLocaleDateString('en-US', {
+                month: 'long',
+                day: 'numeric',
+                year: 'numeric',
               })}
             </span>
           </div>`
@@ -307,18 +303,15 @@ export function renderPackingShippingSection(
             <span class="detail-label">Payout Fee:</span>
             <span class="detail-value">${formatCurrency(payoutFee)}</span>
           </div>`
-              : ""
+              : ''
           }
         </div>
       </div>
     </div>
-  `;
+  `
 }
 
-export function renderOrderSummaryTable(
-  order: OrderView,
-  totalDisplay: string
-): string {
+export function renderOrderSummaryTable(order: OrderView, totalDisplay: string): string {
   return `
     <div class="order-info order-summary">
       <table>
@@ -334,92 +327,86 @@ export function renderOrderSummaryTable(
             <td>${
               order.order.created_at
                 ? new Date(order.order.created_at).toLocaleDateString()
-                : "&mdash;"
+                : '&mdash;'
             }</td>
-            <td>PO-${String(order.order.number ?? "").padStart(6, "0")}</td>
+            <td>PO-${String(order.order.number ?? '').padStart(6, '0')}</td>
             <td>${totalDisplay}</td>
           </tr>
         </tbody>
       </table>
     </div>
-  `;
+  `
 }
 
-export function buildPackingScrapRows(
-  lines: OrderViewItem[], prices: OrderPricingLine[]
-): string {
+export function buildPackingScrapRows(lines: OrderViewItem[], prices: OrderPricingLine[]): string {
   return lines
     .map((line) => {
-      const price = priceFor(prices, line)?.unit_price;
+      const price = priceFor(prices, line)?.unit_price
       return `
         <tr>
-          <td>${line.item_name ?? "Scrap Item"}</td>
-          <td>${line.pre_melt ?? "-"} ${line.unit ?? ""}</td>
+          <td>${line.item_name ?? 'Scrap Item'}</td>
+          <td>${line.pre_melt ?? '-'} ${line.unit ?? ''}</td>
           <td>${pct(line.purity)}</td>
           <td>${oz(line.content)}</td>
           <td>${pct(line.premium)}</td>
-          <td>${price ? formatCurrency(price) : "-"}</td>
-        </tr>`;
+          <td>${price ? formatCurrency(price) : '-'}</td>
+        </tr>`
     })
-    .join("");
+    .join('')
 }
 
 export function buildPackingBullionRows(
-  lines: OrderViewItem[], prices: OrderPricingLine[]
+  lines: OrderViewItem[],
+  prices: OrderPricingLine[]
 ): string {
   return lines
     .map((line) => {
-      const total = priceFor(prices, line)?.line_total;
+      const total = priceFor(prices, line)?.line_total
       return `
         <tr>
-          <td>${line.product_name || "Bullion Product"}</td>
+          <td>${line.product_name || 'Bullion Product'}</td>
           <td>${line.metal_id}</td>
           <td>${qty(line.quantity)}</td>
-          <td>${line.content ?? "-"}</td>
-          <td>${total ? formatCurrency(total) : "-"}</td>
-        </tr>`;
+          <td>${line.content ?? '-'}</td>
+          <td>${total ? formatCurrency(total) : '-'}</td>
+        </tr>`
     })
-    .join("");
+    .join('')
 }
 
-export function buildInvoiceScrapRows(
-  lines: OrderViewItem[], prices: OrderPricingLine[]
-): string {
+export function buildInvoiceScrapRows(lines: OrderViewItem[], prices: OrderPricingLine[]): string {
   return lines
     .map((line) => {
-      const price = priceFor(prices, line)?.unit_price;
+      const price = priceFor(prices, line)?.unit_price
       return `
         <tr>
-          <td class="text-left">${line.item_name ?? "Scrap Item"}</td>
-          <td>${line.pre_melt ?? "-"} ${line.unit ?? ""}</td>
-          <td>${(line.post_melt ?? line.pre_melt) ?? "-"} ${line.unit ?? ""}</td>
+          <td class="text-left">${line.item_name ?? 'Scrap Item'}</td>
+          <td>${line.pre_melt ?? '-'} ${line.unit ?? ''}</td>
+          <td>${line.post_melt ?? line.pre_melt ?? '-'} ${line.unit ?? ''}</td>
           <td>${pct(line.purity)}</td>
-          <td>${line.content != null ? `${line.content.toFixed(3)} t oz` : "&mdash;"}</td>
+          <td>${line.content != null ? `${line.content.toFixed(3)} t oz` : '&mdash;'}</td>
           <td>${pct(line.premium)}</td>
-          <td class="text-right">${price ? formatCurrency(price) : "-"}</td>
-        </tr>`;
+          <td class="text-right">${price ? formatCurrency(price) : '-'}</td>
+        </tr>`
     })
-    .join("");
+    .join('')
 }
 
 export function buildInvoiceBullionRows(
-  lines: OrderViewItem[], prices: OrderPricingLine[]
+  lines: OrderViewItem[],
+  prices: OrderPricingLine[]
 ): string {
   return lines
     .map((line) => {
-      const total = priceFor(prices, line)?.line_total;
+      const total = priceFor(prices, line)?.line_total
       return `
         <tr>
-          <td class="text-left">${line.product_name || "Bullion Product"}</td>
+          <td class="text-left">${line.product_name || 'Bullion Product'}</td>
           <td>${qty(line.quantity)}</td>
-          <td>${
-            line.content != null
-              ? `${line.content.toFixed(3)} t oz`
-              : "&mdash;"
-          }</td>
-          <td>${line.premium != null ? `${pct(line.premium)} of spot` : "&mdash;"}</td>
-          <td class="text-right">${total ? formatCurrency(total) : "-"}</td>
-        </tr>`;
+          <td>${line.content != null ? `${line.content.toFixed(3)} t oz` : '&mdash;'}</td>
+          <td>${line.premium != null ? `${pct(line.premium)} of spot` : '&mdash;'}</td>
+          <td class="text-right">${total ? formatCurrency(total) : '-'}</td>
+        </tr>`
     })
-    .join("");
+    .join('')
 }

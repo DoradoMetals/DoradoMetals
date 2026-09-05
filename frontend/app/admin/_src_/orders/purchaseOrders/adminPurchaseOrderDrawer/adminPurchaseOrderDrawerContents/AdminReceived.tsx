@@ -1,9 +1,21 @@
-import { Button, Checkbox, Divider, Input, Select, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@dorado/components'
+import {
+  Button,
+  Checkbox,
+  Divider,
+  Input,
+  Select,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@dorado/components'
 import { Lock, RotateCcw, Unlock } from '@dorado/icons'
 import { outboundOf } from '../../../../shipping/queries'
 import { usePatchShipment } from '../../../../shipping/queries'
 import { useOrderShipments, usePatchPaymentDetails } from '@dorado/client'
-import type { OrderItemPatch, OrderSpot, OrderViewItem } from "@dorado/contracts";
+import type { OrderItemPatch, OrderSpot, OrderViewItem } from '@dorado/contracts'
 import { cn } from '@/shared/utils/cn'
 import { payoutMethodIcon, PayoutMethodType } from '@/shared/types/payouts'
 import { usePaymentMethods } from '@dorado/client'
@@ -16,7 +28,13 @@ import { useState } from 'react'
 import { Product } from '@/shared/types/products'
 import { useSpotPrices } from '@/shared/hooks/spots/queries'
 import { useProducts } from '@/shared/hooks/products/queries'
-import { useCreateOrderItem, useDeleteOrderItem, useOrderSpots, usePatchOrderItem, useSetOrderSpots } from '@dorado/client'
+import {
+  useCreateOrderItem,
+  useDeleteOrderItem,
+  useOrderSpots,
+  usePatchOrderItem,
+  useSetOrderSpots,
+} from '@dorado/client'
 import { byId } from '@/shared/utils/byId'
 const METAL_ITEMS = ['Gold', 'Silver', 'Platinum', 'Palladium'].map((metal) => ({
   label: metal,
@@ -110,9 +128,7 @@ export default function AdminReceivedPurchaseOrder({ view }: PurchaseOrderDrawer
                         !order?.spots_locked && 'cursor-not-allowed'
                       )}
                       defaultValue={
-                        spot?.bid ??
-                        spotPrices?.find((s) => s.id === spot.metal_id)?.bid ??
-                        ''
+                        spot?.bid ?? spotPrices?.find((s) => s.id === spot.metal_id)?.bid ?? ''
                       }
                       onBlur={(e) => handleUpdateSpot(spot, Number(e.target.value))}
                     />
@@ -128,11 +144,7 @@ export default function AdminReceivedPurchaseOrder({ view }: PurchaseOrderDrawer
                 <small className="tracking-widest">Scrap</small>
               </div>
 
-              <ScrapTable
-                scrapItems={scrapItems}
-                config={config}
-                order_id={order.id}
-              />
+              <ScrapTable scrapItems={scrapItems} config={config} order_id={order.id} />
             </div>
           )}
           <Divider />
@@ -142,7 +154,12 @@ export default function AdminReceivedPurchaseOrder({ view }: PurchaseOrderDrawer
               <div className="flex w-full justify-start items-center mb-2">
                 <small className="tracking-widest">Bullion</small>
               </div>
-              <BullionTable bullionItems={bullionItems} catalogue={catalogue} config={config} order_id={order.id} />
+              <BullionTable
+                bullionItems={bullionItems}
+                catalogue={catalogue}
+                config={config}
+                order_id={order.id}
+              />
             </div>
           )}
           <Divider />
@@ -355,9 +372,7 @@ function ScrapTable({
                         <Input
                           type="number"
                           pattern="[0-9]*"
-                          inputClassName={cn(
-                            'text-left h-6'
-                          )}
+                          inputClassName={cn('text-left h-6')}
                           defaultValue={item.pre_melt ?? ''}
                           onBlur={(e) => {
                             const pre_melt = parseFloat(e.target.value)
@@ -383,9 +398,7 @@ function ScrapTable({
                         <Input
                           type="number"
                           pattern="[0-9]*"
-                          inputClassName={cn(
-                            'text-left h-6'
-                          )}
+                          inputClassName={cn('text-left h-6')}
                           defaultValue={item.post_melt ?? ''}
                           onBlur={(e) => {
                             const post_melt = parseFloat(e.target.value)
@@ -411,9 +424,7 @@ function ScrapTable({
                         <Input
                           type="number"
                           pattern="[0-9]*"
-                          inputClassName={cn(
-                            'text-center h-6'
-                          )}
+                          inputClassName={cn('text-center h-6')}
                           defaultValue={item.purity ?? ''}
                           onBlur={(e) => {
                             const purity = parseFloat(e.target.value)
@@ -434,9 +445,7 @@ function ScrapTable({
                         <Input
                           type="number"
                           pattern="[0-9]*"
-                          inputClassName={cn(
-                            'text-center h-6'
-                          )}
+                          inputClassName={cn('text-center h-6')}
                           defaultValue={item.premium ?? ''}
                           onBlur={(e) => {
                             const premium = parseFloat(e.target.value)
@@ -630,9 +639,7 @@ function BullionTable({
                         <Input
                           type="number"
                           pattern="[0-9]*"
-                          inputClassName={cn(
-                            'text-center h-6'
-                          )}
+                          inputClassName={cn('text-center h-6')}
                           defaultValue={item.quantity ?? ''}
                           onBlur={(e) => {
                             const quantity = parseFloat(e.target.value)
@@ -654,10 +661,10 @@ function BullionTable({
                         <Input
                           type="number"
                           pattern="[0-9]*"
-                          inputClassName={cn(
-                            'text-right h-6'
-                          )}
-                          defaultValue={item.premium ?? byId(catalogue, item.bullion_id)?.bid_premium ?? ''}
+                          inputClassName={cn('text-right h-6')}
+                          defaultValue={
+                            item.premium ?? byId(catalogue, item.bullion_id)?.bid_premium ?? ''
+                          }
                           onBlur={(e) => {
                             const premium = parseFloat(e.target.value)
                             if (!isNaN(premium)) {
@@ -668,7 +675,10 @@ function BullionTable({
                       </div>
                     ) : (
                       <div>
-                        {((item.premium ?? byId(catalogue, item.bullion_id)?.bid_premium ?? 0) * 100).toFixed(1)}%
+                        {(
+                          (item.premium ?? byId(catalogue, item.bullion_id)?.bid_premium ?? 0) * 100
+                        ).toFixed(1)}
+                        %
                       </div>
                     )}
                   </TableCell>

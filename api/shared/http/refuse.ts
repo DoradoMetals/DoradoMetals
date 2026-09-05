@@ -1,13 +1,13 @@
 export interface HttpError extends Error {
-  statusCode?: number;
+  statusCode?: number
 }
 
 export function refuse(status: number, message: string): HttpError {
-  const err: HttpError = new Error(message);
-  err.statusCode = status;
-  return err;
+  const err: HttpError = new Error(message)
+  err.statusCode = status
+  return err
 }
 
 export function refuseWith(status: number, message: string): never {
-  throw refuse(status, message);
+  throw refuse(status, message)
 }

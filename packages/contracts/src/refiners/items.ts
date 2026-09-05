@@ -3,24 +3,24 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: refiners.items
-import { z } from "zod/v4";
+import { z } from 'zod/v4'
 
 export const RefinerItem = z.object({
-  "id": z.string().uuid(),
-  "order_item_id": z.string().uuid(),
-  "refiner_id": z.string().uuid().nullable(),
-  "bullion_id": z.string().uuid().nullable(),
-  "metal_id": z.string(),
-  "pre_melt": z.number().nullable(),
-  "post_melt": z.number().nullable(),
-  "purity": z.number().nullable(),
-  "content": z.number().nullable(),
-  "premium": z.number().nullable(),
-  "quantity": z.number(),
-  "unit": z.string().nullable(),
-  "refiner_order_id": z.string().uuid().nullable(),
-});
-export type RefinerItem = z.infer<typeof RefinerItem>;
+  'id': z.string().uuid(),
+  'order_item_id': z.string().uuid(),
+  'refiner_id': z.string().uuid().nullable(),
+  'bullion_id': z.string().uuid().nullable(),
+  'metal_id': z.string(),
+  'pre_melt': z.number().nullable(),
+  'post_melt': z.number().nullable(),
+  'purity': z.number().nullable(),
+  'content': z.number().nullable(),
+  'premium': z.number().nullable(),
+  'quantity': z.number(),
+  'unit': z.string().nullable(),
+  'refiner_order_id': z.string().uuid().nullable(),
+})
+export type RefinerItem = z.infer<typeof RefinerItem>
 // generated:end
 export const RefinerItemPatch = RefinerItem.pick({
   premium: true,
@@ -28,5 +28,7 @@ export const RefinerItemPatch = RefinerItem.pick({
   post_melt: true,
   purity: true,
   unit: true,
-}).partial().strict();
-export type RefinerItemPatch = z.infer<typeof RefinerItemPatch>;
+})
+  .partial()
+  .strict()
+export type RefinerItemPatch = z.infer<typeof RefinerItemPatch>

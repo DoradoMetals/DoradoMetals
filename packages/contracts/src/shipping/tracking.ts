@@ -3,25 +3,27 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: shipping.tracking
-import { z } from "zod/v4";
+import { z } from 'zod/v4'
 
 export const TrackingRecord = z.object({
-  "id": z.string().uuid(),
-  "shipment_id": z.string().uuid(),
-  "status": z.string().nullable(),
-  "location": z.string().nullable(),
-  "time": z.string().nullable(),
-});
-export type TrackingRecord = z.infer<typeof TrackingRecord>;
+  'id': z.string().uuid(),
+  'shipment_id': z.string().uuid(),
+  'status': z.string().nullable(),
+  'location': z.string().nullable(),
+  'time': z.string().nullable(),
+})
+export type TrackingRecord = z.infer<typeof TrackingRecord>
 // generated:end
-import { Shipment } from "./shipments.js";
+import { Shipment } from './shipments.js'
 
 export const TrackingScan = TrackingRecord.omit({ time: true }).extend({
   scan_time: TrackingRecord.shape.time,
-});
-export type TrackingScan = z.infer<typeof TrackingScan>;
+})
+export type TrackingScan = z.infer<typeof TrackingScan>
 
-export const ShippingGetTrackingBody = z.object({
-  shipment_id: Shipment.shape.id,
-}).strict();
-export type ShippingGetTrackingBody = z.infer<typeof ShippingGetTrackingBody>;
+export const ShippingGetTrackingBody = z
+  .object({
+    shipment_id: Shipment.shape.id,
+  })
+  .strict()
+export type ShippingGetTrackingBody = z.infer<typeof ShippingGetTrackingBody>

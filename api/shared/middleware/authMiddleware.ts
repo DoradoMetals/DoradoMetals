@@ -1,7 +1,7 @@
-import type { NextFunction, Request, RequestHandler, Response } from "express";
-import { auth } from "#identity/auth/client.ts";
-import { fromNodeHeaders } from "better-auth/node";
-import { runWithActor } from "#shared/http/actor.ts";
+import type { NextFunction, Request, RequestHandler, Response } from 'express'
+import { auth } from '#identity/auth/client.ts'
+import { fromNodeHeaders } from 'better-auth/node'
+import { runWithActor } from '#shared/http/actor.ts'
 
 export const requireAuth = async (
   req: Request,
@@ -10,59 +10,56 @@ export const requireAuth = async (
 ): Promise<void | Response> => {
   try {
     if (!req.headers) {
-      return res
-        .status(400)
-        .json({ error: "Bad Request", message: "Headers are missing" });
+      return res.status(400).json({ error: 'Bad Request', message: 'Headers are missing' })
     }
 
     const session = await auth.api.getSession({
       headers: fromNodeHeaders(req.headers),
-    });
+    })
 
     if (!session || !session.user) {
-      return res.status(401).json({ error: "Unauthorized" });
+      return res.status(401).json({ error: 'Unauthorized' })
     }
 
-    req.user = session.user;
-    req.sessionId = session.session?.id;
-    return runWithActor(session.user.id, () => next());
+    req.user = session.user
+    req.sessionId = session.session?.id
+    return runWithActor(session.user.id, () => next())
   } catch (error) {
-    return res.status(500).json({ error: "Internal Server Error" });
+    return res.status(500).json({ error: 'Internal Server Error' })
   }
-};
+}
 
 const roleLevels = {
   user: 1,
   verified_user: 2,
   admin: 3,
-} as const;
+} as const
 
-type Role = keyof typeof roleLevels;
+type Role = keyof typeof roleLevels
 
 const requireRole = (minimumRole: Role): RequestHandler => {
   if (!roleLevels[minimumRole]) {
-    throw new Error(`Unknown role "${minimumRole}"`);
+    throw new Error(`Unknown role "${minimumRole}"`)
   }
 
   return async (req: Request, res: Response, next: NextFunction) => {
     await requireAuth(req, res, () => {
-      const userRole = req.user?.role;
-      const userLevel =
-        userRole && userRole in roleLevels ? roleLevels[userRole as Role] : 0;
-      const requiredLevel = roleLevels[minimumRole];
+      const userRole = req.user?.role
+      const userLevel = userRole && userRole in roleLevels ? roleLevels[userRole as Role] : 0
+      const requiredLevel = roleLevels[minimumRole]
 
       if (userLevel < requiredLevel) {
         return res.status(403).json({
-          error: "Forbidden",
+          error: 'Forbidden',
           message: `Access requires at least "${minimumRole}" privileges`,
-        });
+        })
       }
 
-      next();
-    });
-  };
-};
+      next()
+    })
+  }
+}
 
-export const requireUser = requireRole("user");
-export const requireVerifiedUser = requireRole("verified_user");
-export const requireAdmin = requireRole("admin");
+export const requireUser = requireRole('user')
+export const requireVerifiedUser = requireRole('verified_user')
+export const requireAdmin = requireRole('admin')

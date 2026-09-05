@@ -17,14 +17,14 @@ export function SignInAndUpTabs() {
   }
 
   return (
-    <Tabs defaultValue={currentTab} onValueChange={handleTabChange} className="flex w-full px-10 max-w-lg mt-10 lg:mt-10">
+    <Tabs
+      defaultValue={currentTab}
+      onValueChange={handleTabChange}
+      className="flex w-full px-10 max-w-lg mt-10 lg:mt-10"
+    >
       <TabsList className="justify-center w-full gap-2 py-1">
-        <TabsTrigger value="sign-in">
-          Sign In
-        </TabsTrigger>
-        <TabsTrigger value="sign-up">
-          Sign Up
-        </TabsTrigger>
+        <TabsTrigger value="sign-in">Sign In</TabsTrigger>
+        <TabsTrigger value="sign-up">Sign Up</TabsTrigger>
       </TabsList>
       <Divider className="-mt-[11px] mb-8" />
 

@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
-import { fireEvent, render } from "@testing-library/react";
-import * as React from "react";
+import { describe, expect, it } from 'vitest'
+import { fireEvent, render } from '@testing-library/react'
+import * as React from 'react'
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./Tabs";
-import { axeViolations } from "../test/axe";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './Tabs'
+import { axeViolations } from '../test/axe'
 
 function renderTabs() {
   return render(
@@ -14,45 +14,45 @@ function renderTabs() {
       </TabsList>
       <TabsContent value="buy">Buy panel</TabsContent>
       <TabsContent value="sell">Sell panel</TabsContent>
-    </Tabs>,
-  );
+    </Tabs>
+  )
 }
 
-describe("Tabs", () => {
-  it("is a tablist wired to panels, and axe finds nothing", async () => {
-    const { getByRole, container } = renderTabs();
-    expect(getByRole("tablist")).toBeTruthy();
-    const active = getByRole("tab", { name: "Buy" });
-    expect(active.getAttribute("aria-selected")).toBe("true");
-    expect(getByRole("tabpanel").textContent).toBe("Buy panel");
-    expect(await axeViolations(container)).toEqual([]);
-  });
+describe('Tabs', () => {
+  it('is a tablist wired to panels, and axe finds nothing', async () => {
+    const { getByRole, container } = renderTabs()
+    expect(getByRole('tablist')).toBeTruthy()
+    const active = getByRole('tab', { name: 'Buy' })
+    expect(active.getAttribute('aria-selected')).toBe('true')
+    expect(getByRole('tabpanel').textContent).toBe('Buy panel')
+    expect(await axeViolations(container)).toEqual([])
+  })
 
-  it("clicking switches the panel", () => {
-    const { getByRole } = renderTabs();
+  it('clicking switches the panel', () => {
+    const { getByRole } = renderTabs()
 
-    fireEvent.mouseDown(getByRole("tab", { name: "Sell" }), { button: 0 });
-    expect(getByRole("tabpanel").textContent).toBe("Sell panel");
-  });
+    fireEvent.mouseDown(getByRole('tab', { name: 'Sell' }), { button: 0 })
+    expect(getByRole('tabpanel').textContent).toBe('Sell panel')
+  })
 
-  it("underline (Tab Bar / Underline 160:45): a single sliding rail segment, not a per-trigger border", () => {
-    const { getByRole, container } = renderTabs();
-    const tablist = getByRole("tablist");
-    expect(tablist.className).toMatch(/border-b border-border/);
+  it('underline (Tab Bar / Underline 160:45): a single sliding rail segment, not a per-trigger border', () => {
+    const { getByRole, container } = renderTabs()
+    const tablist = getByRole('tablist')
+    expect(tablist.className).toMatch(/border-b border-border/)
 
-    const indicator = container.querySelector('[aria-hidden="true"]');
-    expect(indicator).toBeTruthy();
-    expect(indicator?.className).toMatch(/bg-primary/);
-    expect(indicator?.className).toMatch(/transition-\[left,width\]/);
-    expect(indicator?.className).toMatch(/motion-reduce:transition-none/);
+    const indicator = container.querySelector('[aria-hidden="true"]')
+    expect(indicator).toBeTruthy()
+    expect(indicator?.className).toMatch(/bg-primary/)
+    expect(indicator?.className).toMatch(/transition-\[left,width\]/)
+    expect(indicator?.className).toMatch(/motion-reduce:transition-none/)
 
-    const sell = getByRole("tab", { name: "Sell" });
-    expect(sell.className).not.toMatch(/border-b-2/);
-    fireEvent.focus(sell);
-    expect(container.querySelector('[aria-hidden="true"]')).toBeTruthy();
-  });
+    const sell = getByRole('tab', { name: 'Sell' })
+    expect(sell.className).not.toMatch(/border-b-2/)
+    fireEvent.focus(sell)
+    expect(container.querySelector('[aria-hidden="true"]')).toBeTruthy()
+  })
 
-  it("boxed variant carries no sliding rail", () => {
+  it('boxed variant carries no sliding rail', () => {
     const { container, getByRole } = render(
       <Tabs defaultValue="buy">
         <TabsList variant="boxed">
@@ -61,9 +61,9 @@ describe("Tabs", () => {
         </TabsList>
         <TabsContent value="buy">Buy panel</TabsContent>
         <TabsContent value="sell">Sell panel</TabsContent>
-      </Tabs>,
-    );
-    expect(getByRole("tablist").className).toMatch(/bg-muted/);
-    expect(container.querySelector('[aria-hidden="true"]')).toBe(null);
-  });
-});
+      </Tabs>
+    )
+    expect(getByRole('tablist').className).toMatch(/bg-muted/)
+    expect(container.querySelector('[aria-hidden="true"]')).toBe(null)
+  })
+})

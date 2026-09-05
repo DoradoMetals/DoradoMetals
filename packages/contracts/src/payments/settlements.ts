@@ -3,21 +3,23 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: payments.settlements
-import { z } from "zod/v4";
+import { z } from 'zod/v4'
 
 export const PaymentSettlement = z.object({
-  "id": z.string().uuid(),
-  "attempt_id": z.string().uuid(),
-  "settled_amount": z.number(),
-  "provider": z.string().nullable(),
-  "provider_ref": z.string(),
-  "settled_at": z.string().nullable(),
-  "created_at": z.string(),
-});
-export type PaymentSettlement = z.infer<typeof PaymentSettlement>;
+  'id': z.string().uuid(),
+  'attempt_id': z.string().uuid(),
+  'settled_amount': z.number(),
+  'provider': z.string().nullable(),
+  'provider_ref': z.string(),
+  'settled_at': z.string().nullable(),
+  'created_at': z.string(),
+})
+export type PaymentSettlement = z.infer<typeof PaymentSettlement>
 // generated:end
 
 export const PaymentSettlementPatch = PaymentSettlement.omit({
-  id: true, attempt_id: true, created_at: true,
-}).partial();
-export type PaymentSettlementPatch = z.infer<typeof PaymentSettlementPatch>;
+  id: true,
+  attempt_id: true,
+  created_at: true,
+}).partial()
+export type PaymentSettlementPatch = z.infer<typeof PaymentSettlementPatch>

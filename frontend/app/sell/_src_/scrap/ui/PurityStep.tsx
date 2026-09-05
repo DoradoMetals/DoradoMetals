@@ -34,7 +34,6 @@ export default function PurityStep() {
       name="purity"
       render={() => (
         <FormItem>
-
           <RadioGroup
             value={selectedLabel}
             onValueChange={handleRadioChange}
@@ -74,7 +73,7 @@ export default function PurityStep() {
                 }}
                 spinTiming={{ duration: 100, easing: 'ease-out' }}
                 trend={0}
-                suffix='%'
+                suffix="%"
               />
             </small>
           </div>

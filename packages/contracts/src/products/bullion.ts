@@ -3,58 +3,73 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: products.bullion
-import { z } from "zod/v4";
+import { z } from 'zod/v4'
 
 export const Bullion = z.object({
-  "id": z.string().uuid(),
-  "metal_id": z.string(),
-  "mint_id": z.string().uuid(),
-  "name": z.string(),
-  "description": z.string(),
-  "bid_premium": z.number(),
-  "ask_premium": z.number(),
-  "type": z.string(),
-  "display": z.boolean(),
-  "homepage_display": z.boolean(),
-  "legal_tender": z.boolean(),
-  "domestic_tender": z.boolean(),
-  "is_generic": z.boolean(),
-  "content": z.number(),
-  "gross": z.number(),
-  "purity": z.number(),
-  "variant_group": z.string(),
-  "variant_label": z.string(),
-  "shadow_offset": z.number().int(),
-  "slug": z.string().nullable(),
-  "filter_category": z.string().nullable(),
-  "image_front": z.string(),
-  "image_back": z.string(),
-  "created_by": z.string(),
-  "updated_by": z.string(),
-  "created_at": z.string(),
-  "updated_at": z.string(),
-  "created_by_id": z.string().uuid().nullable(),
-  "updated_by_id": z.string().uuid().nullable(),
-  "supplier_id": z.string().uuid(),
-});
-export type Bullion = z.infer<typeof Bullion>;
+  'id': z.string().uuid(),
+  'metal_id': z.string(),
+  'mint_id': z.string().uuid(),
+  'name': z.string(),
+  'description': z.string(),
+  'bid_premium': z.number(),
+  'ask_premium': z.number(),
+  'type': z.string(),
+  'display': z.boolean(),
+  'homepage_display': z.boolean(),
+  'legal_tender': z.boolean(),
+  'domestic_tender': z.boolean(),
+  'is_generic': z.boolean(),
+  'content': z.number(),
+  'gross': z.number(),
+  'purity': z.number(),
+  'variant_group': z.string(),
+  'variant_label': z.string(),
+  'shadow_offset': z.number().int(),
+  'slug': z.string().nullable(),
+  'filter_category': z.string().nullable(),
+  'image_front': z.string(),
+  'image_back': z.string(),
+  'created_by': z.string(),
+  'updated_by': z.string(),
+  'created_at': z.string(),
+  'updated_at': z.string(),
+  'created_by_id': z.string().uuid().nullable(),
+  'updated_by_id': z.string().uuid().nullable(),
+  'supplier_id': z.string().uuid(),
+})
+export type Bullion = z.infer<typeof Bullion>
 // generated:end
-import { Organization } from "../organizations/organizations.js";
-import { Mint } from "./mints.js";
+import { Organization } from '../organizations/organizations.js'
+import { Mint } from './mints.js'
 
 export const BullionPublic = Bullion.pick({
-  id: true, name: true, description: true, content: true, purity: true,
-  gross: true, bid_premium: true, ask_premium: true, type: true,
-  image_front: true, image_back: true, variant_group: true,
-  shadow_offset: true, slug: true, legal_tender: true, domestic_tender: true,
-  is_generic: true, variant_label: true, metal_id: true, mint_id: true,
-});
-export type BullionPublic = z.infer<typeof BullionPublic>;
+  id: true,
+  name: true,
+  description: true,
+  content: true,
+  purity: true,
+  gross: true,
+  bid_premium: true,
+  ask_premium: true,
+  type: true,
+  image_front: true,
+  image_back: true,
+  variant_group: true,
+  shadow_offset: true,
+  slug: true,
+  legal_tender: true,
+  domestic_tender: true,
+  is_generic: true,
+  variant_label: true,
+  metal_id: true,
+  mint_id: true,
+})
+export type BullionPublic = z.infer<typeof BullionPublic>
 
 export const BullionStorefront = BullionPublic.extend({
   mint_name: Mint.shape.name,
-});
-export type BullionStorefront = z.infer<typeof BullionStorefront>;
+})
+export type BullionStorefront = z.infer<typeof BullionStorefront>
 
 export const BullionPatch = Bullion.omit({
   created_by: true,
@@ -63,22 +78,25 @@ export const BullionPatch = Bullion.omit({
   updated_at: true,
   created_by_id: true,
   updated_by_id: true,
-}).partial();
-export type BullionPatch = z.infer<typeof BullionPatch>;
+}).partial()
+export type BullionPatch = z.infer<typeof BullionPatch>
 
-export const BullionPatchColumns = BullionPatch.omit({ id: true });
-export type BullionPatchColumns = z.infer<typeof BullionPatchColumns>;
+export const BullionPatchColumns = BullionPatch.omit({ id: true })
+export type BullionPatchColumns = z.infer<typeof BullionPatchColumns>
 
 export const BullionCreate = BullionPatchColumns.required({
-  name: true, metal_id: true, mint_id: true, supplier_id: true,
-});
-export type BullionCreate = z.infer<typeof BullionCreate>;
+  name: true,
+  metal_id: true,
+  mint_id: true,
+  supplier_id: true,
+})
+export type BullionCreate = z.infer<typeof BullionCreate>
 
 export const BullionAdminRow = Bullion.omit({
   created_by_id: true,
   updated_by_id: true,
-});
-export type BullionAdminRow = z.infer<typeof BullionAdminRow>;
+})
+export type BullionAdminRow = z.infer<typeof BullionAdminRow>
 
 export const BullionAdmin = BullionAdminRow.omit({
   mint_id: true,
@@ -86,28 +104,34 @@ export const BullionAdmin = BullionAdminRow.omit({
 }).extend({
   mint: Mint.shape.name,
   supplier: Organization.shape.name,
-});
-export type BullionAdmin = z.infer<typeof BullionAdmin>;
+})
+export type BullionAdmin = z.infer<typeof BullionAdmin>
 
 export const BullionGroup = z.object({
   default: BullionStorefront,
   variants: z.array(BullionStorefront),
-});
-export type BullionGroup = z.infer<typeof BullionGroup>;
+})
+export type BullionGroup = z.infer<typeof BullionGroup>
 
-export const BullionLiveness = Bullion.pick({ id: true, display: true });
-export type BullionLiveness = z.infer<typeof BullionLiveness>;
+export const BullionLiveness = Bullion.pick({ id: true, display: true })
+export type BullionLiveness = z.infer<typeof BullionLiveness>
 
 export const BullionFilter = Bullion.pick({
-  slug: true, display: true, homepage_display: true, filter_category: true,
-  type: true, is_generic: true,
-}).partial().extend({
-  ids: z.array(Bullion.shape.id).optional(),
-  metal_id: Bullion.shape.metal_id.optional(),
-  search: z.string().optional(),
-  sort: z.enum(["name", "content", "newest"]).optional(),
-});
-export type BullionFilter = z.infer<typeof BullionFilter>;
+  slug: true,
+  display: true,
+  homepage_display: true,
+  filter_category: true,
+  type: true,
+  is_generic: true,
+})
+  .partial()
+  .extend({
+    ids: z.array(Bullion.shape.id).optional(),
+    metal_id: Bullion.shape.metal_id.optional(),
+    search: z.string().optional(),
+    sort: z.enum(['name', 'content', 'newest']).optional(),
+  })
+export type BullionFilter = z.infer<typeof BullionFilter>
 
-export const BullionSort = BullionFilter.shape.sort.unwrap();
-export type BullionSort = z.infer<typeof BullionSort>;
+export const BullionSort = BullionFilter.shape.sort.unwrap()
+export type BullionSort = z.infer<typeof BullionSort>

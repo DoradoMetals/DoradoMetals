@@ -1,24 +1,27 @@
-import * as shipments from "#db/shipping/shipments/repo.ts";
-import type { Executor } from "#shared/db/executor.ts";
+import * as shipments from '#db/shipping/shipments/repo.ts'
+import type { Executor } from '#shared/db/executor.ts'
 import type {
-  FulfillmentShipmentChoices, OrderViewShipment, ShipmentDirection,
-} from "@dorado/contracts";
+  FulfillmentShipmentChoices,
+  OrderViewShipment,
+  ShipmentDirection,
+} from '@dorado/contracts'
 
 export async function createShell(
-  direction: ShipmentDirection, executor?: Executor
+  direction: ShipmentDirection,
+  executor?: Executor
 ): Promise<string> {
-  return await shipments.create({ direction }, executor);
+  return await shipments.create({ direction }, executor)
 }
 
-export async function getMany(
-  ids: string[], executor?: Executor
-): Promise<OrderViewShipment[]> {
-  if (ids.length === 0) return [];
-  return await shipments.getMany([...new Set(ids)], executor);
+export async function getMany(ids: string[], executor?: Executor): Promise<OrderViewShipment[]> {
+  if (ids.length === 0) return []
+  return await shipments.getMany([...new Set(ids)], executor)
 }
 
 export async function applyChoices(
-  shipment_id: string, choices: FulfillmentShipmentChoices, executor?: Executor
+  shipment_id: string,
+  choices: FulfillmentShipmentChoices,
+  executor?: Executor
 ): Promise<void> {
-  await shipments.update(shipment_id, choices, executor);
+  await shipments.update(shipment_id, choices, executor)
 }

@@ -1,5 +1,14 @@
 'use client'
-import { Accordion, Amount, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@dorado/components'
+import {
+  Accordion,
+  Amount,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@dorado/components'
 
 import { useMemo, useState } from 'react'
 import { PurchaseOrderDrawerFooterProps, statusConfig } from '@/shared/types/purchaseOrders'

@@ -117,7 +117,10 @@ export function SidebarLayout({
   const isOpen = forcedOpen ?? open
   const Nav = (
     <nav
-      className={cn('max-h-[75vh] overflow-y-auto shrink-0 bg-card p-2 transition-all duration-300 rounded-lg custom-scrollbar', navClass)}
+      className={cn(
+        'max-h-[75vh] overflow-y-auto shrink-0 bg-card p-2 transition-all duration-300 rounded-lg custom-scrollbar',
+        navClass
+      )}
     >
       {headerEnabled && (
         <div className="mb-6 border-b-1 border-border pb-4">
@@ -166,9 +169,7 @@ export function SidebarLayout({
       <div className="flex flex-col gap-6">
         {sections.map((section, si) => (
           <div key={si} className="space-y-1">
-            {isOpen && section.label ? (
-              <div className="eyebrow p-2">{section.label}</div>
-            ) : null}
+            {isOpen && section.label ? <div className="eyebrow p-2">{section.label}</div> : null}
 
             {section.items.map((item) => {
               const isSelected = item.key === selectedKey
@@ -194,7 +195,9 @@ export function SidebarLayout({
                   {isOpen && <span>{item.label}</span>}
 
                   {isOpen && item.badge != null && item.badge !== '' && (
-                    <Badge variant="solid" className="ml-auto">{item.badge}</Badge>
+                    <Badge variant="solid" className="ml-auto">
+                      {item.badge}
+                    </Badge>
                   )}
                 </button>
               )

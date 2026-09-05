@@ -4,7 +4,16 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Button, Form, FormControl, FormField, FormItem, FormLabel, FormMessage, ValidatedField } from '@dorado/components'
+import {
+  Button,
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+  ValidatedField,
+} from '@dorado/components'
 import { Checkbox } from '@dorado/components'
 import Link from 'next/link'
 import { useSignUp } from '@/shared/hooks/auth/queries'
@@ -52,19 +61,9 @@ export default function SignUpForm() {
       <div className="flex flex-col w-full max-w-lg">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8">
-            <ValidatedField
-              control={form.control}
-              name="name"
-              label="Name"
-              type="text"
-            />
+            <ValidatedField control={form.control} name="name" label="Name" type="text" />
 
-            <ValidatedField
-              control={form.control}
-              name="email"
-              label="Email"
-              type="email"
-            />
+            <ValidatedField control={form.control} name="email" label="Email" type="email" />
 
             <div className="flex flex-col gap-1">
               <ValidatedField

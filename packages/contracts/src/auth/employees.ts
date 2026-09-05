@@ -3,17 +3,17 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: auth.employees
-import { z } from "zod/v4";
+import { z } from 'zod/v4'
 
 export const Employee = z.object({
-  "id": z.string().uuid(),
-  "user_id": z.string().uuid(),
-  "role": z.string().nullable(),
-  "enabled": z.boolean(),
-  "created_at": z.string(),
-  "updated_at": z.string(),
-  "created_by": z.string().nullable(),
-  "updated_by": z.string().nullable(),
-});
-export type Employee = z.infer<typeof Employee>;
+  'id': z.string().uuid(),
+  'user_id': z.string().uuid(),
+  'role': z.string().nullable(),
+  'enabled': z.boolean(),
+  'created_at': z.string(),
+  'updated_at': z.string(),
+  'created_by': z.string().nullable(),
+  'updated_by': z.string().nullable(),
+})
+export type Employee = z.infer<typeof Employee>
 // generated:end

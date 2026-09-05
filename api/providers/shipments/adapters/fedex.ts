@@ -1,62 +1,56 @@
-import { formatAddressForFedEx } from "#providers/shipments/utils/formatting.ts";
+import { formatAddressForFedEx } from '#providers/shipments/utils/formatting.ts'
 
 type AddressLike = {
-  streetLines?: unknown;
-  line_1?: string | null;
-  line_2?: string | null;
-  city?: string | null;
-  state?: string | null;
-  zip?: string | null;
-  country_code?: string | null;
-  is_residential?: boolean | null;
-};
+  streetLines?: unknown
+  line_1?: string | null
+  line_2?: string | null
+  city?: string | null
+  state?: string | null
+  zip?: string | null
+  country_code?: string | null
+  is_residential?: boolean | null
+}
 
 type ContactLike = {
-  personName?: string | null;
-  name?: string | null;
-  phoneNumber?: string | null;
-  phone?: string | null;
-};
+  personName?: string | null
+  name?: string | null
+  phoneNumber?: string | null
+  phone?: string | null
+}
 
-type PackageLike = { weight?: unknown; dimensions?: unknown } | null | undefined;
+type PackageLike = { weight?: unknown; dimensions?: unknown } | null | undefined
 
 function toFedexContact(contact: ContactLike | null | undefined) {
-  const c = contact ?? {};
-  const personName = String(c.personName ?? c.name ?? "").trim();
-  const phoneNumber = String(c.phoneNumber ?? c.phone ?? "").trim();
+  const c = contact ?? {}
+  const personName = String(c.personName ?? c.name ?? '').trim()
+  const phoneNumber = String(c.phoneNumber ?? c.phone ?? '').trim()
 
-  return { personName, phoneNumber };
+  return { personName, phoneNumber }
 }
 
 function toFedexAddress(address: AddressLike | null | undefined) {
-  if (!address) return address;
-  if (Array.isArray(address.streetLines)) return address;
+  if (!address) return address
+  if (Array.isArray(address.streetLines)) return address
 
-  return formatAddressForFedEx(address);
+  return formatAddressForFedEx(address)
 }
 
 export function validateAddressInput({ address }: { address?: AddressLike | null }) {
-  return address;
+  return address
 }
 
 type RatesInput = {
-  shipperAddress?: AddressLike | null;
-  recipientAddress?: AddressLike | null;
-  pickupType?: string;
-  pkg?: PackageLike;
-  declaredValue?: unknown;
-  carrierCodes?: string[];
-};
+  shipperAddress?: AddressLike | null
+  recipientAddress?: AddressLike | null
+  pickupType?: string
+  pkg?: PackageLike
+  declaredValue?: unknown
+  carrierCodes?: string[]
+}
 
 export function getRatesInput(input?: RatesInput | null) {
-  const {
-    shipperAddress,
-    recipientAddress,
-    pickupType,
-    pkg,
-    declaredValue,
-    carrierCodes,
-  } = input ?? {};
+  const { shipperAddress, recipientAddress, pickupType, pkg, declaredValue, carrierCodes } =
+    input ?? {}
 
   return {
     shipperAddress: toFedexAddress(shipperAddress),
@@ -65,37 +59,29 @@ export function getRatesInput(input?: RatesInput | null) {
     packageDetails: {
       weight: pkg?.weight,
       dimensions: pkg?.dimensions,
-      groupPackageCount: "1",
+      groupPackageCount: '1',
     },
     declaredValue,
-    carrierCodes: carrierCodes ?? ["FDXE"],
-  };
+    carrierCodes: carrierCodes ?? ['FDXE'],
+  }
 }
 
 type LabelInput = {
-  shipper?: { contact?: ContactLike | null; address?: AddressLike | null } | null;
-  recipient?: { contact?: ContactLike | null; address?: AddressLike | null } | null;
-  serviceType?: string;
-  pickupType?: string;
-  pkg?: PackageLike;
-  insurance?: { declaredValue?: unknown } | null;
-  options?: unknown;
-  label?: { imageType?: string; labelStockType?: string };
-};
+  shipper?: { contact?: ContactLike | null; address?: AddressLike | null } | null
+  recipient?: { contact?: ContactLike | null; address?: AddressLike | null } | null
+  serviceType?: string
+  pickupType?: string
+  pkg?: PackageLike
+  insurance?: { declaredValue?: unknown } | null
+  options?: unknown
+  label?: { imageType?: string; labelStockType?: string }
+}
 
 export function createLabelInput(input?: LabelInput | null) {
-  const {
-    shipper,
-    recipient,
-    serviceType,
-    pickupType,
-    pkg,
-    insurance,
-    options,
-    label,
-  } = input ?? {};
+  const { shipper, recipient, serviceType, pickupType, pkg, insurance, options, label } =
+    input ?? {}
 
-  const totalDeclaredValue = insurance?.declaredValue ?? null;
+  const totalDeclaredValue = insurance?.declaredValue ?? null
   return {
     shipper: {
       contact: toFedexContact(shipper?.contact),
@@ -113,9 +99,9 @@ export function createLabelInput(input?: LabelInput | null) {
       declaredValue: totalDeclaredValue ?? undefined,
     },
     totalDeclaredValue,
-    label: label ?? { imageType: "PNG", labelStockType: "PAPER_4X6" },
+    label: label ?? { imageType: 'PNG', labelStockType: 'PAPER_4X6' },
     options,
-  };
+  }
 }
 
 export function cancelLabelInput(
@@ -123,34 +109,34 @@ export function cancelLabelInput(
 ) {
   return {
     tracking_number: input?.trackingNumber ?? input?.tracking_number,
-  };
+  }
 }
 
 export function checkPickupInput(
   input?: {
-    pickupAddress?: AddressLike | null;
-    code?: string;
-    readyDate?: Date | string | number;
+    pickupAddress?: AddressLike | null
+    code?: string
+    readyDate?: Date | string | number
   } | null
 ) {
-  const { pickupAddress, code, readyDate } = input ?? {};
+  const { pickupAddress, code, readyDate } = input ?? {}
 
   return {
     pickupAddress: toFedexAddress(pickupAddress),
     code,
     readyDate: readyDate instanceof Date ? readyDate : new Date(readyDate!),
-  };
+  }
 }
 
 type CreatePickupInput = {
-  pickupContact?: ContactLike | null;
-  pickupAddress?: AddressLike | null;
-  pickupDate?: string | null;
-  pickupTime?: string | null;
-  carrierCode?: string | null;
-  trackingNumber?: string | null;
-  packageLocation?: string | null;
-};
+  pickupContact?: ContactLike | null
+  pickupAddress?: AddressLike | null
+  pickupDate?: string | null
+  pickupTime?: string | null
+  carrierCode?: string | null
+  trackingNumber?: string | null
+  packageLocation?: string | null
+}
 
 export function createPickupInput(input?: CreatePickupInput | null) {
   const {
@@ -161,7 +147,7 @@ export function createPickupInput(input?: CreatePickupInput | null) {
     carrierCode,
     trackingNumber,
     packageLocation,
-  } = input ?? {};
+  } = input ?? {}
 
   return {
     pickupContact: toFedexContact(pickupContact),
@@ -171,38 +157,38 @@ export function createPickupInput(input?: CreatePickupInput | null) {
     carrierCode,
     trackingNumber,
     packageLocation,
-  };
+  }
 }
 
 export function cancelPickupInput(
   input?: {
-    confirmationCode?: string | null;
-    confirmation_number?: string | number | null;
-    pickupDate?: string | null;
-    pickup_requested_at?: string | Date | null;
-    location?: string | null;
+    confirmationCode?: string | null
+    confirmation_number?: string | number | null
+    pickupDate?: string | null
+    pickup_requested_at?: string | Date | null
+    location?: string | null
   } | null
 ) {
   return {
     confirmationCode: input?.confirmationCode ?? input?.confirmation_number,
     pickupDate: input?.pickupDate ?? input?.pickup_requested_at,
     location: input?.location,
-  };
+  }
 }
 
 export function getLocationsInput(
   input?: { address?: AddressLike | null; radiusMiles?: number; maxResults?: number } | null
 ) {
-  const { address, radiusMiles = 25, maxResults = 10 } = input ?? {};
+  const { address, radiusMiles = 25, maxResults = 10 } = input ?? {}
   return {
     address: toFedexAddress(address),
     radiusMiles,
     maxResults,
-  };
+  }
 }
 
 export function getTrackingInput(input?: { tracking_number?: string | null } | null) {
   return {
-    tracking_number: input?.tracking_number
-  };
+    tracking_number: input?.tracking_number,
+  }
 }

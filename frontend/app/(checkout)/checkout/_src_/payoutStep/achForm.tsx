@@ -6,7 +6,16 @@ import { UseFormReturn } from 'react-hook-form'
 import { usePayoutDraft } from './payoutDraft'
 import { accountTypeOptions } from '@/shared/types/payouts'
 import { cn } from '@/shared/utils/cn'
-import { Checkbox, Form, FormControl, FormField, FormItem, RadioGroup, RadioOption, ValidatedField } from '@dorado/components'
+import {
+  Checkbox,
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  RadioGroup,
+  RadioOption,
+  ValidatedField,
+} from '@dorado/components'
 
 export default function ACHForm({
   form,
@@ -34,92 +43,89 @@ export default function ACHForm({
         >
           <Form {...form}>
             <form className="p-4">
-              <div className='space-y-6'>
-
-              
-              <ValidatedField
-                control={form.control}
-                name="account_holder_name"
-                label="Name on Account"
-                inputProps={{
-                  autoComplete: 'off',
-                  onChange: (e) => {
-                    form.setValue('account_holder_name', e.target.value, { shouldValidate: true })
-                    syncToStore()
-                  },
-                }}
-              />
-              <FormField
-                control={form.control}
-                name="account_type"
-                render={({ field }) => (
-                  <FormItem>
-                    <RadioGroup
-                      value={field.value}
-                      onValueChange={(val) => {
-                        field.onChange(val)
+              <div className="space-y-6">
+                <ValidatedField
+                  control={form.control}
+                  name="account_holder_name"
+                  label="Name on Account"
+                  inputProps={{
+                    autoComplete: 'off',
+                    onChange: (e) => {
+                      form.setValue('account_holder_name', e.target.value, { shouldValidate: true })
+                      syncToStore()
+                    },
+                  }}
+                />
+                <FormField
+                  control={form.control}
+                  name="account_type"
+                  render={({ field }) => (
+                    <FormItem>
+                      <RadioGroup
+                        value={field.value}
+                        onValueChange={(val) => {
+                          field.onChange(val)
+                          syncToStore()
+                        }}
+                        className="flex w-full justify-between gap-3"
+                      >
+                        {accountTypeOptions.map((option) => (
+                          <RadioOption
+                            key={option.value}
+                            value={option.value}
+                            variant="tile"
+                            className="grow-1"
+                          >
+                            {option.icon && <option.icon size={24} />}
+                            <strong>{option.label}</strong>
+                          </RadioOption>
+                        ))}
+                      </RadioGroup>
+                    </FormItem>
+                  )}
+                />
+                <ValidatedField
+                  control={form.control}
+                  name="bank_name"
+                  label="Bank Name"
+                  inputProps={{
+                    autoComplete: 'off',
+                    onChange: (e) => {
+                      form.setValue('bank_name', e.target.value, { shouldValidate: true })
+                      syncToStore()
+                    },
+                  }}
+                />
+                <div className="flex w-full justify-between gap-2">
+                  <ValidatedField
+                    control={form.control}
+                    name="routing_number"
+                    label="Routing Number"
+                    type="number"
+                    className="no-spinner"
+                    inputProps={{
+                      autoComplete: 'off',
+                      onChange: (e) => {
+                        form.setValue('routing_number', e.target.value, { shouldValidate: true })
                         syncToStore()
-                      }}
-                      className="flex w-full justify-between gap-3"
-                    >
-                      {accountTypeOptions.map((option) => (
-                        <RadioOption
-                          key={option.value}
-                          value={option.value}
-                          variant="tile"
-                          className="grow-1"
-                        >
-                          {option.icon && <option.icon size={24} />}
-                          <strong>{option.label}</strong>
-                        </RadioOption>
-                      ))}
-                    </RadioGroup>
-                  </FormItem>
-                )}
-              />
-              <ValidatedField
-                control={form.control}
-                name="bank_name"
-                label="Bank Name"
-                inputProps={{
-                  autoComplete: 'off',
-                  onChange: (e) => {
-                    form.setValue('bank_name', e.target.value, { shouldValidate: true })
-                    syncToStore()
-                  },
-                }}
-              />
-              <div className="flex w-full justify-between gap-2">
-                <ValidatedField
-                  control={form.control}
-                  name="routing_number"
-                  label="Routing Number"
-                  type="number"
-                  className="no-spinner"
-                  inputProps={{
-                    autoComplete: 'off',
-                    onChange: (e) => {
-                      form.setValue('routing_number', e.target.value, { shouldValidate: true })
-                      syncToStore()
-                    },
-                  }}
-                />
-                <ValidatedField
-                  control={form.control}
-                  name="account_number"
-                  label="Account Number"
-                  type="number"
-                  className="no-spinner"
-                  inputProps={{
-                    autoComplete: 'off',
-                    onChange: (e) => {
-                      form.setValue('account_number', e.target.value, { shouldValidate: true })
-                      syncToStore()
-                    },
-                  }}
-                />
-              </div>
-              
+                      },
+                    }}
+                  />
+                  <ValidatedField
+                    control={form.control}
+                    name="account_number"
+                    label="Account Number"
+                    type="number"
+                    className="no-spinner"
+                    inputProps={{
+                      autoComplete: 'off',
+                      onChange: (e) => {
+                        form.setValue('account_number', e.target.value, { shouldValidate: true })
+                        syncToStore()
+                      },
+                    }}
+                  />
+                </div>
               </div>
               <FormField
                 control={form.control}

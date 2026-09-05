@@ -16,9 +16,7 @@ import { cn, SEMANTIC_TEXT_SIZES } from '@/shared/utils/cn'
    file exists. See the header of `cn.ts`. */
 describe('cn merges the semantic type scale as SIZES, not colours', () => {
   it('keeps a semantic size when a colour follows it', () => {
-    expect(cn('text-small', 'text-primary-foreground')).toBe(
-      'text-small text-primary-foreground'
-    )
+    expect(cn('text-small', 'text-primary-foreground')).toBe('text-small text-primary-foreground')
   })
 
   it('keeps a colour when a semantic size follows it', () => {
@@ -48,8 +46,6 @@ describe('cn merges the semantic type scale as SIZES, not colours', () => {
      added to theme.css but not to SEMANTIC_TEXT_SIZES is a size that vanishes
      whenever a colour is merged beside it, so the list is the contract. */
   it.each([...SEMANTIC_TEXT_SIZES])('text-%s survives a trailing colour', (name) => {
-    expect(cn(`text-${name}`, 'text-destructive')).toBe(
-      `text-${name} text-destructive`
-    )
+    expect(cn(`text-${name}`, 'text-destructive')).toBe(`text-${name} text-destructive`)
   })
 })

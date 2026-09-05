@@ -102,16 +102,16 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                 transition={{ duration: 0.15 }}
                 className="w-full h-full"
               >
-                  <Image
-                    src={selectedImage}
-                    height={1000}
-                    width={1000}
-                    className="relative z-20 pointer-events-none cursor-auto w-full h-full object-contain focus:outline-none"
-                    alt="Selected product view"
-                  />
-                  <p className="absolute bottom-0 left-1 flex justify-start eyebrow p-2">
-                    {selectedImage === selectedProduct.image_front ? 'Obverse' : 'Reverse'}
-                  </p>
+                <Image
+                  src={selectedImage}
+                  height={1000}
+                  width={1000}
+                  className="relative z-20 pointer-events-none cursor-auto w-full h-full object-contain focus:outline-none"
+                  alt="Selected product view"
+                />
+                <p className="absolute bottom-0 left-1 flex justify-start eyebrow p-2">
+                  {selectedImage === selectedProduct.image_front ? 'Obverse' : 'Reverse'}
+                </p>
               </motion.div>
             </AnimatePresence>
           </div>
@@ -125,7 +125,12 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               className="flex w-full gap-3"
             >
               {variants.map((option) => (
-                <RadioOption key={option.id} value={option.name} variant="segment" className="w-full">
+                <RadioOption
+                  key={option.id}
+                  value={option.name}
+                  variant="segment"
+                  className="w-full"
+                >
                   {option.variant_label}
                 </RadioOption>
               ))}
@@ -173,16 +178,15 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               </Button>
             ) : (
               <div className="flex items-center justify-center gap-3">
-                <Button
-                  size="icon"
-                  onClick={() => sellRow && removeOne('purchase', sellRow)}
-                >
+                <Button size="icon" onClick={() => sellRow && removeOne('purchase', sellRow)}>
                   <Minus size={20} />
                 </Button>
                 <NumberFlow value={sellQuantity} trend={0} />
                 <Button
                   size="icon"
-                  onClick={() => addItem('purchase', { bullion_id: selectedProduct.id, quantity: 1 })}
+                  onClick={() =>
+                    addItem('purchase', { bullion_id: selectedProduct.id, quantity: 1 })
+                  }
                 >
                   <Plus size={20} />
                 </Button>
@@ -230,7 +234,12 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               <div className="text-left">
                 <div className="flex flex-col gap-2">
                   <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
-                    <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-8')}>
+                    <div
+                      className={cn(
+                        'flex w-full items-center justify-between gap-2',
+                        'items-start pl-8'
+                      )}
+                    >
                       <small>{selectedProduct.metal_id} Ask Spot</small>
                       <p>
                         <Amount value={spot?.ask ?? 0} />
@@ -239,7 +248,12 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
 
                     <div className="flex w-full items-start">
                       <X size={16} className="text-subtle" />
-                      <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-4')}>
+                      <div
+                        className={cn(
+                          'flex w-full items-center justify-between gap-2',
+                          'items-start pl-4'
+                        )}
+                      >
                         <small>Content (oz)</small>
                         <p>{selectedProduct.content}</p>
                       </div>
@@ -252,7 +266,12 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                         <Minus size={16} className="text-subtle" />
                       )}
 
-                      <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-4')}>
+                      <div
+                        className={cn(
+                          'flex w-full items-center justify-between gap-2',
+                          'items-start pl-4'
+                        )}
+                      >
                         <small>Ask Premium</small>
                         <p>
                           <Amount value={Math.abs(askOverOrUnder)} />
@@ -263,7 +282,12 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
 
                   <div className="flex w-full items-start">
                     <Equal size={16} className="text-subtle" />
-                    <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-4')}>
+                    <div
+                      className={cn(
+                        'flex w-full items-center justify-between gap-2',
+                        'items-start pl-4'
+                      )}
+                    >
                       <small>Total Ask</small>
                       <strong>
                         <Amount value={price} />
@@ -282,7 +306,12 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               <div className="text-left">
                 <div className="flex flex-col gap-2">
                   <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
-                    <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-8')}>
+                    <div
+                      className={cn(
+                        'flex w-full items-center justify-between gap-2',
+                        'items-start pl-8'
+                      )}
+                    >
                       <small>{selectedProduct.metal_id} Bid Spot</small>
                       <p>
                         <Amount value={spot?.bid ?? 0} />
@@ -291,7 +320,12 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
 
                     <div className="flex w-full items-start">
                       <X size={16} className="text-subtle" />
-                      <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-4')}>
+                      <div
+                        className={cn(
+                          'flex w-full items-center justify-between gap-2',
+                          'items-start pl-4'
+                        )}
+                      >
                         <small>Content (oz)</small>
                         <p>{selectedProduct.content}</p>
                       </div>
@@ -304,7 +338,12 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                         <Minus size={16} className="text-subtle" />
                       )}
 
-                      <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-4')}>
+                      <div
+                        className={cn(
+                          'flex w-full items-center justify-between gap-2',
+                          'items-start pl-4'
+                        )}
+                      >
                         <small>Bid Premium</small>
                         <p>
                           <Amount value={Math.abs(bidOverOrUnder)} />
@@ -315,7 +354,12 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
 
                   <div className="flex w-full items-start">
                     <Equal size={16} className="text-subtle" />
-                    <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-4')}>
+                    <div
+                      className={cn(
+                        'flex w-full items-center justify-between gap-2',
+                        'items-start pl-4'
+                      )}
+                    >
                       <small>Total Bid</small>
                       <strong>
                         <Amount value={buybackPrice} />
@@ -454,13 +498,13 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                 transition={{ duration: 0.15 }}
                 className="w-full h-full"
               >
-                  <Image
-                    src={selectedImage}
-                    height={1000}
-                    width={1000}
-                    className="relative z-20 pointer-events-none cursor-auto w-full h-full object-contain focus:outline-none"
-                    alt="Selected product view"
-                  />
+                <Image
+                  src={selectedImage}
+                  height={1000}
+                  width={1000}
+                  className="relative z-20 pointer-events-none cursor-auto w-full h-full object-contain focus:outline-none"
+                  alt="Selected product view"
+                />
                 <p className="absolute bottom-0 left-1 flex justify-start eyebrow p-2">
                   {selectedImage === selectedProduct.image_front ? 'Obverse' : 'Reverse'}
                 </p>
@@ -548,16 +592,15 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               </Button>
             ) : (
               <div className="flex items-center justify-center gap-3">
-                <Button
-                  size="icon"
-                  onClick={() => sellRow && removeOne('purchase', sellRow)}
-                >
+                <Button size="icon" onClick={() => sellRow && removeOne('purchase', sellRow)}>
                   <Minus size={20} />
                 </Button>
                 <NumberFlow value={sellQuantity} trend={0} />
                 <Button
                   size="icon"
-                  onClick={() => addItem('purchase', { bullion_id: selectedProduct.id, quantity: 1 })}
+                  onClick={() =>
+                    addItem('purchase', { bullion_id: selectedProduct.id, quantity: 1 })
+                  }
                 >
                   <Plus size={20} />
                 </Button>
@@ -586,7 +629,12 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               <div className="text-left">
                 <div className="flex flex-col gap-2">
                   <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
-                    <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-8')}>
+                    <div
+                      className={cn(
+                        'flex w-full items-center justify-between gap-2',
+                        'items-start pl-8'
+                      )}
+                    >
                       <small>{selectedProduct.metal_id} Ask Spot</small>
                       <p>
                         <Amount value={spot?.ask ?? 0} />
@@ -595,7 +643,12 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
 
                     <div className="flex w-full items-start">
                       <X size={16} className="text-subtle" />
-                      <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-4')}>
+                      <div
+                        className={cn(
+                          'flex w-full items-center justify-between gap-2',
+                          'items-start pl-4'
+                        )}
+                      >
                         <small>Content (oz)</small>
                         <p>{selectedProduct.content}</p>
                       </div>
@@ -608,7 +661,12 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                         <Minus size={16} className="text-subtle" />
                       )}
 
-                      <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-4')}>
+                      <div
+                        className={cn(
+                          'flex w-full items-center justify-between gap-2',
+                          'items-start pl-4'
+                        )}
+                      >
                         <small>Ask Premium</small>
                         <p>
                           <Amount value={Math.abs(askOverOrUnder)} />
@@ -619,7 +677,12 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
 
                   <div className="flex w-full items-start">
                     <Equal size={16} className="text-subtle" />
-                    <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-4')}>
+                    <div
+                      className={cn(
+                        'flex w-full items-center justify-between gap-2',
+                        'items-start pl-4'
+                      )}
+                    >
                       <small>Total Ask</small>
                       <strong>
                         <Amount value={price} />
@@ -638,7 +701,12 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               <div className="text-left">
                 <div className="flex flex-col gap-2">
                   <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
-                    <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-8')}>
+                    <div
+                      className={cn(
+                        'flex w-full items-center justify-between gap-2',
+                        'items-start pl-8'
+                      )}
+                    >
                       <small>{selectedProduct.metal_id} Bid Spot</small>
                       <p>
                         <Amount value={spot?.bid ?? 0} />
@@ -647,7 +715,12 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
 
                     <div className="flex w-full items-start">
                       <X size={16} className="text-subtle" />
-                      <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-4')}>
+                      <div
+                        className={cn(
+                          'flex w-full items-center justify-between gap-2',
+                          'items-start pl-4'
+                        )}
+                      >
                         <small>Content (oz)</small>
                         <p>{selectedProduct.content}</p>
                       </div>
@@ -660,7 +733,12 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                         <Minus size={16} className="text-subtle" />
                       )}
 
-                      <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-4')}>
+                      <div
+                        className={cn(
+                          'flex w-full items-center justify-between gap-2',
+                          'items-start pl-4'
+                        )}
+                      >
                         <small>Bid Premium</small>
                         <p>
                           <Amount value={Math.abs(bidOverOrUnder)} />
@@ -671,7 +749,12 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
 
                   <div className="flex w-full items-start">
                     <Equal size={16} className="text-subtle" />
-                    <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-4')}>
+                    <div
+                      className={cn(
+                        'flex w-full items-center justify-between gap-2',
+                        'items-start pl-4'
+                      )}
+                    >
                       <small>Total Bid</small>
                       <strong>
                         <Amount value={buybackPrice} />

@@ -1,5 +1,14 @@
 'use client'
-import { Accordion, Amount, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@dorado/components'
+import {
+  Accordion,
+  Amount,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@dorado/components'
 
 import { useMemo, useState } from 'react'
 import { PurchaseOrderDrawerFooterProps, statusConfig } from '@/shared/types/purchaseOrders'
@@ -163,7 +172,9 @@ export default function AdminPurchaseOrderDrawerFooter({ view }: PurchaseOrderDr
                   {order.status === 'Cancelled' && returnShipment && (
                     <TableRow>
                       <TableCell>{returnService} (Return)</TableCell>
-                      <TableCell>{returnShipment.shipment.insured ? 'Insured' : 'Uninsured'}</TableCell>
+                      <TableCell>
+                        {returnShipment.shipment.insured ? 'Insured' : 'Uninsured'}
+                      </TableCell>
                       <TableCell className="text-right p-0">
                         -<Amount value={returnShipment.shipment.cost ?? 0} />
                       </TableCell>

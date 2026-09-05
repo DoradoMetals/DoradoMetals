@@ -1,29 +1,29 @@
 'use client'
 
-import * as React from "react";
-import { File as FileIcon, Trash2 } from "@dorado/icons";
+import * as React from 'react'
+import { File as FileIcon, Trash2 } from '@dorado/icons'
 
-import { Progress } from "../progress/Progress";
-import { Button } from "../button/Button";
-import { cn } from "../cn";
+import { Progress } from '../progress/Progress'
+import { Button } from '../button/Button'
+import { cn } from '../cn'
 
-export type AttachmentState = "uploading" | "complete" | "error";
+export type AttachmentState = 'uploading' | 'complete' | 'error'
 
 export type AttachmentProps = {
-  filename: string;
-  meta?: React.ReactNode;
-  state?: AttachmentState;
-  progress?: number;
-  thumb?: React.ReactNode;
-  onRemove?: () => void;
-  bare?: boolean;
-  className?: string;
-};
+  filename: string
+  meta?: React.ReactNode
+  state?: AttachmentState
+  progress?: number
+  thumb?: React.ReactNode
+  onRemove?: () => void
+  bare?: boolean
+  className?: string
+}
 
 export function Attachment({
   filename,
   meta,
-  state = "complete",
+  state = 'complete',
   progress,
   thumb,
   onRemove,
@@ -34,10 +34,13 @@ export function Attachment({
     <div
       data-state={state}
       className={cn(
-        "flex w-full flex-col gap-2 px-3",
+        'flex w-full flex-col gap-2 px-3',
         bare
-          ? "py-2.5"
-          : cn("rounded-lg border bg-card py-2", state === "error" ? "border-destructive" : "border-border"),
+          ? 'py-2.5'
+          : cn(
+              'rounded-lg border bg-card py-2',
+              state === 'error' ? 'border-destructive' : 'border-border'
+            ),
         className
       )}
     >
@@ -51,8 +54,8 @@ export function Attachment({
             <span
               aria-live="polite"
               className={cn(
-                "truncate text-micro",
-                state === "error" ? "text-destructive" : "text-muted-foreground"
+                'truncate text-micro',
+                state === 'error' ? 'text-destructive' : 'text-muted-foreground'
               )}
             >
               {meta}
@@ -70,13 +73,9 @@ export function Attachment({
           </Button>
         )}
       </div>
-      {state === "uploading" && (
-        <Progress
-          value={progress ?? 0}
-          showValue
-          aria-label={`Uploading ${filename}`}
-        />
+      {state === 'uploading' && (
+        <Progress value={progress ?? 0} showValue aria-label={`Uploading ${filename}`} />
       )}
     </div>
-  );
+  )
 }

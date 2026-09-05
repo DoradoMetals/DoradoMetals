@@ -1,4 +1,4 @@
-'use client';
+'use client'
 
 import { Suspense } from 'react'
 import ChangeEmail from './_src_/ui/ChangeEmailSucess'

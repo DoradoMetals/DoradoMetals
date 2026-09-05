@@ -1,0 +1,15 @@
+{
+  "semi": false,
+  "singleQuote": true,
+  "trailingComma": "es5",
+  "tabWidth": 2,
+  "printWidth": 100,
+  "overrides": [
+    {
+      "files": "packages/contracts/src/**/*.ts",
+      "options": {
+        "quoteProps": "preserve"
+      }
+    }
+  ]
+}

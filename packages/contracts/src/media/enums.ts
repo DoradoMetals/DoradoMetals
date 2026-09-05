@@ -2,13 +2,23 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres enum types owned by the `media` schema.
-import { z } from "zod/v4";
+import { z } from 'zod/v4'
 
-export const EmailKind = z.enum(["purchase_order_created", "purchase_order_priced", "sales_order_to_supplier", "auth_verification"]);
-export type EmailKind = z.infer<typeof EmailKind>;
+export const EmailKind = z.enum([
+  'purchase_order_created',
+  'purchase_order_priced',
+  'sales_order_to_supplier',
+  'auth_verification',
+])
+export type EmailKind = z.infer<typeof EmailKind>
 
-export const EmailStatus = z.enum(["sent", "failed"]);
-export type EmailStatus = z.infer<typeof EmailStatus>;
+export const EmailStatus = z.enum(['sent', 'failed'])
+export type EmailStatus = z.infer<typeof EmailStatus>
 
-export const PdfKind = z.enum(["packing_list", "return_packing_list", "invoice", "sales_order_invoice"]);
-export type PdfKind = z.infer<typeof PdfKind>;
+export const PdfKind = z.enum([
+  'packing_list',
+  'return_packing_list',
+  'invoice',
+  'sales_order_invoice',
+])
+export type PdfKind = z.infer<typeof PdfKind>

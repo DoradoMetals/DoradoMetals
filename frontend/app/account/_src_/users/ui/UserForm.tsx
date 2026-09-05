@@ -88,16 +88,14 @@ export default function UserForm() {
   const emailDescription = emailVerified
     ? 'Email verified.'
     : emailSent
-    ? 'Check your email inbox for the verification link.'
-    : 'Verify your email to keep your account secure.'
+      ? 'Check your email inbox for the verification link.'
+      : 'Verify your email to keep your account secure.'
 
   const emailButtonLabel = emailVerified ? 'Verified' : emailSent ? 'Link Sent' : 'Verify'
 
-  const emailButtonDisabled =
-    emailVerified || emailSent || sendEmailVerificationMutation.isPending
+  const emailButtonDisabled = emailVerified || emailSent || sendEmailVerificationMutation.isPending
 
-  const emailButtonOnClick =
-    !emailVerified && !emailSent ? handleEmailVerification : undefined
+  const emailButtonOnClick = !emailVerified && !emailSent ? handleEmailVerification : undefined
 
   return (
     <section className="w-full bg-card p-4 rounded-lg">
@@ -106,20 +104,10 @@ export default function UserForm() {
 
         <Form {...userForm}>
           <form onSubmit={userForm.handleSubmit(handleUserSubmit)} className="space-y-5">
-            <ValidatedField
-              control={userForm.control}
-              name="name"
-              label="Name"
-              type="text"
-            />
+            <ValidatedField control={userForm.control} name="name" label="Name" type="text" />
 
             <div className="space-y-1">
-              <ValidatedField
-                control={userForm.control}
-                name="email"
-                label="Email"
-                type="email"
-              />
+              <ValidatedField control={userForm.control} name="email" label="Email" type="email" />
               {changeEmailMutation.isSuccess && user?.emailVerified === true && (
                 <p className="mt-1">
                   An email has been sent to confirm the change. Follow that link before making

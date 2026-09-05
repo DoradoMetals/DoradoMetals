@@ -1,4 +1,4 @@
-import nock from "nock";
+import nock from 'nock'
 
-nock.disableNetConnect();
-nock.enableNetConnect(/^(127\.0\.0\.1|localhost)(:\d+)?$/);
+nock.disableNetConnect()
+nock.enableNetConnect(/^(127\.0\.0\.1|localhost)(:\d+)?$/)

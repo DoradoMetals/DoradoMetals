@@ -3,40 +3,40 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: checkout.checkouts
-import { z } from "zod/v4";
-import { Direction } from "../orders/enums.js";
+import { z } from 'zod/v4'
+import { Direction } from '../orders/enums.js'
 
 export const Checkout = z.object({
-  "id": z.string().uuid(),
-  "user_id": z.string().uuid(),
-  "direction": Direction,
-  "payment_method_id": z.string().uuid().nullable(),
-  "payment_details_id": z.string().uuid().nullable(),
-  "recipient_address_id": z.string().uuid().nullable(),
-  "fulfillment_id": z.string().uuid().nullable(),
-});
-export type Checkout = z.infer<typeof Checkout>;
+  'id': z.string().uuid(),
+  'user_id': z.string().uuid(),
+  'direction': Direction,
+  'payment_method_id': z.string().uuid().nullable(),
+  'payment_details_id': z.string().uuid().nullable(),
+  'recipient_address_id': z.string().uuid().nullable(),
+  'fulfillment_id': z.string().uuid().nullable(),
+})
+export type Checkout = z.infer<typeof Checkout>
 // generated:end
-import { FulfillmentStep } from "../fulfillments/fulfillments.js";
-import { PaymentDetails } from "../payments/details.js";
-import { CheckoutItem } from "./items.js";
+import { FulfillmentStep } from '../fulfillments/fulfillments.js'
+import { PaymentDetails } from '../payments/details.js'
+import { CheckoutItem } from './items.js'
 
 export const CheckoutPatch = Checkout.pick({
   payment_method_id: true,
   recipient_address_id: true,
-}).partial();
-export type CheckoutPatch = z.infer<typeof CheckoutPatch>;
+}).partial()
+export type CheckoutPatch = z.infer<typeof CheckoutPatch>
 
-export const CheckoutPatchBody = CheckoutPatch.extend({ direction: Direction }).strict();
-export type CheckoutPatchBody = z.infer<typeof CheckoutPatchBody>;
+export const CheckoutPatchBody = CheckoutPatch.extend({ direction: Direction }).strict()
+export type CheckoutPatchBody = z.infer<typeof CheckoutPatchBody>
 
 export const CheckoutWrite = CheckoutPatch.extend(
   Checkout.pick({
     payment_details_id: true,
     fulfillment_id: true,
   }).partial().shape
-);
-export type CheckoutWrite = z.infer<typeof CheckoutWrite>;
+)
+export type CheckoutWrite = z.infer<typeof CheckoutWrite>
 
 export const CheckoutPayoutForm = PaymentDetails.pick({
   bank_name: true,
@@ -49,43 +49,43 @@ export const CheckoutPayoutForm = PaymentDetails.pick({
     method: z.string(),
     account_holder_name: z.string(),
     payout_email: z.string().nullable().optional(),
-  });
-export type CheckoutPayoutForm = z.infer<typeof CheckoutPayoutForm>;
+  })
+export type CheckoutPayoutForm = z.infer<typeof CheckoutPayoutForm>
 
-export const CheckoutPayoutBody = CheckoutPayoutForm.extend({ direction: Direction }).strict();
-export type CheckoutPayoutBody = z.infer<typeof CheckoutPayoutBody>;
+export const CheckoutPayoutBody = CheckoutPayoutForm.extend({ direction: Direction }).strict()
+export type CheckoutPayoutBody = z.infer<typeof CheckoutPayoutBody>
 
 export const CheckoutStep = z.enum([
-  "items",
-  "fulfillment_id",
-  "recipient_address_id",
-  "payment_details_id",
-]);
-export type CheckoutStep = z.infer<typeof CheckoutStep>;
+  'items',
+  'fulfillment_id',
+  'recipient_address_id',
+  'payment_details_id',
+])
+export type CheckoutStep = z.infer<typeof CheckoutStep>
 
-export const CheckoutMissing = z.union([CheckoutStep, FulfillmentStep]);
-export type CheckoutMissing = z.infer<typeof CheckoutMissing>;
+export const CheckoutMissing = z.union([CheckoutStep, FulfillmentStep])
+export type CheckoutMissing = z.infer<typeof CheckoutMissing>
 
-export const CheckoutViewFacts = Checkout.extend({ items: z.array(CheckoutItem) });
-export type CheckoutViewFacts = z.infer<typeof CheckoutViewFacts>;
+export const CheckoutViewFacts = Checkout.extend({ items: z.array(CheckoutItem) })
+export type CheckoutViewFacts = z.infer<typeof CheckoutViewFacts>
 
-export const CheckoutDecisions = z.object({ missing: z.array(CheckoutMissing) });
-export type CheckoutDecisions = z.infer<typeof CheckoutDecisions>;
+export const CheckoutDecisions = z.object({ missing: z.array(CheckoutMissing) })
+export type CheckoutDecisions = z.infer<typeof CheckoutDecisions>
 
-export const CheckoutView = CheckoutViewFacts.extend(CheckoutDecisions.shape);
-export type CheckoutView = z.infer<typeof CheckoutView>;
+export const CheckoutView = CheckoutViewFacts.extend(CheckoutDecisions.shape)
+export type CheckoutView = z.infer<typeof CheckoutView>
 
 export const CheckoutAdoption = z
   .object({ direction: Checkout.shape.direction, checkout_id: Checkout.shape.id })
-  .extend({ outcome: z.enum(["moved", "merged"]), replaced: z.number().int() });
-export type CheckoutAdoption = z.infer<typeof CheckoutAdoption>;
+  .extend({ outcome: z.enum(['moved', 'merged']), replaced: z.number().int() })
+export type CheckoutAdoption = z.infer<typeof CheckoutAdoption>
 
 export const CheckoutAdoptionResult = z
   .object({ adopted: z.array(CheckoutAdoption) })
-  .extend({ addresses: z.number().int() });
-export type CheckoutAdoptionResult = z.infer<typeof CheckoutAdoptionResult>;
+  .extend({ addresses: z.number().int() })
+export type CheckoutAdoptionResult = z.infer<typeof CheckoutAdoptionResult>
 
 export const VisitorSweepResult = z
   .object({ deleted: z.array(Checkout.shape.user_id) })
-  .extend({ considered: z.number().int() });
-export type VisitorSweepResult = z.infer<typeof VisitorSweepResult>;
+  .extend({ considered: z.number().int() })
+export type VisitorSweepResult = z.infer<typeof VisitorSweepResult>

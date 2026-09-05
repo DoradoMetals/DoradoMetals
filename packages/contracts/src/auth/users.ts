@@ -3,29 +3,29 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: auth.users
-import { z } from "zod/v4";
+import { z } from 'zod/v4'
 
 export const User = z.object({
-  "id": z.string().uuid(),
-  "email": z.string(),
-  "name": z.string().nullable(),
-  "createdAt": z.string(),
-  "updatedAt": z.string(),
-  "emailVerified": z.boolean(),
-  "image": z.string().nullable(),
-  "role": z.string().nullable(),
-  "stripeCustomerId": z.string().nullable(),
-  "dorado_funds": z.number(),
-  "banned": z.boolean().nullable(),
-  "banReason": z.string().nullable(),
-  "banExpires": z.string().nullable(),
-  "phone_number": z.string().nullable(),
-  "isAnonymous": z.boolean(),
-});
-export type User = z.infer<typeof User>;
+  'id': z.string().uuid(),
+  'email': z.string(),
+  'name': z.string().nullable(),
+  'createdAt': z.string(),
+  'updatedAt': z.string(),
+  'emailVerified': z.boolean(),
+  'image': z.string().nullable(),
+  'role': z.string().nullable(),
+  'stripeCustomerId': z.string().nullable(),
+  'dorado_funds': z.number(),
+  'banned': z.boolean().nullable(),
+  'banReason': z.string().nullable(),
+  'banExpires': z.string().nullable(),
+  'phone_number': z.string().nullable(),
+  'isAnonymous': z.boolean(),
+})
+export type User = z.infer<typeof User>
 // generated:end
-export const UserSummary = User.pick({ id: true, name: true, email: true });
-export type UserSummary = z.infer<typeof UserSummary>;
+export const UserSummary = User.pick({ id: true, name: true, email: true })
+export type UserSummary = z.infer<typeof UserSummary>
 
 export const AdminUser = User.omit({
   createdAt: true,
@@ -39,17 +39,19 @@ export const AdminUser = User.omit({
   created_at: User.shape.createdAt.nullable(),
   updated_at: User.shape.updatedAt.nullable(),
   email_verified: User.shape.emailVerified.nullable(),
-});
-export type AdminUser = z.infer<typeof AdminUser>;
+})
+export type AdminUser = z.infer<typeof AdminUser>
 
-export const UserCredit = User.pick({ id: true, dorado_funds: true });
-export type UserCredit = z.infer<typeof UserCredit>;
+export const UserCredit = User.pick({ id: true, dorado_funds: true })
+export type UserCredit = z.infer<typeof UserCredit>
 
-export const CreditOp = z.enum(["add", "subtract", "edit"]);
-export type CreditOp = z.infer<typeof CreditOp>;
+export const CreditOp = z.enum(['add', 'subtract', 'edit'])
+export type CreditOp = z.infer<typeof CreditOp>
 
-export const UpdateCreditBody = z.object({
-  op: CreditOp,
-  amount: User.shape.dorado_funds,
-}).strict();
-export type UpdateCreditBody = z.infer<typeof UpdateCreditBody>;
+export const UpdateCreditBody = z
+  .object({
+    op: CreditOp,
+    amount: User.shape.dorado_funds,
+  })
+  .strict()
+export type UpdateCreditBody = z.infer<typeof UpdateCreditBody>

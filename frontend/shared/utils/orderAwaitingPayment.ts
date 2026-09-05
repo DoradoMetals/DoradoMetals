@@ -11,5 +11,5 @@ export function orderAwaitingPayment(detail?: string | null): string {
     `Your order is saved, but the payment did not go through` +
     (detail ? ` — ${detail}` : `.`) +
     ` You have not been charged. You can try again, or use a different payment method.`
-  );
+  )
 }

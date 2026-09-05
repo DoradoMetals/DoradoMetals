@@ -1,13 +1,14 @@
 'use client'
 
-import * as React from "react";
+import * as React from 'react'
 
-export type MenuIconProps = Omit<React.SVGProps<SVGSVGElement>, "ref"> & {
-  open: boolean;
-  size?: number;
-};
+export type MenuIconProps = Omit<React.SVGProps<SVGSVGElement>, 'ref'> & {
+  open: boolean
+  size?: number
+}
 
-const LINE = "origin-center transition-transform duration-200 ease-out motion-reduce:transition-none";
+const LINE =
+  'origin-center transition-transform duration-200 ease-out motion-reduce:transition-none'
 
 export const MenuIcon = React.forwardRef<SVGSVGElement, MenuIconProps>(
   ({ open, size = 24, strokeWidth = 2, ...props }, ref) => (
@@ -30,7 +31,7 @@ export const MenuIcon = React.forwardRef<SVGSVGElement, MenuIconProps>(
         x2="20"
         y2="6"
         className={LINE}
-        style={{ transform: open ? "translateY(6px) rotate(45deg)" : undefined }}
+        style={{ transform: open ? 'translateY(6px) rotate(45deg)' : undefined }}
       />
       <line
         x1="4"
@@ -46,9 +47,9 @@ export const MenuIcon = React.forwardRef<SVGSVGElement, MenuIconProps>(
         x2="20"
         y2="18"
         className={LINE}
-        style={{ transform: open ? "translateY(-6px) rotate(-45deg)" : undefined }}
+        style={{ transform: open ? 'translateY(-6px) rotate(-45deg)' : undefined }}
       />
     </svg>
   )
-);
-MenuIcon.displayName = "MenuIcon";
+)
+MenuIcon.displayName = 'MenuIcon'

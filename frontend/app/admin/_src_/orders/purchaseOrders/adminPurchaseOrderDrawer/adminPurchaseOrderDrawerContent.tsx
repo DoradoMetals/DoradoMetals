@@ -20,8 +20,6 @@ export default function AdminPurchaseOrderDrawerContent({ view }: PurchaseOrderD
     case 'Completed':
       return <AdminCompletedPurchaseOrder view={view} />
     default:
-      return (
-        <strong className="p-4">No content available for this status.</strong>
-      )
+      return <strong className="p-4">No content available for this status.</strong>
   }
 }

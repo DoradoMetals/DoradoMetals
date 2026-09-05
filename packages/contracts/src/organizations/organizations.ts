@@ -3,26 +3,26 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: organizations.organizations
-import { z } from "zod/v4";
+import { z } from 'zod/v4'
 
 export const Organization = z.object({
-  "id": z.string().uuid(),
-  "image_id": z.string().uuid().nullable(),
-  "type": z.string(),
-  "name": z.string(),
-  "email": z.string().nullable(),
-  "phone": z.string().nullable(),
-  "website": z.string().nullable(),
-  "description": z.string().nullable(),
-  "enabled": z.boolean(),
-  "created_at": z.string(),
-  "updated_at": z.string(),
-  "created_by": z.string().nullable(),
-  "updated_by": z.string().nullable(),
-  "created_by_id": z.string().uuid().nullable(),
-  "updated_by_id": z.string().uuid().nullable(),
-});
-export type Organization = z.infer<typeof Organization>;
+  'id': z.string().uuid(),
+  'image_id': z.string().uuid().nullable(),
+  'type': z.string(),
+  'name': z.string(),
+  'email': z.string().nullable(),
+  'phone': z.string().nullable(),
+  'website': z.string().nullable(),
+  'description': z.string().nullable(),
+  'enabled': z.boolean(),
+  'created_at': z.string(),
+  'updated_at': z.string(),
+  'created_by': z.string().nullable(),
+  'updated_by': z.string().nullable(),
+  'created_by_id': z.string().uuid().nullable(),
+  'updated_by_id': z.string().uuid().nullable(),
+})
+export type Organization = z.infer<typeof Organization>
 // generated:end
 export const OrganizationSummary = Organization.pick({
   id: true,
@@ -35,13 +35,13 @@ export const OrganizationSummary = Organization.pick({
   .extend({
     name: Organization.shape.name.nullable(),
     enabled: Organization.shape.enabled.nullable(),
-  });
-export type OrganizationSummary = z.infer<typeof OrganizationSummary>;
+  })
+export type OrganizationSummary = z.infer<typeof OrganizationSummary>
 
 export const OrganizationPatch = Organization.pick({
   name: true,
   email: true,
   phone: true,
   enabled: true,
-}).partial();
-export type OrganizationPatch = z.infer<typeof OrganizationPatch>;
+}).partial()
+export type OrganizationPatch = z.infer<typeof OrganizationPatch>

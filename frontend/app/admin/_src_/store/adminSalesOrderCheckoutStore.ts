@@ -14,7 +14,6 @@ interface AdminSalesOrderCheckoutState {
   clear: () => void
 }
 
-
 // Same persisted-address note as purchaseOrderCheckoutStore: a deployed
 // customer's localStorage predates the address split, so the picked address
 // is one flat row. Version 1 splits it into the postal `data.address` and
@@ -51,7 +50,7 @@ export const useAdminSalesOrderCheckoutStore = create<AdminSalesOrderCheckoutSta
         })),
       clear: () =>
         set({
-              data: {
+          data: {
             service: DEFAULT_SALES_SERVICE,
             payment_method: 'CARD',
           },
@@ -62,7 +61,9 @@ export const useAdminSalesOrderCheckoutStore = create<AdminSalesOrderCheckoutSta
       version: 1,
       migrate: (persisted: unknown) => {
         const state = persisted as { data?: Record<string, unknown> }
-        const split = splitPersistedAddress(state?.data?.address as Record<string, unknown> | undefined)
+        const split = splitPersistedAddress(
+          state?.data?.address as Record<string, unknown> | undefined
+        )
         if (split && state.data) {
           state.data.address = split.address as never
           state.data.user_address = split.user_address as never

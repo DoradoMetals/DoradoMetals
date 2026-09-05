@@ -1,22 +1,22 @@
 export function convertTroyOz(num: number, unit: string): number {
-  if (isNaN(num)) return 0;
+  if (isNaN(num)) return 0
   switch (unit.toLowerCase()) {
-    case "t oz":
-      return num;
-    case "g":
-      return num / 31.1035;
-    case "dwt":
-      return num / 20;
-    case "lb":
-      return num * (453.592 / 31.1035);
+    case 't oz':
+      return num
+    case 'g':
+      return num / 31.1035
+    case 'dwt':
+      return num / 20
+    case 'lb':
+      return num * (453.592 / 31.1035)
     default:
-      return 0;
+      return 0
   }
 }
 
 export function convertToPounds(value: number, unit: string): number {
-  if (isNaN(value) || value <= 0) return 0;
-  return convertTroyOz(value, unit) / (453.592 / 31.1035);
+  if (isNaN(value) || value <= 0) return 0
+  return convertTroyOz(value, unit) / (453.592 / 31.1035)
 }
 
 export function fineContent(
@@ -24,6 +24,6 @@ export function fineContent(
   unit: string | null | undefined,
   purity: number | null | undefined
 ): number | null {
-  const value = convertTroyOz(weight as number, unit as string) * (purity as number);
-  return Number.isFinite(value) ? value : null;
+  const value = convertTroyOz(weight as number, unit as string) * (purity as number)
+  return Number.isFinite(value) ? value : null
 }

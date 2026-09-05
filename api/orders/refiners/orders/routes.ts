@@ -1,10 +1,10 @@
-import express from "express";
+import express from 'express'
 
-import { patchRefinerOrder } from "#orders/refiners/orders/controller.ts";
-import { requireAdmin } from "#shared/middleware/authMiddleware.ts";
+import { patchRefinerOrder } from '#orders/refiners/orders/controller.ts'
+import { requireAdmin } from '#shared/middleware/authMiddleware.ts'
 
-const router = express.Router();
+const router = express.Router()
 
-router.patch("/orders/:id", requireAdmin, patchRefinerOrder);
+router.patch('/orders/:id', requireAdmin, patchRefinerOrder)
 
-export default router;
+export default router

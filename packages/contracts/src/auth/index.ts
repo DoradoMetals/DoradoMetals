@@ -2,8 +2,8 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Every entity of the `auth` schema, one namespace each.
-export * from "./account.js";
-export * from "./employees.js";
-export * from "./sessions.js";
-export * from "./users.js";
-export * from "./verification.js";
+export * from './account.js'
+export * from './employees.js'
+export * from './sessions.js'
+export * from './users.js'
+export * from './verification.js'

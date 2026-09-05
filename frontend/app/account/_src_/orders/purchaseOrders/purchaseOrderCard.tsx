@@ -42,7 +42,9 @@ export default function PurchaseOrderCard({
   }
 
   const itemsLabel =
-    items.length === 0 ? 'No Items Included' : `${items.length} ${items.length === 1 ? 'Item' : 'Items'}`
+    items.length === 0
+      ? 'No Items Included'
+      : `${items.length} ${items.length === 1 ? 'Item' : 'Items'}`
 
   return (
     <OrderCardShell

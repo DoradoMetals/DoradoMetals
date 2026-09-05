@@ -8,4 +8,9 @@
 // reads the CHECKOUT ROW now - `GET /quotes/checkout` - and that row already
 // holds both ids and owns the items, so there is nothing left to resolve, to
 // pair by index, or to wait on a reference list for.
-export { useCheckoutQuote, useProductQuote, useOrderPricing, useProfitBreakdown } from '@dorado/client'
+export {
+  useCheckoutQuote,
+  useProductQuote,
+  useOrderPricing,
+  useProfitBreakdown,
+} from '@dorado/client'

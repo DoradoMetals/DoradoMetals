@@ -1,7 +1,20 @@
 'use client'
 
 import { useState } from 'react'
-import { Accordion, Amount, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger } from '@dorado/components'
+import {
+  Accordion,
+  Amount,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@dorado/components'
 
 // The breakdown is the server's admin-only quote (POST /quotes/
 // profit_breakdown) - the last client money math (computePurchaseOrderTotals)

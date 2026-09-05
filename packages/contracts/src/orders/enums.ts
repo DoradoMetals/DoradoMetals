@@ -2,7 +2,7 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres enum types owned by the `orders` schema.
-import { z } from "zod/v4";
+import { z } from 'zod/v4'
 
-export const Direction = z.enum(["purchase", "sale"]);
-export type Direction = z.infer<typeof Direction>;
+export const Direction = z.enum(['purchase', 'sale'])
+export type Direction = z.infer<typeof Direction>

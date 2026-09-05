@@ -3,28 +3,28 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: fulfillments.methods
-import { z } from "zod/v4";
-import { FulfillmentCategory } from "./enums.js";
-import { Direction } from "../orders/enums.js";
+import { z } from 'zod/v4'
+import { FulfillmentCategory } from './enums.js'
+import { Direction } from '../orders/enums.js'
 
 export const FulfillmentMethod = z.object({
-  "id": z.string().uuid(),
-  "type": z.string(),
-  "label": z.string(),
-  "direction": Direction.nullable(),
-  "enabled": z.boolean(),
-  "created_by": z.string().nullable(),
-  "updated_by": z.string().nullable(),
-  "created_at": z.string(),
-  "updated_at": z.string(),
-  "category": FulfillmentCategory,
-  "hidden": z.boolean(),
-  "admin_label": z.string().nullable(),
-  "is_default": z.boolean(),
-  "created_by_id": z.string().uuid().nullable(),
-  "updated_by_id": z.string().uuid().nullable(),
-});
-export type FulfillmentMethod = z.infer<typeof FulfillmentMethod>;
+  'id': z.string().uuid(),
+  'type': z.string(),
+  'label': z.string(),
+  'direction': Direction.nullable(),
+  'enabled': z.boolean(),
+  'created_by': z.string().nullable(),
+  'updated_by': z.string().nullable(),
+  'created_at': z.string(),
+  'updated_at': z.string(),
+  'category': FulfillmentCategory,
+  'hidden': z.boolean(),
+  'admin_label': z.string().nullable(),
+  'is_default': z.boolean(),
+  'created_by_id': z.string().uuid().nullable(),
+  'updated_by_id': z.string().uuid().nullable(),
+})
+export type FulfillmentMethod = z.infer<typeof FulfillmentMethod>
 // generated:end
 export const FulfillmentMethodRead = FulfillmentMethod.pick({
   id: true,
@@ -38,21 +38,25 @@ export const FulfillmentMethodRead = FulfillmentMethod.pick({
   is_default: true,
   created_at: true,
   updated_at: true,
-});
-export type FulfillmentMethodRead = z.infer<typeof FulfillmentMethodRead>;
+})
+export type FulfillmentMethodRead = z.infer<typeof FulfillmentMethodRead>
 
 export const FulfillmentMethodPatch = FulfillmentMethod.pick({
   label: true,
   admin_label: true,
   enabled: true,
   hidden: true,
-}).extend({
-  admin_label: FulfillmentMethod.shape.admin_label.unwrap(),
-}).partial();
-export type FulfillmentMethodPatch = z.infer<typeof FulfillmentMethodPatch>;
+})
+  .extend({
+    admin_label: FulfillmentMethod.shape.admin_label.unwrap(),
+  })
+  .partial()
+export type FulfillmentMethodPatch = z.infer<typeof FulfillmentMethodPatch>
 
-export const FulfillmentMethodUpdateBody = z.object({
-  id: FulfillmentMethod.shape.id,
-  method: FulfillmentMethodPatch.strict(),
-}).strict();
-export type FulfillmentMethodUpdateBody = z.infer<typeof FulfillmentMethodUpdateBody>;
+export const FulfillmentMethodUpdateBody = z
+  .object({
+    id: FulfillmentMethod.shape.id,
+    method: FulfillmentMethodPatch.strict(),
+  })
+  .strict()
+export type FulfillmentMethodUpdateBody = z.infer<typeof FulfillmentMethodUpdateBody>

@@ -22,7 +22,11 @@ import {
   useUser,
   verifyEmail,
 } from '@/shared/hooks/auth/authClient'
-import { forgetSession, useSetPassword as useSetPasswordHook, useVerifyRecaptcha as useVerifyRecaptchaHook } from '@dorado/client'
+import {
+  forgetSession,
+  useSetPassword as useSetPasswordHook,
+  useVerifyRecaptcha as useVerifyRecaptchaHook,
+} from '@dorado/client'
 
 // WHAT IS LEFT TO CLEAR IS UI STATE (ruling 63: "Frontend stores should be for
 // UI elements, not data"). The basket is not here any more - it is server rows
@@ -64,7 +68,11 @@ export const useSignUp = () =>
         callbackURL: `${process.env.NEXT_PUBLIC_FRONTEND_URL}/verify-email`,
         role: 'user',
       },
-      { onError(ctx) { throw ctx.error } }
+      {
+        onError(ctx) {
+          throw ctx.error
+        },
+      }
     )
   )
 
@@ -75,7 +83,11 @@ export const useSignIn = () => {
   return useAsyncAction(
     async (vars: { email: string; password: string; rememberMe: boolean }) => {
       try {
-        return await signIn.email(vars, { onError(ctx) { throw ctx.error } })
+        return await signIn.email(vars, {
+          onError(ctx) {
+            throw ctx.error
+          },
+        })
       } finally {
         // NOTHING MERGES HERE ANY MORE. The visitor's basket is moved onto the
         // real account by the SERVER, in better-auth's onLinkAccount hook
@@ -99,7 +111,9 @@ export const useSignOut = () => {
     // basket to the server before the session went; the browser has no basket,
     // and the rows are already the server's. Signing out leaves them on the
     // account they belong to.
-    async () => { await signOut() },
+    async () => {
+      await signOut()
+    },
     {
       onSuccess: () => {
         clearClientState()

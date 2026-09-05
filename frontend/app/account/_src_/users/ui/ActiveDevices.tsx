@@ -1,5 +1,13 @@
 'use client'
-import { Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@dorado/components'
+import {
+  Button,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@dorado/components'
 import { useListSessions, useRevokeSession } from '@/shared/hooks/auth/queries'
 import { parseUserAgent, ParsedUA, getDeviceIcon } from '@/shared/types/users'
 
@@ -51,9 +59,7 @@ export function ActiveDevices() {
 
                 <TableCell className="text-center">{ua.browserName}</TableCell>
 
-                <TableCell className="text-center">
-                  {ua.osName + ' ' + ua.osVersion}
-                </TableCell>
+                <TableCell className="text-center">{ua.osName + ' ' + ua.osVersion}</TableCell>
 
                 <TableCell className="text-center">
                   {s.ipAddress === '' ? '—' : s.ipAddress}

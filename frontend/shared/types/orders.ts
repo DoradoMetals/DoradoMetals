@@ -16,7 +16,7 @@
 // the shape comes from one place.
 import { z } from 'zod/v4'
 import type { LucideIcon } from '@dorado/icons'
-import { Address, OrderRead, OrderView, UserAddressRead } from "@dorado/contracts";
+import { Address, OrderRead, OrderView, UserAddressRead } from '@dorado/contracts'
 import { pickupSchema } from '@/shared/types/handoff'
 import { packageSchema } from '@/shared/types/packaging'
 import { serviceSchema } from '@/shared/types/service'

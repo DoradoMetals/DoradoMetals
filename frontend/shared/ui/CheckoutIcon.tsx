@@ -1,13 +1,13 @@
-'use client';
+'use client'
 
-import { motion, useAnimation } from 'framer-motion';
-import type { HTMLAttributes } from 'react';
-import { forwardRef, useEffect } from 'react';
-import { cn } from '@/shared/utils/cn';
+import { motion, useAnimation } from 'framer-motion'
+import type { HTMLAttributes } from 'react'
+import { forwardRef, useEffect } from 'react'
+import { cn } from '@/shared/utils/cn'
 import { ShoppingCart } from '@dorado/icons'
 interface CheckoutIconProps extends HTMLAttributes<HTMLDivElement> {
-  size?: number;
-  isOpen: boolean;
+  size?: number
+  isOpen: boolean
 }
 
 const iconVariants = {
@@ -24,15 +24,15 @@ const iconVariants = {
       damping: 20,
     },
   },
-};
+}
 
 const CheckoutIcon = forwardRef<HTMLDivElement, CheckoutIconProps>(
   ({ isOpen, className, size = 28, ...props }, ref) => {
-    const controls = useAnimation();
+    const controls = useAnimation()
 
     useEffect(() => {
-      controls.start(isOpen ? 'animate' : 'normal');
-    }, [isOpen]);
+      controls.start(isOpen ? 'animate' : 'normal')
+    }, [isOpen])
 
     return (
       <div
@@ -43,14 +43,14 @@ const CheckoutIcon = forwardRef<HTMLDivElement, CheckoutIconProps>(
         )}
         {...props}
       >
-        <motion.div animate={controls} variants={iconVariants} className='will-change-transform'>
+        <motion.div animate={controls} variants={iconVariants} className="will-change-transform">
           <ShoppingCart size={size} />
         </motion.div>
       </div>
-    );
+    )
   }
-);
+)
 
-CheckoutIcon.displayName = 'CheckoutIcon';
+CheckoutIcon.displayName = 'CheckoutIcon'
 
-export { CheckoutIcon };
+export { CheckoutIcon }

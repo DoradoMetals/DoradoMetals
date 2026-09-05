@@ -3,18 +3,18 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: auth.sessions
-import { z } from "zod/v4";
+import { z } from 'zod/v4'
 
 export const Session = z.object({
-  "id": z.string().uuid(),
-  "userId": z.string().uuid(),
-  "token": z.string(),
-  "expiresAt": z.string(),
-  "createdAt": z.string(),
-  "updatedAt": z.string(),
-  "ipAddress": z.string().nullable(),
-  "userAgent": z.string().nullable(),
-  "impersonatedBy": z.string().uuid().nullable(),
-});
-export type Session = z.infer<typeof Session>;
+  'id': z.string().uuid(),
+  'userId': z.string().uuid(),
+  'token': z.string(),
+  'expiresAt': z.string(),
+  'createdAt': z.string(),
+  'updatedAt': z.string(),
+  'ipAddress': z.string().nullable(),
+  'userAgent': z.string().nullable(),
+  'impersonatedBy': z.string().uuid().nullable(),
+})
+export type Session = z.infer<typeof Session>
 // generated:end

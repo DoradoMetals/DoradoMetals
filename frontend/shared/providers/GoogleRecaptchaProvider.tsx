@@ -1,4 +1,4 @@
-'use client';
+'use client'
 
 import { GoogleReCaptchaProvider } from 'react-google-recaptcha-v3'
 

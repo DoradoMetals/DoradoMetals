@@ -1,10 +1,10 @@
-import express from "express";
+import express from 'express'
 
-import { schedulePickup } from "#logistics/fulfillments/pickups/controller.ts";
-import { requireAdmin } from "#shared/middleware/authMiddleware.ts";
+import { schedulePickup } from '#logistics/fulfillments/pickups/controller.ts'
+import { requireAdmin } from '#shared/middleware/authMiddleware.ts'
 
-const router = express.Router();
+const router = express.Router()
 
-router.post("/schedule_pickup", requireAdmin, schedulePickup);
+router.post('/schedule_pickup', requireAdmin, schedulePickup)
 
-export default router;
+export default router

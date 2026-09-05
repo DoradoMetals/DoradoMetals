@@ -1,53 +1,53 @@
 'use client'
 
-import * as React from "react";
-import * as AccordionPrimitive from "@radix-ui/react-accordion";
-import { ChevronDown } from "@dorado/icons";
-import { Button } from "../button/Button";
-import { cn } from "../cn";
+import * as React from 'react'
+import * as AccordionPrimitive from '@radix-ui/react-accordion'
+import { ChevronDown } from '@dorado/icons'
+import { Button } from '../button/Button'
+import { cn } from '../cn'
 
 const SURFACES = {
-  card: "bg-card border border-border",
-  bare: "border border-border bg-transparent",
-} as const;
+  card: 'bg-card border border-border',
+  bare: 'border border-border bg-transparent',
+} as const
 
 export type AccordionProps = {
-  label: React.ReactNode;
-  trailing?: React.ReactNode;
-  chevron?: "leading" | "trailing";
-  open?: boolean;
-  onToggle?: () => void;
-  defaultOpen?: boolean;
-  disabled?: boolean;
-  surface?: keyof typeof SURFACES;
-  className?: string;
-  children: React.ReactNode;
-};
+  label: React.ReactNode
+  trailing?: React.ReactNode
+  chevron?: 'leading' | 'trailing'
+  open?: boolean
+  onToggle?: () => void
+  defaultOpen?: boolean
+  disabled?: boolean
+  surface?: keyof typeof SURFACES
+  className?: string
+  children: React.ReactNode
+}
 
 export function Accordion({
   label,
   trailing,
-  chevron = "leading",
+  chevron = 'leading',
   open,
   onToggle,
   defaultOpen = false,
   disabled = false,
-  surface = "card",
+  surface = 'card',
   className,
   children,
 }: AccordionProps) {
-  const controlled = open !== undefined;
-  const chevronTrailing = chevron === "trailing" && trailing == null;
+  const controlled = open !== undefined
+  const chevronTrailing = chevron === 'trailing' && trailing == null
 
   const marker = (
     <ChevronDown
       aria-hidden
       className={cn(
-        "size-4 shrink-0 text-muted-foreground transition-transform motion-reduce:transition-none",
-        "group-data-[state=open]:rotate-180"
+        'size-4 shrink-0 text-muted-foreground transition-transform motion-reduce:transition-none',
+        'group-data-[state=open]:rotate-180'
       )}
     />
-  );
+  )
 
   return (
     <AccordionPrimitive.Root
@@ -55,9 +55,14 @@ export function Accordion({
       collapsible
       disabled={disabled}
       {...(controlled
-        ? { value: open ? "it" : "", onValueChange: () => onToggle?.() }
-        : { defaultValue: defaultOpen ? "it" : undefined })}
-      className={cn("rounded-lg overflow-clip", SURFACES[surface], disabled && "opacity-50", className)}
+        ? { value: open ? 'it' : '', onValueChange: () => onToggle?.() }
+        : { defaultValue: defaultOpen ? 'it' : undefined })}
+      className={cn(
+        'rounded-lg overflow-clip',
+        SURFACES[surface],
+        disabled && 'opacity-50',
+        className
+      )}
     >
       <AccordionPrimitive.Item value="it">
         <AccordionPrimitive.Header asChild>
@@ -77,14 +82,14 @@ export function Accordion({
         </AccordionPrimitive.Header>
         <AccordionPrimitive.Content
           className={cn(
-            "overflow-hidden",
-            "data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up",
-            "motion-reduce:animate-none"
+            'overflow-hidden',
+            'data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up',
+            'motion-reduce:animate-none'
           )}
         >
           <div className="pb-3 pl-4 pr-3">{children}</div>
         </AccordionPrimitive.Content>
       </AccordionPrimitive.Item>
     </AccordionPrimitive.Root>
-  );
+  )
 }

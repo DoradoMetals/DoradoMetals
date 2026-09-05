@@ -8,11 +8,7 @@ import { usePathname } from 'next/navigation'
 import { useEffect } from 'react'
 import AddressForm from '@/shared/ui/AddressForm'
 
-export function AddressDrawer({
-  onSuccess,
-}: {
-  onSuccess?: (entry: AddressBookEntry) => void
-}) {
+export function AddressDrawer({ onSuccess }: { onSuccess?: (entry: AddressBookEntry) => void }) {
   const activeDrawer = useDrawerStore((s) => s.activeDrawer)
   const closeDrawer = useDrawerStore((s) => s.closeDrawer)
   // ONE PAYLOAD, NOT TWO. The drawer used to carry an address and its link as

@@ -3,20 +3,20 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: spots.spots
-import { z } from "zod/v4";
+import { z } from 'zod/v4'
 
 export const Spot = z.object({
-  "id": z.string().uuid(),
-  "metal_id": z.string(),
-  "ask": z.number(),
-  "bid": z.number().nullable(),
-  "percent_change": z.number().nullable(),
-  "dollar_change": z.number().nullable(),
-  "updated_at": z.string(),
-});
-export type Spot = z.infer<typeof Spot>;
+  'id': z.string().uuid(),
+  'metal_id': z.string(),
+  'ask': z.number(),
+  'bid': z.number().nullable(),
+  'percent_change': z.number().nullable(),
+  'dollar_change': z.number().nullable(),
+  'updated_at': z.string(),
+})
+export type Spot = z.infer<typeof Spot>
 // generated:end
-import { Metal } from "../metals/metals.js";
+import { Metal } from '../metals/metals.js'
 
 export const SpotPrice = Spot.pick({
   ask: true,
@@ -26,19 +26,19 @@ export const SpotPrice = Spot.pick({
 }).extend({
   id: Metal.shape.id,
   ask: Spot.shape.ask.nullable(),
-});
-export type SpotPrice = z.infer<typeof SpotPrice>;
+})
+export type SpotPrice = z.infer<typeof SpotPrice>
 
 export const SpotPatch = Spot.pick({
   ask: true,
   bid: true,
   percent_change: true,
   dollar_change: true,
-}).partial();
-export type SpotPatch = z.infer<typeof SpotPatch>;
+}).partial()
+export type SpotPatch = z.infer<typeof SpotPatch>
 
-export const SpotTrend = z.enum(["up", "down", "flat"]);
-export type SpotTrend = z.infer<typeof SpotTrend>;
+export const SpotTrend = z.enum(['up', 'down', 'flat'])
+export type SpotTrend = z.infer<typeof SpotTrend>
 
-export const SpotTicker = SpotPrice.extend({ direction: SpotTrend });
-export type SpotTicker = z.infer<typeof SpotTicker>;
+export const SpotTicker = SpotPrice.extend({ direction: SpotTrend })
+export type SpotTicker = z.infer<typeof SpotTicker>

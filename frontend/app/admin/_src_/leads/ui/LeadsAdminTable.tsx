@@ -1,6 +1,6 @@
 'use client'
 
-import type { Lead } from "@dorado/contracts";
+import type { Lead } from '@dorado/contracts'
 import * as React from 'react'
 
 import { LeadPriority } from '../types'

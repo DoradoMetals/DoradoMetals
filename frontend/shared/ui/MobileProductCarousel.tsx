@@ -11,7 +11,10 @@ import { cn } from '@/shared/utils/cn'
 const categories = [
   { name: 'Gold', img: '/product_images/elemetal_products/gold/American Buffalo/FRONT.png' },
   { name: 'Silver', img: '/product_images/elemetal_products/silver/Western Warrior/FRONT.png' },
-  { name: 'Platinum', img: '/product_images/elemetal_products/platinum/1oz Platinum Bar/FRONT.png' },
+  {
+    name: 'Platinum',
+    img: '/product_images/elemetal_products/platinum/1oz Platinum Bar/FRONT.png',
+  },
   {
     name: 'Palladium',
     img: '/product_images/elemetal_products/palladium/1oz Palladium Bar/FRONT.png',
@@ -62,7 +65,7 @@ export default function MobileProductCarousel() {
 
   const isActive = (category: string) => {
     if (pathname === '/') return false
-  
+
     return (
       metal === category ||
       (type === 'Collectible' && category === 'Collectibles') ||
@@ -92,7 +95,9 @@ export default function MobileProductCarousel() {
 
   return (
     <nav aria-label="Product categories">
-      <div className={cn("hidden lg:flex w-full justify-center", pathname === '/' ? 'mt-1' : 'my-9')}>
+      <div
+        className={cn('hidden lg:flex w-full justify-center', pathname === '/' ? 'mt-1' : 'my-9')}
+      >
         {categories.map((category, index) => (
           <div
             key={category.name}

@@ -1,18 +1,18 @@
 'use client'
 
-import * as React from "react";
+import * as React from 'react'
 
-import { cn } from "../cn";
+import { cn } from '../cn'
 
 export type EmptyStateProps = {
-  icon?: React.ReactNode;
-  badge?: React.ReactNode;
-  title: React.ReactNode;
-  description?: React.ReactNode;
-  children?: React.ReactNode;
-  action?: React.ReactNode;
-  className?: string;
-};
+  icon?: React.ReactNode
+  badge?: React.ReactNode
+  title: React.ReactNode
+  description?: React.ReactNode
+  children?: React.ReactNode
+  action?: React.ReactNode
+  className?: string
+}
 
 export function EmptyState({
   icon,
@@ -24,7 +24,7 @@ export function EmptyState({
   className,
 }: EmptyStateProps) {
   return (
-    <div className={cn("flex flex-col items-center gap-lg px-2xl py-xl text-center", className)}>
+    <div className={cn('flex flex-col items-center gap-lg px-2xl py-xl text-center', className)}>
       {icon != null && (
         <div className="relative">
           <span aria-hidden className="text-muted-foreground [&_svg]:size-16">
@@ -44,5 +44,5 @@ export function EmptyState({
       </span>
       {action}
     </div>
-  );
+  )
 }

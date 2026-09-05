@@ -20,7 +20,9 @@ export default function AdminPendingSalesOrder({ view }: SalesOrderDrawerContent
   // Stripe-spelled value.
   const { data: methods = [] } = usePaymentMethods('sale')
   const paymentType = methods.find((m) => m.type === paymentIntent?.details?.type)
-  const Icon = paymentType ? paymentMethodIcon[paymentType.type as keyof typeof paymentMethodIcon] : undefined
+  const Icon = paymentType
+    ? paymentMethodIcon[paymentType.type as keyof typeof paymentMethodIcon]
+    : undefined
   // The provider's reference lives on the attempt, and is what cancel takes.
   const intentRef = paymentIntent?.attempt?.provider_ref ?? null
 
@@ -40,8 +42,8 @@ export default function AdminPendingSalesOrder({ view }: SalesOrderDrawerContent
             paymentIntent.status === 'succeeded'
               ? 'success'
               : paymentIntent.status === 'processing'
-              ? 'info'
-              : 'danger'
+                ? 'info'
+                : 'danger'
           }
         >
           {paymentIntent.status === 'requires_payment_method'

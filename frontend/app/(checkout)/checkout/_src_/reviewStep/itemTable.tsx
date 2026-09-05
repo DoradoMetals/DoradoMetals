@@ -8,7 +8,7 @@ import { useDecoratedLines, type DecoratedLine } from '@/shared/utils/flair'
 import { formatRate } from '@/shared/types/rates'
 import { usePaymentMethods } from '@dorado/client'
 import { useCheckoutQuote } from '@/shared/hooks/quotes/queries'
-import type { CheckoutRate, CheckoutView, PurchaseQuoteLine } from "@dorado/contracts";
+import type { CheckoutRate, CheckoutView, PurchaseQuoteLine } from '@dorado/contracts'
 
 // A basket line paired with its quote line. Absent until the first quote lands
 // (or if the server refused the quote) - those rows price at zero, never
@@ -67,9 +67,7 @@ export default function ReviewItemTables({
   const total = quote?.estimated_payout ?? 0
 
   const selectedRate = rates.find((rate) => rate.selected)
-  const shippingRow = [
-    { label: selectedRate?.name ?? 'Unknown Service', cost: shippingCost ?? 0 },
-  ]
+  const shippingRow = [{ label: selectedRate?.name ?? 'Unknown Service', cost: shippingCost ?? 0 }]
   const payoutRow = payoutMethod
     ? [{ label: payoutMethod.label, cost: Number(payoutMethod.flat_fee ?? 0) }]
     : []

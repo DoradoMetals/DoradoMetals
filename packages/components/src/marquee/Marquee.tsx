@@ -1,21 +1,21 @@
 'use client'
 
-import * as React from "react";
+import * as React from 'react'
 
-import { cn } from "../cn";
+import { cn } from '../cn'
 
 export type MarqueeProps = {
-  children: React.ReactNode;
-  duration?: number;
-  className?: string;
-};
+  children: React.ReactNode
+  duration?: number
+  className?: string
+}
 
 export function Marquee({ children, duration = 30, className }: MarqueeProps) {
   return (
     <div
       className={cn(
-        "group flex w-full overflow-x-auto border-y border-border px-6 py-3",
-        "motion-safe:overflow-hidden",
+        'group flex w-full overflow-x-auto border-y border-border px-6 py-3',
+        'motion-safe:overflow-hidden',
         className
       )}
     >
@@ -33,5 +33,5 @@ export function Marquee({ children, duration = 30, className }: MarqueeProps) {
         {children}
       </div>
     </div>
-  );
+  )
 }

@@ -2,7 +2,7 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres enum types owned by the `fulfillments` schema.
-import { z } from "zod/v4";
+import { z } from 'zod/v4'
 
-export const FulfillmentCategory = z.enum(["SHIPMENT", "PICKUP", "DIRECT"]);
-export type FulfillmentCategory = z.infer<typeof FulfillmentCategory>;
+export const FulfillmentCategory = z.enum(['SHIPMENT', 'PICKUP', 'DIRECT'])
+export type FulfillmentCategory = z.infer<typeof FulfillmentCategory>

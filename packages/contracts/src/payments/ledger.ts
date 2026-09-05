@@ -3,21 +3,21 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: payments.ledger
-import { z } from "zod/v4";
+import { z } from 'zod/v4'
 
 export const LedgerEntry = z.object({
-  "id": z.string().uuid(),
-  "user_id": z.string().uuid(),
-  "type": z.string(),
-  "order_id": z.string().uuid().nullable(),
-  "amount": z.number(),
-  "occurred_at": z.string(),
-  "created_at": z.string(),
-  "updated_at": z.string(),
-});
-export type LedgerEntry = z.infer<typeof LedgerEntry>;
+  'id': z.string().uuid(),
+  'user_id': z.string().uuid(),
+  'type': z.string(),
+  'order_id': z.string().uuid().nullable(),
+  'amount': z.number(),
+  'occurred_at': z.string(),
+  'created_at': z.string(),
+  'updated_at': z.string(),
+})
+export type LedgerEntry = z.infer<typeof LedgerEntry>
 // generated:end
-import { Direction } from "../orders/enums.js";
+import { Direction } from '../orders/enums.js'
 
 export const LedgerEntryPatch = LedgerEntry.pick({
   user_id: true,
@@ -27,11 +27,11 @@ export const LedgerEntryPatch = LedgerEntry.pick({
 }).extend({
   user_id: LedgerEntry.shape.user_id.nullable(),
   amount: LedgerEntry.shape.amount.nullable(),
-});
-export type LedgerEntryPatch = z.infer<typeof LedgerEntryPatch>;
+})
+export type LedgerEntryPatch = z.infer<typeof LedgerEntryPatch>
 
 export const AccountTransaction = LedgerEntry.omit({ type: true }).extend({
   transaction_type: LedgerEntry.shape.type,
   direction: Direction.nullable(),
-});
-export type AccountTransaction = z.infer<typeof AccountTransaction>;
+})
+export type AccountTransaction = z.infer<typeof AccountTransaction>

@@ -1,9 +1,7 @@
 export function requiredEnv(name: string): string {
-  const value = process.env[name];
+  const value = process.env[name]
   if (!value) {
-    throw new Error(
-      `${name} is not set - this request cannot be made without it`
-    );
+    throw new Error(`${name} is not set - this request cannot be made without it`)
   }
-  return value;
+  return value
 }

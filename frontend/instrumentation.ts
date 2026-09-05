@@ -10,15 +10,15 @@
 // The imports are dynamic and inside the runtime check on purpose: the edge
 // runtime cannot load the Node build of the SDK, so importing both eagerly
 // fails the edge bundle.
-import * as Sentry from "@sentry/nextjs";
+import * as Sentry from '@sentry/nextjs'
 
 export async function register(): Promise<void> {
-  if (process.env.NEXT_RUNTIME === "nodejs") {
-    await import("./sentry.server.config");
+  if (process.env.NEXT_RUNTIME === 'nodejs') {
+    await import('./sentry.server.config')
   }
-  if (process.env.NEXT_RUNTIME === "edge") {
-    await import("./sentry.edge.config");
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    await import('./sentry.edge.config')
   }
 }
 
-export const onRequestError = Sentry.captureRequestError;
+export const onRequestError = Sentry.captureRequestError

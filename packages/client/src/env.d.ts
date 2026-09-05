@@ -1,2 +1,2 @@
 /// <reference types="node" />
-export {};
+export {}

@@ -45,7 +45,12 @@ export function AddressSearchInput({
       leading={<MapPin size={16} />}
       trailing={
         value ? (
-          <Button variant="tertiary" size="iconXs" aria-label="Clear address search" onClick={onClear}>
+          <Button
+            variant="tertiary"
+            size="iconXs"
+            aria-label="Clear address search"
+            onClick={onClear}
+          >
             <X size={14} />
           </Button>
         ) : undefined

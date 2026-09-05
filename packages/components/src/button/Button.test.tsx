@@ -111,9 +111,17 @@ describe('rendered Button', () => {
   })
 
   it('icon stroke weight is scale-true, 2 x (size/24), for every icon tier', () => {
-    const { container: sm } = render(<Button size="sm" icon={ArrowLeft}>Go</Button>)
+    const { container: sm } = render(
+      <Button size="sm" icon={ArrowLeft}>
+        Go
+      </Button>
+    )
     const { container: def } = render(<Button icon={ArrowLeft}>Go</Button>)
-    const { container: lg } = render(<Button size="lg" icon={ArrowLeft}>Go</Button>)
+    const { container: lg } = render(
+      <Button size="lg" icon={ArrowLeft}>
+        Go
+      </Button>
+    )
     expect(sm.querySelector('svg')?.getAttribute('stroke-width')).toBe(String((2 * 14) / 24))
     expect(def.querySelector('svg')?.getAttribute('stroke-width')).toBe(String((2 * 16) / 24))
     expect(lg.querySelector('svg')?.getAttribute('stroke-width')).toBe(String((2 * 20) / 24))

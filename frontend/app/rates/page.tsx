@@ -45,9 +45,7 @@ function LabelWithIcon({
 
 export default function RatesPage() {
   const { data: tiers = [] } = useRateTiers()
-  const ordered = [...tiers].sort(
-    (a, b) => ORDER.indexOf(a.metal_id) - ORDER.indexOf(b.metal_id)
-  )
+  const ordered = [...tiers].sort((a, b) => ORDER.indexOf(a.metal_id) - ORDER.indexOf(b.metal_id))
 
   return (
     <main className="relative w-full flex flex-col items-center">
@@ -78,14 +76,21 @@ export default function RatesPage() {
 // Four columns is the grid this page is built on; a metal with fewer bands
 // gets blank cells rather than a narrower card.
 const PAD: RateBand = {
-  key: 'pad', label: '—', min_qty: 0, max_qty: null,
-  scrap_pct: Number.NaN, bullion_pct: Number.NaN,
+  key: 'pad',
+  label: '—',
+  min_qty: 0,
+  max_qty: null,
+  scrap_pct: Number.NaN,
+  bullion_pct: Number.NaN,
 }
 
 const columns = (bands: RateBand[]): RateBand[] =>
   bands.length >= 4
     ? bands.slice(0, 4)
-    : [...bands, ...Array.from({ length: 4 - bands.length }, (_, i) => ({ ...PAD, key: `pad-${i}` }))]
+    : [
+        ...bands,
+        ...Array.from({ length: 4 - bands.length }, (_, i) => ({ ...PAD, key: `pad-${i}` })),
+      ]
 
 function MetalCard({ tier }: { tier: RateTier }) {
   const cols = columns(tier.bands)

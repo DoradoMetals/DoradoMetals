@@ -46,26 +46,45 @@
 //
 //   node scripts/lint-call-site-styling.mjs [--self-test] [--json]
 
-import { readFileSync, readdirSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
+import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { join, relative } from 'node:path'
 
-const ROOT = new URL("..", import.meta.url).pathname.replace(/\/$/, "");
+const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '')
 
 // Appearance: the component's or the theme's business, never the caller's.
 // Ordered most-specific-first so `text-sm` is read as type size while
 // `text-left` is read as alignment (which is layout, and 239 of them exist -
 // a naive `text-` rule would flag every one).
-const TYPE_SIZES = /^(text|font)-(xs|sm|base|lg|xl|[2-9]xl|display|h[1-6]|body|small|micro|thin|light|normal|medium|semibold|bold|black|mono|sans|serif)$/;
+const TYPE_SIZES =
+  /^(text|font)-(xs|sm|base|lg|xl|[2-9]xl|display|h[1-6]|body|small|micro|thin|light|normal|medium|semibold|bold|black|mono|sans|serif)$/
 const APPEARANCE = [
-  /^bg-/, /^border(-|$)/, /^rounded(-|$)/, /^shadow(-|$)/, /^opacity-/,
-  /^transition(-|$)/, /^ring(-|$)/, /^outline-/, /^fill-/, /^stroke-/,
-  /^backdrop-/, /^divide-/, /^from-/, /^via-/, /^to-/, /^gradient/,
+  /^bg-/,
+  /^border(-|$)/,
+  /^rounded(-|$)/,
+  /^shadow(-|$)/,
+  /^opacity-/,
+  /^transition(-|$)/,
+  /^ring(-|$)/,
+  /^outline-/,
+  /^fill-/,
+  /^stroke-/,
+  /^backdrop-/,
+  /^divide-/,
+  /^from-/,
+  /^via-/,
+  /^to-/,
+  /^gradient/,
   // project-local decoration on death row (ruling 16)
-  /^glass/, /^on-glass/, /^raised-off-page$/, /^recessed/, /^shine/,
-];
+  /^glass/,
+  /^on-glass/,
+  /^raised-off-page$/,
+  /^recessed/,
+  /^shine/,
+]
 // text-<colour>: any text- that is not a size, not an alignment, not a
 // wrapping/transform utility. Colour tokens are the tail of this list.
-const TEXT_LAYOUT = /^text-(left|center|right|justify|start|end|wrap|nowrap|balance|pretty|ellipsis|clip)$/;
+const TEXT_LAYOUT =
+  /^text-(left|center|right|justify|start|end|wrap|nowrap|balance|pretty|ellipsis|clip)$/
 
 function classifies(token) {
   // strip variant prefixes (hover:, focus:, sm:, dark:, group-hover:) but
@@ -75,14 +94,14 @@ function classifies(token) {
   // Strip the syntax that survives splitting a cn() argument list on
   // whitespace - quotes, commas, backticks - BEFORE classifying. Without this,
   // `text-center'` failed the alignment test and was reported as a colour.
-  const cleaned = token.replace(/^[`'",]+|[`'",]+$/g, "");
-  const bare = cleaned.replace(/^(?:[a-z-]+:)+/, "");
-  if (!bare || bare.startsWith("[")) return null;
-  if (TEXT_LAYOUT.test(bare)) return null;
-  if (TYPE_SIZES.test(bare)) return "type";
-  if (bare.startsWith("text-")) return "colour";
-  for (const re of APPEARANCE) if (re.test(bare)) return "appearance";
-  return null;
+  const cleaned = token.replace(/^[`'",]+|[`'",]+$/g, '')
+  const bare = cleaned.replace(/^(?:[a-z-]+:)+/, '')
+  if (!bare || bare.startsWith('[')) return null
+  if (TEXT_LAYOUT.test(bare)) return null
+  if (TYPE_SIZES.test(bare)) return 'type'
+  if (bare.startsWith('text-')) return 'colour'
+  for (const re of APPEARANCE) if (re.test(bare)) return 'appearance'
+  return null
 }
 
 // EVERY CLASS STRING A className CARRIES, WHATEVER SPELLING IT ARRIVES IN.
@@ -123,85 +142,87 @@ function classifies(token) {
 // Each of those is a real occurrence this number does not include. The count is
 // a floor on the scatter, never a proof of zero.
 function classNameExpressions(src) {
-  const out = [];
-  const re = /\bclassName=/g;
-  let m;
+  const out = []
+  const re = /\bclassName=/g
+  let m
   while ((m = re.exec(src))) {
-    let i = m.index + m[0].length;
+    let i = m.index + m[0].length
     if (src[i] === '"' || src[i] === "'") {
-      const quote = src[i];
-      const end = src.indexOf(quote, i + 1);
-      if (end === -1) continue;
-      out.push(src.slice(i + 1, end));
-      continue;
+      const quote = src[i]
+      const end = src.indexOf(quote, i + 1)
+      if (end === -1) continue
+      out.push(src.slice(i + 1, end))
+      continue
     }
-    if (src[i] !== "{") continue;
+    if (src[i] !== '{') continue
     // Balanced braces, so a nested object or a second cn() does not truncate it.
-    let depth = 0;
-    const start = i;
+    let depth = 0
+    const start = i
     for (; i < src.length; i += 1) {
-      if (src[i] === "{") depth += 1;
-      else if (src[i] === "}") {
-        depth -= 1;
-        if (depth === 0) break;
+      if (src[i] === '{') depth += 1
+      else if (src[i] === '}') {
+        depth -= 1
+        if (depth === 0) break
       }
     }
-    out.push(src.slice(start + 1, i));
+    out.push(src.slice(start + 1, i))
   }
-  return out;
+  return out
 }
 
 // The class tokens inside one className expression. A bare attribute value is
 // itself the class list; an expression is mined for its string literals.
 function classTokens(expr) {
   const literals = [...expr.matchAll(/"([^"]*)"|'([^']*)'|`([^`]*)`/g)].map(
-    (m) => m[1] ?? m[2] ?? m[3] ?? ""
-  );
-  const source = literals.length ? literals.join(" ") : expr;
-  return source.split(/\s+/).filter(Boolean);
+    (m) => m[1] ?? m[2] ?? m[3] ?? ''
+  )
+  const source = literals.length ? literals.join(' ') : expr
+  return source.split(/\s+/).filter(Boolean)
 }
 
 function walk(dir, out = []) {
   for (const e of readdirSync(dir)) {
-    if (e === "node_modules" || e === ".next" || e === "test-results" || e.startsWith(".")) continue;
-    const p = join(dir, e);
-    const s = statSync(p);
-    if (s.isDirectory()) walk(p, out);
-    else if (e.endsWith(".tsx")) out.push(p);
+    if (e === 'node_modules' || e === '.next' || e === 'test-results' || e.startsWith('.')) continue
+    const p = join(dir, e)
+    const s = statSync(p)
+    if (s.isDirectory()) walk(p, out)
+    else if (e.endsWith('.tsx')) out.push(p)
   }
-  return out;
+  return out
 }
 
 // Component names imported from shared/ui in a given file. Only those are call
 // sites we can hold to the rule - a local <div> is not a shared component.
 function sharedImports(src) {
-  const names = new Set();
+  const names = new Set()
   // `(\w+)\s*,` USED TO REQUIRE THE COMMA, so a plain default import
   // (`import Drawer from '...'`) was never scanned and its call sites were
   // never flagged anywhere in the tree - found by the P1 sweep agent, and a
   // reminder that a detector's blind spot reports as clean code (see D95).
-  const re = /import\s+(?:(\w+)\s*(?:,\s*)?)?(?:\{([^}]*)\})?\s*from\s*['"]([^'"]*shared\/ui[^'"]*)['"]/g;
-  let m;
+  const re =
+    /import\s+(?:(\w+)\s*(?:,\s*)?)?(?:\{([^}]*)\})?\s*from\s*['"]([^'"]*shared\/ui[^'"]*)['"]/g
+  let m
   while ((m = re.exec(src))) {
-    if (m[1]) names.add(m[1]);
-    if (m[2]) for (const part of m[2].split(",")) {
-      const n = part.split(" as ").pop().trim();
-      if (n) names.add(n);
-    }
+    if (m[1]) names.add(m[1])
+    if (m[2])
+      for (const part of m[2].split(',')) {
+        const n = part.split(' as ').pop().trim()
+        if (n) names.add(n)
+      }
   }
-  return names;
+  return names
 }
 
 // Elements of those components, with their attribute blob. Deliberately simple:
 // this is a lint, and a miss is better than a false alarm nobody trusts.
 function elements(src, names) {
-  const found = [];
+  const found = []
   for (const name of names) {
-    const re = new RegExp(`<${name}(\\s[^>]*?)/?>`, "gs");
-    let m;
+    const re = new RegExp(`<${name}(\\s[^>]*?)/?>`, 'gs')
+    let m
     while ((m = re.exec(src))) {
-      const attrs = m[1];
-      const line = src.slice(0, m.index).split("\n").length;
+      const attrs = m[1]
+      const line = src.slice(0, m.index).split('\n').length
       // THE SAME EXTRACTOR --scatter USES. This spelled out three forms - a
       // quoted string, a bare template literal, and `cn(...)` matched with
       // `[^)]*`, which TRUNCATES at the first close paren and so lost everything
@@ -211,16 +232,16 @@ function elements(src, names) {
       // BLIND SPOT WORTH NAMING HERE TOO: the element regex above stops the
       // attribute blob at the first `>`, so a call site whose attributes contain
       // an arrow function (`onClick={() => ...}`) is read only up to that point.
-      const exprs = classNameExpressions(attrs);
-      if (!exprs.length) continue;
-      const blob = exprs.flatMap((e) => classTokens(e)).join(" ");
-      found.push({ name, line, blob, hasVariant: /\bvariant\s*=/.test(attrs) });
+      const exprs = classNameExpressions(attrs)
+      if (!exprs.length) continue
+      const blob = exprs.flatMap((e) => classTokens(e)).join(' ')
+      found.push({ name, line, blob, hasVariant: /\bvariant\s*=/.test(attrs) })
     }
   }
-  return found;
+  return found
 }
 
-if (process.argv.includes("--self-test")) {
+if (process.argv.includes('--self-test')) {
   const src = `
 import { Button } from '@/shared/ui/base/button'
 export const X = () => (<>
@@ -228,20 +249,27 @@ export const X = () => (<>
   <Button className="gap-1 bg-primary hover:bg-primary text-sm sm:text-base">b</Button>
   <Button className="w-full flex items-center gap-2 mt-4">c</Button>
   <Button className="text-center">d</Button>
-</>)`;
-  const names = sharedImports(src);
-  if (!names.has("Button")) { console.error("SELF-TEST FAILED: import not seen"); process.exit(1); }
-  const els = elements(src, names);
-  if (els.length !== 4) { console.error(`SELF-TEST FAILED: ${els.length} of 4 elements`); process.exit(1); }
-  const verdicts = els.map((e) => e.blob.split(/\s+/).some((t) => classifies(t)));
-  const expected = [true, true, false, false]; // c is pure layout, d is alignment
+</>)`
+  const names = sharedImports(src)
+  if (!names.has('Button')) {
+    console.error('SELF-TEST FAILED: import not seen')
+    process.exit(1)
+  }
+  const els = elements(src, names)
+  if (els.length !== 4) {
+    console.error(`SELF-TEST FAILED: ${els.length} of 4 elements`)
+    process.exit(1)
+  }
+  const verdicts = els.map((e) => e.blob.split(/\s+/).some((t) => classifies(t)))
+  const expected = [true, true, false, false] // c is pure layout, d is alignment
   if (String(verdicts) !== String(expected)) {
-    console.error(`SELF-TEST FAILED: verdicts ${verdicts}, expected ${expected}`);
-    console.error("  (layout-only and text-center must NOT flag; 239 alignment classes exist)");
-    process.exit(1);
+    console.error(`SELF-TEST FAILED: verdicts ${verdicts}, expected ${expected}`)
+    console.error('  (layout-only and text-center must NOT flag; 239 alignment classes exist)')
+    process.exit(1)
   }
   if (!els[0].hasVariant || els[1].hasVariant) {
-    console.error("SELF-TEST FAILED: variant detection wrong"); process.exit(1);
+    console.error('SELF-TEST FAILED: variant detection wrong')
+    process.exit(1)
   }
   // THE cn() BLIND SPOT, pinned so it cannot reopen. --scatter matched
   // `className="..."` and a bare template literal only, so the 205 call sites
@@ -249,42 +277,42 @@ export const X = () => (<>
   // sizes across 263 files. That zero was quoted as evidence the typography
   // sweep was finished; the real number was 28.
   const CN_CASES = [
-    [`<div className={cn("flex", active && "text-2xl font-bold")} />`, ["text-2xl", "font-bold"]],
-    [`<div className={cn(clsx("gap-2", "text-sm"))} />`, ["text-sm"]],
-    [`<div className={active ? "text-lg" : "text-xs"} />`, ["text-lg", "text-xs"]],
-    [`<div className={cn("p-2", { "font-medium": on })} />`, ["font-medium"]],
+    [`<div className={cn("flex", active && "text-2xl font-bold")} />`, ['text-2xl', 'font-bold']],
+    [`<div className={cn(clsx("gap-2", "text-sm"))} />`, ['text-sm']],
+    [`<div className={active ? "text-lg" : "text-xs"} />`, ['text-lg', 'text-xs']],
+    [`<div className={cn("p-2", { "font-medium": on })} />`, ['font-medium']],
     // Must NOT flag: alignment is layout, and pure layout is the allowed case.
     [`<div className={cn("text-center", "flex w-full")} />`, []],
-  ];
+  ]
   for (const [markup, want] of CN_CASES) {
-    const exprs = classNameExpressions(markup);
+    const exprs = classNameExpressions(markup)
     if (exprs.length !== 1) {
-      console.error(`SELF-TEST FAILED: ${exprs.length} className expression(s) in ${markup}`);
-      process.exit(1);
+      console.error(`SELF-TEST FAILED: ${exprs.length} className expression(s) in ${markup}`)
+      process.exit(1)
     }
     const got = classTokens(exprs[0])
-      .map((t) => t.replace(/^[`'",]+|[`'",]+$/g, ""))
+      .map((t) => t.replace(/^[`'",]+|[`'",]+$/g, ''))
       .filter((t) => {
-        const bare = t.replace(/^(?:[a-z-]+:)+/, "");
-        return !TEXT_LAYOUT.test(bare) && TYPE_SIZES.test(bare);
-      });
+        const bare = t.replace(/^(?:[a-z-]+:)+/, '')
+        return !TEXT_LAYOUT.test(bare) && TYPE_SIZES.test(bare)
+      })
     if (String(got) !== String(want)) {
-      console.error(`SELF-TEST FAILED: ${markup}\n  saw [${got}], expected [${want}]`);
-      console.error("  This is the cn() blind spot reopening - --scatter reported 0 for months.");
-      process.exit(1);
+      console.error(`SELF-TEST FAILED: ${markup}\n  saw [${got}], expected [${want}]`)
+      console.error('  This is the cn() blind spot reopening - --scatter reported 0 for months.')
+      process.exit(1)
     }
   }
   // And the balanced-brace reader must not truncate on a nested object.
-  const nested = classNameExpressions(`<div className={cn("a", { "text-sm": x })} data-x="y" />`);
-  if (nested.length !== 1 || !nested[0].includes("text-sm")) {
-    console.error("SELF-TEST FAILED: nested braces truncated the className expression");
-    process.exit(1);
+  const nested = classNameExpressions(`<div className={cn("a", { "text-sm": x })} data-x="y" />`)
+  if (nested.length !== 1 || !nested[0].includes('text-sm')) {
+    console.error('SELF-TEST FAILED: nested braces truncated the className expression')
+    process.exit(1)
   }
 
-  console.log("self-test ok: sees shared imports, flags appearance and colour,");
-  console.log("leaves layout and text-center alone, separates contradicted from over-specified,");
-  console.log(`and reads class strings out of ${CN_CASES.length} cn()/clsx()/ternary spellings.`);
-  process.exit(0);
+  console.log('self-test ok: sees shared imports, flags appearance and colour,')
+  console.log('leaves layout and text-center alone, separates contradicted from over-specified,')
+  console.log(`and reads class strings out of ${CN_CASES.length} cn()/clsx()/ternary spellings.`)
+  process.exit(0)
 }
 
 // --scatter: the OTHER half of the question, and the one Jacob actually feels.
@@ -304,7 +332,7 @@ export const X = () => (<>
 // Alignment (text-left/center/right) and arbitrary sizes are counted
 // separately: alignment is LAYOUT and never in scope, while `text-[10px]` is a
 // SCALE GAP - each one is a size the token set failed to offer.
-if (process.argv.includes("--scatter")) {
+if (process.argv.includes('--scatter')) {
   // `shared/ui` IS EXCLUDED, by Jacob's ruling 35: "shared primitives can
   // carry both" - raw Tailwind sizes and semantic scale tokens are equally
   // acceptable INSIDE a component, because that is ruling 20 working rather
@@ -316,115 +344,145 @@ if (process.argv.includes("--scatter")) {
   // cannot be reached is a number everyone learns to ignore. It reported 28
   // for exactly this reason.
   const all = walk(ROOT)
-    .filter((f) => !f.includes("/scripts/"))
-    .filter((f) => !f.includes("/shared/ui/"));
-  const perDir = {}; let sized = 0, arbitrary = 0, alignment = 0, filesWith = 0;
-  const ARB = /\b(?:sm:|md:|lg:|xl:|hover:|focus:|dark:)*text-\[[^\]]+\]/g;
+    .filter((f) => !f.includes('/scripts/'))
+    .filter((f) => !f.includes('/shared/ui/'))
+  const perDir = {}
+  let sized = 0,
+    arbitrary = 0,
+    alignment = 0,
+    filesWith = 0
+  const ARB = /\b(?:sm:|md:|lg:|xl:|hover:|focus:|dark:)*text-\[[^\]]+\]/g
   for (const f of all) {
-    const src = readFileSync(f, "utf8");
-    let n = 0;
+    const src = readFileSync(f, 'utf8')
+    let n = 0
     for (const expr of classNameExpressions(src)) {
       for (const raw of classTokens(expr)) {
         // Strip the punctuation that survives splitting a cn() argument list -
         // the same clean-up classifies() needed for exactly this reason.
-        const tok = raw.replace(/^[`'",]+|[`'",]+$/g, "");
-        const bare = tok.replace(/^(?:[a-z-]+:)+/, "");
-        if (TEXT_LAYOUT.test(bare)) { alignment++; continue; }
-        if (TYPE_SIZES.test(bare)) { sized++; n++; }
+        const tok = raw.replace(/^[`'",]+|[`'",]+$/g, '')
+        const bare = tok.replace(/^(?:[a-z-]+:)+/, '')
+        if (TEXT_LAYOUT.test(bare)) {
+          alignment++
+          continue
+        }
+        if (TYPE_SIZES.test(bare)) {
+          sized++
+          n++
+        }
       }
     }
-    const arb = src.match(ARB); if (arb) { arbitrary += arb.length; n += arb.length; }
+    const arb = src.match(ARB)
+    if (arb) {
+      arbitrary += arb.length
+      n += arb.length
+    }
     if (n) {
-      filesWith++;
-      const dir = relative(ROOT, f).split("/").slice(0, 2).join("/");
-      perDir[dir] = (perDir[dir] ?? 0) + n;
+      filesWith++
+      const dir = relative(ROOT, f).split('/').slice(0, 2).join('/')
+      perDir[dir] = (perDir[dir] ?? 0) + n
     }
   }
-  console.log(`TYPOGRAPHY SCATTER - the target is ZERO, not a threshold.\n`);
-  console.log(`  ${sized} type-size/weight utilities`);
-  console.log(`  ${arbitrary} arbitrary sizes (text-[...]) - each is a SCALE GAP`);
-  console.log(`  across ${filesWith} of ${all.length} .tsx files`);
-  console.log(`  (${alignment} alignment classes counted separately - LAYOUT, never in scope)\n`);
-  for (const [dir, n] of Object.entries(perDir).sort((a, b) => b[1] - a[1]).slice(0, 15))
-    console.log(`  ${String(n).padStart(5)}  ${dir}`);
-  console.log(`\n  Zero here means a heading size changes in ONE line of typography.css.`);
+  console.log(`TYPOGRAPHY SCATTER - the target is ZERO, not a threshold.\n`)
+  console.log(`  ${sized} type-size/weight utilities`)
+  console.log(`  ${arbitrary} arbitrary sizes (text-[...]) - each is a SCALE GAP`)
+  console.log(`  across ${filesWith} of ${all.length} .tsx files`)
+  console.log(`  (${alignment} alignment classes counted separately - LAYOUT, never in scope)\n`)
+  for (const [dir, n] of Object.entries(perDir)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 15))
+    console.log(`  ${String(n).padStart(5)}  ${dir}`)
+  console.log(`\n  Zero here means a heading size changes in ONE line of typography.css.`)
   console.log(
     `  It does NOT mean zero exist: a class held in a variable, an imported\n` +
       `  variant map, or a name assembled from fragments is invisible to this.\n` +
       `  See the blind-spot list above classNameExpressions().`
-  );
-  process.exit(sized + arbitrary ? 1 : 0);
+  )
+  process.exit(sized + arbitrary ? 1 : 0)
 }
 
-const files = walk(ROOT).filter((f) => !f.includes("/scripts/"));
-const contradicted = [];
-const overSpecified = [];
-let scanned = 0, callSites = 0;
+const files = walk(ROOT).filter((f) => !f.includes('/scripts/'))
+const contradicted = []
+const overSpecified = []
+let scanned = 0,
+  callSites = 0
 
 for (const file of files) {
-  const src = readFileSync(file, "utf8");
-  const names = sharedImports(src);
-  if (!names.size) continue;
-  scanned++;
+  const src = readFileSync(file, 'utf8')
+  const names = sharedImports(src)
+  if (!names.size) continue
+  scanned++
   for (const el of elements(src, names)) {
-    callSites++;
-    const bad = el.blob.split(/\s+/).map((t) => [t, classifies(t)]).filter(([, k]) => k);
-    if (!bad.length) continue;
+    callSites++
+    const bad = el.blob
+      .split(/\s+/)
+      .map((t) => [t, classifies(t)])
+      .filter(([, k]) => k)
+    if (!bad.length) continue
     const entry = {
-      file: relative(ROOT, file), line: el.line, component: el.name,
+      file: relative(ROOT, file),
+      line: el.line,
+      component: el.name,
       classes: bad.map(([t]) => t),
       selfCancellingHover: /\b(\w[\w-]*)\b[^"]*\bhover:\1\b/.test(el.blob),
-    };
-    (el.hasVariant ? contradicted : overSpecified).push(entry);
+    }
+    ;(el.hasVariant ? contradicted : overSpecified).push(entry)
   }
 }
 
 if (!scanned) {
-  console.error("REFUSING TO REPORT: found no file importing from shared/ui.");
-  console.error("A scan that walks nothing looks exactly like a clean codebase.");
-  process.exit(1);
+  console.error('REFUSING TO REPORT: found no file importing from shared/ui.')
+  console.error('A scan that walks nothing looks exactly like a clean codebase.')
+  process.exit(1)
 }
 
-const total = contradicted.length + overSpecified.length;
-if (process.argv.includes("--json")) {
-  console.log(JSON.stringify({ scanned, callSites, contradicted, overSpecified }, null, 2));
-  process.exit(total ? 1 : 0);
+const total = contradicted.length + overSpecified.length
+if (process.argv.includes('--json')) {
+  console.log(JSON.stringify({ scanned, callSites, contradicted, overSpecified }, null, 2))
+  process.exit(total ? 1 : 0)
 }
 
-console.log(`${scanned} files import shared/ui; ${callSites} call sites with a className\n`);
+console.log(`${scanned} files import shared/ui; ${callSites} call sites with a className\n`)
 
 if (contradicted.length) {
-  console.log(`${contradicted.length} CONTRADICTED - a variant prop overridden by appearance classes.`);
-  console.log(`  The variant is decorative here: the call site asks for one look and paints another.`);
-  console.log(`  Each is either a missing variant or a wrong one.\n`);
+  console.log(
+    `${contradicted.length} CONTRADICTED - a variant prop overridden by appearance classes.`
+  )
+  console.log(
+    `  The variant is decorative here: the call site asks for one look and paints another.`
+  )
+  console.log(`  Each is either a missing variant or a wrong one.\n`)
   for (const c of contradicted.slice(0, 25))
-    console.log(`  ${c.file}:${c.line}  <${c.component}>  ${c.classes.join(" ")}`);
-  if (contradicted.length > 25) console.log(`  ... and ${contradicted.length - 25} more`);
-  console.log("");
+    console.log(`  ${c.file}:${c.line}  <${c.component}>  ${c.classes.join(' ')}`)
+  if (contradicted.length > 25) console.log(`  ... and ${contradicted.length - 25} more`)
+  console.log('')
 }
 
 if (overSpecified.length) {
-  const cancelling = overSpecified.filter((o) => o.selfCancellingHover);
-  console.log(`${overSpecified.length} OVER-SPECIFIED - appearance classes with no variant prop.`);
+  const cancelling = overSpecified.filter((o) => o.selfCancellingHover)
+  console.log(`${overSpecified.length} OVER-SPECIFIED - appearance classes with no variant prop.`)
   if (cancelling.length)
-    console.log(`  ${cancelling.length} of them CANCEL THEIR OWN HOVER (bg-x hover:bg-x) - nobody`);
-  console.log(`  writes that unless the variant's hover state is wrong.\n`);
+    console.log(`  ${cancelling.length} of them CANCEL THEIR OWN HOVER (bg-x hover:bg-x) - nobody`)
+  console.log(`  writes that unless the variant's hover state is wrong.\n`)
   for (const o of overSpecified.slice(0, 25))
-    console.log(`  ${o.file}:${o.line}  <${o.component}>  ${o.classes.join(" ")}`);
-  if (overSpecified.length > 25) console.log(`  ... and ${overSpecified.length - 25} more`);
-  console.log("");
+    console.log(`  ${o.file}:${o.line}  <${o.component}>  ${o.classes.join(' ')}`)
+  if (overSpecified.length > 25) console.log(`  ... and ${overSpecified.length - 25} more`)
+  console.log('')
 }
 
-const byComponent = {};
-for (const e of [...contradicted, ...overSpecified]) byComponent[e.component] = (byComponent[e.component] ?? 0) + 1;
-const ranked = Object.entries(byComponent).sort((a, b) => b[1] - a[1]);
+const byComponent = {}
+for (const e of [...contradicted, ...overSpecified])
+  byComponent[e.component] = (byComponent[e.component] ?? 0) + 1
+const ranked = Object.entries(byComponent).sort((a, b) => b[1] - a[1])
 if (ranked.length) {
-  console.log("by component - the top of this list is where a variant set is missing:");
-  for (const [name, n] of ranked.slice(0, 12)) console.log(`  ${String(n).padStart(4)}  ${name}`);
-  console.log("");
+  console.log('by component - the top of this list is where a variant set is missing:')
+  for (const [name, n] of ranked.slice(0, 12)) console.log(`  ${String(n).padStart(4)}  ${name}`)
+  console.log('')
 }
 
-if (!total) { console.log("no appearance overrides on shared-component call sites."); process.exit(0); }
-console.log(`${total} call site(s) style what the component should own.`);
-console.log("Layout at the call site, appearance in the component - ruling 20 in FOLLOWUPS.md.");
-process.exit(1);
+if (!total) {
+  console.log('no appearance overrides on shared-component call sites.')
+  process.exit(0)
+}
+console.log(`${total} call site(s) style what the component should own.`)
+console.log('Layout at the call site, appearance in the component - ruling 20 in FOLLOWUPS.md.')
+process.exit(1)

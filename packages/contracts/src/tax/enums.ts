@@ -2,10 +2,10 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres enum types owned by the `tax` schema.
-import { z } from "zod/v4";
+import { z } from 'zod/v4'
 
-export const SalesTaxMetalCategory = z.enum(["Gold", "Silver", "Platinum", "Palladium", "All"]);
-export type SalesTaxMetalCategory = z.infer<typeof SalesTaxMetalCategory>;
+export const SalesTaxMetalCategory = z.enum(['Gold', 'Silver', 'Platinum', 'Palladium', 'All'])
+export type SalesTaxMetalCategory = z.infer<typeof SalesTaxMetalCategory>
 
-export const SalesTaxProductType = z.enum(["Coin", "Bar", "Collectible", "All"]);
-export type SalesTaxProductType = z.infer<typeof SalesTaxProductType>;
+export const SalesTaxProductType = z.enum(['Coin', 'Bar', 'Collectible', 'All'])
+export type SalesTaxProductType = z.infer<typeof SalesTaxProductType>

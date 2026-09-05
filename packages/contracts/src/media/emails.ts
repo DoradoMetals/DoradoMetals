@@ -3,31 +3,31 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: media.emails
-import { z } from "zod/v4";
-import { EmailKind, EmailStatus } from "./enums.js";
+import { z } from 'zod/v4'
+import { EmailKind, EmailStatus } from './enums.js'
 
 export const Email = z.object({
-  "id": z.string().uuid(),
-  "kind": EmailKind,
-  "status": EmailStatus,
-  "to_address": z.string(),
-  "subject": z.string().nullable(),
-  "order_id": z.string().uuid().nullable(),
-  "user_id": z.string().uuid().nullable(),
-  "pdf_id": z.string().uuid().nullable(),
-  "provider_message_id": z.string().nullable(),
-  "error": z.string().nullable(),
-  "sent_at": z.string(),
-});
-export type Email = z.infer<typeof Email>;
+  'id': z.string().uuid(),
+  'kind': EmailKind,
+  'status': EmailStatus,
+  'to_address': z.string(),
+  'subject': z.string().nullable(),
+  'order_id': z.string().uuid().nullable(),
+  'user_id': z.string().uuid().nullable(),
+  'pdf_id': z.string().uuid().nullable(),
+  'provider_message_id': z.string().nullable(),
+  'error': z.string().nullable(),
+  'sent_at': z.string(),
+})
+export type Email = z.infer<typeof Email>
 // generated:end
-import { Order } from "../orders/orders.js";
-import { User } from "../auth/users.js";
+import { Order } from '../orders/orders.js'
+import { User } from '../auth/users.js'
 
-export const SendOrderEmailBody = z.object({ order_id: Order.shape.id }).strict();
-export type SendOrderEmailBody = z.infer<typeof SendOrderEmailBody>;
+export const SendOrderEmailBody = z.object({ order_id: Order.shape.id }).strict()
+export type SendOrderEmailBody = z.infer<typeof SendOrderEmailBody>
 
 export const EmailRecipient = User.pick({ id: true, email: true, name: true })
   .extend({ id: User.shape.id.nullable() })
-  .partial({ id: true, name: true });
-export type EmailRecipient = z.infer<typeof EmailRecipient>;
+  .partial({ id: true, name: true })
+export type EmailRecipient = z.infer<typeof EmailRecipient>

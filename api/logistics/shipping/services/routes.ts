@@ -1,4 +1,4 @@
-import express from "express";
+import express from 'express'
 
 import {
   create,
@@ -9,24 +9,21 @@ import {
   getSaleOptions,
   remove,
   update,
-} from "#logistics/shipping/services/controller.ts";
+} from '#logistics/shipping/services/controller.ts'
 
-import {
-  requireAdmin,
-  requireUser,
-} from "#shared/middleware/authMiddleware.ts";
+import { requireAdmin, requireUser } from '#shared/middleware/authMiddleware.ts'
 
-const router = express.Router();
+const router = express.Router()
 
-router.get("/sale_options", getSaleOptions);
+router.get('/sale_options', getSaleOptions)
 
-router.get("/get", requireUser, getAll);
-router.get("/get_by_carrier", requireUser, getByCarrier);
-router.get("/offered", requireUser, getOffered);
+router.get('/get', requireUser, getAll)
+router.get('/get_by_carrier', requireUser, getByCarrier)
+router.get('/offered', requireUser, getOffered)
 
-router.get("/get_one", requireAdmin, getOne);
-router.post("/create", requireAdmin, create);
-router.post("/update", requireAdmin, update);
-router.delete("/delete", requireAdmin, remove);
+router.get('/get_one', requireAdmin, getOne)
+router.post('/create', requireAdmin, create)
+router.post('/update', requireAdmin, update)
+router.delete('/delete', requireAdmin, remove)
 
-export default router;
+export default router

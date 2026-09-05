@@ -106,9 +106,7 @@ export function DropoffInstructionsSection({ shipment }: { shipment: ShipmentVie
         ))}
       </ol>
       <div className="flex flex-col gap-1">
-        <small className="flex mr-auto">
-          Please call us if you need to make shipping changes.
-        </small>
+        <small className="flex mr-auto">Please call us if you need to make shipping changes.</small>
       </div>
     </div>
   )

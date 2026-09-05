@@ -4,9 +4,7 @@
   "capturedAt": "2026-09-03",
   "collections": {
     "Color": {
-      "modes": [
-        "Dark"
-      ],
+      "modes": ["Dark"],
       "variables": [
         {
           "name": "accent/default",
@@ -257,9 +255,7 @@
       ]
     },
     "Scale": {
-      "modes": [
-        "Default"
-      ],
+      "modes": ["Default"],
       "variables": [
         {
           "name": "breakpoint/xs",
@@ -354,9 +350,7 @@
       ]
     },
     "Typography": {
-      "modes": [
-        "Default"
-      ],
+      "modes": ["Default"],
       "variables": [
         {
           "name": "letter-spacing/body",

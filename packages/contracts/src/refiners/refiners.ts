@@ -3,20 +3,20 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: refiners.refiners
-import { z } from "zod/v4";
+import { z } from 'zod/v4'
 
 export const Refiner = z.object({
-  "id": z.string().uuid(),
-  "logo": z.string().nullable(),
-  "organization_id": z.string().uuid(),
-});
-export type Refiner = z.infer<typeof Refiner>;
+  'id': z.string().uuid(),
+  'logo': z.string().nullable(),
+  'organization_id': z.string().uuid(),
+})
+export type Refiner = z.infer<typeof Refiner>
 // generated:end
-import { Organization, OrganizationSummary } from "../organizations/organizations.js";
+import { Organization, OrganizationSummary } from '../organizations/organizations.js'
 
 export const RefinerView = Refiner.omit({ organization_id: true }).extend({
   created_at: Organization.shape.created_at.nullable(),
   updated_at: Organization.shape.updated_at.nullable(),
   organization: OrganizationSummary,
-});
-export type RefinerView = z.infer<typeof RefinerView>;
+})
+export type RefinerView = z.infer<typeof RefinerView>

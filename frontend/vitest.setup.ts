@@ -1,11 +1,11 @@
-if (typeof globalThis.ResizeObserver !== "function") {
+if (typeof globalThis.ResizeObserver !== 'function') {
   globalThis.ResizeObserver = class {
     observe() {}
     unobserve() {}
     disconnect() {}
-  } as unknown as typeof ResizeObserver;
+  } as unknown as typeof ResizeObserver
 }
-if (typeof window !== "undefined" && typeof window.matchMedia !== "function") {
+if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
   window.matchMedia = (query: string) =>
     ({
       matches: false,
@@ -16,7 +16,7 @@ if (typeof window !== "undefined" && typeof window.matchMedia !== "function") {
       addEventListener: () => {},
       removeEventListener: () => {},
       dispatchEvent: () => false,
-    }) as MediaQueryList;
+    }) as MediaQueryList
 }
 
 // Gap-fills for jsdom, loaded before every test file.
@@ -27,10 +27,10 @@ if (typeof window !== "undefined" && typeof window.matchMedia !== "function") {
 //
 // URL.createObjectURL / revokeObjectURL: used by every file-preview flow
 // (ImageUpload's thumbnail). jsdom throws TypeError without them.
-if (typeof URL.createObjectURL !== "function") {
-  let n = 0;
-  URL.createObjectURL = () => `blob:vitest-${++n}`;
-  URL.revokeObjectURL = () => {};
+if (typeof URL.createObjectURL !== 'function') {
+  let n = 0
+  URL.createObjectURL = () => `blob:vitest-${++n}`
+  URL.revokeObjectURL = () => {}
 }
 
 // localStorage: Node 24 ships an EXPERIMENTAL globalThis.localStorage that is
@@ -40,11 +40,11 @@ if (typeof URL.createObjectURL !== "function") {
 // implementation of the same surface.
 const ls = (() => {
   try {
-    localStorage.setItem("__probe__", "1");
-    localStorage.removeItem("__probe__");
-    return null; // the real thing works; leave it alone
+    localStorage.setItem('__probe__', '1')
+    localStorage.removeItem('__probe__')
+    return null // the real thing works; leave it alone
   } catch {
-    const m = new Map<string, string>();
+    const m = new Map<string, string>()
     return {
       getItem: (k: string) => (m.has(k) ? m.get(k)! : null),
       setItem: (k: string, v: string) => void m.set(k, String(v)),
@@ -52,17 +52,17 @@ const ls = (() => {
       clear: () => void m.clear(),
       key: (i: number) => [...m.keys()][i] ?? null,
       get length() {
-        return m.size;
+        return m.size
       },
-    };
+    }
   }
-})();
-if (ls) Object.defineProperty(globalThis, "localStorage", { value: ls, configurable: true });
+})()
+if (ls) Object.defineProperty(globalThis, 'localStorage', { value: ls, configurable: true })
 
 // testing-library's auto-cleanup registers itself only when `afterEach` is a
 // GLOBAL, and this config keeps vitest globals off - so without this, every
 // render accumulates in the shared jsdom document and the second test finds
 // the first test's buttons.
-import { afterEach } from "vitest";
-import { cleanup } from "@testing-library/react";
-afterEach(cleanup);
+import { afterEach } from 'vitest'
+import { cleanup } from '@testing-library/react'
+afterEach(cleanup)

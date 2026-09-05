@@ -77,5 +77,3 @@ interface PackageOption {
 // packageOptions - the hardcoded box record - died with D208/112: the boxes
 // are shipping.packages rows served by GET /api/shipping/packages, and the
 // minimum billable weights ride the rows.
-
-

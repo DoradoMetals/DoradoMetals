@@ -30,16 +30,16 @@ export function ImageUpload({ path }: { path: string }) {
   const state = uploadMutation.isPending
     ? ('uploading' as const)
     : uploadMutation.isError
-    ? ('error' as const)
-    : ('complete' as const)
+      ? ('error' as const)
+      : ('complete' as const)
 
   const meta = uploadMutation.isPending
     ? 'Uploading…'
     : uploadMutation.isError
-    ? 'Upload failed — remove and try again.'
-    : file
-    ? `${(file.size / 1024 / 1024).toFixed(1)} MB`
-    : undefined
+      ? 'Upload failed — remove and try again.'
+      : file
+        ? `${(file.size / 1024 / 1024).toFixed(1)} MB`
+        : undefined
 
   return (
     <div className="w-full max-w-md space-y-4 rounded-lg border border-border bg-card p-6">

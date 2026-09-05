@@ -67,9 +67,7 @@ export default function RefinerValues({ view }: PurchaseOrderDrawerContentProps)
           <div className="grid grid-cols-2 w-full gap-4 sm:flex sm:items-center sm:justify-between sm:gap-4">
             {refinerSpotPrices.map((spot) => (
               <div key={spot.id} className="flex flex-col w-full">
-                <small className="flex items-center justify-between w-full">
-                  {spot.metal_id}
-                </small>
+                <small className="flex items-center justify-between w-full">{spot.metal_id}</small>
 
                 <div className="flex items-center gap-1 w-full">
                   <Input
@@ -86,7 +84,9 @@ export default function RefinerValues({ view }: PurchaseOrderDrawerContentProps)
                       updateSpot.mutate({
                         refiner_order_id: refinerOrder.id,
                         order_id: order.id,
-                        patch: { spots: [{ metal_id: spot.metal_id, bid: Number(e.target.value) }] },
+                        patch: {
+                          spots: [{ metal_id: spot.metal_id, bid: Number(e.target.value) }],
+                        },
                       })
                     }}
                   />

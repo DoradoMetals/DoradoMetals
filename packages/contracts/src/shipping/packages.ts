@@ -3,31 +3,36 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: shipping.packages
-import { z } from "zod/v4";
+import { z } from 'zod/v4'
 
 export const Package = z.object({
-  "id": z.string().uuid(),
-  "carrier_id": z.string().uuid().nullable(),
-  "image_id": z.string().uuid().nullable(),
-  "created_by": z.string().uuid().nullable(),
-  "updated_by": z.string().uuid().nullable(),
-  "length": z.number().nullable(),
-  "width": z.number().nullable(),
-  "height": z.number().nullable(),
-  "created_at": z.string(),
-  "updated_at": z.string(),
-  "label": z.string(),
-  "is_carrier_packaging": z.boolean(),
-  "min_weight_lb": z.number().nullable(),
-});
-export type Package = z.infer<typeof Package>;
+  'id': z.string().uuid(),
+  'carrier_id': z.string().uuid().nullable(),
+  'image_id': z.string().uuid().nullable(),
+  'created_by': z.string().uuid().nullable(),
+  'updated_by': z.string().uuid().nullable(),
+  'length': z.number().nullable(),
+  'width': z.number().nullable(),
+  'height': z.number().nullable(),
+  'created_at': z.string(),
+  'updated_at': z.string(),
+  'label': z.string(),
+  'is_carrier_packaging': z.boolean(),
+  'min_weight_lb': z.number().nullable(),
+})
+export type Package = z.infer<typeof Package>
 // generated:end
 
-export const PackageRead = Package.omit({ created_by: true, updated_by: true });
-export type PackageRead = z.infer<typeof PackageRead>;
+export const PackageRead = Package.omit({ created_by: true, updated_by: true })
+export type PackageRead = z.infer<typeof PackageRead>
 
 export const OfferedPackage = Package.pick({
-  id: true, label: true, length: true, width: true, height: true,
-  is_carrier_packaging: true, min_weight_lb: true,
-});
-export type OfferedPackage = z.infer<typeof OfferedPackage>;
+  id: true,
+  label: true,
+  length: true,
+  width: true,
+  height: true,
+  is_carrier_packaging: true,
+  min_weight_lb: true,
+})
+export type OfferedPackage = z.infer<typeof OfferedPackage>

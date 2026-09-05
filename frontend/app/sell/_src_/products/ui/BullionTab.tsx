@@ -29,7 +29,6 @@ export default function BullionTab() {
     generic: !branded,
   })
 
-
   return (
     <div className="relative flex flex-col gap-2 mt-8 mb-8 w-full">
       <div className="flex items-center justify-between w-full gap-2">
@@ -87,11 +86,7 @@ export default function BullionTab() {
 
       <div className="flex flex-col gap-6 sm:gap-8 mt-4">
         {groups.map((group) => (
-          <BullionCard
-            key={group.default.id}
-            product={group.default}
-            variants={group.variants}
-          />
+          <BullionCard key={group.default.id} product={group.default} variants={group.variants} />
         ))}
       </div>
     </div>

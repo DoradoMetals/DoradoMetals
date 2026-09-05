@@ -1,6 +1,15 @@
 'use client'
 
-import { Divider, Input, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@dorado/components'
+import {
+  Divider,
+  Input,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@dorado/components'
 import { cn } from '@/shared/utils/cn'
 import { PurchaseOrderDrawerContentProps } from '@/shared/types/purchaseOrders'
 import { useSpotPrices } from '@/shared/hooks/spots/queries'
@@ -112,15 +121,13 @@ export default function ActualsEditor({ view }: PurchaseOrderDrawerContentProps)
                               defaultValue={
                                 s?.purity != null ? (s.purity * 100).toFixed(1).toString() : ''
                               }
-                               placeholder="Enter Actual Purity"
+                              placeholder="Enter Actual Purity"
                               onBlur={(e) => {
                                 const parsed = parsePercentToDecimal(e.target.value)
                                 mutateActuals(item, { purity_actual: parsed })
                               }}
                             />
-                            <small className="select-none whitespace-nowrap">
-                              %
-                            </small>
+                            <small className="select-none whitespace-nowrap">%</small>
                           </div>
                         </TableCell>
 

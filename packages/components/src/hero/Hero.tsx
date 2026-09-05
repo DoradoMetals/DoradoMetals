@@ -1,22 +1,20 @@
 'use client'
 
-import * as React from "react";
+import * as React from 'react'
 
-import { Badge } from "../badge/Badge";
-import { Button } from "../button/Button";
+import { Badge } from '../badge/Badge'
+import { Button } from '../button/Button'
 
 export type HeroProps = {
-  sellerCount: number;
-};
+  sellerCount: number
+}
 
 export function Hero({ sellerCount }: HeroProps) {
   return (
     <section className="flex flex-col items-center gap-md bg-background px-6 py-16 text-center sm:p-3xl">
       <Badge>Live spot pricing, locked at checkout</Badge>
 
-      <h1 className="max-w-2xl text-balance">
-        Sell your precious metals without the guesswork
-      </h1>
+      <h1 className="max-w-2xl text-balance">Sell your precious metals without the guesswork</h1>
 
       <p className="max-w-xl text-balance text-h5 text-muted-foreground">
         Insured shipping, transparent assay, and payout the day your metal arrives.
@@ -32,8 +30,8 @@ export function Hero({ sellerCount }: HeroProps) {
       </div>
 
       <p className="text-micro text-placeholder">
-        Trusted by {sellerCount.toLocaleString("en-US")}+ sellers · A+ BBB · Fully insured
+        Trusted by {sellerCount.toLocaleString('en-US')}+ sellers · A+ BBB · Fully insured
       </p>
     </section>
-  );
+  )
 }

@@ -1,4 +1,4 @@
-import express from "express";
+import express from 'express'
 
 import {
   getCheckout,
@@ -7,16 +7,16 @@ import {
   getCheckoutItems,
   putCheckoutItems,
   deleteCheckoutItems,
-} from "#checkout/controller.ts";
-import { requireUser } from "#shared/middleware/authMiddleware.ts";
+} from '#checkout/controller.ts'
+import { requireUser } from '#shared/middleware/authMiddleware.ts'
 
-const router = express.Router();
+const router = express.Router()
 
-router.get("/", requireUser, getCheckout);
-router.get("/items", requireUser, getCheckoutItems);
-router.put("/items", requireUser, putCheckoutItems);
-router.delete("/items", requireUser, deleteCheckoutItems);
-router.patch("/", requireUser, patchCheckout);
-router.post("/payout", requireUser, saveCheckoutPayout);
+router.get('/', requireUser, getCheckout)
+router.get('/items', requireUser, getCheckoutItems)
+router.put('/items', requireUser, putCheckoutItems)
+router.delete('/items', requireUser, deleteCheckoutItems)
+router.patch('/', requireUser, patchCheckout)
+router.post('/payout', requireUser, saveCheckoutPayout)
 
-export default router;
+export default router

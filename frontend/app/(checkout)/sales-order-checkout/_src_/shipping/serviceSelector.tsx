@@ -23,10 +23,7 @@ export default function ServiceSelector({
   const patchFulfillment = usePatchFulfillment()
   const { data: services = [] } = useSaleShippingServices()
 
-  const options = useMemo(
-    () => services.filter((svc) => svc.display && svc.code),
-    [services]
-  )
+  const options = useMemo(() => services.filter((svc) => svc.display && svc.code), [services])
   const selected = options.find((svc) => svc.id === fulfillment?.parcel?.carrier_service_id)
 
   return (

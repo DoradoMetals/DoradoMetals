@@ -118,17 +118,17 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
                 }
               >
                 {variants.map((option) => (
-                    <FloatingButtonItem key={option.id}>
-                      <RadioOption
-                        value={option.name}
-                        variant="segment"
-                        className="h-8 w-10 px-0 xs:w-14 sm:w-15"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                        }}
-                      >
-                        {option.variant_label}
-                      </RadioOption>
+                  <FloatingButtonItem key={option.id}>
+                    <RadioOption
+                      value={option.name}
+                      variant="segment"
+                      className="h-8 w-10 px-0 xs:w-14 sm:w-15"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                      }}
+                    >
+                      {option.variant_label}
+                    </RadioOption>
                   </FloatingButtonItem>
                 ))}
               </FloatingButton>
@@ -154,7 +154,12 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
                     content={
                       <div className="flex w-56 flex-col gap-2">
                         <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
-                          <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-8')}>
+                          <div
+                            className={cn(
+                              'flex w-full items-center justify-between gap-2',
+                              'items-start pl-8'
+                            )}
+                          >
                             <small>{selectedProduct.metal_id} Spot Price</small>
                             <p>
                               <Amount value={spot?.ask ?? 0} />
@@ -163,7 +168,12 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
 
                           <div className="flex w-full items-start">
                             <X size={16} className="text-subtle" />
-                            <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-4')}>
+                            <div
+                              className={cn(
+                                'flex w-full items-center justify-between gap-2',
+                                'items-start pl-4'
+                              )}
+                            >
                               <small>Content (oz)</small>
                               <p>{selectedProduct.content}</p>
                             </div>
@@ -176,7 +186,12 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
                               <Minus size={16} className="text-subtle" />
                             )}
 
-                            <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-4')}>
+                            <div
+                              className={cn(
+                                'flex w-full items-center justify-between gap-2',
+                                'items-start pl-4'
+                              )}
+                            >
                               <small>Premium</small>
                               <p>
                                 <Amount value={Math.abs(overOrUnder)} />
@@ -187,7 +202,12 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
 
                         <div className="flex w-full items-start">
                           <Equal size={16} className="text-subtle" />
-                          <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-4')}>
+                          <div
+                            className={cn(
+                              'flex w-full items-center justify-between gap-2',
+                              'items-start pl-4'
+                            )}
+                          >
                             <small>Total</small>
                             <strong>
                               <Amount value={price} />
@@ -197,11 +217,7 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
                       </div>
                     }
                   >
-                    <Button
-                      variant="tertiary"
-                      size="iconXs"
-                      onClick={(e) => e.stopPropagation()}
-                    >
+                    <Button variant="tertiary" size="iconXs" onClick={(e) => e.stopPropagation()}>
                       <CircleHelp size={20} />
                     </Button>
                   </Tooltip>

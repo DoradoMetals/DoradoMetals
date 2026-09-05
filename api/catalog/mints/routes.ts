@@ -1,9 +1,9 @@
-import express from "express";
-import { listMints } from "#catalog/mints/controller.ts";
-import { requireAdmin } from "#shared/middleware/authMiddleware.ts";
+import express from 'express'
+import { listMints } from '#catalog/mints/controller.ts'
+import { requireAdmin } from '#shared/middleware/authMiddleware.ts'
 
-const router = express.Router();
+const router = express.Router()
 
-router.get("/", requireAdmin, listMints);
+router.get('/', requireAdmin, listMints)
 
-export default router;
+export default router

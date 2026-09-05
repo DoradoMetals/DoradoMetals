@@ -1,4 +1,4 @@
-import { formatPhoneNumber } from "#shared/utils/formatPhoneNumber.ts";
+import { formatPhoneNumber } from '#shared/utils/formatPhoneNumber.ts'
 import {
   LOGO_SRC,
   ICON_PIN_SRC,
@@ -8,10 +8,10 @@ import {
   FONT_POPPINS_400_SRC,
   FONT_POPPINS_600_SRC,
   FONT_POPPINS_700_SRC,
-} from "#media/pdfs/render/assets.ts";
+} from '#media/pdfs/render/assets.ts'
 
 function renderHeader(): string {
-  const phone = formatPhoneNumber(process.env.FEDEX_DORADO_PHONE_NUMBER);
+  const phone = formatPhoneNumber(process.env.FEDEX_DORADO_PHONE_NUMBER)
 
   return `
     <div class="header">
@@ -46,13 +46,13 @@ function renderHeader(): string {
 
       <div class="header-divider"></div>
     </div>
-  `;
+  `
 }
 
 interface ShellInput {
-  title: string;
-  subtitle?: string | null;
-  bodyHtml: string;
+  title: string
+  subtitle?: string | null
+  bodyHtml: string
 }
 
 export function renderShell({ title, subtitle, bodyHtml }: ShellInput): string {
@@ -65,12 +65,12 @@ export function renderShell({ title, subtitle, bodyHtml }: ShellInput): string {
         <div class="page">
           ${renderHeader()}
           <div class="packing-title">${title}</div>
-          ${subtitle ? `<div class="packing-subtitle">${subtitle}</div>` : ""}
+          ${subtitle ? `<div class="packing-subtitle">${subtitle}</div>` : ''}
           ${bodyHtml}
         </div>
       </body>
     </html>
-  `;
+  `
 }
 
 const baseStyles = `
@@ -327,4 +327,4 @@ const baseStyles = `
   .invoice-card-row span:last-child {
     font-weight: 600;
   }
-`;
+`

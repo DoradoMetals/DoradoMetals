@@ -3,16 +3,16 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: places.location_hours
-import { z } from "zod/v4";
+import { z } from 'zod/v4'
 
 export const LocationHours = z.object({
-  "id": z.string().uuid(),
-  "location_id": z.string().uuid(),
-  "weekday": z.number().int(),
-  "open_time": z.string(),
-  "close_time": z.string(),
-  "sort_order": z.number().int(),
-  "notes": z.string().nullable(),
-});
-export type LocationHours = z.infer<typeof LocationHours>;
+  'id': z.string().uuid(),
+  'location_id': z.string().uuid(),
+  'weekday': z.number().int(),
+  'open_time': z.string(),
+  'close_time': z.string(),
+  'sort_order': z.number().int(),
+  'notes': z.string().nullable(),
+})
+export type LocationHours = z.infer<typeof LocationHours>
 // generated:end

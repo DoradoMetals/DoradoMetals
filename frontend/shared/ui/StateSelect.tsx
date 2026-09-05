@@ -103,7 +103,9 @@ function StateAutocompleteRow<TFieldValues extends FieldValues>({
         disabled={disabled}
         empty="No states found."
       />
-      {fieldState.error?.message ? <p className="text-destructive">{fieldState.error.message}</p> : null}
+      {fieldState.error?.message ? (
+        <p className="text-destructive">{fieldState.error.message}</p>
+      ) : null}
     </>
   )
 }

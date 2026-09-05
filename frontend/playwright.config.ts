@@ -1,7 +1,7 @@
-import { defineConfig, devices } from "@playwright/test";
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
+import { defineConfig, devices } from '@playwright/test'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
 
 // End-to-end tests, deliberately separate from `pnpm test`.
 //
@@ -22,24 +22,24 @@ import path from "node:path";
 // config falls back to Playwright's own channel so that `playwright install`
 // remains a valid way out rather than this being a dead end.
 function findChrome(): string | undefined {
-  if (process.env.PLAYWRIGHT_CHROME) return process.env.PLAYWRIGHT_CHROME;
+  if (process.env.PLAYWRIGHT_CHROME) return process.env.PLAYWRIGHT_CHROME
 
-  const root = path.join(os.homedir(), ".cache", "puppeteer", "chrome");
-  if (!fs.existsSync(root)) return undefined;
+  const root = path.join(os.homedir(), '.cache', 'puppeteer', 'chrome')
+  if (!fs.existsSync(root)) return undefined
 
   // Newest first, resolved at config time. Hardcoding linux-148.0.7778.97
   // would break silently the next time puppeteer updates.
   const candidates = fs
     .readdirSync(root)
-    .map((dir) => path.join(root, dir, "chrome-linux64", "chrome"))
+    .map((dir) => path.join(root, dir, 'chrome-linux64', 'chrome'))
     .filter((p) => fs.existsSync(p))
     .sort()
-    .reverse();
+    .reverse()
 
-  return candidates[0];
+  return candidates[0]
 }
 
-const chrome = findChrome();
+const chrome = findChrome()
 
 // WHERE THESE RUN. Against whatever BASE_URL points at, defaulting to a local
 // `next dev`. That frontend talks to the API named in its own environment,
@@ -49,14 +49,14 @@ const chrome = findChrome();
 // deliberate rather than incidental: the guard below refuses a production-
 // looking host outright. An E2E suite fills in forms and submits them; pointed
 // at prod it would place real orders against real customers.
-const baseURL = process.env.BASE_URL ?? "http://localhost:3000";
+const baseURL = process.env.BASE_URL ?? 'http://localhost:3000'
 
 if (/doradometals\.com/i.test(baseURL) && !process.env.I_MEANT_PRODUCTION) {
   throw new Error(
     `refusing to run end-to-end tests against ${baseURL}.\n` +
-      "These drive real forms and submit them. Point BASE_URL at a local or " +
-      "staging frontend."
-  );
+      'These drive real forms and submit them. Point BASE_URL at a local or ' +
+      'staging frontend.'
+  )
 }
 
 export default defineConfig({
@@ -74,9 +74,9 @@ export default defineConfig({
   // Cross-route journeys - a checkout touches products, cart, addresses and
   // payments - belong in shared/tests rather than being filed under whichever
   // route they happen to start in.
-  testDir: ".",
-  testMatch: ["**/tests/*.e2e.ts", "**/tests/**/*.e2e.ts", "**/tests/auth.setup.ts"],
-  testIgnore: ["**/node_modules/**", "**/.next/**"],
+  testDir: '.',
+  testMatch: ['**/tests/*.e2e.ts', '**/tests/**/*.e2e.ts', '**/tests/auth.setup.ts'],
+  testIgnore: ['**/node_modules/**', '**/.next/**'],
   // A failing E2E test is usually a real failure, but a flaky one wastes more
   // time than it saves. One retry locally, two in CI, and `retries` is the knob
   // to turn down if a test starts passing only on the retry - that is a bug in
@@ -85,37 +85,37 @@ export default defineConfig({
   workers: process.env.CI ? 2 : undefined,
   timeout: 30_000,
   expect: { timeout: 10_000 },
-  reporter: process.env.CI ? [["github"], ["list"]] : [["list"]],
+  reporter: process.env.CI ? [['github'], ['list']] : [['list']],
   use: {
     baseURL,
-    trace: "retain-on-failure",
-    screenshot: "only-on-failure",
-    ...(chrome ? { launchOptions: { executablePath: chrome } } : { channel: "chromium" }),
+    trace: 'retain-on-failure',
+    screenshot: 'only-on-failure',
+    ...(chrome ? { launchOptions: { executablePath: chrome } } : { channel: 'chromium' }),
   },
   projects: [
     // Runs first and once: signs the e2e accounts in and saves their sessions.
-    { name: "setup", testMatch: /auth\.setup\.ts$/ },
+    { name: 'setup', testMatch: /auth\.setup\.ts$/ },
 
     // Public pages. No session, because most of the app must work without one -
     // and a suite that is signed in everywhere cannot notice when something
     // public quietly starts requiring auth.
     {
-      name: "public",
-      use: { ...devices["Desktop Chrome"] },
+      name: 'public',
+      use: { ...devices['Desktop Chrome'] },
       testIgnore: [/\/authed\//, /auth\.setup\.ts$/],
     },
 
     // Signed in, one project per role, reusing the saved state.
     {
-      name: "customer",
-      use: { ...devices["Desktop Chrome"], storageState: "playwright/.auth/customer.json" },
-      dependencies: ["setup"],
+      name: 'customer',
+      use: { ...devices['Desktop Chrome'], storageState: 'playwright/.auth/customer.json' },
+      dependencies: ['setup'],
       testMatch: /\/authed\/.*customer.*\.e2e\.ts$/,
     },
     {
-      name: "admin",
-      use: { ...devices["Desktop Chrome"], storageState: "playwright/.auth/admin.json" },
-      dependencies: ["setup"],
+      name: 'admin',
+      use: { ...devices['Desktop Chrome'], storageState: 'playwright/.auth/admin.json' },
+      dependencies: ['setup'],
       testMatch: /\/authed\/.*admin.*\.e2e\.ts$/,
     },
   ],
@@ -126,9 +126,9 @@ export default defineConfig({
   webServer: process.env.BASE_URL
     ? undefined
     : {
-        command: "pnpm dev",
-        url: "http://localhost:3000",
+        command: 'pnpm dev',
+        url: 'http://localhost:3000',
         reuseExistingServer: !process.env.CI,
         timeout: 120_000,
       },
-});
+})

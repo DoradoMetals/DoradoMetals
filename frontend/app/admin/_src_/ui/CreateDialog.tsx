@@ -97,9 +97,7 @@ export function AddNewDialog({
       <DialogOverlay>
         <DialogContent className={className}>
           <DialogHeader>
-            <DialogTitle className="eyebrow mr-auto mb-2">
-              {createConfig.title}
-            </DialogTitle>
+            <DialogTitle className="eyebrow mr-auto mb-2">{createConfig.title}</DialogTitle>
           </DialogHeader>
 
           <div className="flex flex-col w-full justify-center items-center">

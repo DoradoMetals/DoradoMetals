@@ -22,7 +22,7 @@ const MenuContent = React.forwardRef<
         'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
         'data-[state=closed]:animate-out data-[state=closed]:fade-out-0',
         'motion-reduce:animate-none',
-        className,
+        className
       )}
       {...props}
     />
@@ -41,9 +41,9 @@ const MenuItem = React.forwardRef<
     className={cn(
       'flex min-h-9 cursor-default select-none items-center gap-2 rounded-md px-2 text-small outline-none',
       'data-[highlighted]:bg-accent data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
-      "[&_svg]:size-3.5 [&_svg]:shrink-0 [&_svg]:text-muted-foreground",
+      '[&_svg]:size-3.5 [&_svg]:shrink-0 [&_svg]:text-muted-foreground',
       intent === 'danger' && 'text-destructive [&_svg]:text-destructive',
-      className,
+      className
     )}
     {...props}
   />
@@ -76,12 +76,17 @@ MenuSeparator.displayName = 'MenuSeparator'
 
 function MenuShortcut({ className, ...props }: React.HTMLAttributes<HTMLSpanElement>) {
   return (
-    <span
-      aria-hidden
-      className={cn('ml-auto text-micro text-placeholder', className)}
-      {...props}
-    />
+    <span aria-hidden className={cn('ml-auto text-micro text-placeholder', className)} {...props} />
   )
 }
 
-export { Menu, MenuTrigger, MenuGroup, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuShortcut }
+export {
+  Menu,
+  MenuTrigger,
+  MenuGroup,
+  MenuContent,
+  MenuItem,
+  MenuLabel,
+  MenuSeparator,
+  MenuShortcut,
+}

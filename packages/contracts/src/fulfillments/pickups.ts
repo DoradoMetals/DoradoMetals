@@ -3,26 +3,28 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: fulfillments.pickups
-import { z } from "zod/v4";
+import { z } from 'zod/v4'
 
 export const FulfillmentPickup = z.object({
-  "id": z.string().uuid(),
-  "fulfillment_id": z.string().uuid(),
-  "pickup_address_id": z.string().uuid().nullable(),
-  "assigned_employee_id": z.string().uuid().nullable(),
-  "start_time": z.string().nullable(),
-  "end_time": z.string().nullable(),
-});
-export type FulfillmentPickup = z.infer<typeof FulfillmentPickup>;
+  'id': z.string().uuid(),
+  'fulfillment_id': z.string().uuid(),
+  'pickup_address_id': z.string().uuid().nullable(),
+  'assigned_employee_id': z.string().uuid().nullable(),
+  'start_time': z.string().nullable(),
+  'end_time': z.string().nullable(),
+})
+export type FulfillmentPickup = z.infer<typeof FulfillmentPickup>
 // generated:end
-export const FulfillmentPickupPatch = FulfillmentPickup.omit({ id: true }).partial();
-export type FulfillmentPickupPatch = z.infer<typeof FulfillmentPickupPatch>;
+export const FulfillmentPickupPatch = FulfillmentPickup.omit({ id: true }).partial()
+export type FulfillmentPickupPatch = z.infer<typeof FulfillmentPickupPatch>
 
-export const FulfillmentPickupPatchColumns = FulfillmentPickupPatch.omit({ fulfillment_id: true });
-export type FulfillmentPickupPatchColumns = z.infer<typeof FulfillmentPickupPatchColumns>;
+export const FulfillmentPickupPatchColumns = FulfillmentPickupPatch.omit({ fulfillment_id: true })
+export type FulfillmentPickupPatchColumns = z.infer<typeof FulfillmentPickupPatchColumns>
 
-export const FulfillmentSchedulePickupBody = z.object({
-  fulfillment_id: FulfillmentPickup.shape.fulfillment_id,
-  pickup: FulfillmentPickupPatch.omit({ fulfillment_id: true }).strict(),
-}).strict();
-export type FulfillmentSchedulePickupBody = z.infer<typeof FulfillmentSchedulePickupBody>;
+export const FulfillmentSchedulePickupBody = z
+  .object({
+    fulfillment_id: FulfillmentPickup.shape.fulfillment_id,
+    pickup: FulfillmentPickupPatch.omit({ fulfillment_id: true }).strict(),
+  })
+  .strict()
+export type FulfillmentSchedulePickupBody = z.infer<typeof FulfillmentSchedulePickupBody>

@@ -69,8 +69,7 @@ export default function USMap({ selected, setSelected }: USMapProps) {
         viewBox="0 0 960 600"
         preserveAspectRatio="xMidYMid meet"
         style={{ width: '100%', height: 'auto', touchAction: 'manipulation' }}
-      >
-      </svg>
+      ></svg>
     </div>
   )
 }

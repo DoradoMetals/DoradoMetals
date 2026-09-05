@@ -13,7 +13,7 @@
 // customer a payout rate and the other paid it. NOTHING in the browser called
 // them: every rate a customer sees comes from a /quotes endpoint. Deleting the
 // copy retires the drift risk rather than policing it.
-import type { AdminRate, RateRead } from "@dorado/contracts";
+import type { AdminRate, RateRead } from '@dorado/contracts'
 
 export type Rate = RateRead
 

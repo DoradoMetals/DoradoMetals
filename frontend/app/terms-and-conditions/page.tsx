@@ -76,9 +76,7 @@ export default function TermsAndConditions() {
                 Have full legal ownership of any Products you sell, free of liens or third-party
                 claims.
               </li>
-              <li>
-                Ensure all information provided is accurate and complete.
-              </li>
+              <li>Ensure all information provided is accurate and complete.</li>
               <li>
                 Agree that any sale or purchase complies with all applicable laws and regulations.
               </li>
@@ -109,9 +107,7 @@ export default function TermsAndConditions() {
                   Once an order is placed, it is locked in and final—no cancellations or
                   modifications.
                 </li>
-                <li>
-                  All orders require full payment within the specified timeframe.
-                </li>
+                <li>All orders require full payment within the specified timeframe.</li>
               </ul>
             </section>
 
@@ -121,9 +117,7 @@ export default function TermsAndConditions() {
                 <li>Bank Wire Transfer</li>
                 <li>ACH Transfer</li>
                 <li>Bullion Credit </li>
-                <li>
-                  Credit/Debit Card (additional processing fees may apply){' '}
-                </li>
+                <li>Credit/Debit Card (additional processing fees may apply) </li>
               </ul>
               <p>
                 Payments made by credit/debit card are processed securely via Stripe, Inc. Stripe
@@ -176,12 +170,9 @@ export default function TermsAndConditions() {
               <p>
                 You may request additional insurance for your Products up to $50,000. If you believe
                 your gold jewelry or other Products are worth more than $5,000.00, you must call us
-                at{' '}
-                <Link href="tel:8172034786">
-                  (817) 203-4786
-                </Link>
-                , receive written approval for the additional insurance and follow all instructions
-                and procedures provided by Company prior to your shipment of the Products.
+                at <Link href="tel:8172034786">(817) 203-4786</Link>, receive written approval for
+                the additional insurance and follow all instructions and procedures provided by
+                Company prior to your shipment of the Products.
               </p>
             </section>
 
@@ -195,12 +186,8 @@ export default function TermsAndConditions() {
                 forth below are:
               </p>
               <ul>
-                <li>
-                  Ship Products using a Company generated pre-paid shipping label.
-                </li>
-                <li>
-                  Take pictures of your Products for your records prior to packaging them.
-                </li>
+                <li>Ship Products using a Company generated pre-paid shipping label.</li>
+                <li>Take pictures of your Products for your records prior to packaging them.</li>
                 <li>
                   Products must be securely packaged to ensure the safety of the Products either
                   using the supplied materials or your own packaging.
@@ -235,10 +222,7 @@ export default function TermsAndConditions() {
                 </li>
               </ul>
               <p>
-                Please contact customer support at{' '}
-                <Link href="tel:8172034786">
-                  (817) 203-4786
-                </Link>{' '}
+                Please contact customer support at <Link href="tel:8172034786">(817) 203-4786</Link>{' '}
                 if you have any questions concerning the Required Shipping Procedures prior to
                 shipping your Products to Company.
               </p>
@@ -266,23 +250,22 @@ export default function TermsAndConditions() {
             <section>
               <h3>Return Policy</h3>
               <p>
-                If your Products are to be returned, we will return your items at our shipping
-                &amp; insurance cost. Return shipments will be insured for the appraised value + 20%
-                (not exceeding melt value). If your item is valued higher, you must request and pay
-                for additional insurance before shipping. We are not responsible for loss or damage
+                If your Products are to be returned, we will return your items at our shipping &amp;
+                insurance cost. Return shipments will be insured for the appraised value + 20% (not
+                exceeding melt value). If your item is valued higher, you must request and pay for
+                additional insurance before shipping. We are not responsible for loss or damage
                 beyond the insured amount once the package is with the carrier. Returned Products
-                are sent to you via FedEx, UPS, USPS or other delivery service
-                ("Carrier") of our choosing. We will require a signature upon delivery. If you
-                choose to receive your Products without signature, we will not be responsible for
-                loss or damage to your Products. Upon delivery of returned Products by the Carrier
-                as indicated by the Carrier records, the Company assumes no further liability as to
-                the loss of the Products. You must notify us immediately of any change of address.
-                We will not be responsible for the loss of your Products if the Carrier is unable to
-                deliver to the address on file. If the carrier fails to deliver your Products and
-                returns it to us, we will attempt to send the Products a second time. If Products
-                are returned to us a second time, we will consider it abandoned and discard it
-                unless you claim it within 30 days from the date we first attempted to mail your
-                Products back to you.
+                are sent to you via FedEx, UPS, USPS or other delivery service ("Carrier") of our
+                choosing. We will require a signature upon delivery. If you choose to receive your
+                Products without signature, we will not be responsible for loss or damage to your
+                Products. Upon delivery of returned Products by the Carrier as indicated by the
+                Carrier records, the Company assumes no further liability as to the loss of the
+                Products. You must notify us immediately of any change of address. We will not be
+                responsible for the loss of your Products if the Carrier is unable to deliver to the
+                address on file. If the carrier fails to deliver your Products and returns it to us,
+                we will attempt to send the Products a second time. If Products are returned to us a
+                second time, we will consider it abandoned and discard it unless you claim it within
+                30 days from the date we first attempted to mail your Products back to you.
               </p>
             </section>
 
@@ -338,26 +321,20 @@ export default function TermsAndConditions() {
                 If your Products has been lost or damaged in transit to or from Company and such
                 loss or damage would qualify as a claim under our Guarantee Against Loss or
                 Additional Insurance (“Claim”), you may file a Claim by emailing us at{' '}
-                <Link href="mailto:support@doradometals.com">
-                  support@doradometals.com
-                </Link>{' '}
-                or call{' '}
-                <Link href="tel:8172034786">
-                  (817) 203-4786
-                </Link>
-                . You must file the Claim with us within ten (10) days of the date the Products were
-                sent to or from the Company. For a Claim to qualify you must have followed the
-                Required Shipping Procedures and provide Company with all information as required or
-                requested. Failure to comply with the Claim requirements or procedures will negate
-                your Claim. Please note, due to fraud, Company shall not be liable for Products
-                which are delivered in packages that are empty or missing contents since Company has
-                no way of knowing if the packages were tampered, damaged or emptied before shipping
-                Products for the purpose of making a Claim. Company reserves the right, in its sole
-                discretion, to reject delivery of any mail, envelope or package which appears to be
-                empty, damaged, opened, or tampered with, and to return such mail, envelope or
-                package to you. Company shall have no liability to you for any such attempted
-                delivery or return of such Products whether or not Company accepts or rejects the
-                delivery.
+                <Link href="mailto:support@doradometals.com">support@doradometals.com</Link> or call{' '}
+                <Link href="tel:8172034786">(817) 203-4786</Link>. You must file the Claim with us
+                within ten (10) days of the date the Products were sent to or from the Company. For
+                a Claim to qualify you must have followed the Required Shipping Procedures and
+                provide Company with all information as required or requested. Failure to comply
+                with the Claim requirements or procedures will negate your Claim. Please note, due
+                to fraud, Company shall not be liable for Products which are delivered in packages
+                that are empty or missing contents since Company has no way of knowing if the
+                packages were tampered, damaged or emptied before shipping Products for the purpose
+                of making a Claim. Company reserves the right, in its sole discretion, to reject
+                delivery of any mail, envelope or package which appears to be empty, damaged,
+                opened, or tampered with, and to return such mail, envelope or package to you.
+                Company shall have no liability to you for any such attempted delivery or return of
+                such Products whether or not Company accepts or rejects the delivery.
               </p>
             </section>
 
@@ -427,8 +404,8 @@ export default function TermsAndConditions() {
           <section>
             <h2>Unclaimed Items &amp; Abandonment</h2>
             <p>
-              Items returned twice due to
-              failed delivery will be considered abandoned after 30 days.
+              Items returned twice due to failed delivery will be considered abandoned after 30
+              days.
             </p>
           </section>
 
@@ -473,11 +450,8 @@ export default function TermsAndConditions() {
               calls, including the use of automatic dialing systems to your cellular, home or work
               numbers, as well as any other telephone number you provided. You may unsubscribe from
               receiving emails at any time, by calling{' '}
-              <Link href="tel:8172034786">
-                (817) 203-4786
-              </Link>
-              . Telephone conversations with our employees, agents and independent contractors may
-              be monitored and/or recorded.
+              <Link href="tel:8172034786">(817) 203-4786</Link>. Telephone conversations with our
+              employees, agents and independent contractors may be monitored and/or recorded.
             </p>
           </section>
 
@@ -492,9 +466,7 @@ export default function TermsAndConditions() {
               Transaction(s) with us. Standard telephone minute and text charges may apply. We will
               not use auto dialed or prerecorded message calls or texts to contact you for marketing
               purposes. You may revoke your consent by contacting customer service at{' '}
-              <Link href="tel:8172034786">
-                (817) 203-4786{' '}
-              </Link>
+              <Link href="tel:8172034786">(817) 203-4786 </Link>
               or by changing your account preferences. You are not required to consent to receive
               auto dialed or prerecorded message calls or texts in order to use our services.
             </p>
@@ -555,10 +527,7 @@ export default function TermsAndConditions() {
             <h2>Privacy Policy</h2>
             <p>
               To review how we collect, use, and protect your personal information, see our full{' '}
-              <Link href="https://doradometals.com/privacy-policy">
-                Privacy Policy
-              </Link>
-              .
+              <Link href="https://doradometals.com/privacy-policy">Privacy Policy</Link>.
             </p>
           </section>
 
@@ -568,14 +537,9 @@ export default function TermsAndConditions() {
             <h2>Customer Support and Contact Information</h2>
             <p>
               If you have any questions or concerns, please contact us by phone:{' '}
-              <Link href="tel:8172034786">
-                (817) 203-4786
-              </Link>
-              , email:{' '}
-              <Link href="mailto:support@doradometals.com">
-                support@doradometals.com
-              </Link>{' '}
-              , or address: 3198 Royal Lane Suite 209, Dallas, TX 75229
+              <Link href="tel:8172034786">(817) 203-4786</Link>, email:{' '}
+              <Link href="mailto:support@doradometals.com">support@doradometals.com</Link> , or
+              address: 3198 Royal Lane Suite 209, Dallas, TX 75229
             </p>
           </section>
         </ScrollArea>

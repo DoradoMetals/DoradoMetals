@@ -1,12 +1,9 @@
 import { Button } from '@dorado/components'
 import { cn } from '@/shared/utils/cn'
-import {
-  PurchaseOrderDrawerContentProps,
-  statusConfig,
-} from '@/shared/types/purchaseOrders'
+import { PurchaseOrderDrawerContentProps, statusConfig } from '@/shared/types/purchaseOrders'
 import TrackingEvents from '@/shared/ui/TrackingEvents'
 import { useCancelLabel, useCancelCarrierPickup, outboundOf } from '../../../../shipping/queries'
-import type { ShipmentView } from "@dorado/contracts";
+import type { ShipmentView } from '@dorado/contracts'
 import { useOrderShipments } from '@dorado/client'
 
 export default function AdminInTransitPurchaseOrder({ view }: PurchaseOrderDrawerContentProps) {
@@ -97,8 +94,8 @@ export function PreTransit({
           {shipment?.shipment.shipping_status === 'Cancelled'
             ? 'Label Cancelled'
             : cancelLabel.isPending
-            ? 'Cancelling'
-            : 'Cancel Label'}
+              ? 'Cancelling'
+              : 'Cancel Label'}
         </Button>
       </div>
     </div>

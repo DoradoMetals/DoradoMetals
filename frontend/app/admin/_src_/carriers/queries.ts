@@ -62,7 +62,8 @@ export const useCreateCarrierService = () => {
   return {
     ...mutation,
     mutate: (service: { carrier_id: string; name: string }) => mutation.mutate({ service }),
-    mutateAsync: (service: { carrier_id: string; name: string }) => mutation.mutateAsync({ service }),
+    mutateAsync: (service: { carrier_id: string; name: string }) =>
+      mutation.mutateAsync({ service }),
   }
 }
 
@@ -78,7 +79,8 @@ export const useUpdateCarrierService = () => {
   return {
     ...mutation,
     mutate: (service: CarrierService) => mutation.mutate({ service: servicePatch(service) }),
-    mutateAsync: (service: CarrierService) => mutation.mutateAsync({ service: servicePatch(service) }),
+    mutateAsync: (service: CarrierService) =>
+      mutation.mutateAsync({ service: servicePatch(service) }),
   }
 }
 

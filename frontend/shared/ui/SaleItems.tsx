@@ -93,11 +93,7 @@ export default function SaleItems() {
                     trend={0}
                     className="tabular-nums"
                   />
-                  <Button
-                    variant="tertiary"
-                    size="iconSm"
-                    onClick={() => addOne('sale', line)}
-                  >
+                  <Button variant="tertiary" size="iconSm" onClick={() => addOne('sale', line)}>
                     <Plus size={16} />
                   </Button>
                 </div>

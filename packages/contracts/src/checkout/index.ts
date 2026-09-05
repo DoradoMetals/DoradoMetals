@@ -2,5 +2,5 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Every entity of the `checkout` schema, one namespace each.
-export * from "./checkouts.js";
-export * from "./items.js";
+export * from './checkouts.js'
+export * from './items.js'
