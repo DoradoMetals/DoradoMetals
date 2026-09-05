@@ -46,3 +46,8 @@ export async function balance(
   );
   return rows.length === 0 ? undefined : rows[0].dorado_funds;
 }
+
+export async function exists(id: string, executor?: Executor): Promise<boolean> {
+  const { rows } = await query(sql("exists"), [id], executor);
+  return rows.length > 0;
+}

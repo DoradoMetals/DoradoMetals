@@ -132,14 +132,11 @@ export function usePlaceOrderFromCheckout(
   direction: Direction
 ): UseMutationResult<OrderView, Error, void> {
   const client = useQueryClient();
-  const path = direction === "purchase"
-    ? "/purchase_orders/create_from_checkout"
-    : "/sales_orders/create_sales_order";
   return useMutation({
     mutationFn: async () => {
       await ensureSession();
       const row = await apiRequest<CheckoutView>("GET", "/checkout", undefined, { direction });
-      return await apiRequest<OrderView>("POST", path, { checkout_id: row.id });
+      return await apiRequest<OrderView>("POST", "/orders", { checkout_id: row.id });
     },
     onSettled: () => {
       client.invalidateQueries({ queryKey: keys.checkout.row(direction) });

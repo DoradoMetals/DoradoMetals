@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
-  RefinerItem, RefinerItemPatch, RefinerOrder, RefinerOrderPatch, RefinerRead, RefinerSpot,
+  RefinerItem, RefinerItemPatch, RefinerOrderPatch, RefinerOrderView, RefinerSpot, RefinerView,
 } from "@dorado/contracts";
 
 import { apiRequest } from "../fetch";
@@ -10,17 +10,17 @@ import { keys } from "../keys";
 import { invalidateOrder } from "../orders/mutations";
 
 export function useAdminSuppliers(options: { enabled?: boolean } = {}) {
-  return useQuery<RefinerRead[]>({
+  return useQuery<RefinerView[]>({
     queryKey: keys.refiners.suppliers(),
-    queryFn: () => apiRequest<RefinerRead[]>("GET", "/suppliers/get_all"),
+    queryFn: () => apiRequest<RefinerView[]>("GET", "/suppliers/get_all"),
     enabled: options.enabled ?? true,
   });
 }
 
 export function useRefinerOrder(order_id: string, options: { enabled?: boolean } = {}) {
-  return useQuery<RefinerOrder>({
+  return useQuery<RefinerOrderView>({
     queryKey: keys.refiners.order(order_id),
-    queryFn: () => apiRequest<RefinerOrder>("GET", `/orders/${order_id}/refiners`),
+    queryFn: () => apiRequest<RefinerOrderView>("GET", `/orders/${order_id}/refiners`),
     enabled: (options.enabled ?? true) && !!order_id,
   });
 }

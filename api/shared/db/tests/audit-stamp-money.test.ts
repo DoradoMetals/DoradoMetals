@@ -9,7 +9,7 @@ import { runWithActor } from "#shared/http/actor.ts";
 import {
   aUser, anAdmin, anOrder, aPayout, TEST_ROUTING, TEST_ACCOUNT,
 } from "#shared/testing/builders/index.ts";
-import * as usersService from "#identity/users/service.ts";
+import * as creditService from "#payments/credit/service.ts";
 import * as ordersService from "#orders/service.ts";
 import * as paymentDetails from "#payments/details/service.ts";
 import * as totalsRepo from "#db/orders/transactions/repo.ts";
@@ -120,7 +120,7 @@ test("a credit adjustment writes a stamped ledger row, and the ledger names no a
     const customer = await aUser(c, { funds: 0 });
 
     await runWithActor(admin.id, () =>
-      usersService.adjustDoradoCredit(customer.id, { op: "add", amount: 500 })
+      creditService.adjustDoradoCredit(customer.id, { op: "add", amount: 500 })
     );
 
     const { rows } = await c.query(

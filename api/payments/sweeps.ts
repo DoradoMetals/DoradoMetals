@@ -1,5 +1,5 @@
 import * as orders from "#db/orders/repo.ts";
-import * as usersService from "#identity/users/service.ts";
+import * as credit from "#payments/credit/service.ts";
 import * as transactionsService from "#payments/transactions/service.ts";
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as paymentsService from "#payments/service.ts";
@@ -38,7 +38,7 @@ export async function cancelPendingSale(
     money?.used_funds && reserved > 0 && money.user_id &&
     !(await transactionsService.hasCreditFor(order_id, client))
   ) {
-    await usersService.addFunds(money.user_id, reserved, client);
+    await credit.addFunds(money.user_id, reserved, client);
     await transactionsService.addTransactionLog(
       { user_id: money.user_id, type: "Credit", order_id, amount: reserved }, client
     );

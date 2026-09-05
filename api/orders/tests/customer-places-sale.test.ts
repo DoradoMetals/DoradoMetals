@@ -59,10 +59,10 @@ test("a signed-in customer places their own sale order", async () => {
     const checkout_id = await aReadySaleCheckout(c, buyer);
 
     const placed = await as(buyer, () =>
-      request(app).post("/api/sales_orders/create_sales_order").send({ checkout_id })
+      request(app).post("/api/orders").send({ checkout_id })
     );
 
-    assert.equal(placed.status, 200, placed.text);
+    assert.equal(placed.status, 201, placed.text);
     assert.equal(placed.body.order.direction, "sale");
     assert.equal(placed.body.order.user_id, buyer.id, "the order belongs to somebody else");
     assert.equal(placed.body.items.length, 1);
@@ -76,7 +76,7 @@ test("a customer cannot place another customer's checkout", async () => {
     const checkout_id = await aReadySaleCheckout(c, owner);
 
     const placed = await as(stranger, () =>
-      request(app).post("/api/sales_orders/create_sales_order").send({ checkout_id })
+      request(app).post("/api/orders").send({ checkout_id })
     );
 
     assert.equal(placed.status, 403, placed.text);
@@ -89,7 +89,7 @@ test("a visitor may shop and may not buy", async () => {
     const checkout_id = await aReadySaleCheckout(c, visitor);
 
     const placed = await as(visitor, () =>
-      request(app).post("/api/sales_orders/create_sales_order").send({ checkout_id })
+      request(app).post("/api/orders").send({ checkout_id })
     );
 
     assert.equal(placed.status, 403, placed.text);

@@ -9,7 +9,9 @@ import * as checkoutService from "#checkout/service.ts";
 import * as ordersRepo from "#db/orders/repo.ts";
 import withTransaction from "#shared/db/withTransaction.ts";
 import { Forbidden, NotFound } from "#shared/errors.ts";
-import { OrderCancelBody, OrderCreateBody, OrderPatch, OrderReviewBody, OrderSendToRefinerBody } from "@dorado/contracts";
+import {
+  AdminOrderCreate, OrderCancelBody, OrderCreateBody, OrderPatch, OrderSendToRefinerBody,
+} from "@dorado/contracts";
 
 export const listOrders = asyncHandler(async (req, res) => {
   const callerIdValue = callerId(req);
@@ -40,23 +42,30 @@ export const patchOrder = asyncHandler(async (req, res) => {
   return res.status(200).json(await orders.patch(uuidParam(req, "id"), changes));
 });
 
-export const createOrderFromCheckout = asyncHandler(async (req, res) => {
+export const createOrder = asyncHandler(async (req, res) => {
   const { checkout_id } = strictBody(OrderCreateBody, req.body);
   const checkout = await checkoutService.getRowById(checkout_id);
   if (!checkout) throw new NotFound(`no checkout ${checkout_id}`);
   if (checkout.user_id !== callerId(req) && req.user?.role !== "admin") {
     throw new Forbidden(`checkout ${checkout_id} is not yours`);
   }
-  return res.status(200).json(await place.place(checkout_id));
+  return res.status(201).json(await place.place(checkout_id));
+});
+
+export const adminCreateOrder = asyncHandler(async (req, res) => {
+  const body = strictBody(AdminOrderCreate, req.body);
+  return res.status(201).json(await place.placeForAdmin(body));
 });
 
 export const createOrderReview = asyncHandler(async (req, res) => {
-  const body = strictBody(OrderReviewBody, req.body);
+  const order_id = uuidParam(req, "id");
   const written = await withTransaction((tx) =>
-    ordersRepo.update(body.order.id, { review_created: true }, {}, tx)
+    ordersRepo.update(order_id, { review_created: true }, {}, tx)
   );
-  if (!written) throw new NotFound(`no order ${body.order.id}`);
-  return res.status(200).json({ success: true });
+  if (!written) throw new NotFound(`no order ${order_id}`);
+  const view = await orderRead.view(order_id);
+  if (!view) throw new NotFound(`no order ${order_id}`);
+  return res.status(200).json(view);
 });
 
 export const addFundsToOrder = asyncHandler(async (req, res) => {

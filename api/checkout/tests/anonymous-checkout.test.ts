@@ -86,7 +86,7 @@ test("a visitor builds a basket, is refused the two things that need an account,
 
     const placed = await as(visitor, () =>
       request(app)
-        .post("/api/purchase_orders/create_from_checkout")
+        .post("/api/orders")
         .send({ checkout_id: row.body.id })
     );
     assert.equal(placed.status, 403, placed.text);

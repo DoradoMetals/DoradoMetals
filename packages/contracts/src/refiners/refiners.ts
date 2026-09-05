@@ -14,9 +14,9 @@ export type Refiner = z.infer<typeof Refiner>;
 // generated:end
 import { Organization, OrganizationSummary } from "../organizations/organizations.js";
 
-export const RefinerRead = Refiner.omit({ organization_id: true }).extend({
+export const RefinerView = Refiner.omit({ organization_id: true }).extend({
   created_at: Organization.shape.created_at.nullable(),
   updated_at: Organization.shape.updated_at.nullable(),
   organization: OrganizationSummary,
 });
-export type RefinerRead = z.infer<typeof RefinerRead>;
+export type RefinerView = z.infer<typeof RefinerView>;

@@ -265,8 +265,9 @@ if (isMain) {
   const KNOWN_ROUTES: Record<string, string> = process.env.ROUTE_GUARDS_CONTROLS
     ? JSON.parse(process.env.ROUTE_GUARDS_CONTROLS)
     : {
-        "POST /api/purchase_orders/create_review": "requireUser",
-        "POST /api/sales_orders/create_review": "requireUser",
+        "POST /api/orders": "requireUser",
+        "POST /api/orders/admin": "requireAdmin",
+        "POST /api/orders/:id/review": "requireUser",
         "GET /api/payments/details/:id/bank": "requireAdmin",
       };
   const byUrl = new Map(routes.filter((r) => r.url).map((r) => [`${r.verb} ${r.url}`, r]));

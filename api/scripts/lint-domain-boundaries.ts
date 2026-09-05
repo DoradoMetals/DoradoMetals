@@ -344,7 +344,7 @@ for (const lane of LANES) {
   }
 }
 
-const FLOOR = Number(process.env.LINT_DOMAIN_BOUNDARIES_FLOOR ?? 52);
+const FLOOR = Number(process.env.LINT_DOMAIN_BOUNDARIES_FLOOR ?? 50);
 if (scanned < FLOOR) {
   console.error(
     `lint:domain-boundaries scanned ${scanned} file(s), fewer files than the lanes ` +

@@ -75,10 +75,8 @@ export function assertMaySubjectAnother(is_admin: boolean): void {
   if (!is_admin) throw new Forbidden("user_id is admin-only");
 }
 
-export function assertSubject<T>(
-  target: T | null | undefined, named_user_id: string
-): asserts target is T {
-  if (!target) throw new NotFound(`no user ${named_user_id}`);
+export function assertSubject(found: boolean, named_user_id: string): void {
+  if (!found) throw new NotFound(`no user ${named_user_id}`);
 }
 
 export function assertRealAccount(anonymous: boolean, action: string): void {

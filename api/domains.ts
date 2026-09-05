@@ -38,4 +38,5 @@ export * as shipments from "#logistics/shipping/shipments/service.ts";
 export * as tracking from "#logistics/shipping/tracking/service.ts";
 export * as spots from "#pricing/spots/service.ts";
 export * as transactions from "#payments/transactions/service.ts";
+export * as credit from "#payments/credit/service.ts";
 export * as users from "#identity/users/service.ts";

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
 import pool from "#pool";
-import * as usersService from "#identity/users/service.ts";
+import * as creditService from "#payments/credit/service.ts";
 import * as transactions from "#payments/transactions/service.ts";
 import { takeLocks, LOCKS } from "#shared/testing/locks.ts";
 import { rollbackIn } from "#shared/testing/rollback.ts";
@@ -36,7 +36,7 @@ test("adding funds increases the balance by exactly the amount", async () => {
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c);
     assert.equal(await balance(c, user.id), 0, "a built customer does not start at zero");
-    await usersService.addFunds(user.id, 250.75, c);
+    await creditService.addFunds(user.id, 250.75, c);
     assert.equal(await balance(c, user.id), 250.75);
   });
 });
@@ -44,8 +44,8 @@ test("adding funds increases the balance by exactly the amount", async () => {
 test("removing funds decreases it by exactly the amount", async () => {
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c);
-    await usersService.addFunds(user.id, 500, c);
-    await usersService.removeFunds(user.id, 100.25, c);
+    await creditService.addFunds(user.id, 500, c);
+    await creditService.removeFunds(user.id, 100.25, c);
     assert.equal(await balance(c, user.id), 399.75);
   });
 });
@@ -53,7 +53,7 @@ test("removing funds decreases it by exactly the amount", async () => {
 test("a balance is a number, not a string", async () => {
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c);
-    await usersService.addFunds(user.id, 10, c);
+    await creditService.addFunds(user.id, 10, c);
     const { rows } = await c.query("SELECT dorado_funds FROM auth.users WHERE id = $1", [user.id]);
     assert.equal(typeof rows[0].dorado_funds, "number");
   });
@@ -63,8 +63,8 @@ test("adding then removing the same amount is a round trip", async () => {
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c);
     const before = await balance(c, user.id);
-    await usersService.addFunds(user.id, 33.33, c);
-    await usersService.removeFunds(user.id, 33.33, c);
+    await creditService.addFunds(user.id, 33.33, c);
+    await creditService.removeFunds(user.id, 33.33, c);
     assert.equal(await balance(c, user.id), before);
   });
 });
@@ -73,7 +73,7 @@ test("removing more than the balance goes negative rather than refusing", async 
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c);
     const before = await balance(c, user.id);
-    await usersService.removeFunds(user.id, before + 1000, c);
+    await creditService.removeFunds(user.id, before + 1000, c);
     assert.ok(await balance(c, user.id) < 0);
   });
 });
@@ -106,7 +106,7 @@ test("a rolled-back movement leaves neither the balance nor the log changed", as
     );
 
     await client.query("BEGIN");
-    await usersService.addFunds(user.id, 999.99, client);
+    await creditService.addFunds(user.id, 999.99, client);
     await transactions.addTransactionLog(
       { user_id: user.id, type: `sentinel-${randomUUID().slice(0, 8)}`, order_id: null, amount: 999.99 },
       client

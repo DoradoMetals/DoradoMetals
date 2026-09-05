@@ -4,7 +4,7 @@ import {
   paymentIntents as intents, paymentAttempts as attempts,
   paymentSettlements as settlements, paymentCustomers as customers,
 } from "#db";
-import { users as usersService } from "#domains";
+import * as credit from "#payments/credit/service.ts";
 import * as checkoutService from "#checkout/service.ts";
 import * as pricing from "#pricing/index.ts";
 import {
@@ -160,7 +160,7 @@ export async function updatePaymentIntent(
 ): Promise<StripeIntentLike> {
   const subject = assertIntentSubject(type === "admin" ? user_id : caller.user_id);
 
-  assertPriceableBalance(subject, await usersService.getBalance(subject));
+  assertPriceableBalance(subject, await credit.getBalance(subject));
 
   const retrieved_intent = await findReusableIntent(caller, type, user_id);
 

@@ -13,7 +13,7 @@ import * as carrierServices from "#logistics/shipping/services/service.ts";
 import * as shippingLabels from "#logistics/shipping/labels.ts";
 import * as emailService from "#media/emails/service.ts";
 import * as documentInputs from "#media/pdfs/order-inputs.ts";
-import * as usersService from "#identity/users/service.ts";
+import * as credit from "#payments/credit/service.ts";
 import * as ledger from "#payments/transactions/service.ts";
 import * as orderRead from "#orders/read.ts";
 import * as rules from "#orders/rules.ts";
@@ -151,7 +151,7 @@ export async function addFunds(order_id: string): Promise<OrderView> {
   rules.assertCreditable(amount, order.order.number);
 
   await withTransaction(async (tx) => {
-    await usersService.addFunds(order.order.user_id, amount, tx);
+    await credit.addFunds(order.order.user_id, amount, tx);
     await ledger.addTransactionLog(
       { user_id: order.order.user_id, type: "Credit", order_id, amount }, tx
     );

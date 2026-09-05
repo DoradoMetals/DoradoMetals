@@ -2,6 +2,7 @@ import "#env";
 import fs from "node:fs";
 import path from "node:path";
 import pool from "#pool";
+import withTransaction from "#shared/db/withTransaction.ts";
 import * as c from "@dorado/contracts";
 import type { ZodType } from "zod/v4";
 
@@ -127,9 +128,11 @@ add("GET /orders/:id/spots", c.OrderSpot, async () => {
   const lists = await Promise.all(orders.map((o) => orderSpotsRepo.getRowsFor(o.id)));
   return lists.flat();
 });
+const refinerService = await import("#orders/refiners/service.ts");
+add("GET /suppliers/get_all", c.RefinerView, () => refinerService.getAllRefiners());
 const refinerOrdersService = await import("#orders/refiners/orders/service.ts");
 const refinerSpotsService = await import("#orders/refiners/spots/service.ts");
-add("GET /orders/:orderId/refiners", c.RefinerOrder, async () => {
+add("GET /orders/:orderId/refiners", c.RefinerOrderView, async () => {
   const reads = await Promise.all(orders.map((o) => refinerOrdersService.getByOrder(o.id)));
   return reads.filter(Boolean);
 });
@@ -210,9 +213,9 @@ const saleBasket = addressUser && quotable.length
   ? await checkoutService.getRowFor(addressUser, "sale")
   : null;
 if (saleBasket) {
-  await checkoutService.replaceItems(
-    addressUser!, "sale", [{ bullion_id: quotable[0].id, quantity: 1 }]
-  );
+  await withTransaction((tx) => checkoutService.replaceItems(
+    addressUser!, "sale", [{ bullion_id: quotable[0].id, quantity: 1 }], tx
+  ));
 }
 add("GET /quotes/checkout (sale)", c.SaleQuote, () =>
   saleBasket ? pricing.priceCheckout(saleBasket.id) : [],
@@ -223,13 +226,14 @@ const purchaseBasket = addressUser && quotable.length && quoteMetals.length
   ? await checkoutService.getRowFor(addressUser, "purchase")
   : null;
 if (purchaseBasket) {
-  await checkoutService.replaceItems(
+  await withTransaction((tx) => checkoutService.replaceItems(
     addressUser!, "purchase",
     [
       { metal_id: quoteMetals[0].id, pre_melt: 31.1035, purity: 0.9, unit: "g", quantity: 1 },
       { bullion_id: quotable[0].id, quantity: 2 },
-    ]
-  );
+    ],
+    tx
+  ));
 }
 add("GET /quotes/checkout (purchase)", c.PurchaseQuote, () =>
   purchaseBasket ? pricing.priceCheckout(purchaseBasket.id) : [],

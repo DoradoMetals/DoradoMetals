@@ -5,6 +5,7 @@ import pool from "#pool";
 import query from "#shared/db/query.ts";
 import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
+import { LOCKS } from "#shared/testing/locks.ts";
 import { withCassette } from "#shared/testing/cassettes.ts";
 import { aUser, aCart, aProduct } from "#shared/testing/builders/index.ts";
 import { anUnknownId } from "#shared/testing/builders/ids.ts";
@@ -47,7 +48,7 @@ test("retrievePaymentIntent creates a fresh intent when nothing is reusable", as
 
     assert.ok(intent.id.startsWith("pi_"), `unexpected intent id ${intent.id}`);
     assert.ok(intent.client_secret, "no client_secret came back for the frontend to confirm with");
-  }, { actor: TEST_ACTOR.id });
+  }, { actor: TEST_ACTOR.id, lock: LOCKS.USERS });
 });
 
 test("updatePaymentIntent self-heals when Stripe reports the local intent went stale", async () => {
@@ -73,7 +74,7 @@ test("updatePaymentIntent self-heals when Stripe reports the local intent went s
       result.id, "pi_cassette_stale_intent",
       "a stale, resolved intent should have been replaced rather than reused"
     );
-  }, { actor: TEST_ACTOR.id });
+  }, { actor: TEST_ACTOR.id, lock: LOCKS.USERS });
 });
 
 test("cancelPaymentIntent cancels through Stripe and is readable afterwards", async () => {
@@ -86,5 +87,5 @@ test("cancelPaymentIntent cancels through Stripe and is readable afterwards", as
     });
 
     assert.equal(canceled.status, "canceled");
-  }, { actor: TEST_ACTOR.id });
+  }, { actor: TEST_ACTOR.id, lock: LOCKS.USERS });
 });
