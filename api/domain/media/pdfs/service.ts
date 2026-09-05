@@ -93,11 +93,7 @@ export function buildPackingListHtml({
       </p>
     `;
 
-  const shippingSection = renderPackingShippingSection(order, {
-    isReturn: false,
-    includePayoutFee: false,
-    labels,
-  });
+  const shippingSection = renderPackingShippingSection(order, labels, false, false, 0);
 
   const bullionTable = bullionRows
     ? `
@@ -234,10 +230,7 @@ export function buildReturnPackingListHtml({
   const scrapRows = buildPackingScrapRows(scrapLines(order.items), bids, labels);
   const bullionRows = buildPackingBullionRows(bullionLines(order.items), bids, labels);
 
-  const shippingSection = renderPackingShippingSection(order, {
-    isReturn: true,
-    labels,
-  });
+  const shippingSection = renderPackingShippingSection(order, labels, true, false, 0);
 
   const bullionTable = bullionRows
     ? `
@@ -411,7 +404,7 @@ export function buildInvoiceHtml({ order, bids, labels }: PurchaseDocument): str
 
   const bodyHtml = `
     ${renderInvoiceHeader(order, total, bids, labels)}
-    ${renderInvoiceShippingAndPayout(order, { payoutCost, labels })}
+    ${renderInvoiceShippingAndPayout(order, payoutCost, labels)}
     ${bullionTable}
     ${scrapTable}
     ${totalsSection}

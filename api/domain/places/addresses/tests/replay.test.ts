@@ -14,6 +14,7 @@ const { default: app } = await import("#app");
 type WireEntry = {
   address: { id: string };
   user_address: { address_id: string; recipient_name: string | null; default_shipping: boolean };
+  locked: boolean;
   actions: { edit: boolean; remove: boolean; set_default: boolean };
 };
 
@@ -70,7 +71,9 @@ test("a signed-in customer gets their book as entries, each carrying its own act
       assert.ok(res.body.length > 0, "the built user has an address and none came back");
 
       const entry: WireEntry = res.body[0];
-      assert.deepEqual(Object.keys(entry).sort(), ["actions", "address", "user_address"]);
+      assert.deepEqual(
+        Object.keys(entry).sort(), ["actions", "address", "locked", "user_address"]
+      );
       for (const field of ["id", "line_1", "city", "state", "zip", "country_code"]) {
         assert.ok(field in entry.address, `the address is missing ${field}`);
       }

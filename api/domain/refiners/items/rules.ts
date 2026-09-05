@@ -1,5 +1,5 @@
 import { Invalid, NotFound } from "#shared/errors.ts";
-import type { RefinerItemPatch, RefinerItem } from "@dorado/contracts";
+import type { OrderItem, RefinerItemPatch, RefinerItem } from "@dorado/contracts";
 import type { ItemPatch } from "#db/refiners/items/repo.ts";
 
 export function assayedRow(
@@ -30,7 +30,7 @@ export function assertNamesAField(patch: object): void {
 }
 
 export function assertScrapLine(
-  line: { bullion_id: string | null } | undefined, order_item_id: string
+  line: Pick<OrderItem, "bullion_id"> | undefined, order_item_id: string
 ): void {
   if (!line || line.bullion_id !== null) {
     throw new NotFound(

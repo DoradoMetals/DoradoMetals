@@ -45,7 +45,7 @@ export async function place(
   const checkout = await checkoutService.getRowById(checkout_id);
   rules.assertCheckout(checkout, checkout_id);
   await checkoutService.assertRealAccount(checkout.user_id, "place an order");
-  rules.assertPlaceable(await checkoutService.missingFor(checkout));
+  rules.assertPlaceable(await checkoutService.missingFor(checkout_id));
   const cart = await checkoutService.getItemsForOrder(checkout_id);
 
   const order_id =
@@ -59,17 +59,13 @@ export async function place(
 }
 
 async function writeOrder(
-  { checkout, status, lines, cart }: {
-    checkout: Checkout;
-    status: string;
-    lines: (order_id: string, tx: PoolClient) => Promise<OrderItem[]>;
-    cart: OrderLine[];
-  },
+  checkout: Checkout,
+  status: string,
+  cart: OrderLine[],
+  lines: (order_id: string, tx: PoolClient) => Promise<OrderItem[]>,
   tx: PoolClient
 ): Promise<string> {
-  const order = await ordersRepo.createForCheckout(
-    { checkout_id: checkout.id, status }, tx
-  );
+  const order = await ordersRepo.createForCheckout(null, checkout.id, status, tx);
   rules.assertPlacedOrder(order, checkout.id);
   const order_id = order.id;
 
@@ -120,16 +116,12 @@ async function placePurchase(
 
   const placed = await withTransaction(async (tx) => {
     const order_id = await writeOrder(
-      {
-        checkout, cart, status: "In Transit",
-        lines: (id, client) => orderItems.createBought(id, checkout.id, client),
-      },
+      checkout, "In Transit", cart,
+      (id, client) => orderItems.createBought(id, checkout.id, client),
       tx
     );
     rules.assertTotalsWritten(
-      await orderTransactions.createForCheckout(
-        { order_id, checkout_id: checkout.id, payout_fee }, tx
-      ),
+      await orderTransactions.createForCheckout(order_id, checkout.id, payout_fee, tx),
       order_id
     );
 
@@ -182,11 +174,8 @@ async function placeSale(
 
   const order_id = await withTransaction(async (tx) => {
     const id = await writeOrder(
-      {
-        checkout, cart,
-        status: rules.statusAtPlacement(cents, intent?.settled === true),
-        lines: (order, client) => orderItems.createSold(order, checkout.id, lines, client),
-      },
+      checkout, rules.statusAtPlacement(cents, intent?.settled === true), cart,
+      (order, client) => orderItems.createSold(order, checkout.id, lines, client),
       tx
     );
     await orderTransactions.create(

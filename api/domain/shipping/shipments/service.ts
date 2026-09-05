@@ -80,8 +80,7 @@ export async function getOrderLink(
 }
 
 export async function create(
-  { order_id, direction }: { order_id?: string | null; direction: ShipmentDirection },
-  tx: Executor
+  order_id: string | null, direction: ShipmentDirection, tx: Executor
 ): Promise<OrderViewShipment | null> {
   const id = randomUUID();
   await shipments.create({ id, direction }, tx);
@@ -90,11 +89,9 @@ export async function create(
     const orderDirection = await orders.directionOf(order_id, tx);
     rules.assertOrderForShipment(orderDirection, order_id);
     const fulfillment = await fulfillmentService.chooseDefault(
-      { order_id, direction: orderDirection, category: "SHIPMENT" }, tx
+      order_id, orderDirection, "SHIPMENT", tx
     );
-    await fulfillmentShipments.link(
-      { fulfillment_id: fulfillment.fulfillment.id, shipment_id: id }, tx
-    );
+    await fulfillmentShipments.link(fulfillment.fulfillment.id, id, {}, tx);
   }
 
   return await getById(id, tx);
@@ -110,10 +107,8 @@ export async function update(
     const [link] = await fulfillmentLinks.getByShipment([id], tx);
     if (link) {
       await fulfillmentService.setStatus(
-        {
-          id: link.fulfillment_id,
-          status: patch.shipping_status === "Delivered" ? "COMPLETED" : "PENDING",
-        },
+        link.fulfillment_id,
+        patch.shipping_status === "Delivered" ? "COMPLETED" : "PENDING",
         tx
       );
     }

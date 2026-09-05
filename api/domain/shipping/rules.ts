@@ -2,8 +2,9 @@ import { convertToPounds } from "#shared/utils/convertWeights.ts";
 import { Conflict, Invalid, NotFound } from "#shared/errors.ts";
 import type {
   CarrierHandoff, CarrierRateQuote, CarrierServiceOption, CheckoutRate, LabelService,
-  OrderItem, Package, Parcel, ParcelSchedule, Shipment, ShipmentActions,
-  ShipmentDirection, TrackingRecord, TrackingStep,
+  FulfillmentPickup, OrderItem, Package, Parcel, ParcelSchedule, Shipment, ShipmentActions,
+  ShipmentDecisions, ShipmentDirection, ShipmentViewFacts, ShippableCarrier, TrackingScan,
+  TrackingStep,
 } from "@dorado/contracts";
 
 export function parcelWeightLb(
@@ -81,7 +82,7 @@ export function handoffFor(
 }
 
 export function scheduleFromPickup(
-  pickup: { start_time?: string | null } | undefined
+  pickup: FulfillmentPickup | undefined
 ): ParcelSchedule | null {
   if (!pickup?.start_time) return null;
   const start = new Date(pickup.start_time);
@@ -157,14 +158,7 @@ export const TRACKING_STAGES = [
   "Picked Up", "In Transit", "Out for Delivery", "Delivered",
 ] as const;
 
-const asIso = (t: Date | string | null): string | null =>
-  t === null ? null : t instanceof Date ? t.toISOString() : t;
-
-export function trackingTimeline(
-  events: (Pick<TrackingRecord, "status" | "location"> & {
-    scan_time: Date | string | null;
-  })[]
-): TrackingStep[] {
+export function trackingTimeline(events: TrackingScan[]): TrackingStep[] {
   const seen = new Set<string>();
   const scanned: TrackingStep[] = [];
   for (const e of events) {
@@ -174,7 +168,7 @@ export function trackingTimeline(
     if (seen.has(key)) continue;
     seen.add(key);
     scanned.push({
-      stage: e.status, location: e.location, scan_time: asIso(e.scan_time), reached: true,
+      stage: e.status, location: e.location, scan_time: e.scan_time, reached: true,
     });
   }
   scanned.sort((a, b) => {
@@ -206,17 +200,27 @@ export function awaitingHandoff(shipping_status: string | null): boolean {
 }
 
 export function shipmentActions(
-  shipment: Pick<Shipment, "tracking_number" | "shipping_status" | "label_type">,
-  { carrier_id, isAdmin }: { carrier_id: string | null; isAdmin: boolean }
+  view: ShipmentViewFacts, isAdmin: boolean
 ): ShipmentActions {
-  const status = shipment.shipping_status;
+  const status = view.shipment.shipping_status;
   const settled = status === "Cancelled" || status === "Delivered";
   return {
-    track: Boolean(shipment.tracking_number) && carrier_id !== null,
-    cancel_label: isAdmin && Boolean(shipment.tracking_number) && !settled,
+    track: Boolean(view.shipment.tracking_number) && view.carrier_id !== null,
+    cancel_label: isAdmin && Boolean(view.shipment.tracking_number) && !settled,
     edit_charge: isAdmin,
-    edit_tracking: isAdmin && !shipment.label_type,
+    edit_tracking: isAdmin && !view.shipment.label_type,
     show_instructions: awaitingHandoff(status),
+  };
+}
+
+export function shipmentDecisions(
+  view: ShipmentViewFacts, isAdmin: boolean
+): ShipmentDecisions {
+  const timeline = trackingTimeline(view.tracking);
+  return {
+    tracking_status: trackingStatus(view.shipment.shipping_status, timeline),
+    timeline,
+    actions: shipmentActions(view, isAdmin),
   };
 }
 
@@ -339,7 +343,7 @@ export function assertCatalogue<T>(
   if (!catalogue) throw new Invalid(`No catalogue registered for carrier: ${code}`);
 }
 
-export function assertOneShippableCarrier(shippable: { name: string }[]): void {
+export function assertOneShippableCarrier(shippable: ShippableCarrier[]): void {
   if (shippable.length === 0) {
     throw new Conflict("No carrier has a shipping provider registered");
   }

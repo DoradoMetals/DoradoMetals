@@ -50,15 +50,8 @@ export async function getByOrders(
 }
 
 export async function recordForShipment(
-  {
-    shipment_id, date, time, confirmation_number = null, location = null,
-  }: {
-    shipment_id: string;
-    date: string;
-    time: string;
-    confirmation_number?: string | number | null;
-    location?: string | null;
-  },
+  shipment_id: string, date: string, time: string,
+  confirmation_number: string | number | null, location: string | null,
   executor?: Executor
 ): Promise<ShipmentPickup> {
   return await pickups.create(

@@ -26,17 +26,15 @@ export async function byId(executor?: Executor): Promise<Map<string, Fulfillment
 }
 
 export async function getDefault(
-  { direction, category }: { direction: Direction; category: FulfillmentCategory },
-  executor?: Executor
+  direction: Direction, category: FulfillmentCategory, executor?: Executor
 ): Promise<FulfillmentMethodRead> {
-  const method = await methods.getDefault({ direction, category }, executor);
-  rules.assertDefault(method, { direction, category });
+  const method = await methods.getDefault(direction, category, executor);
+  rules.assertDefault(method, direction, category);
   return method;
 }
 
 export async function assertOffered(
-  { method_id, direction }: { method_id: string; direction: Direction },
-  executor?: Executor
+  method_id: string, direction: Direction, executor?: Executor
 ): Promise<void> {
   rules.assertOffered(
     await methods.getAvailable(direction, executor), method_id, direction

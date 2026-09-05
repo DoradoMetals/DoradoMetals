@@ -1,19 +1,11 @@
 import { Conflict, Invalid, NotFound } from "#shared/errors.ts";
 import type {
-  CarrierHandoff, FulfillmentActions, FulfillmentCategory, FulfillmentDirect,
-  FulfillmentMethod, FulfillmentParcel, FulfillmentPickup, FulfillmentStep,
-  FulfillmentView,
+  CarrierHandoff, FulfillmentActions, FulfillmentCategory, FulfillmentDecisions,
+  FulfillmentMethodRead, FulfillmentStep, FulfillmentViewFacts,
 } from "@dorado/contracts";
 
 export function requiresSchedule(category: FulfillmentCategory): boolean {
   return category === "PICKUP" || category === "DIRECT";
-}
-
-export function scheduledAt(
-  pickup: Pick<FulfillmentPickup, "start_time"> | null,
-  direct: Pick<FulfillmentDirect, "start_time"> | null
-): string | null {
-  return pickup?.start_time ?? direct?.start_time ?? null;
 }
 
 const ALL_CATEGORIES: FulfillmentCategory[] = ["SHIPMENT", "PICKUP", "DIRECT"];
@@ -25,16 +17,13 @@ export function categoriesFor(
   return ALL_CATEGORIES;
 }
 
-export function actionsFor(
-  method: Pick<FulfillmentMethod, "category">,
-  { hasShipment, isScheduled }: { hasShipment: boolean; isScheduled: boolean }
-): FulfillmentActions {
-  const category = method.category;
-  const categories = categoriesFor(category, hasShipment);
+export function actionsFor(view: FulfillmentViewFacts): FulfillmentActions {
+  const category = view.method.category;
+  const categories = categoriesFor(category, view.parcel?.tracking_number != null);
   return {
     set_method: categories.length > 1,
     schedule: requiresSchedule(category),
-    cancel_schedule: requiresSchedule(category) && isScheduled,
+    cancel_schedule: requiresSchedule(category) && view.scheduled_at !== null,
     categories,
   };
 }
@@ -50,36 +39,31 @@ export const handoffFor = (
     : handoffs.find((h) => methodTypeFor(h) === method_type) ?? null;
 
 export function requiresCourierSlot(
-  method: Pick<FulfillmentMethod, "category" | "type">, handoffs: CarrierHandoff[]
+  method: FulfillmentMethodRead, handoffs: CarrierHandoff[]
 ): boolean {
   if (method.category !== "SHIPMENT") return false;
   return handoffFor(handoffs, method.type)?.requires_schedule === true;
 }
 
 export function missingFor(
-  { category, parcel, pickup, direct, needsCourierSlot }: {
-    category: FulfillmentCategory;
-    parcel: FulfillmentParcel | null;
-    pickup: Pick<FulfillmentPickup, "pickup_address_id" | "start_time"> | null;
-    direct: Pick<FulfillmentDirect, "location_id" | "start_time"> | null;
-    needsCourierSlot: boolean;
-  }
+  view: FulfillmentViewFacts, handoffs: CarrierHandoff[]
 ): FulfillmentStep[] {
   const missing: FulfillmentStep[] = [];
+  const { method, parcel, pickup, direct } = view;
 
-  if (category === "SHIPMENT") {
+  if (method.category === "SHIPMENT") {
     if (parcel && parcel.direction !== "Inbound") return missing;
     if (!parcel?.shipper_address_id) missing.push("shipper_address_id");
     if (!parcel?.package_id) missing.push("package_id");
     if (!parcel?.carrier_service_id) missing.push("carrier_service_id");
-    if (needsCourierSlot) {
+    if (requiresCourierSlot(method, handoffs)) {
       if (!parcel?.pickup_date) missing.push("pickup_date");
       if (!parcel?.pickup_time) missing.push("pickup_time");
     }
     return missing;
   }
 
-  if (category === "PICKUP") {
+  if (method.category === "PICKUP") {
     if (!pickup?.pickup_address_id) missing.push("pickup_address_id");
     if (!pickup?.start_time) missing.push("start_time");
     return missing;
@@ -90,14 +74,10 @@ export function missingFor(
   return missing;
 }
 
-export function byStartTimeThenId(a: FulfillmentView, b: FulfillmentView): number {
-  const at = a.scheduled_at;
-  const bt = b.scheduled_at;
-  if (at === null && bt === null) return a.fulfillment.id.localeCompare(b.fulfillment.id);
-  if (at === null) return 1;
-  if (bt === null) return -1;
-  const diff = new Date(at).getTime() - new Date(bt).getTime();
-  return diff !== 0 ? diff : a.fulfillment.id.localeCompare(b.fulfillment.id);
+export function decisionsFor(
+  view: FulfillmentViewFacts, handoffs: CarrierHandoff[]
+): FulfillmentDecisions {
+  return { missing: missingFor(view, handoffs), actions: actionsFor(view) };
 }
 
 export function assertFulfillable(exists: boolean, order_id: string): void {
@@ -131,7 +111,7 @@ export function assertMethod<T>(
 }
 
 export function assertOffered(
-  offered: { id: string }[], method_id: string, direction: string
+  offered: FulfillmentMethodRead[], method_id: string, direction: string
 ): void {
   if (!offered.some((m) => m.id === method_id)) {
     throw new Conflict(
@@ -142,15 +122,13 @@ export function assertOffered(
 }
 
 export function assertDefault<T>(
-  row: T | null | undefined,
-  { direction, category }: { direction: string; category: FulfillmentCategory }
+  row: T | null | undefined, direction: string, category: FulfillmentCategory
 ): asserts row is T {
   if (!row) throw new NotFound(`no default ${category} method for a ${direction}`);
 }
 
 export function assertMovable(
-  from: FulfillmentCategory, to: FulfillmentCategory,
-  { hasShipment, id }: { hasShipment: boolean; id: string }
+  from: FulfillmentCategory, to: FulfillmentCategory, hasShipment: boolean, id: string
 ): void {
   if (!categoriesFor(from, hasShipment).includes(to)) {
     throw new Conflict(

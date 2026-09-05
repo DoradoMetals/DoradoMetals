@@ -16,6 +16,7 @@ import { recordEmail, messageIdOf } from "#domain/media/emails/record.ts";
 import { persistPdf } from "#domain/media/pdfs/store.ts";
 import { attempt } from "#shared/attempt.ts";
 import type { PoolClient } from "pg";
+import type { EmailRecipient } from "@dorado/contracts";
 import {
   formatPurchaseOrderNumber,
   formatSalesOrderNumber,
@@ -42,9 +43,7 @@ export async function sendCreatedEmail(
 ): Promise<void> {
   const pdfBuffer = await pdfService.generatePackingList(input);
   const order_id = input.order.order.id;
-  const pdfId = await persistPdf(
-    { kind: "packing_list", order_id, bytes: pdfBuffer }, executor
-  );
+  const pdfId = await persistPdf("packing_list", order_id, pdfBuffer, executor);
 
   const subject = "Your Order Has Been Placed!";
   const result = await sendEmail({
@@ -80,7 +79,7 @@ export async function sendPricedEmail(
 ): Promise<void> {
   const pdfBuffer = await pdfService.generateInvoice(input);
   const order_id = input.order.order.id;
-  const pdfId = await persistPdf({ kind: "invoice", order_id, bytes: pdfBuffer }, executor);
+  const pdfId = await persistPdf("invoice", order_id, pdfBuffer, executor);
 
   const subject =
     `Your Order Has Been Priced - Order ${formatPurchaseOrderNumber(input.order.order.number)}`;
@@ -118,9 +117,7 @@ export async function sendSalesOrderToSupplier(
   const { order, asks, labels } = input;
   const pdfBuffer = await pdfService.generateSalesOrderInvoice(input);
   const order_id = order.order.id;
-  const pdfId = await persistPdf(
-    { kind: "sales_order_invoice", order_id, bytes: pdfBuffer }, executor
-  );
+  const pdfId = await persistPdf("sales_order_invoice", order_id, pdfBuffer, executor);
 
   const subject =
     `Dorado Metals Exchange - New Order ${formatSalesOrderNumber(order.order.number)}`;
@@ -151,15 +148,9 @@ export async function sendSalesOrderToSupplier(
 }
 
 export async function sendAuthVerificationEmail(
-  {
-    user,
-    url,
-    isSignUp = false,
-  }: {
-    user: { id?: string | null; email: string; name?: string | null };
-    url: string;
-    isSignUp?: boolean;
-  },
+  user: EmailRecipient,
+  url: string,
+  isSignUp: boolean,
   transport?: Transport,
   executor?: PoolClient
 ): Promise<void> {

@@ -1,12 +1,13 @@
 import { test } from "vitest";
 import assert from "node:assert/strict";
 import path from "node:path";
+import { readFileSync } from "node:fs";
 import { sqlFrom } from "#shared/db/sql.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { PATCHABLE } from "#db/places/addresses/repo.ts";
 import { PATCHABLE as UA_PATCHABLE } from "#db/places/user-addresses/repo.ts";
 import * as rules from "#domain/places/addresses/rules.ts";
-import type { Address, UserAddress } from "@dorado/contracts";
+import type { Address, AddressBookEntryFacts } from "@dorado/contracts";
 
 const sql = sqlFrom(path.join(import.meta.dirname, "..", "..", "..", "..", "db", "places", "addresses"));
 
@@ -27,7 +28,7 @@ test("every statement loads and is not empty", () => {
 test("create writes its columns in the order repo.ts supplies them", () => {
   assert.match(
     body("create"),
-    /\(id,\s*line_1,\s*line_2,\s*city,\s*state,\s*country,\s*zip,\s*country_code,\s*phone_number,\s*is_valid,\s*is_residential\)/,
+    /\(line_1,\s*line_2,\s*city,\s*state,\s*country,\s*zip,\s*country_code,\s*phone_number,\s*is_valid,\s*is_residential\)/,
     "sql/create.sql column order changed - repo.ts builds its params to match"
   );
 });
@@ -80,15 +81,19 @@ test("is_referenced asks about both of the order's address columns", () => {
   assert.match(body("is_referenced"), /places\.user_addresses/);
 });
 
-const address = (id: string) => ({ id }) as Address;
-const link = (address_id: string, dflt: boolean, recipient = "l") =>
-  ({
-    id: "x", address_id, user_id: "u", recipient_name: recipient, label: "n",
-    default_shipping: dflt, default_billing: dflt,
-  }) as UserAddress;
+const facts = (
+  id: string, dflt: boolean, locked: boolean, recipient = "l"
+): AddressBookEntryFacts => ({
+  address: { id } as Address,
+  user_address: {
+    address_id: id, user_id: "u", recipient_name: recipient, label: "n",
+    default_shipping: dflt,
+  },
+  locked,
+});
 
-test("an entry keeps the two rows apart and never leaks default_billing", () => {
-  const out = rules.entry(address("a"), link("a", true), false);
+test("the view keeps the two rows apart and never leaks default_billing", () => {
+  const out = facts("a", true, false);
   assert.equal(out.address.id, "a");
   assert.deepEqual(Object.keys(out.user_address).sort(),
     ["address_id", "default_shipping", "label", "recipient_name", "user_id"]);
@@ -96,10 +101,14 @@ test("an entry keeps the two rows apart and never leaks default_billing", () => 
 });
 
 test("an address an unfinished order depends on offers neither edit nor remove", () => {
-  const locked = rules.entry(address("a"), link("a", false), true);
-  assert.deepEqual(locked.actions, { edit: false, remove: false, set_default: true });
-  const free = rules.entry(address("b"), link("b", true), false);
-  assert.deepEqual(free.actions, { edit: true, remove: true, set_default: false });
+  assert.deepEqual(
+    rules.actionsFor(facts("a", false, true)),
+    { edit: false, remove: false, set_default: true }
+  );
+  assert.deepEqual(
+    rules.actionsFor(facts("b", true, false)),
+    { edit: true, remove: true, set_default: false }
+  );
 });
 
 test("assertNotOnAnActiveOrder refuses exactly what actions.edit reports", () => {
@@ -107,16 +116,12 @@ test("assertNotOnAnActiveOrder refuses exactly what actions.edit reports", () =>
   assert.doesNotThrow(() => rules.assertNotOnAnActiveOrder(false, "edited"));
 });
 
-test("the sort puts the default first, then orders by recipient", () => {
-  const rows = [
-    rules.entry(address("c"), link("c", false, "Zoe"), false),
-    rules.entry(address("a"), link("a", false, "Ada"), false),
-    rules.entry(address("b"), link("b", true, "Moe"), false),
-  ];
-  assert.deepEqual(
-    [...rows].sort(rules.byDefaultThenRecipient).map((r) => r.address.id),
-    ["b", "a", "c"]
+test("the book's order is the view's ORDER BY, not a comparator", () => {
+  const view = readFileSync(
+    new URL("../../../../db/places/user-addresses/sql/view.sql", import.meta.url), "utf8"
   );
+  assert.match(view, /ORDER BY ua\.default_shipping DESC/);
+  assert.match(view, /ua\.recipient_name ASC/);
 });
 
 test("the first address in a book is the default however the caller asked", () => {

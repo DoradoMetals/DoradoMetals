@@ -1,9 +1,9 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { Fulfillment } from "@dorado/contracts";
+import type { Fulfillment, FulfillmentViewFacts } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
-import { FulfillmentPatch } from "@dorado/contracts";
+import { FulfillmentPatch, FulfillmentViewFacts as Facts } from "@dorado/contracts";
 
 const sql = sqlFrom(import.meta.dirname);
 
@@ -19,6 +19,21 @@ export async function getByOrder(
 ): Promise<Fulfillment | undefined> {
   const { rows } = await query<Fulfillment>(sql("get_by_order"), [order_id], executor);
   return rows[0];
+}
+
+export async function view(
+  ids: string[] | null,
+  order_id: string | null,
+  scheduled: boolean,
+  from: string | null,
+  to: string | null,
+  employee_id: string | null,
+  executor?: Executor
+): Promise<FulfillmentViewFacts[]> {
+  const { rows } = await query(
+    sql("view"), [ids, order_id, scheduled, from, to, employee_id], executor
+  );
+  return rows.map((row) => Facts.parse(row));
 }
 
 export async function getMany(
@@ -40,19 +55,19 @@ export async function getByOrders(
 }
 
 export async function create(
-  row: { id: string; order_id: string; method_id: string; status: string }, executor?: Executor
+  id: string, order_id: string, method_id: string, status: string, executor?: Executor
 ): Promise<Fulfillment | undefined> {
   const { rows } = await query<Fulfillment>(
-    sql("create"), [row.id, row.order_id, row.method_id, row.status], executor
+    sql("create"), [id, order_id, method_id, status], executor
   );
   return rows[0];
 }
 
 export async function createDraft(
-  row: { id: string; method_id: string }, executor?: Executor
+  id: string, method_id: string, executor?: Executor
 ): Promise<Fulfillment> {
   const { rows } = await query<Fulfillment>(
-    sql("create_draft"), [row.id, row.method_id], executor
+    sql("create_draft"), [id, method_id], executor
   );
   return rows[0];
 }

@@ -17,8 +17,7 @@ export type NewPdf = {
 };
 
 export async function latestOfKind(
-  { kind, order_id }: { kind: Pdf["kind"]; order_id: string },
-  executor?: Executor
+  kind: Pdf["kind"], order_id: string, executor?: Executor
 ): Promise<PdfRow | null> {
   const { rows } = await query<PdfRow>(sql("latest"), [order_id, kind], executor);
   return rows[0] ?? null;

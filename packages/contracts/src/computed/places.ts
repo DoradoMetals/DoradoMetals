@@ -9,9 +9,14 @@ export const AddressBookActions = z.object({
 });
 export type AddressBookActions = z.infer<typeof AddressBookActions>;
 
-export const AddressBookEntry = z.object({
+export const AddressBookEntryFacts = z.object({
   address: Address,
   user_address: UserAddressRead,
+  locked: z.boolean(),
+});
+export type AddressBookEntryFacts = z.infer<typeof AddressBookEntryFacts>;
+
+export const AddressBookEntry = AddressBookEntryFacts.extend({
   actions: AddressBookActions,
 });
 export type AddressBookEntry = z.infer<typeof AddressBookEntry>;

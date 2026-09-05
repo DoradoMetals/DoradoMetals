@@ -118,9 +118,7 @@ test("an open intent is found again for the same session, user and type", async 
     const session_id = randomUUID();
     const { provider_ref } = await anIntent(c, { user_id: user, session_id });
 
-    const found = await intents.findReusable(
-      { session_id, user_id: user, type: "checkout" }, c
-    );
+    const found = await intents.findReusable(session_id, user, "checkout", c);
     assert.equal(found?.attempt?.provider_ref, provider_ref);
     assert.equal(
       (found as unknown as Record<string, unknown>)?.payment_intent_id,
@@ -137,9 +135,7 @@ for (const status of ["succeeded", "processing", "canceled"]) {
       const session_id = randomUUID();
       await anIntent(c, { user_id: user, session_id, status });
 
-      const found = await intents.findReusable(
-        { session_id, user_id: user, type: "checkout" }, c
-      );
+      const found = await intents.findReusable(session_id, user, "checkout", c);
       assert.equal(found, undefined, `a ${status} intent was offered for reuse`);
     });
   });
@@ -151,9 +147,7 @@ test("an intent for a different type is not reused", async () => {
     const session_id = randomUUID();
     await anIntent(c, { user_id: user, session_id, type: "checkout" });
 
-    const found = await intents.findReusable(
-      { session_id, user_id: user, type: "admin" }, c
-    );
+    const found = await intents.findReusable(session_id, user, "admin", c);
     assert.equal(found, undefined);
   });
 });

@@ -50,7 +50,7 @@ export async function serveOrderDocument(
     (caller.role === "admin" || (await orderOwnedBy(orderId, caller.id, executor)));
 
   if (entitled && orderId) {
-    const row = await latestPdf({ kind, order_id: orderId }, executor);
+    const row = await latestPdf(kind, orderId, executor);
 
     if (row) {
       const bytes = await attempt(`read stored ${kind} ${row.id} for order ${orderId}`, async () => {
@@ -64,7 +64,7 @@ export async function serveOrderDocument(
 
     const bytes = await render();
     if (await linkableOrderId(orderId, executor)) {
-      await persistPdf({ kind, order_id: orderId, bytes }, executor);
+      await persistPdf(kind, orderId, bytes, executor);
     }
     return { bytes, source: "rendered" };
   }

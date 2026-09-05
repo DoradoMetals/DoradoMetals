@@ -6,21 +6,19 @@ import type { Executor } from "#shared/db/executor.ts";
 import type { CheckoutAdoption, CheckoutAdoptionResult } from "@dorado/contracts";
 
 export async function adoptAnonymousCheckout(
-  { anonymousUserId, userId }: { anonymousUserId: string; userId: string },
-  executor?: Executor
+  anonymousUserId: string, userId: string, tx: Executor
 ): Promise<CheckoutAdoptionResult> {
   if (!anonymousUserId || !userId || anonymousUserId === userId) {
     return { adopted: [], addresses: 0 };
   }
-  const run = (client: Executor) => adopt(anonymousUserId, userId, client);
-  return executor ? await run(executor) : await withTransaction(run);
+  return await adopt(anonymousUserId, userId, tx);
 }
 
 export const adoptAnonymousCheckoutQuietly = (
-  ids: { anonymousUserId: string; userId: string }
+  anonymousUserId: string, userId: string
 ): Promise<CheckoutAdoptionResult | undefined> =>
   attempt("carry a visitor's basket onto their new account", () =>
-    adoptAnonymousCheckout(ids)
+    withTransaction((tx) => adoptAnonymousCheckout(anonymousUserId, userId, tx))
   );
 
 async function adopt(

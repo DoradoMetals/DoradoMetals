@@ -5,18 +5,15 @@ import * as images from "#db/media/images/repo.ts";
 import type { NewImage } from "#db/media/images/repo.ts";
 import * as rules from "#domain/media/images/rules.ts";
 import type { Image } from "@dorado/contracts";
+import { withDecisions } from "#shared/views.ts";
 
 const PUT_TTL_SECONDS = 60 * 5;
 const GET_TTL_SECONDS = 60 * 10;
 
-export async function uploadImage({
-  mime_type, size_bytes, filename, user_id,
-}: {
-  mime_type?: string | null;
-  size_bytes?: number | null;
-  filename: string;
-  user_id: string;
-}): Promise<{ id: string; uploadUrl: string }> {
+export async function uploadImage(
+  user_id: string, filename: string,
+  mime_type: string | null, size_bytes: number | null
+): Promise<{ id: string; uploadUrl: string }> {
   const bucket = process.env.MINIO_BUCKET as string;
 
   const originalName = String(filename ?? "")
@@ -53,37 +50,22 @@ async function ownedBy(image_id: string, user_id?: string): Promise<Image | null
 const presign = (img: Image) =>
   minio.presignedGetObject(img.bucket, img.path + img.filename, GET_TTL_SECONDS);
 
-export async function getUrl({ image_id }: { image_id: string }): Promise<string> {
+export async function getUrl(image_id: string): Promise<string> {
   const img = await images.getOne(image_id);
   rules.assertImage(img, image_id);
   return await presign(img);
 }
 
-export async function getUrlFor({
-  image_id, user_id,
-}: { image_id: string; user_id?: string }): Promise<string | null> {
+export async function getUrlFor(
+  image_id: string, user_id?: string
+): Promise<string | null> {
   const img = await ownedBy(image_id, user_id);
   if (!img) return null;
   return await presign(img);
 }
 
 export async function attachUrlToImage(image: Image): Promise<Image & { url: string }> {
-  const url = await presign(image);
-  return {
-    id: image.id,
-    bucket: image.bucket,
-    mime_type: image.mime_type,
-    size_bytes: image.size_bytes,
-    width: image.width,
-    height: image.height,
-    checksum: image.checksum,
-    metadata: image.metadata,
-    path: image.path,
-    filename: image.filename,
-    user_id: image.user_id,
-    created_at: image.created_at,
-    url,
-  };
+  return withDecisions(image, { url: await presign(image) });
 }
 
 export async function getTestImages(): Promise<(Image & { url: string })[]> {
@@ -91,9 +73,9 @@ export async function getTestImages(): Promise<(Image & { url: string })[]> {
   return Promise.all(rows.map(attachUrlToImage));
 }
 
-export async function deleteImage({
-  user_id, id,
-}: { user_id?: string; id: string }): Promise<{ success: true } | null> {
+export async function deleteImage(
+  id: string, user_id?: string
+): Promise<{ success: true } | null> {
   const img = await ownedBy(id, user_id);
   if (!img) return null;
 

@@ -5,7 +5,9 @@ import {
   scheduleFromPickup, scheduleOf,
 } from "#domain/shipping/rules.ts";
 import { Invalid } from "#shared/errors.ts";
-import type { CarrierHandoff, LabelService, Package } from "@dorado/contracts";
+import type {
+  CarrierHandoff, FulfillmentPickup, LabelService, Package,
+} from "@dorado/contracts";
 
 test("the parcel weighs what its items weigh, converted to pounds", () => {
   const weight = parcelWeightLb(
@@ -85,11 +87,13 @@ test("the handoff a method means is the one whose schedulability matches", () =>
 
 test("the courier slot comes off the order's own pickup row", () => {
   assert.deepEqual(
-    scheduleFromPickup({ start_time: "2026-09-04T14:30:00.000Z" }),
+    scheduleFromPickup(
+      { start_time: "2026-09-04T14:30:00.000Z" } as FulfillmentPickup
+    ),
     { date: "2026-09-04", time: "14:30" }
   );
   assert.equal(scheduleFromPickup(undefined), null);
-  assert.equal(scheduleFromPickup({ start_time: null }), null);
+  assert.equal(scheduleFromPickup({ start_time: null } as FulfillmentPickup), null);
   assert.equal(scheduleOf("2026-09-04", null), null);
 });
 

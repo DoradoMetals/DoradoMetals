@@ -50,7 +50,7 @@ test("create writes the address and its link under one id", async () => {
   await pinned(async (c) => {
     const { owner } = await twoPeople(c);
     const ua = link();
-    const made = await service.create({ address: address(), user_address: ua, userId: owner });
+    const made = await service.create(owner, address(), ua);
 
     assert.ok(made.address.id);
     assert.equal(made.address.line_1, "1 Test Street");
@@ -75,7 +75,7 @@ test("create writes the address and its link under one id", async () => {
 test("a new address is valid and non-residential until validation says otherwise", async () => {
   await pinned(async (c) => {
     const { owner } = await twoPeople(c);
-    const made = await service.create({ address: address(), user_address: link(), userId: owner });
+    const made = await service.create(owner, address(), link());
     assert.equal(made.address.is_valid, true);
     assert.equal(made.address.is_residential, false);
 
@@ -90,15 +90,11 @@ test("a new address is valid and non-residential until validation says otherwise
 test("the first address in a book is the default even when the caller says no", async () => {
   await pinned(async (c) => {
     const { owner } = await twoPeople(c);
-    const first = await service.create({
-      address: address(), user_address: link({ default_shipping: false }), userId: owner,
-    });
+    const first = await service.create(owner, address(), link({ default_shipping: false }));
     assert.equal(first.user_address.default_shipping, true);
     assert.equal(first.actions.set_default, false, "the default offers to become one");
 
-    const second = await service.create({
-      address: address(), user_address: link({ default_shipping: false }), userId: owner,
-    });
+    const second = await service.create(owner, address(), link({ default_shipping: false }));
     assert.equal(second.user_address.default_shipping, false, "the second address took the default");
   });
 });
@@ -106,10 +102,8 @@ test("the first address in a book is the default even when the caller says no", 
 test("the list is that person's entries, defaults first", async () => {
   await pinned(async (c) => {
     const { owner } = await twoPeople(c);
-    await service.create({ address: address(), user_address: link(), userId: owner });
-    const marked = await service.create({
-      address: address(), user_address: link({ default_shipping: true }), userId: owner,
-    });
+    await service.create(owner, address(), link());
+    const marked = await service.create(owner, address(), link({ default_shipping: true }));
 
     const rows = await service.list(owner);
     assert.ok(rows.length >= 2);
@@ -146,7 +140,7 @@ test("an address with no link is not in anybody's list", async () => {
 test("getAddressFromId answers the row, not an entry", async () => {
   await pinned(async (c) => {
     const { owner } = await twoPeople(c);
-    const made = await service.create({ address: address(), user_address: link(), userId: owner });
+    const made = await service.create(owner, address(), link());
 
     const one = await service.getAddressFromId(made.address.id);
     assert.ok(one, `getAddressFromId could not read back address ${made.address.id}`);
@@ -158,12 +152,12 @@ test("getAddressFromId answers the row, not an entry", async () => {
 test("update changes the address and its link", async () => {
   await pinned(async (c) => {
     const { owner } = await twoPeople(c);
-    const made = await service.create({ address: address(), user_address: link(), userId: owner });
-    const updated = await service.update(made.address.id, {
-      address: address({ city: "Dallas" }),
-      user_address: { recipient_name: "renamed", default_shipping: true },
-      userId: owner,
-    });
+    const made = await service.create(owner, address(), link());
+    const updated = await service.update(
+      made.address.id, owner,
+      address({ city: "Dallas" }),
+      { recipient_name: "renamed", default_shipping: true }
+    );
 
     assert.equal(updated.address.city, "Dallas");
     assert.equal(updated.user_address.recipient_name, "renamed");
@@ -184,10 +178,10 @@ test("update changes the address and its link", async () => {
 test("editing an address does not cost it its default", async () => {
   await pinned(async (c) => {
     const { owner } = await twoPeople(c);
-    const made = await service.create({ address: address(), user_address: link(), userId: owner });
-    const after = await service.update(made.address.id, {
-      user_address: { recipient_name: "still the default" }, userId: owner,
-    });
+    const made = await service.create(owner, address(), link());
+    const after = await service.update(
+      made.address.id, owner, undefined, { recipient_name: "still the default" }
+    );
     assert.equal(after.user_address.default_shipping, true);
   });
 });
@@ -195,10 +189,10 @@ test("editing an address does not cost it its default", async () => {
 test("a stranger cannot update somebody else's address", async () => {
   await pinned(async (c) => {
     const { owner, stranger } = await twoPeople(c);
-    const made = await service.create({ address: address(), user_address: link(), userId: owner });
+    const made = await service.create(owner, address(), link());
 
     await assert.rejects(
-      () => service.update(made.address.id, { address: address({ city: "Stolen" }), userId: stranger }),
+      () => service.update(made.address.id, stranger, address({ city: "Stolen" }), undefined),
       /address book/
     );
 
@@ -212,7 +206,7 @@ test("a stranger cannot update somebody else's address", async () => {
 test("a stranger's delete is refused rather than answered", async () => {
   await pinned(async (c) => {
     const { owner, stranger } = await twoPeople(c);
-    const made = await service.create({ address: address(), user_address: link(), userId: owner });
+    const made = await service.create(owner, address(), link());
     await assert.rejects(() => service.remove(made.address.id, stranger), /address book/);
 
     const { rows } = await c.query(
@@ -226,7 +220,7 @@ test("a stranger's delete is refused rather than answered", async () => {
 test("deleting removes the link and the address, and answers the entry it removed", async () => {
   await pinned(async (c) => {
     const { owner } = await twoPeople(c);
-    const made = await service.create({ address: address(), user_address: link(), userId: owner });
+    const made = await service.create(owner, address(), link());
     const gone = await service.remove(made.address.id, owner);
     assert.equal(gone.address.id, made.address.id);
 
@@ -244,7 +238,7 @@ test("deleting removes the link and the address, and answers the entry it remove
 test("an address an order points at survives being removed from a book", async () => {
   await pinned(async (c) => {
     const { owner } = await twoPeople(c);
-    const made = await service.create({ address: address(), user_address: link(), userId: owner });
+    const made = await service.create(owner, address(), link());
 
     const order = await anOrder(c, { id: owner }, { direction: "purchase", status: "Completed" })
       .withAddress({ id: made.address.id });
@@ -270,10 +264,8 @@ test("an address an order points at survives being removed from a book", async (
 test("setting a default clears the others", async () => {
   await pinned(async (c) => {
     const { owner } = await twoPeople(c);
-    const first = await service.create({
-      address: address(), user_address: link({ default_shipping: true }), userId: owner,
-    });
-    const second = await service.create({ address: address(), user_address: link(), userId: owner });
+    const first = await service.create(owner, address(), link({ default_shipping: true }));
+    const second = await service.create(owner, address(), link());
 
     const now = await service.setDefault(second.address.id, owner);
     assert.equal(now.user_address.default_shipping, true);
@@ -296,7 +288,7 @@ test("setting a default clears the others", async () => {
 test("an address on an unfinished order can be neither edited nor deleted, and says so", async () => {
   await pinned(async (c) => {
     const { owner } = await twoPeople(c);
-    const made = await service.create({ address: address(), user_address: link(), userId: owner });
+    const made = await service.create(owner, address(), link());
     await anOrder(c, { id: owner }, { direction: "purchase", status: "Pending" })
       .withAddress({ id: made.address.id });
 
@@ -308,7 +300,7 @@ test("an address on an unfinished order can be neither edited nor deleted, and s
     assert.equal(entry.actions.remove, false, "a locked entry still offers remove");
 
     await assert.rejects(
-      () => service.update(made.address.id, { address: address({ city: "Nope" }), userId: owner }),
+      () => service.update(made.address.id, owner, address({ city: "Nope" }), undefined),
       /associated with an active order/
     );
     await assert.rejects(

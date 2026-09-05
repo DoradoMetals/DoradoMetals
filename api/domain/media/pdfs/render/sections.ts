@@ -159,8 +159,7 @@ export function renderInvoiceHeader(
 }
 
 export function renderInvoiceShippingAndPayout(
-  order: OrderView,
-  { payoutCost, labels }: { payoutCost: number; labels: DocumentLabels }
+  order: OrderView, payoutCost: number, labels: DocumentLabels
 ): string {
   const inbound = inboundShipment(order);
   const outbound = returnShipment(order);
@@ -225,17 +224,10 @@ export function renderInvoiceShippingAndPayout(
 
 export function renderPackingShippingSection(
   order: OrderView,
-  {
-    isReturn = false,
-    includePayoutFee = false,
-    payoutFee = 0,
-    labels,
-  }: {
-    isReturn?: boolean;
-    includePayoutFee?: boolean;
-    payoutFee?: number;
-    labels: DocumentLabels;
-  }
+  labels: DocumentLabels,
+  isReturn: boolean,
+  includePayoutFee: boolean,
+  payoutFee: number
 ): string {
   const customer = {
     name: order.user?.name ?? "",

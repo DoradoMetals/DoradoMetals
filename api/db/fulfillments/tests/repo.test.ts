@@ -24,9 +24,7 @@ const aMethodId = (c: PoolClient) => fulfillmentMethodId(c, "CARRIER DROPOFF", "
 test("update writes status and method_id, leaving a column the patch never named alone", async () => {
   await inRollback(async (c: PoolClient) => {
     const method_id = await aMethodId(c);
-    const draft = await fulfillments.createDraft(
-      { id: randomUUID(), method_id }, c
-    );
+    const draft = await fulfillments.createDraft(randomUUID(), method_id, c);
 
     const changed = await fulfillments.update(draft.id, { status: "COMPLETED" }, c);
     assert.equal(changed, true, "update reported no row changed");
@@ -48,9 +46,7 @@ test("update(order_id) is one-way: a second attach changes nothing", async () =>
   await inRollback(async (c: PoolClient) => {
     await takeLocks(c, LOCKS.FULFILLMENTS);
     const method_id = await aMethodId(c);
-    const draft = await fulfillments.createDraft(
-      { id: randomUUID(), method_id }, c
-    );
+    const draft = await fulfillments.createDraft(randomUUID(), method_id, c);
     const order = await anOrder(c, await aUser(c), { direction: "purchase" });
 
     const attached = await fulfillments.update(draft.id, { order_id: order.id }, c);

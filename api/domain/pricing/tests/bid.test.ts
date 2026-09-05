@@ -238,10 +238,14 @@ test("an unwaived fee is deducted, whatever the flag's other spellings", () => {
   assert.equal(priced(undefined), 7180);
 });
 
+const anOrder = (over: Partial<OrderView> = {}): OrderView =>
+  ({ payout: null, totals: null, ...over }) as OrderView;
+
 test("effectivePayoutFee is the stored fee unless the order waives it", () => {
-  assert.equal(effectivePayoutFee({ payout: { cost: 125 } }), 125);
-  assert.equal(effectivePayoutFee({ payout: { cost: 125 }, waive_payout_fee: true }), 0);
-  assert.equal(effectivePayoutFee({ payout: { cost: 125 }, totals: { waive_payout_fee: true } }), 0);
-  assert.equal(effectivePayoutFee({ payout: null, waive_payout_fee: true }), 0);
-  assert.equal(effectivePayoutFee({}), 0);
+  const paid = { cost: 125 } as OrderView["payout"];
+  const waived = { waive_payout_fee: true } as OrderView["totals"];
+  assert.equal(effectivePayoutFee(anOrder({ payout: paid })), 125);
+  assert.equal(effectivePayoutFee(anOrder({ payout: paid, totals: waived })), 0);
+  assert.equal(effectivePayoutFee(anOrder({ payout: null, totals: waived })), 0);
+  assert.equal(effectivePayoutFee(anOrder()), 0);
 });

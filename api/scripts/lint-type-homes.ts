@@ -55,6 +55,70 @@ const DERIVING =
 
 type Finding = { file: string; line: number; text: string; why: string };
 
+// Ruling 73: a signature names contract types, ids, primitives or an Executor -
+// never a shape spelled out at the call boundary. `}: {` is the destructured
+// form (`function f({ a, b }: { a: string; b: number })`); `: {` after a
+// parameter name is the annotated form. Both are the same finding.
+function inlineParamTypes(src: string, file: string): Finding[] {
+  const out: Finding[] = [];
+  const lineOf = (i: number) => src.slice(0, i).split("\n").length;
+
+  for (const m of src.matchAll(/(?:^|[(,])\s*(?:\{[^()]*?\}|\.\.\.\w+|\w+\??)\s*:\s*\{/g)) {
+    const open = m.index + m[0].length - 1;
+    const close = closingBraceOf(src, open);
+    if (close === -1) continue;
+    const body = src.slice(open + 1, close);
+    // An object TYPE has `name: type` members separated by ; or , - an object
+    // VALUE (a default, a call argument) does not end its members with `;` and
+    // is not preceded by a parameter position. Require a typed member.
+    if (!/[A-Za-z_$][\w$]*\??\s*:\s*[^,;{}]+[;,]?/.test(body)) continue;
+    if (!isParameterPosition(src, m.index)) continue;
+    out.push({
+      file, line: lineOf(m.index),
+      text: `parameter type { ${body.trim().replace(/\s+/g, " ").slice(0, 50)} }`,
+      why:
+        "a parameter spells out a shape - take a contract type, an id, a primitive " +
+        "or an Executor (ruling 73)",
+    });
+  }
+  return out;
+}
+
+function closingBraceOf(src: string, open: number): number {
+  let depth = 0;
+  for (let i = open; i < src.length; i++) {
+    const c = src[i]!;
+    if (c === "{" || c === "[" || c === "(") depth += 1;
+    else if (c === "}" || c === "]" || c === ")") {
+      depth -= 1;
+      if (depth === 0) return i;
+    }
+  }
+  return -1;
+}
+
+// Walk left to the enclosing "(" and check the token before it reads like a
+// callable declaration: `function f(`, `f(` after `=>`-less declaration, a
+// method name, or a bare arrow parameter list.
+function isParameterPosition(src: string, at: number): boolean {
+  let depth = 0;
+  for (let i = at; i >= 0; i--) {
+    const c = src[i]!;
+    if (c === ")" || c === "}" || c === "]") depth += 1;
+    else if (c === "(") {
+      if (depth === 0) {
+        const before = src.slice(Math.max(0, i - 80), i);
+        return /(function\s*\*?\s*[\w$]*\s*(<[^()]*>)?\s*|[\w$]\s*(<[^()]*>)?\s*)$/.test(before);
+      }
+      depth -= 1;
+    } else if (c === "{" || c === "[") {
+      if (depth === 0) return false;
+      depth -= 1;
+    } else if (c === ";") return false;
+  }
+  return false;
+}
+
 function findingsIn(src: string, file: string): Finding[] {
   const out: Finding[] = [];
   const lineOf = (i: number) => src.slice(0, i).split("\n").length;
@@ -99,6 +163,8 @@ function findingsIn(src: string, file: string): Finding[] {
       });
     }
   }
+
+  for (const f of inlineParamTypes(src, file)) out.push(f);
 
   const ifaceRe = /(?:^|\n)\s*(export\s+)?interface\s+(\w+)/g;
   while ((m = ifaceRe.exec(src))) {
@@ -147,11 +213,32 @@ if (process.argv.includes("--self-test")) {
         rootEnv: "LINT_TYPE_HOMES_ROOT", env: { LINT_TYPE_HOMES_FLOOR: "0" },
         files: { "db/rates/repo.ts": "type Row = z.infer<typeof Rate>;\n" },
         mustPrint: "0 misplaced" },
-      { name: "an inline parameter type is not a declaration", expect: "pass",
+      { name: "an inline parameter type is a finding (ruling 73)", expect: "fail",
         rootEnv: "LINT_TYPE_HOMES_ROOT", env: { LINT_TYPE_HOMES_FLOOR: "0" },
         files: {
           "domain/orders/service.ts":
             "export function f(x: { a: string; b: number }): void {}\n",
+        },
+        mustPrint: "parameter spells out a shape" },
+      { name: "a destructured inline parameter is the same finding", expect: "fail",
+        rootEnv: "LINT_TYPE_HOMES_ROOT", env: { LINT_TYPE_HOMES_FLOOR: "0" },
+        files: {
+          "domain/orders/service.ts":
+            "export function f({ a, b }: { a: string; b: number }): void {}\n",
+        },
+        mustPrint: "parameter spells out a shape" },
+      { name: "a contract-typed parameter passes", expect: "pass",
+        rootEnv: "LINT_TYPE_HOMES_ROOT", env: { LINT_TYPE_HOMES_FLOOR: "0" },
+        files: {
+          "domain/orders/service.ts":
+            "export function f(view: OrderView, id: string): void {}\n",
+        },
+        mustPrint: "0 misplaced" },
+      { name: "an object VALUE argument is not a parameter type", expect: "pass",
+        rootEnv: "LINT_TYPE_HOMES_ROOT", env: { LINT_TYPE_HOMES_FLOOR: "0" },
+        files: {
+          "domain/orders/service.ts":
+            "export const r = call(id, { a: 1, b: 2 });\n",
         },
         mustPrint: "0 misplaced" },
       { name: "a test file is out of scope", expect: "pass",

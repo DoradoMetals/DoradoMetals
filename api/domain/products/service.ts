@@ -5,6 +5,7 @@ import type { Executor } from "#shared/db/executor.ts";
 import type {
   BullionAdmin, BullionFilter, BullionGroup, BullionLiveness, BullionPatch, BullionPatchColumns,
   BullionStorefront,
+  QuoteItem,
 } from "@dorado/contracts";
 
 export async function listGroups(filter: BullionFilter): Promise<BullionGroup[]> {
@@ -44,7 +45,7 @@ export async function getByIds(
 }
 
 export async function getItemsFromServer(
-  items: { id: string; quantity: number }[]
+  items: QuoteItem[]
 ): Promise<(BullionStorefront & { quantity: number })[]> {
   const wanted = new Map(items.map((i) => [i.id, i.quantity]));
   const rows = await products.listFor({ ids: [...wanted.keys()] });

@@ -36,9 +36,7 @@ test("a new order lands with its direction, status and number, copied from its c
     const user_id = (await aUser(c)).id;
     const checkout_id = await aCheckoutId(c, user_id, "purchase");
 
-    const created = await orders.createForCheckout(
-      { checkout_id, status: "Pending" }, c
-    );
+    const created = await orders.createForCheckout(null, checkout_id, "Pending", c);
     assert.ok(created, "the order was not written");
     const { id, number, user_id: owner } = created!;
 
@@ -57,21 +55,15 @@ test("each direction draws from its own sequence, and each draw advances it", as
     const user_id = (await aUser(c)).id;
     const purchase_checkout_id = await aCheckoutId(c, user_id, "purchase");
 
-    const first = await orders.createForCheckout(
-      { checkout_id: purchase_checkout_id, status: "Pending" }, c
-    );
-    const second = await orders.createForCheckout(
-      { checkout_id: purchase_checkout_id, status: "Pending" }, c
-    );
+    const first = await orders.createForCheckout(null, purchase_checkout_id, "Pending", c);
+    const second = await orders.createForCheckout(null, purchase_checkout_id, "Pending", c);
     assert.ok(
       Number(second!.number) > Number(first!.number),
       "the sequence did not advance between two creates"
     );
 
     const sale_checkout_id = await aCheckoutId(c, user_id, "sale");
-    const sale = await orders.createForCheckout(
-      { checkout_id: sale_checkout_id, status: "Pending" }, c
-    );
+    const sale = await orders.createForCheckout(null, sale_checkout_id, "Pending", c);
     const { rows } = await c.query(
       `SELECT direction FROM orders.orders WHERE id = $1`, [sale!.id]
     );
@@ -84,9 +76,7 @@ test("a new order starts with its spots unpinned", async () => {
     const user_id = (await aUser(c)).id;
     const checkout_id = await aCheckoutId(c, user_id, "purchase");
 
-    const created = await orders.createForCheckout(
-      { checkout_id, status: "Pending" }, c
-    );
+    const created = await orders.createForCheckout(null, checkout_id, "Pending", c);
 
     const { rows } = await c.query(
       "SELECT spots_locked FROM orders.orders WHERE id = $1", [created!.id]
@@ -101,9 +91,7 @@ test("rolling back undoes the order", async () => {
   try {
     await writer.query("BEGIN");
     const checkout_id = await aCheckoutId(writer, TEST_ACTOR.id, "purchase");
-    const created = await orders.createForCheckout(
-      { checkout_id, status: "Pending" }, writer
-    );
+    const created = await orders.createForCheckout(null, checkout_id, "Pending", writer);
     const { id } = created!;
     await writer.query("ROLLBACK");
 

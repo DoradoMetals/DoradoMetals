@@ -1,6 +1,6 @@
 import { test } from "vitest";
 import assert from "node:assert/strict";
-import type { Checkout, FulfillmentStep } from "@dorado/contracts";
+import type { Checkout, CheckoutViewFacts, FulfillmentStep } from "@dorado/contracts";
 import { checkoutState, CHOICE_COLUMNS, mergeChoices } from "#domain/checkout/rules.ts";
 
 const row = (over: Partial<Checkout> = {}): Checkout =>
@@ -11,14 +11,15 @@ const row = (over: Partial<Checkout> = {}): Checkout =>
     ...over,
   });
 
+const view = (over: Partial<Checkout>, items: number): CheckoutViewFacts => ({
+  ...row(over),
+  items: Array.from({ length: items }, () => ({}) as CheckoutViewFacts["items"][number]),
+});
+
 const purchase = (over: Partial<Checkout>, extra: Partial<{
   item_count: number; handover: FulfillmentStep[];
 }> = {}) =>
-  checkoutState({
-    row: row(over), direction: "purchase",
-    item_count: extra.item_count ?? 1,
-    handover: extra.handover ?? [],
-  });
+  checkoutState(view(over, extra.item_count ?? 1), extra.handover ?? []);
 
 test("with no draft fulfillment, nobody can say how the order is handed over", () => {
   assert.deepEqual(
@@ -55,15 +56,12 @@ test("no draft means no handover steps, whatever is passed", () => {
 });
 
 test("a sale asks for its items, a draft and a recipient address", () => {
-  const empty = checkoutState({
-    row: row({ direction: "sale" }), direction: "sale", item_count: 0, handover: [],
-  });
+  const empty = checkoutState(view({ direction: "sale" }, 0), []);
   assert.deepEqual(empty.missing, ["items", "fulfillment_id", "recipient_address_id"]);
 
-  const ready = checkoutState({
-    row: row({ direction: "sale", recipient_address_id: "a", fulfillment_id: "f" }),
-    direction: "sale", item_count: 1, handover: [],
-  });
+  const ready = checkoutState(
+    view({ direction: "sale", recipient_address_id: "a", fulfillment_id: "f" }, 1), []
+  );
   assert.deepEqual(ready.missing, []);
 });
 

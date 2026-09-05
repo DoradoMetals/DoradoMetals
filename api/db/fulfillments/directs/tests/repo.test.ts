@@ -21,7 +21,7 @@ afterAll(async () => {
 
 async function aDraftFulfillment(c: PoolClient): Promise<string> {
   const method_id = await fulfillmentMethodId(c, "CARRIER DROPOFF", "purchase");
-  const draft = await fulfillments.createDraft({ id: randomUUID(), method_id }, c);
+  const draft = await fulfillments.createDraft(randomUUID(), method_id, c);
   return draft.id;
 }
 

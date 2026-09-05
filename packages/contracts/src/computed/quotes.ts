@@ -194,3 +194,11 @@ export const OrderQuoteBody = z.object({
   order_id: z.string().uuid(),
 }).strict();
 export type OrderQuoteBody = z.infer<typeof OrderQuoteBody>;
+
+export const PriceableLine = z.object({
+  metal_type: z.string().nullable().optional(),
+  content: z.number().nullable().optional(),
+  ask_premium: z.number().nullable().optional(),
+  quantity: z.number().nullable().optional(),
+});
+export type PriceableLine = z.infer<typeof PriceableLine>;

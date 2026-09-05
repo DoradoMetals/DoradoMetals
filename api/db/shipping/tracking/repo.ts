@@ -1,17 +1,15 @@
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { Executor } from "#shared/db/executor.ts";
-import type { TrackingRecord } from "@dorado/contracts";
+import type { TrackingScan } from "@dorado/contracts";
 import type { ParsedTracking, TrackingEvent } from "#providers/shipments/utils/parsing.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-type ScanEventRow = Omit<TrackingRecord, "time"> & { scan_time: Date | string | null };
-
 export async function getFor(
   shipment_id: string, executor?: Executor
-): Promise<ScanEventRow[]> {
-  const { rows } = await query<ScanEventRow>(sql("get_for"), [shipment_id], executor);
+): Promise<TrackingScan[]> {
+  const { rows } = await query<TrackingScan>(sql("get_for"), [shipment_id], executor);
   return rows;
 }
 

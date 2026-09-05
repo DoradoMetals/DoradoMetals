@@ -64,11 +64,7 @@ export async function aShipment(
   );
   const fulfillment_id = anId();
   await fulfillments.create(
-    {
-      id: fulfillment_id, order_id: order.id, method_id,
-      status: options.fulfillment_status ?? "Pending",
-    },
-    c
+    fulfillment_id, order.id, method_id, options.fulfillment_status ?? "Pending", c
   );
   await fulfillmentShipments.create(
     { id: anId(), fulfillment_id, shipment_id: id },

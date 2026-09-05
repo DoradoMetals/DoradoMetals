@@ -15,12 +15,8 @@ export async function aHandover(
 ): Promise<FulfillmentView> {
   const direction = options.direction ?? "purchase";
   const draft = await fulfillmentService.createDraft(
-    {
-      method_id: await fulfillmentMethodId(
-        c, options.method ?? "CARRIER DROPOFF", direction
-      ),
-      direction,
-    },
+    await fulfillmentMethodId(c, options.method ?? "CARRIER DROPOFF", direction),
+    direction,
     c
   );
   await checkouts.update(checkout_id, { fulfillment_id: draft.fulfillment.id }, c);

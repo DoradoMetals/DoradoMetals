@@ -19,7 +19,7 @@ import type { ParsedTracking } from "#providers/shipments/utils/parsing.ts";
 type RatesInput = Parameters<typeof shippingHandler.getRates>[2];
 import type { ShipmentPickup } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
-import type { CheckoutRate, Direction, Shipment, ShipmentView, ShippingCancelLabelBody, ShippingCancelPickupBody, ShippingCheckPickupBody, ShippingGetLocationsBody, ShippingValidateAddressBody } from "@dorado/contracts";
+import type { CarrierLabel, CheckoutRate, Direction, Shipment, ShipmentView, ShippingCancelLabelBody, ShippingCancelPickupBody, ShippingCheckPickupBody, ShippingGetLocationsBody, ShippingValidateAddressBody } from "@dorado/contracts";
 
 async function requireAddress(address_id: string) {
   const address = await addressesRepo.getOne(address_id);
@@ -88,21 +88,14 @@ export async function getTracking(
   });
 }
 
-export async function quoteRate({
-  carrier_id,
-  shippingType,
-  address,
-  pkg,
-  pickupType,
-  declaredValue,
-}: {
-  carrier_id?: string | null;
-  shippingType: unknown;
-  address: RatesInput["shipperAddress"];
-  pkg?: RatesInput["pkg"];
-  pickupType?: RatesInput["pickupType"];
-  declaredValue?: RatesInput["declaredValue"];
-}): Promise<ReturnType<typeof shippingHandler.getRates>> {
+export async function quoteRate(
+  carrier_id: string | null,
+  shippingType: unknown,
+  address: RatesInput["shipperAddress"],
+  pkg: RatesInput["pkg"],
+  pickupType: RatesInput["pickupType"],
+  declaredValue: RatesInput["declaredValue"]
+): Promise<ReturnType<typeof shippingHandler.getRates>> {
   shippingRules.assertShippingType(shippingType);
   const inbound = shippingType === "Inbound";
   const shipperAddress: RatesInput["shipperAddress"] = inbound ? address : DORADO_ADDRESS;
@@ -145,18 +138,20 @@ export async function getFulfillmentRates(fulfillment_id: string): Promise<Check
     shippingRules.declaredValue(total)
   );
 
-  const quoted = await quoteRate({
-    shippingType: inbound ? "Inbound" : "Outbound",
+  const quoted = await quoteRate(
+    null,
+    inbound ? "Inbound" : "Outbound",
     address,
-    pkg: {
+    {
       weight: { units: "LB", value: weight },
       dimensions: {
         length: Number(box.length), width: Number(box.width),
         height: Number(box.height), units: "IN",
       },
     },
-    declaredValue: declaredValue > 0 ? { amount: declaredValue, currency: "USD" } : undefined,
-  });
+    undefined,
+    declaredValue > 0 ? { amount: declaredValue, currency: "USD" } : undefined
+  );
 
   return shippingRules.offeredRates(
     quoted, await carrierServices.getOfferedServices(null), parcel.carrier_service_id
@@ -229,7 +224,7 @@ export async function voidLabel(
 }
 
 export async function labelBufferOrVoid(
-  labelData: { labelFile: string | null; tracking_number: string | null },
+  labelData: CarrierLabel,
   cancel: typeof voidLabel = voidLabel
 ): Promise<Buffer> {
   if (!labelData.labelFile) await cancel(labelData.tracking_number);

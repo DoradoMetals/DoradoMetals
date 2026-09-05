@@ -197,7 +197,7 @@ class OrderPlan implements PromiseLike<BuiltOrder> {
     if (!checkout) throw new Error("checkout.checkouts refused a new session");
 
     const created = await ordersRepo.createForCheckout(
-      { id: this.options.id, checkout_id: checkout.id, status }, this.c
+      this.options.id ?? null, checkout.id, status, this.c
     );
     if (!created) throw new Error("orders.orders refused a new order");
 

@@ -77,8 +77,7 @@ export async function attachSalesTaxToItems<T extends TaxableItem & PriceableLin
   spots: PricingSpot[]
 ): Promise<(T & { sales_tax_rate: number })[]> {
   const item_total = calculateItemTotals(items, spots);
-  const taxed = (item: T, sales_tax_rate: number) =>
-    Object.assign({}, item, { sales_tax_rate });
+  const taxed = (item: T, sales_tax_rate: number) => ({ ...item, sales_tax_rate });
 
   const collectingNexus = process.env.COLLECTING_NEXUS_TAXES === "true";
   if (collectingNexus && state_code !== null && !(await isNexus(state_code))) {

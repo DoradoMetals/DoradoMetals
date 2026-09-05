@@ -18,25 +18,28 @@ afterAll(async () => {
 });
 
 const aBareShipment = async (c: PoolClient) => {
-  const shipment = await shipmentService.create({ direction: "Outbound" }, c);
+  const shipment = await shipmentService.create(null, "Outbound", c);
   assert.ok(shipment, "fixture: the shipment shell was not created");
   return shipment;
 };
 
-const aBooking = (over = {}) => ({
-  date: "2026-08-22",
-  time: "10:30:00",
-  confirmation_number: 998877,
-  location: "FRONT",
-  ...over,
+const aBooking = (over: { date?: string; time?: string } = {}) => ({
+  date: "2026-08-22", time: "10:30:00", ...over,
 });
+
+const record = (
+  shipment_id: string, over: { date?: string; time?: string }, c: PoolClient
+) => {
+  const booking = aBooking(over);
+  return pickupService.recordForShipment(
+    shipment_id, booking.date, booking.time, 998877, "FRONT", c
+  );
+};
 
 test("recording a pickup for a shipment creates the row", async () => {
   await inRollback(async (c: PoolClient) => {
     const shipment = await aBareShipment(c);
-    const created = await pickupService.recordForShipment(
-      { shipment_id: shipment.id, ...aBooking() }, c
-    );
+    const created = await record(shipment.id, {}, c);
     assert.ok(created?.id, "recordForShipment returned nothing");
     assert.equal(created.location, "FRONT");
     assert.equal(created.status, "scheduled");
@@ -47,9 +50,7 @@ test("recording a pickup for a shipment creates the row", async () => {
 test("the date and time are combined into requested_at", async () => {
   await inRollback(async (c: PoolClient) => {
     const shipment = await aBareShipment(c);
-    const created = await pickupService.recordForShipment(
-      { shipment_id: shipment.id, ...aBooking({ date: "2026-08-22", time: "10:30:00" }) }, c
-    );
+    const created = await record(shipment.id, { date: "2026-08-22", time: "10:30:00" }, c);
     const { rows: [row] } = await c.query(
       "SELECT to_char(requested_at, 'YYYY-MM-DD HH24:MI:SS') AS at FROM shipping.pickups WHERE id = $1",
       [created.id]
@@ -61,9 +62,7 @@ test("the date and time are combined into requested_at", async () => {
 test("a pickup with no time still records the date at midnight", async () => {
   await inRollback(async (c: PoolClient) => {
     const shipment = await aBareShipment(c);
-    const created = await pickupService.recordForShipment(
-      { shipment_id: shipment.id, ...aBooking({ time: "" }) }, c
-    );
+    const created = await record(shipment.id, { time: "" }, c);
     const { rows: [row] } = await c.query(
       "SELECT to_char(requested_at, 'YYYY-MM-DD HH24:MI:SS') AS at FROM shipping.pickups WHERE id = $1",
       [created.id]
@@ -75,9 +74,7 @@ test("a pickup with no time still records the date at midnight", async () => {
 test("updating a pickup records the new status rather than the old one", async () => {
   await inRollback(async (c: PoolClient) => {
     const shipment = await aBareShipment(c);
-    const created = await pickupService.recordForShipment(
-      { shipment_id: shipment.id, ...aBooking() }, c
-    );
+    const created = await record(shipment.id, {}, c);
     const updated = await pickupService.update(created.id, {
       requested_at: created.requested_at,
       status: "canceled",
@@ -92,9 +89,7 @@ test("updating a pickup records the new status rather than the old one", async (
 test("the status vocabulary is pending / scheduled / completed / canceled", async () => {
   await inRollback(async (c: PoolClient) => {
     const shipment = await aBareShipment(c);
-    const created = await pickupService.recordForShipment(
-      { shipment_id: shipment.id, ...aBooking() }, c
-    );
+    const created = await record(shipment.id, {}, c);
     for (const status of ["pending", "scheduled", "completed", "canceled"]) {
       const updated = await pickupService.update(created.id, {
         requested_at: created.requested_at,
@@ -121,9 +116,7 @@ test("the status vocabulary is pending / scheduled / completed / canceled", asyn
 test("the pickup has exactly the columns shipping.pickups has", async () => {
   await inRollback(async (c: PoolClient) => {
     const shipment = await aBareShipment(c);
-    const created = await pickupService.recordForShipment(
-      { shipment_id: shipment.id, ...aBooking() }, c
-    );
+    const created = await record(shipment.id, {}, c);
 
     const { rows: contract } = await c.query(
       `SELECT column_name FROM information_schema.columns

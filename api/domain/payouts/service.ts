@@ -7,6 +7,7 @@ import {
   assertNamesAField, assertPayout, assertWaivable, assertWritablePayout,
 } from "#domain/payouts/rules.ts";
 import type { Payout, PayoutDetails, PayoutPatch } from "@dorado/contracts";
+import { withDecisions } from "#shared/views.ts";
 
 export async function patchPayout(
   payout_id: string, patch: PayoutPatch
@@ -47,5 +48,5 @@ export async function getPayoutsByOrder(order_id: string): Promise<Payout[]> {
 export async function getDetails(id: string): Promise<PayoutDetails | undefined> {
   const payout = await payoutsRepo.getById(id);
   if (!payout) return undefined;
-  return Object.assign(payout, await payoutDetails.decryptFor(id));
+  return withDecisions(payout, await payoutDetails.decryptFor(id));
 }

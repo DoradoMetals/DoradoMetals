@@ -7,12 +7,7 @@ export function inboundShipment(view: OrderView): OrderView["shipments"][number]
   return view.shipments.find((s) => s.direction !== "Return") ?? null;
 }
 
-export function effectivePayoutFee(order: {
-  payout?: { cost?: number | null } | null;
-  waive_payout_fee?: boolean | null;
-  totals?: { waive_payout_fee?: boolean | null } | null;
-}): number {
-  if (order.waive_payout_fee === true) return 0;
+export function effectivePayoutFee(order: OrderView): number {
   if (order.totals?.waive_payout_fee === true) return 0;
   return rules.feeOf(order.payout?.cost, "the payout fee");
 }

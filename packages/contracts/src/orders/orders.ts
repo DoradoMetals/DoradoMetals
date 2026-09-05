@@ -42,7 +42,7 @@ import { OrderActions } from "../computed/orders.js";
 export const OrderRead = Order.extend({ totals: OrderTotals.nullable() });
 export type OrderRead = z.infer<typeof OrderRead>;
 
-export const OrderView = z.object({
+export const OrderViewFacts = z.object({
   order: Order,
   totals: OrderTotals.nullable(),
   items: z.array(OrderViewItem),
@@ -51,8 +51,10 @@ export const OrderView = z.object({
   pickup: ShipmentPickup.nullable(),
   payout: OrderViewPayout.nullable(),
   user: UserSummary.nullable(),
-  actions: OrderActions,
 });
+export type OrderViewFacts = z.infer<typeof OrderViewFacts>;
+
+export const OrderView = OrderViewFacts.extend({ actions: OrderActions });
 export type OrderView = z.infer<typeof OrderView>;
 
 export const OrderPatch = Order.pick({ status: true, notes: true }).partial().strict();

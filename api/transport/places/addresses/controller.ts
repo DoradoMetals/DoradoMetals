@@ -25,17 +25,17 @@ export const getOne = asyncHandler(async (req, res) =>
 
 export const create = asyncHandler(async (req, res) => {
   const body = parseStrict(AddressWriteBody, req.body, "addresses/create body");
-  const entry = await addressService.create({
-    address: body.address, user_address: body.user_address, userId: subjectOf(req),
-  });
+  const entry = await addressService.create(
+    subjectOf(req), body.address, body.user_address
+  );
   return res.status(201).json(entry);
 });
 
 export const update = asyncHandler(async (req, res) => {
   const body = parseStrict(AddressWriteBody, req.body, "addresses/update body");
-  const entry = await addressService.update(addressId(req), {
-    address: body.address, user_address: body.user_address, userId: subjectOf(req),
-  });
+  const entry = await addressService.update(
+    addressId(req), subjectOf(req), body.address, body.user_address
+  );
   return res.status(200).json(entry);
 });
 

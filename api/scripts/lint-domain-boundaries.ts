@@ -40,7 +40,7 @@ const ACCEPTED: Record<string, { count: number; why: string }> = {
       "shipping's to write - what is named here is the admin's INPUT.",
   },
   "domain/orders/rules.ts": {
-    count: 2,
+    count: 1,
     why:
       "`OrderActions.buy_label` and `update_tracking` are answered from the " +
       "parcel's own state (ruling 67: 'the parcel exists and carries no label, " +

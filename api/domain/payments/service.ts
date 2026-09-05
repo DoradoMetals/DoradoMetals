@@ -25,11 +25,9 @@ async function findReusableIntent(
   executor?: Executor
 ): Promise<PaymentIntentView | undefined> {
   return await intents.findReusable(
-    {
-      session_id: caller.session_id,
-      user_id: intentOwner(type, caller.user_id, named_user_id),
-      type: type ?? null,
-    },
+    caller.session_id,
+    intentOwner(type, caller.user_id, named_user_id),
+    type ?? null,
     executor
   );
 }

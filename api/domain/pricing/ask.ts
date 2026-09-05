@@ -1,15 +1,7 @@
-import type { OrderPrices, PricingSpot, Spots } from "@dorado/contracts";
+import type { OrderPrices, PriceableLine, PricingSpot, Spots } from "@dorado/contracts";
 export type { OrderPrices, PricingSpot, Spots } from "@dorado/contracts";
 
-export function calculateItemAsk(
-  item: {
-    metal_type?: string | null;
-    content?: number | null;
-    ask_premium?: number | null;
-    quantity?: number | null;
-  },
-  spots: Spots
-): number {
+export function calculateItemAsk(item: PriceableLine, spots: Spots): number {
   const spot = spots?.find((s: PricingSpot) => s.name === item.metal_type);
   return (
     (item?.content ?? 0) * ((spot?.ask ?? 0) * (item?.ask_premium ?? 0))
@@ -27,15 +19,7 @@ export function calculateCardCharge(
   }
 }
 
-export function calculateItemTotals(
-  items: {
-    metal_type?: string | null;
-    content?: number | null;
-    ask_premium?: number | null;
-    quantity?: number | null;
-  }[],
-  spots: Spots
-): number {
+export function calculateItemTotals(items: PriceableLine[], spots: Spots): number {
   const baseTotal = items.reduce((acc, item) => {
     const price = calculateItemAsk(item, spots);
 

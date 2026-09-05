@@ -27,22 +27,28 @@ export const FulfillmentParcel = OrderViewShipment.pick({
   carrier_service_id: true,
   pickup_date: true,
   pickup_time: true,
+  tracking_number: true,
 });
 export type FulfillmentParcel = z.infer<typeof FulfillmentParcel>;
 
-export const FulfillmentView = z.object({
+export const FulfillmentViewFacts = z.object({
   fulfillment: Fulfillment,
   method: FulfillmentMethodRead,
   pickup: FulfillmentPickup.nullable(),
   direct: FulfillmentDirect.nullable(),
   shipments: z.array(FulfillmentShipment),
   parcel: FulfillmentParcel.nullable(),
-  requires_schedule: z.boolean(),
-  is_scheduled: z.boolean(),
   scheduled_at: z.string().nullable(),
+});
+export type FulfillmentViewFacts = z.infer<typeof FulfillmentViewFacts>;
+
+export const FulfillmentDecisions = z.object({
   missing: z.array(FulfillmentStep),
   actions: FulfillmentActions,
 });
+export type FulfillmentDecisions = z.infer<typeof FulfillmentDecisions>;
+
+export const FulfillmentView = FulfillmentViewFacts.extend(FulfillmentDecisions.shape);
 export type FulfillmentView = z.infer<typeof FulfillmentView>;
 
 export const FulfillmentCreateBody = z.object({

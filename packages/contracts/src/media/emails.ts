@@ -22,6 +22,12 @@ export const Email = z.object({
 export type Email = z.infer<typeof Email>;
 // generated:end
 import { Order } from "../orders/orders.js";
+import { User } from "../auth/users.js";
 
 export const SendOrderEmailBody = z.object({ order_id: Order.shape.id }).strict();
 export type SendOrderEmailBody = z.infer<typeof SendOrderEmailBody>;
+
+export const EmailRecipient = User.pick({ id: true, email: true, name: true })
+  .extend({ id: User.shape.id.nullable() })
+  .partial({ id: true, name: true });
+export type EmailRecipient = z.infer<typeof EmailRecipient>;

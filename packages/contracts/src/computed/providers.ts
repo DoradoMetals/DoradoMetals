@@ -83,3 +83,18 @@ export const LabelService = CarrierServiceOption.extend({
   carrier_id: z.string().uuid(),
 });
 export type LabelService = z.infer<typeof LabelService>;
+
+export const CarrierPickupBooking = z.object({
+  confirmationNumber: z.string().nullable(),
+  location: z.string().nullable(),
+});
+export type CarrierPickupBooking = z.infer<typeof CarrierPickupBooking>;
+
+export const CarrierLabel = z.object({
+  labelFile: z.string().nullable(),
+  tracking_number: z.string().nullable(),
+});
+export type CarrierLabel = z.infer<typeof CarrierLabel>;
+
+export const ShippableCarrier = z.object({ name: z.string() });
+export type ShippableCarrier = z.infer<typeof ShippableCarrier>;

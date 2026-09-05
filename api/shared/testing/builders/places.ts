@@ -1,5 +1,5 @@
 import type { PoolClient } from "pg";
-import { anId, aTag } from "#shared/testing/builders/ids.ts";
+import { aTag } from "#shared/testing/builders/ids.ts";
 import * as addresses from "#db/places/addresses/repo.ts";
 import * as userAddresses from "#db/places/user-addresses/repo.ts";
 import type { BuiltUser } from "#shared/testing/builders/users.ts";
@@ -34,9 +34,7 @@ export async function anAddress(
   c: PoolClient, user: BuiltUser | { id: string }, options: AddressOptions = {}
 ): Promise<BuiltAddress> {
   const tag = aTag();
-  const id = options.id ?? anId();
   const row = await addresses.create(
-    id,
     {
       line_1: options.line_1 ?? `${tag} Test Street`,
       line_2: options.line_2 ?? null,
@@ -52,7 +50,7 @@ export async function anAddress(
   const recipient_name = options.recipient_name ?? `Test Recipient ${tag}`;
   const label = options.label ?? `Test Address ${tag}`;
   await userAddresses.create(
-    anId(), row.id, user.id,
+    row.id, user.id,
     {
       recipient_name, label,
       default_shipping: options.default_shipping ?? true,

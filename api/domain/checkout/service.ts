@@ -10,6 +10,7 @@ import {
   users as usersService,
 } from "#domain";
 import * as rules from "#domain/checkout/rules.ts";
+import { withDecisions } from "#shared/views.ts";
 import { bidPrice } from "#domain/quotes/rules.ts";
 import { lineContent } from "#domain/orders/rules.ts";
 import type {
@@ -47,27 +48,19 @@ async function ensure(
   ) ?? row;
 }
 
-async function compose(row: Checkout, client?: Executor): Promise<CheckoutView> {
-  const item_count = (await checkoutItems.listFor(row.id, client)).length;
-  const handover = row.fulfillment_id
-    ? await fulfillmentService.missing(row.fulfillment_id, client)
+async function viewOf(checkout_id: string, client?: Executor): Promise<CheckoutView> {
+  const facts = await checkouts.view(checkout_id, client);
+  rules.assertSession(facts);
+  const handover = facts.fulfillment_id
+    ? await fulfillmentService.missing(facts.fulfillment_id, client)
     : [];
-
-  return Object.assign(
-    row,
-    rules.checkoutState({
-      row,
-      direction: row.direction as Direction,
-      item_count,
-      handover,
-    })
-  );
+  return withDecisions(facts, rules.checkoutState(facts, handover));
 }
 
 export async function missingFor(
-  row: Checkout, client?: Executor
+  checkout_id: string, client?: Executor
 ): Promise<CheckoutView["missing"]> {
-  return (await compose(row, client)).missing;
+  return (await viewOf(checkout_id, client)).missing;
 }
 
 export async function attachFulfillment(
@@ -101,7 +94,7 @@ export async function assertRealAccount(user_id: string, action: string): Promis
 export async function getCheckout(
   user_id: string, direction: Direction
 ): Promise<CheckoutView> {
-  return await compose(await ensure(user_id, direction));
+  return await viewOf((await ensure(user_id, direction)).id);
 }
 
 export async function patchCheckout(
@@ -109,9 +102,8 @@ export async function patchCheckout(
 ): Promise<CheckoutView> {
   return await withTransaction(async (client) => {
     const row = await ensure(user_id, direction, client);
-    const fresh = await checkouts.update(row.id, patch, client);
-    rules.assertSession(fresh);
-    return await compose(fresh, client);
+    rules.assertSession(await checkouts.update(row.id, patch, client));
+    return await viewOf(row.id, client);
   });
 }
 
@@ -125,13 +117,12 @@ export async function saveCheckoutPayout(
     const saved = await payoutDetails.saveCheckoutPayout(
       user_id, row.payment_details_id, form, client
     );
-    const fresh = await checkouts.update(
+    rules.assertSession(await checkouts.update(
       row.id,
       { payment_details_id: saved.id, payment_method_id: saved.method_id },
       client
-    );
-    rules.assertSession(fresh);
-    return await compose(fresh, client);
+    ));
+    return await viewOf(row.id, client);
   });
 }
 
@@ -152,15 +143,15 @@ export async function replaceItems(
     const named = [...new Set(
       lines.map((line) => line.bullion_id).filter((id): id is string => !!id)
     )];
-    const rows = rules.basketRows({
-      checkout_id: session.id,
+    const rows = rules.basketRows(
+      session.id,
       direction,
-      items: lines,
-      products: await productService.getByIds(named, client),
-      liveness: await productService.getLiveness(named, client),
-      rates: direction === "purchase" ? await ratesService.listRates() : [],
-      metalNames: await metals.namesById(client),
-    });
+      lines,
+      await productService.getByIds(named, client),
+      await productService.getLiveness(named, client),
+      direction === "purchase" ? await ratesService.listRates() : [],
+      await metals.namesById(client)
+    );
 
     await checkoutItems.removeFor(session.id, client);
     await checkoutItems.createMany(rows, client);

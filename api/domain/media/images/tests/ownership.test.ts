@@ -29,10 +29,7 @@ afterAll(async () => {
 });
 
 test("a stranger cannot delete somebody else's image", async () => {
-  const result = await mediaService.deleteImage({
-    id: image.id,
-    user_id: randomUUID(),
-  });
+  const result = await mediaService.deleteImage(image.id, randomUUID());
   assert.equal(result, null, "the service accepted a stranger's delete");
 
   const still = await mediaRepo.getOne(image.id);
@@ -40,27 +37,18 @@ test("a stranger cannot delete somebody else's image", async () => {
 });
 
 test("a stranger cannot get a download URL for somebody else's image", async () => {
-  const url = await mediaService.getUrlFor({
-    image_id: image.id,
-    user_id: randomUUID(),
-  });
+  const url = await mediaService.getUrlFor(image.id, randomUUID());
   assert.equal(url, null, "a presigned download URL was handed to a stranger");
 });
 
 test("a missing image and somebody else's image answer the same way", async () => {
-  const missing = await mediaService.getUrlFor({
-    image_id: randomUUID(),
-    user_id: owner,
-  });
-  const notMine = await mediaService.getUrlFor({
-    image_id: image.id,
-    user_id: randomUUID(),
-  });
+  const missing = await mediaService.getUrlFor(randomUUID(), owner);
+  const notMine = await mediaService.getUrlFor(image.id, randomUUID());
   assert.equal(missing, null);
   assert.equal(notMine, null);
 });
 
 test("no user id is refused rather than matching a null owner", async () => {
-  assert.equal(await mediaService.getUrlFor({ image_id: image.id }), null);
-  assert.equal(await mediaService.deleteImage({ id: image.id }), null);
+  assert.equal(await mediaService.getUrlFor(image.id), null);
+  assert.equal(await mediaService.deleteImage(image.id), null);
 });
