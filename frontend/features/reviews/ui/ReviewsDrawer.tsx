@@ -2,7 +2,7 @@
 
 import type { Review } from "@dorado/contracts";
 import { useMemo } from 'react'
-import { useDrawerStore } from '@/shared/store/drawerStore'
+import { useDrawerRecord } from '@/shared/hooks/useDrawerRecord'
 
 import { formatFullDate } from '@/shared/utils/formatDates'
 import { Badge, Drawer, Rating, RatingButton, Calendar, Field, Input, RadioGroup, RadioOption, Textarea } from '@dorado/components'
@@ -19,14 +19,11 @@ export default function ReviewsDrawer({
   reviews: Review[]
   review_id: string
 }) {
-  const { activeDrawer, closeDrawer } = useDrawerStore()
-  const isDrawerOpen = activeDrawer === 'reviews'
-
-  const review = useMemo(() => reviews.find((r) => r.id === review_id), [reviews, review_id])
+  const { open, record: review, close } = useDrawerRecord('reviews', reviews, review_id)
   if (!review) return null
 
   return (
-    <Drawer label="Review" open={isDrawerOpen} setOpen={closeDrawer}>
+    <Drawer label="Review" open={open} setOpen={close}>
       <Header review={review} />
       <hr />
       <EditFields review={review} />
@@ -133,11 +130,6 @@ function Visibility({ review }: { review: Review }) {
   )
 }
 
-// created_at is stamped by the audit trigger (migration 116) and is no
-// longer part of reviews' patch (api/db/reviews/repo.ts PATCHABLE has only
-// name, review_text, rating, hidden). This calendar is now a read-only
-// display of when the review was recorded; sending created_at in the patch
-// would 400. See the report for the dropped capability.
 function Created({ review }: { review: Review }) {
   const maxDate = useMemo(() => {
     const d = new Date()

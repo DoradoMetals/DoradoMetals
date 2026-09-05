@@ -1,12 +1,3 @@
-// The carrier admin drawer, rendered.
-//
-// Same rules as the other converted features: jsdom, real component tree,
-// real drawer store, network boundary mocked. What is pinned survives the
-// carriers lift: the drawer shows the carrier's name and active state, and an
-// edit-on-blur sends the update mutation with the edited value in the body
-// the API reads. The body assertion is the seam the CARRIERS_WIRE flip
-// changes shape on, so the test asserts the VALUE arrives, wherever the
-// shape puts it.
 import { describe, expect, test, vi, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import { renderWithClient } from "@/shared/tests/renderWithClient";
@@ -38,7 +29,7 @@ const fedex = (): Carrier => ({
 
 beforeEach(() => {
   vi.mocked(apiRequest).mockReset();
-  vi.mocked(apiRequest).mockResolvedValue([]); // the services table fetch
+  vi.mocked(apiRequest).mockResolvedValue([]);
   useDrawerStore.setState({ activeDrawer: "carriers" } as never);
 });
 
@@ -46,7 +37,6 @@ describe("the carrier drawer", () => {
   test("shows the carrier and its active state", async () => {
     renderWithClient(<CarriersDrawer carriers={[fedex()]} carrier_id="c-1" />);
     expect(screen.getByText("FedEx")).toBeDefined();
-    // "Active" is both the status chip and a section label.
     expect(screen.getAllByText("Active").length).toBeGreaterThan(0);
   });
 
@@ -55,22 +45,20 @@ describe("the carrier drawer", () => {
     const input = screen.getByLabelText("Name");
     await userEvent.clear(input);
     await userEvent.type(input, "FedEx Freight");
-    await userEvent.tab(); // blur commits
+    await userEvent.tab();
 
     await waitFor(() => {
       const call = vi
         .mocked(apiRequest)
         .mock.calls.find(([, url]) => url === "/carriers/update");
       expect(call).toBeTruthy();
-      // The value must arrive wherever the wire shape puts it.
       expect(JSON.stringify(call![2])).toContain("FedEx Freight");
     });
   });
 
   test("toggling active sends the deactivation", async () => {
     renderWithClient(<CarriersDrawer carriers={[fedex()]} carrier_id="c-1" />);
-    // DisplayToggle renders radio segments labelled Yes/No.
-    await userEvent.click(screen.getByRole("radio", { name: /no/i }));
+    await userEvent.click(screen.getByRole("switch"));
 
     await waitFor(() => {
       const call = vi

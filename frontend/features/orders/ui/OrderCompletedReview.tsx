@@ -1,13 +1,21 @@
 import { useState } from 'react'
-import { PurchaseOrderDrawerContentProps } from '@/features/orders/purchaseOrders/types'
+import type { Direction } from '@dorado/contracts'
 import { useUser } from '@/features/auth/authClient'
 import { useCreateReview } from '@/features/reviews/queries'
 import { useCreateOrderReview } from '@dorado/client'
 import { Button, Rating, RatingButton, Textarea } from '@dorado/components'
 
-export default function CompletedPurchaseOrder({ view }: PurchaseOrderDrawerContentProps) {
-  const { order } = view
+export type OrderCompletedReviewProps = {
+  orderId: string
+  direction: Direction
+  existingReview?: boolean | null
+}
 
+export default function OrderCompletedReview({
+  orderId,
+  direction,
+  existingReview,
+}: OrderCompletedReviewProps) {
   const { user } = useUser()
   const createReview = useCreateReview()
   const setCreated = useCreateOrderReview()
@@ -17,7 +25,7 @@ export default function CompletedPurchaseOrder({ view }: PurchaseOrderDrawerCont
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const reviewSubmitted = !!order.review_created
+  const reviewSubmitted = !!existingReview
   const canSubmit = !reviewSubmitted && !isSubmitting && text.trim().length > 0 && rating > 0
 
   const handleSubmit = async () => {
@@ -31,7 +39,7 @@ export default function CompletedPurchaseOrder({ view }: PurchaseOrderDrawerCont
         name: user?.name ?? '',
         hidden: false,
       })
-      await setCreated.mutateAsync({ id: order.id, direction: 'purchase' })
+      await setCreated.mutateAsync({ id: orderId, direction })
     } catch (e: any) {
       setError(e?.message || 'Something went wrong. Please try again.')
     } finally {

@@ -1,7 +1,7 @@
 'use client'
 
-import type { Lead, LeadPatch } from "@dorado/contracts";
-import { useDrawerStore } from '@/shared/store/drawerStore'
+import type { Lead, LeadPatch } from '@dorado/contracts'
+import { useDrawerRecord } from '@/shared/hooks/useDrawerRecord'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { format, isValid, parse, parseISO } from 'date-fns'
 
@@ -25,8 +25,7 @@ import {
   Drawer,
   Field,
   Input,
-  RadioGroup,
-  RadioOption,
+  Switch,
   Textarea,
   type TimeGroup,
 } from '@dorado/components'
@@ -75,25 +74,27 @@ function buildTimeGroups(): TimeGroup[] {
 const CONTACTED_TIME_GROUPS = buildTimeGroups()
 
 export default function LeadsDrawer({ leads, lead_id }: { leads: Lead[]; lead_id: string }) {
-  const { activeDrawer, closeDrawer } = useDrawerStore()
-  const isDrawerOpen = activeDrawer === 'leads'
-
-  const lead = useMemo(() => leads.find((u) => u.id === lead_id), [leads, lead_id])
+  const { open, record: lead, close } = useDrawerRecord('leads', leads, lead_id)
+  const updateLead = useUpdateLead()
 
   if (!lead) {
     return null
   }
 
+  const handleUpdate = (patch: LeadPatch) => {
+    updateLead.mutate({ lead_id: lead.id, patch })
+  }
+
   return (
-    <Drawer label="Lead" open={isDrawerOpen} setOpen={closeDrawer}>
+    <Drawer label="Lead" open={open} setOpen={close}>
       <Header lead={lead} />
       <hr />
       <div className="space-y-8">
-        <Details lead={lead} />
+        <Details lead={lead} onUpdate={handleUpdate} />
         <hr />
-        <Booleans lead={lead} />
+        <Booleans lead={lead} onUpdate={handleUpdate} />
         <hr />
-        <Contacted lead={lead} />
+        <Contacted lead={lead} onUpdate={handleUpdate} />
         <hr />
         <Actions lead={lead} />
         <hr />
@@ -115,14 +116,8 @@ function Header({ lead }: { lead: Lead }) {
   )
 }
 
-function Details({ lead }: { lead: Lead }) {
-  const updateLead = useUpdateLead()
-
+function Details({ lead, onUpdate }: { lead: Lead; onUpdate: (patch: LeadPatch) => void }) {
   const inputRef = useRef<HTMLInputElement | null>(null)
-
-  const handleUpdate = (patch: LeadPatch) => {
-    updateLead.mutate({ lead_id: lead.id, patch })
-  }
 
   return (
     <div className="flex flex-col w-full gap-4">
@@ -131,7 +126,7 @@ function Details({ lead }: { lead: Lead }) {
       <Field label="Priority">
         <PrioritySelect
           value={(lead.priority ?? 'Medium') as LeadPriority}
-          onChange={(v) => handleUpdate({ priority: v })}
+          onChange={(v) => onUpdate({ priority: v })}
         />
       </Field>
 
@@ -141,7 +136,7 @@ function Details({ lead }: { lead: Lead }) {
         placeholder="Enter name..."
         type="text"
         defaultValue={lead.name ?? ''}
-        onBlur={(e) => handleUpdate({ name: e.target.value })}
+        onBlur={(e) => onUpdate({ name: e.target.value })}
       />
 
       <Input
@@ -159,7 +154,7 @@ function Details({ lead }: { lead: Lead }) {
         }}
         onBlur={(e) => {
           const digits = normalizePhone(e.target.value)
-          handleUpdate({ phone: digits })
+          onUpdate({ phone: digits })
         }}
       />
 
@@ -169,7 +164,7 @@ function Details({ lead }: { lead: Lead }) {
         placeholder="Enter email..."
         type="text"
         defaultValue={lead.email ?? ''}
-        onBlur={(e) => handleUpdate({ email: e.target.value })}
+        onBlur={(e) => onUpdate({ email: e.target.value })}
       />
 
       <Textarea
@@ -179,88 +174,46 @@ function Details({ lead }: { lead: Lead }) {
         className="w-full min-w-70"
         placeholder="Enter lead notes..."
         defaultValue={lead.notes ?? ''}
-        onBlur={(e) => handleUpdate({ notes: e.target.value })}
+        onBlur={(e) => onUpdate({ notes: e.target.value })}
       />
     </div>
   )
 }
 
-function Booleans({ lead }: { lead: Lead }) {
-  const updateLead = useUpdateLead()
-
-  const handleUpdate = (patch: LeadPatch) => {
-    updateLead.mutate({ lead_id: lead.id, patch })
-  }
-
+function Booleans({ lead, onUpdate }: { lead: Lead; onUpdate: (patch: LeadPatch) => void }) {
   return (
     <div className="flex flex-col gap-4">
       <p className="eyebrow">Booleans</p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-4 items-stretch justify-items-stretch">
-        <Field label="Contacted" className="w-full">
-          <RadioGroup
-            value={String(!!lead.contacted)}
-            onValueChange={(v) => handleUpdate({ contacted: v === 'true' })}
-            className="flex w-full gap-2"
-          >
-            <RadioOption value="true" variant="segment" className="flex-1">
-              Yes
-            </RadioOption>
-            <RadioOption value="false" variant="segment" className="flex-1">
-              No
-            </RadioOption>
-          </RadioGroup>
-        </Field>
-        <Field label="Responded" className="w-full">
-          <RadioGroup
-            value={String(!!lead.responded)}
-            onValueChange={(v) => handleUpdate({ responded: v === 'true' })}
-            className="flex w-full gap-2"
-          >
-            <RadioOption value="true" variant="segment" className="flex-1">
-              Yes
-            </RadioOption>
-            <RadioOption value="false" variant="segment" className="flex-1">
-              No
-            </RadioOption>
-          </RadioGroup>
-        </Field>
-        <Field label="Converted" className="w-full">
-          <RadioGroup
-            value={String(!!lead.converted)}
-            onValueChange={(v) => handleUpdate({ converted: v === 'true' })}
-            className="flex w-full gap-2"
-          >
-            <RadioOption value="true" variant="segment" className="flex-1">
-              Yes
-            </RadioOption>
-            <RadioOption value="false" variant="segment" className="flex-1">
-              No
-            </RadioOption>
-          </RadioGroup>
-        </Field>
+        <Switch
+          label="Contacted"
+          checked={!!lead.contacted}
+          onCheckedChange={(v) => onUpdate({ contacted: v })}
+        />
+        <Switch
+          label="Responded"
+          checked={!!lead.responded}
+          onCheckedChange={(v) => onUpdate({ responded: v })}
+        />
+        <Switch
+          label="Converted"
+          checked={!!lead.converted}
+          onCheckedChange={(v) => onUpdate({ converted: v })}
+        />
       </div>
     </div>
   )
 }
 
-function Contacted({ lead }: { lead: Lead }) {
-  const updateLead = useUpdateLead()
+function Contacted({ lead, onUpdate }: { lead: Lead; onUpdate: (patch: LeadPatch) => void }) {
   const { data: admins = [] } = useAdminRoleUsers()
   const [contactQuery, setContactQuery] = useState(lead.contact ?? '')
 
-  // The drawer instance persists across records, so the typed query has to
-  // resync when a different lead's contact replaces it underneath.
   useEffect(() => {
     setContactQuery(lead.contact ?? '')
   }, [lead.id, lead.contact])
 
-  const handleUpdate = (patch: LeadPatch) => {
-    updateLead.mutate({ lead_id: lead.id, patch })
-  }
-
-  // last_contacted is historical, so allow past dates (back to launch) and
-  // disable the future.
   const maxDate = useMemo(() => new Date(), [])
   const minDate = useMemo(() => new Date('2025-03-01T00:00:00'), [])
 
@@ -278,7 +231,7 @@ function Contacted({ lead }: { lead: Lead }) {
     : null
 
   const emitDateTime = (d: Date) =>
-    handleUpdate({ last_contacted: new Date(toOffsetISO(d)).toISOString() })
+    onUpdate({ last_contacted: new Date(toOffsetISO(d)).toISOString() })
 
   const selectDate = (newDate: Date | undefined) => {
     if (!newDate) return
@@ -306,7 +259,7 @@ function Contacted({ lead }: { lead: Lead }) {
           items={contactItems}
           onSelect={(item) => {
             setContactQuery(item.textValue)
-            handleUpdate({ contact: item.textValue })
+            onUpdate({ contact: item.textValue })
           }}
         />
 
@@ -357,9 +310,7 @@ function Actions({ lead }: { lead: Lead }) {
 
       <div className="flex flex-col w-full gap-3">
         <div className="flex flex-col items-start gap-1">
-          <p className="text-destructive">
-            {createUser.error ? createUser.error.message : null}
-          </p>
+          <p className="text-destructive">{createUser.error ? createUser.error.message : null}</p>
 
           <Button
             variant="secondary"
@@ -372,10 +323,10 @@ function Actions({ lead }: { lead: Lead }) {
             {!emailValid
               ? 'Invalid Email'
               : userExists
-              ? 'User Already Exists'
-              : createUser.isPending
-              ? 'Creating...'
-              : 'Create User'}
+                ? 'User Already Exists'
+                : createUser.isPending
+                  ? 'Creating...'
+                  : 'Create User'}
           </Button>
         </div>
 

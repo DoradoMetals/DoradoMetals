@@ -1,7 +1,7 @@
-import CompletedSalesOrder from '@/features/orders/salesOrders/users/salesOrderDrawer/drawerContents/Completed'
 import InTransitSalesOrder from '@/features/orders/salesOrders/users/salesOrderDrawer/drawerContents/InTransit'
 import PendingSalesOrder from '@/features/orders/salesOrders/users/salesOrderDrawer/drawerContents/Pending'
 import PreparingSalesOrder from '@/features/orders/salesOrders/users/salesOrderDrawer/drawerContents/Preparing'
+import OrderCompletedReview from '@/features/orders/ui/OrderCompletedReview'
 import { SalesOrderDrawerContentProps } from '@/features/orders/salesOrders/types'
 
 export default function SalesOrderDrawerContent({ view }: SalesOrderDrawerContentProps) {
@@ -15,7 +15,13 @@ export default function SalesOrderDrawerContent({ view }: SalesOrderDrawerConten
     case 'In Transit':
       return <InTransitSalesOrder view={view} />
     case 'Completed':
-      return <CompletedSalesOrder view={view} />
+      return (
+        <OrderCompletedReview
+          orderId={order.id}
+          direction="sale"
+          existingReview={order.review_created}
+        />
+      )
     default:
       return (
         <strong className="p-4">No content available for this status.</strong>

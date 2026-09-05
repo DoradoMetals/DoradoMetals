@@ -2,7 +2,8 @@
 
 import type { AdminUser } from "@dorado/contracts";
 import { useDrawerStore } from '@/shared/store/drawerStore'
-import { useMemo, useState } from 'react'
+import { useDrawerRecord } from '@/shared/hooks/useDrawerRecord'
+import { useState } from 'react'
 
 import { formatFullDate } from '@/shared/utils/formatDates'
 import {
@@ -23,17 +24,14 @@ export default function AdminUsersDrawer({
   users: AdminUser[]
   user_id: string
 }) {
-  const { activeDrawer, closeDrawer } = useDrawerStore()
-  const isDrawerOpen = activeDrawer === 'users'
-
-  const user = useMemo(() => users.find((u) => u.id === user_id), [users, user_id])
+  const { open, record: user, close } = useDrawerRecord('users', users, user_id)
 
   if (!user) {
     return null
   }
 
   return (
-    <Drawer label="User" open={isDrawerOpen} setOpen={closeDrawer}>
+    <Drawer label="User" open={open} setOpen={close}>
       <div className="flex items-center justify-between w-full">
         <h3>{user.name}</h3>
         <time dateTime={user.created_at ?? undefined}>{formatFullDate(user.created_at)}</time>
@@ -119,9 +117,6 @@ function DoradoCredit({ user }: { user: AdminUser }) {
       return
     }
 
-    // Send what the admin DID, not what we think the balance becomes. The
-    // server applies the delta under a row lock; `newAmount` above stays as the
-    // PREVIEW rendered below, which is fine - previewing is not writing.
     updateCredit.mutate({ user_id: user.id, body: { op: mode, amount } })
 
     setAmount(0)

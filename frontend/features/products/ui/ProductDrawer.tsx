@@ -1,7 +1,7 @@
 'use client'
 
-import { useDrawerStore } from '@/shared/store/drawerStore'
-import { useEffect, useMemo, useState } from 'react'
+import { useDrawerRecord } from '@/shared/hooks/useDrawerRecord'
+import { useEffect, useState } from 'react'
 import { formatFullDate } from '@/shared/utils/formatDates'
 import { useSpotPrices } from '@/features/spots/queries'
 import PremiumControl from '@/features/products/ui/PremiumControl'
@@ -23,6 +23,7 @@ import {
   Input,
   RadioGroup,
   RadioOption,
+  Switch,
   Textarea,
 } from '@dorado/components'
 
@@ -33,30 +34,32 @@ export default function ProductDrawer({
   products: AdminProduct[]
   product_id: string
 }) {
-  const { activeDrawer, closeDrawer } = useDrawerStore()
-  const isDrawerOpen = activeDrawer === 'product'
-
-  const product = useMemo(() => products.find((p) => p.id === product_id), [products, product_id])
+  const { open, record: product, close } = useDrawerRecord('product', products, product_id)
+  const saveProduct = useSaveProduct()
 
   if (!product) {
     return null
   }
 
+  const handleUpdate = (patch: Partial<AdminProduct>) => {
+    saveProduct.mutate({ ...product, ...patch })
+  }
+
   return (
-    <Drawer label="Product" open={isDrawerOpen} setOpen={closeDrawer}>
+    <Drawer label="Product" open={open} setOpen={close}>
       <Header product={product} />
       <Divider />
-      <Details product={product} />
+      <Details product={product} onUpdate={handleUpdate} />
       <Divider />
-      <Inventory product={product} />
+      <Inventory product={product} onUpdate={handleUpdate} />
       <Divider />
-      <Specifications product={product} />
+      <Specifications product={product} onUpdate={handleUpdate} />
       <Divider />
-      <Displays product={product} />
+      <Displays product={product} onUpdate={handleUpdate} />
       <Divider />
-      <Dev product={product} />
+      <Dev product={product} onUpdate={handleUpdate} />
       <Divider />
-      <Images product={product} />
+      <Images product={product} onUpdate={handleUpdate} />
     </Drawer>
   )
 }
@@ -79,17 +82,17 @@ function Header({ product }: { product: AdminProduct }) {
   )
 }
 
-function Details({ product }: { product: AdminProduct }) {
+function Details({
+  product,
+  onUpdate,
+}: {
+  product: AdminProduct
+  onUpdate: (patch: Partial<AdminProduct>) => void
+}) {
   const { data: metals = [] } = useAdminMetals()
   const { data: suppliers = [] } = useAdminSuppliers()
   const { data: mints = [] } = useAdminMints()
   const { data: types = [] } = useAdminTypes()
-  const saveProduct = useSaveProduct()
-
-  const handleUpdate = (id: string, updatedFields: Partial<AdminProduct>) => {
-    const updated = { ...product, ...updatedFields }
-    saveProduct.mutate(updated)
-  }
 
   return (
     <div className="flex flex-col w-full gap-4">
@@ -100,33 +103,33 @@ function Details({ product }: { product: AdminProduct }) {
         placeholder="Enter name..."
         type="text"
         defaultValue={product.name ?? ''}
-        onBlur={(e) => handleUpdate(product.id, { name: e.target.value })}
+        onBlur={(e) => onUpdate({ name: e.target.value })}
       />
       <div className="flex w-full justify-between items-center gap-4">
         <PickerField
           label="Metal"
           value={product.metal}
           options={metals?.map((m) => m.name) ?? []}
-          onChange={(val) => handleUpdate(product.id, { metal: val })}
+          onChange={(val) => onUpdate({ metal: val })}
         />
         <PickerField
           label="Product Type"
           value={product.type}
           options={types ?? []}
-          onChange={(val) => handleUpdate(product.id, { type: val })}
+          onChange={(val) => onUpdate({ type: val })}
         />
       </div>
       <PickerField
         label="Supplier"
         value={product.supplier}
         options={suppliers?.map((item) => item.organization.name ?? '') ?? []}
-        onChange={(val) => handleUpdate(product.id, { supplier: val })}
+        onChange={(val) => onUpdate({ supplier: val })}
       />
       <PickerField
         label="Mint"
         value={product.mint}
         options={mints?.map((item) => item.name) ?? []}
-        onChange={(val) => handleUpdate(product.id, { mint: val })}
+        onChange={(val) => onUpdate({ mint: val })}
       />
 
       <Textarea
@@ -136,17 +139,12 @@ function Details({ product }: { product: AdminProduct }) {
         placeholder="Enter product description..."
         className="min-w-70"
         defaultValue={product.description}
-        onBlur={(e) => handleUpdate(product.id, { description: e.target.value })}
+        onBlur={(e) => onUpdate({ description: e.target.value })}
       />
     </div>
   )
 }
 
-/* PopoverSelect (button trigger -> popover list) becomes an Autocomplete
-   (type-to-filter text field): the library ships no click-to-open,
-   pick-from-a-fixed-list control, so this admin picker now filters `options`
-   as the text is typed and only commits `onChange` when an item is chosen -
-   typed text that matches nothing simply never commits. */
 function PickerField({
   label,
   value,
@@ -184,14 +182,13 @@ function PickerField({
   )
 }
 
-function Inventory({ product }: { product: AdminProduct }) {
-  const saveProduct = useSaveProduct()
-
-  const handleUpdate = (id: string, updatedFields: Partial<AdminProduct>) => {
-    const updated = { ...product, ...updatedFields }
-    saveProduct.mutate(updated)
-  }
-
+function Inventory({
+  product,
+  onUpdate,
+}: {
+  product: AdminProduct
+  onUpdate: (patch: Partial<AdminProduct>) => void
+}) {
   const { data: spots = [] } = useSpotPrices()
   const spot = spots.find((s) => s.name === product.metal)
   return (
@@ -203,7 +200,7 @@ function Inventory({ product }: { product: AdminProduct }) {
         value={product.bid_premium}
         spotPerOz={spot?.bid ?? 0}
         contentOz={product.content ?? 1}
-        onChange={(mult) => handleUpdate(product.id, { bid_premium: mult })}
+        onChange={(mult) => onUpdate({ bid_premium: mult })}
       />
 
       <PremiumControl
@@ -211,26 +208,25 @@ function Inventory({ product }: { product: AdminProduct }) {
         value={product.ask_premium}
         spotPerOz={spot?.ask ?? 0}
         contentOz={product.content ?? 1}
-        onChange={(mult) => handleUpdate(product.id, { ask_premium: mult })}
+        onChange={(mult) => onUpdate({ ask_premium: mult })}
       />
 
       <QuantityBar
         label="Quantity"
         value={product.quantity ?? 0}
-        onChange={(q) => handleUpdate(product.id, { quantity: q })}
+        onChange={(q) => onUpdate({ quantity: q })}
       />
     </div>
   )
 }
 
-function Specifications({ product }: { product: AdminProduct }) {
-  const saveProduct = useSaveProduct()
-
-  const handleUpdate = (id: string, updatedFields: Partial<AdminProduct>) => {
-    const updated = { ...product, ...updatedFields }
-    saveProduct.mutate(updated)
-  }
-
+function Specifications({
+  product,
+  onUpdate,
+}: {
+  product: AdminProduct
+  onUpdate: (patch: Partial<AdminProduct>) => void
+}) {
   return (
     <div className="flex flex-col gap-4">
       <p className="eyebrow">Specifications</p>
@@ -246,7 +242,7 @@ function Specifications({ product }: { product: AdminProduct }) {
         onBlur={(e) => {
           const n = e.currentTarget.valueAsNumber
           if (Number.isFinite(n)) {
-            handleUpdate(product.id, { content: n })
+            onUpdate({ content: n })
           }
         }}
       />
@@ -263,7 +259,7 @@ function Specifications({ product }: { product: AdminProduct }) {
           onBlur={(e) => {
             const n = e.currentTarget.valueAsNumber
             if (Number.isFinite(n)) {
-              handleUpdate(product.id, { purity: n })
+              onUpdate({ purity: n })
             }
           }}
         />
@@ -278,7 +274,7 @@ function Specifications({ product }: { product: AdminProduct }) {
           onBlur={(e) => {
             const n = e.currentTarget.valueAsNumber
             if (Number.isFinite(n)) {
-              handleUpdate(product.id, { gross: n })
+              onUpdate({ gross: n })
             }
           }}
         />
@@ -287,57 +283,40 @@ function Specifications({ product }: { product: AdminProduct }) {
   )
 }
 
-function Displays({ product }: { product: AdminProduct }) {
-  const saveProduct = useSaveProduct()
-  const handleUpdate = (patch: Partial<AdminProduct>) => {
-    saveProduct.mutate({ ...product, ...patch })
-  }
-
+function Displays({
+  product,
+  onUpdate,
+}: {
+  product: AdminProduct
+  onUpdate: (patch: Partial<AdminProduct>) => void
+}) {
   return (
     <div className="flex flex-col gap-4">
       <p className="eyebrow">Displays</p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-4 items-stretch justify-items-stretch">
-        <Field label="Buy" className="w-full">
-          <RadioGroup
-            value={String(!!product.display)}
-            onValueChange={(v) => handleUpdate({ display: v === 'true' })}
-            className="flex w-full gap-2"
-          >
-            <RadioOption value="true" variant="segment" className="flex-1">
-              Yes
-            </RadioOption>
-            <RadioOption value="false" variant="segment" className="flex-1">
-              No
-            </RadioOption>
-          </RadioGroup>
-        </Field>
-        <Field label="Featured" className="w-full">
-          <RadioGroup
-            value={String(!!product.homepage_display)}
-            onValueChange={(v) => handleUpdate({ homepage_display: v === 'true' })}
-            className="flex w-full gap-2"
-          >
-            <RadioOption value="true" variant="segment" className="flex-1">
-              Yes
-            </RadioOption>
-            <RadioOption value="false" variant="segment" className="flex-1">
-              No
-            </RadioOption>
-          </RadioGroup>
-        </Field>
+        <Switch
+          label="Buy"
+          checked={!!product.display}
+          onCheckedChange={(v) => onUpdate({ display: v })}
+        />
+        <Switch
+          label="Featured"
+          checked={!!product.homepage_display}
+          onCheckedChange={(v) => onUpdate({ homepage_display: v })}
+        />
       </div>
     </div>
   )
 }
 
-function Dev({ product }: { product: AdminProduct }) {
-  const saveProduct = useSaveProduct()
-
-  const handleUpdate = (patch: Partial<AdminProduct>) => {
-    saveProduct.mutate({ ...product, ...patch })
-  }
-
+function Dev({
+  product,
+  onUpdate,
+}: {
+  product: AdminProduct
+  onUpdate: (patch: Partial<AdminProduct>) => void
+}) {
   return (
     <div className="flex flex-col gap-4">
       <p className="eyebrow">Dev</p>
@@ -345,7 +324,7 @@ function Dev({ product }: { product: AdminProduct }) {
       <Field label="Shadow Offset">
         <RadioGroup
           value={String(product.shadow_offset ?? 0)}
-          onValueChange={(v) => handleUpdate({ shadow_offset: Number(v) })}
+          onValueChange={(v) => onUpdate({ shadow_offset: Number(v) })}
           className="grid grid-cols-5 gap-2"
         >
           {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
@@ -362,7 +341,7 @@ function Dev({ product }: { product: AdminProduct }) {
         placeholder="Enter variant group..."
         type="text"
         defaultValue={product.variant_group ?? ''}
-        onBlur={(e) => handleUpdate({ variant_group: e.target.value })}
+        onBlur={(e) => onUpdate({ variant_group: e.target.value })}
       />
 
       <Input
@@ -371,7 +350,7 @@ function Dev({ product }: { product: AdminProduct }) {
         placeholder="Enter variant label..."
         type="text"
         defaultValue={product.variant_label ?? ''}
-        onBlur={(e) => handleUpdate({ variant_label: e.target.value })}
+        onBlur={(e) => onUpdate({ variant_label: e.target.value })}
       />
 
       <Input
@@ -380,7 +359,7 @@ function Dev({ product }: { product: AdminProduct }) {
         placeholder="Enter category..."
         type="text"
         defaultValue={product.filter_category ?? ''}
-        onBlur={(e) => handleUpdate({ filter_category: e.target.value })}
+        onBlur={(e) => onUpdate({ filter_category: e.target.value })}
       />
 
       <Input
@@ -389,19 +368,19 @@ function Dev({ product }: { product: AdminProduct }) {
         placeholder="Enter slug..."
         type="text"
         defaultValue={product.slug ?? ''}
-        onBlur={(e) => handleUpdate({ slug: e.target.value })}
+        onBlur={(e) => onUpdate({ slug: e.target.value })}
       />
     </div>
   )
 }
 
-function Images({ product }: { product: AdminProduct }) {
-  const saveProduct = useSaveProduct()
-
-  const handleUpdate = (patch: Partial<AdminProduct>) => {
-    saveProduct.mutate({ ...product, ...patch })
-  }
-
+function Images({
+  product,
+  onUpdate,
+}: {
+  product: AdminProduct
+  onUpdate: (patch: Partial<AdminProduct>) => void
+}) {
   return (
     <div className="flex flex-col gap-4">
       <p className="eyebrow">Images</p>
@@ -411,14 +390,14 @@ function Images({ product }: { product: AdminProduct }) {
         label="Image Front"
         type="text"
         defaultValue={product.image_front ?? ''}
-        onBlur={(e) => handleUpdate({ image_front: e.target.value })}
+        onBlur={(e) => onUpdate({ image_front: e.target.value })}
       />
       <Input
         id="image_back"
         label="Image Back"
         type="text"
         defaultValue={product.image_back ?? ''}
-        onBlur={(e) => handleUpdate({ image_back: e.target.value })}
+        onBlur={(e) => onUpdate({ image_back: e.target.value })}
       />
     </div>
   )

@@ -7,7 +7,7 @@ import { useDrawerStore } from '@/shared/store/drawerStore'
 import { formatFullDate } from '@/shared/utils/formatDates'
 import { SalesOrder, statusConfig } from '@/features/orders/salesOrders/types'
 import { AvatarCircles } from '@/features/orders/ui/ImageCirclesOverlapped'
-import { useDownloadSalesOrderInvoice } from '@/features/pdfs/queries'
+import { useSalesOrderDownloads } from '@/features/orders/salesOrders/useDownloads'
 import { useFormatSalesOrderNumber } from '@/features/orders/utils/formatOrderNumbers'
 import { OrderCardShell } from '@/features/orders/ui/OrderCardShell'
 import { useProducts } from '@/features/products/queries'
@@ -23,12 +23,9 @@ export default function SalesOrderCard({
   const { openDrawer } = useDrawerStore()
   const { formatSalesOrderNumber } = useFormatSalesOrderNumber()
 
-  // A CONTAINER for its own lines (ruling 14). The row carries bullion_id and
-  // nothing else about the product; the image comes from the catalogue the
-  // storefront already caches, mapped by id client-side.
   const { data: items = [] } = useOrderItems(order.id)
   const { data: catalogue = [] } = useProducts()
-  const downloadInvoice = useDownloadSalesOrderInvoice()
+  const downloadOptions = useSalesOrderDownloads(order)
 
   const status = statusConfig[order.status ?? '']
   const Icon = status?.icon
@@ -40,31 +37,6 @@ export default function SalesOrderCard({
 
   const itemsLabel =
     items.length === 0 ? 'No Items Included' : `${items.length} ${items.length === 1 ? 'Item' : 'Items'}`
-
-  const downloadOptions = [
-    {
-      statuses: ['Pending'],
-      label: 'Invoice Preview',
-      onClick: () =>
-        downloadInvoice.mutate({
-          order_id: order.id,
-          order_number: order.number,
-          fileName: 'invoice_preview',
-        }),
-      isPending: downloadInvoice.isPending,
-    },
-    {
-      statuses: ['Preparing', 'In Transit', 'Completed'],
-      label: 'Invoice',
-      onClick: () =>
-        downloadInvoice.mutate({
-          order_id: order.id,
-          order_number: order.number,
-          fileName: 'invoice',
-        }),
-      isPending: downloadInvoice.isPending,
-    },
-  ]
 
   const handleOpen = () => {
     setActiveOrder(order.id)

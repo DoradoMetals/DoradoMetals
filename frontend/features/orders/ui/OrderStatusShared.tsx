@@ -16,8 +16,6 @@ type StatusSelectorProps = {
   statusConfig: Record<string, StatusConfigEntry>
   selectedStatus: string | null
   setSelectedStatus: (s: string | null) => void
-  open: boolean
-  setOpen: (v: boolean) => void
   mobileSwiperClassName?: string
 }
 
@@ -26,8 +24,6 @@ export function OrderStatusSelector({
   statusConfig,
   selectedStatus,
   setSelectedStatus,
-  open,
-  setOpen,
   mobileSwiperClassName,
 }: StatusSelectorProps) {
   return (
