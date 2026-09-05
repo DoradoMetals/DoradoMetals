@@ -16251,3 +16251,9 @@ and `check:fast` green except the pre-existing `figma:inventory`. STILL OPEN: `s
 creates its draft fulfillment from a `useEffect` - an effect that writes, not
 one that syncs - and retiring it means deciding whether the checkout GET
 should create the row.
+
+**CLOSED (2026-09-05): it was never a null-column bug.** The `NaN` was a
+coincidental byte match inside the base64 FedEx label image the packing list
+embeds, not a broken number — verified against all 72 orders in `chain6`.
+Fixed in the test's detector and four separately-real "prints the word null"
+cells; see `docs/waves/packing-list-nan.md`.
