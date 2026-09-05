@@ -5,7 +5,7 @@ import type { PoolClient } from "pg";
 import { LOCKS } from "#shared/testing/locks.ts";
 import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
-import * as usersService from "#identity/users/service.ts";
+import * as creditService from "#payments/credit/service.ts";
 import * as usersRepo from "#db/users/repo.ts";
 import { aUser } from "#shared/testing/builders/index.ts";
 import query from "#shared/db/query.ts";
@@ -18,7 +18,7 @@ const NOBODY = "00000000-0000-0000-0000-000000000000";
 test("a credit adjustment that matches no user is refused, not reported as done", async () => {
   await inPinned(async () => {
     await assert.rejects(
-      () => usersService.adjustDoradoCredit(NOBODY, { op: "add", amount: 500 }),
+      () => creditService.adjustDoradoCredit(NOBODY, { op: "add", amount: 500 }),
       (err: unknown) => {
         const e = err as { kind?: string; message?: string };
         assert.equal(e.kind, "not_found", "a credit that reached nobody is not a success");

@@ -2,8 +2,11 @@ import express from "express";
 
 import {
   addFundsToOrder,
+  adminCreateOrder,
   cancelOrder,
   finalizeOrderPricing,
+  createOrder,
+  createOrderReview,
   getOrder,
   listOrders,
   patchOrder,
@@ -29,6 +32,8 @@ import { requireOwnOrderParam } from "#shared/middleware/ownership.ts";
 const router = express.Router();
 
 router.get("/", requireUser, listOrders);
+router.post("/", requireUser, createOrder);
+router.post("/admin", requireAdmin, adminCreateOrder);
 
 router.use("/", itemRoutes);
 router.use("/", spotRoutes);
@@ -44,6 +49,8 @@ router.get("/:orderId/payment-details", requireUser, requireOwnOrderParam, getOr
 router.get("/:orderId/refiners", requireAdmin, getRefinerOrderByOrder);
 router.get("/:orderId/refiners/spots", requireAdmin, getRefinerSpotsByOrder);
 router.get("/:orderId/refiners/items", requireAdmin, getRefinerItemsByOrder);
+
+router.post("/:id/review", requireUser, requireOwnOrderParam, createOrderReview);
 
 router.post("/:id/add_funds", requireAdmin, addFundsToOrder);
 router.post("/:id/finalize_pricing", requireAdmin, finalizeOrderPricing);

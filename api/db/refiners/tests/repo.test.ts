@@ -18,28 +18,32 @@ afterAll(async () => {
   await pool.end();
 });
 
-test("list answers at least the two seeded refiners", async () => {
+test("viewAll answers at least the two seeded refiners, each carrying its organization", async () => {
   await inRollback(async (c: PoolClient) => {
-    const rows = await refiners.list(c);
+    const rows = await refiners.viewAll(c);
     assert.ok(rows.length >= 2, `expected at least 2 seeded refiners, got ${rows.length}`);
+    for (const row of rows) {
+      assert.ok(row.organization.name, "a refiner came back with no organization name");
+    }
   });
 });
 
-test("getOne answers a real refiner by id, and undefined for an id nothing seeded", async () => {
+test("viewOne answers a real refiner by id, and undefined for an id nothing seeded", async () => {
   await inRollback(async (c: PoolClient) => {
     const id = await refinerNamed(c, "Elemetal");
 
-    const found = await refiners.getOne(id, c);
+    const found = await refiners.viewOne(id, c);
     assert.equal(found?.id, id);
-    assert.ok(found?.organization_id, "the refiner carries no organization_id");
+    assert.equal(found?.organization.name, "Elemetal");
 
-    assert.equal(await refiners.getOne(randomUUID(), c), undefined);
+    assert.equal(await refiners.viewOne(randomUUID(), c), undefined);
   });
 });
 
-test("the default refiner reference resolves to a real row", async () => {
+test("the refiner view's timestamps are the UTC strings the contract parses", async () => {
   await inRollback(async (c: PoolClient) => {
-    const id = await refinerId(c);
-    assert.ok(await refiners.getOne(id, c), "the default refiner id resolves to no row");
+    const view = await refiners.viewOne(await refinerId(c), c);
+    assert.ok(view, "the default refiner id resolves to no row");
+    assert.match(String(view.created_at), /^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/);
   });
 });

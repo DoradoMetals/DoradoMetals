@@ -4,7 +4,6 @@ import * as fulfillmentService from "#logistics/fulfillments/service.ts";
 import * as methodService from "#logistics/fulfillments/methods/service.ts";
 import * as handoffsService from "#logistics/shipping/handoffs/service.ts";
 import * as rules from "#logistics/fulfillments/rules.ts";
-import withTransaction from "#shared/db/withTransaction.ts";
 import type { Executor } from "#shared/db/executor.ts";
 import type { Direction, FulfillmentCreateBody, FulfillmentView } from "@dorado/contracts";
 
@@ -31,26 +30,24 @@ async function methodFor(
 }
 
 export async function createForCheckout(
-  body: FulfillmentCreateBody, caller_id: string, is_admin: boolean
+  body: FulfillmentCreateBody, caller_id: string, is_admin: boolean, tx: Executor
 ): Promise<FulfillmentView> {
-  return await withTransaction(async (tx) => {
-    const row = await checkoutService.getRowById(body.checkout_id, tx);
-    rules.assertFulfillment(row, body.checkout_id);
-    rules.assertOwnedDraft(row.user_id, is_admin ? row.user_id : caller_id, body.checkout_id);
+  const row = await checkoutService.getRowById(body.checkout_id, tx);
+  rules.assertFulfillment(row, body.checkout_id);
+  rules.assertOwnedDraft(row.user_id, is_admin ? row.user_id : caller_id, body.checkout_id);
 
-    const direction = row.direction;
-    const method_id = await methodFor(body, direction, tx);
+  const direction = row.direction;
+  const method_id = await methodFor(body, direction, tx);
 
-    if (row.fulfillment_id) {
-      return await withDefaultAddress(
-        await fulfillmentService.setMethod(row.fulfillment_id, method_id, tx),
-        row.user_id, tx
-      );
-    }
-    const draft = await fulfillmentService.createDraft(method_id, direction, tx);
-    await checkoutService.attachFulfillment(row.id, draft.fulfillment.id, tx);
-    return await withDefaultAddress(draft, row.user_id, tx);
-  });
+  if (row.fulfillment_id) {
+    return await withDefaultAddress(
+      await fulfillmentService.setMethod(row.fulfillment_id, method_id, tx),
+      row.user_id, tx
+    );
+  }
+  const draft = await fulfillmentService.createDraft(method_id, direction, tx);
+  await checkoutService.attachFulfillment(row.id, draft.fulfillment.id, tx);
+  return await withDefaultAddress(draft, row.user_id, tx);
 }
 
 async function withDefaultAddress(

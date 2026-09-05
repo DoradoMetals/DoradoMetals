@@ -16096,3 +16096,20 @@ and the domains' `functions` coverage ratchet moved by the one deleted file
 logic, the new shape, what the four tests pin, and the one frontend file that
 breaks are in `docs/waves/profit-sql.md`; the frontend is not updated here
 (ruling 44).
+### Orders pass 2 (2026-09-06)
+
+Three old create routes are one: `POST /api/orders {checkout_id}` -> 201 and
+`POST /api/orders/admin` -> 201, both answering `OrderView`; `create_review` is
+`POST /api/orders/:id/review` and takes no body at all. 136 routes -> 134.
+`AdminOrderCreate` is a discriminated union on direction derived from
+`assertPlaceable` + `missing()`, NOT from the admin drawer, and `placeForAdmin`
+builds the customer's checkout through checkout/logistics/payments in one
+transaction before the same `place()` runs. FINDING: `CREDIT` is the ONLY
+enabled non-card sale method, so an admin sale must be covered by the
+customer's balance - any remainder still demands the customer's own card
+intent. `ComposedRefiner` is dead: `RefinerView`/`RefinerOrderView` are
+contracts, one SQL read each, and the mirror is an `INSERT ... SELECT ... WHERE
+NOT EXISTS` with a required `tx`. Credit left `identity/users` for
+`api/payments/credit/`; the URL did not (ruling 13). `verify:genesis` fails on
+DEV BEING BEHIND ITS OWN CHAIN (no `auth.mirror_identity_to_exchange`, which
+122 creates) - not this lane's, and a `migrate` against dev is Jacob's.

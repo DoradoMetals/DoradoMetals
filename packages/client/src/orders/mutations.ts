@@ -2,8 +2,8 @@
 
 import { useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import type {
-  Direction, OrderCancelBody, OrderItem, OrderItemPatch, OrderPatch,
-  OrderSpotsPutBody, OrderView,
+  AdminOrderCreate, OrderCancelBody, OrderCreateBody, OrderItem, OrderItemPatch,
+  OrderPatch, OrderSpotsPutBody, OrderView,
 } from "@dorado/contracts";
 
 import { apiRequest } from "../fetch";
@@ -20,28 +20,20 @@ export function invalidateOrder(client: QueryClient, order_id: string): void {
   client.invalidateQueries({ queryKey: keys.orders.all(), refetchType: "active" });
 }
 
-export function usePlaceOrder() {
+export function useCreateOrder() {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: async ({ checkout_id, direction }: { checkout_id: string; direction: Direction }) =>
-      await apiRequest<OrderView>(
-        "POST",
-        direction === "sale"
-          ? "/sales_orders/create_sales_order"
-          : "/purchase_orders/create_from_checkout",
-        { checkout_id }
-      ),
+    mutationFn: async (body: OrderCreateBody) =>
+      await apiRequest<OrderView>("POST", "/orders", body),
     onSuccess: (view) => absorb(client, view),
   });
 }
 
-export function useAdminPlaceSalesOrder() {
+export function useAdminCreateOrder() {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: async ({ checkout_id }: { checkout_id: string }) =>
-      await apiRequest<OrderView>("POST", "/sales_orders/admin_create_sales_order", {
-        checkout_id,
-      }),
+    mutationFn: async (body: AdminOrderCreate) =>
+      await apiRequest<OrderView>("POST", "/orders/admin", body),
     onSuccess: (view) => absorb(client, view),
   });
 }
@@ -58,13 +50,9 @@ export function usePatchOrder() {
 export function useCreateOrderReview() {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, direction }: { id: string; direction: Direction }) =>
-      await apiRequest<{ success: true }>(
-        "POST",
-        direction === "sale" ? "/sales_orders/create_review" : "/purchase_orders/create_review",
-        { order: { id } }
-      ),
-    onSuccess: (_answer, { id }) => invalidateOrder(client, id),
+    mutationFn: async ({ id }: { id: string }) =>
+      await apiRequest<OrderView>("POST", `/orders/${id}/review`),
+    onSuccess: (view) => absorb(client, view),
   });
 }
 

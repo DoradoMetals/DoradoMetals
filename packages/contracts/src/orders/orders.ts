@@ -33,7 +33,10 @@ import { OrderViewShipment } from "../shipping/shipments.js";
 import { ShipmentPickup } from "../shipping/pickups.js";
 import { OrderViewPayout } from "../payments/details.js";
 import { User, UserSummary } from "../auth/users.js";
-import { Checkout } from "../checkout/checkouts.js";
+import { Checkout, CheckoutPayoutForm } from "../checkout/checkouts.js";
+import { CheckoutItemPatch } from "../checkout/items.js";
+import { FulfillmentMethod } from "../fulfillments/methods.js";
+import { FulfillmentPatchBody } from "../fulfillments/fulfillments.js";
 import { CarrierService } from "../shipping/services.js";
 import { Package } from "../shipping/packages.js";
 import { Refiner } from "../refiners/refiners.js";
@@ -63,11 +66,40 @@ export type OrderPatch = z.infer<typeof OrderPatch>;
 export const OrderCreateBody = z.object({ checkout_id: Checkout.shape.id }).strict();
 export type OrderCreateBody = z.infer<typeof OrderCreateBody>;
 
-export const OrderReviewBody = z.object({
-  order: z.looseObject({ id: Order.shape.id }),
-  user_id: User.shape.id.optional(),
+// An admin places on a customer's behalf, so the body is exactly what makes a
+// checkout placeable: checkout/rules.ts `checkoutState` (items, a fulfillment,
+// and the direction's own settlement column) plus fulfillments/rules.ts
+// `missingFor` (the chosen category's own choices).
+export const AdminOrderFulfillment = z.object({
+  method_id: FulfillmentMethod.shape.id,
+  choices: FulfillmentPatchBody,
 }).strict();
-export type OrderReviewBody = z.infer<typeof OrderReviewBody>;
+export type AdminOrderFulfillment = z.infer<typeof AdminOrderFulfillment>;
+
+export const AdminPurchaseCreate = z.object({
+  direction: Direction.extract(["purchase"]),
+  user_id: User.shape.id,
+  items: z.array(CheckoutItemPatch),
+  fulfillment: AdminOrderFulfillment,
+  payout: CheckoutPayoutForm,
+}).strict();
+export type AdminPurchaseCreate = z.infer<typeof AdminPurchaseCreate>;
+
+export const AdminSaleCreate = z.object({
+  direction: Direction.extract(["sale"]),
+  user_id: User.shape.id,
+  items: z.array(CheckoutItemPatch),
+  fulfillment: AdminOrderFulfillment,
+  payment_method_id: Checkout.shape.payment_method_id.unwrap(),
+  recipient_address_id: Checkout.shape.recipient_address_id.unwrap(),
+}).strict();
+export type AdminSaleCreate = z.infer<typeof AdminSaleCreate>;
+
+export const AdminOrderCreate = z.discriminatedUnion("direction", [
+  AdminPurchaseCreate,
+  AdminSaleCreate,
+]);
+export type AdminOrderCreate = z.infer<typeof AdminOrderCreate>;
 
 export const OrderCancelBody = z.object({
   carrier_service_id: CarrierService.shape.id,

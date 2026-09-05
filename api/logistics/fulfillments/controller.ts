@@ -9,6 +9,7 @@ import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import { requireFulfillmentOwner } from "#logistics/fulfillments/owner.ts";
 import * as fulfillmentDrafts from "#logistics/fulfillments/drafts.ts";
 import * as fulfillmentService from "#logistics/fulfillments/service.ts";
+import withTransaction from "#shared/db/withTransaction.ts";
 
 export const getSchedule = asyncHandler(async (req, res) => {
   const from = oneString(req.query.from);
@@ -54,10 +55,10 @@ export const getFulfillmentByOrder = asyncHandler(async (req, res) => {
 
 export const createFulfillment = asyncHandler(async (req, res) => {
   const body = parseStrict(FulfillmentCreateBody, req.body, "fulfillments body");
+  const caller = callerId(req);
+  const is_admin = req.user?.role === "admin";
   return res.status(200).json(
-    await fulfillmentDrafts.createForCheckout(
-      body, callerId(req), req.user?.role === "admin"
-    )
+    await withTransaction((tx) => fulfillmentDrafts.createForCheckout(body, caller, is_admin, tx))
   );
 });
 

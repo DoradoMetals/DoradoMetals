@@ -1,9 +1,12 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
+import { sqlFrom } from "#shared/db/sql.ts";
 import type { Executor } from "#shared/db/executor.ts";
 import type { RefinerOrder } from "@dorado/contracts";
 import { columnsOf } from "#shared/db/columns.ts";
-import { RefinerOrderPatch } from "@dorado/contracts";
+import { RefinerOrderPatch, RefinerOrderView } from "@dorado/contracts";
+
+const sql = sqlFrom(import.meta.dirname);
 
 export type NewRefinerOrder = Pick<RefinerOrder, "order_id">;
 
@@ -63,4 +66,13 @@ export async function update(
   if (!built) return true;
   const { rowCount } = await query(built.text, built.values, executor);
   return rowCount === 1;
+}
+
+export async function viewForOrder(
+  order_id: string, executor?: Executor
+): Promise<RefinerOrderView | undefined> {
+  const { rows } = await query<{ view: unknown }>(
+    sql("view_for_order"), [order_id], executor
+  );
+  return rows[0] === undefined ? undefined : RefinerOrderView.parse(rows[0].view);
 }

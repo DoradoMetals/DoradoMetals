@@ -36,35 +36,22 @@ export async function create(row: SpotNew, executor?: Executor): Promise<Refiner
   return rows[0];
 }
 
-export type EngagementSpotRow = {
-  id: string;
-  metal_id: string;
-  refiner_id: string | null;
-  order_id: string;
-  pool_oz_deducted: number | null;
-  ask: number | null;
-  bid: number | null;
-  scrap_percentage: number | null;
-  bullion_percentage: number | null;
-  created_at: Date | null;
-  updated_at: Date | null;
-  refiner_order_id: string | null;
-};
-
 export async function getForEngagement(
   refiner_order_id: string, executor?: Executor
-): Promise<EngagementSpotRow[]> {
-  const { rows } = await query<EngagementSpotRow>(
+): Promise<RefinerSpot[]> {
+  const { rows } = await query<{ row: unknown }>(
     sql("get_for_engagement"), [refiner_order_id], executor
   );
-  return rows;
+  return rows.map((r) => RefinerSpot.parse(r.row));
 }
 
-export async function createMany(
-  rows: SpotNew[], executor?: Executor
+export async function mirrorForOrder(
+  order_id: string, refiner_order_id: string, tx: Executor
 ): Promise<number> {
-  for (const row of rows) await create(row, executor);
-  return rows.length;
+  const { rowCount } = await query(
+    sql("mirror_for_order"), [order_id, refiner_order_id], tx
+  );
+  return rowCount ?? 0;
 }
 
 export const PATCHABLE = columnsOf(RefinerSpot.pick({ bid: true }));

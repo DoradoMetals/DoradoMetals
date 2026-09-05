@@ -12,10 +12,11 @@ import * as placeAddresses from "#db/places/addresses/repo.ts";
 import * as addressService from "#identity/places/addresses/service.ts";
 import * as fulfillmentService from "#logistics/fulfillments/service.ts";
 import * as checkoutService from "#checkout/service.ts";
+import * as fulfillmentDrafts from "#logistics/fulfillments/drafts.ts";
 import * as emailService from "#media/emails/service.ts";
 import * as taxService from "#pricing/sales-tax/service.ts";
 import * as paymentsService from "#payments/service.ts";
-import * as usersService from "#identity/users/service.ts";
+import * as credit from "#payments/credit/service.ts";
 import * as transactionsService from "#payments/transactions/service.ts";
 import * as refinerService from "#orders/refiners/service.ts";
 import * as sweeps from "#payments/sweeps.ts";
@@ -29,7 +30,7 @@ import { retierPremiums } from "#orders/service.ts";
 import withTransaction from "#shared/db/withTransaction.ts";
 import { attempt } from "#shared/attempt.ts";
 import type {
-  Checkout, OrderItem, OrderLine, OrderView, SoldLinePrice,
+  AdminOrderCreate, Checkout, OrderItem, OrderLine, OrderView, SoldLinePrice,
 } from "@dorado/contracts";
 
 export const LIVE = {
@@ -55,6 +56,41 @@ export async function place(
   const order = await orderRead.view(order_id);
   rules.assertPlacedOrder(order, order_id);
   return order;
+}
+
+// The admin builds the customer's checkout server-side - the same checkout
+// service, logistics draft and payment write the customer's own steps use -
+// and then places it through place() above.
+export async function placeForAdmin(
+  order: AdminOrderCreate, world: typeof LIVE = LIVE
+): Promise<OrderView> {
+  return await place(await withTransaction((tx) => buildFor(order, tx)), world);
+}
+
+async function buildFor(order: AdminOrderCreate, tx: PoolClient): Promise<string> {
+  const row = await checkoutService.getRowFor(order.user_id, order.direction, tx);
+  await checkoutService.replaceItems(order.user_id, order.direction, order.items, tx);
+
+  const draft = await fulfillmentDrafts.createForCheckout(
+    { checkout_id: row.id, method_id: order.fulfillment.method_id }, order.user_id, true, tx
+  );
+  await fulfillmentService.patchChoices(
+    draft.fulfillment.id, order.fulfillment.choices, tx
+  );
+
+  if (order.direction === "purchase") {
+    await checkoutService.saveCheckoutPayout(order.user_id, "purchase", order.payout, tx);
+  } else {
+    await checkoutService.patchCheckout(
+      order.user_id, "sale",
+      {
+        payment_method_id: order.payment_method_id,
+        recipient_address_id: order.recipient_address_id,
+      },
+      tx
+    );
+  }
+  return row.id;
 }
 
 async function writeOrder(
@@ -183,7 +219,7 @@ async function placeSale(
     );
 
     if (quote.pre_charges_amount > 0) {
-      await usersService.removeFunds(checkout.user_id, quote.pre_charges_amount, tx);
+      await credit.removeFunds(checkout.user_id, quote.pre_charges_amount, tx);
       await transactionsService.addTransactionLog(
         {
           user_id: checkout.user_id, type: "Debit", order_id: id,

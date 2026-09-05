@@ -1,13 +1,12 @@
 import * as refinerOrdersRepo from "#db/refiners/orders/repo.ts";
 import * as refinerSpotsRepo from "#db/refiners/spots/repo.ts";
-import type { EngagementSpotRow, OrderBid } from "#db/refiners/spots/repo.ts";
+import type { OrderBid } from "#db/refiners/spots/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";
-
-export type { EngagementSpotRow, RefinerSpotRow } from "#db/refiners/spots/repo.ts";
+import type { RefinerSpot } from "@dorado/contracts";
 
 export async function forOrder(
   order_id: string, executor?: Executor
-): Promise<EngagementSpotRow[] | null> {
+): Promise<RefinerSpot[] | null> {
   const engagement = await refinerOrdersRepo.findByOrder(order_id, executor);
   if (!engagement) return null;
   return await refinerSpotsRepo.getForEngagement(engagement.id, executor);

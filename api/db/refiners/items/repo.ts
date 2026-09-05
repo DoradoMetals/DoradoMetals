@@ -54,12 +54,13 @@ export async function create(
   return rows[0];
 }
 
-export async function createMany(
-  rows: NewRefinerItem[], executor?: Executor
-): Promise<RefinerItem[]> {
-  const written: RefinerItem[] = [];
-  for (const row of rows) written.push(await create(row, executor));
-  return written;
+export async function mirrorForOrder(
+  order_id: string, refiner_order_id: string, tx: Executor
+): Promise<number> {
+  const { rowCount } = await query(
+    sql("mirror_for_order"), [order_id, refiner_order_id], tx
+  );
+  return rowCount ?? 0;
 }
 
 const WRITABLE = RefinerItem.omit({

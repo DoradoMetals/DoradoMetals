@@ -19,7 +19,8 @@ test("a handoff code with no method_id resolves to the matching method type", as
     const view = await service.createForCheckout(
       { checkout_id: cart.id, handoff_code: "DROPOFF_AT_FEDEX_LOCATION" },
       customer.id,
-      false
+      false,
+      c
     );
 
     assert.equal(view.method.type, "CARRIER DROPOFF");
@@ -35,7 +36,8 @@ test("an unknown handoff code is refused before any method is chosen", async () 
       () => service.createForCheckout(
         { checkout_id: cart.id, handoff_code: "NOT_A_REAL_HANDOFF" },
         customer.id,
-        false
+        false,
+        c
       ),
       /no such handoff/
     );
@@ -54,7 +56,8 @@ test("withDefaultAddress falls back to any valid address when none is both defau
     const view = await service.createForCheckout(
       { checkout_id: cart.id, method_id },
       customer.id,
-      false
+      false,
+      c
     );
 
     assert.equal(

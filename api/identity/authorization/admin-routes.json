@@ -63,10 +63,10 @@
   "POST /api/quotes/profit_breakdown",
   "POST /api/rates",
   "POST /api/reviews",
-  "POST /api/sales_orders/admin_create_sales_order",
   "POST /api/shipping/cancel_label",
   "POST /api/shipping/cancel_pickup",
   "POST /api/stripe/cancel_payment_intent",
   "POST /api/users/:id/credit",
-  "PUT /api/orders/:id/spots"
+  "PUT /api/orders/:id/spots",
+  "POST /api/orders/admin"
 ]

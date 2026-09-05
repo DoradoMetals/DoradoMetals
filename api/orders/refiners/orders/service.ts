@@ -2,11 +2,12 @@ import * as refinerSpotsRepo from "#db/refiners/spots/repo.ts";
 import * as orderTransactions from "#orders/transactions/service.ts";
 import * as refinerOrdersRepo from "#db/refiners/orders/repo.ts";
 import * as rules from "#orders/refiners/orders/rules.ts";
-import type { RefinerOrderPatch, RefinerSpotWrite, RefinerOrder } from "@dorado/contracts";
+import type { RefinerOrderPatch, RefinerOrderView } from "@dorado/contracts";
+import type { Executor } from "#shared/db/executor.ts";
 
 export async function patchRefinerOrder(
   id: string, patch: RefinerOrderPatch
-): Promise<RefinerOrder> {
+): Promise<RefinerOrderView> {
   rules.assertNamesAField(patch);
 
   const engagement = await refinerOrdersRepo.findById(id);
@@ -36,11 +37,13 @@ export async function patchRefinerOrder(
     await refinerOrdersRepo.update(id, { refiner_id: patch.refiner_id });
   }
 
-  const written = await refinerOrdersRepo.findById(id);
+  const written = await refinerOrdersRepo.viewForOrder(order_id);
   rules.assertRefinerOrder(written, id);
   return written;
 }
 
-export async function getByOrder(order_id: string): Promise<RefinerOrder | null> {
-  return (await refinerOrdersRepo.findByOrder(order_id)) ?? null;
+export async function getByOrder(
+  order_id: string, executor?: Executor
+): Promise<RefinerOrderView | null> {
+  return (await refinerOrdersRepo.viewForOrder(order_id, executor)) ?? null;
 }

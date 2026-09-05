@@ -34,3 +34,14 @@ export const RefinerOrderPatch = RefinerOrder.pick({
   })
   .strict();
 export type RefinerOrderPatch = z.infer<typeof RefinerOrderPatch>;
+
+import { RefinerItem } from "./items.js";
+import { RefinerSpot } from "./spots.js";
+import { RefinerView } from "./refiners.js";
+
+export const RefinerOrderView = RefinerOrder.extend({
+  refiner: RefinerView.nullable(),
+  items: z.array(RefinerItem),
+  spots: z.array(RefinerSpot),
+});
+export type RefinerOrderView = z.infer<typeof RefinerOrderView>;

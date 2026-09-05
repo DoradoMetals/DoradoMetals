@@ -1,6 +1,7 @@
 import express from "express";
 
-import { list, listAdmins, getOne, updateCredit } from "#identity/users/controller.ts";
+import { list, listAdmins, getOne } from "#identity/users/controller.ts";
+import { updateCredit } from "#payments/credit/controller.ts";
 import { requireAdmin } from "#shared/middleware/authMiddleware.ts";
 
 const router = express.Router();

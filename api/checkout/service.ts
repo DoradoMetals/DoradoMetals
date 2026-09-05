@@ -78,9 +78,8 @@ export async function resolveSubject(
 ): Promise<string> {
   if (!named_user_id || named_user_id === caller_id) return caller_id;
   rules.assertMaySubjectAnother(is_admin);
-  const target = await usersService.getUser(named_user_id);
-  rules.assertSubject(target, named_user_id);
-  return target.id;
+  rules.assertSubject(await usersService.exists(named_user_id), named_user_id);
+  return named_user_id;
 }
 
 export async function assertRealAccount(user_id: string, action: string): Promise<void> {
@@ -94,32 +93,28 @@ export async function getCheckout(
 }
 
 export async function patchCheckout(
-  user_id: string, direction: Direction, patch: CheckoutWrite
+  user_id: string, direction: Direction, patch: CheckoutWrite, tx: Executor
 ): Promise<CheckoutView> {
-  return await withTransaction(async (client) => {
-    const row = await ensure(user_id, direction, client);
-    rules.assertSession(await checkouts.update(row.id, patch, client));
-    return await viewOf(row.id, client);
-  });
+  const row = await ensure(user_id, direction, tx);
+  rules.assertSession(await checkouts.update(row.id, patch, tx));
+  return await viewOf(row.id, tx);
 }
 
 export async function saveCheckoutPayout(
-  user_id: string, direction: Direction, form: CheckoutPayoutForm
+  user_id: string, direction: Direction, form: CheckoutPayoutForm, tx: Executor
 ): Promise<CheckoutView> {
   rules.assertPayoutDirection(direction);
   await assertRealAccount(user_id, "save a payout account");
-  return await withTransaction(async (client) => {
-    const row = await ensure(user_id, direction, client);
-    const saved = await paymentDetails.saveCheckoutPayout(
-      user_id, row.payment_details_id, form, client
-    );
-    rules.assertSession(await checkouts.update(
-      row.id,
-      { payment_details_id: saved.id, payment_method_id: saved.method_id },
-      client
-    ));
-    return await viewOf(row.id, client);
-  });
+  const row = await ensure(user_id, direction, tx);
+  const saved = await paymentDetails.saveCheckoutPayout(
+    user_id, row.payment_details_id, form, tx
+  );
+  rules.assertSession(await checkouts.update(
+    row.id,
+    { payment_details_id: saved.id, payment_method_id: saved.method_id },
+    tx
+  ));
+  return await viewOf(row.id, tx);
 }
 
 export async function listItems(
@@ -131,30 +126,28 @@ export async function listItems(
 }
 
 export async function replaceItems(
-  user_id: string, direction: Direction, lines: CheckoutItemPatch[]
+  user_id: string, direction: Direction, lines: CheckoutItemPatch[], tx: Executor
 ): Promise<CheckoutItem[]> {
-  return await withTransaction(async (client) => {
-    const session = await ensure(user_id, direction, client);
-    await checkoutItems.removeFor(session.id, client);
+  const session = await ensure(user_id, direction, tx);
+  await checkoutItems.removeFor(session.id, tx);
 
-    for (const line of lines) {
-      if ("bullion_id" in line) {
-        rules.assertProductAvailable(
-          await checkoutItems.createFromProduct(session.id, line, client), line.bullion_id
-        );
-      } else {
-        rules.assertCatalogueLine(direction);
-        await checkoutItems.create(rules.scrapLine(session.id, line), client);
-      }
+  for (const line of lines) {
+    if ("bullion_id" in line) {
+      rules.assertProductAvailable(
+        await checkoutItems.createFromProduct(session.id, line, tx), line.bullion_id
+      );
+    } else {
+      rules.assertCatalogueLine(direction);
+      await checkoutItems.create(rules.scrapLine(session.id, line), tx);
     }
-    if (direction === "purchase") {
-      const quote = await pricing.priceCheckout(session.id, client);
-      for (const line of quote.direction === "purchase" ? quote.items : []) {
-        await checkoutItems.update(line.id, { premium: line.premium }, client);
-      }
+  }
+  if (direction === "purchase") {
+    const quote = await pricing.priceCheckout(session.id, tx);
+    for (const line of quote.direction === "purchase" ? quote.items : []) {
+      await checkoutItems.update(line.id, { premium: line.premium }, tx);
     }
-    return await checkoutItems.listFor(session.id, client);
-  });
+  }
+  return await checkoutItems.listFor(session.id, tx);
 }
 
 export async function clearItems(
