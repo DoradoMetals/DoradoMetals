@@ -9,15 +9,15 @@ import {
   SidebarSection,
   useSidebarQueryParamSelection,
 } from '@/shared/ui/SidebarLayout'
-import { userRoleOptions } from '@/features/users/types'
-import { useGetSession } from '@/features/auth/queries'
+import { userRoleOptions } from '@/shared/types/users'
+import { useGetSession } from '@/shared/hooks/auth/queries'
 import { useDrawerStore } from '@/shared/store/drawerStore'
-import AddressList from '@/features/addresses/ui/AddressList'
-import UserForm from '@/features/users/ui/UserForm'
-import { PasswordAndSecurity } from '@/features/users/ui/PasswordAndSecurity'
+import AddressList from './_src_/addresses/ui/AddressList'
+import UserForm from './_src_/users/ui/UserForm'
+import { PasswordAndSecurity } from './_src_/users/ui/PasswordAndSecurity'
 import { useOrders } from '@dorado/client'
-import { PurchaseOrdersContent } from '@/features/orders/purchaseOrders/users/purchaseOrderTab'
-import { SalesOrdersContent } from '@/features/orders/salesOrders/users/salesOrderTab'
+import { PurchaseOrdersContent } from './_src_/orders/purchaseOrders/purchaseOrderTab'
+import { SalesOrdersContent } from './_src_/orders/salesOrders/salesOrderTab'
 
 
 export default function Page() {

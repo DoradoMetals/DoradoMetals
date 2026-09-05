@@ -1,10 +1,10 @@
 'use client'
 
-import USMap from '@/features/sales-tax/ui/USMap'
+import USMap from './_src_/ui/USMap'
 import Image from 'next/image'
 import { useMemo, useState } from 'react'
 import { Autocomplete } from '@dorado/components'
-import { stateTaxData, StateTaxDetail } from '@/features/sales-tax/types'
+import { stateTaxData, StateTaxDetail } from './_src_/types'
 
 export default function Page() {
   const [selected, setSelected] = useState<StateTaxDetail | null>(null)

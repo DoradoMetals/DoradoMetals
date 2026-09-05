@@ -272,3 +272,113 @@ so it parses.
 an effect that WRITES rather than one that syncs state, and moving it means
 making a GET create a row - a decision about the checkout read, not a frontend
 cleanup. It is KEEP in the inventory and an item in FOLLOWUPS.
+
+## Lane N2 result (2026-09-06)
+
+### 1. The map, built before anything moved
+
+The map is not a reading of the folder names, it is the **import graph**:
+`app/**` was walked from every route entry (`page/layout/error/loading`), each
+`@/` and relative specifier resolved to a file, and the transitive closure
+recorded per route. 266 files under `features/` + `shared/`; **147 reachable
+from exactly one route, 62 from several, 56 from none** (tests, e2e specs and
+three orphans). The root layout counts as a route of its own — anything it
+pulls in is on every page, so it is shared by construction, which is how
+`navigation/`, the checkout drawer, `Spots` and the five providers landed in
+`shared/` without a judgement call.
+
+**The rule applied**: one route → `app/<route>/_src_/<sub-structure kept>`,
+with a leading segment dropped where it only repeats the route (`features/
+checkout/purchase-order-checkout/**` → `app/(checkout)/checkout/_src_/**`,
+`features/orders/salesOrders/admin/**` → `app/admin/_src_/orders/salesOrders/**`).
+Several routes → `shared/<kind>/`. `queries.ts` and `types.ts` are the only two
+basenames that collide once flattened, so those keep a feature segment
+(`shared/hooks/addresses/queries.ts`) or take the feature's name
+(`shared/types/addresses.ts`). Everything else is flat in its kind.
+
+| destination | files |
+|---|---|
+| `app/<route>/_src_/` | **157** — admin 71, account 34, checkout 17, authentication 7, sell 7, sales-order-checkout 6, images 4, buy 3, sales-tax 2, one each for change-email, payout-options, rates, reset-password, verify-email, verify-login |
+| `shared/<kind>/` | **78** — ui 26, types 16, hooks 16, tests 14, utils 6 |
+| moved into a `(group)` | 12 (the four route folders' own files) |
+| **deleted** | 3 — `features/products/ui/QuantityInput.tsx`, `features/spots/types.ts`, `shared/hooks/useImageUpload.tsx`, which nothing in the repo imports. The graph is what found them: a file with no route and no test is not "shared", it is dead |
+
+43 of the 235 are tests. Each went with its subject:
+`app/<route>/_src_/tests/` for a route's own, `shared/tests/` for the rest —
+including the five shared unit tests that had been co-located
+(`cn`, `convertWeights`, `formatDates`, `formatting`, `state-contrast`), so the
+rule now holds in one direction only. One test crosses on purpose:
+`shared/tests/products/ProductCards.test.tsx` renders `ProductCard` (buy) and
+`BullionCard` (sell) in one file, and a test is allowed to reach into two
+routes where production code is not.
+
+### 2. The move
+
+`git mv` for all 247, so history follows. Imports were rewritten from the
+**resolved** old target rather than by text substitution: each specifier was
+resolved against the old tree, mapped through the move table, and re-emitted
+from the importer's NEW location — relative when both ends sit inside the same
+route folder, `@/…` otherwise. **539 specifiers in 184 files.** That is what
+keeps `(checkout)` and `(credentials)` out of every import string: a route's
+private code is only ever imported from inside that route, so the parenthesised
+segment never appears in a specifier.
+
+Two strings the resolver reached that were not imports, both caught by the
+suite and reverted: `state-contrast.test.ts` reads `packages/theme/theme.css`
+with `readFileSync`, and `app/layout.tsx` imports `./styles/globals.css`.
+
+`frontend/features/` **is gone.** No `@/features` import and no `features/`
+path survives in `app/`, `shared/` or `scripts/`; the remaining occurrences of
+the word are prose in comments (and `api/features/…`, which is the API's own
+tree). `tsconfig` paths are untouched (`@/*`). Neither runner named `features/`
+in a glob — vitest takes `**/*.test.ts[x]` and Playwright `**/tests/**/*.e2e.ts`
+— so only their comments needed updating; `playwright test --list` finds the
+same **19 spec files, 71 tests**, in the same four projects.
+
+### 3. Route groups and layouts
+
+Two groups, both URL-neutral:
+
+- **`app/(checkout)/`** — `checkout` and `sales-order-checkout`. `layout.tsx`
+  holds the column both pages opened with,
+  `<main className="flex flex-col h-full items-center gap-4">`. The role guard
+  stays on each page: the roles come from that route's own `protectedRoutes`
+  entry, and hoisting it would have meant one route asserting the other's.
+- **`app/(credentials)/`** — `change-password` and `reset-password`, sharing
+  `<main className="mt-12 lg:mt-32">`. `reset-password` stays public inside it
+  (the emailed token IS the credential), which a layout-level guard would have
+  broken.
+
+**No `(admin)` group.** `admin` and `images` share only `ProtectedPage` with
+the same roles, and that is a guard rather than chrome — moving it into a layout
+moves WHERE the redirect happens, past the routes' own `error`/`loading`
+boundaries. `admin` is also a single route with tabs, so the group would hold
+one page. The account/auth routes share no markup at all: five different `<main>`
+classes and three of them (`verify-email`, `verify-login`, `change-email`) are
+deliberately public.
+
+**Every URL is identical.** Enumerated from `page.tsx`/`route.ts`/`sitemap.ts`/
+`robots.ts` before and after, with `(group)` segments stripped: `diff` is empty
+across all 21 paths, and `next build`'s own route table lists the same 21 plus
+`/_not-found`, `/robots.txt` and `/sitemap.xml`.
+
+### 4. The gate
+
+| check | result |
+|---|---|
+| `pnpm --filter @dorado/frontend typecheck` | **0 errors** |
+| `pnpm --filter @dorado/frontend test` | **154 passed, 30 files** (unchanged from N1) |
+| `pnpm --filter @dorado/frontend build` | **green**, 21 routes |
+| `pnpm --filter @dorado/api lint:client-boundary` | **green** — 341 frontend files, 44 client files, 0 findings |
+| `playwright test --list` | 19 files, 71 tests, projects unchanged (not run) |
+
+`next build` logs `sitemap products fetch failed: … fetchProducts is on the
+client`. It is pre-existing and unrelated: the only change to `app/sitemap.ts`
+in this lane is the `protectedRoutes` import path, and `shared/types/routes.ts`
+carries no `'use client'`. The sitemap catches it and emits its static entries.
+
+**Not done, named rather than hidden.** `shared/` is now the whole cross-route
+surface and it is large — 28 components in `shared/ui/` alone, several of which
+(`Shell`, `Sidebar`, `Footer`, `ProfileMenu`) are the app's chrome and belong
+in a `layout.tsx` rather than in a component imported by one. That is a
+follow-up about where chrome renders, not about where files live.

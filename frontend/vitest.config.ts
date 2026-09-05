@@ -7,7 +7,7 @@ import path from "node:path";
 // change.
 //
 // THE END-TO-END TESTS ARE NOT THESE. They live beside the feature they test as
-// `<feature>/tests/*.e2e.ts`, are
+// `app/<route>/_src_/tests/*.e2e.ts` (or `shared/tests/`), are
 // driven by Playwright against a real browser and a live API, and run under
 // `pnpm --filter @dorado/frontend e2e`. They are excluded here twice over - by
 // the .test.ts include pattern and by the explicit exclude below - because the

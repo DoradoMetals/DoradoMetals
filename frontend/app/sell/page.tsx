@@ -4,8 +4,8 @@ import { Suspense } from 'react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@dorado/components'
-import BullionTab from '@/features/products/ui/BullionTab'
-import ScrapForm from '@/features/scrap/ui/ScrapTab'
+import BullionTab from './_src_/products/ui/BullionTab'
+import ScrapForm from './_src_/scrap/ui/ScrapTab'
 
 export default function Page() {
   const searchParams = useSearchParams()

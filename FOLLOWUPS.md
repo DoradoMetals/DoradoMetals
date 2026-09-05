@@ -16257,3 +16257,28 @@ coincidental byte match inside the base64 FedEx label image the packing list
 embeds, not a broken number — verified against all 72 orders in `chain6`.
 Fixed in the test's detector and four separately-real "prints the word null"
 cells; see `docs/waves/packing-list-nan.md`.
+## Next.js factor N2 (2026-09-06)
+
+`frontend/features/` is DELETED and its 235 files live where they are used.
+The map was the import graph, not the folder names: every route entry under
+`app/` walked transitively, 147 files reachable from exactly one route, 62 from
+several, 56 from none. **157 to `app/<route>/_src_/`** (admin 71, account 34,
+checkout 17, the rest in ones and sevens), **78 to `shared/<kind>/`** (ui 26,
+types 16, hooks 16, tests 14, utils 6), **3 DELETED as dead** - `QuantityInput`,
+`spots/types.ts` and `useImageUpload` are imported by nothing in the repo, which
+only the graph could show. The root layout counts as a route, so what it pulls
+in (navigation, the checkout drawer, `Spots`, the providers) is shared by
+construction. 43 tests moved with their subjects. All 247 by `git mv`; 539
+specifiers in 184 files rewritten from the RESOLVED old target, never by text
+substitution - which is why `@/features` appears nowhere and why the two
+non-import path strings the resolver reached (`theme.css`, `globals.css`) were
+caught by the suite rather than shipped. Two URL-neutral groups added:
+`(checkout)` for the two checkout routes and `(credentials)` for the two
+password routes, each with the `<main>` its pages shared; **no `(admin)` group**
+- `admin` and `images` share only the role guard, which is behaviour, not
+chrome. **Every URL is byte-identical**, before/after diff empty across 21
+paths. Typecheck 0, 154 tests green, `next build` green, `lint:client-boundary`
+green, 19 e2e specs still discovered in the same four Playwright projects.
+STILL OPEN: `shared/ui/` holds the app chrome (`Shell`, `Sidebar`, `Footer`,
+`ProfileMenu`) as components imported by one page rather than as a `layout.tsx`
+- a question about where chrome renders, not about where files live.

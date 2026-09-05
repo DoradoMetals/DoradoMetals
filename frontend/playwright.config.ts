@@ -60,20 +60,20 @@ if (/doradometals\.com/i.test(baseURL) && !process.env.I_MEANT_PRODUCTION) {
 }
 
 export default defineConfig({
-  // TESTS LIVE WITH THE FEATURE THEY TEST, not in one central directory.
+  // TESTS LIVE WITH THE ROUTE THEY DRIVE, not in one central directory.
   //
-  //   features/rates/tests/rates.e2e.ts
-  //   features/products/tests/catalogue.e2e.ts
+  //   app/rates/_src_/tests/rates.e2e.ts
+  //   app/buy/_src_/tests/catalogue.e2e.ts
   //   shared/tests/degradation.e2e.ts       <- genuinely cross-cutting
   //
-  // That matches where the vitest unit tests already sit, so a feature slice is
+  // That matches where the vitest unit tests already sit, so a route slice is
   // one directory rather than a folder here and a folder there. The `.e2e.ts`
   // suffix is what keeps the two runners apart: vitest takes `*.test.ts` and
   // explicitly excludes these, Playwright takes only these.
   //
-  // Cross-feature journeys - a checkout touches products, cart, addresses and
+  // Cross-route journeys - a checkout touches products, cart, addresses and
   // payments - belong in shared/tests rather than being filed under whichever
-  // feature they happen to start in.
+  // route they happen to start in.
   testDir: ".",
   testMatch: ["**/tests/*.e2e.ts", "**/tests/**/*.e2e.ts", "**/tests/auth.setup.ts"],
   testIgnore: ["**/node_modules/**", "**/.next/**"],

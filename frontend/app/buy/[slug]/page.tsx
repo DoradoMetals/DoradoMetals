@@ -1,6 +1,6 @@
 'use client'
 
-import ProductPageDetails from '@/features/products/ui/ProductPageDetails'
+import ProductPageDetails from '../_src_/products/ui/ProductPageDetails'
 import { useProduct } from '@dorado/client'
 import { useParams } from 'next/navigation'
 

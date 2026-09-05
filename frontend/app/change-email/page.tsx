@@ -1,7 +1,7 @@
 'use client';
 
 import { Suspense } from 'react'
-import ChangeEmail from '@/features/auth/ui/ChangeEmailSucess'
+import ChangeEmail from './_src_/ui/ChangeEmailSucess'
 
 // Reached from the email-change confirmation link. The signed token in the URL
 // is the credential, so this must be public — gating it behind ProtectedPage

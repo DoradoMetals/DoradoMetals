@@ -1,7 +1,7 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
-import MobileProductCarousel from '../../features/products/ui/MobileProductCarousel'
+import MobileProductCarousel from '@/shared/ui/MobileProductCarousel'
 import { Button } from '@dorado/components'
 
 import React from 'react'
@@ -10,9 +10,9 @@ import { useDrawerStore } from '@/shared/store/drawerStore'
 import { AnimatePresence, motion } from 'framer-motion'
 import { cn } from '@/shared/utils/cn'
 import { useScrollLock } from '@/shared/hooks/useScrollock'
-import { useGetSession, useStopImpersonation } from '@/features/auth/queries'
-import Shell from '@/features/navigation/ui/Shell'
-import Footer from '@/features/navigation/ui/Footer'
+import { useGetSession, useStopImpersonation } from '@/shared/hooks/auth/queries'
+import Shell from '@/shared/ui/Shell'
+import Footer from '@/shared/ui/Footer'
 
 export default function LayoutProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()

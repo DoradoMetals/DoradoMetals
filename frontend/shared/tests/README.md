@@ -1,4 +1,11 @@
-# End-to-end tests
+# `shared/tests/`
+
+The unit tests whose subject is shared by several routes (`*.test.ts[x]`, run by
+`pnpm --filter @dorado/frontend test`), and the cross-route end-to-end specs
+below. A test whose subject belongs to one route lives in that route's
+`app/<route>/_src_/tests/`.
+
+## End-to-end tests
 
 `pnpm --filter @dorado/frontend e2e`
 

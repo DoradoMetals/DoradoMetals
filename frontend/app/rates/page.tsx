@@ -1,9 +1,9 @@
 'use client'
 
 import { useRateTiers } from '@dorado/client'
-import { pctLabel } from '@/features/rates/types'
+import { pctLabel } from '@/shared/types/rates'
 import { cn } from '@/shared/utils/cn'
-import { GoldIcon, PalladiumIcon, PlatinumIcon, SilverIcon } from '@/features/navigation/ui/Logo'
+import { GoldIcon, PalladiumIcon, PlatinumIcon, SilverIcon } from '@/shared/ui/Logo'
 import { Coins, IconProps, Scale } from '@dorado/icons'
 import type { RateBand, RateTier } from '@dorado/contracts'
 

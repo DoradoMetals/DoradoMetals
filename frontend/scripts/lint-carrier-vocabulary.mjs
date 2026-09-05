@@ -1,8 +1,8 @@
 // A CARRIER'S OWN WORDS, SPELLED IN THE BROWSER.
 //
-// THE DEFECT THIS LOOKS FOR (wave 5B). frontend/features/handoff/types.ts held
+// THE DEFECT THIS LOOKS FOR (wave 5B). frontend/shared/types/handoff.ts held
 // a record KEYED BY DROPOFF_AT_FEDEX_LOCATION and CONTACT_FEDEX_TO_SCHEDULE;
-// frontend/features/service/types.ts held one keyed by FEDEX_EXPRESS_SAVER and
+// frontend/shared/types/service.ts held one keyed by FEDEX_EXPRESS_SAVER and
 // PRIORITY_OVERNIGHT carrying FedEx's FDXE carrier code; and three checkout
 // components branched on those strings to decide what to render next. So the
 // browser knew which of a carrier's services we offer, in what order, and what
