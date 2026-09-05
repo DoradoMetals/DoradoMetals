@@ -4,7 +4,6 @@ export * from "./session";
 export * from "./orders";
 export * from "./checkout";
 export * from "./payments";
-export * from "./payouts";
 export * from "./users";
 export * from "./fulfillments";
 export * from "./shipping";

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { UpdateCreditBody, UpdatePaymentIntentBody, PayoutPatch } from "@dorado/contracts";
+import { UpdateCreditBody, UpdatePaymentIntentBody, PaymentDetailsPatch } from "@dorado/contracts";
 import { keys } from "../keys";
 
 describe("the query keys", () => {
@@ -17,9 +17,10 @@ describe("the query keys", () => {
     expect(keys.users.ledger()).toEqual(["users", "ledger"]);
   });
 
-  test("payout details are keyed apart from the order's own payout row", () => {
-    expect(keys.payouts.details("p-1")).toEqual(["payouts", "p-1", "details"]);
-    expect(keys.payouts.details("p-1")).not.toEqual(keys.orders.payouts("p-1"));
+  test("payment details are keyed apart from the order's own payment-details list", () => {
+    expect(keys.payments.details("p-1")).toEqual(["payments", "details", "p-1"]);
+    expect(keys.payments.detailsBank("p-1")).toEqual(["payments", "details", "p-1", "bank"]);
+    expect(keys.payments.details("p-1")).not.toEqual(keys.orders.paymentDetails("p-1"));
   });
 });
 
@@ -41,11 +42,12 @@ describe("the write bodies are the contracts'", () => {
     }
   });
 
-  test("a payout patch names the fee, the method and the waiver - never a bank number", () => {
-    expect(PayoutPatch.safeParse({ cost: 20, method: "WIRE", waive_payout_fee: true }).success)
-      .toBe(true);
+  test("a payment details patch names the fee, the method and the waiver - never a bank number", () => {
+    expect(
+      PaymentDetailsPatch.safeParse({ cost: 20, method: "WIRE", waive_payout_fee: true }).success
+    ).toBe(true);
     for (const radioactive of ["routing_number", "account_number", "account_last4"]) {
-      expect(PayoutPatch.safeParse({ [radioactive]: "021000021" }).success).toBe(false);
+      expect(PaymentDetailsPatch.safeParse({ [radioactive]: "021000021" }).success).toBe(false);
     }
   });
 

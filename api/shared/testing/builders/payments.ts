@@ -8,7 +8,7 @@ import { payoutKeyFromEnv } from "#shared/crypto/payoutKey.ts";
 import { paymentMethodId } from "#shared/testing/builders/reference.ts";
 import type { BuiltUser } from "#shared/testing/builders/users.ts";
 import type { BuiltOrder } from "#shared/testing/builders/orders.ts";
-import type { PaymentDetailsPatch, PaymentIntentPatch } from "@dorado/contracts";
+import type { PaymentDetailsWrite, PaymentIntentPatch } from "@dorado/contracts";
 
 export const TEST_ROUTING = "021000021";
 export const TEST_ACCOUNT = "000123456789";
@@ -34,7 +34,7 @@ type PayoutExtras = {
 export async function aPayout(
   c: PoolClient,
   user: BuiltUser | { id: string },
-  options: Partial<PaymentDetailsPatch> & PayoutExtras = {}
+  options: Partial<PaymentDetailsWrite> & PayoutExtras = {}
 ): Promise<BuiltPayout> {
   const method = options.method ?? "ACH";
   const method_id = await paymentMethodId(c, method, "purchase");
@@ -43,7 +43,7 @@ export async function aPayout(
   const account_holder = options.account_holder ?? `Test Holder ${aTag()}`;
   const key = payoutKeyFromEnv();
 
-  const base: PaymentDetailsPatch = {
+  const base: PaymentDetailsWrite = {
     method_id,
     account_holder,
     bank_name: options.bank_name ?? "Test Bank",

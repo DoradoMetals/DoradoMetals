@@ -1,5 +1,5 @@
 import { Forbidden, Invalid, NotFound } from "#shared/errors.ts";
-import type { PaymentDetailsPatch, PaymentSurface } from "@dorado/contracts";
+import type { PaymentDetailsWrite, PaymentSurface } from "@dorado/contracts";
 import type { StripePaymentMethodLike } from "#providers/payment/stripe.ts";
 
 export function toDollars(cents: number | null | undefined): number | null {
@@ -40,7 +40,7 @@ export function methodTypeFor(stripe_type: string | null | undefined): string | 
 export function instrumentValues(
   paymentMethod: StripePaymentMethodLike | null | undefined,
   method_id: string | null
-): PaymentDetailsPatch {
+): PaymentDetailsWrite {
   const bank = paymentMethod?.us_bank_account;
   const card = paymentMethod?.card;
   return {

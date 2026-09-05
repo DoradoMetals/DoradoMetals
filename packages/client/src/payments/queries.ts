@@ -2,11 +2,13 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
-  Direction, PaymentIntentView, PaymentMethod, UpdatePaymentIntentBody,
+  Direction, PaymentDetailsBank, PaymentDetailsPatch, PaymentDetailsView,
+  PaymentIntentView, PaymentMethod, UpdatePaymentIntentBody,
 } from "@dorado/contracts";
 
 import { apiRequest } from "../fetch";
 import { keys } from "../keys";
+import { invalidateOrder } from "../orders/mutations";
 
 const REFERENCE_STALE_TIME = 60 * 60 * 1000;
 
@@ -65,5 +67,41 @@ export function useCancelPaymentIntent(order_id: string) {
     onSettled: () => {
       client.invalidateQueries({ queryKey: keys.payments.orderIntent(order_id) });
     },
+  });
+}
+
+export function usePaymentDetails(id: string | null | undefined, enabled = true) {
+  return useQuery<PaymentDetailsView>({
+    queryKey: keys.payments.details(id ?? ""),
+    queryFn: () => apiRequest<PaymentDetailsView>("GET", `/payments/details/${id}`),
+    enabled: enabled && !!id,
+  });
+}
+
+export function usePatchPaymentDetails() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, patch }: {
+      id: string; order_id: string; patch: PaymentDetailsPatch;
+    }) => apiRequest<PaymentDetailsView>("PATCH", `/payments/details/${id}`, patch),
+    onSettled: (_row, _err, { order_id }) => invalidateOrder(client, order_id),
+  });
+}
+
+export function usePaymentDetailsBank(id: string | null | undefined, enabled: boolean) {
+  return useQuery<PaymentDetailsBank>({
+    queryKey: keys.payments.detailsBank(id ?? ""),
+    enabled: enabled && !!id,
+    queryFn: () => apiRequest<PaymentDetailsBank>("GET", `/payments/details/${id}/bank`),
+    staleTime: 0,
+    gcTime: 0,
+  });
+}
+
+export function useOrderPaymentDetails(order_id: string | null | undefined, enabled = true) {
+  return useQuery<PaymentDetailsView[]>({
+    queryKey: keys.orders.paymentDetails(order_id ?? ""),
+    queryFn: () => apiRequest<PaymentDetailsView[]>("GET", `/orders/${order_id}/payment-details`),
+    enabled: enabled && !!order_id,
   });
 }

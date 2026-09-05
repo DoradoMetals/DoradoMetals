@@ -1,12 +1,19 @@
+import withTransaction from "#shared/db/withTransaction.ts";
 import { paymentDetails as details, paymentMethods as methods } from "#db";
+import * as orderTransactions from "#domain/orders/transactions/service.ts";
 import {
-  assertPayableForm, assertResolvedMethod, assertWrittenDetails, cleared,
+  assertNamesAField, assertPayableForm, assertPayout, assertResolvedMethod,
+  assertWaivable, assertWritablePayout, assertWrittenDetails, cleared,
   isBankMethod, lastFour,
 } from "#domain/payments/details/rules.ts";
 import { seal, open, aadFor } from "#shared/crypto/envelope.ts";
 import { payoutKeyFromEnv } from "#shared/crypto/payoutKey.ts";
+import { withDecisions } from "#shared/views.ts";
 import type { Executor } from "#shared/db/executor.ts";
-import type { CheckoutPayoutForm, PaymentDetailsPatch, PaymentDetailsView } from "@dorado/contracts";
+import type {
+  CheckoutPayoutForm, PaymentDetailsBank, PaymentDetailsPatch, PaymentDetailsView,
+  PaymentDetailsWrite,
+} from "@dorado/contracts";
 
 export async function saveCheckoutPayout(
   user_id: string,
@@ -24,7 +31,7 @@ export async function saveCheckoutPayout(
   const account = form.account_number ?? "";
   const routing = form.routing_number ?? "";
 
-  const base: PaymentDetailsPatch = {
+  const base: PaymentDetailsWrite = {
     method_id: resolved.id,
     account_holder: cleared(form.account_holder_name),
     bank_name: cleared(form.bank_name),
@@ -37,7 +44,7 @@ export async function saveCheckoutPayout(
 
   const id = existing_id ?? (await details.create(user_id, base, tx)).id;
 
-  const values: PaymentDetailsPatch = {
+  const values: PaymentDetailsWrite = {
     ...base,
     routing_number_encrypted: routing
       ? seal(routing, key, aadFor(id, "routing_number"))
@@ -75,4 +82,50 @@ export async function setMethod(
   assertWrittenDetails(
     details_id, await details.update(details_id, { method_id: resolved.id }, tx)
   );
+}
+
+export async function getOne(id: string): Promise<PaymentDetailsView | undefined> {
+  return await details.getOne(id);
+}
+
+export async function getForOrder(order_id: string): Promise<PaymentDetailsView[]> {
+  return await details.getMany([order_id]);
+}
+
+export async function getBank(id: string): Promise<PaymentDetailsBank | undefined> {
+  const view = await details.getOne(id);
+  if (!view) return undefined;
+  return withDecisions(view, await decryptFor(id));
+}
+
+export async function patchDetails(
+  details_id: string, patch: PaymentDetailsPatch
+): Promise<PaymentDetailsView> {
+  assertNamesAField(patch);
+
+  return await withTransaction(async (tx) => {
+    const order_id = assertWritablePayout(
+      details_id, await details.getOne(details_id, tx)
+    );
+
+    if (patch.cost !== undefined) {
+      await orderTransactions.update(order_id, { payout_fee: patch.cost }, {}, tx);
+    }
+
+    if (patch.method !== undefined) {
+      await setMethod(details_id, patch.method, tx);
+    }
+
+    if (patch.waive_payout_fee !== undefined) {
+      const written = await orderTransactions.update(
+        order_id,
+        { waive_payout_fee: patch.waive_payout_fee },
+        { direction: "purchase" },
+        tx
+      );
+      assertWaivable(details_id, written);
+    }
+
+    return assertPayout(details_id, await details.getOne(details_id, tx));
+  });
 }

@@ -3,7 +3,7 @@ import { anonymousUsers, checkouts, checkoutItems, metals } from "#db";
 import {
   addresses as addressService,
   fulfillments as fulfillmentService,
-  paymentDetails as payoutDetails,
+  paymentDetails,
   products as productService,
   rates as ratesService,
   spots as spotsService,
@@ -114,7 +114,7 @@ export async function saveCheckoutPayout(
   await assertRealAccount(user_id, "save a payout account");
   return await withTransaction(async (client) => {
     const row = await ensure(user_id, direction, client);
-    const saved = await payoutDetails.saveCheckoutPayout(
+    const saved = await paymentDetails.saveCheckoutPayout(
       user_id, row.payment_details_id, form, client
     );
     rules.assertSession(await checkouts.update(

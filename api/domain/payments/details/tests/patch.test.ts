@@ -60,7 +60,7 @@ test("waiving sets the flag and leaves the stored fee alone", async () => {
       const before = await readState(client);
 
       const res = await request(app)
-        .patch(`/api/payouts/${payout.id}`)
+        .patch(`/api/payments/details/${payout.id}`)
         .send({ waive_payout_fee: true });
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
 
@@ -78,12 +78,12 @@ test("un-waiving clears the flag and the stored fee is still the same number", a
       const before = await readState(client);
 
       const on = await request(app)
-        .patch(`/api/payouts/${payout.id}`)
+        .patch(`/api/payments/details/${payout.id}`)
         .send({ waive_payout_fee: true });
       assert.equal(on.status, 200, `waive answered ${on.status}`);
 
       const off = await request(app)
-        .patch(`/api/payouts/${payout.id}`)
+        .patch(`/api/payments/details/${payout.id}`)
         .send({ waive_payout_fee: false });
       assert.equal(off.status, 200, `un-waive answered ${off.status}`);
 
@@ -98,7 +98,7 @@ test("a document may set the fee and waive it, and both are recorded", async () 
   await inPinnedTransaction(async (client: PoolClient) => {
     await as({ ...admin, role: "admin" }, async () => {
       const res = await request(app)
-        .patch(`/api/payouts/${payout.id}`)
+        .patch(`/api/payments/details/${payout.id}`)
         .send({ cost: 125, waive_payout_fee: true });
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
 
@@ -113,7 +113,7 @@ test("waiving raises the order quote by exactly the stored fee", async () => {
   await inPinnedTransaction(async () => {
     await as({ ...admin, role: "admin" }, async () => {
       const set = await request(app)
-        .patch(`/api/payouts/${payout.id}`)
+        .patch(`/api/payments/details/${payout.id}`)
         .send({ cost: 20, waive_payout_fee: false });
       assert.equal(set.status, 200, `setting the fee answered ${set.status}`);
 
@@ -123,7 +123,7 @@ test("waiving raises the order quote by exactly the stored fee", async () => {
       assert.equal(charged.status, 200, `the quote answered ${charged.status}: ${JSON.stringify(charged.body)}`);
 
       const waive = await request(app)
-        .patch(`/api/payouts/${payout.id}`)
+        .patch(`/api/payments/details/${payout.id}`)
         .send({ waive_payout_fee: true });
       assert.equal(waive.status, 200, `waiving answered ${waive.status}`);
 
@@ -147,7 +147,7 @@ test("a non-boolean waiver is refused by name and writes nothing", async () => {
       const before = await readState(client);
 
       const res = await request(app)
-        .patch(`/api/payouts/${payout.id}`)
+        .patch(`/api/payments/details/${payout.id}`)
         .send({ waive_payout_fee: "yes" });
       assert.equal(res.status, 400, `answered ${res.status}: ${JSON.stringify(res.body)}`);
       assert.match(res.body?.error?.message ?? "", /waive_payout_fee/);
@@ -172,7 +172,7 @@ test("changing the method lands on the named payout account", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     await as({ ...admin, role: "admin" }, async () => {
       const res = await request(app)
-        .patch(`/api/payouts/${payout.id}`)
+        .patch(`/api/payments/details/${payout.id}`)
         .send({ method: "WIRE" });
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
 
@@ -195,7 +195,7 @@ test("a method that names no payment method is refused, and nothing changes", as
       );
 
       const res = await request(app)
-        .patch(`/api/payouts/${payout.id}`)
+        .patch(`/api/payments/details/${payout.id}`)
         .send({ method: "NOT A METHOD" });
       assert.equal(res.status, 422, `answered ${res.status}: ${JSON.stringify(res.body)}`);
 

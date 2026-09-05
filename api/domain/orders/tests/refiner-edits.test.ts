@@ -244,18 +244,18 @@ test("both refiners endpoints refuse a customer and an anonymous caller", async 
   }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
-test("GET /payouts/:id/details answers with the payout's fields", async () => {
+test("GET /payments/details/:id/bank answers with the payout's fields", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const { payoutId } = await world(c);
     await asAdmin(admin, async () => {
-      const res = await request(app).get(`/api/payouts/${payoutId}/details`);
+      const res = await request(app).get(`/api/payments/details/${payoutId}/bank`);
 
       assert.equal(res.status, 200, `the details read answered ${res.status}`);
 
       const payout = Array.isArray(res.body) ? res.body[0] : res.body;
       assert.ok(payout && typeof payout === "object", "no payout object came back");
 
-      for (const key of ["method", "account_holder_name"]) {
+      for (const key of ["method_id", "account_holder"]) {
         assert.ok(key in payout, `the payout is missing ${key}`);
       }
     });
@@ -266,7 +266,7 @@ test("a customer cannot read a payout's bank details", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const { payoutId } = await world(c);
     await asUser(customer, async () => {
-      const res = await request(app).get(`/api/payouts/${payoutId}/details`);
+      const res = await request(app).get(`/api/payments/details/${payoutId}/bank`);
 
       assert.ok(
         [401, 403].includes(res.status),
@@ -280,7 +280,7 @@ test("an anonymous caller cannot read a payout's bank details", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const { payoutId } = await world(c);
     await anonymous(async () => {
-      const res = await request(app).get(`/api/payouts/${payoutId}/details`);
+      const res = await request(app).get(`/api/payments/details/${payoutId}/bank`);
 
       assert.ok(
         [401, 403].includes(res.status),
