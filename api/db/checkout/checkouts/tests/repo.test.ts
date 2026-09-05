@@ -1,6 +1,7 @@
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
+import type { Direction } from "@dorado/contracts";
 import { randomUUID } from "node:crypto";
 import pool from "#pool";
 import { inRollback } from "#shared/testing/rollback.ts";
@@ -16,7 +17,7 @@ beforeAll(async () => {
 });
 afterAll(async () => { await pool.end(); });
 
-const session = async (c: PoolClient, user_id: string, direction: string) => {
+const session = async (c: PoolClient, user_id: string, direction: Direction) => {
   const created = await checkouts.create({ user_id, direction }, c);
   assert.ok(created, "the session was not created");
   return created!;

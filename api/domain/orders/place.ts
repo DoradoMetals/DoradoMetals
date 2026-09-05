@@ -49,7 +49,7 @@ export async function place(
   const cart = await checkoutService.getItemsForOrder(checkout_id);
 
   const order_id =
-    rules.directionOf(checkout) === "sale"
+    checkout.direction === "sale"
       ? await placeSale(checkout, cart, world)
       : await placePurchase(checkout, cart, world);
 
@@ -84,7 +84,7 @@ async function writeOrder(
 
 async function clearChoices(checkout: Checkout, tx: PoolClient): Promise<void> {
   await checkoutService.resetAfterOrder(
-    checkout.user_id, rules.directionOf(checkout), tx
+    checkout.user_id, checkout.direction, tx
   );
 }
 

@@ -2,7 +2,7 @@ import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import { columnsOf, returningOf } from "#shared/db/columns.ts";
-import { Checkout, CheckoutViewFacts, CheckoutWrite } from "@dorado/contracts";
+import { Checkout, CheckoutViewFacts, CheckoutWrite, type Direction } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
@@ -25,7 +25,7 @@ export async function getOne(id: string, executor?: Executor): Promise<Checkout 
 }
 
 export async function findFor(
-  user_id: string, direction: string, executor?: Executor
+  user_id: string, direction: Direction, executor?: Executor
 ): Promise<Checkout | undefined> {
   const { rows } = await query<Checkout>(sql("find_for"), [user_id, direction], executor);
   return rows[0];

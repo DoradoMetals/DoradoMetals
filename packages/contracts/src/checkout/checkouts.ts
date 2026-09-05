@@ -4,11 +4,12 @@
 //
 // Postgres table: checkout.checkouts
 import { z } from "zod/v4";
+import { Direction } from "../orders/enums.js";
 
 export const Checkout = z.object({
   "id": z.string().uuid(),
   "user_id": z.string().uuid(),
-  "direction": z.string(),
+  "direction": Direction,
   "payment_method_id": z.string().uuid().nullable(),
   "payment_details_id": z.string().uuid().nullable(),
   "recipient_address_id": z.string().uuid().nullable(),
@@ -16,7 +17,6 @@ export const Checkout = z.object({
 });
 export type Checkout = z.infer<typeof Checkout>;
 // generated:end
-import { Direction } from "../orders/enums.js";
 import { FulfillmentStep } from "../fulfillments/fulfillments.js";
 import { PaymentDetails } from "../payments/details.js";
 import { CheckoutItem } from "./items.js";

@@ -1,6 +1,7 @@
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
+import type { Direction } from "@dorado/contracts";
 import { randomUUID } from "node:crypto";
 import pool from "#pool";
 import { inRollback } from "#shared/testing/rollback.ts";
@@ -16,7 +17,7 @@ beforeAll(async () => {
 });
 afterAll(async () => { await pool.end(); });
 
-const aSession = async (c: PoolClient, direction: string) => {
+const aSession = async (c: PoolClient, direction: Direction) => {
   const user = await aUser(c);
   const created = await checkouts.create({ user_id: user.id, direction }, c);
   return created!;

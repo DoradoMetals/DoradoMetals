@@ -38,7 +38,7 @@ export async function createForCheckout(
     rules.assertFulfillment(row, body.checkout_id);
     rules.assertOwnedDraft(row.user_id, is_admin ? row.user_id : caller_id, body.checkout_id);
 
-    const direction = row.direction as Direction;
+    const direction = row.direction;
     const method_id = await methodFor(body, direction, tx);
 
     if (row.fulfillment_id) {
