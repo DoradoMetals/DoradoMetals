@@ -2,7 +2,8 @@ import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { Executor } from "#shared/db/executor.ts";
 import {
-  CheckoutQuote, Direction, OrderPricing, ProductQuote, PriceSide, PurchaseQuote, SaleQuote,
+  CheckoutQuote, Direction, OrderPricing, ProductQuote, PriceSide, ProfitBreakdown,
+  PurchaseQuote, SaleQuote,
 } from "@dorado/contracts";
 
 const sql = sqlFrom(import.meta.dirname);
@@ -50,4 +51,13 @@ export async function orderPricing(
     sql("order_pricing"), [order_id], executor
   );
   return rows[0] ? OrderPricing.parse(rows[0].pricing) : undefined;
+}
+
+export async function profitBreakdown(
+  order_id: string, executor?: Executor
+): Promise<ProfitBreakdown | undefined> {
+  const { rows } = await query<{ breakdown: unknown }>(
+    sql("profit_breakdown"), [order_id], executor
+  );
+  return rows[0] ? ProfitBreakdown.parse(rows[0].breakdown) : undefined;
 }

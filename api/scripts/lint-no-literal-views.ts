@@ -20,9 +20,6 @@ const HOME = "shared/views.ts";
 const CRUD =
   "a wire-to-column re-spelling, not a view - it belongs in SQL and dies with the " +
   "CRUD pass-through pass (ruling 66)";
-const COMPUTED =
-  "a computed money answer, not a read of rows - no SQL assembles it and no table " +
-  "owns its shape";
 const RESULT =
   "a small result record (counts, ids) a caller reads once - it names no table row";
 
@@ -35,7 +32,6 @@ const ACCEPTED: Record<string, { count: number; why: string }> = {
   "orders/place.ts": { count: 3, why: RESULT },
   "payments/details/service.ts": { count: 2, why: CRUD },
   "payments/sweeps.ts": { count: 2, why: RESULT },
-  "pricing/profit.ts": { count: 7, why: COMPUTED },
   "logistics/shipping/operations/resolver.ts": { count: 1, why: RESULT },
   "logistics/shipping/services/service.ts": { count: 3, why: CRUD },
   "logistics/shipping/shipments/service.ts": { count: 1, why: RESULT },
@@ -225,7 +221,7 @@ for (const [name, entry] of Object.entries(ACCEPTED)) {
   );
 }
 
-const FLOOR = Number(process.env.LINT_NO_LITERAL_VIEWS_FLOOR ?? 269);
+const FLOOR = Number(process.env.LINT_NO_LITERAL_VIEWS_FLOOR ?? 268);
 if (files.length < FLOOR) {
   console.error(
     `\nSCAN IS BROKEN: ${files.length} file(s) under ${ROOTS.join(", ")}, ` +

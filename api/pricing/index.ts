@@ -1,4 +1,3 @@
 export {
-  priceCheckout, priceOrder, priceProduct, spots,
+  priceCheckout, priceOrder, priceProduct, profitBreakdown, spots,
 } from "#pricing/service.ts";
-export { profitBreakdown } from "#pricing/profit.ts";

@@ -192,10 +192,17 @@ test("the profit breakdown answers an admin and refuses everyone else", async ()
       const res = await request(app).post("/api/quotes/profit_breakdown").send({ order_id });
       assert.equal(res.status, 200, JSON.stringify(res.body));
       assert.equal(res.body.order_id, order_id);
-      for (const party of ["refiner", "dorado", "customer"]) {
-        for (const field of ["shipping_net", "refiner_fee_net", "spot_net", "total_profit"]) {
+      assert.deepEqual(
+        res.body.parties.map((p: { party: string }) => p.party).sort(),
+        ["customer", "dorado", "refiner"],
+        "the wire is missing a party"
+      );
+      for (const party of res.body.parties) {
+        for (const field of [
+          "metals_profit", "shipping_net", "refiner_fee_net", "spot_net", "total_profit",
+        ]) {
           assert.ok(
-            Number.isFinite(res.body[party][field]), `${party}.${field} is not finite`
+            Number.isFinite(party[field]), `${party.party}.${field} is not finite`
           );
         }
       }

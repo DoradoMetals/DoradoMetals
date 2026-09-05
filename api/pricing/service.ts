@@ -2,7 +2,9 @@ import * as pricing from "#db/pricing/repo.ts";
 import * as spotsRepo from "#db/spots/repo.ts";
 import * as rules from "#pricing/rules.ts";
 import type { Executor } from "#shared/db/executor.ts";
-import type { CheckoutQuote, OrderPricing, PriceSide, ProductQuote, SpotPrice } from "@dorado/contracts";
+import type {
+  CheckoutQuote, OrderPricing, PriceSide, ProductQuote, ProfitBreakdown, SpotPrice,
+} from "@dorado/contracts";
 
 export async function spots(executor?: Executor): Promise<SpotPrice[]> {
   return await spotsRepo.list(executor);
@@ -41,4 +43,15 @@ export async function priceOrder(
   rules.assertPriced(pricingRow, `order ${order_id}`);
   rules.assertPriceable(pricingRow.unpriceable, `order ${order_id}`);
   return pricingRow;
+}
+
+// The admin margin split: one SQL read over the order, its refiner's assay and
+// both spot feeds (api/db/pricing/sql/profit_breakdown.sql). Nothing is
+// assembled here - the whole answer is the row.
+export async function profitBreakdown(
+  order_id: string, executor?: Executor
+): Promise<ProfitBreakdown> {
+  const breakdown = await pricing.profitBreakdown(order_id, executor);
+  rules.assertPriced(breakdown, `order ${order_id}`);
+  return breakdown;
 }

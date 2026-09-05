@@ -301,7 +301,7 @@ for (const [name, entry] of Object.entries(ACCEPTED)) {
   );
 }
 
-const FILE_FLOOR = Number(process.env.LINT_TYPE_HOMES_FLOOR ?? 139);
+const FILE_FLOOR = Number(process.env.LINT_TYPE_HOMES_FLOOR ?? 138);
 if (files.length < FILE_FLOOR) {
   console.error(
     `\nSCAN IS BROKEN: ${files.length} file(s) under ${ROOTS.join(", ")}, ` +

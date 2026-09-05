@@ -16077,3 +16077,22 @@ scalar subselect - and the renderers read it directly. A first pass stitched a
 dictionary ruling 78 forbids, and it is gone. 74 frontend type
 errors across 16 files, listed with their two roots in
 `docs/waves/products-are-flair.md`; the frontend is not updated here (ruling 44).
+
+## profitBreakdown is SQL (2026-09-06)
+
+Ruling 78 applied to the one pricing function `docs/waves/pricing.md` left in
+TypeScript on purpose. **377 lines became 227 of SQL and four statements in
+`pricing/service.ts`**; `pricing/profit.ts` is deleted, and the file's twelve
+per-metal dictionaries with it. `ProfitBreakdown` is rows now - `shares[]`
+keyed by party/category/`metal_id`, `parties[]` carrying the four components of
+each `total_profit` - so a metal appears only when the order has a line in it
+(ruling 79 made the four-name hardcode redundant). The one genuine rule, the
+refusal of an order that is not there, was already `rules.assertPriced`; the
+`1e-9` renormalisation was algebra, not a threshold, and its closed form
+(`customer = d`, `dorado = max(r-d,0)`, `refiner = 1-max(d,r)`) is in the SQL.
+The `lint:no-literal-views` allowance (7 entries) is deleted, six lint floors
+and the domains' `functions` coverage ratchet moved by the one deleted file
+(measured both ways: 812/901 -> 778/868, nothing lost a caller). The numbered
+logic, the new shape, what the four tests pin, and the one frontend file that
+breaks are in `docs/waves/profit-sql.md`; the frontend is not updated here
+(ruling 44).

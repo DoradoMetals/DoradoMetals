@@ -75,7 +75,12 @@ export default defineConfig({
       ],
       thresholds: {
         "db/**": { statements: 88, branches: 74, functions: 94, lines: 94 },
-        [DOMAIN_GLOB]: { statements: 86, branches: 73, functions: 90, lines: 88 },
+        // functions 90 -> 89 when profitBreakdown became SQL (profit-sql.md).
+        // Nothing lost coverage: `pricing/profit.ts` was 34 functions at
+        // 34/34, and deleting a block that far ABOVE the population's own
+        // average drags the average down - 812/901 = 90.12% before,
+        // 778/868 = 89.63% after. Measured, floored, never rounded up.
+        [DOMAIN_GLOB]: { statements: 86, branches: 73, functions: 89, lines: 88 },
         "shared/**": { statements: 80, branches: 74, functions: 86, lines: 83 },
       },
     },
