@@ -1,8 +1,11 @@
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import path from "node:path";
+import { domainDirs } from "./lib/layout.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 
 const ROOT = process.env.LINT_TEST_LOCKS_ROOT ?? path.resolve(import.meta.dirname, "..");
+
+const GRAPH_ROOTS = ["db", ...domainDirs(ROOT)];
 
 if (process.argv.includes("--self-test")) {
   const { selfTest } = await import("./lib/self-test-harness.ts");
@@ -23,12 +26,13 @@ if (process.argv.includes("--self-test")) {
         name: "a pinned call in a file importing a locked-table service, with no lock option, fails",
         rootEnv: "LINT_TEST_LOCKS_ROOT",
         files: {
+          "package.json": JSON.stringify({ imports: { "#orders/*": "./orders/*" } }),
           "db/orders/repo.ts": repoWithLockedWrite,
-          "domain/orders/place.ts": serviceImportingRepo,
-          "domain/orders/tests/place.test.ts": `
+          "orders/place.ts": serviceImportingRepo,
+          "orders/tests/place.test.ts": `
             import test from "node:test";
             import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
-            const place = await import("#domain/orders/place.ts");
+            const place = await import("#orders/place.ts");
             test("places an order", async () => {
               await inPinnedTransaction(async (c) => {
                 await place.place("1", c);
@@ -37,19 +41,20 @@ if (process.argv.includes("--self-test")) {
           `,
         },
         expect: "fail",
-        mustPrint: "domain/orders/tests/place.test.ts",
+        mustPrint: "orders/tests/place.test.ts",
       },
       {
         name: "the same call WITH a lock option passes",
         rootEnv: "LINT_TEST_LOCKS_ROOT",
         files: {
+          "package.json": JSON.stringify({ imports: { "#orders/*": "./orders/*" } }),
           "db/orders/repo.ts": repoWithLockedWrite,
-          "domain/orders/place.ts": serviceImportingRepo,
-          "domain/orders/tests/place.test.ts": `
+          "orders/place.ts": serviceImportingRepo,
+          "orders/tests/place.test.ts": `
             import test from "node:test";
             import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
             import { LOCKS } from "#shared/testing/locks.ts";
-            const place = await import("#domain/orders/place.ts");
+            const place = await import("#orders/place.ts");
             test("places an order", async () => {
               await inPinnedTransaction(async (c) => {
                 await place.place("1", c);
@@ -156,7 +161,8 @@ function ownLocks(absFile: string): Set<number> {
 }
 
 function resolveSpecifier(fromRel: string, spec: string): string | null {
-  if (spec.startsWith("#db/") || spec.startsWith("#domain/")) return spec.slice(1);
+  const head = /^#([^/]+)\//.exec(spec)?.[1];
+  if (head && GRAPH_ROOTS.includes(head)) return spec.slice(1);
   if (spec.startsWith(".")) {
     return path.normalize(path.join(path.dirname(fromRel), spec)).split(path.sep).join("/");
   }
@@ -176,7 +182,7 @@ function importsOf(src: string): string[] {
   return specs;
 }
 
-const graphFiles = ["db", "domain"]
+const graphFiles = GRAPH_ROOTS
   .flatMap((d) => walk(path.join(ROOT, d)))
   .filter((f) => /\.ts$/.test(f) && !/\.test\.ts$/.test(f) && !/\/tests\//.test(f));
 const graphByRel = new Map(graphFiles.map((f) => [rel(f), f]));

@@ -16005,3 +16005,28 @@ scope 495 written natively, 81 that `exchange` holds and dev no longer does, 50
 minted by the rebuild with a generated id; declared 453 values on native-owned
 columns and 2 the rebuild declines to reproduce. No `exchange` table or row was
 written.
+
+## Ruling 77 executed (2026-09-06)
+
+`api/domain/` and `api/transport/` are gone. 321 files moved with `git mv` into
+nine domains under `api/` — catalog, checkout, crm, identity, logistics, media,
+orders, payments, pricing — with `domain/index.ts` becoming `api/domains.ts`
+(`#domains`). A service, its rules, its routes and its controller sit together;
+`db/<schema>` stays by Postgres schema.
+
+**No URL moved.** The `router.<verb>(`/`app.use("/api...")` inventory is
+byte-identical before and after (173 lines), and `route-guards` reports the same
+census both sides: 136 routes, 70 requireAdmin, 55 requireUser, 10 unguarded.
+
+**The layout has one source of truth**: `scripts/lib/layout.ts` reads
+`package.json` `imports`. `domainDirs()` and `isTransportFile()` drive every
+lint, `vitest.config.ts`'s aliases and its coverage keys — a new domain is one
+`imports` line and no folder name is hand-listed anywhere. Coverage: the
+`domain/**` + `transport/**` pair became one glob key at the MEASURED
+86/73/90/88. Every lint floor was recomputed from its measured population; every
+`--self-test` still passes. Full detail, including what was left behind and why,
+is in `docs/waves/domains.md`.
+
+`route-guards` was already failing at the branch tip on a stale KNOWN_ROUTES
+control for `DELETE /api/purchase_orders/purge_cancelled`, a route the Great
+Purge deleted; it is removed, which is what the script's own message prescribes.

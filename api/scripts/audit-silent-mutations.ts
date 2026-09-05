@@ -1,5 +1,6 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
+import { domainDirs } from "./lib/layout.ts";
 
 const ROOT = process.env.AUDIT_SILENT_ROOT ?? path.resolve(import.meta.dirname, "..");
 
@@ -19,9 +20,10 @@ if (process.argv.includes("--self-test")) {
         name: "a discarded UPDATE result is seen",
         rootEnv: "AUDIT_SILENT_ROOT",
         files: {
+          "package.json": JSON.stringify({ imports: { "#x/*": "./x/*" } }),
           "db/x/sql/bump.sql": "UPDATE t SET a = 1 WHERE id = $1 RETURNING id",
           "db/x/repo.ts": repo,
-          "domain/x/service.ts": "import * as xRepo from \"#db/x/repo.ts\";\nawait xRepo.bump(id, c);\n",
+          "x/service.ts": "import * as xRepo from \"#db/x/repo.ts\";\nawait xRepo.bump(id, c);\n",
         },
         expect: "fail",
         mustPrint: "bump",
@@ -30,9 +32,10 @@ if (process.argv.includes("--self-test")) {
         name: "an observed UPDATE result is not reported",
         rootEnv: "AUDIT_SILENT_ROOT",
         files: {
+          "package.json": JSON.stringify({ imports: { "#x/*": "./x/*" } }),
           "db/x/sql/bump.sql": "UPDATE t SET a = 1 WHERE id = $1 RETURNING id",
           "db/x/repo.ts": repo,
-          "domain/x/service.ts": "import * as xRepo from \"#db/x/repo.ts\";\nconst changed = await xRepo.bump(id, c);\n",
+          "x/service.ts": "import * as xRepo from \"#db/x/repo.ts\";\nconst changed = await xRepo.bump(id, c);\n",
         },
         expect: "pass",
         mustPrint: "0 discarded",
@@ -41,10 +44,11 @@ if (process.argv.includes("--self-test")) {
         name: "a call through the #db barrel is still seen",
         rootEnv: "AUDIT_SILENT_ROOT",
         files: {
+          "package.json": JSON.stringify({ imports: { "#x/*": "./x/*" } }),
           "db/index.ts": "export * as xRepo from \"#db/x/repo.ts\";\n",
           "db/x/sql/bump.sql": "UPDATE t SET a = 1 WHERE id = $1 RETURNING id",
           "db/x/repo.ts": repo,
-          "domain/x/service.ts": "import { xRepo } from \"#db\";\nawait xRepo.bump(id, c);\n",
+          "x/service.ts": "import { xRepo } from \"#db\";\nawait xRepo.bump(id, c);\n",
         },
         expect: "fail",
         mustPrint: "bump",
@@ -53,9 +57,10 @@ if (process.argv.includes("--self-test")) {
         name: "an INSERT is not a finding",
         rootEnv: "AUDIT_SILENT_ROOT",
         files: {
+          "package.json": JSON.stringify({ imports: { "#x/*": "./x/*" } }),
           "db/x/sql/bump.sql": "INSERT INTO t (id) VALUES ($1) RETURNING id",
           "db/x/repo.ts": repo,
-          "domain/x/service.ts": "import * as xRepo from \"#db/x/repo.ts\";\nawait xRepo.bump(id, c);\n",
+          "x/service.ts": "import * as xRepo from \"#db/x/repo.ts\";\nawait xRepo.bump(id, c);\n",
         },
         expect: "pass",
         mustPrint: "0 discarded",
@@ -67,7 +72,7 @@ if (process.argv.includes("--self-test")) {
 const FAIL_ON_FINDINGS = process.env.AUDIT_SILENT_ROOT != null;
 
 const ACCEPTED: Record<string, string> = {
-  "domain/sales-tax/service.ts::tax.accrue":
+  "pricing/sales-tax/service.ts::tax.accrue":
     "scoped to `reached_nexus = true`, and sql/accrue.sql says so in its own " +
     "header: a state below its threshold accrues nothing, so an UPDATE matching " +
     "no row is the correct outcome and not a failure. The legacy implementation " +
@@ -89,7 +94,8 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-const files = ["db", "domain", "transport"].flatMap((layer) => walk(path.join(ROOT, layer)));
+const LAYERS = ["db", ...domainDirs(ROOT)];
+const files = LAYERS.flatMap((layer) => walk(path.join(ROOT, layer)));
 const rel = (f: string) => path.relative(ROOT, f);
 
 type Stmt = { verb: string; returning: boolean };
@@ -142,9 +148,8 @@ try {
 } catch {   }
 
 function resolveSpecifier(fromFile: string, spec: string): string | null {
-  if (spec.startsWith("#db/") || spec.startsWith("#domain/") || spec.startsWith("#transport/")) {
-    return spec.slice(1);
-  }
+  const head = /^#([^/]+)\//.exec(spec)?.[1];
+  if (head && LAYERS.includes(head)) return spec.slice(1);
   if (spec.startsWith(".")) {
     return path.normalize(path.join(path.dirname(fromFile), spec));
   }

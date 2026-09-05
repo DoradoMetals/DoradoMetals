@@ -114,7 +114,7 @@ const GROUPS = [
       // for anyway. check:fast stays on plain `test` (no coverage
       // instrumentation) on purpose - it exists for fast iteration, and
       // coverage's own thresholds already gate the one thing check:fast does
-      // not: db/domain/transport/shared each staying at or above their
+      // not: db/<domains>/shared each staying at or above their
       // measured floor (vitest.config.ts's own comment has the ratchet rule).
       { name: "api:test", cmd: pnpm("@dorado/api", FAST ? "test" : "test:coverage") },
     ],

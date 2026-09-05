@@ -1,7 +1,10 @@
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import path from "node:path";
+import { domainDirs } from "./lib/layout.ts";
 
 const ROOT = process.env.LINT_TEST_ACTOR_ROOT ?? path.resolve(import.meta.dirname, "..");
+
+const GRAPH_ROOTS = ["db", ...domainDirs(ROOT)];
 
 if (process.argv.includes("--self-test")) {
   const { selfTest } = await import("./lib/self-test-harness.ts");
@@ -22,9 +25,10 @@ if (process.argv.includes("--self-test")) {
         name: "a pinned call in a file importing an audited-table repo, with no actor, fails",
         rootEnv: "LINT_TEST_ACTOR_ROOT",
         files: {
+          "package.json": JSON.stringify({ imports: { "#crm/*": "./crm/*" } }),
           "migrations/116_the_database_stamps_who_and_when.sql": migration,
           "db/reviews/repo.ts": auditedRepo,
-          "domain/reviews/tests/repo.test.ts": `
+          "crm/reviews/tests/repo.test.ts": `
             import { test } from "vitest";
             import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
             import * as reviews from "#db/reviews/repo.ts";
@@ -34,15 +38,16 @@ if (process.argv.includes("--self-test")) {
           `,
         },
         expect: "fail",
-        mustPrint: "domain/reviews/tests/repo.test.ts",
+        mustPrint: "crm/reviews/tests/repo.test.ts",
       },
       {
         name: "the same call WITH an actor passes",
         rootEnv: "LINT_TEST_ACTOR_ROOT",
         files: {
+          "package.json": JSON.stringify({ imports: { "#crm/*": "./crm/*" } }),
           "migrations/116_the_database_stamps_who_and_when.sql": migration,
           "db/reviews/repo.ts": auditedRepo,
-          "domain/reviews/tests/repo.test.ts": `
+          "crm/reviews/tests/repo.test.ts": `
             import { test } from "vitest";
             import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
             import { TEST_ACTOR } from "#shared/testing/actor.ts";
@@ -141,7 +146,8 @@ function ownAudited(absFile: string): Set<string> {
 }
 
 function resolveSpecifier(fromRel: string, spec: string): string | null {
-  if (spec.startsWith("#db/") || spec.startsWith("#domain/")) return spec.slice(1);
+  const head = /^#([^/]+)\//.exec(spec)?.[1];
+  if (head && GRAPH_ROOTS.includes(head)) return spec.slice(1);
   if (spec.startsWith(".")) {
     return path.normalize(path.join(path.dirname(fromRel), spec)).split(path.sep).join("/");
   }
@@ -161,7 +167,7 @@ function importsOf(src: string): string[] {
   return specs;
 }
 
-const graphFiles = ["db", "domain"]
+const graphFiles = GRAPH_ROOTS
   .flatMap((d) => walk(path.join(ROOT, d)))
   .filter((f) => /\.ts$/.test(f) && !/\.test\.ts$/.test(f) && !/\/tests\//.test(f));
 const graphByRel = new Map(graphFiles.map((f) => [rel(f), f]));

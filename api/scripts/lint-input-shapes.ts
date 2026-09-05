@@ -1,9 +1,11 @@
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import path from "node:path";
+import { domainDirs, isTransportFile } from "./lib/layout.ts";
 
 const ROOT = process.env.LINT_INPUT_SHAPES_ROOT
   ?? path.resolve(import.meta.dirname, "..", "..");
-const DOMAIN_ROOT = path.join(ROOT, "api", "domain");
+const API_DIR = path.join(ROOT, "api");
+const DOMAIN_ROOTS = domainDirs(API_DIR).map((d) => path.join(API_DIR, d));
 const DB_ROOT = path.join(ROOT, "api", "db");
 const BUILDERS_ROOT = path.join(ROOT, "api", "shared", "testing", "builders");
 const CONTRACTS_ROOT = path.join(ROOT, "packages", "contracts", "src");
@@ -190,7 +192,9 @@ function reachableColumns(
 }
 
 function checkInputShapes(lines: string[]): { findings: number; inScope: number; scanned: number } {
-  const files = walk(DOMAIN_ROOT);
+  const files = DOMAIN_ROOTS.flatMap((d) => walk(d)).filter(
+    (f) => !isTransportFile(path.relative(API_DIR, f))
+  );
   const suffix = /(Create|New|Patch|Input|Body)$/;
   let findings = 0, inScope = 0;
 
@@ -264,8 +268,16 @@ if (process.argv.includes("--self-test")) {
     '  return await shipments.create({ id: "x", direction: input.direction }, executor);\n' +
     '}\n' +
     'import * as shipments from "#db/shipping/shipments/repo.ts";\n';
+  const manifest = {
+    "api/package.json": JSON.stringify({
+      imports: Object.fromEntries(
+        ["logistics", "pricing"].map((d) => [`#${d}/*`, `./${d}/*`])
+      ),
+    }),
+  };
   const fixture = (service: string) => ({
-    "api/domain/shipping/shipments/service.ts": service,
+    ...manifest,
+    "api/logistics/shipping/shipments/service.ts": service,
     "api/db/shipping/shipments/repo.ts": repoFile,
     "api/db/shipping/shipments/sql/create.sql": createSql,
     "packages/contracts/src/shipping/shipments.ts": genTable,
@@ -282,7 +294,8 @@ if (process.argv.includes("--self-test")) {
       { name: "a type with no repo write is out of scope, not a finding", expect: "pass",
         rootEnv: "LINT_INPUT_SHAPES_ROOT",
         files: {
-          "api/domain/rates/service.ts":
+          ...manifest,
+          "api/pricing/rates/service.ts":
             'type RatesInput = { anything: string; nothingToDoWithADatabase: number };\n' +
             'export function quote(input: RatesInput) { return input.anything; }\n',
         },
@@ -290,6 +303,7 @@ if (process.argv.includes("--self-test")) {
       { name: "a local builder Options type is seen", expect: "fail",
         rootEnv: "LINT_INPUT_SHAPES_ROOT",
         files: {
+          ...manifest,
           "api/shared/testing/builders/widgets.ts":
             'export type WidgetOptions = { name?: string };\n' +
             'export function aWidget(o: WidgetOptions = {}) { return o; }\n',

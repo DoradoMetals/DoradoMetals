@@ -3,11 +3,11 @@ process.env.NODE_ENV = "test";
 import "#env";
 import pool from "#pool";
 import query from "#shared/db/query.ts";
-import * as checkoutService from "#domain/checkout/service.ts";
-import * as fulfillmentDrafts from "#domain/fulfillments/drafts.ts";
-import * as fulfillmentService from "#domain/fulfillments/service.ts";
-import * as addressService from "#domain/places/addresses/service.ts";
-import { place } from "#domain/orders/place.ts";
+import * as checkoutService from "#checkout/service.ts";
+import * as fulfillmentDrafts from "#logistics/fulfillments/drafts.ts";
+import * as fulfillmentService from "#logistics/fulfillments/service.ts";
+import * as addressService from "#identity/places/addresses/service.ts";
+import { place } from "#orders/place.ts";
 
 const world = {
   async buyPostage() {

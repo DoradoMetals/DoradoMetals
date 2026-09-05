@@ -1,5 +1,6 @@
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import path from "node:path";
+import { domainDirs, isTransportFile } from "./lib/layout.ts";
 
 const ROOT = process.env.LINT_NO_COLUMN_ARRAYS_ROOT
   ? path.resolve(process.env.LINT_NO_COLUMN_ARRAYS_ROOT)
@@ -92,6 +93,9 @@ function findingsIn(rel: string, raw: string): Finding[] {
 if (process.argv.includes("--self-test")) {
   const { selfTest } = await import("./lib/self-test-harness.ts");
   const LOW = { LINT_NO_COLUMN_ARRAYS_FLOOR: "1", LINT_NO_COLUMN_ARRAYS_TABLES: "1" };
+  const manifest = {
+    "package.json": JSON.stringify({ imports: { "#widgets/*": "./widgets/*" } }),
+  };
   const contract =
     "// generated:start\n" +
     "export const Widget = z.object({\n" +
@@ -111,6 +115,7 @@ if (process.argv.includes("--self-test")) {
         name: "a literal array of column names is seen",
         rootEnv: "LINT_NO_COLUMN_ARRAYS_ROOT", env: LOW,
         files: {
+          ...manifest,
           "contracts/widget.ts": contract,
           "db/widgets/repo.ts": 'export const PATCHABLE = ["name", "colour"] as const;\n',
         },
@@ -120,6 +125,7 @@ if (process.argv.includes("--self-test")) {
         name: "the same list spread over several lines is seen too",
         rootEnv: "LINT_NO_COLUMN_ARRAYS_ROOT", env: LOW,
         files: {
+          ...manifest,
           "contracts/widget.ts": contract,
           "db/widgets/repo.ts":
             "export const PATCHABLE = [\n  \"name\",\n  \"colour\",\n  \"weight\",\n] as const;\n",
@@ -130,30 +136,33 @@ if (process.argv.includes("--self-test")) {
         name: "a row alias of a contract is seen",
         rootEnv: "LINT_NO_COLUMN_ARRAYS_ROOT", env: LOW,
         files: {
+          ...manifest,
           "contracts/widget.ts": contract,
           "db/widgets/repo.ts": clean + "export type WidgetRow = Widget;\n",
         },
         expect: "fail", mustPrint: "type WidgetRow = Widget",
       },
       {
-        name: "an array under domain/ counts as well as one under db/",
+        name: "an array under a domain counts as well as one under db/",
         rootEnv: "LINT_NO_COLUMN_ARRAYS_ROOT", env: LOW,
         files: {
+          ...manifest,
           "contracts/widget.ts": contract,
-          "domain/widgets/rules.ts": 'const CHOICES = ["name", "weight"] as const;\n',
+          "widgets/rules.ts": 'const CHOICES = ["name", "weight"] as const;\n',
         },
-        expect: "fail", mustPrint: "domain/widgets/rules.ts",
+        expect: "fail", mustPrint: "widgets/rules.ts",
       },
       {
         name: "the derivation passes",
         rootEnv: "LINT_NO_COLUMN_ARRAYS_ROOT", env: LOW,
-        files: { "contracts/widget.ts": contract, "db/widgets/repo.ts": clean },
+        files: { ...manifest, "contracts/widget.ts": contract, "db/widgets/repo.ts": clean },
         expect: "pass", mustPrint: "0 unaccepted",
       },
       {
         name: "a list of values that are not columns is not a finding",
         rootEnv: "LINT_NO_COLUMN_ARRAYS_ROOT", env: LOW,
         files: {
+          ...manifest,
           "contracts/widget.ts": contract,
           "db/widgets/repo.ts": clean + 'const KINDS = ["purchase", "sale"] as const;\n',
         },
@@ -163,6 +172,7 @@ if (process.argv.includes("--self-test")) {
         name: "a single column name is not a list",
         rootEnv: "LINT_NO_COLUMN_ARRAYS_ROOT", env: LOW,
         files: {
+          ...manifest,
           "contracts/widget.ts": contract,
           "db/widgets/repo.ts": clean + 'const KEY = ["id"] as const;\n',
         },
@@ -172,6 +182,7 @@ if (process.argv.includes("--self-test")) {
         name: "an array inside a comment is not a finding",
         rootEnv: "LINT_NO_COLUMN_ARRAYS_ROOT", env: LOW,
         files: {
+          ...manifest,
           "contracts/widget.ts": contract,
           "db/widgets/repo.ts": '// it used to be ["name", "colour"] as const\n' + clean,
         },
@@ -181,6 +192,7 @@ if (process.argv.includes("--self-test")) {
         name: "a test file is not a finding",
         rootEnv: "LINT_NO_COLUMN_ARRAYS_ROOT", env: LOW,
         files: {
+          ...manifest,
           "contracts/widget.ts": contract,
           "db/widgets/repo.ts": clean,
           "db/widgets/tests/repo.test.ts": 'const cols = ["name", "colour"];\n',
@@ -190,13 +202,13 @@ if (process.argv.includes("--self-test")) {
       {
         name: "a tree with no contracts to compare against is broken, not clean",
         rootEnv: "LINT_NO_COLUMN_ARRAYS_ROOT", env: { LINT_NO_COLUMN_ARRAYS_FLOOR: "1" },
-        files: { "db/widgets/repo.ts": clean },
+        files: { ...manifest, "db/widgets/repo.ts": clean },
         expect: "fail", mustPrint: "no contract",
       },
       {
         name: "the file floor fires on a tree far below it",
         rootEnv: "LINT_NO_COLUMN_ARRAYS_ROOT", env: { LINT_NO_COLUMN_ARRAYS_TABLES: "1" },
-        files: { "contracts/widget.ts": contract, "db/widgets/repo.ts": clean },
+        files: { ...manifest, "contracts/widget.ts": contract, "db/widgets/repo.ts": clean },
         expect: "fail", mustPrint: "fewer files",
       },
     ],
@@ -204,7 +216,10 @@ if (process.argv.includes("--self-test")) {
 }
 
 const SYNTHETIC = Boolean(process.env.LINT_NO_COLUMN_ARRAYS_ROOT);
-const files = [...walk(path.join(ROOT, "db")), ...walk(path.join(ROOT, "domain"))];
+const rel = (f: string) => path.relative(ROOT, f).split(path.sep).join("/");
+const files = ["db", ...domainDirs(ROOT)]
+  .flatMap((d) => walk(path.join(ROOT, d)))
+  .filter((f) => !isTransportFile(rel(f)));
 
 const TABLES_FLOOR = Number(process.env.LINT_NO_COLUMN_ARRAYS_TABLES ?? 40);
 if (columnsByEntity.size < TABLES_FLOOR) {
@@ -216,16 +231,15 @@ if (columnsByEntity.size < TABLES_FLOOR) {
   process.exit(1);
 }
 
-const FLOOR = Number(process.env.LINT_NO_COLUMN_ARRAYS_FLOOR ?? 130);
+const FLOOR = Number(process.env.LINT_NO_COLUMN_ARRAYS_FLOOR ?? 139);
 if (files.length < FLOOR) {
   console.error(
     `lint:no-column-arrays scanned ${files.length} file(s), fewer files than db/ and ` +
-      `domain/ actually hold (at least ${FLOOR}). The walk broke, not the tree shrank.`
+      `the domains actually hold (at least ${FLOOR}). The walk broke, not the tree shrank.`
   );
   process.exit(1);
 }
 
-const rel = (f: string) => path.relative(ROOT, f).split(path.sep).join("/");
 const byFile = new Map<string, Finding[]>();
 for (const file of files) {
   const found = findingsIn(rel(file), readFileSync(file, "utf8"));
@@ -253,7 +267,7 @@ for (const [file, found] of [...byFile].sort()) {
 }
 
 console.log(
-  `${files.length} file(s) under db/ and domain/ scanned against ` +
+  `${files.length} file(s) under db/ and the domains scanned against ` +
     `${columnsByEntity.size} contract table(s)`
 );
 for (const p of problems) console.error("  " + p);

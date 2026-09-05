@@ -6,7 +6,7 @@ import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { aUser } from "#shared/testing/builders/index.ts";
 import { runWithActor, currentActor } from "#shared/http/actor.ts";
 import withTransaction from "#shared/db/withTransaction.ts";
-import * as reviews from "#domain/reviews/service.ts";
+import * as reviews from "#crm/reviews/service.ts";
 import * as reviewsRepo from "#db/reviews/repo.ts";
 
 type Person = { id: string; name: string };

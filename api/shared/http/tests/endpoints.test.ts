@@ -173,8 +173,10 @@ test("public reads return JSON", async () => {
 
 import fs from "node:fs";
 import path from "node:path";
+import { domainDirs } from "../../../scripts/lib/layout.ts";
 
-const FEATURES = path.join(import.meta.dirname, "..", "..", "..", "transport");
+const API = path.join(import.meta.dirname, "..", "..", "..");
+const FEATURE_DIRS = domainDirs(API).map((d) => path.join(API, d));
 
 const UNROUTED = {
   "payments/controller.ts": {
@@ -217,11 +219,11 @@ const exportedHandlers = (src: string): Set<string> => {
 test("every exported controller handler is routed, or declared unrouted", () => {
   const orphans = [];
   const stale = [];
-  const allRoutes = routeFiles(FEATURES).map((f) => fs.readFileSync(f, "utf8"));
+  const allRoutes = FEATURE_DIRS.flatMap((d) => routeFiles(d)).map((f) => fs.readFileSync(f, "utf8"));
   assert.ok(allRoutes.length > 10, `only ${allRoutes.length} routes file(s) found - the walk is wrong`);
 
-  for (const file of controllers(FEATURES)) {
-    const rel = path.relative(FEATURES, file);
+  for (const file of FEATURE_DIRS.flatMap((d) => controllers(d))) {
+    const rel = path.relative(API, file);
     const src = fs.readFileSync(file, "utf8");
     const declared = UNROUTED[rel] ?? {};
 
@@ -268,7 +270,7 @@ test("no public endpoint reads a user id from the request", () => {
   const handlerFor = (key: string): { name: string; dir: string } | null => {
     const [method, full] = key.split(" ");
     const tail = full.replace(/^\/api\/[^/]+/, "");
-    if (tail !== "/") for (const file of routeFiles(FEATURES)) {
+    if (tail !== "/") for (const file of FEATURE_DIRS.flatMap((d) => routeFiles(d))) {
       const src = fs.readFileSync(file, "utf8");
       const line = src
         .split("\n")
@@ -282,9 +284,10 @@ test("no public endpoint reads a user id from the request", () => {
       if (name) return { name, dir: path.dirname(file) };
     }
     const segments = full.replace(/^\/api\//, "").split("/").filter(Boolean);
-    const dir = path.join(FEATURES, ...segments);
-    const file = path.join(dir, "routes.ts");
-    if (fs.existsSync(file)) {
+    for (const base of [API, ...FEATURE_DIRS]) {
+      const dir = path.join(base, ...segments);
+      const file = path.join(dir, "routes.ts");
+      if (!fs.existsSync(file)) continue;
       const src = fs.readFileSync(file, "utf8");
       const line = src
         .split("\n")

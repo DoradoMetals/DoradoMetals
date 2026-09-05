@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { domainDirs } from "./lib/layout.ts";
 
 const ROOT = process.env.LINT_DB_ROOT
   ? path.resolve(process.env.LINT_DB_ROOT)
@@ -14,6 +15,7 @@ export async function getOne(id, client) {
 }`;
   const LOW = { LINT_DB_FILE_FLOOR: "0", LINT_DB_CALL_FLOOR: "0" };
   const with_ = (extra: string) => ({
+    "package.json": JSON.stringify({ imports: { "#things/*": "./things/*" } }),
     "db/thing/repo.exchange.js": clean + "\n" + extra,
   });
   await selfTest({
@@ -118,7 +120,7 @@ const problems: string[] = [];
 let filesScanned = 0;
 let callsChecked = 0;
 
-const LAYER_ROOTS = ["db", "domain", "transport"];
+const LAYER_ROOTS = ["db", ...domainDirs(ROOT)];
 const existingRoots = LAYER_ROOTS.filter((l) => fs.existsSync(path.join(ROOT, l)));
 if (!existingRoots.length) {
   console.error(
@@ -165,7 +167,7 @@ for (const file of existingRoots.flatMap((l) => sourceFiles(path.join(ROOT, l)))
   }
 }
 
-const FILE_FLOOR = process.env.LINT_DB_ROOT ? Number(process.env.LINT_DB_FILE_FLOOR ?? 250) : 250;
+const FILE_FLOOR = process.env.LINT_DB_ROOT ? Number(process.env.LINT_DB_FILE_FLOOR ?? 407) : 407;
 const CALL_FLOOR = process.env.LINT_DB_ROOT ? Number(process.env.LINT_DB_CALL_FLOOR ?? 60) : 60;
 if (filesScanned < FILE_FLOOR || callsChecked < CALL_FLOOR) {
   console.error(

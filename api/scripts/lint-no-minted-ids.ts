@@ -20,7 +20,7 @@ if (process.argv.includes("--self-test")) {
         rootEnv: "LINT_NO_MINTED_IDS_ROOT",
         files: {
           "db/x/repo.ts": repo,
-          "domain/x/service.ts":
+          "x/service.ts":
             "import { randomUUID } from \"node:crypto\";\n" +
             "export const id = randomUUID();\n",
         },
@@ -31,7 +31,7 @@ if (process.argv.includes("--self-test")) {
         rootEnv: "LINT_NO_MINTED_IDS_ROOT",
         files: {
           "db/x/repo.ts": repo,
-          "domain/x/service.ts": "import crypto from \"node:crypto\";\nconst id = crypto.randomUUID();\n",
+          "x/service.ts": "import crypto from \"node:crypto\";\nconst id = crypto.randomUUID();\n",
         },
         expect: "fail", mustPrint: "randomUUID",
       },
@@ -40,7 +40,7 @@ if (process.argv.includes("--self-test")) {
         rootEnv: "LINT_NO_MINTED_IDS_ROOT",
         files: {
           "db/x/repo.ts": repo,
-          "domain/x/service.ts": "import { v4 } from \"uuid\";\nconst id = v4();\n",
+          "x/service.ts": "import { v4 } from \"uuid\";\nconst id = v4();\n",
         },
         expect: "fail", mustPrint: "uuid",
       },
@@ -49,11 +49,11 @@ if (process.argv.includes("--self-test")) {
         rootEnv: "LINT_NO_MINTED_IDS_ROOT",
         files: {
           "db/x/repo.ts": repo,
-          "domain/x/service.ts":
+          "x/service.ts":
             "import * as x from \"#db/x/repo.ts\";\n" +
             "export const made = await x.create({ id: \"minted\", name: \"a\" }, tx);\n",
         },
-        expect: "fail", mustPrint: "domain/x/service.ts",
+        expect: "fail", mustPrint: "x/service.ts",
       },
       {
         name: "an id: key reaching create through the #db barrel is still seen",
@@ -61,31 +61,31 @@ if (process.argv.includes("--self-test")) {
         files: {
           "db/index.ts": "export * as x from \"#db/x/repo.ts\";\n",
           "db/x/repo.ts": repo,
-          "domain/x/service.ts":
+          "x/service.ts":
             "import { x } from \"#db\";\n" +
             "export const made = await x.create({ id: \"minted\", name: \"a\" }, tx);\n",
         },
-        expect: "fail", mustPrint: "domain/x/service.ts",
+        expect: "fail", mustPrint: "x/service.ts",
       },
       {
         name: "an id: key spread across several lines is still seen",
         rootEnv: "LINT_NO_MINTED_IDS_ROOT",
         files: {
           "db/x/repo.ts": repo,
-          "domain/x/service.ts":
+          "x/service.ts":
             "import * as x from \"#db/x/repo.ts\";\n" +
             "export const made = await x.create(\n" +
             "  {\n    id: \"minted\",\n    name: \"a\",\n  },\n  tx\n" +
             ");\n",
         },
-        expect: "fail", mustPrint: "domain/x/service.ts",
+        expect: "fail", mustPrint: "x/service.ts",
       },
       {
         name: "a create call naming only foreign-key _id columns passes",
         rootEnv: "LINT_NO_MINTED_IDS_ROOT",
         files: {
           "db/x/repo.ts": repo,
-          "domain/x/service.ts":
+          "x/service.ts":
             "import * as x from \"#db/x/repo.ts\";\n" +
             "export const made = await x.create({ order_id: id, method_id: m }, tx);\n",
         },
@@ -106,7 +106,7 @@ if (process.argv.includes("--self-test")) {
         rootEnv: "LINT_NO_MINTED_IDS_ROOT",
         files: {
           "db/x/repo.ts": repo,
-          "domain/x/tests/service.test.ts":
+          "x/tests/service.test.ts":
             "import { randomUUID } from \"node:crypto\";\nconst id = randomUUID();\n",
         },
         expect: "pass", mustPrint: "0 finding",
@@ -116,7 +116,7 @@ if (process.argv.includes("--self-test")) {
         rootEnv: "LINT_NO_MINTED_IDS_ROOT",
         files: {
           "db/x/repo.ts": repo,
-          "domain/x/service.ts": "export const shape = { id: \"not a repo call\", name: \"a\" };\n",
+          "x/service.ts": "export const shape = { id: \"not a repo call\", name: \"a\" };\n",
         },
         expect: "pass", mustPrint: "0 finding",
       },
@@ -208,12 +208,7 @@ try {
 } catch {   }
 
 function resolveSpecifier(fromFile: string, spec: string): string | null {
-  if (
-    spec.startsWith("#db/") || spec.startsWith("#domain/") || spec.startsWith("#transport/") ||
-    spec.startsWith("#shared/") || spec.startsWith("#providers/")
-  ) {
-    return spec.slice(1);
-  }
+  if (/^#[^/]+\//.test(spec)) return spec.slice(1);
   if (spec.startsWith(".")) return path.normalize(path.join(path.dirname(fromFile), spec));
   return null;
 }
@@ -241,7 +236,7 @@ function extractArgs(src: string, openParenIndex: number): { text: string; end: 
 }
 
 const ACCEPTED: Record<string, string> = {
-  "domain/payments/service.ts::attempts.create":
+  "payments/service.ts::attempts.create":
     "reuses its intent's already-assigned id as this attempt's own primary key - a " +
     "deliberate shared-key extension row, not a fresh mint. Every other caller still " +
     "gets DEFAULT gen_random_uuid() from payments.attempts.id.",

@@ -68,7 +68,7 @@ const REAL_EXCUSED = {
     "money - so its guards are the same conditional-from-Pending statements the " +
     "webhook uses (a retry or a race is a polite no-op), and there is no " +
     "detector to attack: every write path is exercised by " +
-    "domain/payments/tests/sweeps.test.ts against real Postgres instead.",
+    "payments/tests/sweeps.test.ts against real Postgres instead.",
   },
 
   "api/scripts/dump-schema.mjs": {
@@ -109,6 +109,10 @@ const REAL_EXCUSED = {
   "api/scripts/lib/feature-map.ts": {
     kind: "library",
     why:"has scripts/lib/tests/feature-map.test.ts.",
+  },
+  "api/scripts/lib/layout.ts": {
+    kind: "library",
+    why:"has scripts/lib/tests/layout.test.ts.",
   },
   "api/scripts/lib/test-layers.ts": {
     kind: "library",

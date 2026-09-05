@@ -264,7 +264,12 @@ This applies from the moment anything touches the database. Concretely:
 pnpm workspace, Node 24, deployed on Railway from `master` with auto-deploy.
 
 ```
-api/                 @dorado/api        Express, ESM, TypeScript (Node runs .ts natively; the only .js left is the death-row *_SOURCE/dual-write halves)
+api/                 @dorado/api        Express, ESM, TypeScript (Node runs .ts natively)
+  db/<schema>/         repos + sql, laid out BY POSTGRES SCHEMA
+  catalog/ checkout/ crm/ identity/ logistics/ media/ orders/ payments/ pricing/
+                       the nine domains: service, rules, routes, controller, tests together
+  domains.ts           the service barrel (`#domains`)
+  shared/ providers/ scripts/ migrations/ types/
 frontend/            @dorado/frontend   Next.js, TypeScript, strict
 packages/contracts/  @dorado/contracts  zod schemas, imported by api only
 ```
@@ -275,8 +280,24 @@ themselves (Jacob's single-source ruling, executed 2026-08-28). Frontend
 files keep local names for UI concerns and alias contract imports as
 `<Name>Contract` on collision.
 
-`api` uses subpath imports — `#features/*`, `#shared/*`, `#providers/*`,
-`#db`. Never a relative path that crosses between two of those roots.
+`api` uses subpath imports — `#db/*`, `#shared/*`, `#providers/*`, `#domains`
+and one per domain (`#catalog/*`, `#checkout/*`, `#crm/*`, `#identity/*`,
+`#logistics/*`, `#media/*`, `#orders/*`, `#payments/*`, `#pricing/*`). Never a
+relative path that crosses between two of those roots.
+
+**Ruling 77 (executed 2026-09-06): `api/domain/` and `api/transport/` are
+gone.** Jacob: *"while the DB should be by schema, I don't think our feature
+code should be. Let's also reunify transport/domain under one folder again."*
+A service, its rules, its routes and its controller now sit in one folder, and
+the nine domains above are declared in exactly one place — `package.json`
+`imports`. `scripts/lib/layout.ts` reads that map: `domainDirs(root)` returns
+the wildcard roots that are not db/shared/providers, and `isTransportFile(rel)`
+is the role the `transport/` folder used to encode (`routes.ts`,
+`*.routes.ts`, `controller.ts`). Every lint, `vitest.config.ts`'s aliases and
+its coverage keys derive from it, so a new domain is one `imports` line and
+nothing is hand-listed. `db/<schema>` stays laid out by Postgres schema. No URL
+moved: the route census is identical before and after (136 routes, 70
+requireAdmin / 55 requireUser / 10 unguarded). See `docs/waves/domains.md`.
 
 ## How a feature is laid out
 

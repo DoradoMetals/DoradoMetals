@@ -17,12 +17,12 @@ function tree(files: Record<string, string>): string {
 
 test("an http-signal file (imports supertest) is classified http, even when it also touches #db", () => {
   const root = tree({
-    "domain/orders/tests/endpoints.test.ts":
+    "orders/tests/endpoints.test.ts":
       'import request from "supertest";\nimport pool from "#pool";\ntest("x", () => {});\n',
   });
   const layers = classifyTestFiles(root);
   assert.deepEqual(layers.http.map((f) => path.relative(root, f)), [
-    "domain/orders/tests/endpoints.test.ts",
+    "orders/tests/endpoints.test.ts",
   ]);
   assert.equal(layers.unit.length, 0);
   assert.equal(layers.db.length, 0);
@@ -57,27 +57,27 @@ test("a file with neither signal is classified unit", () => {
 test("node_modules is never descended into, even when it holds a matching filename", () => {
   const root = tree({
     "node_modules/some-pkg/nested.test.ts": 'import request from "supertest";\n',
-    "domain/leads/tests/unit.test.ts": 'test("x", () => {});\n',
+    "crm/leads/tests/unit.test.ts": 'test("x", () => {});\n',
   });
   const layers = classifyTestFiles(root);
   assert.deepEqual(layers.all.map((f) => path.relative(root, f)), [
-    "domain/leads/tests/unit.test.ts",
+    "crm/leads/tests/unit.test.ts",
   ]);
 });
 
 test("a non-.test.ts file is never picked up", () => {
   const root = tree({
-    "domain/leads/service.ts": "export const x = 1;\n",
-    "domain/leads/tests/unit.test.ts": 'test("x", () => {});\n',
+    "crm/leads/service.ts": "export const x = 1;\n",
+    "crm/leads/tests/unit.test.ts": 'test("x", () => {});\n',
   });
   const layers = classifyTestFiles(root);
   assert.equal(layers.all.length, 1);
-  assert.equal(path.relative(root, layers.all[0]!), "domain/leads/tests/unit.test.ts");
+  assert.equal(path.relative(root, layers.all[0]!), "crm/leads/tests/unit.test.ts");
 });
 
 test("all three buckets partition the tree with no overlap and no loss", () => {
   const root = tree({
-    "domain/orders/tests/endpoints.test.ts": 'import request from "supertest";\n',
+    "orders/tests/endpoints.test.ts": 'import request from "supertest";\n',
     "db/orders/tests/repo.test.ts": 'import x from "#db/orders/repo.ts";\n',
     "shared/utils/tests/format.test.ts": 'const f = (n) => String(n);\n',
   });
