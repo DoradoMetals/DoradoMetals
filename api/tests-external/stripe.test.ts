@@ -85,15 +85,19 @@ test("cancelling an intent is final and readable", async () => {
   assert.equal(fetched.status, "canceled", "the cancellation did not stick");
 });
 
-test("cancelling and retrieving an id Stripe never issued both throw the resource_missing shape", async () => {
+// cancelIntent SWALLOWS resource_missing on purpose (2026-09-03, 4cd75534):
+// "no such intent" and "already canceled" are the same STATE to every caller -
+// the sweeps and cancelIntentByRef need cancelling to be idempotent. retrieve
+// has no such reading and still throws. This lane asserted the pre-4cd75534
+// rejecting shape until the Stripe 22 pass ran it; the drift is the provider's,
+// not the SDK's, and `test:external` is not in `pnpm check` to have caught it.
+test("an id Stripe never issued cancels as already-canceled and refuses to be retrieved", async () => {
   const bogus = `pi_external_no_such_${Date.now()}`;
-  await assert.rejects(
-    () => stripe.cancelIntent(bogus),
-    (err: Error) => {
-      assert.match(String(err.message), /No such payment_intent|resource_missing/i);
-      return true;
-    }
-  );
+
+  const cancelled = await stripe.cancelIntent(bogus);
+  assert.equal(cancelled.id, bogus);
+  assert.equal(cancelled.status, "canceled");
+
   await assert.rejects(
     () => stripe.retrieveIntent(bogus),
     /No such payment_intent|resource_missing/i

@@ -16113,3 +16113,32 @@ NOT EXISTS` with a required `tx`. Credit left `identity/users` for
 `api/payments/credit/`; the URL did not (ruling 13). `verify:genesis` fails on
 DEV BEING BEHIND ITS OWN CHAIN (no `auth.mirror_identity_to_exchange`, which
 122 creates) - not this lane's, and a `migrate` against dev is Jacob's.
+
+### Stripe 22 (2026-09-06)
+
+D203's deferred major is taken: `stripe` 18.5 -> **22.6.1** in api AND frontend,
+`@stripe/stripe-js` 7.9 -> 9.15.0, `@stripe/react-stripe-js` 3.10 -> 6.9.0, all
+four pinned EXACT (a caret on the money path is D203's own better-auth lesson).
+The API version was never pinned - the SDK default applied, which is what made
+four majors of drift invisible - so `stripe-client.ts` now pins
+`2026-08-26.dahlia` as `Stripe.LatestApiVersion`, a literal type that makes the
+NEXT bump a compile error instead of a silent wire change. One code break in the
+whole API: v22 made `HttpClient`/`HttpClientResponse` non-generic interfaces
+(11 errors, 2 causes, annotations only - the test-lane HTTP client's body is
+unchanged). One in the frontend: v9 removed `boolean` from `RadiosOption`, so
+`radios: false` is `radios: 'never'`. Webhook `constructEvent` and the
+idempotent intent with `type`/`user_id`/`session_id` metadata are untouched and
+proven live: `test:external` 5/5 against the sandbox. **No REQUEST body changed
+at all** - the six recorded cassettes were re-recorded anyway so replay is
+dahlia-shaped, and the only new response field is `payment_record`. FOUND:
+`test:record` clobbers the two HAND-WRITTEN cassettes (it deletes and re-records
+from the sandbox, which cannot make an intent `processing`); `cassettes.ts` now
+holds a `SYNTHETIC` set that replays them even while recording. ALSO FOUND, and
+pre-existing: `test:external` still asserted that cancelling an unknown intent
+rejects, which stopped being true at `4cd75534` (2026-09-03) when `cancelIntent`
+began swallowing `resource_missing` on purpose - nothing caught it because
+`test:external` is not in `pnpm check`. Gate: every member green except
+`figma:inventory` (Jacob's) and `api:verify:genesis` (dev behind its own chain,
+`auth.mirror_identity_to_exchange`); the eight dev-db members behind it all pass
+run individually. Frontend typecheck 183 before, 183 after - the identical set.
+Full detail and the browser checklist: `docs/waves/stripe-22.md`.

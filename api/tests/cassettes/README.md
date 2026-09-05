@@ -5,8 +5,9 @@ Recorded provider responses - the replay half of lane 5
 scenario against the real Stripe test mode account and the real FedEx sandbox;
 `shared/testing/cassettes.ts` (`withCassette`) plays them back in every default
 test lane, and refuses loudly if a cassette is missing rather than reaching
-the network. `pnpm --filter @dorado/api test:record` regenerates all eleven
-files from the same two provider test files.
+the network. `pnpm --filter @dorado/api test:record` regenerates the RECORDED
+files from the same two provider test files - it skips the two synthetic ones
+(see below).
 
 ## Layout
 
@@ -19,6 +20,10 @@ tests/cassettes/
     cancel-intent.json               create then cancel
     cancel-unknown-intent.json       cancelling an id Stripe never issued
     retrieve-unknown-intent.json     retrieving an id Stripe never issued
+    cancel-intent-transient-error.json   SYNTHETIC - an intent Stripe reports
+                                         as `processing`, which cancel refuses
+    self-heal-stale-intent.json          SYNTHETIC - an already-canceled intent
+                                         under a fixed id
   fedex/
     rate-quote.json                  a priced rate quote
     address-validation.json          address resolve
@@ -27,10 +32,32 @@ tests/cassettes/
     create-and-void-label.json       a label bought, then voided in the same run
 ```
 
-Six Stripe scenarios, five FedEx. The webhook signature verification test
+Six recorded Stripe scenarios plus two synthetic ones, and five FedEx. The
+webhook signature verification test
 (`providers/payment/tests/stripe-cassettes.test.ts`) needs no cassette -
 `constructEvent` is signature arithmetic over a payload and a secret, not a
 network call.
+
+The six recorded Stripe files were re-recorded on **2026-09-06** against
+stripe-node 22.6.1 / API version `2026-08-26.dahlia` (`docs/waves/stripe-22.md`).
+The four majors changed no REQUEST body this repo sends; the only new response
+field is `payment_record` on `PaymentIntent`.
+
+## The two synthetic cassettes are NOT recorded, and recording must not touch them
+
+`cancel-intent-transient-error.json` and `self-heal-stale-intent.json` are
+hand-written. They describe states the sandbox will not produce on demand - an
+intent stuck in `processing`, and an intent already canceled under a fixed id -
+and the assertions that read them (`/status of processing/i`; the self-heal
+path) exist precisely because those states are unreachable live.
+
+`nock.back`'s `update` mode DELETES a fixture and re-records it from whatever
+the sandbox says now. Aimed at these two it replaces the state under test with a
+plain `resource_missing` 404, the assertion goes red, and the fixture is gone.
+That happened during the Stripe 22 pass and one file was restored by hand. So
+`shared/testing/cassettes.ts` carries a `SYNTHETIC` set and drops to `lockdown`
+for those names even inside a recording run: they REPLAY in every lane,
+`test:record` included. Add a hand-written cassette, add it to that set.
 
 ## Answering Jacob's open question: yes, these are committed
 
@@ -133,5 +160,6 @@ pnpm --filter @dorado/api test:record
 
 Requires the real sandbox credentials in `api/.env` (Stripe: `sk_test_...`;
 FedEx: the `FEDEX_SANDBOX_*` set) and network access. Deletes and re-records
-all eleven files in one run - `nock.back`'s `update` mode, not `record` mode,
-so a stale cassette can never linger next to a fresh one under the same name.
+every RECORDED file in one run - `nock.back`'s `update` mode, not `record`
+mode, so a stale cassette can never linger next to a fresh one under the same
+name. The two synthetic files are skipped, as above.
