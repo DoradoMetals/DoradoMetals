@@ -3,7 +3,7 @@ import { fineContent } from "#domain/pricing/content.ts";
 import { Conflict, Invalid, NotFound } from "#shared/errors.ts";
 
 import type {
-  BullionStorefront, Checkout, CheckoutMissing, Direction, OrderActions, OrderItem,
+  BullionStorefront, CheckoutMissing, Direction, OrderActions, OrderItem,
   OrderItemPatch,
   OrderItemWrite, OrderLine, OrderSpot, OrderSpotsPutBody, OrderTotals, OrderView,
   OrderViewFacts, PaymentIntentFacts, PaymentMethod,
@@ -12,10 +12,6 @@ import type {
 
 export function chargesSalesTax(direction: Direction): boolean {
   return direction === "sale";
-}
-
-export function directionOf(checkout: Checkout): Direction {
-  return checkout.direction === "sale" ? "sale" : "purchase";
 }
 
 export function rateMaterialFor(bullion_id: string | null | undefined): "scrap" | "bullion" {
