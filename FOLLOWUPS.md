@@ -15623,3 +15623,75 @@ is genuinely smaller). `validate:wire` **33 shapes match, 0 diverge** —
 `GET /quotes/checkout (sale)` and `(purchase)` both `ok` against live dev
 data, replacing the two deleted POST cases one-for-one. No migration was
 needed or written. Everything in this entry is uncommitted on `quotes-lane`.
+
+### Genesis carries checkout at last (2026-09-05)
+
+`api/migrations/000_genesis_schema.sql` had zero `checkout.` lines —
+`dump-schema.mjs`, `verify-genesis.mjs` and `verify-backfill.mjs` each carried
+the same hardcoded 16-schema `SCHEMAS` list, never updated when `checkout` (and
+`auctions`) turned up alongside the carts in August. `verify:genesis` was green
+every run because it never looked; a production build from genesis + migrations
+would have failed at 068 (`CREATE UNIQUE INDEX ... ON checkout.checkouts`) —
+nothing before it created the table.
+
+Fixed by extracting one shared list, `api/scripts/lib/schemas.ts`:
+`NATIVE_SCHEMAS`, 17 entries (the 16 plus `checkout`, alphabetical — confirmed
+against a live `SELECT nspname FROM pg_namespace` on dev, which lists exactly
+those 17 plus `exchange`; `auctions` is not a schema on dev at all, retired by
+067), plus `assertSchemasComplete`, which queries `pg_namespace` and throws
+naming anything the list doesn't know (ignoring `exchange`, system schemas, and
+`zz_*` verify-script scratch schemas so a crashed prior run can't poison the
+next one). `dump-schema.mjs`, `verify-genesis.mjs` and `verify-backfill.mjs`
+import it and run the self-check before building anything, so an 18th schema
+fails loud instead of silently next time. `audit-non-finite.mjs` and
+`audit-query-paths.mjs` already carried `checkout` (plus a harmless `auctions`,
+which doesn't exist as a schema) — both switched to the shared constant too;
+`audit-non-finite.mjs` composes `["exchange", ...NATIVE_SCHEMAS]` since it
+deliberately also scans `exchange`. `verify-genesis-production.mjs` keeps its
+own separate, deliberately-reduced 8-schema list — a different list for a
+different purpose (what genesis can reconcile against production's *older*
+shape) — and was left alone, out of this lane's scope. `compare-databases.mjs`
+was already fully dynamic (`pg_namespace`, no hardcoded list) and needed
+nothing.
+
+`schemas.ts` lives in `scripts/lib/`, so `lint:script-guards` counts it as a
+script; excused as `library` (has `scripts/lib/tests/schemas.test.ts`, 7
+cases), the same as `baseline.ts`/`feature-map.ts`/`test-layers.ts`.
+
+`dump:schema` regenerated genesis: +162/-0 lines, and the diff is checkout
+only — `CREATE SCHEMA checkout`, both tables in their current (post-128)
+shape, 2 primary keys, 8 foreign keys (one composite and deferrable,
+`(user_id, recipient_address_id) -> places.user_addresses` — 123/125/126), 11
+indexes (068's `checkouts_user_direction_key` unique, 111's partial
+`checkouts_fulfillment_idx`, 103's `checkout_items_checkout_bullion_key`
+unique among them). Nothing in the other 16 schemas moved — the old list was
+not hiding any other drift.
+
+**Verify** (every run captured to a file and read): `verify:genesis` —
+"building 17 schemas from nothing" / "identical to dev, and the committed
+genesis matches", exit 0. `verify:backfill` — 112 differences, the known
+dev-drift baseline (`orders.*`, `shipping.tracking`, `fulfillments.shipments`,
+two unregistered populated tables — all pre-existing, none touching checkout;
+`checkout.checkouts`/`checkout.items` are already declared in `NOT_REBUILT`,
+dormant until this fix, and correctly produce zero diffs now that anything
+would reach them), exit 1 as expected for a report against a known baseline.
+`pnpm check:fast` — every member green except the pre-existing
+`figma:inventory` (9 findings, Jacob's, untouched here); `api:lint:script-guards`
+and `api:test` (**227 files / 1340 passed / 1 skipped**) both pass.
+`pnpm --filter @dorado/contracts verify:fresh` — 74/74 match, untouched, as
+expected. `psql` against `test_genesis_lane` (the per-branch database the
+`test` preflight built for this run) shows `checkout.checkouts` and
+`checkout.items` under `\dt checkout.*` — though that database's checkout
+tables trace to `provision-test-db.ts`'s `pg_dump` clone of dev, not to a
+genesis replay, so this proof alone doesn't exercise the fix; `verify:genesis`'s
+from-nothing build is the one that does.
+
+Confirmed read-only, not fixed, out of scope: production
+(`PROD_READONLY_DATABASE_URL`) already holds a `checkout` schema — one of the
+ten of eighteen it has — so `verify-genesis-production.mjs`'s own list is
+missing it too, the same class of bug in a second file. Production also holds
+`auctions` and a `core` schema that exists in neither dev nor any of our
+lists (a January fossil, predating `000_genesis_schema.sql`). Reconciling that
+file's production-known-schema list is a separate decision — it needs
+judgment calls about `auctions`/`core` this lane wasn't asked to make — and
+was left alone. Everything in this entry is uncommitted on `genesis-lane`.

@@ -3,13 +3,9 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import pool from "#pool";
+import { NATIVE_SCHEMAS as SCHEMAS, assertSchemasComplete } from "./lib/schemas.ts";
 
 const PREFIX = "zz_backfill_";
-const SCHEMAS = [
-  "auth", "fulfillments", "leads", "media", "metals", "orders",
-  "organizations", "payments", "places", "products", "rates",
-  "refiners", "reviews", "shipping", "spots", "tax",
-];
 
 const rename = (sql) =>
   SCHEMAS.reduce((acc, s) => acc.replace(new RegExp(`\\b${s}\\.`, "g"), `${PREFIX}${s}.`), sql);
@@ -245,6 +241,8 @@ const rowsOf = async (schemaPrefix, t) => {
 };
 
 try {
+  await assertSchemasComplete((sql) => client.query(sql).then((r) => r.rows));
+
   const ddl = execFileSync(
     process.execPath,
     [path.join(import.meta.dirname, "dump-schema.mjs"), "--stdout", "--prefix", PREFIX],
