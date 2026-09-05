@@ -11,7 +11,7 @@
                 "doc_url": "https://stripe.com/docs/error-codes/resource-missing",
                 "message": "No such payment_intent: 'pi_cassette_no_such_intent'",
                 "param": "intent",
-                "request_log_url": "https://dashboard.stripe.com/acct_1RFLhKCaZvyVaDJO/test/workbench/logs?object=req_2uqI7AUR4yNq0w",
+                "request_log_url": "https://dashboard.stripe.com/acct_1RFLhKCaZvyVaDJO/test/workbench/logs?object=req_vOAxkLjJ5cXWRz",
                 "type": "invalid_request_error"
             }
         },

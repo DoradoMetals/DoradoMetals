@@ -143,7 +143,9 @@ export default function StripePaymentForm({
     layout: {
       type: 'accordion',
       defaultCollapsed: false,
-      radios: false,
+      // @stripe/stripe-js 9 replaced layout.radios' boolean with a
+      // RadiosOption enum; `false` is spelled 'never'. Same rendering.
+      radios: 'never',
       spacedAccordionItems: true,
     },
     defaultValues: {
