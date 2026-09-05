@@ -19,13 +19,6 @@ export async function getById(
   return (await shipments.getOne(id, executor)) ?? null;
 }
 
-export async function getManyById(
-  ids: string[], executor?: Executor
-): Promise<OrderViewShipment[]> {
-  if (ids.length === 0) return [];
-  return await shipments.getMany([...new Set(ids)], executor);
-}
-
 export async function getByOrder(
   order_id: string, executor?: Executor
 ): Promise<OrderViewShipment | null> {

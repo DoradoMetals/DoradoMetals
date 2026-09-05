@@ -24,16 +24,6 @@ export async function directionOf(
   return rows[0]?.direction ?? null;
 }
 
-export async function directionsById(
-  ids: string[], executor?: Executor
-): Promise<Map<string, Direction>> {
-  if (ids.length === 0) return new Map();
-  const { rows } = await query<{ id: string; direction: Direction }>(
-    sql("directions"), [ids], executor
-  );
-  return new Map(rows.map((r) => [r.id, r.direction]));
-}
-
 export async function list(
   { direction = null, user_id = null }: { direction?: string | null; user_id?: string | null },
   executor?: Executor
@@ -52,16 +42,6 @@ export async function getOne(
 export async function ownerOf(id: string, executor?: Executor): Promise<string | null> {
   const { rows } = await query<{ user_id: string | null }>(sql("owner_of"), [id], executor);
   return rows[0]?.user_id ?? null;
-}
-
-export async function ownersById(
-  ids: string[], executor?: Executor
-): Promise<Map<string, string | null>> {
-  if (ids.length === 0) return new Map();
-  const { rows } = await query<{ id: string; user_id: string | null }>(
-    sql("owners"), [ids], executor
-  );
-  return new Map(rows.map((r) => [r.id, r.user_id]));
 }
 
 export const PATCHABLE = columnsOf(Write);

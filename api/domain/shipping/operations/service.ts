@@ -228,23 +228,6 @@ export async function voidLabel(
   );
 }
 
-export async function voidPickup(
-  pickup: {
-    confirmationNumber?: string | null;
-    pickupDate?: string | null;
-    location?: string | null;
-  } | null | undefined
-): Promise<void> {
-  if (!pickup?.confirmationNumber) return;
-  await attempt(`ORPHANED CARRIER PICKUP ${pickup.confirmationNumber}`, async () =>
-    shippingHandler.cancelPickup(await carrierIdOr(null), undefined, {
-      confirmationCode: pickup.confirmationNumber,
-      pickupDate: pickup.pickupDate ?? undefined,
-      location: pickup.location ?? undefined,
-    })
-  );
-}
-
 export async function labelBufferOrVoid(
   labelData: { labelFile: string | null; tracking_number: string | null },
   cancel: typeof voidLabel = voidLabel

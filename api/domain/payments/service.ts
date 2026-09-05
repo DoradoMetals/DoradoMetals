@@ -205,10 +205,6 @@ export async function updatePaymentIntent(
   return paymentIntent;
 }
 
-export async function capturePaymentIntent(payment_intent_id: string): Promise<StripeIntentLike> {
-  return await stripe.captureIntent(payment_intent_id);
-}
-
 export async function cancelPaymentIntent(payment_intent_id: string): Promise<StripeIntentLike> {
   const paymentIntent = await stripe.cancelIntent(payment_intent_id);
   await withTransaction((tx) => updateFromProvider(paymentIntent, tx));

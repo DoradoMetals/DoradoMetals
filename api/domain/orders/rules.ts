@@ -465,8 +465,3 @@ export function assertRepairable(
   }
 }
 
-export function assertTotals<T extends Pick<OrderTotals, "total"> | null>(
-  totals: T, order_id: string
-): asserts totals is NonNullable<T> {
-  if (!totals) throw new NotFound(`order ${order_id} has no totals`);
-}

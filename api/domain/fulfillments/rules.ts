@@ -90,12 +90,6 @@ export function missingFor(
   return missing;
 }
 
-export const CATEGORY_OF_CHOICES = {
-  shipment: "SHIPMENT",
-  pickup: "PICKUP",
-  direct: "DIRECT",
-} as const;
-
 export function byStartTimeThenId(a: FulfillmentView, b: FulfillmentView): number {
   const at = a.scheduled_at;
   const bt = b.scheduled_at;
