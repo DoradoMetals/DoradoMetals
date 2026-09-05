@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next'
 import { indexablePaths } from '@/features/routes/types'
 import type { BullionGroup } from '@dorado/contracts'
+import { fetchProducts } from '@dorado/client'
 
 export const revalidate = 21600
 
@@ -33,8 +34,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   let groups: BullionGroup[] = []
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/products`)
-    if (res.ok) groups = await res.json()
+    groups = await fetchProducts()
   } catch (e) {
     console.error('sitemap products fetch failed:', e)
   }
