@@ -211,6 +211,33 @@ WHERE coalesce(m.purchase_order_id, m.sales_order_id) IS NOT NULL
 -- share an address today. The CTE is MATERIALIZED so the generated id is
 -- evaluated once and the row written is the row linked.
 
+-- orders.addresses.source_address_id is a DEFERRABLE INITIALLY DEFERRED
+-- foreign key into places.addresses, and the address book itself is not
+-- copied until 050. Inside one transaction that never mattered, because a
+-- deferred constraint is only checked at COMMIT and verify:backfill rolls
+-- back; run migration by migration, as production day does, 031 commits on
+-- its own and every source_address_id dangles. So the source rows land here
+-- first. 050 re-inserts the same rows with ON CONFLICT (id) DO UPDATE from
+-- the same columns of the same table, so the end state is unchanged.
+-- (2026-09-06, ruling 82 rehearsal.)
+INSERT INTO places.addresses (
+  id, line_1, line_2, city, state, country, zip,
+  country_code, phone_number, created_at, updated_at, is_valid, is_residential
+)
+SELECT
+  a.id, a.line_1, a.line_2, a.city, a.state, a.country, a.zip,
+  a.country_code, a.phone_number, a.created_at, a.updated_at,
+  a.is_valid, coalesce(a.is_residential, false)
+FROM exchange.addresses a
+WHERE EXISTS (
+  SELECT 1 FROM orders.orders o
+  WHERE a.id = coalesce(
+    (SELECT p.address_id FROM exchange.purchase_orders p WHERE p.id = o.id),
+    (SELECT s.address_id FROM exchange.sales_orders s WHERE s.id = o.id)
+  )
+)
+ON CONFLICT (id) DO NOTHING;
+
 WITH needed AS MATERIALIZED (
   SELECT o.id AS order_id, a.id AS source_id, gen_random_uuid() AS snapshot_id
   FROM orders.orders o

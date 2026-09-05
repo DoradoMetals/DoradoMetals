@@ -1,3 +1,7 @@
+-- superseded-by-genesis: every table it alters is either gone (core.*, orders.offers) or
+--   already carries the columns in genesis; there is nothing left for it
+--   to add.
+--
 -- Audit columns become user ids, in the new schemas only.
 --
 -- exchange keeps its text columns and is not touched. This is the shape going

@@ -25,6 +25,8 @@
     "audit:routes": "node scripts/route-guards.ts --list",
     "audit:frontend-nullability": "node scripts/audit-frontend-nullability.ts",
     "migrate": "node scripts/migrate.mjs",
+    "migrate:reset-january": "node scripts/reset-january.ts",
+    "migrate:reset-january:self-test": "node scripts/reset-january.ts --self-test",
     "migrate:status": "node scripts/migrate.mjs --status",
     "audit:nullability": "node scripts/audit-nullability.mjs",
     "validate:wire": "TZ=UTC node scripts/validate-wire.ts",

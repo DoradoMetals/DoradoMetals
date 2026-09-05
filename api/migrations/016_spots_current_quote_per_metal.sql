@@ -40,15 +40,27 @@ USING (
 ) ranked
 WHERE ranked.id = s.id AND ranked.rn > 1;
 
-ALTER TABLE spots.spots
-  ADD CONSTRAINT spots_one_per_metal UNIQUE (metal_id);
+-- 2026-09-06: guarded. On a genesis build (ruling 82) the constraint is
+-- already there, and ADD CONSTRAINT has no IF NOT EXISTS.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'spots_one_per_metal'
+      AND conrelid = 'spots.spots'::regclass
+  ) THEN
+    ALTER TABLE spots.spots ADD CONSTRAINT spots_one_per_metal UNIQUE (metal_id);
+  END IF;
+END $$;
 
 -- Bring the surviving rows in line with what exchange currently holds, and
 -- create one for any metal that has no quote row at all.
 INSERT INTO spots.spots (metal_id, ask, bid, percent_change, dollar_change)
 SELECT m.id, e.ask_spot, e.bid_spot, e.percent_change, e.dollar_change
 FROM exchange.metals e
-JOIN metals.metals m ON m.name = e.type
+-- 2026-09-06: 132 made metals.metals.id the metal's NAME and dropped `name`,
+-- so on a genesis build `m.name` does not exist. coalesce reads whichever of
+-- the two this database has, which keeps the join right on both shapes.
+JOIN metals.metals m ON coalesce(to_jsonb(m) ->> 'name', m.id::text) = e.type
 ON CONFLICT (metal_id) DO UPDATE SET
   ask            = EXCLUDED.ask,
   bid            = EXCLUDED.bid,

@@ -60,6 +60,13 @@ WHERE s.id = t.order_id
 -- than zero. A purchase order has no sales tax and no item total in the sense a
 -- sales order does, and null says that where 0 would assert a figure.
 
+-- 2026-09-06 (ruling 82 rehearsal): `pool_remediation` and `pool_oz_deducted`
+-- exist on DEV's exchange.purchase_orders and NOT on production's - they were
+-- added to dev by hand and no migration carries them, so the two references
+-- below abort the whole file on a production-shaped database. Read through
+-- to_jsonb, which yields NULL for a column that is not there and the value
+-- where it is, so dev is unchanged and production stops aborting.
+
 INSERT INTO orders.transactions (
   order_id, refiner_fee, waive_shipping_fee, waive_payout_fee, shipping_paid,
   shipping_fee_actual, pool_remediation, pool_oz_deducted, total,
@@ -67,7 +74,10 @@ INSERT INTO orders.transactions (
 )
 SELECT
   p.id, p.refiner_fee, p.waive_shipping_fee, p.waive_payout_fee, p.shipping_paid,
-  p.shipping_fee_actual, p.pool_remediation, p.pool_oz_deducted, p.total_price,
+  p.shipping_fee_actual,
+  (to_jsonb(p) ->> 'pool_remediation')::numeric,
+  (to_jsonb(p) ->> 'pool_oz_deducted')::numeric,
+  p.total_price,
   p.created_by, p.updated_by,
   p.created_at AT TIME ZONE 'UTC', p.updated_at AT TIME ZONE 'UTC'
 FROM exchange.purchase_orders p
@@ -81,8 +91,8 @@ SET refiner_fee = p.refiner_fee,
     waive_payout_fee = p.waive_payout_fee,
     shipping_paid = p.shipping_paid,
     shipping_fee_actual = p.shipping_fee_actual,
-    pool_remediation = p.pool_remediation,
-    pool_oz_deducted = p.pool_oz_deducted
+    pool_remediation = (to_jsonb(p) ->> 'pool_remediation')::numeric,
+    pool_oz_deducted = (to_jsonb(p) ->> 'pool_oz_deducted')::numeric
 FROM exchange.purchase_orders p
 WHERE p.id = t.order_id
   AND (t.refiner_fee IS DISTINCT FROM p.refiner_fee
@@ -90,8 +100,8 @@ WHERE p.id = t.order_id
     OR t.waive_payout_fee IS DISTINCT FROM p.waive_payout_fee
     OR t.shipping_paid IS DISTINCT FROM p.shipping_paid
     OR t.shipping_fee_actual IS DISTINCT FROM p.shipping_fee_actual
-    OR t.pool_remediation IS DISTINCT FROM p.pool_remediation
-    OR t.pool_oz_deducted IS DISTINCT FROM p.pool_oz_deducted);
+    OR t.pool_remediation IS DISTINCT FROM (to_jsonb(p) ->> 'pool_remediation')::numeric
+    OR t.pool_oz_deducted IS DISTINCT FROM (to_jsonb(p) ->> 'pool_oz_deducted')::numeric);
 
 -- Per-line pricing, and the scrap row's own premium.
 --

@@ -33,7 +33,24 @@ WHERE o.id = p.organization_id
   AND o.description IS NULL
   AND e.description IS NOT NULL;
 
-ALTER TABLE products.mints ADD CONSTRAINT mints_name_key UNIQUE (name);
+-- 2026-09-06: guarded, same reason as 016.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'mints_name_key'
+      AND conrelid = 'products.mints'::regclass
+  ) THEN
+    ALTER TABLE products.mints ADD CONSTRAINT mints_name_key UNIQUE (name);
+  END IF;
+END $$;
 
-ALTER TABLE products.mints ADD CONSTRAINT mints_type_check
-  CHECK (type = ANY (ARRAY['Private'::text, 'Sovereign'::text]));
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'mints_type_check'
+      AND conrelid = 'products.mints'::regclass
+  ) THEN
+    ALTER TABLE products.mints ADD CONSTRAINT mints_type_check
+      CHECK (type = ANY (ARRAY['Private'::text, 'Sovereign'::text]));
+  END IF;
+END $$;

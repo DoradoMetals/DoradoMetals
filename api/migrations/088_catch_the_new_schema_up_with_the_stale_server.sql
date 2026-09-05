@@ -33,32 +33,36 @@ ON CONFLICT (metal_id) DO UPDATE SET
 -- Bullion: refresh every business column from exchange.products where the two
 -- disagree. The guard keeps this a no-op for rows already level, so re-running
 -- moves nothing.
+-- 2026-09-06 (ruling 82 rehearsal): `sell_display` is dropped by 119 and
+-- `stock` / `quantity` by 131, so on a genesis build - the shape AFTER 133 -
+-- those three columns of products.bullion do not exist and this statement
+-- aborted the chain. They are dropped from the refresh rather than guarded:
+-- there is nowhere left to write them, and exchange keeps its own copies.
 UPDATE products.bullion b
 SET name = e.product_name, description = e.product_description,
     type = e.product_type,
     bid_premium = e.bid_premium, ask_premium = e.ask_premium,
     display = e.display, homepage_display = e.homepage_display,
-    sell_display = e.sell_display, legal_tender = e.legal_tender,
+    legal_tender = e.legal_tender,
     domestic_tender = e.domestic_tender, is_generic = e.is_generic,
     content = e.content, gross = e.gross, purity = e.purity,
     variant_group = e.variant_group, variant_label = e.variant_label,
     shadow_offset = e.shadow_offset, slug = e.slug,
     filter_category = e.filter_category,
     image_front = e.image_front, image_back = e.image_back,
-    stock = e.stock, quantity = e.quantity,
     -- exchange's timestamp, not now(): the rebuild reproduces exchange, and a
     -- refresh that stamps its own time creates a permanent one-column diff.
     updated_at = e.updated_at
 FROM exchange.products e
 WHERE e.id = b.id
   AND (b.name, b.description, b.type, b.bid_premium, b.ask_premium,
-       b.display, b.homepage_display, b.sell_display, b.legal_tender,
+       b.display, b.homepage_display, b.legal_tender,
        b.domestic_tender, b.is_generic, b.content, b.gross, b.purity,
        b.variant_group, b.variant_label, b.shadow_offset, b.slug,
-       b.filter_category, b.image_front, b.image_back, b.stock, b.quantity)
+       b.filter_category, b.image_front, b.image_back)
       IS DISTINCT FROM
       (e.product_name, e.product_description, e.product_type, e.bid_premium,
-       e.ask_premium, e.display, e.homepage_display, e.sell_display,
+       e.ask_premium, e.display, e.homepage_display,
        e.legal_tender, e.domestic_tender, e.is_generic, e.content, e.gross,
        e.purity, e.variant_group, e.variant_label, e.shadow_offset, e.slug,
-       e.filter_category, e.image_front, e.image_back, e.stock, e.quantity);
+       e.filter_category, e.image_front, e.image_back);

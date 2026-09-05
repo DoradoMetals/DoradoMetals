@@ -1,3 +1,9 @@
+-- superseded-by-genesis: genesis already carries media.images' user_id and created_at, and 029
+--   re-does the insert with the dangling-user subselect this file lacks -
+--   without which the FK to auth.users, still empty at 018, refuses every
+--   row. 029's WHERE path IS NOT NULL AND filename IS NOT NULL excludes
+--   nothing production holds (3 of 3 images qualify, measured 2026-09-06).
+--
 -- Restore the provenance columns media.images dropped.
 --
 -- exchange.images records who uploaded a file and when. media.images kept

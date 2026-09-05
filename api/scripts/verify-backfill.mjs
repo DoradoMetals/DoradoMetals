@@ -23,6 +23,22 @@ const rename = (sql) =>
 // `native` names the columns native code legitimately rewrites on a row the
 // backfill did produce. Both carry a reason; an empty one fails the script.
 
+
+// Migrations that fill a backfilled table and are NOT named "backfill" or
+// "seed", so the pattern above cannot find them. Without this the rebuild
+// leaves a column empty and the comparison calls dev's real value a
+// difference - or, worse, agrees with an empty one.
+//
+// This is invisible on dev and loud on a production-shaped database: dev's
+// exchange.payouts holds no bank numbers at all, so both sides of the
+// `last_four` comparison are null and it passes for the wrong reason. On a
+// rebuilt copy of production it is 14 rows. (2026-09-06, ruling 82 rehearsal.)
+const EXTRA_BACKFILLS = {
+  "114_the_payout_reads_leave_exchange.sql":
+    "derives payments.details.last_four and routing_last_four from " +
+    "exchange.payouts, and its name says nothing about backfilling",
+};
+
 const TABLES = [
   {
     name: "payments.stripe_charges",
@@ -702,10 +718,24 @@ try {
     .filter(
       (f) =>
         f.endsWith(".sql") &&
-        (f.includes("backfill") || f.includes("seed")) &&
+        ((f.includes("backfill") || f.includes("seed")) || f in EXTRA_BACKFILLS) &&
         f.slice(0, 3) > "028"
     )
     .sort();
+
+  for (const name of Object.keys(EXTRA_BACKFILLS)) {
+    if (!backfillFiles.includes(name)) {
+      console.error(
+        `EXTRA_BACKFILLS names ${name}, which is not in the migrations directory. ` +
+          `A rebuild that silently drops a declared step is not a rebuild.`
+      );
+      process.exit(1);
+    }
+    if (!reasoned(EXTRA_BACKFILLS[name])) {
+      console.error(`EXTRA_BACKFILLS[${name}] has no reason`);
+      process.exit(1);
+    }
+  }
 
   if (!backfillFiles.length) {
     console.error("no backfill migrations found");

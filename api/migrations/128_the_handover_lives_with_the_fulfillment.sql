@@ -82,118 +82,142 @@ ALTER TABLE shipping.shipments
 -- land. Drafts carry no order_id, so the one-fulfillment-per-order unique
 -- index is untouched.
 
-WITH minted AS (
-  INSERT INTO fulfillments.fulfillments (method_id, status)
-  SELECT c.fulfillment_method_id, 'PENDING'
-    FROM checkout.checkouts c
-   WHERE c.fulfillment_method_id IS NOT NULL
-     AND c.fulfillment_id IS NULL
-  RETURNING id, method_id
-),
-paired AS (
-  SELECT c.id AS checkout_id,
-         (SELECT m.id FROM minted m
-           WHERE m.method_id = c.fulfillment_method_id
-           LIMIT 1) AS fulfillment_id
-    FROM checkout.checkouts c
-   WHERE c.fulfillment_method_id IS NOT NULL
-     AND c.fulfillment_id IS NULL
-)
-UPDATE checkout.checkouts c
-   SET fulfillment_id = p.fulfillment_id
-  FROM paired p
- WHERE c.id = p.checkout_id
-   AND p.fulfillment_id IS NOT NULL;
+-- 2026-09-06 (ruling 82 rehearsal): sections 2 to 5 read nine columns of
+-- checkout.checkouts that SECTION 6 OF THIS SAME FILE drops. On a genesis
+-- build - the shape after 133, which is what ruling 82 gives production - they
+-- are already gone and the statements cannot even parse, so the chain aborted
+-- here. The whole data half is now guarded on one of those columns and run
+-- through EXECUTE, which defers the parse. Nothing is lost by skipping it: a
+-- genesis build has no carts at all, because checkout is device-sync and no
+-- backfill writes it.
+DO $do$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+     WHERE table_schema = 'checkout' AND table_name = 'checkouts'
+       AND column_name = 'fulfillment_method_id'
+  ) THEN
+    RAISE NOTICE '128: checkout.checkouts has already lost its January columns; sections 2-5 have nothing to move';
+    RETURN;
+  END IF;
 
--- ------------------------------------------------------- 3. the parcel facts
---
--- A SHIPMENT draft holding parcel choices needs a shell and a link, because
--- before this migration the shell was only ever created at placement.
+  EXECUTE $sql$
+      WITH minted AS (
+        INSERT INTO fulfillments.fulfillments (method_id, status)
+        SELECT c.fulfillment_method_id, 'PENDING'
+          FROM checkout.checkouts c
+         WHERE c.fulfillment_method_id IS NOT NULL
+           AND c.fulfillment_id IS NULL
+        RETURNING id, method_id
+      ),
+      paired AS (
+        SELECT c.id AS checkout_id,
+               (SELECT m.id FROM minted m
+                 WHERE m.method_id = c.fulfillment_method_id
+                 LIMIT 1) AS fulfillment_id
+          FROM checkout.checkouts c
+         WHERE c.fulfillment_method_id IS NOT NULL
+           AND c.fulfillment_id IS NULL
+      )
+      UPDATE checkout.checkouts c
+         SET fulfillment_id = p.fulfillment_id
+        FROM paired p
+       WHERE c.id = p.checkout_id
+         AND p.fulfillment_id IS NOT NULL;
+  $sql$;
 
-WITH wants_shell AS (
-  SELECT c.id AS checkout_id, c.fulfillment_id, c.direction
-    FROM checkout.checkouts c
-    JOIN fulfillments.fulfillments f ON f.id = c.fulfillment_id
-    JOIN fulfillments.methods m ON m.id = f.method_id
-   WHERE m.category = 'SHIPMENT'
-     AND f.order_id IS NULL
-     AND NOT EXISTS (
-       SELECT 1 FROM fulfillments.shipments fs WHERE fs.fulfillment_id = f.id
-     )
-     AND (c.shipper_address_id IS NOT NULL OR c.package_id IS NOT NULL
-       OR c.carrier_service_id IS NOT NULL
-       OR c.pickup_date IS NOT NULL OR c.pickup_time IS NOT NULL)
-),
-shells AS (
-  INSERT INTO shipping.shipments (direction)
-  SELECT CASE WHEN w.direction = 'sale' THEN 'Outbound'::shipping.direction
-              ELSE 'Inbound'::shipping.direction END
-    FROM wants_shell w
-  RETURNING id
-),
-numbered_shells AS (
-  SELECT id, row_number() OVER (ORDER BY id) AS n FROM shells
-),
-numbered_wants AS (
-  SELECT fulfillment_id, row_number() OVER (ORDER BY checkout_id) AS n FROM wants_shell
-)
-INSERT INTO fulfillments.shipments (fulfillment_id, shipment_id)
-SELECT w.fulfillment_id, s.id
-  FROM numbered_wants w
-  JOIN numbered_shells s ON s.n = w.n;
+  EXECUTE $sql$
+      -- ------------------------------------------------------- 3. the parcel facts
+      --
+      -- A SHIPMENT draft holding parcel choices needs a shell and a link, because
+      -- before this migration the shell was only ever created at placement.
 
-UPDATE shipping.shipments s
-   SET shipper_address_id = COALESCE(s.shipper_address_id, c.shipper_address_id),
-       package_id         = COALESCE(s.package_id, c.package_id),
-       carrier_service_id = COALESCE(s.carrier_service_id, c.carrier_service_id),
-       pickup_date        = COALESCE(s.pickup_date, c.pickup_date),
-       pickup_time        = COALESCE(s.pickup_time, c.pickup_time)
-  FROM fulfillments.shipments fs
-  JOIN checkout.checkouts c ON c.fulfillment_id = fs.fulfillment_id
- WHERE s.id = fs.shipment_id
-   AND (c.shipper_address_id IS NOT NULL OR c.package_id IS NOT NULL
-     OR c.carrier_service_id IS NOT NULL
-     OR c.pickup_date IS NOT NULL OR c.pickup_time IS NOT NULL);
+      WITH wants_shell AS (
+        SELECT c.id AS checkout_id, c.fulfillment_id, c.direction
+          FROM checkout.checkouts c
+          JOIN fulfillments.fulfillments f ON f.id = c.fulfillment_id
+          JOIN fulfillments.methods m ON m.id = f.method_id
+         WHERE m.category = 'SHIPMENT'
+           AND f.order_id IS NULL
+           AND NOT EXISTS (
+             SELECT 1 FROM fulfillments.shipments fs WHERE fs.fulfillment_id = f.id
+           )
+           AND (c.shipper_address_id IS NOT NULL OR c.package_id IS NOT NULL
+             OR c.carrier_service_id IS NOT NULL
+             OR c.pickup_date IS NOT NULL OR c.pickup_time IS NOT NULL)
+      ),
+      shells AS (
+        INSERT INTO shipping.shipments (direction)
+        SELECT CASE WHEN w.direction = 'sale' THEN 'Outbound'::shipping.direction
+                    ELSE 'Inbound'::shipping.direction END
+          FROM wants_shell w
+        RETURNING id
+      ),
+      numbered_shells AS (
+        SELECT id, row_number() OVER (ORDER BY id) AS n FROM shells
+      ),
+      numbered_wants AS (
+        SELECT fulfillment_id, row_number() OVER (ORDER BY checkout_id) AS n FROM wants_shell
+      )
+      INSERT INTO fulfillments.shipments (fulfillment_id, shipment_id)
+      SELECT w.fulfillment_id, s.id
+        FROM numbered_wants w
+        JOIN numbered_shells s ON s.n = w.n;
 
--- --------------------------------------------------------- 4. the collection
+      UPDATE shipping.shipments s
+         SET shipper_address_id = COALESCE(s.shipper_address_id, c.shipper_address_id),
+             package_id         = COALESCE(s.package_id, c.package_id),
+             carrier_service_id = COALESCE(s.carrier_service_id, c.carrier_service_id),
+             pickup_date        = COALESCE(s.pickup_date, c.pickup_date),
+             pickup_time        = COALESCE(s.pickup_time, c.pickup_time)
+        FROM fulfillments.shipments fs
+        JOIN checkout.checkouts c ON c.fulfillment_id = fs.fulfillment_id
+       WHERE s.id = fs.shipment_id
+         AND (c.shipper_address_id IS NOT NULL OR c.package_id IS NOT NULL
+           OR c.carrier_service_id IS NOT NULL
+           OR c.pickup_date IS NOT NULL OR c.pickup_time IS NOT NULL);
 
-INSERT INTO fulfillments.pickups (fulfillment_id, pickup_address_id, start_time)
-SELECT c.fulfillment_id, c.pickup_address_id, c.appointment_time
-  FROM checkout.checkouts c
-  JOIN fulfillments.fulfillments f ON f.id = c.fulfillment_id
-  JOIN fulfillments.methods m ON m.id = f.method_id
- WHERE m.category = 'PICKUP'
-   AND (c.pickup_address_id IS NOT NULL OR c.appointment_time IS NOT NULL)
-   AND NOT EXISTS (
-     SELECT 1 FROM fulfillments.pickups p WHERE p.fulfillment_id = f.id
-   );
+      -- --------------------------------------------------------- 4. the collection
 
-UPDATE fulfillments.pickups p
-   SET pickup_address_id = COALESCE(p.pickup_address_id, c.pickup_address_id),
-       start_time        = COALESCE(p.start_time, c.appointment_time)
-  FROM checkout.checkouts c
- WHERE p.fulfillment_id = c.fulfillment_id
-   AND (c.pickup_address_id IS NOT NULL OR c.appointment_time IS NOT NULL);
+      INSERT INTO fulfillments.pickups (fulfillment_id, pickup_address_id, start_time)
+      SELECT c.fulfillment_id, c.pickup_address_id, c.appointment_time
+        FROM checkout.checkouts c
+        JOIN fulfillments.fulfillments f ON f.id = c.fulfillment_id
+        JOIN fulfillments.methods m ON m.id = f.method_id
+       WHERE m.category = 'PICKUP'
+         AND (c.pickup_address_id IS NOT NULL OR c.appointment_time IS NOT NULL)
+         AND NOT EXISTS (
+           SELECT 1 FROM fulfillments.pickups p WHERE p.fulfillment_id = f.id
+         );
 
--- ------------------------------------------------------- 5. the store visit
+      UPDATE fulfillments.pickups p
+         SET pickup_address_id = COALESCE(p.pickup_address_id, c.pickup_address_id),
+             start_time        = COALESCE(p.start_time, c.appointment_time)
+        FROM checkout.checkouts c
+       WHERE p.fulfillment_id = c.fulfillment_id
+         AND (c.pickup_address_id IS NOT NULL OR c.appointment_time IS NOT NULL);
 
-INSERT INTO fulfillments.directs (fulfillment_id, location_id, is_appointment, start_time)
-SELECT c.fulfillment_id, c.appointment_location_id, true, c.appointment_time
-  FROM checkout.checkouts c
-  JOIN fulfillments.fulfillments f ON f.id = c.fulfillment_id
-  JOIN fulfillments.methods m ON m.id = f.method_id
- WHERE m.category = 'DIRECT'
-   AND (c.appointment_location_id IS NOT NULL OR c.appointment_time IS NOT NULL)
-   AND NOT EXISTS (
-     SELECT 1 FROM fulfillments.directs d WHERE d.fulfillment_id = f.id
-   );
+      -- ------------------------------------------------------- 5. the store visit
 
-UPDATE fulfillments.directs d
-   SET location_id = COALESCE(d.location_id, c.appointment_location_id),
-       start_time  = COALESCE(d.start_time, c.appointment_time)
-  FROM checkout.checkouts c
- WHERE d.fulfillment_id = c.fulfillment_id
-   AND (c.appointment_location_id IS NOT NULL OR c.appointment_time IS NOT NULL);
+      INSERT INTO fulfillments.directs (fulfillment_id, location_id, is_appointment, start_time)
+      SELECT c.fulfillment_id, c.appointment_location_id, true, c.appointment_time
+        FROM checkout.checkouts c
+        JOIN fulfillments.fulfillments f ON f.id = c.fulfillment_id
+        JOIN fulfillments.methods m ON m.id = f.method_id
+       WHERE m.category = 'DIRECT'
+         AND (c.appointment_location_id IS NOT NULL OR c.appointment_time IS NOT NULL)
+         AND NOT EXISTS (
+           SELECT 1 FROM fulfillments.directs d WHERE d.fulfillment_id = f.id
+         );
+
+      UPDATE fulfillments.directs d
+         SET location_id = COALESCE(d.location_id, c.appointment_location_id),
+             start_time  = COALESCE(d.start_time, c.appointment_time)
+        FROM checkout.checkouts c
+       WHERE d.fulfillment_id = c.fulfillment_id
+         AND (c.appointment_location_id IS NOT NULL OR c.appointment_time IS NOT NULL);
+  $sql$;
+END $do$;
 
 -- ------------------------------------------------------------- 6. the drop
 --

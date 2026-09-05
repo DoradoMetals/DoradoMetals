@@ -1,3 +1,7 @@
+-- superseded-by-genesis: core.leads was dissolved by 013 and does not exist in a genesis build;
+--   029_genesis_backfill.sql copies exchange.leads into leads.leads
+--   instead, which is where the rows live now.
+--
 -- Bring core.leads' data up to date with exchange.leads.
 --
 -- core.leads was populated by a one-off copy in January and has drifted: rows
