@@ -3,22 +3,18 @@
 import { Amount, Divider } from '@dorado/components'
 import { payoutMethodIcon, PayoutMethodType } from '@/features/payouts/types'
 import { usePaymentMethods } from '@dorado/client'
-import { usePayoutDetails } from '@dorado/client'
+import { usePaymentDetailsBank } from '@dorado/client'
 import { PurchaseOrderDrawerContentProps, statusConfig } from '@/features/orders/purchaseOrders/types'
 import RefinerValues from '@/features/orders/purchaseOrders/admin/adminPurchaseOrderDrawer/adminPurchaseOrderDrawerContents/editRefinerValues'
 import ActualsEditor from '@/features/orders/purchaseOrders/admin/adminPurchaseOrderDrawer/adminPurchaseOrderDrawerContents/editActualValues'
-import { useOrderPayouts } from '@dorado/client'
 
 export default function AdminPaymentProcessingPurchaseOrder({ view }: PurchaseOrderDrawerContentProps) {
   const { order } = view
 
-  // A CONTAINER for the order's payout (ruling 14). The composed wire carried
-  // a `payout` member that was an OBJECT OF NULLS when the order had none - a
-  // LEFT JOIN feeding jsonb_build_object - so `payout?.method` read
-  // `undefined` rather than throwing. It is its own read now, last-four only,
-  // and an order with no payout answers [].
-  const { data: payouts = [] } = useOrderPayouts(order.id)
-  const payout = payouts[0] ?? null
+  // THE PAYOUT COMES WITH THE VIEW. It was a read of its own beside a view
+  // that already carries `OrderViewPayout` - the method, the holder and the
+  // two last-fours - which is a second request for data in hand.
+  const payout = view.payout
   const config = statusConfig[order.status ?? '']
   // The client-side option list (icon, label, expected delay) is UI
   // vocabulary, not a column - matched on the row's method.
@@ -32,10 +28,7 @@ export default function AdminPaymentProcessingPurchaseOrder({ view }: PurchaseOr
     payout?.method === 'ACH' || payout?.method === 'WIRE'
   // Payout-keyed: GET /payouts/:id/details takes the payout's own id off the
   // order wire.
-  const { data: bank, isLoading: bankLoading } = usePayoutDetails(
-    payout?.id,
-    needsBankDetails
-  )
+  const { data: bank, isLoading: bankLoading } = usePaymentDetailsBank(payout?.id, needsBankDetails)
   const show = (value: string | null | undefined) =>
     bankLoading ? 'loading…' : (value ?? '—')
 

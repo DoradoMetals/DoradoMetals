@@ -7,12 +7,10 @@ import { useRefinerMetals, useRefinerOrder } from '@/features/refiners/queries'
 import { usePatchRefinerItem, usePatchRefinerOrder } from '@/features/refiners/queries'
 
 import { PurchaseOrderDrawerContentProps } from '@/features/orders/purchaseOrders/types'
-import { assignScrapItemNames } from '@/features/orders/display'
 import { useProducts } from '@/features/products/queries'
 import { useRefinerItems } from '@/features/refiners/queries'
 import { useSpotPrices } from '@/features/spots/queries'
 import { useOrderSpots } from '@dorado/client'
-import { nameOf, nameSpots } from '@/features/orders/display'
 
 export default function RefinerValues({ view }: PurchaseOrderDrawerContentProps) {
   const { order, items } = view
@@ -31,8 +29,8 @@ export default function RefinerValues({ view }: PurchaseOrderDrawerContentProps)
   // metal_id now (D214 item 11) - RefinerSpotWrite takes the id, not a name
   // the server had to resolve back against metals.metals.
   const { data: spotPrices = [] } = useSpotPrices()
-  const orderSpotPrices = nameSpots(orderSpotRows, spotPrices)
-  const refinerSpotPrices = nameSpots(refinerSpotRows, spotPrices)
+  const orderSpotPrices = orderSpotRows
+  const refinerSpotPrices = refinerSpotRows
 
   // Everything here is refiner data: spots and fee are ENGAGEMENT facts on
   // refiners.orders, premium is per-line on refiners.items. Separate
@@ -52,14 +50,11 @@ export default function RefinerValues({ view }: PurchaseOrderDrawerContentProps)
 
   // bullion_id is the discriminator; a scrap line's display name is derived,
   // a bullion line's comes from the catalogue.
-  const scrapItems = assignScrapItemNames(
-    items.filter((it) => it.bullion_id === null),
-    (metal_id: string) => nameOf(spotPrices, metal_id)
-  )
+  const scrapItems = items.filter((it) => it.bullion_id === null)
   const bullionItems = items.filter((it) => it.bullion_id !== null)
   const rows = [
-    ...scrapItems.map((it) => ({ id: it.id, label: it.name })),
-    ...bullionItems.map((it) => ({ id: it.id, label: nameOf(catalogue, it.bullion_id) ?? 'Bullion' })),
+    ...scrapItems.map((it) => ({ id: it.id, label: it.item_name })),
+    ...bullionItems.map((it) => ({ id: it.id, label: it.product_name ?? 'Bullion' })),
   ]
   const refinerPremiumOf = (item_id: string) =>
     refinerItems.find((r) => r.order_item_id === item_id)?.premium ?? null
@@ -73,7 +68,7 @@ export default function RefinerValues({ view }: PurchaseOrderDrawerContentProps)
             {refinerSpotPrices.map((spot) => (
               <div key={spot.id} className="flex flex-col w-full">
                 <small className="flex items-center justify-between w-full">
-                  {spot.name}
+                  {spot.metal_id}
                 </small>
 
                 <div className="flex items-center gap-1 w-full">

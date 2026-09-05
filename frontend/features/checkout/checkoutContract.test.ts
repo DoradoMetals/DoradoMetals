@@ -25,6 +25,8 @@ const serverRow = (over: Record<string, unknown> = {}) => ({
   payment_details_id: null,
   recipient_address_id: null,
   fulfillment_id: null,
+  // The view carries the basket now, not just the pointers.
+  items: [],
   missing: [
     "items",
     "shipper_address_id",

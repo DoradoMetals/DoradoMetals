@@ -53,7 +53,7 @@ vi.mock("@dorado/components", async (importOriginal) => ({
 
 import { stubCheckoutServer, type CheckoutServer } from "@/shared/tests/checkoutServer";
 import OrderSummary from "@/features/checkout/sales-order-checkout/summary/orderSummary";
-import type { SalesOrderQuote } from "@dorado/contracts";
+import type { SaleQuote } from "@dorado/contracts";
 import type { Product } from "@/features/products/types";
 
 const eagle = (): Product =>
@@ -85,8 +85,13 @@ const eagle = (): Product =>
 
 // Distinct values so an assertion can only match the field it means. The
 // quote's line id matches eagle()'s so the item row shows its line_total.
-const prices = (): SalesOrderQuote => ({
+const prices = (): SaleQuote => ({
+  direction: "sale",
+  checkout_id: "co-1",
   spots_at: "2026-08-27T00:00:00.000Z",
+  unpriceable: [],
+  shipping_service: "Standard",
+  sales_tax_state: "TX",
   item_total: 4500,
   base_total: 4577.25,
   shipping_charge: 25,
@@ -99,7 +104,11 @@ const prices = (): SalesOrderQuote => ({
   sales_tax: 52.25,
   order_total: 4714.57,
   payment_surface: "card",
-  items: [{ id: "p-1", quantity: 1, unit_ask: 4500, line_total: 4500, sales_tax_rate: 0.0116 }],
+  items: [{
+    id: "row-1", kind: "product", bullion_id: "p-1", metal_id: "Gold", content: 1,
+    quantity: 1, premium: 300, unit_ask: 4500, line_total: 4500,
+    sales_tax_rate: 0.0116, sales_tax: 52.25,
+  }],
 });
 
 beforeEach(() => {

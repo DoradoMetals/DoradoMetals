@@ -16,12 +16,12 @@ import {
 } from '@/features/orders/salesOrders/types'
 import { useSaleShippingServices } from '@/features/shipping/queries'
 import { usePaymentMethods } from '@dorado/client'
-import type { Address, AdminUser, SalesOrderQuote, SpotPrice } from "@dorado/contracts";
+import type { Address, AdminUser, SaleQuote } from "@dorado/contracts";
 import { useAdminSalesOrderCheckoutStore } from '@/shared/store/adminSalesOrderCheckoutStore'
 import fuzzysort from 'fuzzysort'
 import { Product } from '@/features/products/types'
-import { lineFromProduct } from '@/features/checkout/items/types'
 import { useDecoratedLines } from '@/features/checkout/items/flair'
+import { useBasket, useCheckoutItemActions } from '@/features/checkout/items/queries'
 import Image from 'next/image'
 import NumberFlow from '@number-flow/react'
 import { useEffect, useMemo, useState, useTransition } from 'react'
@@ -30,16 +30,17 @@ import { loadStripe } from '@stripe/stripe-js'
 import { AddressSelect } from '@/features/addresses/ui/AddressSelect'
 import { useUserAddress, useUserAddressLinks } from '@/features/addresses/queries'
 import { useSpotPrices } from '@/features/spots/queries'
-import { useCatalogQuote, useSalesOrderQuote } from '@/features/quotes/queries'
+import { useCheckoutQuote } from '@/features/quotes/queries'
 import { useProducts } from '@/features/products/queries'
 import { useAdminCreateSalesOrder } from '@/features/orders/salesOrders/admin/queries'
+import { toNewCheckoutItem } from '@/features/checkout/items/types'
 import { usePaymentIntentSecret, useUpdatePaymentIntent } from '@dorado/client'
 import StripeWrapper from '@/features/stripe/ui/StripeWrapper'
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
 export function CreateSalesOrderDrawer() {
-  const { data, setData, items: draft } = useAdminSalesOrderCheckoutStore()
+  const { data, setData } = useAdminSalesOrderCheckoutStore()
   const { activeDrawer, closeDrawer, createSalesOrderUser } = useDrawerStore()
 
 
@@ -61,23 +62,12 @@ export function CreateSalesOrderDrawer() {
   const userAddress = address ? linkOf.get(address.id) : undefined
 
 
-  // The preview is the server's sales-order quote (Jacob's no-previews
-  // ruling; calculateSalesOrderPrices died here 2026-08-28). It prices at
-  // LIVE server spots, and so does the placement - the drawer no longer
-  // overrides them, because nothing ever carried the override.
-  // user_id names the TARGET customer, honored because this caller is an
-  // admin: funds price against that customer's row, not the admin's own.
-  // No using_funds (D214 item 11): credit applies whenever the customer has
-  // a balance, same as placement.
-  const { data: orderPrices } = useSalesOrderQuote({
-    items: draft.flatMap((i) =>
-      i.bullion_id ? [{ id: i.bullion_id, quantity: i.quantity ?? 1 }] : []
-    ),
-    shipping_service: data.service?.value ?? null,
-    payment_method: data.payment_method ?? null,
-    address_id: address?.id ?? null,
-    user_id: createSalesOrderUser?.id ?? null,
-  })
+  // THE PREVIEW IS THE CUSTOMER'S OWN SALE CHECKOUT, PRICED. It used to hand
+  // a drawer-local basket plus a service CODE and a payment-method TYPE to a
+  // body-shaped quote; the row holds all three, and `user_id` names the TARGET
+  // customer - honored because this caller is an admin.
+  const { data: answer } = useCheckoutQuote('sale', { user_id: createSalesOrderUser?.id })
+  const orderPrices = answer?.direction === 'sale' ? answer : undefined
 
 
 
@@ -89,7 +79,7 @@ export function CreateSalesOrderDrawer() {
 
       <div className="flex flex-col gap-2 items-start">
         <SpotSelector />
-        <ProductSelector />
+        <ProductSelector user_id={createSalesOrderUser?.id ?? ''} />
       </div>
 
       <Divider />
@@ -128,7 +118,7 @@ function SpotSelector() {
     <div className="grid grid-cols-2 w-full gap-4 sm:flex sm:items-center sm:justify-between sm:gap-4">
       {spots.map((spot) => (
         <div key={spot.id} className="flex flex-col w-full">
-          <p>{spot.name}</p>
+          <p>{spot.id}</p>
 
           <div className="flex items-center gap-1 w-full">
             <Input
@@ -145,9 +135,13 @@ function SpotSelector() {
   )
 }
 
-function ProductSelector() {
+// THE DRAFT IS THE CUSTOMER'S OWN SALE BASKET, not a persisted copy of it in
+// a store (ruling 63). Every line here is a `checkout.items` row belonging to
+// the customer the admin is ordering for, and the create body is those rows.
+function ProductSelector({ user_id }: { user_id: string }) {
   const { data: products = [] } = useProducts()
-  const { items, setItems } = useAdminSalesOrderCheckoutStore()
+  const items = useBasket('sale', user_id)
+  const { addItem, addOne, removeOne, removeAll } = useCheckoutItemActions(user_id)
   const rows = useDecoratedLines(items)
   const [productQuery, setProductQuery] = useState('')
 
@@ -158,37 +152,12 @@ function ProductSelector() {
       .map((r) => r.obj)
   }, [productQuery, products])
 
-  // The per-line preview is the server's ask quote, batched over the picked
-  // items. It prices from LIVE server spots: the drawer's locked spot
-  // overrides feed the CREATE body, never this preview.
-  const { data: quote } = useCatalogQuote(
-    items.flatMap((i) => (i.bullion_id ? [{ id: i.bullion_id, quantity: i.quantity ?? 1 }] : [])),
-    'ask'
+  // Each line's total is the checkout quote's own, keyed by the row's id.
+  const { data: answer } = useCheckoutQuote('sale', { user_id })
+  const lineTotals = new Map(
+    (answer?.direction === 'sale' ? answer.items : []).map((line) => [line.id, line.line_total])
   )
-  const lineTotals = new Map((quote?.items ?? []).map((line) => [line.id, line.line_total]))
 
-  function addItem(product: Product) {
-    const found = items.find((i) => i.bullion_id === product.id)
-    setItems(
-      found
-        ? items.map((i) =>
-            i.bullion_id === product.id ? { ...i, quantity: (i.quantity ?? 1) + 1 } : i
-          )
-        : [...items, lineFromProduct(product)]
-    )
-  }
-
-  function removeOne(bullion_id: string) {
-    setItems(
-      items
-        .map((i) => (i.bullion_id === bullion_id ? { ...i, quantity: (i.quantity ?? 1) - 1 } : i))
-        .filter((i) => (i.quantity ?? 1) > 0)
-    )
-  }
-
-  function removeAll(bullion_id: string) {
-    setItems(items.filter((i) => i.bullion_id !== bullion_id))
-  }
 
   return (
     <div className="flex flex-col items-center w-full">
@@ -198,16 +167,14 @@ function ProductSelector() {
         items={productMatches.map((p) => ({ id: p.id, textValue: p.name }))}
         onSelect={(item) => {
           const product = products.find((p) => p.id === item.id)
-          if (product) addItem(product)
+          if (product) addItem('sale', { bullion_id: product.id, quantity: 1 })
           setProductQuery(item.textValue)
         }}
         placeholder="Search products…"
       />
       <div className="w-full flex-col">
         <div className="flex-col gap-5">
-          {rows.map(({ line, index, product, name, image_front, mint_name }) => {
-            const bullion_id = line.bullion_id!
-
+          {rows.map(({ line, index, name, image_front, mint_name }) => {
             return (
               <div
                 key={line.id}
@@ -237,7 +204,7 @@ function ProductSelector() {
                       variant="tertiary"
                       size="sm"
                       className="p-0 pb-2"
-                      onClick={() => removeAll(bullion_id)}
+                      onClick={() => removeAll('sale', line)}
                     >
                       <Trash2 size={16} />
                     </Button>
@@ -249,7 +216,7 @@ function ProductSelector() {
                         variant="tertiary"
                         size="sm"
                         className="p-1"
-                        onClick={() => removeOne(bullion_id)}
+                        onClick={() => removeOne('sale', line)}
                       >
                         <Minus size={16} />
                       </Button>
@@ -264,13 +231,13 @@ function ProductSelector() {
                         variant="tertiary"
                         size="sm"
                         className="p-1"
-                        onClick={() => product && addItem(product)}
+                        onClick={() => addOne('sale', line)}
                       >
                         <Plus size={16} />
                       </Button>
                     </div>
                     <strong>
-                      <Amount value={lineTotals.get(bullion_id) ?? 0} />
+                      <Amount value={lineTotals.get(line.id) ?? 0} />
                     </strong>
                   </div>
                 </div>
@@ -394,7 +361,7 @@ function ServiceSelector() {
   )
 }
 
-function OrderSummary({ orderPrices }: { orderPrices?: SalesOrderQuote }) {
+function OrderSummary({ orderPrices }: { orderPrices?: SaleQuote }) {
   const { data } = useAdminSalesOrderCheckoutStore()
   const { data: saleMethods = [] } = usePaymentMethods('sale')
   const router = useRouter()
@@ -494,7 +461,7 @@ function CreditSelect({
   orderPrices,
   funds,
 }: {
-  orderPrices?: SalesOrderQuote
+  orderPrices?: SaleQuote
   funds: number
 }) {
   const { data, setData } = useAdminSalesOrderCheckoutStore()
@@ -548,21 +515,16 @@ function CreditSelect({
 
 function PaymentSelect(
   { orderPrices, user, address }:
-  { orderPrices?: SalesOrderQuote; user: AdminUser; address: Address | null }
+  { orderPrices?: SaleQuote; user: AdminUser; address: Address | null }
 ) {
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const { closeDrawer } = useDrawerStore()
   const [isPending, startTransition] = useTransition()
 
-  const { data, setData, items } = useAdminSalesOrderCheckoutStore()
+  const { data, setData } = useAdminSalesOrderCheckoutStore()
   const createOrder = useAdminCreateSalesOrder(user.id!)
   const updatePaymentIntent = useUpdatePaymentIntent()
   const { data: clientSecret } = usePaymentIntentSecret('admin', user.id!)
-  // IDS, NOT CODES (ruling 43). The hook moved to @dorado/client and takes the
-  // contract's own UpdatePaymentIntentBody; the code -> id resolution it used
-  // to do internally is these two lines, against rows this drawer already has.
-  const { data: saleServices = [] } = useSaleShippingServices()
-  const { data: saleMethods = [] } = usePaymentMethods('sale')
   const isOrderCreating = createOrder.isPending
 
   const cardNeeded = useMemo(() => {
@@ -572,6 +534,7 @@ function PaymentSelect(
       return true
     }
   }, [data.payment_method])
+  const items = useBasket('sale', user.id!)
   const itemsMissing = items.length === 0
 
   const disabled =
@@ -582,28 +545,15 @@ function PaymentSelect(
     isPending ||
     (cardNeeded && (!clientSecret || !stripePromise))
 
-  // No `spots` or `using_funds`: the server prices at its own live feed and
-  // applies credit whenever the customer has a balance. `user_id` names the
-  // TARGET customer - ADMIN ONLY, and this is the one caller that sends it.
+  // THE INTENT RE-PRICES FROM THE CHECKOUT ROW. Its body used to carry the
+  // items, the service, the payment method and the address, resolved from two
+  // reference lists here; `UpdatePaymentIntentBody` is `{ user_id, type }` now
+  // and the server reads the rest off the customer's own row.
   useEffect(() => {
     if (clientSecret && (orderPrices?.post_charges_amount ?? 0) > 0 && cardNeeded && !itemsMissing) {
-      updatePaymentIntent.mutate({
-        items: items.flatMap((i) =>
-          i.bullion_id ? [{ id: i.bullion_id, quantity: i.quantity ?? 1 }] : []
-        ),
-        carrier_service_id: saleServices.find(
-          (s) => s.code === (data.service?.value ?? 'STANDARD')
-        )?.id,
-        payment_method_id: saleMethods.find(
-          (m) => m.type === (data.payment_method ?? 'CARD')
-        )?.id,
-        type: 'admin',
-        address_id: address?.id || undefined,
-        user_id: user.id!,
-      })
+      updatePaymentIntent.mutate({ type: 'admin', user_id: user.id! })
     }
   }, [
-    items,
     clientSecret,
     orderPrices?.post_charges_amount,
     data.payment_method,
@@ -637,11 +587,14 @@ function PaymentSelect(
   // intent is selected by user_id, because an id in the body could name
   // somebody else's. The card flow calls this once Stripe has confirmed.
   const createOrderForIntent = async () => {
-    await createOrder.mutateAsync({ sales_order: form(), items })
+    await createOrder.mutateAsync({ sales_order: form(), items: items.map(toNewCheckoutItem) })
   }
 
   const handleSubmit = () => {
-    createOrder.mutate({ sales_order: form(), items }, { onSuccess: finishCreate })
+    createOrder.mutate(
+      { sales_order: form(), items: items.map(toNewCheckoutItem) },
+      { onSuccess: finishCreate }
+    )
   }
 
   return (

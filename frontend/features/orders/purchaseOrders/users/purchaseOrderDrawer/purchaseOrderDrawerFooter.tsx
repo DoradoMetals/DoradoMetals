@@ -3,7 +3,6 @@ import { Accordion, Amount, Table, TableBody, TableCell, TableHead, TableHeader,
 
 import { useMemo, useState } from 'react'
 import { PurchaseOrderDrawerFooterProps, statusConfig } from '@/features/orders/purchaseOrders/types'
-import { assignScrapItemNames } from '@/features/orders/display'
 
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 import { payoutMethodIcon, PayoutMethodType } from '@/features/payouts/types'
@@ -15,8 +14,7 @@ import { useSpotPrices } from '@/features/spots/queries'
 // Every dollar figure below comes from the order quote - the server prices
 // the order's own items at its own spots (Jacob's no-previews ruling). The
 // client keeps only weight/rate display math.
-import { useOrderQuote } from '@/features/quotes/queries'
-import { nameOf } from '@/features/orders/display'
+import { useOrderPricing } from '@/features/quotes/queries'
 
 // A CONTAINER (ruling 14): it holds the order id and calls each read itself,
 // one hop from what it renders. The composed order that used to carry all of
@@ -45,7 +43,7 @@ export default function PurchaseOrderDrawerFooter({ view }: PurchaseOrderDrawerF
   const returnService = returnShipment?.service?.name
   const payout = view.payout
 
-  const { data: quote } = useOrderQuote(order.id)
+  const { data: quote } = useOrderPricing(order.id)
   // Quote lines pair to order items BY ID - these are stored rows, unlike the
   // purchase basket quote's index pairing.
   const quoteLineById = useMemo(
@@ -62,10 +60,7 @@ export default function PurchaseOrderDrawerFooter({ view }: PurchaseOrderDrawerF
   })
   // bullion_id IS the discriminator now - null means scrap. `item_type` was
   // derived in the compose layer and has no column.
-  const scrapItems = assignScrapItemNames(
-    items.filter((item) => item.bullion_id === null),
-    (metal_id: string) => nameOf(spotPrices, metal_id)
-  )
+  const scrapItems = items.filter((item) => item.bullion_id === null)
   const bullionItems = items.filter((item) => item.bullion_id !== null)
   const { data: payoutMethods = [] } = usePaymentMethods('purchase')
   const payoutMethod = payoutMethods.find((p) => p.type === payout?.method)
@@ -100,7 +95,7 @@ export default function PurchaseOrderDrawerFooter({ view }: PurchaseOrderDrawerF
             <TableBody>
               {scrapItems.map((item, i) => (
                 <TableRow key={i}>
-                  <TableCell className="text-left">{item.name}</TableCell>
+                  <TableCell className="text-left">{item.item_name}</TableCell>
                   <TableCell className="text-center">{item.content?.toFixed(3)} toz</TableCell>
                   {/* THE SCRAP LINE'S PREMIUM IS ITS OWN. The composed wire
                       served scrap.bid_premium FROM item.premium - 085 dropped
@@ -109,7 +104,7 @@ export default function PurchaseOrderDrawerFooter({ view }: PurchaseOrderDrawerF
                       one value read twice. */}
                   <TableCell className="text-center">{formatRate(item.premium)}</TableCell>
                   <TableCell className="text-center">
-                    {((item.content ?? 0) * (item.premium ?? 1)).toFixed(3)} toz
+                    {(item.payable ?? 0).toFixed(3)} toz
                   </TableCell>
                   <TableCell className="text-right">
                     {/* Scrap line_total is the whole line - content is not
@@ -136,7 +131,7 @@ export default function PurchaseOrderDrawerFooter({ view }: PurchaseOrderDrawerF
               {bullionItems.map((item, i) => (
                 <TableRow key={i}>
                   <TableCell>{item.quantity}</TableCell>
-                  <TableCell>{nameOf(catalogue, item.bullion_id)}</TableCell>
+                  <TableCell>{item.product_name}</TableCell>
                   <TableCell className="text-right p-0">
                     {/* line_total is already unit_price * quantity. */}
                     <Amount value={quoteLineById.get(item.id)?.line_total ?? 0} />

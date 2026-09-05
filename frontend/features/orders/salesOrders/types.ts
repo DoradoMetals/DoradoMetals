@@ -165,4 +165,4 @@ export type AdminSaleCheckoutForm = SaleCheckoutForm & {
 
 // SalesOrderTotals lived here until 2026-08-28: the return shape of
 // calculateSalesOrderPrices, the last client money math on the sales side.
-// Every preview is the server's quote now (SalesOrderQuote).
+// Every preview is the server's quote now (SaleQuote).

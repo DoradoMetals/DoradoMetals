@@ -1,4 +1,4 @@
-import type { SalesOrderQuote } from '@dorado/contracts'
+import type { SaleQuote } from '@dorado/contracts'
 import { Amount } from '@dorado/components'
 
 // CREDIT IS NOT A CHOICE (ruling 47: "No reason to let them make a choice").
@@ -9,7 +9,7 @@ import { Amount } from '@dorado/components'
 // gone: it wrote a store field from the quote's own numbers, which the caller
 // can read directly - `beginning_funds >= base_total` is one expression, in
 // salesOrderCheckout.tsx, where the decision is used.
-export default function PaymentSelect({ orderPrices }: { orderPrices?: SalesOrderQuote }) {
+export default function PaymentSelect({ orderPrices }: { orderPrices?: SaleQuote }) {
   if (!orderPrices || orderPrices.beginning_funds <= 0) return null
 
   return (

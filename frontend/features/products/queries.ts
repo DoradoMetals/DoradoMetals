@@ -56,13 +56,13 @@ export function useSaveProduct() {
   return {
     ...update,
     mutate: (product: BullionAdmin) => {
-      const { id, metal, mint, supplier, created_at, updated_at, created_by, updated_by, ...columns } =
+      const { id, metal_id, mint, supplier, created_at, updated_at, created_by, updated_by, ...columns } =
         product
       update.mutate({
         id,
         patch: {
           ...columns,
-          metal_id: metals.find((m) => m.name === metal)?.id,
+          metal_id,
           mint_id: mints.find((m) => m.name === mint)?.id,
           supplier_id: suppliers.find((s) => s.organization.name === supplier)?.id,
         },

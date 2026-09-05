@@ -2,9 +2,8 @@ import { Button, Checkbox, Divider, Input, Select, Table, TableBody, TableCell, 
 import { Lock, RotateCcw, Unlock } from '@dorado/icons'
 import { outboundOf } from '@/features/shipping/queries'
 import { usePatchShipment } from '@/features/shipping/queries'
-import { useOrderShipments, usePatchPayout } from '@dorado/client'
-import type { OrderItem, OrderItemPatch, SpotPrice } from "@dorado/contracts";
-import type { NamedScrapItem } from '@/features/orders/display'
+import { useOrderShipments, usePatchPaymentDetails } from '@dorado/client'
+import type { OrderItemPatch, OrderSpot, OrderViewItem } from "@dorado/contracts";
 import { cn } from '@/shared/utils/cn'
 import { payoutMethodIcon, PayoutMethodType } from '@/features/payouts/types'
 import { usePaymentMethods } from '@dorado/client'
@@ -13,13 +12,12 @@ import {
   statusConfig,
   StatusConfigEntry,
 } from '@/features/orders/purchaseOrders/types'
-import { assignScrapItemNames } from '@/features/orders/display'
 import { useState } from 'react'
 import { Product } from '@/features/products/types'
 import { useSpotPrices } from '@/features/spots/queries'
 import { useProducts } from '@/features/products/queries'
 import { useCreateOrderItem, useDeleteOrderItem, useOrderSpots, usePatchOrderItem, useSetOrderSpots } from '@dorado/client'
-import { byId, nameOf, nameSpots, type NamedOrderSpot } from '@/features/orders/display'
+import { byId } from '@/features/orders/display'
 const METAL_ITEMS = ['Gold', 'Silver', 'Platinum', 'Palladium'].map((metal) => ({
   label: metal,
   value: metal,
@@ -29,14 +27,13 @@ export default function AdminReceivedPurchaseOrder({ view }: PurchaseOrderDrawer
   const { order } = view
 
   const { data: spotPrices = [] } = useSpotPrices()
-  const { data: orderSpotRows = [] } = useOrderSpots(order.id)
-  // Display composition, client-side: the rows carry metal_id; the reference
-  // read supplies the names this screen shows and mutates by.
-  const orderSpotPrices = nameSpots(orderSpotRows, spotPrices)
+  // The metal's id IS its name (migration 132), so an order spot needs nothing
+  // joined to it to be shown or mutated by.
+  const { data: orderSpotPrices = [] } = useOrderSpots(order.id)
 
   const setSpots = useSetOrderSpots()
   const patchShipment = usePatchShipment()
-  const patchPayout = usePatchPayout()
+  const patchPayout = usePatchPaymentDetails()
   const { data: payoutMethods = [] } = usePaymentMethods('purchase')
 
   // THE LINES, THE PARCEL AND THE PAYOUT ARE ALREADY HERE. This screen used
@@ -49,13 +46,10 @@ export default function AdminReceivedPurchaseOrder({ view }: PurchaseOrderDrawer
   const payout = view.payout
 
   // bullion_id is the discriminator - null means scrap.
-  const scrapItems = assignScrapItemNames(
-    items.filter((item) => item.bullion_id === null),
-    (metal_id: string) => nameOf(spotPrices, metal_id)
-  )
+  const scrapItems = items.filter((item) => item.bullion_id === null)
   const bullionItems = items.filter((item) => item.bullion_id !== null)
 
-  const handleUpdateSpot = (spot: NamedOrderSpot, updated_spot: number) => {
+  const handleUpdateSpot = (spot: OrderSpot, updated_spot: number) => {
     setSpots.mutate({ order_id: order.id, set: [{ metal_id: spot.metal_id, bid: updated_spot }] })
   }
 
@@ -103,7 +97,7 @@ export default function AdminReceivedPurchaseOrder({ view }: PurchaseOrderDrawer
               {orderSpotPrices.map((spot) => (
                 <div key={spot.id} className="flex flex-col w-full">
                   <small className="flex items-center justify-between w-full">
-                    {spot.name}
+                    {spot.metal_id}
                   </small>
 
                   <div className="flex items-center gap-1 w-full">
@@ -117,7 +111,7 @@ export default function AdminReceivedPurchaseOrder({ view }: PurchaseOrderDrawer
                       )}
                       defaultValue={
                         spot?.bid ??
-                        spotPrices?.find((s) => s.name === spot.name)?.bid ??
+                        spotPrices?.find((s) => s.id === spot.metal_id)?.bid ??
                         ''
                       }
                       onBlur={(e) => handleUpdateSpot(spot, Number(e.target.value))}
@@ -138,7 +132,6 @@ export default function AdminReceivedPurchaseOrder({ view }: PurchaseOrderDrawer
                 scrapItems={scrapItems}
                 config={config}
                 order_id={order.id}
-                spotPrices={spotPrices}
               />
             </div>
           )}
@@ -181,7 +174,7 @@ export default function AdminReceivedPurchaseOrder({ view }: PurchaseOrderDrawer
                 onBlur={(e) => {
                   if (!payout?.id) return
                   patchPayout.mutate({
-                    payout_id: payout.id,
+                    id: payout.id,
                     order_id: order.id,
                     patch: { cost: Number(e.target.value) },
                   })
@@ -213,7 +206,7 @@ export default function AdminReceivedPurchaseOrder({ view }: PurchaseOrderDrawer
               onCheckedChange={(checked) => {
                 if (!payout?.id) return
                 patchPayout.mutate({
-                  payout_id: payout.id,
+                  id: payout.id,
                   order_id: order.id,
                   patch: { waive_payout_fee: checked === true },
                 })
@@ -246,7 +239,7 @@ export default function AdminReceivedPurchaseOrder({ view }: PurchaseOrderDrawer
             onValueChange={(method) => {
               if (!payout?.id) return
               patchPayout.mutate({
-                payout_id: payout.id,
+                id: payout.id,
                 order_id: order.id,
                 patch: { method },
               })
@@ -263,15 +256,10 @@ function ScrapTable({
   scrapItems,
   config,
   order_id,
-  spotPrices,
 }: {
-  scrapItems: NamedScrapItem[]
+  scrapItems: OrderViewItem[]
   config: StatusConfigEntry
   order_id: string
-  // The metal NAME -> id lookup for a new line (D214 item 11): the create
-  // body names a metal by id, and this screen only has the display name off
-  // METAL_ITEMS, so the id is resolved against the cached spots reference.
-  spotPrices: SpotPrice[]
 }) {
   const [addMetal, setAddMetal] = useState('')
   const [editMode, setEditMode] = useState(false)
@@ -285,7 +273,7 @@ function ScrapTable({
   // a key present is written, an absent one is left alone. The old body sent
   // the full scrap object on every edit because the API's op SET every
   // column it knew; this sends only the field that changed.
-  const handleUpdateItem = (item: NamedScrapItem, changes: OrderItemPatch) => {
+  const handleUpdateItem = (item: OrderViewItem, changes: OrderItemPatch) => {
     patchItem.mutate({ item_id: item.id, order_id, patch: changes })
   }
 
@@ -305,8 +293,8 @@ function ScrapTable({
     patchItem.mutate({ item_id: item.id, order_id, patch: { confirmed: false } })
   }
 
-  const handleAddNew = (metal: string) => {
-    const metal_id = spotPrices.find((s) => s.name === metal)?.id
+  // The metal's id IS its name, so METAL_ITEMS' value is the column's value.
+  const handleAddNew = (metal_id: string) => {
     if (!metal_id) return
     createItem.mutate({
       order_id,
@@ -360,7 +348,7 @@ function ScrapTable({
                       />
                     )}
                   </TableCell>
-                  <TableCell className="text-left">{item.name}</TableCell>
+                  <TableCell className="text-left">{item.item_name}</TableCell>
                   <TableCell className="text-center">
                     {editMode && selectedIds.includes(item.id) ? (
                       <div className="relative flex justify-center">
@@ -540,7 +528,7 @@ function BullionTable({
   config,
   order_id,
 }: {
-  bullionItems: OrderItem[]
+  bullionItems: OrderViewItem[]
   // Reference data, resolved by the container and passed down - the row
   // carries bullion_id and nothing else about the product.
   catalogue: Product[]
@@ -559,7 +547,7 @@ function BullionTable({
   // ONE FLAT PATCH (D214 item 11): only the field that changed rides the
   // wire now - an absent key is left alone, so a quantity edit no longer has
   // to resend the current premium and vice versa.
-  const handleUpdateItem = (item: OrderItem, changes: OrderItemPatch) => {
+  const handleUpdateItem = (item: OrderViewItem, changes: OrderItemPatch) => {
     patchItem.mutate({ item_id: item.id, order_id, patch: changes })
   }
 
@@ -635,7 +623,7 @@ function BullionTable({
                       />
                     )}
                   </TableCell>
-                  <TableCell className="text-left">{nameOf(catalogue, item.bullion_id)}</TableCell>
+                  <TableCell className="text-left">{item.product_name}</TableCell>
                   <TableCell className="text-center">
                     {editMode && selectedIds.includes(item.id) ? (
                       <div className=" flex justify-center">

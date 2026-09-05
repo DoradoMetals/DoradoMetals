@@ -11,11 +11,10 @@ import { useState } from 'react'
 import { cn } from '@/shared/utils/cn'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useBasket, useCheckoutItemActions } from '@/features/checkout/items/queries'
-import { lineFromProduct } from '@/features/checkout/items/types'
 import { paymentMethodIcon, transitLabel } from '@/features/orders/salesOrders/types'
 import { usePaymentMethods, useSaleShippingServices } from '@dorado/client'
 import { useSpotPrices } from '@dorado/client'
-import { useCatalogQuote } from '@/features/quotes/queries'
+import { useProductQuote } from '@/features/quotes/queries'
 
 type ProductPageProps = {
   product: Product
@@ -47,8 +46,10 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
   const sellItems = useBasket('purchase')
   const { addItem, removeOne } = useCheckoutItemActions()
 
-  const quantity = buyItems.find((i) => i.bullion_id === selectedProduct.id)?.quantity ?? 0
-  const sellQuantity = sellItems.find((i) => i.bullion_id === selectedProduct.id)?.quantity ?? 0
+  const buyRow = buyItems.find((i) => i.bullion_id === selectedProduct.id)
+  const sellRow = sellItems.find((i) => i.bullion_id === selectedProduct.id)
+  const quantity = buyRow?.quantity ?? 0
+  const sellQuantity = sellRow?.quantity ?? 0
 
   const { data: spotPrices = [] } = useSpotPrices()
 
@@ -58,20 +59,16 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
   // selected variant changes. Ask is gated on `display` (already true - the
   // slug read itself filters it). The sell side has no gate at all (Jacob,
   // 2026-09-03, ruling 49), so the bid quote is always requested.
-  const { data: askQuote } = useCatalogQuote([{ id: selectedProduct.id }], 'ask')
-  const { data: bidQuote } = useCatalogQuote([{ id: selectedProduct.id }], 'bid')
+  const { data: askQuote } = useProductQuote(selectedProduct.id, 'ask')
+  const { data: bidQuote } = useProductQuote(selectedProduct.id, 'bid')
 
-  const price = askQuote?.items[0]?.unit_price ?? 0
-  const buybackPrice = bidQuote?.items[0]?.unit_price ?? 0
+  const price = askQuote?.unit_price ?? 0
+  const buybackPrice = bidQuote?.unit_price ?? 0
 
-  // The breakdowns' premium lines, DERIVED as on the cards: quoted price
-  // minus melt (content * ticker spot). Identical to the old client math
-  // (content * spot * (premium - 1)) whenever the quote and the ticker read
-  // the same spot tick; between their 10s refreshes they can differ by
-  // content * the spot's movement. Zero until a quote lands.
-  const askOverOrUnder = price === 0 ? 0 : price - selectedProduct.content * (spot?.ask ?? 0)
-  const bidOverOrUnder =
-    buybackPrice === 0 ? 0 : buybackPrice - selectedProduct.content * (spot?.bid ?? 0)
+  // OVER OR UNDER SPOT IS EACH QUOTE'S OWN `premium` - the number the server
+  // priced from, rather than a subtraction against a ticker read seconds apart.
+  const askOverOrUnder = askQuote?.premium ?? 0
+  const bidOverOrUnder = bidQuote?.premium ?? 0
 
   return (
     <div>
@@ -139,7 +136,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               <Button
                 className="w-full"
                 onClick={() => {
-                  addItem('sale', lineFromProduct(selectedProduct))
+                  addItem('sale', { bullion_id: selectedProduct.id, quantity: 1 })
                 }}
               >
                 Add to Checkout
@@ -149,7 +146,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                 <Button
                   size="icon"
                   onClick={() => {
-                    removeOne('sale', lineFromProduct(selectedProduct))
+                    buyRow && removeOne('sale', buyRow)
                   }}
                 >
                   <Minus size={20} />
@@ -158,7 +155,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                 <Button
                   size="icon"
                   onClick={() => {
-                    addItem('sale', lineFromProduct(selectedProduct))
+                    addItem('sale', { bullion_id: selectedProduct.id, quantity: 1 })
                   }}
                 >
                   <Plus size={20} />
@@ -170,7 +167,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
             {sellQuantity === 0 ? (
               <Button
                 className="w-full"
-                onClick={() => addItem('purchase', lineFromProduct(selectedProduct))}
+                onClick={() => addItem('purchase', { bullion_id: selectedProduct.id, quantity: 1 })}
               >
                 Sell to Us
               </Button>
@@ -178,14 +175,14 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               <div className="flex items-center justify-center gap-3">
                 <Button
                   size="icon"
-                  onClick={() => removeOne('purchase', lineFromProduct(selectedProduct))}
+                  onClick={() => sellRow && removeOne('purchase', sellRow)}
                 >
                   <Minus size={20} />
                 </Button>
                 <NumberFlow value={sellQuantity} trend={0} />
                 <Button
                   size="icon"
-                  onClick={() => addItem('purchase', lineFromProduct(selectedProduct))}
+                  onClick={() => addItem('purchase', { bullion_id: selectedProduct.id, quantity: 1 })}
                 >
                   <Plus size={20} />
                 </Button>
@@ -234,7 +231,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                 <div className="flex flex-col gap-2">
                   <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
                     <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-8')}>
-                      <small>{spot?.name} Ask Spot</small>
+                      <small>{selectedProduct.metal_id} Ask Spot</small>
                       <p>
                         <Amount value={spot?.ask ?? 0} />
                       </p>
@@ -286,7 +283,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                 <div className="flex flex-col gap-2">
                   <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
                     <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-8')}>
-                      <small>{spot?.name} Bid Spot</small>
+                      <small>{selectedProduct.metal_id} Bid Spot</small>
                       <p>
                         <Amount value={spot?.bid ?? 0} />
                       </p>
@@ -415,7 +412,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                   <p>{selectedProduct.purity.toFixed(4)}</p>
                 </div>
                 <div className="flex items-center w-full justify-between">
-                  <strong>{selectedProduct.metal_type} Content:</strong>
+                  <strong>{selectedProduct.metal_id} Content:</strong>
                   <p>{selectedProduct.content.toFixed(4)}</p>
                 </div>
               </div>
@@ -514,7 +511,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               <Button
                 className="w-full"
                 onClick={() => {
-                  addItem('sale', lineFromProduct(selectedProduct))
+                  addItem('sale', { bullion_id: selectedProduct.id, quantity: 1 })
                 }}
               >
                 Add to Checkout
@@ -524,7 +521,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                 <Button
                   size="icon"
                   onClick={() => {
-                    removeOne('sale', lineFromProduct(selectedProduct))
+                    buyRow && removeOne('sale', buyRow)
                   }}
                 >
                   <Minus size={20} />
@@ -533,7 +530,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                 <Button
                   size="icon"
                   onClick={() => {
-                    addItem('sale', lineFromProduct(selectedProduct))
+                    addItem('sale', { bullion_id: selectedProduct.id, quantity: 1 })
                   }}
                 >
                   <Plus size={20} />
@@ -545,7 +542,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
             {sellQuantity === 0 ? (
               <Button
                 className="w-full"
-                onClick={() => addItem('purchase', lineFromProduct(selectedProduct))}
+                onClick={() => addItem('purchase', { bullion_id: selectedProduct.id, quantity: 1 })}
               >
                 Sell to Us
               </Button>
@@ -553,14 +550,14 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               <div className="flex items-center justify-center gap-3">
                 <Button
                   size="icon"
-                  onClick={() => removeOne('purchase', lineFromProduct(selectedProduct))}
+                  onClick={() => sellRow && removeOne('purchase', sellRow)}
                 >
                   <Minus size={20} />
                 </Button>
                 <NumberFlow value={sellQuantity} trend={0} />
                 <Button
                   size="icon"
-                  onClick={() => addItem('purchase', lineFromProduct(selectedProduct))}
+                  onClick={() => addItem('purchase', { bullion_id: selectedProduct.id, quantity: 1 })}
                 >
                   <Plus size={20} />
                 </Button>
@@ -590,7 +587,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                 <div className="flex flex-col gap-2">
                   <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
                     <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-8')}>
-                      <small>{spot?.name} Ask Spot</small>
+                      <small>{selectedProduct.metal_id} Ask Spot</small>
                       <p>
                         <Amount value={spot?.ask ?? 0} />
                       </p>
@@ -642,7 +639,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                 <div className="flex flex-col gap-2">
                   <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
                     <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-8')}>
-                      <small>{spot?.name} Bid Spot</small>
+                      <small>{selectedProduct.metal_id} Bid Spot</small>
                       <p>
                         <Amount value={spot?.bid ?? 0} />
                       </p>
@@ -771,7 +768,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                   <p>{selectedProduct.purity.toFixed(4)}</p>
                 </div>
                 <div className="flex items-center w-full justify-between">
-                  <strong>{selectedProduct.metal_type} Content:</strong>
+                  <strong>{selectedProduct.metal_id} Content:</strong>
                   <p>{selectedProduct.content.toFixed(4)}</p>
                 </div>
               </div>

@@ -50,8 +50,6 @@ vi.mock("@dorado/components", async (importOriginal) => ({
 }));
 
 import { stubCheckoutServer, type CheckoutServer } from "@/shared/tests/checkoutServer";
-import { useCatalogQuote } from "@/features/quotes/queries";
-import { catalogQuoteItems, unitPricesById } from "@/features/quotes/catalogPrices";
 import ProductCard from "@/features/products/ui/ProductCard";
 import BullionCard from "@/features/products/ui/BullionCard";
 import type { Product } from "@/features/products/types";
@@ -97,9 +95,13 @@ const liveSpots = () => [
 // compute from the fixture spots (content * 3000 * 1.5 = 4500 ask,
 // content * 2900 * 0.5 = 1450 bid): a card showing 4501.25 or 1449.75 can
 // only have read the quote, never multiplied a bid/ask premium itself.
-const quotedLine = (id: string, side: "ask" | "bid") => {
+const quotedProduct = (bullion_id: string, side: "ask" | "bid") => {
   const unit_price = side === "ask" ? 4501.25 : 1449.75;
-  return { id, quantity: 1, unit_price, line_total: unit_price };
+  return {
+    bullion_id, side, spots_at: "2026-08-27T00:00:00.000Z", quantity: 1,
+    metal_id: "Gold", content: 1, premium: side === "ask" ? 1.25 : -0.25,
+    unit_price, line_total: unit_price,
+  };
 };
 
 // THE CLIENT PACKAGE TALKS TO `fetch`, NOT TO THIS APP'S AXIOS WRAPPER - the
@@ -115,16 +117,12 @@ beforeEach(() => {
   vi.stubGlobal("fetch", vi.fn(async (input: string, init?: RequestInit) => {
     const url = new URL(String(input), "http://test.local");
     if (url.pathname.endsWith("/quotes/catalog")) {
-      const { items, side } = JSON.parse(String(init?.body ?? "{}")) as {
-        items: { id: string }[]; side: "ask" | "bid";
+      const { bullion_id, side } = JSON.parse(String(init?.body ?? "{}")) as {
+        bullion_id: string; side: "ask" | "bid";
       };
-      const lines = items.map((i) => quotedLine(i.id, side));
       return {
         ok: true, status: 200,
-        text: async () => JSON.stringify({
-          side, spots_at: "2026-08-27T00:00:00.000Z", items: lines,
-          total: lines.reduce((acc, l) => acc + l.line_total, 0),
-        }),
+        text: async () => JSON.stringify(quotedProduct(bullion_id, side)),
       } as unknown as Response;
     }
     return checkoutFetch(input as unknown as RequestInfo, init);
@@ -133,22 +131,13 @@ beforeEach(() => {
 
 let checkout: CheckoutServer;
 
-// The cards take their prices as a map the PAGE quotes once for the whole
-// grid (app/buy/page.tsx, BullionTab). These harnesses are that page logic at
-// its smallest: the same hook, the same helpers, one group.
-function QuotedProductCard({ product, variants }: { product: Product; variants: Product[] }) {
-  const { data } = useCatalogQuote(catalogQuoteItems([{ default: product, variants }]), "ask");
-  return <ProductCard product={product} variants={variants} unitPrices={unitPricesById(data)} />;
-}
-
-function QuotedBullionCard({ product, variants }: { product: Product; variants: Product[] }) {
-  const { data } = useCatalogQuote(catalogQuoteItems([{ default: product, variants }]), "bid");
-  return <BullionCard product={product} variants={variants} unitPrices={unitPricesById(data)} />;
-}
+// EACH CARD QUOTES ITSELF. The page used to batch one catalog quote for the
+// whole grid and hand each card its price out of a map; the quote surface
+// prices ONE product now, so the card asks for its own selected variant.
 
 describe("the buy card", () => {
   test("shows the product and prices it at the quoted ask unit_price", async () => {
-    renderWithClient(<QuotedProductCard product={eagle()} variants={[]} />);
+    renderWithClient(<ProductCard product={eagle()} variants={[]} />);
     expect(screen.getAllByText("Gold American Eagle").length).toBeGreaterThan(0);
     // The server's number, not content * ask * premium (which would be 4500).
     await waitFor(() => expect(screen.getAllByText("4501.25").length).toBeGreaterThan(0));
@@ -156,7 +145,7 @@ describe("the buy card", () => {
 
   test("add to checkout puts the product in the sale basket, and a second add increments", async () => {
     const { container } = renderWithClient(
-      <ProductCard product={eagle()} variants={[]} unitPrices={{}} />
+      <ProductCard product={eagle()} variants={[]} />
     );
     // The whole card is role="button" and its accessible name contains every
     // word on it - anchor the match so it can only be the real control.
@@ -178,22 +167,22 @@ describe("the buy card", () => {
 
 describe("the sell card", () => {
   test("shows the product and prices it at the quoted bid unit_price", async () => {
-    renderWithClient(<QuotedBullionCard product={eagle()} variants={[]} />);
+    renderWithClient(<BullionCard product={eagle()} variants={[]} />);
     expect(screen.getAllByText("Gold American Eagle").length).toBeGreaterThan(0);
     // The server's number, not content * bid * premium (which would be 1450).
     await waitFor(() => expect(screen.getAllByText("1449.75").length).toBeGreaterThan(0));
   });
 
   test("add to the purchase basket stores a line naming the product", async () => {
-    renderWithClient(<BullionCard product={eagle()} variants={[]} unitPrices={{}} />);
+    renderWithClient(<BullionCard product={eagle()} variants={[]} />);
     await userEvent.click(screen.getByRole("button", { name: /^sell to us$/i }));
     await waitFor(() => expect(checkout.lines("purchase")).toHaveLength(1));
     const items = checkout.lines("purchase");
-    expect(items[0].bullion_id).toBe(eagle().id);
+    expect("bullion_id" in items[0] && items[0].bullion_id).toBe(eagle().id);
     // A bullion line names an id and a quantity and nothing else: the API
     // refuses one that spells its own weights (ruling 43), so toNewCheckoutItem
     // strips the snapshot the card carries for its own rendering.
-    expect(items[0].pre_melt).toBeUndefined();
-    expect(items[0].purity).toBeUndefined();
+    expect("pre_melt" in items[0]).toBe(false);
+    expect("purity" in items[0]).toBe(false);
   });
 });

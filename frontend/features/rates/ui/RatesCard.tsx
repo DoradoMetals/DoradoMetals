@@ -22,20 +22,25 @@ export default function RatesCard({
   const unit = rates[0]?.unit ?? 'troy_oz'
   const { cap, step } = getBoundsForMetal(metal)
 
-  const [items, setItems] = React.useState<AdminRate[]>(() => sortRatesByMin(rates))
+  // THE READ'S DATA IS THE STATE. Two effects used to copy `rates` into
+  // `items` - one when edit mode opened, one whenever the read landed - so the
+  // card held a duplicate of rows it was already looking at, and a refetch
+  // overwrote them. `draft` exists only while an edit is uncommitted, which is
+  // the one thing the server does not know.
+  const [draft, setDraft] = React.useState<AdminRate[] | null>(null)
   const [dirtyIds, setDirtyIds] = React.useState<Set<string>>(new Set())
+  const items = draft ?? sortRatesByMin(rates)
 
-  React.useEffect(() => {
-    if (!editing) return
-    setItems(sortRatesByMin(rates))
-    setDirtyIds(new Set())
-  }, [editing])
+  const setItems = (next: AdminRate[] | ((prev: AdminRate[]) => AdminRate[])) =>
+    setDraft((prev) =>
+      typeof next === 'function' ? next(prev ?? sortRatesByMin(rates)) : next
+    )
 
-  React.useEffect(() => {
-    if (editing) return
-    setItems(sortRatesByMin(rates))
+  const stopEditing = () => {
+    setDraft(null)
     setDirtyIds(new Set())
-  }, [rates, editing])
+    setEditing(false)
+  }
 
   const update = useUpdateRate()
   const create = useCreateRate()
@@ -64,8 +69,7 @@ export default function RatesCard({
         },
       })
     }
-    setDirtyIds(new Set())
-    setEditing(false)
+    stopEditing()
   }
 
   return (
@@ -73,13 +77,13 @@ export default function RatesCard({
       <Header
         metal={metal}
         editing={editing}
-        onCancel={() => {
-          setItems(sortRatesByMin(rates))
-          setDirtyIds(new Set())
-          setEditing(false)
-        }}
+        onCancel={stopEditing}
         onSaveAll={onSaveAll}
-        onEdit={() => setEditing(true)}
+        onEdit={() => {
+          setDraft(sortRatesByMin(rates))
+          setDirtyIds(new Set())
+          setEditing(true)
+        }}
       />
 
       {!editing ? (

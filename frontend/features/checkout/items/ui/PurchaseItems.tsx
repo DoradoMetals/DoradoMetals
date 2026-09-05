@@ -11,8 +11,8 @@ import { formatRate } from '@/features/rates/types'
 import { getGrossLabel, getPurityLabel } from '@/features/scrap/types'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useUser } from '@/features/auth/authClient'
-import { usePurchaseOrderQuote } from '@/features/quotes/queries'
-import type { PurchaseOrderQuoteLine } from "@dorado/contracts";
+import { useCheckoutQuote } from '@/features/quotes/queries'
+import type { PurchaseQuoteLine } from "@dorado/contracts";
 
 // The SELL basket: direction 'purchase' - the business buys.
 export default function PurchaseItems() {
@@ -21,13 +21,15 @@ export default function PurchaseItems() {
   const { closeDrawer } = useDrawerStore()
 
   const items = useBasket('purchase')
-  const { addItem, removeOne, removeAll } = useCheckoutItemActions()
+  const { addOne, removeOne, removeAll } = useCheckoutItemActions()
   const rows = useDecoratedLines(items)
 
-  // Quote lines come back index-aligned with the store array.
-  const { data: quote } = usePurchaseOrderQuote(items)
-  const lineAt = (index: number): PurchaseOrderQuoteLine | undefined =>
-    quote?.items.find((line) => line.index === index)
+  // Quote lines carry the row's own id. `CheckoutQuote` is discriminated on
+  // direction, so the purchase half is narrowed once, here.
+  const { data: answer } = useCheckoutQuote('purchase')
+  const quote = answer?.direction === 'purchase' ? answer : undefined
+  const lineOf = (id: string): PurchaseQuoteLine | undefined =>
+    quote?.items.find((line) => line.id === id)
 
   const empty = (
     <EmptyState
@@ -90,13 +92,13 @@ export default function PurchaseItems() {
             <Button
               variant="tertiary"
               size="iconSm"
-              onClick={() => addItem('purchase', { ...line, quantity: 1 })}
+              onClick={() => addOne('purchase', line)}
             >
               <Plus size={16} />
             </Button>
           </div>
           <strong>
-            <Amount value={lineAt(index)?.line_total ?? 0} />
+            <Amount value={lineOf(line.id)?.line_total ?? 0} />
           </strong>
         </div>
       </div>
@@ -104,7 +106,7 @@ export default function PurchaseItems() {
   )
 
   const renderLot = ({ line, index, name, metal }: DecoratedLine) => {
-    const quoted = lineAt(index)
+    const quoted = lineOf(line.id)
 
     return (
       <div

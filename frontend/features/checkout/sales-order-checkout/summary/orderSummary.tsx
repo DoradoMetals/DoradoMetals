@@ -7,7 +7,7 @@ import { usePaymentMethods } from '@dorado/client'
 import Image from 'next/image'
 import NumberFlow from '@number-flow/react'
 import { useRouter } from 'next/navigation'
-import type { CheckoutView, SalesOrderQuote } from "@dorado/contracts";
+import type { CheckoutView, SaleQuote } from "@dorado/contracts";
 
 // orderPrices is the server's quote, absent until the first one lands - the
 // summary renders zeros in the meantime, never a client-computed price.
@@ -16,11 +16,11 @@ export default function OrderSummary({
   orderPrices,
 }: {
   row?: CheckoutView
-  orderPrices?: SalesOrderQuote
+  orderPrices?: SaleQuote
 }) {
   const { data: saleMethods = [] } = usePaymentMethods('sale')
   const items = useBasket('sale')
-  const { addItem, removeOne, removeAll } = useCheckoutItemActions()
+  const { addOne, removeOne, removeAll } = useCheckoutItemActions()
   const rows = useDecoratedLines(items)
   const router = useRouter()
 
@@ -39,8 +39,8 @@ export default function OrderSummary({
 
       <div className="flex-col gap-10">
         {rows.map(({ line, index, name, image_front, mint_name }) => {
-          // The quote prices one line per basket line, matched by product id.
-          const quoted = orderPrices?.items.find((l) => l.id === line.bullion_id)
+          // The quote prices one line per basket line, keyed by the row's id.
+          const quoted = orderPrices?.items.find((l) => l.id === line.id)
 
           return (
             <div
@@ -88,7 +88,7 @@ export default function OrderSummary({
                     <Button
                       variant="tertiary"
                       size="iconSm"
-                      onClick={() => addItem('sale', { ...line, quantity: 1 })}
+                      onClick={() => addOne('sale', line)}
                     >
                       <Plus size={16} />
                     </Button>

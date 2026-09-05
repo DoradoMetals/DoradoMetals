@@ -5,8 +5,6 @@ import { Button, FieldLabel, Input, RadioGroup, RadioOption, Switch } from '@dor
 import { X } from '@dorado/icons'
 import { useMetals, useProducts } from '@dorado/client'
 import BullionCard from '@/features/products/ui/BullionCard'
-import { useCatalogQuote } from '@/features/quotes/queries'
-import { catalogQuoteItems, unitPricesById } from '@/features/quotes/catalogPrices'
 
 // EVERY PRODUCT MAY BE SOLD BACK (ruling 49), so this list has no gate. The
 // metal filter, the search box and the generic/branded split are QUERY PARAMS
@@ -26,15 +24,11 @@ export default function BullionTab() {
   const { data: metals = [] } = useMetals()
   const { data: groups = [] } = useProducts({
     side: 'bid',
-    metal,
+    metal_id: metal,
     search: search || undefined,
     generic: !branded,
   })
 
-  // ONE bid quote for the list. The key is the ids that came back, so a
-  // filter change is a new quote rather than a stale one.
-  const { data: quote } = useCatalogQuote(catalogQuoteItems(groups), 'bid')
-  const unitPrices = unitPricesById(quote)
 
   return (
     <div className="relative flex flex-col gap-2 mt-8 mb-8 w-full">
@@ -56,17 +50,17 @@ export default function BullionTab() {
         {metals.map((option) => (
           <RadioOption
             key={option.id}
-            value={option.name}
+            value={option.id}
             variant="segment"
             className="w-full"
             onClick={(e) => {
-              if (metal === option.name) {
+              if (metal === option.id) {
                 e.preventDefault() // prevents Radix from swallowing the click
                 setMetal(undefined)
               }
             }}
           >
-            {option.name}
+            {option.id}
           </RadioOption>
         ))}
       </RadioGroup>
@@ -97,7 +91,6 @@ export default function BullionTab() {
             key={group.default.id}
             product={group.default}
             variants={group.variants}
-            unitPrices={unitPrices}
           />
         ))}
       </div>

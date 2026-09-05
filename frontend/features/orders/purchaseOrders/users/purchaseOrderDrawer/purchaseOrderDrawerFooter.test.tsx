@@ -32,7 +32,7 @@ vi.mock("@dorado/components", async (importOriginal) => ({
 
 import PurchaseOrderDrawerFooter from "@/features/orders/purchaseOrders/users/purchaseOrderDrawer/purchaseOrderDrawerFooter";
 import type { OrderView } from "@dorado/contracts";
-import type { OrderQuote } from "@dorado/contracts";
+import type { OrderPricing } from "@dorado/contracts";
 
 const renderWithClient = (ui: React.ReactElement) => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -57,16 +57,19 @@ const order = () =>
       edit_lines: true, statuses: [] },
   } as unknown as OrderView);
 
-// orders.items rows, VERBATIM: bullion_id is the discriminator (null means
-// scrap), the weights live on the line, and metal_id resolves to a name
-// against the spots reference list.
+// OrderView items, VERBATIM: bullion_id is the discriminator (null means
+// scrap), the weights live on the line, and BOTH NAMES ARE THE VIEW'S -
+// `item_name` numbers a scrap lot per metal in `db/orders/sql/view.sql`, and
+// `product_name` is one scalar subselect (ruling 78).
 const items = () => [
-  { id: "i-scrap", bullion_id: null, metal_id: "m-gold", content: 2, premium: 0.75,
-    unit: "t oz", payable: 1.5, line_total: null, product: null },
-  { id: "i-bullion", bullion_id: "p-1", metal_id: "m-gold", quantity: 2, premium: 0.98,
-    payable: null, line_total: null, product: { id: "p-1", name: "Gold American Eagle" } },
+  { id: "i-scrap", bullion_id: null, metal_id: "Gold", content: 2, premium: 0.75,
+    unit: "t oz", payable: 1.5, line_total: null,
+    item_name: "Gold Item 1", product_name: null },
+  { id: "i-bullion", bullion_id: "p-1", metal_id: "Gold", quantity: 2, premium: 0.98,
+    payable: null, line_total: null,
+    item_name: null, product_name: "Gold American Eagle" },
 ];
-const spots = () => [{ id: "m-gold", name: "Gold" }];
+const spots = () => [{ id: "Gold" }];
 const catalogue = () => [{ id: "p-1", name: "Gold American Eagle" }];
 // One parcel, both directions in one array - `direction` is the column the
 // component filters on, and `cost` is the row's own name for what the
@@ -77,13 +80,21 @@ const shipments = () => [
 
 // Distinct values so an assertion can only match the field it means; line ids
 // pair to the order's items BY ID, the way the drawer joins them.
-const quote = (): OrderQuote => ({
+const quote = (): OrderPricing => ({
   order_id: "po-1",
   spots_at: "2026-08-28T00:00:00.000Z",
   items: [
-    { id: "i-scrap", kind: "scrap", source: "estimate", premium: 0.75, unit_price: 4477.5, line_total: 4477.5 },
-    { id: "i-bullion", kind: "product", source: "estimate", premium: 0.98, unit_price: 2921.7, line_total: 5843.4 },
+    { id: "i-scrap", kind: "scrap", source: "quoted", metal_id: "Gold", content: 6, quantity: 1, premium: 0.75, retier_premium: null, unit_price: 4477.5, line_total: 4477.5 },
+    { id: "i-bullion", kind: "product", source: "quoted", metal_id: "Gold", content: 1, quantity: 2, premium: 0.98, retier_premium: null, unit_price: 2921.7, line_total: 5843.4 },
   ],
+  direction: "purchase",
+  spots_locked: false,
+  spots: [],
+  unpriceable: [],
+  items_total: 10320.9,
+  shipping_charge: 0,
+  payout_fee: 0,
+  declared_value: 10320.9,
   scrap_total: 4477.5,
   bullion_total: 5843.4,
   total: 10295.9,
@@ -118,8 +129,8 @@ describe("the purchase-order drawer footer", () => {
       expect(screen.getAllByText("10295.9").length).toBeGreaterThan(0);
     });
 
-    // The line rows are behind the toggles; assignScrapItemNames numbers the
-    // scrap lines per metal.
+    // The line rows are behind the toggles; the view numbers the scrap lines
+    // per metal, so the browser reads `item_name` rather than composing one.
     await userEvent.click(screen.getByRole("button", { name: /Scrap Estimate/ }));
     expect(await screen.findByText("Gold Item 1")).toBeDefined();
 

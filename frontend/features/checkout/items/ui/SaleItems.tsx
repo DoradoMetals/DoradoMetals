@@ -9,7 +9,7 @@ import { useBasket, useCheckoutItemActions } from '@/features/checkout/items/que
 import { useDecoratedLines } from '@/features/checkout/items/flair'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useUser } from '@/features/auth/authClient'
-import { useCatalogQuote } from '@/features/quotes/queries'
+import { useCheckoutQuote } from '@/features/quotes/queries'
 
 // The BUY basket: direction 'sale' - the business sells.
 export default function SaleItems() {
@@ -18,18 +18,13 @@ export default function SaleItems() {
   const { closeDrawer } = useDrawerStore()
 
   const items = useBasket('sale')
-  const { addItem, removeOne, removeAll } = useCheckoutItemActions()
+  const { addOne, removeOne, removeAll } = useCheckoutItemActions()
   const rows = useDecoratedLines(items)
 
-  // ONE ask quote for the whole basket - every line total and the footer total
-  // are the server's answers, keyed back by product id. Public like the
-  // catalogue, so a signed-out basket still prices.
-  const { data: quote } = useCatalogQuote(
-    items.flatMap((item) =>
-      item.bullion_id ? [{ id: item.bullion_id, quantity: item.quantity ?? 1 }] : []
-    ),
-    'ask'
-  )
+  // ONE quote for the whole basket - every line total and the footer total are
+  // the server's answers, keyed by the row's own id.
+  const { data: answer } = useCheckoutQuote('sale')
+  const quote = answer?.direction === 'sale' ? answer : undefined
   const lineTotals = new Map((quote?.items ?? []).map((line) => [line.id, line.line_total]))
 
   const empty = (
@@ -101,13 +96,13 @@ export default function SaleItems() {
                   <Button
                     variant="tertiary"
                     size="iconSm"
-                    onClick={() => addItem('sale', { ...line, quantity: 1 })}
+                    onClick={() => addOne('sale', line)}
                   >
                     <Plus size={16} />
                   </Button>
                 </div>
                 <strong>
-                  <Amount value={lineTotals.get(line.bullion_id ?? '') ?? 0} />
+                  <Amount value={lineTotals.get(line.id) ?? 0} />
                 </strong>
               </div>
             </div>
@@ -122,7 +117,7 @@ export default function SaleItems() {
       <div className="flex justify-between items-end sm:mb-2">
         <h3>Total:</h3>
         <h3>
-          <Amount value={quote?.total ?? 0} />
+          <Amount value={quote?.order_total ?? 0} />
         </h3>
       </div>
       <Button

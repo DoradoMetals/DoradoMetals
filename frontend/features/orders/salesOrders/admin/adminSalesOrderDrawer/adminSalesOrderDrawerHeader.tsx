@@ -5,7 +5,6 @@ import { useFormatSalesOrderNumber } from '@/features/orders/utils/formatOrderNu
 import { useSpotPrices } from '@/features/spots/queries'
 import { OrderDrawerHeader } from '@/features/orders/ui/OrderDrawerHeader'
 import { useOrderSpots } from '@dorado/client'
-import { nameSpots } from '@/features/orders/display'
 
 export default function AdminSalesOrderDrawerHeader({ view }: SalesOrderDrawerHeaderProps) {
   const { order } = view
@@ -15,7 +14,7 @@ export default function AdminSalesOrderDrawerHeader({ view }: SalesOrderDrawerHe
   const { formatSalesOrderNumber } = useFormatSalesOrderNumber()
   const { data: orderSpots = [] } = useOrderSpots(order.id)
   const { data: spotPrices = [] } = useSpotPrices()
-  const namedOrderSpots = nameSpots(orderSpots, spotPrices)
+  const namedOrderSpots = orderSpots
 
   const status = statusConfig[order.status ?? '']
   const Icon = status?.icon

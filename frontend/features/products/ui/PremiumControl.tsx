@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Field, Input, RadioGroup, RadioOption } from '@dorado/components'
 import { ArrowDown, ArrowUp, DollarSign, Percent } from '@dorado/icons'
 type Unit = 'dollar' | 'percent'
@@ -69,11 +69,14 @@ export default function PremiumControl({
     formatByUnit(initialPercentAbs, initialDollarAbs, 'percent')
   )
 
-  useEffect(() => {
+  // SWITCHING UNITS RE-SPELLS WHAT IS TYPED, and that is a state transition
+  // rather than an effect. It also used to run on `spotPerOz`/`contentOz`, so
+  // the live ticker's ten-second refresh rewrote the box mid-keystroke.
+  const switchUnit = (next: Unit) => {
     const pct = percentAbsFromInput(input, unit, spotPerOz, contentOz)
-    const dollars = (pct / 100) * spotPerOz * contentOz
-    setInput(formatByUnit(pct, dollars, unit))
-  }, [unit, spotPerOz, contentOz])
+    setInput(formatByUnit(pct, (pct / 100) * spotPerOz * contentOz, next))
+    setUnit(next)
+  }
 
   const display = useMemo(
     () => (input === '' ? '' : unit === 'dollar' ? `$${input}` : `${input}%`),
@@ -90,7 +93,7 @@ export default function PremiumControl({
       <div className="flex items-center gap-2">
         <RadioGroup
           value={unit}
-          onValueChange={(v) => setUnit(v as Unit)}
+          onValueChange={(v) => switchUnit(v as Unit)}
           className="flex items-center gap-1"
         >
           {UNITS.map((u) => (

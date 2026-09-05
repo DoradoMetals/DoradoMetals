@@ -14,7 +14,8 @@ export const keys = {
   checkout: {
     all: () => ["checkout"] as const,
     row: (direction: string) => ["checkout", direction] as const,
-    items: (direction: string) => ["checkout", "items", direction] as const,
+    items: (direction: string, subject?: string | null) =>
+      ["checkout", "items", direction, subject ?? null] as const,
   },
   payments: {
     methods: (direction?: string) => ["payments", "methods", direction ?? null] as const,

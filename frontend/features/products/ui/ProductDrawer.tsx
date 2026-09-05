@@ -5,7 +5,6 @@ import { useEffect, useState } from 'react'
 import { formatFullDate } from '@/shared/utils/formatDates'
 import { useSpotPrices } from '@/features/spots/queries'
 import PremiumControl from '@/features/products/ui/PremiumControl'
-import QuantityBar from '@/features/products/ui/QuantityInput'
 import {
   useAdminTypes,
   useSaveProduct,
@@ -108,9 +107,9 @@ function Details({
       <div className="flex w-full justify-between items-center gap-4">
         <PickerField
           label="Metal"
-          value={product.metal}
-          options={metals?.map((m) => m.name) ?? []}
-          onChange={(val) => onUpdate({ metal: val })}
+          value={product.metal_id}
+          options={metals?.map((m) => m.id) ?? []}
+          onChange={(val) => onUpdate({ metal_id: val })}
         />
         <PickerField
           label="Product Type"
@@ -190,7 +189,7 @@ function Inventory({
   onUpdate: (patch: Partial<AdminProduct>) => void
 }) {
   const { data: spots = [] } = useSpotPrices()
-  const spot = spots.find((s) => s.name === product.metal)
+  const spot = spots.find((s) => s.id === product.metal_id)
   return (
     <div className="flex flex-col gap-4">
       <p className="eyebrow">Inventory</p>
@@ -209,12 +208,6 @@ function Inventory({
         spotPerOz={spot?.ask ?? 0}
         contentOz={product.content ?? 1}
         onChange={(mult) => onUpdate({ ask_premium: mult })}
-      />
-
-      <QuantityBar
-        label="Quantity"
-        value={product.quantity ?? 0}
-        onChange={(q) => onUpdate({ quantity: q })}
       />
     </div>
   )

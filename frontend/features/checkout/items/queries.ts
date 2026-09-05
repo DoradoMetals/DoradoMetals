@@ -20,15 +20,14 @@
 // What is left is the two things `@dorado/client` deliberately does not know:
 // which direction a surface is looking at, and the shape a component wants
 // (`CheckoutLine` rather than the wire row).
-import type { Direction } from '@dorado/contracts'
+import type { CheckoutItem, CheckoutItemPatch, Direction } from '@dorado/contracts'
 import {
   useCheckoutItems as useServerCheckoutItems,
   useClearCheckoutItems as useClearServerItems,
   useReplaceCheckoutItems as useReplaceServerItems,
 } from '@dorado/client'
 import { useUser } from '@/features/auth/authClient'
-import { addLine, removeAll, removeOne } from '@/features/checkout/items/basket'
-import { lineFromRow, toNewCheckoutItem, type CheckoutLine } from '@/features/checkout/items/types'
+import { addLine, addOne, dropAll, dropOne } from '@/features/checkout/items/basket'
 
 // WHAT A CHECKOUT SURFACE RENDERS: the server's rows, which carry the content,
 // the premium and the snapshot the API took at PUT time.
@@ -36,25 +35,17 @@ import { lineFromRow, toNewCheckoutItem, type CheckoutLine } from '@/features/ch
 // A READ NEVER MINTS AN IDENTITY - `enabled` on a session that already exists -
 // so opening a page does not create a visitor; the first WRITE does. Somebody
 // who has touched nothing has an empty basket, which is what this answers.
-export const useBasket = (direction: Direction): CheckoutLine[] => {
+export const useBasket = (direction: Direction, user_id?: string): CheckoutItem[] => {
   const { user } = useUser()
-  const { data: rows } = useServerCheckoutItems(direction, { enabled: !!user?.id })
-  return (rows ?? []).map(lineFromRow)
+  const { data: rows } = useServerCheckoutItems(direction, {
+    enabled: !!(user_id ?? user?.id),
+    user_id,
+  })
+  return rows ?? []
 }
 
-export const useReplaceCheckoutItems = (direction: Direction) => {
-  const mutation = useReplaceServerItems(direction)
-  return {
-    ...mutation,
-    mutate: (vars: { lines: CheckoutLine[]; user_id?: string }) =>
-      mutation.mutate({ items: vars.lines.map(toNewCheckoutItem), user_id: vars.user_id }),
-    mutateAsync: async (vars: { lines: CheckoutLine[]; user_id?: string }) =>
-      await mutation.mutateAsync({
-        items: vars.lines.map(toNewCheckoutItem),
-        user_id: vars.user_id,
-      }),
-  }
-}
+export const useReplaceCheckoutItems = (direction: Direction) =>
+  useReplaceServerItems(direction)
 
 export const useClearCheckoutItems = (direction: Direction) => useClearServerItems(direction)
 
@@ -65,24 +56,26 @@ export const useClearCheckoutItems = (direction: Direction) => useClearServerIte
 // merges: the new list is composed from the rows the server last answered with
 // (items/basket.ts) and sent. The answer replaces the cache, so the count a
 // card renders is the server's own, never a local guess that could drift.
-export const useCheckoutItemActions = () => {
-  const sale = useBasket('sale')
-  const purchase = useBasket('purchase')
+export const useCheckoutItemActions = (user_id?: string) => {
+  const sale = useBasket('sale', user_id)
+  const purchase = useBasket('purchase', user_id)
   const syncSale = useReplaceCheckoutItems('sale')
   const syncPurchase = useReplaceCheckoutItems('purchase')
 
-  const linesFor = (direction: Direction) => (direction === 'sale' ? sale : purchase)
+  const rowsFor = (direction: Direction) => (direction === 'sale' ? sale : purchase)
   const syncFor = (direction: Direction) => (direction === 'sale' ? syncSale : syncPurchase)
 
-  const push = (direction: Direction, lines: CheckoutLine[]) =>
-    syncFor(direction).mutate({ lines })
+  const push = (direction: Direction, items: CheckoutItemPatch[]) =>
+    syncFor(direction).mutate({ items, user_id })
 
   return {
-    addItem: (direction: Direction, line: CheckoutLine) =>
-      push(direction, addLine(linesFor(direction), line)),
-    removeOne: (direction: Direction, line: CheckoutLine) =>
-      push(direction, removeOne(linesFor(direction), line)),
-    removeAll: (direction: Direction, line: CheckoutLine) =>
-      push(direction, removeAll(linesFor(direction), line)),
+    addItem: (direction: Direction, line: CheckoutItemPatch) =>
+      push(direction, addLine(rowsFor(direction), line)),
+    addOne: (direction: Direction, row: CheckoutItem) =>
+      push(direction, addOne(rowsFor(direction), row.id)),
+    removeOne: (direction: Direction, row: CheckoutItem) =>
+      push(direction, dropOne(rowsFor(direction), row.id)),
+    removeAll: (direction: Direction, row: CheckoutItem) =>
+      push(direction, dropAll(rowsFor(direction), row.id)),
   }
 }

@@ -5,7 +5,7 @@ import { Amount, RadioGroup, RadioOption } from '@dorado/components'
 import { usePatchFulfillment } from '@/features/checkout/queries'
 import { saleServiceToOption } from '@/features/orders/salesOrders/types'
 import { useSaleShippingServices } from '@dorado/client'
-import type { FulfillmentView, SalesOrderQuote } from '@dorado/contracts'
+import type { FulfillmentView, SaleQuote } from '@dorado/contracts'
 
 // THE SELECTION IS THE PARCEL'S `carrier_service_id` (rulings 69/70, migration
 // 128), so the "heal the store's seed" effect is gone with the seed: the store
@@ -18,7 +18,7 @@ export default function ServiceSelector({
   orderPrices,
 }: {
   fulfillment?: FulfillmentView
-  orderPrices?: SalesOrderQuote
+  orderPrices?: SaleQuote
 }) {
   const patchFulfillment = usePatchFulfillment()
   const { data: services = [] } = useSaleShippingServices()

@@ -75,7 +75,7 @@ export function useCheckoutItems(
   direction: Direction, options: ReadOptions & Subject = {}
 ): UseQueryResult<CheckoutItem[], Error> {
   return useQuery({
-    queryKey: keys.checkout.items(direction),
+    queryKey: keys.checkout.items(direction, options.user_id),
     enabled: options.enabled ?? true,
     queryFn: () =>
       apiRequest<CheckoutItem[]>("GET", "/checkout/items", undefined, scope(direction, options)),
@@ -94,8 +94,8 @@ export function useReplaceCheckoutItems(
       );
     },
     onSuccess: (rows, { user_id }) => {
+      client.setQueryData(keys.checkout.items(direction, user_id), rows);
       if (user_id) return;
-      client.setQueryData(keys.checkout.items(direction), rows);
       client.invalidateQueries({ queryKey: keys.checkout.row(direction) });
     },
   });
