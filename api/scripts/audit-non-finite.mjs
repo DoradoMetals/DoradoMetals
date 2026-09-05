@@ -1,5 +1,6 @@
 import "#env";
 import pg from "pg";
+import { NATIVE_SCHEMAS } from "./lib/schemas.ts";
 
 const wantProd = process.argv.includes("--prod");
 const url = wantProd ? process.env.PROD_READONLY_DATABASE_URL : process.env.DATABASE_URL;
@@ -11,11 +12,7 @@ const pool = new pg.Pool(
   wantProd ? { connectionString: url, ssl: { rejectUnauthorized: false } } : { connectionString: url }
 );
 
-const SCHEMAS = [
-  "exchange", "orders", "payments", "fulfillments", "shipping", "refiners",
-  "tax", "places", "auth", "products", "organizations", "metals", "spots",
-  "media", "leads", "rates", "reviews", "checkout", "auctions",
-];
+const SCHEMAS = ["exchange", ...NATIVE_SCHEMAS];
 
 const { rows: columns } = await pool.query(
   `SELECT table_schema AS s, table_name AS t, column_name AS c, data_type AS dt

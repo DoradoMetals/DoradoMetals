@@ -2,14 +2,16 @@ import "#env";
 import fs from "node:fs";
 import path from "node:path";
 import pool from "#pool";
-
-const SCHEMAS = [
-  "auth", "fulfillments", "leads", "media", "metals", "orders",
-  "organizations", "payments", "places", "products", "rates",
-  "refiners", "reviews", "shipping", "spots", "tax",
-];
+import { NATIVE_SCHEMAS as SCHEMAS, assertSchemasComplete } from "./lib/schemas.ts";
 
 const q = async (sql, params = []) => (await pool.query(sql, params)).rows;
+
+try {
+  await assertSchemasComplete(q);
+} catch (e) {
+  console.error(e.message);
+  process.exit(1);
+}
 
 const prefixArg = process.argv.indexOf("--prefix");
 const PREFIX = prefixArg === -1 ? "" : process.argv[prefixArg + 1];

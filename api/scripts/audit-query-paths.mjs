@@ -2,15 +2,11 @@ import "#env";
 import fs from "node:fs";
 import path from "node:path";
 import pool from "#pool";
+import { NATIVE_SCHEMAS as SCHEMAS } from "./lib/schemas.ts";
 
 const ROOT = process.env.AUDIT_QP_ROOT
   ? path.resolve(process.env.AUDIT_QP_ROOT)
   : path.join(import.meta.dirname, "..");
-const SCHEMAS = [
-  "orders", "payments", "fulfillments", "shipping", "refiners", "tax", "places",
-  "auth", "products", "organizations", "metals", "spots", "media", "leads",
-  "rates", "reviews", "checkout", "auctions",
-];
 const S = SCHEMAS.join("|");
 
 if (process.argv.includes("--self-test")) {

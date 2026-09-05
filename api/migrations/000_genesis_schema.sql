@@ -33,6 +33,7 @@
 -- Schemas ------------------------------------------------------------
 
 CREATE SCHEMA IF NOT EXISTS auth;
+CREATE SCHEMA IF NOT EXISTS checkout;
 CREATE SCHEMA IF NOT EXISTS fulfillments;
 CREATE SCHEMA IF NOT EXISTS leads;
 CREATE SCHEMA IF NOT EXISTS media;
@@ -248,6 +249,56 @@ ALTER TABLE auth.verification ADD COLUMN IF NOT EXISTS value text;
 ALTER TABLE auth.verification ADD COLUMN IF NOT EXISTS "expiresAt" timestamp without time zone;
 ALTER TABLE auth.verification ADD COLUMN IF NOT EXISTS "createdAt" timestamp without time zone DEFAULT now();
 ALTER TABLE auth.verification ADD COLUMN IF NOT EXISTS "updatedAt" timestamp without time zone DEFAULT now();
+
+CREATE TABLE IF NOT EXISTS checkout.checkouts (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  user_id uuid NOT NULL,
+  direction orders.direction NOT NULL,
+  payment_method_id uuid,
+  payment_details_id uuid,
+  recipient_address_id uuid,
+  fulfillment_id uuid
+);
+ALTER TABLE checkout.checkouts ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE checkout.checkouts ADD COLUMN IF NOT EXISTS user_id uuid;
+ALTER TABLE checkout.checkouts ADD COLUMN IF NOT EXISTS direction orders.direction;
+ALTER TABLE checkout.checkouts ADD COLUMN IF NOT EXISTS payment_method_id uuid;
+ALTER TABLE checkout.checkouts ADD COLUMN IF NOT EXISTS payment_details_id uuid;
+ALTER TABLE checkout.checkouts ADD COLUMN IF NOT EXISTS recipient_address_id uuid;
+ALTER TABLE checkout.checkouts ADD COLUMN IF NOT EXISTS fulfillment_id uuid;
+
+CREATE TABLE IF NOT EXISTS checkout.items (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  bullion_id uuid,
+  metal_id uuid,
+  checkout_id uuid NOT NULL,
+  pre_melt numeric,
+  post_melt numeric,
+  purity numeric,
+  premium numeric,
+  quantity numeric,
+  created_by text,
+  updated_by text,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  content numeric,
+  unit text
+);
+ALTER TABLE checkout.items ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE checkout.items ADD COLUMN IF NOT EXISTS bullion_id uuid;
+ALTER TABLE checkout.items ADD COLUMN IF NOT EXISTS metal_id uuid;
+ALTER TABLE checkout.items ADD COLUMN IF NOT EXISTS checkout_id uuid;
+ALTER TABLE checkout.items ADD COLUMN IF NOT EXISTS pre_melt numeric;
+ALTER TABLE checkout.items ADD COLUMN IF NOT EXISTS post_melt numeric;
+ALTER TABLE checkout.items ADD COLUMN IF NOT EXISTS purity numeric;
+ALTER TABLE checkout.items ADD COLUMN IF NOT EXISTS premium numeric;
+ALTER TABLE checkout.items ADD COLUMN IF NOT EXISTS quantity numeric;
+ALTER TABLE checkout.items ADD COLUMN IF NOT EXISTS created_by text;
+ALTER TABLE checkout.items ADD COLUMN IF NOT EXISTS updated_by text;
+ALTER TABLE checkout.items ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE checkout.items ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE checkout.items ADD COLUMN IF NOT EXISTS content numeric;
+ALTER TABLE checkout.items ADD COLUMN IF NOT EXISTS unit text;
 
 CREATE TABLE IF NOT EXISTS fulfillments.directs (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -1534,6 +1585,26 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'checkout_pkey' AND c.relname = 'checkouts' AND n.nspname = 'checkout'
+  ) THEN
+    ALTER TABLE checkout.checkouts ADD CONSTRAINT checkout_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'checkout_items_pkey' AND c.relname = 'items' AND n.nspname = 'checkout'
+  ) THEN
+    ALTER TABLE checkout.items ADD CONSTRAINT checkout_items_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'fulfillment_directs_one_per_fulfillment' AND c.relname = 'directs' AND n.nspname = 'fulfillments'
   ) THEN
     ALTER TABLE fulfillments.directs ADD CONSTRAINT fulfillment_directs_one_per_fulfillment UNIQUE (fulfillment_id);
@@ -2267,6 +2338,86 @@ DO $$ BEGIN
     WHERE con.conname = 'session_userId_fkey' AND c.relname = 'sessions' AND n.nspname = 'auth'
   ) THEN
     ALTER TABLE auth.sessions ADD CONSTRAINT "session_userId_fkey" FOREIGN KEY ("userId") REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'checkout_user_fk' AND c.relname = 'checkouts' AND n.nspname = 'checkout'
+  ) THEN
+    ALTER TABLE checkout.checkouts ADD CONSTRAINT checkout_user_fk FOREIGN KEY (user_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'checkouts_fulfillment_id_fkey' AND c.relname = 'checkouts' AND n.nspname = 'checkout'
+  ) THEN
+    ALTER TABLE checkout.checkouts ADD CONSTRAINT checkouts_fulfillment_id_fkey FOREIGN KEY (fulfillment_id) REFERENCES fulfillments.fulfillments(id) ON DELETE SET NULL;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'checkouts_payment_details_fk' AND c.relname = 'checkouts' AND n.nspname = 'checkout'
+  ) THEN
+    ALTER TABLE checkout.checkouts ADD CONSTRAINT checkouts_payment_details_fk FOREIGN KEY (payment_details_id) REFERENCES payments.details(id) ON DELETE SET NULL;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'checkouts_payment_method_fk' AND c.relname = 'checkouts' AND n.nspname = 'checkout'
+  ) THEN
+    ALTER TABLE checkout.checkouts ADD CONSTRAINT checkouts_payment_method_fk FOREIGN KEY (payment_method_id) REFERENCES payments.methods(id) ON DELETE SET NULL;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'checkouts_recipient_address_theirs_fk' AND c.relname = 'checkouts' AND n.nspname = 'checkout'
+  ) THEN
+    ALTER TABLE checkout.checkouts ADD CONSTRAINT checkouts_recipient_address_theirs_fk FOREIGN KEY (user_id, recipient_address_id) REFERENCES places.user_addresses(user_id, address_id) ON DELETE SET NULL (recipient_address_id) DEFERRABLE;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'checkout_items_bullion_fk' AND c.relname = 'items' AND n.nspname = 'checkout'
+  ) THEN
+    ALTER TABLE checkout.items ADD CONSTRAINT checkout_items_bullion_fk FOREIGN KEY (bullion_id) REFERENCES products.bullion(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'checkout_items_checkout_fk' AND c.relname = 'items' AND n.nspname = 'checkout'
+  ) THEN
+    ALTER TABLE checkout.items ADD CONSTRAINT checkout_items_checkout_fk FOREIGN KEY (checkout_id) REFERENCES checkout.checkouts(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'checkout_items_metal_fk' AND c.relname = 'items' AND n.nspname = 'checkout'
+  ) THEN
+    ALTER TABLE checkout.items ADD CONSTRAINT checkout_items_metal_fk FOREIGN KEY (metal_id) REFERENCES metals.metals(id);
   END IF;
 END $$;
 DO $$ BEGIN
@@ -3322,6 +3473,17 @@ CREATE INDEX IF NOT EXISTS session_impersonatedby_idx ON auth.sessions USING btr
 CREATE INDEX IF NOT EXISTS session_userid_idx ON auth.sessions USING btree ("userId");
 CREATE INDEX IF NOT EXISTS users_anonymous_stale_idx ON auth.users USING btree ("updatedAt") WHERE "isAnonymous";
 CREATE INDEX IF NOT EXISTS verification_expiresat_idx ON auth.verification USING btree ("expiresAt");
+CREATE INDEX IF NOT EXISTS checkout_user_idx ON checkout.checkouts USING btree (user_id);
+CREATE INDEX IF NOT EXISTS checkouts_fulfillment_idx ON checkout.checkouts USING btree (fulfillment_id) WHERE (fulfillment_id IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS checkouts_user_direction_key ON checkout.checkouts USING btree (user_id, direction);
+CREATE INDEX IF NOT EXISTS checkouts_user_recipient_address_idx ON checkout.checkouts USING btree (user_id, recipient_address_id);
+CREATE INDEX IF NOT EXISTS idx_checkout_checkouts_payment_details_id ON checkout.checkouts USING btree (payment_details_id);
+CREATE INDEX IF NOT EXISTS idx_checkout_checkouts_payment_method_id ON checkout.checkouts USING btree (payment_method_id);
+CREATE INDEX IF NOT EXISTS idx_checkout_checkouts_recipient_address_id ON checkout.checkouts USING btree (recipient_address_id);
+CREATE INDEX IF NOT EXISTS checkout_items_bullion_idx ON checkout.items USING btree (bullion_id);
+CREATE UNIQUE INDEX IF NOT EXISTS checkout_items_checkout_bullion_key ON checkout.items USING btree (checkout_id, bullion_id);
+CREATE INDEX IF NOT EXISTS checkout_items_checkout_idx ON checkout.items USING btree (checkout_id);
+CREATE INDEX IF NOT EXISTS checkout_items_metal_idx ON checkout.items USING btree (metal_id);
 CREATE INDEX IF NOT EXISTS idx_fulfillment_directs_assigned_to ON fulfillments.directs USING btree (assigned_employee_id);
 CREATE INDEX IF NOT EXISTS idx_fulfillment_directs_fulfillment_id ON fulfillments.directs USING btree (fulfillment_id);
 CREATE INDEX IF NOT EXISTS idx_fulfillment_directs_location_id ON fulfillments.directs USING btree (location_id);

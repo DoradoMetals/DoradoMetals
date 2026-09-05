@@ -114,6 +114,10 @@ const REAL_EXCUSED = {
     kind: "library",
     why:"has scripts/lib/tests/test-layers.test.ts.",
   },
+  "api/scripts/lib/schemas.ts": {
+    kind: "library",
+    why:"has scripts/lib/tests/schemas.test.ts.",
+  },
 
   "api/scripts/audit-constraints.mjs": {
     kind: "report",
