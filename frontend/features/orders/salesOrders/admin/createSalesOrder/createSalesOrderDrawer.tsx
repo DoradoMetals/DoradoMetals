@@ -3,7 +3,7 @@
 // THE CUSTOMER THE ADMIN IS ORDERING FOR, off GET /users/get_all - the
 // contracts' user wire, snake_case. NOT better-auth's session user, which is
 // the admin themselves and is a different shape under the same word.
-import { Link, Skeleton, Drawer, RadioGroup, RadioOption, Divider, Button, Input, Autocomplete } from '@dorado/components'
+import { Amount, Link, Skeleton, Drawer, RadioGroup, RadioOption, Divider, Button, Input, Autocomplete } from '@dorado/components'
 import { CircleHelp, Lock, LockOpen, Minus, Plus, Trash2 } from '@dorado/icons'
 import NextLink from 'next/link'
 import { UserAddress, makeEmptyWireAddress } from '@/features/addresses/types'
@@ -18,7 +18,6 @@ import {
 import { useSaleShippingServices } from '@/features/shipping/queries'
 import { usePaymentMethods } from '@dorado/client'
 import type { Address, AdminUser, SalesOrderQuote, SpotPrice } from "@dorado/contracts";
-import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { useAdminSalesOrderCheckoutStore } from '@/shared/store/adminSalesOrderCheckoutStore'
 import fuzzysort from 'fuzzysort'
 import { Product } from '@/features/products/types'
@@ -273,7 +272,7 @@ function ProductSelector() {
                       </Button>
                     </div>
                     <strong>
-                      <PriceNumberFlow value={lineTotals.get(bullion_id) ?? 0} />
+                      <Amount value={lineTotals.get(bullion_id) ?? 0} />
                     </strong>
                   </div>
                 </div>
@@ -385,7 +384,7 @@ function ServiceSelector() {
               <strong>{option.label}</strong>
             </div>
             <DetailRow label={option.time} variant="subtotal">
-              <PriceNumberFlow value={option.cost} />
+              <Amount value={option.cost} />
             </DetailRow>
           </RadioOption>
         ))}
@@ -411,17 +410,17 @@ function OrderSummary({ orderPrices }: { orderPrices?: SalesOrderQuote }) {
       <h2 className="eyebrow my-4">Payment Details</h2>
 
       <DetailRow label="Shipping">
-        <PriceNumberFlow value={orderPrices?.shipping_charge ?? 0} />
+        <Amount value={orderPrices?.shipping_charge ?? 0} />
       </DetailRow>
 
       {appliedFunds > 0 && (
         <DetailRow label="Dorado Funds Applied">
-          -<PriceNumberFlow value={appliedFunds} />
+          -<Amount value={appliedFunds} />
         </DetailRow>
       )}
       {subjectToCharges > 0 && (
         <DetailRow label={appliedFunds > 0 ? 'Amount Remaining' : 'Items'}>
-          <PriceNumberFlow value={subjectToCharges} />
+          <Amount value={subjectToCharges} />
         </DetailRow>
       )}
 
@@ -433,7 +432,7 @@ function OrderSummary({ orderPrices }: { orderPrices?: SalesOrderQuote }) {
             saleMethods.find((m) => m.type === data.payment_method)?.surcharge_label
           })`}
         >
-          <PriceNumberFlow value={surcharge} />
+          <Amount value={surcharge} />
         </DetailRow>
       )}
 
@@ -450,7 +449,7 @@ function OrderSummary({ orderPrices }: { orderPrices?: SalesOrderQuote }) {
             </span>
           }
         >
-          <PriceNumberFlow value={salesTax} />
+          <Amount value={salesTax} />
         </DetailRow>
       )}
 
@@ -458,7 +457,7 @@ function OrderSummary({ orderPrices }: { orderPrices?: SalesOrderQuote }) {
         <Divider />
 
         <DetailRow label="Order Total" variant="total" className="pt-2">
-          <PriceNumberFlow value={orderPrices?.post_charges_amount ?? 0} />
+          <Amount value={orderPrices?.post_charges_amount ?? 0} />
         </DetailRow>
       </div>
     </div>
@@ -516,13 +515,13 @@ function CreditSelect({
             <div className="flex flex-col gap-1 items-start">
               <p>Credit Applied:</p>
               <strong className="stat-sm">
-                <PriceNumberFlow value={orderPrices?.pre_charges_amount ?? 0} />
+                <Amount value={orderPrices?.pre_charges_amount ?? 0} />
               </strong>
             </div>
             <div className="flex flex-col gap-1 items-end">
               <p>Credit Available:</p>
               <strong className="stat-sm">
-                <PriceNumberFlow value={funds} />
+                <Amount value={funds} />
               </strong>
             </div>
           </div>

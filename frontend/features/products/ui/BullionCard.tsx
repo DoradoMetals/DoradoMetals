@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import { Product } from '@/features/products/types'
-import { Button, RadioGroup, RadioOption } from '@dorado/components'
+import { Amount, Button, RadioGroup, RadioOption } from '@dorado/components'
 import { CircleHelp, Equal, Minus, Plus, Scale, X } from '@dorado/icons'
 import NumberFlow from '@number-flow/react'
 import { BullionFloatingButton, BullionFloatingButtonItem } from '@/features/products/ui/FloatingButton'
@@ -14,7 +14,6 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useBasket, useCheckoutItemActions } from '@/features/checkout/items/queries'
 import { lineFromProduct } from '@/features/checkout/items/types'
 import { useSpotPrices } from '@dorado/client'
-import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { DetailRow } from '@/shared/ui/DetailRow'
 
 type BullionCardProps = {
@@ -70,14 +69,14 @@ export default function BullionCard({ product, variants, unitPrices }: BullionCa
               {/* Was two sibling divs each carrying the same responsive pair;
                   it is one sentence, so it is one paragraph. */}
               <p className="flex items-center gap-1">
-                <PriceNumberFlow value={Math.abs(overOrUnder)} />
+                <Amount value={Math.abs(overOrUnder)} />
                 {isOver ? 'over' : 'under'} spot
               </p>
             </div>
             <div className="flex items-end h-full mt-auto">
               <div className="flex items-baseline gap-1">
                 <strong className="stat-sm">
-                  <PriceNumberFlow value={price} />
+                  <Amount value={price} />
                 </strong>
                 <small>per unit</small>
               </div>
@@ -125,7 +124,7 @@ export default function BullionCard({ product, variants, unitPrices }: BullionCa
                       <div className="flex flex-col gap-2">
                         <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
                           <DetailRow label={<>{spot?.name} Bid Price</>} variant="detail" className="items-start pl-8">
-                            <PriceNumberFlow value={spot?.bid ?? 0} />
+                            <Amount value={spot?.bid ?? 0} />
                           </DetailRow>
 
                           <div className="flex w-full items-start">
@@ -142,14 +141,14 @@ export default function BullionCard({ product, variants, unitPrices }: BullionCa
                             )}
 
                             <DetailRow label="Premium" variant="detail" className="items-start pl-4">
-                              <PriceNumberFlow value={Math.abs(overOrUnder)} />
+                              <Amount value={Math.abs(overOrUnder)} />
                             </DetailRow>
                           </div>
                         </div>
                         <div className="flex w-full items-start">
                           <Equal size={16} className="text-subtle" />
                           <DetailRow label="Total" variant="subtotal" className="items-start pl-4">
-                            <PriceNumberFlow value={price} />
+                            <Amount value={price} />
                           </DetailRow>
                         </div>
                       </div>

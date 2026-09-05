@@ -1,4 +1,4 @@
-import { Divider, Button, Input, Checkbox, Field } from '@dorado/components'
+import { Button, Checkbox, Divider, Field, Input, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@dorado/components'
 import { ChevronDown, Lock, Plus, RotateCcw, Unlock } from '@dorado/icons'
 import { outboundOf } from '@/features/shipping/queries'
 import { usePatchShipment } from '@/features/shipping/queries'
@@ -15,14 +15,6 @@ import {
 } from '@/features/orders/purchaseOrders/types'
 import { assignScrapItemNames } from '@/features/orders/display'
 import { useState } from 'react'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/shared/ui/base/table'
 import SelectMenu from '@/shared/ui/SelectMenu'
 import { Product } from '@/features/products/types'
 import { useSpotPrices } from '@/features/spots/queries'

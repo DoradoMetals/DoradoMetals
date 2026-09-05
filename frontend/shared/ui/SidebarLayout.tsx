@@ -9,10 +9,10 @@ import {
   useMemo,
   useState,
 } from 'react'
+import { Badge } from '@dorado/components'
 import { cn } from '@/shared/utils/cn'
 import { ChevronsRight, User } from '@dorado/icons'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
-import CountBadge from '@/shared/ui/CountBadge'
 
 export type Icon = ComponentType<SVGProps<SVGSVGElement> & { size?: number }>
 
@@ -194,7 +194,7 @@ export function SidebarLayout({
                   {isOpen && <span>{item.label}</span>}
 
                   {isOpen && item.badge != null && item.badge !== '' && (
-                    <CountBadge className="ml-auto">{item.badge}</CountBadge>
+                    <Badge variant="solid" className="ml-auto">{item.badge}</Badge>
                   )}
                 </button>
               )

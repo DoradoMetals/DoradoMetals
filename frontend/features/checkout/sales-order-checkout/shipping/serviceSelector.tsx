@@ -1,8 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
-import { RadioGroup, RadioOption } from '@dorado/components'
-import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
+import { Amount, RadioGroup, RadioOption } from '@dorado/components'
 import { usePatchCheckout } from '@/features/checkout/queries'
 import { saleServiceToOption } from '@/features/orders/salesOrders/types'
 import { useSaleShippingServices } from '@dorado/client'
@@ -59,10 +58,7 @@ export default function ServiceSelector({
                     options' display keys the free-shipping threshold off the
                     quote's item_total - the same rule getShippingCharge
                     applies server-side. */}
-                <PriceNumberFlow
-                  value={(orderPrices?.item_total ?? 0) > 1000 ? 0 : option.cost}
-                  className="tabular-nums"
-                />
+                <Amount value={(orderPrices?.item_total ?? 0) > 1000 ? 0 : option.cost} />
               </DetailRow>
             </RadioOption>
           )

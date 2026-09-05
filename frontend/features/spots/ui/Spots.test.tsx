@@ -2,7 +2,7 @@
 //
 // SECOND FEATURE TO GET RENDER COVERAGE, same rules as media: jsdom, the real
 // component tree, the real react-query hook, with only the network boundary
-// replaced. PriceNumberFlow is shimmed to a plain span because NumberFlow is
+// replaced. Amount is shimmed to a plain span because NumberFlow is
 // an animated custom element that renders nothing synchronously in jsdom -
 // that is a presentation shim like next/image in the media tests, not a
 // mock of anything this file is trying to prove.
@@ -44,8 +44,9 @@ vi.mock("@/features/auth/queries", () => ({
 // NumberFlow animates digits through a custom element with no synchronous
 // text content under jsdom. The shim renders the raw value and keeps the
 // className, which is where the trend colour lands.
-vi.mock("@/shared/ui/PriceNumberFlow", () => ({
-  default: ({ value, className }: { value: number; className?: string }) =>
+vi.mock("@dorado/components", async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  Amount: ({ value, className }: { value: number; className?: string }) =>
     React.createElement("span", { className }, String(value)),
 }));
 

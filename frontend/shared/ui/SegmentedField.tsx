@@ -1,7 +1,7 @@
 'use client'
 
 import { useId, type ReactNode } from 'react'
-import { Field } from '@/shared/ui/Field'
+import { Field } from '@dorado/components'
 import { RadioGroup, RadioOption } from '@dorado/components'
 import { cn } from '@/shared/utils/cn'
 

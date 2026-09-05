@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Label } from "@/shared/ui/base/label";
+import { FieldLabel as Label } from "@dorado/components"
 import { cn } from "@/shared/utils/cn";
 import { cva, type VariantProps } from "class-variance-authority";
 
@@ -23,9 +23,9 @@ const floatingLabelVariant = cva(
 	},
 );
 
-interface FloatingLabelProps extends React.ComponentPropsWithoutRef<typeof Label>, VariantProps<typeof floatingLabelVariant> {}
+interface FloatingLabelProps extends React.ComponentPropsWithoutRef<'label'>, VariantProps<typeof floatingLabelVariant> {}
 
-const FloatingLabel = React.forwardRef<React.ElementRef<typeof Label>, FloatingLabelProps>(({ size = "sm", className, ...props }, ref) => {
+const FloatingLabel = React.forwardRef<HTMLLabelElement, FloatingLabelProps>(({ size = "sm", className, ...props }, ref) => {
 	return (
 		<Label
 			className={cn(floatingLabelVariant({ size, className }))}

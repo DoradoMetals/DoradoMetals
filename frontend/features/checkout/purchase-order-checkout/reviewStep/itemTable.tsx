@@ -1,7 +1,6 @@
 'use client'
 
-import { Table, TableBody, TableCell, TableRow } from '@/shared/ui/base/table'
-import { Accordion, Amount } from '@dorado/components'
+import { Accordion, Amount, Table, TableBody, TableCell, TableRow } from '@dorado/components'
 import { useMemo, useState } from 'react'
 import { useBasket } from '@/features/checkout/items/queries'
 import { cn } from '@/shared/utils/cn'
@@ -10,7 +9,6 @@ import { formatRate } from '@/features/rates/types'
 import { usePaymentMethods } from '@dorado/client'
 import { usePurchaseOrderQuote } from '@/features/quotes/queries'
 import type { CheckoutRate, CheckoutView, PurchaseOrderQuoteLine } from "@dorado/contracts";
-import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 
 // A basket line paired with its quote line. Absent until the first quote lands
 // (or if the server refused the quote) - those rows price at zero, never
@@ -95,7 +93,7 @@ export default function ReviewItemTables({
       <div className="flex items-center justify-between p-4 border-b border-border">
         <h3>Estimated Payout</h3>
         <strong>
-          <PriceNumberFlow value={total ?? 0} className="tabular-nums" />
+          <Amount value={total ?? 0} />
         </strong>
       </div>
 
@@ -104,7 +102,7 @@ export default function ReviewItemTables({
           label="Scrap"
           trailing={
             <strong>
-              <PriceNumberFlow value={scrapTotal} className="tabular-nums" />
+              <Amount value={scrapTotal} />
             </strong>
           }
           open={open.scrap}
@@ -120,7 +118,7 @@ export default function ReviewItemTables({
           label="Bullion"
           trailing={
             <strong>
-              <PriceNumberFlow value={bullionTotal} className="tabular-nums" />
+              <Amount value={bullionTotal} />
             </strong>
           }
           open={open.bullion}
@@ -135,7 +133,7 @@ export default function ReviewItemTables({
           label="Shipping"
           trailing={
             <strong>
-              -<PriceNumberFlow value={shippingCost ?? 0} className="tabular-nums" />
+              -<Amount value={shippingCost ?? 0} />
             </strong>
           }
           open={open.shipping}
@@ -151,7 +149,7 @@ export default function ReviewItemTables({
           label="Payout Method Fee"
           trailing={
             <strong>
-              -<PriceNumberFlow value={payoutRow[0].cost} className="tabular-nums" />
+              -<Amount value={payoutRow[0].cost} />
             </strong>
           }
           open={open.payout}

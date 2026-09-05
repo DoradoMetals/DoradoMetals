@@ -27,8 +27,9 @@ vi.mock("@/features/auth/queries", () => ({
 // NumberFlow animates digits through a custom element with no synchronous
 // text content under jsdom. The shim renders the raw value, which is exactly
 // what the unit pin needs to read.
-vi.mock("@/shared/ui/PriceNumberFlow", () => ({
-  default: ({ value, className }: { value: number; className?: string }) =>
+vi.mock("@dorado/components", async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  Amount: ({ value, className }: { value: number; className?: string }) =>
     React.createElement("span", { className }, String(value)),
 }));
 

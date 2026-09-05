@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import { Product } from '@/features/products/types'
-import { Button, Carousel, RadioGroup, RadioOption } from '@dorado/components'
+import { Amount, Button, Carousel, RadioGroup, RadioOption } from '@dorado/components'
 import { CircleHelp, Equal, Minus, Plus, Scale, X } from '@dorado/icons'
 import NumberFlow from '@number-flow/react'
 import { FloatingButton, FloatingButtonItem } from '@/features/products/ui/FloatingButton'
@@ -15,7 +15,6 @@ import { PopoverContent, PopoverTrigger } from '@/shared/ui/base/popover'
 import { Popover } from '@radix-ui/react-popover'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
-import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { useSpotPrices } from '@dorado/client'
 import { DetailRow } from '@/shared/ui/DetailRow'
 
@@ -188,7 +187,7 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
                       <div className="flex flex-col gap-2">
                         <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
                           <DetailRow label={<>{spot?.name} Spot Price</>} variant="detail" className="items-start pl-8">
-                            <PriceNumberFlow value={spot?.ask ?? 0} />
+                            <Amount value={spot?.ask ?? 0} />
                           </DetailRow>
 
                           <div className="flex w-full items-start">
@@ -204,7 +203,7 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
                             )}
 
                             <DetailRow label="Premium" variant="detail" className="items-start pl-4">
-                              <PriceNumberFlow value={Math.abs(overOrUnder)} />
+                              <Amount value={Math.abs(overOrUnder)} />
                             </DetailRow>
                           </div>
                         </div>
@@ -212,7 +211,7 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
                         <div className="flex w-full items-start">
                           <Equal size={16} className="text-subtle" />
                           <DetailRow label="Total" variant="subtotal" className="items-start pl-4">
-                            <PriceNumberFlow value={price} />
+                            <Amount value={price} />
                           </DetailRow>
                         </div>
                       </div>
@@ -233,7 +232,7 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
 
               <div className="flex flex-col items-end gap-1 ml-auto my-0">
                 <strong className="stat-sm">
-                  <PriceNumberFlow value={price} />
+                  <Amount value={price} />
                 </strong>
               </div>
             </div>

@@ -1,20 +1,11 @@
 'use client'
-import { Accordion } from '@dorado/components'
+import { Accordion, Amount, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@dorado/components'
 
 import { useMemo, useState } from 'react'
 import { PurchaseOrderDrawerFooterProps, statusConfig } from '@/features/orders/purchaseOrders/types'
 import { assignScrapItemNames } from '@/features/orders/display'
 import { DetailRow } from '@/shared/ui/DetailRow'
 
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/shared/ui/base/table'
-import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 import { PurchaseOrderActionButtons } from './adminPurchaseOrderDrawerContents/adminPurchaseOrderActionButtons'
 import { payoutMethodIcon, PayoutMethodType } from '@/features/payouts/types'
@@ -91,7 +82,7 @@ export default function AdminPurchaseOrderDrawerFooter({ view }: PurchaseOrderDr
               label={`Scrap ${valueLabel}`}
               open={open.scrap}
               onToggle={() => setOpen((prev) => ({ ...prev, scrap: !prev.scrap }))}
-              trailing={<PriceNumberFlow value={scrapTotal} />}
+              trailing={<Amount value={scrapTotal} />}
             >
               <Table className="overflow-hidden">
                 <TableHeader>
@@ -120,7 +111,7 @@ export default function AdminPurchaseOrderDrawerFooter({ view }: PurchaseOrderDr
                       <TableCell className="text-right">
                         {/* Scrap line_total is the whole line - content is not
                             multiplied by quantity - and honours a stored price. */}
-                        <PriceNumberFlow value={quoteLineById.get(item.id)?.line_total ?? 0} />
+                        <Amount value={quoteLineById.get(item.id)?.line_total ?? 0} />
                       </TableCell>
                     </TableRow>
                   ))}
@@ -135,7 +126,7 @@ export default function AdminPurchaseOrderDrawerFooter({ view }: PurchaseOrderDr
               label={`Bullion ${valueLabel}`}
               open={open.bullion}
               onToggle={() => setOpen((prev) => ({ ...prev, bullion: !prev.bullion }))}
-              trailing={<PriceNumberFlow value={bullionTotal} />}
+              trailing={<Amount value={bullionTotal} />}
             >
               <Table className="overflow-hidden">
                 <TableBody>
@@ -145,7 +136,7 @@ export default function AdminPurchaseOrderDrawerFooter({ view }: PurchaseOrderDr
                       <TableCell>{nameOf(catalogue, item.bullion_id)}</TableCell>
                       <TableCell className="text-right p-0">
                         {/* line_total is already unit_price * quantity. */}
-                        <PriceNumberFlow value={quoteLineById.get(item.id)?.line_total ?? 0} />
+                        <Amount value={quoteLineById.get(item.id)?.line_total ?? 0} />
                       </TableCell>
                     </TableRow>
                   ))}
@@ -162,7 +153,7 @@ export default function AdminPurchaseOrderDrawerFooter({ view }: PurchaseOrderDr
               onToggle={() => setOpen((prev) => ({ ...prev, shipment: !prev.shipment }))}
               trailing={
                 <>
-                  -<PriceNumberFlow value={shipment.shipment.cost ?? 0} />
+                  -<Amount value={shipment.shipment.cost ?? 0} />
                 </>
               }
             >
@@ -172,7 +163,7 @@ export default function AdminPurchaseOrderDrawerFooter({ view }: PurchaseOrderDr
                     <TableCell>{shipmentService}</TableCell>
                     <TableCell>{shipment.shipment.insured ? 'Insured' : 'Uninsured'}</TableCell>
                     <TableCell className="text-right p-0">
-                      -<PriceNumberFlow value={shipment.shipment.cost ?? 0} />
+                      -<Amount value={shipment.shipment.cost ?? 0} />
                     </TableCell>
                   </TableRow>
                   {order.status === 'Cancelled' && returnShipment && (
@@ -180,7 +171,7 @@ export default function AdminPurchaseOrderDrawerFooter({ view }: PurchaseOrderDr
                       <TableCell>{returnService} (Return)</TableCell>
                       <TableCell>{returnShipment.shipment.insured ? 'Insured' : 'Uninsured'}</TableCell>
                       <TableCell className="text-right p-0">
-                        -<PriceNumberFlow value={returnShipment.shipment.cost ?? 0} />
+                        -<Amount value={returnShipment.shipment.cost ?? 0} />
                       </TableCell>
                     </TableRow>
                   )}
@@ -197,7 +188,7 @@ export default function AdminPurchaseOrderDrawerFooter({ view }: PurchaseOrderDr
               onToggle={() => setOpen((prev) => ({ ...prev, payout: !prev.payout }))}
               trailing={
                 <>
-                  -<PriceNumberFlow value={payoutFee} />
+                  -<Amount value={payoutFee} />
                 </>
               }
             >
@@ -206,7 +197,7 @@ export default function AdminPurchaseOrderDrawerFooter({ view }: PurchaseOrderDr
                   <TableRow>
                     <TableCell>{payoutMethod?.label ?? 'Unknown Method'}</TableCell>
                     <TableCell className="text-right p-0">
-                      -<PriceNumberFlow value={payoutFee} />
+                      -<Amount value={payoutFee} />
                     </TableCell>
                   </TableRow>
                 </TableBody>
@@ -219,35 +210,35 @@ export default function AdminPurchaseOrderDrawerFooter({ view }: PurchaseOrderDr
             label={`Total ${valueLabel}`}
             open={open.total}
             onToggle={() => setOpen((prev) => ({ ...prev, total: !prev.total }))}
-            trailing={<PriceNumberFlow value={total} />}
+            trailing={<Amount value={total} />}
           >
             <div className="flex flex-col gap-2">
               {scrapItems.length > 0 && (
                 <DetailRow label="Scrap:">
-                  <PriceNumberFlow value={scrapTotal} />
+                  <Amount value={scrapTotal} />
                 </DetailRow>
               )}
 
               {bullionItems.length > 0 && (
                 <DetailRow label="Bullion:">
-                  <PriceNumberFlow value={bullionTotal} />
+                  <Amount value={bullionTotal} />
                 </DetailRow>
               )}
 
               {(shipment?.shipment.cost ?? 0) > 0 && (
                 <DetailRow label="Shipping:">
-                  -<PriceNumberFlow value={shipment?.shipment.cost ?? 0} />
+                  -<Amount value={shipment?.shipment.cost ?? 0} />
                 </DetailRow>
               )}
 
               {payoutFee > 0 && (
                 <DetailRow label="Payout Fee:">
-                  -<PriceNumberFlow value={payoutFee} />
+                  -<Amount value={payoutFee} />
                 </DetailRow>
               )}
 
               <DetailRow label="Total:" variant="total">
-                <PriceNumberFlow value={total} />
+                <Amount value={total} />
               </DetailRow>
             </div>
           </Accordion>

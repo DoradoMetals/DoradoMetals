@@ -1,11 +1,10 @@
 'use client'
 
 import { NumberFlowGroup } from '@number-flow/react'
-import { Button } from '@dorado/components'
+import { Amount, Button } from '@dorado/components'
 import { ChevronUp, ChevronDown, ArrowLeftRight } from '@dorado/icons'
 import { useSpotTypeStore } from '@/shared/store/spotStore'
 import { cn } from '@/shared/utils/cn'
-import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import MobileSpotTicker from '@/features/spots/ui/MobileSpots'
 import { useSpotPrices } from '@dorado/client'
 
@@ -57,18 +56,12 @@ export default function Spots() {
 
                       <NumberFlowGroup>
                         <div className="flex items-center">
-                          <PriceNumberFlow
-                            value={(type === 'Bid' ? spot.bid : spot.ask) ?? 0}
-                            className="tabular-nums"
-                          />
+                          <Amount value={(type === 'Bid' ? spot.bid : spot.ask) ?? 0} />
                         </div>
 
                         <div className="flex items-center gap-1">
                           <CaretIcon size={16} className={colorClass} />
-                          <PriceNumberFlow
-                            value={spot.dollar_change ?? 0}
-                            className={cn(colorClass, 'tabular-nums')}
-                          />
+                          <Amount value={spot.dollar_change ?? 0} className={colorClass} />
                         </div>
                       </NumberFlowGroup>
                     </div>

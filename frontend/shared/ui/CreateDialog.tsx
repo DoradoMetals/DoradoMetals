@@ -10,10 +10,10 @@ import {
   DialogHeader,
   DialogOverlay,
   DialogTitle,
-} from '@/shared/ui/base/dialog'
+} from '@dorado/components'
 import { Input } from '@/shared/ui/base/input'
 import { Textarea } from '@/shared/ui/base/textarea'
-import { Rating, RatingButton } from '@/shared/ui/base/rating'
+import { Rating, RatingButton } from '@dorado/components'
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 import { cn } from '@/shared/utils/cn'
 

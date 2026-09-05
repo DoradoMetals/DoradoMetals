@@ -9,7 +9,7 @@ import { cn } from '@/shared/utils/cn'
 
        <div className="w-full flex items-center justify-between">
          <small>Shipping</small>
-         a brighter value div holding a PriceNumberFlow
+         a brighter value div holding an Amount
        </div>
 
    — the same box, the same two type sizes, spelled slightly differently every
@@ -63,7 +63,7 @@ export function DetailRow({
   className,
 }: {
   label: ReactNode
-  /** The value. Usually a `<PriceNumberFlow>` or a formatted string. */
+  /** The value. Usually an `<Amount>` or a formatted string. */
   children: ReactNode
   /** The step of the ramp. See the table above. */
   variant?: DetailRowVariant

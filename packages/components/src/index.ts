@@ -31,7 +31,7 @@ export { Tabs, TabsList, TabsTrigger, TabsContent } from "./tabs/Tabs";
 export { Slider, type SliderProps } from "./slider/Slider";
 export { SliderField, type SliderFieldProps } from "./slider-field/SliderField";
 export { List, ListItem, type ListProps } from "./list/List";
-export { Table, TableHeader, TableHead, TableBody, TableRow, TableCell, type SortDirection } from "./table/Table";
+export { Table, TableHeader, TableHead, TableBody, TableRow, TableCell, type SortDirection, type TableRowProps } from "./table/Table";
 export { Dialog, DialogTrigger, DialogClose, DialogContent, DialogTitle, DialogDescription, DialogFooter, DialogHeader, DialogOverlay, DialogPortal } from "./dialog/Dialog";
 export { Calendar, type CalendarProps } from "./date-picker/Calendar";
 export type { TimeGroup, TimeSlotShape } from "./date-picker/TimePicker";

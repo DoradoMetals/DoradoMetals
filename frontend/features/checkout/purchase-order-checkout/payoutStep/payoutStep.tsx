@@ -22,7 +22,7 @@ import WireForm from './wireForm'
 import EcheckForm from './echeckForm'
 import { cn } from '@/shared/utils/cn'
 import { User } from '@/features/users/types'
-import PriceNumberFlow from '../../../../shared/ui/PriceNumberFlow'
+import { Amount } from '@dorado/components'
 import DoradoAccountForm from './doradoAccountForm'
 import { usePaymentMethods } from '@dorado/client'
 
@@ -138,7 +138,7 @@ export default function PayoutStep({ user }: { user?: User }) {
                         {Number(option.flat_fee ?? 0) === 0 ? (
                           'Free'
                         ) : (
-                          <PriceNumberFlow value={Number(option.flat_fee)} className="tabular-nums" />
+                          <Amount value={Number(option.flat_fee)} />
                         )}
                       </small>
                     </div>

@@ -5,7 +5,7 @@ import { motion, useAnimationFrame, useMotionValue, useTransform } from 'framer-
 import { wrap } from '@motionone/utils'
 import { ChevronUp, ChevronDown } from '@dorado/icons'
 import { NumberFlowGroup } from '@number-flow/react'
-import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
+import { Amount } from '@dorado/components'
 import { cn } from '@/shared/utils/cn'
 import { useSpotPrices } from '@dorado/client'
 
@@ -55,18 +55,12 @@ export default function MobileSpotTicker({ type }: { type: 'Bid' | 'Ask' }) {
               <span className="uppercase">{spot.name}:</span>
               <NumberFlowGroup>
                 <div className="flex items-center">
-                  <PriceNumberFlow
-                    value={(type === 'Bid' ? spot.bid : spot.ask) ?? 0}
-                    className="tabular-nums"
-                  />
+                  <Amount value={(type === 'Bid' ? spot.bid : spot.ask) ?? 0} />
                 </div>
 
                 <div className="flex items-center gap-1">
                   <CaretIcon size={16} className={colorClass} />
-                  <PriceNumberFlow
-                    value={spot.dollar_change ?? 0}
-                    className={cn(colorClass, 'tabular-nums')}
-                  />
+                  <Amount value={spot.dollar_change ?? 0} className={colorClass} />
                 </div>
               </NumberFlowGroup>
             </div>

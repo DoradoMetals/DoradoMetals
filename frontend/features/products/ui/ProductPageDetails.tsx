@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import { Product } from '@/features/products/types'
-import { Accordion, Button, RadioGroup, RadioOption } from '@dorado/components'
+import { Accordion, Amount, Button, RadioGroup, RadioOption } from '@dorado/components'
 import { Circle, Clock, Equal, Minus, Plus, ShieldCheck, Tag, X } from '@dorado/icons'
 import NumberFlow from '@number-flow/react'
 
@@ -17,7 +17,6 @@ import { paymentMethodIcon, transitLabel } from '@/features/orders/salesOrders/t
 import { usePaymentMethods, useSaleShippingServices } from '@dorado/client'
 import { useSpotPrices } from '@dorado/client'
 import { useCatalogQuote } from '@/features/quotes/queries'
-import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { DetailRow } from '@/shared/ui/DetailRow'
 
 type ProductPageProps = {
@@ -209,13 +208,13 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               <div className="flex flex-col items-start gap-0">
                 <small>Price:</small>
                 <strong className="stat-sm">
-                  <PriceNumberFlow value={price} />
+                  <Amount value={price} />
                 </strong>
               </div>
               <div className="flex flex-col items-start gap-0">
                 <small>Buyback:</small>
                 <strong className="stat-sm">
-                  <PriceNumberFlow value={buybackPrice} />
+                  <Amount value={buybackPrice} />
                 </strong>
               </div>
             </div>
@@ -244,7 +243,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                       variant="detail"
                       className="items-start pl-8"
                     >
-                      <PriceNumberFlow value={spot?.ask ?? 0} />
+                      <Amount value={spot?.ask ?? 0} />
                     </DetailRow>
 
                     <div className="flex w-full items-start">
@@ -262,7 +261,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                       )}
 
                       <DetailRow label="Ask Premium" variant="detail" className="items-start pl-4">
-                        <PriceNumberFlow value={Math.abs(askOverOrUnder)} />
+                        <Amount value={Math.abs(askOverOrUnder)} />
                       </DetailRow>
                     </div>
                   </div>
@@ -270,7 +269,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                   <div className="flex w-full items-start">
                     <Equal size={16} className="text-subtle" />
                     <DetailRow label="Total Ask" variant="subtotal" className="items-start pl-4">
-                      <PriceNumberFlow value={price} />
+                      <Amount value={price} />
                     </DetailRow>
                   </div>
                 </div>
@@ -290,7 +289,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                       variant="detail"
                       className="items-start pl-8"
                     >
-                      <PriceNumberFlow value={spot?.bid ?? 0} />
+                      <Amount value={spot?.bid ?? 0} />
                     </DetailRow>
 
                     <div className="flex w-full items-start">
@@ -308,7 +307,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                       )}
 
                       <DetailRow label="Bid Premium" variant="detail" className="items-start pl-4">
-                        <PriceNumberFlow value={Math.abs(bidOverOrUnder)} />
+                        <Amount value={Math.abs(bidOverOrUnder)} />
                       </DetailRow>
                     </div>
                   </div>
@@ -316,7 +315,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                   <div className="flex w-full items-start">
                     <Equal size={16} className="text-subtle" />
                     <DetailRow label="Total Bid" variant="subtotal" className="items-start pl-4">
-                      <PriceNumberFlow value={buybackPrice} />
+                      <Amount value={buybackPrice} />
                     </DetailRow>
                   </div>
                 </div>
@@ -338,7 +337,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                       {svc.name} {`(${transitLabel(svc.min_transit_days, svc.max_transit_days)})`}
                     </p>
                     <strong>
-                      <PriceNumberFlow value={Number(svc.price ?? 0)} />
+                      <Amount value={Number(svc.price ?? 0)} />
                     </strong>
                   </div>
                 ))}
@@ -429,13 +428,13 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
             <div className="flex flex-col items-start gap-0">
               <small>Price:</small>
               <strong className="stat-sm">
-                <PriceNumberFlow value={price} />
+                <Amount value={price} />
               </strong>
             </div>
             <div className="flex flex-col items-start gap-0">
               <small>Buyback:</small>
               <strong className="stat-sm">
-                <PriceNumberFlow value={buybackPrice} />
+                <Amount value={buybackPrice} />
               </strong>
             </div>
           </div>
@@ -590,7 +589,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                       variant="detail"
                       className="items-start pl-8"
                     >
-                      <PriceNumberFlow value={spot?.ask ?? 0} />
+                      <Amount value={spot?.ask ?? 0} />
                     </DetailRow>
 
                     <div className="flex w-full items-start">
@@ -608,7 +607,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                       )}
 
                       <DetailRow label="Ask Premium" variant="detail" className="items-start pl-4">
-                        <PriceNumberFlow value={Math.abs(askOverOrUnder)} />
+                        <Amount value={Math.abs(askOverOrUnder)} />
                       </DetailRow>
                     </div>
                   </div>
@@ -616,7 +615,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                   <div className="flex w-full items-start">
                     <Equal size={16} className="text-subtle" />
                     <DetailRow label="Total Ask" variant="subtotal" className="items-start pl-4">
-                      <PriceNumberFlow value={price} />
+                      <Amount value={price} />
                     </DetailRow>
                   </div>
                 </div>
@@ -636,7 +635,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                       variant="detail"
                       className="items-start pl-8"
                     >
-                      <PriceNumberFlow value={spot?.bid ?? 0} />
+                      <Amount value={spot?.bid ?? 0} />
                     </DetailRow>
 
                     <div className="flex w-full items-start">
@@ -654,7 +653,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                       )}
 
                       <DetailRow label="Bid Premium" variant="detail" className="items-start pl-4">
-                        <PriceNumberFlow value={Math.abs(bidOverOrUnder)} />
+                        <Amount value={Math.abs(bidOverOrUnder)} />
                       </DetailRow>
                     </div>
                   </div>
@@ -662,7 +661,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                   <div className="flex w-full items-start">
                     <Equal size={16} className="text-subtle" />
                     <DetailRow label="Total Bid" variant="subtotal" className="items-start pl-4">
-                      <PriceNumberFlow value={buybackPrice} />
+                      <Amount value={buybackPrice} />
                     </DetailRow>
                   </div>
                 </div>
@@ -684,7 +683,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                       {svc.name} {`(${transitLabel(svc.min_transit_days, svc.max_transit_days)})`}
                     </p>
                     <strong>
-                      <PriceNumberFlow value={Number(svc.price ?? 0)} />
+                      <Amount value={Number(svc.price ?? 0)} />
                     </strong>
                   </div>
                 ))}

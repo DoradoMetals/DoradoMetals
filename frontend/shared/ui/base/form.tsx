@@ -14,7 +14,7 @@ import {
 } from "react-hook-form"
 
 import { cn } from "@/shared/utils/cn"
-import { Label } from "@/shared/ui/base/label"
+import { FieldLabel as Label } from "@dorado/components"
 
 const Form = FormProvider
 

@@ -5,8 +5,7 @@ import { usePurchaseOrderQuote } from '@/features/quotes/queries'
 import { formatRate } from '@/features/rates/types'
 import { useBasket } from '@/features/checkout/items/queries'
 import { useSpotPrices } from '@/features/spots/queries'
-import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
-import { Badge, Divider } from '@dorado/components'
+import { Amount, Badge, Divider } from '@dorado/components'
 import { CheckCircle, Coins, Percent, Scale } from '@dorado/icons'
 import { DetailRow } from '@/shared/ui/DetailRow'
 
@@ -80,7 +79,7 @@ export default function ReviewStep({ showBanner }: { showBanner: boolean }) {
         <Divider />
 
         <DetailRow label="Price Estimate:" className="items-end">
-          <PriceNumberFlow value={price} />
+          <Amount value={price} />
         </DetailRow>
 
         {showBanner && (

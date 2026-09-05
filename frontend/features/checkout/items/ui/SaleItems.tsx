@@ -1,6 +1,6 @@
 'use client'
 
-import { Button, EmptyState } from '@dorado/components'
+import { Amount, Button, EmptyState } from '@dorado/components'
 import { Minus, Plus, ShoppingCart, Trash2 } from '@dorado/icons'
 import Image from 'next/image'
 import NumberFlow from '@number-flow/react'
@@ -10,7 +10,6 @@ import { useDecoratedLines } from '@/features/checkout/items/flair'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useUser } from '@/features/auth/authClient'
 import { useCatalogQuote } from '@/features/quotes/queries'
-import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 
 // The BUY basket: direction 'sale' - the business sells.
 export default function SaleItems() {
@@ -108,10 +107,7 @@ export default function SaleItems() {
                   </Button>
                 </div>
                 <strong>
-                  <PriceNumberFlow
-                    value={lineTotals.get(line.bullion_id ?? '') ?? 0}
-                    className="tabular-nums"
-                  />
+                  <Amount value={lineTotals.get(line.bullion_id ?? '') ?? 0} />
                 </strong>
               </div>
             </div>
@@ -126,7 +122,7 @@ export default function SaleItems() {
       <div className="flex justify-between items-end sm:mb-2">
         <h3>Total:</h3>
         <h3>
-          <PriceNumberFlow value={quote?.total ?? 0} className="tabular-nums" />
+          <Amount value={quote?.total ?? 0} />
         </h3>
       </div>
       <Button

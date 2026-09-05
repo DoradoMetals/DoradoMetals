@@ -12,10 +12,9 @@ import {
   useRequestPasswordReset,
   useUpdateUser,
 } from '@/features/auth/queries'
-import { Button, Divider, Drawer, Input, RadioGroup, RadioOption } from '@dorado/components'
+import { Amount, Button, Divider, Drawer, Input, RadioGroup, RadioOption } from '@dorado/components'
 import { Minus, Pen, Plus } from '@dorado/icons'
 import { cn } from '@/shared/utils/cn'
-import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { useUpdateCredit } from '@dorado/client'
 
 export default function AdminUsersDrawer({
@@ -137,7 +136,7 @@ function DoradoCredit({ user }: { user: AdminUser }) {
       <div className="flex w-full justify-between items-end">
         <p className="eyebrow mb-2">Dorado Credit</p>
         <strong className="pr-3">
-          <PriceNumberFlow value={user.dorado_funds} />
+          <Amount value={user.dorado_funds} />
         </strong>
       </div>
 
@@ -169,7 +168,7 @@ function DoradoCredit({ user }: { user: AdminUser }) {
           <p>New:</p>
 
           <strong className="pr-3">
-            <PriceNumberFlow value={newAmount} />
+            <Amount value={newAmount} />
           </strong>
         </div>
 

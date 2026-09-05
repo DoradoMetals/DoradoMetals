@@ -8,8 +8,9 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
 
-vi.mock("@/shared/ui/PriceNumberFlow", () => ({
-  default: ({ value }: { value: number }) => React.createElement("span", null, String(value)),
+vi.mock("@dorado/components", async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  Amount: ({ value }: { value: number }) => React.createElement("span", null, String(value)),
 }));
 
 // THE LINES ARE A READ NOW, NOT A PROP (wave 3). The footer is a CONTAINER:

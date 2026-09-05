@@ -52,14 +52,9 @@ export function Field({ label, htmlFor, message, invalid, children, className }:
   );
 }
 
-export function FieldLabel({
-  className,
-  ...props
-}: React.LabelHTMLAttributes<HTMLLabelElement>) {
-  return (
-    <label
-      className={cn("text-small font-medium text-muted-foreground", className)}
-      {...props}
-    />
-  );
-}
+export const FieldLabel = React.forwardRef<HTMLLabelElement, React.LabelHTMLAttributes<HTMLLabelElement>>(
+  ({ className, ...props }, ref) => (
+    <label ref={ref} className={cn("text-small font-medium text-muted-foreground", className)} {...props} />
+  )
+);
+FieldLabel.displayName = "FieldLabel";

@@ -4,7 +4,7 @@ import * as React from 'react'
 import { Button } from '@dorado/components'
 import { Smile } from '@dorado/icons'
 import { Textarea } from '@/shared/ui/base/textarea'
-import { Rating, RatingButton } from '@/shared/ui/base/rating'
+import { Rating, RatingButton } from '@dorado/components'
 
 /* ============================================================================
    D95 — THE INVISIBLE PAIR WAS IN THE DEFAULT PROPS.

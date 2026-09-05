@@ -1,6 +1,5 @@
 import { useCancelPaymentIntent, useOrderPaymentIntent } from '@dorado/client'
-import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
-import { Button, Badge, Divider } from '@dorado/components'
+import { Amount, Button, Badge, Divider } from '@dorado/components'
 import { DetailRow } from '@/shared/ui/DetailRow'
 import { paymentMethodIcon, SalesOrderDrawerContentProps } from '@/features/orders/salesOrders/types'
 import { usePaymentMethods } from '@dorado/client'
@@ -79,15 +78,15 @@ export default function AdminPendingSalesOrder({ view }: SalesOrderDrawerContent
       {/* DOLLARS on the wire, not cents - the /100 died with the adapter,
           and putting one back here is a hundredfold error on money. */}
       <DetailRow label="Total Due:" variant="total">
-        <PriceNumberFlow value={Number(paymentIntent.amount_expected ?? 0)} />
+        <Amount value={Number(paymentIntent.amount_expected ?? 0)} />
       </DetailRow>
 
       <DetailRow label="Amount Paid:" variant="total">
-        <PriceNumberFlow value={Number(paymentIntent.amount_received ?? 0)} />
+        <Amount value={Number(paymentIntent.amount_received ?? 0)} />
       </DetailRow>
 
       <DetailRow label="Remaining Balance:" variant="total">
-        <PriceNumberFlow
+        <Amount
           value={
             Number(paymentIntent.amount_expected ?? 0) -
             Number(paymentIntent.amount_received ?? 0)

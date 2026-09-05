@@ -1,6 +1,6 @@
 'use client'
 
-import { Divider, Input } from '@dorado/components'
+import { Divider, Input, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@dorado/components'
 import { cn } from '@/shared/utils/cn'
 import { PurchaseOrderDrawerContentProps } from '@/features/orders/purchaseOrders/types'
 import { assignScrapItemNames } from '@/features/orders/display'
@@ -13,14 +13,6 @@ import {
   useRefinerOrder,
   useRefinerItems,
 } from '@/features/refiners/queries'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/shared/ui/base/table'
 import { nameOf } from '@/features/orders/display'
 
 export default function ActualsEditor({ view }: PurchaseOrderDrawerContentProps) {

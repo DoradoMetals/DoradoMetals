@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Form } from '@/shared/ui/base/form'
-import { Button, Skeleton } from '@dorado/components'
+import { Amount, Button, Skeleton } from '@dorado/components'
 import { MailCheck, MailWarning, MailX, UserX2 } from '@dorado/icons'
 import { User, userSchema } from '@/features/users/types'
 import {
@@ -15,7 +15,6 @@ import {
 } from '@/features/auth/queries'
 import { ValidatedField } from '@/shared/ui/form/ValidatedField'
 import { AccountAction } from '@/features/users/ui/AccountAction'
-import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { DetailRow } from '@/shared/ui/DetailRow'
 
 export default function UserForm() {
@@ -174,7 +173,7 @@ export default function UserForm() {
         <p className="eyebrow mb-2">Dorado Credit</p>
 
         <DetailRow label="Current balance" variant="subtotal" className="items-baseline">
-          <PriceNumberFlow value={user?.dorado_funds ?? 0} />
+          <Amount value={user?.dorado_funds ?? 0} />
         </DetailRow>
       </div>
     </section>
