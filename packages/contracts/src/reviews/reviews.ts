@@ -3,29 +3,29 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: reviews.reviews
-import { z } from "zod/v4";
+import { z } from 'zod/v4'
 
 export const Review = z.object({
-  "id": z.string().uuid(),
-  "user_id": z.string().uuid().nullable(),
-  "order_id": z.string().uuid().nullable(),
-  "name": z.string().nullable(),
-  "review_text": z.string().nullable(),
-  "rating": z.number().nullable(),
-  "hidden": z.boolean(),
-  "created_at": z.string(),
-  "updated_at": z.string(),
-  "created_by": z.string().nullable(),
-  "updated_by": z.string().nullable(),
-  "created_by_id": z.string().uuid().nullable(),
-  "updated_by_id": z.string().uuid().nullable(),
-});
-export type Review = z.infer<typeof Review>;
+  'id': z.string().uuid(),
+  'user_id': z.string().uuid().nullable(),
+  'order_id': z.string().uuid().nullable(),
+  'name': z.string().nullable(),
+  'review_text': z.string().nullable(),
+  'rating': z.number().nullable(),
+  'hidden': z.boolean(),
+  'created_at': z.string(),
+  'updated_at': z.string(),
+  'created_by': z.string().nullable(),
+  'updated_by': z.string().nullable(),
+  'created_by_id': z.string().uuid().nullable(),
+  'updated_by_id': z.string().uuid().nullable(),
+})
+export type Review = z.infer<typeof Review>
 // generated:end
 export const ReviewPatch = Review.pick({
   review_text: true,
   rating: true,
   name: true,
   hidden: true,
-}).partial();
-export type ReviewPatch = z.infer<typeof ReviewPatch>;
+}).partial()
+export type ReviewPatch = z.infer<typeof ReviewPatch>

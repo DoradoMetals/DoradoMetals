@@ -1,4 +1,4 @@
-import { Divider } from "@dorado/components";
+import { Divider } from '@dorado/components'
 
 export default function orSeparator() {
   return (

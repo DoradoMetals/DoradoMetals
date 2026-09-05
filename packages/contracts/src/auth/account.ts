@@ -3,22 +3,22 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: auth.account
-import { z } from "zod/v4";
+import { z } from 'zod/v4'
 
 export const AuthAccount = z.object({
-  "id": z.string().uuid(),
-  "userId": z.string().uuid(),
-  "accountId": z.string(),
-  "providerId": z.string(),
-  "accessToken": z.string().nullable(),
-  "refreshToken": z.string().nullable(),
-  "accessTokenExpiresAt": z.string().nullable(),
-  "refreshTokenExpiresAt": z.string().nullable(),
-  "scope": z.string().nullable(),
-  "idToken": z.string().nullable(),
-  "password": z.string().nullable(),
-  "createdAt": z.string(),
-  "updatedAt": z.string(),
-});
-export type AuthAccount = z.infer<typeof AuthAccount>;
+  'id': z.string().uuid(),
+  'userId': z.string().uuid(),
+  'accountId': z.string(),
+  'providerId': z.string(),
+  'accessToken': z.string().nullable(),
+  'refreshToken': z.string().nullable(),
+  'accessTokenExpiresAt': z.string().nullable(),
+  'refreshTokenExpiresAt': z.string().nullable(),
+  'scope': z.string().nullable(),
+  'idToken': z.string().nullable(),
+  'password': z.string().nullable(),
+  'createdAt': z.string(),
+  'updatedAt': z.string(),
+})
+export type AuthAccount = z.infer<typeof AuthAccount>
 // generated:end

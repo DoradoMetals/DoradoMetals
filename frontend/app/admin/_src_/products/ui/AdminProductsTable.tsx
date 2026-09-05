@@ -18,7 +18,10 @@ function PremiumCell({ mult }: { mult: number | null | undefined }) {
 
   return (
     <span className="flex items-center justify-center gap-1">
-      <Amount value={pct} format={{ style: 'percent', minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
+      <Amount
+        value={pct}
+        format={{ style: 'percent', minimumFractionDigits: 2, maximumFractionDigits: 2 }}
+      />
       {dir}
     </span>
   )
@@ -130,7 +133,11 @@ export default function ProductsPage() {
             >
               <Rows3 size={28} />
             </Button>
-            <AddNewDialog open={createOpen} onOpenChange={setCreateOpen} createConfig={createConfig} />
+            <AddNewDialog
+              open={createOpen}
+              onOpenChange={setCreateOpen}
+              createConfig={createConfig}
+            />
           </>
         }
       />

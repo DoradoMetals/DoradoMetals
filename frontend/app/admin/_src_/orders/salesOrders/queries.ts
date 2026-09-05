@@ -34,16 +34,14 @@ export const useAdminCreateSalesOrder = (user_id: string) => {
         },
       },
     },
-    payment_method_id:
-      saleMethods.find((m) => m.type === sales_order.payment_method)?.id ?? '',
+    payment_method_id: saleMethods.find((m) => m.type === sales_order.payment_method)?.id ?? '',
     recipient_address_id: sales_order.address.id,
   })
 
   return {
     ...create,
-    mutateAsync: async (
-      vars: { sales_order: AdminSaleCheckoutForm; items: CheckoutItemPatch[] }
-    ) => await create.mutateAsync(bodyFor(vars.sales_order, vars.items)),
+    mutateAsync: async (vars: { sales_order: AdminSaleCheckoutForm; items: CheckoutItemPatch[] }) =>
+      await create.mutateAsync(bodyFor(vars.sales_order, vars.items)),
     mutate: (
       vars: { sales_order: AdminSaleCheckoutForm; items: CheckoutItemPatch[] },
       options?: { onSuccess?: () => void }

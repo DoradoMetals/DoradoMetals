@@ -101,16 +101,18 @@ export default function PaymentProcessingPurchaseOrder({ view }: PurchaseOrderDr
           {payout?.method === 'ACH' && (
             <p>
               Once we have initiated your ACH transfer, you will receive it within{' '}
-              {payoutOption?.time_delay}. If you have entered the wrong routing or account number, please
-              call us immediately. We are not liable for missing payments due to incorrect input.
+              {payoutOption?.time_delay}. If you have entered the wrong routing or account number,
+              please call us immediately. We are not liable for missing payments due to incorrect
+              input.
             </p>
           )}
 
           {payout?.method === 'WIRE' && (
             <p>
               Once we have initiated your wire transfer, you will receive it within
-              {payoutOption?.time_delay}. If you have entered the wrong routing or account number, please
-              call us immediately. We are not liable for missing payments due to incorrect input.
+              {payoutOption?.time_delay}. If you have entered the wrong routing or account number,
+              please call us immediately. We are not liable for missing payments due to incorrect
+              input.
             </p>
           )}
 

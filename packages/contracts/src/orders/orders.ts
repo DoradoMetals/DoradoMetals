@@ -3,47 +3,47 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: orders.orders
-import { z } from "zod/v4";
-import { Direction } from "./enums.js";
+import { z } from 'zod/v4'
+import { Direction } from './enums.js'
 
 export const Order = z.object({
-  "id": z.string().uuid(),
-  "user_id": z.string().uuid().nullable(),
-  "direction": Direction.nullable(),
-  "status": z.string().nullable(),
-  "number": z.number().int(),
-  "notes": z.string().nullable(),
-  "review_created": z.boolean().nullable(),
-  "created_by": z.string().nullable(),
-  "updated_by": z.string().nullable(),
-  "created_at": z.string().nullable(),
-  "updated_at": z.string().nullable(),
-  "created_by_id": z.string().uuid().nullable(),
-  "updated_by_id": z.string().uuid().nullable(),
-  "order_sent": z.boolean().nullable(),
-  "tracking_updated": z.boolean().nullable(),
-  "spots_locked": z.boolean(),
-});
-export type Order = z.infer<typeof Order>;
+  'id': z.string().uuid(),
+  'user_id': z.string().uuid().nullable(),
+  'direction': Direction.nullable(),
+  'status': z.string().nullable(),
+  'number': z.number().int(),
+  'notes': z.string().nullable(),
+  'review_created': z.boolean().nullable(),
+  'created_by': z.string().nullable(),
+  'updated_by': z.string().nullable(),
+  'created_at': z.string().nullable(),
+  'updated_at': z.string().nullable(),
+  'created_by_id': z.string().uuid().nullable(),
+  'updated_by_id': z.string().uuid().nullable(),
+  'order_sent': z.boolean().nullable(),
+  'tracking_updated': z.boolean().nullable(),
+  'spots_locked': z.boolean(),
+})
+export type Order = z.infer<typeof Order>
 // generated:end
-import { OrderTotals } from "./transactions.js";
-import { OrderViewItem } from "./items.js";
-import { Address } from "../places/addresses.js";
-import { OrderViewShipment } from "../shipping/shipments.js";
-import { ShipmentPickup } from "../shipping/pickups.js";
-import { OrderViewPayout } from "../payments/details.js";
-import { User, UserSummary } from "../auth/users.js";
-import { Checkout, CheckoutPayoutForm } from "../checkout/checkouts.js";
-import { CheckoutItemPatch } from "../checkout/items.js";
-import { FulfillmentMethod } from "../fulfillments/methods.js";
-import { FulfillmentPatchBody } from "../fulfillments/fulfillments.js";
-import { CarrierService } from "../shipping/services.js";
-import { Package } from "../shipping/packages.js";
-import { Refiner } from "../refiners/refiners.js";
-import { OrderActions } from "../computed/orders.js";
+import { OrderTotals } from './transactions.js'
+import { OrderViewItem } from './items.js'
+import { Address } from '../places/addresses.js'
+import { OrderViewShipment } from '../shipping/shipments.js'
+import { ShipmentPickup } from '../shipping/pickups.js'
+import { OrderViewPayout } from '../payments/details.js'
+import { User, UserSummary } from '../auth/users.js'
+import { Checkout, CheckoutPayoutForm } from '../checkout/checkouts.js'
+import { CheckoutItemPatch } from '../checkout/items.js'
+import { FulfillmentMethod } from '../fulfillments/methods.js'
+import { FulfillmentPatchBody } from '../fulfillments/fulfillments.js'
+import { CarrierService } from '../shipping/services.js'
+import { Package } from '../shipping/packages.js'
+import { Refiner } from '../refiners/refiners.js'
+import { OrderActions } from '../computed/orders.js'
 
-export const OrderRead = Order.extend({ totals: OrderTotals.nullable() });
-export type OrderRead = z.infer<typeof OrderRead>;
+export const OrderRead = Order.extend({ totals: OrderTotals.nullable() })
+export type OrderRead = z.infer<typeof OrderRead>
 
 // A shipment as an order shows it: the row, plus the two labels a document
 // prints instead of an id. Both are scalar subselects in `db/orders/sql/view.sql`
@@ -51,8 +51,8 @@ export type OrderRead = z.infer<typeof OrderRead>;
 export const OrderViewShipmentDetail = OrderViewShipment.extend({
   service_name: CarrierService.shape.name.nullable(),
   package_label: Package.shape.label.nullable(),
-});
-export type OrderViewShipmentDetail = z.infer<typeof OrderViewShipmentDetail>;
+})
+export type OrderViewShipmentDetail = z.infer<typeof OrderViewShipmentDetail>
 
 export const OrderViewFacts = z.object({
   order: Order,
@@ -63,70 +63,87 @@ export const OrderViewFacts = z.object({
   pickup: ShipmentPickup.nullable(),
   payout: OrderViewPayout.nullable(),
   user: UserSummary.nullable(),
-});
-export type OrderViewFacts = z.infer<typeof OrderViewFacts>;
+})
+export type OrderViewFacts = z.infer<typeof OrderViewFacts>
 
-export const OrderView = OrderViewFacts.extend({ actions: OrderActions });
-export type OrderView = z.infer<typeof OrderView>;
+export const OrderView = OrderViewFacts.extend({ actions: OrderActions })
+export type OrderView = z.infer<typeof OrderView>
 
-export const OrderPatch = Order.pick({ status: true, notes: true }).partial().strict();
-export type OrderPatch = z.infer<typeof OrderPatch>;
+export const OrderPatch = Order.pick({ status: true, notes: true }).partial().strict()
+export type OrderPatch = z.infer<typeof OrderPatch>
 
-export const OrderCreateBody = z.object({ checkout_id: Checkout.shape.id }).strict();
-export type OrderCreateBody = z.infer<typeof OrderCreateBody>;
+export const OrderCreateBody = z.object({ checkout_id: Checkout.shape.id }).strict()
+export type OrderCreateBody = z.infer<typeof OrderCreateBody>
 
 // An admin places on a customer's behalf, so the body is exactly what makes a
 // checkout placeable: checkout/rules.ts `checkoutState` (items, a fulfillment,
 // and the direction's own settlement column) plus fulfillments/rules.ts
 // `missingFor` (the chosen category's own choices).
-export const AdminOrderFulfillment = z.object({
-  method_id: FulfillmentMethod.shape.id,
-  choices: FulfillmentPatchBody,
-}).strict();
-export type AdminOrderFulfillment = z.infer<typeof AdminOrderFulfillment>;
+export const AdminOrderFulfillment = z
+  .object({
+    method_id: FulfillmentMethod.shape.id,
+    choices: FulfillmentPatchBody,
+  })
+  .strict()
+export type AdminOrderFulfillment = z.infer<typeof AdminOrderFulfillment>
 
-export const AdminPurchaseCreate = z.object({
-  direction: Direction.extract(["purchase"]),
-  user_id: User.shape.id,
-  items: z.array(CheckoutItemPatch),
-  fulfillment: AdminOrderFulfillment,
-  payout: CheckoutPayoutForm,
-}).strict();
-export type AdminPurchaseCreate = z.infer<typeof AdminPurchaseCreate>;
+export const AdminPurchaseCreate = z
+  .object({
+    direction: Direction.extract(['purchase']),
+    user_id: User.shape.id,
+    items: z.array(CheckoutItemPatch),
+    fulfillment: AdminOrderFulfillment,
+    payout: CheckoutPayoutForm,
+  })
+  .strict()
+export type AdminPurchaseCreate = z.infer<typeof AdminPurchaseCreate>
 
-export const AdminSaleCreate = z.object({
-  direction: Direction.extract(["sale"]),
-  user_id: User.shape.id,
-  items: z.array(CheckoutItemPatch),
-  fulfillment: AdminOrderFulfillment,
-  payment_method_id: Checkout.shape.payment_method_id.unwrap(),
-  recipient_address_id: Checkout.shape.recipient_address_id.unwrap(),
-}).strict();
-export type AdminSaleCreate = z.infer<typeof AdminSaleCreate>;
+export const AdminSaleCreate = z
+  .object({
+    direction: Direction.extract(['sale']),
+    user_id: User.shape.id,
+    items: z.array(CheckoutItemPatch),
+    fulfillment: AdminOrderFulfillment,
+    payment_method_id: Checkout.shape.payment_method_id.unwrap(),
+    recipient_address_id: Checkout.shape.recipient_address_id.unwrap(),
+  })
+  .strict()
+export type AdminSaleCreate = z.infer<typeof AdminSaleCreate>
 
-export const AdminOrderCreate = z.discriminatedUnion("direction", [
+export const AdminOrderCreate = z.discriminatedUnion('direction', [
   AdminPurchaseCreate,
   AdminSaleCreate,
-]);
-export type AdminOrderCreate = z.infer<typeof AdminOrderCreate>;
+])
+export type AdminOrderCreate = z.infer<typeof AdminOrderCreate>
 
-export const OrderCancelBody = z.object({
-  carrier_service_id: CarrierService.shape.id,
-  package_id: Package.shape.id,
-}).strict();
-export type OrderCancelBody = z.infer<typeof OrderCancelBody>;
+export const OrderCancelBody = z
+  .object({
+    carrier_service_id: CarrierService.shape.id,
+    package_id: Package.shape.id,
+  })
+  .strict()
+export type OrderCancelBody = z.infer<typeof OrderCancelBody>
 
-export const OrderSendToRefinerBody = z.object({
-  refiner_id: Refiner.shape.id,
-}).strict();
-export type OrderSendToRefinerBody = z.infer<typeof OrderSendToRefinerBody>;
+export const OrderSendToRefinerBody = z
+  .object({
+    refiner_id: Refiner.shape.id,
+  })
+  .strict()
+export type OrderSendToRefinerBody = z.infer<typeof OrderSendToRefinerBody>
 
 export const OrderWrite = Order.omit({
-  id: true, user_id: true, direction: true, number: true,
-  created_by: true, updated_by: true, created_at: true, updated_at: true,
-  created_by_id: true, updated_by_id: true,
-}).partial();
-export type OrderWrite = z.infer<typeof OrderWrite>;
+  id: true,
+  user_id: true,
+  direction: true,
+  number: true,
+  created_by: true,
+  updated_by: true,
+  created_at: true,
+  updated_at: true,
+  created_by_id: true,
+  updated_by_id: true,
+}).partial()
+export type OrderWrite = z.infer<typeof OrderWrite>
 
-export const OrderGuard = Order.pick({ status: true, direction: true }).partial();
-export type OrderGuard = z.infer<typeof OrderGuard>;
+export const OrderGuard = Order.pick({ status: true, direction: true }).partial()
+export type OrderGuard = z.infer<typeof OrderGuard>

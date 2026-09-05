@@ -1,22 +1,22 @@
-import { z } from "zod/v4";
-import { Fulfillment } from "../fulfillments/fulfillments.js";
-import { FulfillmentMethodRead } from "../fulfillments/methods.js";
-import { FulfillmentPickup } from "../fulfillments/pickups.js";
-import { FulfillmentDirect } from "../fulfillments/directs.js";
-import { FulfillmentShipment } from "../fulfillments/shipments.js";
-import { FulfillmentCategory } from "../fulfillments/enums.js";
-import { FulfillmentStep } from "../fulfillments/fulfillments.js";
-import { FulfillmentMethod } from "../fulfillments/methods.js";
-import { Checkout } from "../checkout/checkouts.js";
-import { OrderViewShipment } from "../shipping/shipments.js";
+import { z } from 'zod/v4'
+import { Fulfillment } from '../fulfillments/fulfillments.js'
+import { FulfillmentMethodRead } from '../fulfillments/methods.js'
+import { FulfillmentPickup } from '../fulfillments/pickups.js'
+import { FulfillmentDirect } from '../fulfillments/directs.js'
+import { FulfillmentShipment } from '../fulfillments/shipments.js'
+import { FulfillmentCategory } from '../fulfillments/enums.js'
+import { FulfillmentStep } from '../fulfillments/fulfillments.js'
+import { FulfillmentMethod } from '../fulfillments/methods.js'
+import { Checkout } from '../checkout/checkouts.js'
+import { OrderViewShipment } from '../shipping/shipments.js'
 
 export const FulfillmentActions = z.object({
   set_method: z.boolean(),
   schedule: z.boolean(),
   cancel_schedule: z.boolean(),
   categories: z.array(FulfillmentCategory),
-});
-export type FulfillmentActions = z.infer<typeof FulfillmentActions>;
+})
+export type FulfillmentActions = z.infer<typeof FulfillmentActions>
 
 export const FulfillmentParcel = OrderViewShipment.pick({
   id: true,
@@ -28,8 +28,8 @@ export const FulfillmentParcel = OrderViewShipment.pick({
   pickup_date: true,
   pickup_time: true,
   tracking_number: true,
-});
-export type FulfillmentParcel = z.infer<typeof FulfillmentParcel>;
+})
+export type FulfillmentParcel = z.infer<typeof FulfillmentParcel>
 
 export const FulfillmentViewFacts = z.object({
   fulfillment: Fulfillment,
@@ -39,22 +39,25 @@ export const FulfillmentViewFacts = z.object({
   shipments: z.array(FulfillmentShipment),
   parcel: FulfillmentParcel.nullable(),
   scheduled_at: z.string().nullable(),
-});
-export type FulfillmentViewFacts = z.infer<typeof FulfillmentViewFacts>;
+})
+export type FulfillmentViewFacts = z.infer<typeof FulfillmentViewFacts>
 
 export const FulfillmentDecisions = z.object({
   missing: z.array(FulfillmentStep),
   actions: FulfillmentActions,
-});
-export type FulfillmentDecisions = z.infer<typeof FulfillmentDecisions>;
+})
+export type FulfillmentDecisions = z.infer<typeof FulfillmentDecisions>
 
-export const FulfillmentView = FulfillmentViewFacts.extend(FulfillmentDecisions.shape);
-export type FulfillmentView = z.infer<typeof FulfillmentView>;
+export const FulfillmentView = FulfillmentViewFacts.extend(FulfillmentDecisions.shape)
+export type FulfillmentView = z.infer<typeof FulfillmentView>
 
-export const FulfillmentCreateBody = z.object({
-  checkout_id: Checkout.shape.id,
-}).extend({
-  method_id: FulfillmentMethod.shape.id.optional(),
-  handoff_code: z.string().optional(),
-}).strict();
-export type FulfillmentCreateBody = z.infer<typeof FulfillmentCreateBody>;
+export const FulfillmentCreateBody = z
+  .object({
+    checkout_id: Checkout.shape.id,
+  })
+  .extend({
+    method_id: FulfillmentMethod.shape.id.optional(),
+    handoff_code: z.string().optional(),
+  })
+  .strict()
+export type FulfillmentCreateBody = z.infer<typeof FulfillmentCreateBody>

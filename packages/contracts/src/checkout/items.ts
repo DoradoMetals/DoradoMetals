@@ -3,26 +3,26 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: checkout.items
-import { z } from "zod/v4";
+import { z } from 'zod/v4'
 
 export const CheckoutItem = z.object({
-  "id": z.string().uuid(),
-  "bullion_id": z.string().uuid().nullable(),
-  "metal_id": z.string().nullable(),
-  "checkout_id": z.string().uuid(),
-  "pre_melt": z.number().nullable(),
-  "post_melt": z.number().nullable(),
-  "purity": z.number().nullable(),
-  "premium": z.number().nullable(),
-  "quantity": z.number().nullable(),
-  "created_by": z.string().nullable(),
-  "updated_by": z.string().nullable(),
-  "created_at": z.string(),
-  "updated_at": z.string(),
-  "content": z.number().nullable(),
-  "unit": z.string().nullable(),
-});
-export type CheckoutItem = z.infer<typeof CheckoutItem>;
+  'id': z.string().uuid(),
+  'bullion_id': z.string().uuid().nullable(),
+  'metal_id': z.string().nullable(),
+  'checkout_id': z.string().uuid(),
+  'pre_melt': z.number().nullable(),
+  'post_melt': z.number().nullable(),
+  'purity': z.number().nullable(),
+  'premium': z.number().nullable(),
+  'quantity': z.number().nullable(),
+  'created_by': z.string().nullable(),
+  'updated_by': z.string().nullable(),
+  'created_at': z.string(),
+  'updated_at': z.string(),
+  'content': z.number().nullable(),
+  'unit': z.string().nullable(),
+})
+export type CheckoutItem = z.infer<typeof CheckoutItem>
 // generated:end
 // A basket line is one of two shapes, and the boundary decides which (ruling
 // 80): a bullion line names a product and a quantity, a scrap line declares
@@ -30,11 +30,13 @@ export type CheckoutItem = z.infer<typeof CheckoutItem>;
 export const CheckoutBullionLine = CheckoutItem.pick({
   bullion_id: true,
   quantity: true,
-}).extend({
-  bullion_id: CheckoutItem.shape.bullion_id.unwrap(),
-  quantity: CheckoutItem.shape.quantity.optional(),
-}).strict();
-export type CheckoutBullionLine = z.infer<typeof CheckoutBullionLine>;
+})
+  .extend({
+    bullion_id: CheckoutItem.shape.bullion_id.unwrap(),
+    quantity: CheckoutItem.shape.quantity.optional(),
+  })
+  .strict()
+export type CheckoutBullionLine = z.infer<typeof CheckoutBullionLine>
 
 export const CheckoutScrapLine = CheckoutItem.pick({
   metal_id: true,
@@ -43,35 +45,50 @@ export const CheckoutScrapLine = CheckoutItem.pick({
   purity: true,
   unit: true,
   quantity: true,
-}).extend({
-  metal_id: CheckoutItem.shape.metal_id.unwrap(),
-  pre_melt: CheckoutItem.shape.pre_melt.unwrap(),
-  post_melt: CheckoutItem.shape.post_melt.optional(),
-  purity: CheckoutItem.shape.purity.unwrap(),
-  unit: CheckoutItem.shape.unit.unwrap(),
-  quantity: CheckoutItem.shape.quantity.optional(),
-}).strict();
-export type CheckoutScrapLine = z.infer<typeof CheckoutScrapLine>;
+})
+  .extend({
+    metal_id: CheckoutItem.shape.metal_id.unwrap(),
+    pre_melt: CheckoutItem.shape.pre_melt.unwrap(),
+    post_melt: CheckoutItem.shape.post_melt.optional(),
+    purity: CheckoutItem.shape.purity.unwrap(),
+    unit: CheckoutItem.shape.unit.unwrap(),
+    quantity: CheckoutItem.shape.quantity.optional(),
+  })
+  .strict()
+export type CheckoutScrapLine = z.infer<typeof CheckoutScrapLine>
 
-export const CheckoutItemPatch = z.union([CheckoutBullionLine, CheckoutScrapLine]);
-export type CheckoutItemPatch = z.infer<typeof CheckoutItemPatch>;
+export const CheckoutItemPatch = z.union([CheckoutBullionLine, CheckoutScrapLine])
+export type CheckoutItemPatch = z.infer<typeof CheckoutItemPatch>
 
-export const CheckoutItemsBody = z.object({ items: z.array(CheckoutItemPatch) }).strict();
-export type CheckoutItemsBody = z.infer<typeof CheckoutItemsBody>;
+export const CheckoutItemsBody = z.object({ items: z.array(CheckoutItemPatch) }).strict()
+export type CheckoutItemsBody = z.infer<typeof CheckoutItemsBody>
 
-import { BullionStorefront } from "../products/bullion.js";
+import { BullionStorefront } from '../products/bullion.js'
 
 export const CheckoutItemWrite = CheckoutItem.omit({
   id: true,
-  created_by: true, updated_by: true, created_at: true, updated_at: true,
-}).partial().extend({ checkout_id: CheckoutItem.shape.checkout_id });
-export type CheckoutItemWrite = z.infer<typeof CheckoutItemWrite>;
+  created_by: true,
+  updated_by: true,
+  created_at: true,
+  updated_at: true,
+})
+  .partial()
+  .extend({ checkout_id: CheckoutItem.shape.checkout_id })
+export type CheckoutItemWrite = z.infer<typeof CheckoutItemWrite>
 
 export const OrderLine = CheckoutItem.pick({
-  id: true, bullion_id: true, metal_id: true, pre_melt: true, post_melt: true,
-  purity: true, content: true, unit: true, premium: true, quantity: true,
-});
-export type OrderLine = z.infer<typeof OrderLine>;
+  id: true,
+  bullion_id: true,
+  metal_id: true,
+  pre_melt: true,
+  post_melt: true,
+  purity: true,
+  content: true,
+  unit: true,
+  premium: true,
+  quantity: true,
+})
+export type OrderLine = z.infer<typeof OrderLine>
 
 export const SaleLine = CheckoutItem.pick({ content: true, purity: true }).extend({
   id: BullionStorefront.shape.id,
@@ -82,8 +99,8 @@ export const SaleLine = CheckoutItem.pick({ content: true, purity: true }).exten
   type: BullionStorefront.shape.type,
   legal_tender: BullionStorefront.shape.legal_tender,
   domestic_tender: BullionStorefront.shape.domestic_tender,
-});
-export type SaleLine = z.infer<typeof SaleLine>;
+})
+export type SaleLine = z.infer<typeof SaleLine>
 
-export const TaxedSaleLine = SaleLine.extend({ sales_tax_rate: z.number() });
-export type TaxedSaleLine = z.infer<typeof TaxedSaleLine>;
+export const TaxedSaleLine = SaleLine.extend({ sales_tax_rate: z.number() })
+export type TaxedSaleLine = z.infer<typeof TaxedSaleLine>

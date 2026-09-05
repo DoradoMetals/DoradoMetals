@@ -3,27 +3,27 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: tax.sales_tax_rules
-import { z } from "zod/v4";
-import { SalesTaxMetalCategory, SalesTaxProductType } from "./enums.js";
+import { z } from 'zod/v4'
+import { SalesTaxMetalCategory, SalesTaxProductType } from './enums.js'
 
 export const SalesTaxRule = z.object({
-  "id": z.string().uuid(),
-  "state_code": z.string(),
-  "metal_category": SalesTaxMetalCategory,
-  "product_type": SalesTaxProductType,
-  "min_price": z.number(),
-  "max_price": z.number(),
-  "purity_min": z.number(),
-  "purity_max": z.number(),
-  "aggregate_min": z.number(),
-  "aggregate_max": z.number(),
-  "markup_min_pct": z.number(),
-  "markup_max_pct": z.number(),
-  "tax_rate": z.number(),
-  "weight_min": z.number(),
-  "weight_max": z.number(),
-  "is_domestic": z.boolean().nullable(),
-  "is_legal_tender": z.boolean().nullable(),
-});
-export type SalesTaxRule = z.infer<typeof SalesTaxRule>;
+  'id': z.string().uuid(),
+  'state_code': z.string(),
+  'metal_category': SalesTaxMetalCategory,
+  'product_type': SalesTaxProductType,
+  'min_price': z.number(),
+  'max_price': z.number(),
+  'purity_min': z.number(),
+  'purity_max': z.number(),
+  'aggregate_min': z.number(),
+  'aggregate_max': z.number(),
+  'markup_min_pct': z.number(),
+  'markup_max_pct': z.number(),
+  'tax_rate': z.number(),
+  'weight_min': z.number(),
+  'weight_max': z.number(),
+  'is_domestic': z.boolean().nullable(),
+  'is_legal_tender': z.boolean().nullable(),
+})
+export type SalesTaxRule = z.infer<typeof SalesTaxRule>
 // generated:end

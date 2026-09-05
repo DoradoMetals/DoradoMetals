@@ -84,9 +84,7 @@ export default function SalesOrdersPage() {
         onRowClick={handleRowClick}
       />
 
-      {activeOrder && (
-        <AdminSalesOrderDrawer order_id={activeOrder ?? ''} />
-      )}
+      {activeOrder && <AdminSalesOrderDrawer order_id={activeOrder ?? ''} />}
     </>
   )
 }

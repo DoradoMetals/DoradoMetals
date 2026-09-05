@@ -85,14 +85,8 @@ export function OrderCardShell({
 
         {(downloadArea || rightContent) && (
           <div className="flex items-end justify-between w-full pt-2">
-            <div className="flex flex-col gap-1 items-start">
-              {downloadArea}
-            </div>
-            {rightContent && (
-              <div className="flex items-center justify-end">
-                {rightContent}
-              </div>
-            )}
+            <div className="flex flex-col gap-1 items-start">{downloadArea}</div>
+            {rightContent && <div className="flex items-center justify-end">{rightContent}</div>}
           </div>
         )}
       </div>

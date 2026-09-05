@@ -1,8 +1,8 @@
-import express from 'express';
-import { verifyRecaptcha } from "#identity/recaptcha/controller.ts";
+import express from 'express'
+import { verifyRecaptcha } from '#identity/recaptcha/controller.ts'
 
-const router = express.Router();
+const router = express.Router()
 
-router.post('/verify-recaptcha', verifyRecaptcha);
+router.post('/verify-recaptcha', verifyRecaptcha)
 
-export default router;
+export default router

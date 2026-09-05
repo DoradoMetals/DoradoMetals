@@ -1,3 +1,3 @@
-import type { PoolClient } from "pg";
+import type { PoolClient } from 'pg'
 
-export type Executor = PoolClient | undefined;
+export type Executor = PoolClient | undefined

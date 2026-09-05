@@ -3,31 +3,34 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: orders.spots
-import { z } from "zod/v4";
+import { z } from 'zod/v4'
 
 export const OrderSpot = z.object({
-  "id": z.string().uuid(),
-  "metal_id": z.string(),
-  "order_id": z.string().uuid(),
-  "ask": z.number().nullable(),
-  "bid": z.number().nullable(),
-  "scrap_percentage": z.number().nullable(),
-  "bullion_percentage": z.number().nullable(),
-  "created_at": z.string().nullable(),
-  "updated_at": z.string().nullable(),
-});
-export type OrderSpot = z.infer<typeof OrderSpot>;
+  'id': z.string().uuid(),
+  'metal_id': z.string(),
+  'order_id': z.string().uuid(),
+  'ask': z.number().nullable(),
+  'bid': z.number().nullable(),
+  'scrap_percentage': z.number().nullable(),
+  'bullion_percentage': z.number().nullable(),
+  'created_at': z.string().nullable(),
+  'updated_at': z.string().nullable(),
+})
+export type OrderSpot = z.infer<typeof OrderSpot>
 // generated:end
-export const OrderSpotWrite = z.object({
-  metal_id: OrderSpot.shape.metal_id,
-  bid: OrderSpot.shape.bid.unwrap(),
-}).strict();
-export type OrderSpotWrite = z.infer<typeof OrderSpotWrite>;
+export const OrderSpotWrite = z
+  .object({
+    metal_id: OrderSpot.shape.metal_id,
+    bid: OrderSpot.shape.bid.unwrap(),
+  })
+  .strict()
+export type OrderSpotWrite = z.infer<typeof OrderSpotWrite>
 
-export const OrderSpotsPutBody = z.object({ set: z.array(OrderSpotWrite).optional() })
+export const OrderSpotsPutBody = z
+  .object({ set: z.array(OrderSpotWrite).optional() })
   .extend({ lock: z.boolean().optional() })
-  .strict();
-export type OrderSpotsPutBody = z.infer<typeof OrderSpotsPutBody>;
+  .strict()
+export type OrderSpotsPutBody = z.infer<typeof OrderSpotsPutBody>
 
-export const OrderSpotPatch = OrderSpot.pick({ bid: true }).partial();
-export type OrderSpotPatch = z.infer<typeof OrderSpotPatch>;
+export const OrderSpotPatch = OrderSpot.pick({ bid: true }).partial()
+export type OrderSpotPatch = z.infer<typeof OrderSpotPatch>

@@ -43,12 +43,13 @@ export default function PayoutStep({ user }: { user?: User }) {
     mode: 'onChange',
     defaultValues: {
       account_holder_name:
-        storeData?.method === 'ACH' ? storeData.account_holder_name ?? '' : user?.name ?? '',
-      bank_name: storeData?.method === 'ACH' ? storeData.bank_name ?? '' : '',
-      routing_number: storeData?.method === 'ACH' ? storeData.routing_number ?? '' : '',
-      account_number: storeData?.method === 'ACH' ? storeData.account_number ?? '' : '',
-      account_type: storeData?.method === 'ACH' ? storeData.account_type ?? 'Checking' : 'Checking',
-      confirmation: storeData?.method === 'ACH' ? storeData.confirmation ?? false : false,
+        storeData?.method === 'ACH' ? (storeData.account_holder_name ?? '') : (user?.name ?? ''),
+      bank_name: storeData?.method === 'ACH' ? (storeData.bank_name ?? '') : '',
+      routing_number: storeData?.method === 'ACH' ? (storeData.routing_number ?? '') : '',
+      account_number: storeData?.method === 'ACH' ? (storeData.account_number ?? '') : '',
+      account_type:
+        storeData?.method === 'ACH' ? (storeData.account_type ?? 'Checking') : 'Checking',
+      confirmation: storeData?.method === 'ACH' ? (storeData.confirmation ?? false) : false,
     },
   })
 
@@ -57,11 +58,11 @@ export default function PayoutStep({ user }: { user?: User }) {
     mode: 'onChange',
     defaultValues: {
       account_holder_name:
-        storeData?.method === 'WIRE' ? storeData.account_holder_name ?? '' : user?.name ?? '',
-      bank_name: storeData?.method === 'WIRE' ? storeData.bank_name ?? '' : '',
-      routing_number: storeData?.method === 'WIRE' ? storeData.routing_number ?? '' : '',
-      account_number: storeData?.method === 'WIRE' ? storeData.account_number ?? '' : '',
-      confirmation: storeData?.method === 'WIRE' ? storeData.confirmation ?? false : false,
+        storeData?.method === 'WIRE' ? (storeData.account_holder_name ?? '') : (user?.name ?? ''),
+      bank_name: storeData?.method === 'WIRE' ? (storeData.bank_name ?? '') : '',
+      routing_number: storeData?.method === 'WIRE' ? (storeData.routing_number ?? '') : '',
+      account_number: storeData?.method === 'WIRE' ? (storeData.account_number ?? '') : '',
+      confirmation: storeData?.method === 'WIRE' ? (storeData.confirmation ?? false) : false,
     },
   })
 
@@ -71,8 +72,9 @@ export default function PayoutStep({ user }: { user?: User }) {
     shouldUnregister: false,
     defaultValues: {
       account_holder_name:
-        storeData?.method === 'ECHECK' ? storeData.account_holder_name ?? '' : user?.name ?? '',
-      payout_email: storeData?.method === 'ECHECK' ? storeData.payout_email ?? '' : user?.email ?? '',
+        storeData?.method === 'ECHECK' ? (storeData.account_holder_name ?? '') : (user?.name ?? ''),
+      payout_email:
+        storeData?.method === 'ECHECK' ? (storeData.payout_email ?? '') : (user?.email ?? ''),
     },
   })
 
@@ -82,9 +84,13 @@ export default function PayoutStep({ user }: { user?: User }) {
     shouldUnregister: false,
     defaultValues: {
       account_holder_name:
-        storeData?.method === 'DORADO_ACCOUNT' ? storeData.account_holder_name ?? '' : user?.name ?? '',
+        storeData?.method === 'DORADO_ACCOUNT'
+          ? (storeData.account_holder_name ?? '')
+          : (user?.name ?? ''),
       payout_email:
-        storeData?.method === 'DORADO_ACCOUNT' ? storeData.payout_email ?? '' : user?.email ?? '',
+        storeData?.method === 'DORADO_ACCOUNT'
+          ? (storeData.payout_email ?? '')
+          : (user?.email ?? ''),
     },
   })
 
@@ -96,10 +102,13 @@ export default function PayoutStep({ user }: { user?: User }) {
 
   const handleFormSwitch = (method: PayoutMethodType) => {
     const form =
-      method === 'ACH' ? achForm
-        : method === 'WIRE' ? wireForm
-        : method === 'ECHECK' ? echeckForm
-        : doradoAccountForm
+      method === 'ACH'
+        ? achForm
+        : method === 'WIRE'
+          ? wireForm
+          : method === 'ECHECK'
+            ? echeckForm
+            : doradoAccountForm
     setPayout({ method, ...form.getValues() })
     // The newly opened form has never been submitted, so nothing has computed
     // its validity yet - this is the handler that opened it.
@@ -129,7 +138,7 @@ export default function PayoutStep({ user }: { user?: User }) {
               <div className="flex items-center gap-2 w-full justify-between">
                 <div className="flex flex-col w-full">
                   <div className="flex items-center gap-1">
-                    {Icon && <Icon size={24} className='text-primary' />}
+                    {Icon && <Icon size={24} className="text-primary" />}
                     <strong>{option.label}</strong>
                     <div className="flex items-center gap-2 pt-1 pl-4">
                       <small>{option.time_delay}</small>

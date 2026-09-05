@@ -4,8 +4,7 @@
 // required strings against four NULLABLE columns, and typed the timestamps as
 // `Date` against a wire that sends strings. `NewLead` was a second, different
 // guess at the create body.
-import type { Lead, LeadPatch } from "@dorado/contracts";
-
+import type { Lead, LeadPatch } from '@dorado/contracts'
 
 // The create body, as the API's own statement takes it.
 

@@ -19,23 +19,32 @@ function tidy(out) {
 
 function stripTs(text, jsx) {
   const scanner = ts.createScanner(
-    ts.ScriptTarget.Latest, false,
-    jsx ? ts.LanguageVariant.JSX : ts.LanguageVariant.Standard, text,
+    ts.ScriptTarget.Latest,
+    false,
+    jsx ? ts.LanguageVariant.JSX : ts.LanguageVariant.Standard,
+    text
   )
   const ranges = []
   let kind
   while ((kind = scanner.scan()) !== ts.SyntaxKind.EndOfFileToken) {
-    if (kind === ts.SyntaxKind.SingleLineCommentTrivia || kind === ts.SyntaxKind.MultiLineCommentTrivia) {
+    if (
+      kind === ts.SyntaxKind.SingleLineCommentTrivia ||
+      kind === ts.SyntaxKind.MultiLineCommentTrivia
+    ) {
       ranges.push([scanner.getTokenStart(), scanner.getTokenEnd()])
     }
   }
   let out = text
   for (let i = ranges.length - 1; i >= 0; i--) {
     let [s, e] = ranges[i]
-    let ls = s, re = e
+    let ls = s,
+      re = e
     while (ls > 0 && (out[ls - 1] === ' ' || out[ls - 1] === '\t')) ls--
     while (re < out.length && (out[re] === ' ' || out[re] === '\t')) re++
-    if (out[ls - 1] === '{' && out[re] === '}') { s = ls - 1; e = re + 1 }
+    if (out[ls - 1] === '{' && out[re] === '}') {
+      s = ls - 1
+      e = re + 1
+    }
     out = out.slice(0, s) + out.slice(e)
   }
   out = out.replace(/^[ \t]*\{\}[ \t]*$/gm, '')
@@ -45,15 +54,25 @@ function stripTs(text, jsx) {
 // CSS: only /* */ exists, and it cannot nest. Skip over quoted strings and
 // url() so a "/*" inside a value is never mistaken for a comment opener.
 function stripCss(text) {
-  let out = '', i = 0
+  let out = '',
+    i = 0
   while (i < text.length) {
     const c = text[i]
     if (c === '"' || c === "'") {
-      const q = c; out += c; i++
+      const q = c
+      out += c
+      i++
       while (i < text.length) {
         out += text[i]
-        if (text[i] === '\\') { out += text[i + 1] ?? ''; i += 2; continue }
-        if (text[i] === q) { i++; break }
+        if (text[i] === '\\') {
+          out += text[i + 1] ?? ''
+          i += 2
+          continue
+        }
+        if (text[i] === q) {
+          i++
+          break
+        }
         i++
       }
       continue
@@ -63,7 +82,8 @@ function stripCss(text) {
       i = end === -1 ? text.length : end + 2
       continue
     }
-    out += c; i++
+    out += c
+    i++
   }
   return tidy(out)
 }
@@ -73,7 +93,11 @@ let n = 0
 for (const f of files) {
   const ext = path.extname(f)
   const before = fs.readFileSync(f, 'utf8')
-  const after = ext === '.css' ? stripCss(before) : stripTs(before, ext === '.tsx' || ext === '.jsx')
-  if (after !== before) { fs.writeFileSync(f, after); n++ }
+  const after =
+    ext === '.css' ? stripCss(before) : stripTs(before, ext === '.tsx' || ext === '.jsx')
+  if (after !== before) {
+    fs.writeFileSync(f, after)
+    n++
+  }
 }
 console.log(`stripped ${n}/${files.length} file(s)`)

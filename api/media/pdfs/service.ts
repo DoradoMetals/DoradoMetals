@@ -1,7 +1,7 @@
-import { generateBoxSVG } from "#media/pdfs/utils/generateBoxSVG.ts";
-import { renderPdf } from "#providers/pdfs/puppeteer.ts";
-import { renderShell } from "#media/pdfs/render/layout.ts";
-import { formatCurrency } from "#media/pdfs/render/format.ts";
+import { generateBoxSVG } from '#media/pdfs/utils/generateBoxSVG.ts'
+import { renderPdf } from '#providers/pdfs/puppeteer.ts'
+import { renderShell } from '#media/pdfs/render/layout.ts'
+import { formatCurrency } from '#media/pdfs/render/format.ts'
 import {
   renderInvoiceHeader,
   renderInvoiceShippingAndPayout,
@@ -13,73 +13,67 @@ import {
   buildInvoiceScrapRows,
   buildInvoiceBullionRows,
   qty,
-} from "#media/pdfs/render/sections.ts";
-import type { PackageDetails } from "#media/pdfs/render/sections.ts";
-import type { OrderView, OrderViewItem, OrderPricing } from "@dorado/contracts";
+} from '#media/pdfs/render/sections.ts'
+import type { PackageDetails } from '#media/pdfs/render/sections.ts'
+import type { OrderView, OrderViewItem, OrderPricing } from '@dorado/contracts'
 
-export type { PackageDetails } from "#media/pdfs/render/sections.ts";
+export type { PackageDetails } from '#media/pdfs/render/sections.ts'
 
-const inboundShipment = (order: OrderView): OrderView["shipments"][number] | null =>
-  order.shipments.find((s) => s.direction !== "Return") ?? null;
+const inboundShipment = (order: OrderView): OrderView['shipments'][number] | null =>
+  order.shipments.find((s) => s.direction !== 'Return') ?? null
 
 const scrapLines = (lines: OrderViewItem[]): OrderViewItem[] =>
-  lines.filter((line) => line.bullion_id === null);
+  lines.filter((line) => line.bullion_id === null)
 
 const bullionLines = (lines: OrderViewItem[]): OrderViewItem[] =>
-  lines.filter((line) => line.bullion_id !== null);
+  lines.filter((line) => line.bullion_id !== null)
 
 // A document is the order view plus what pricing answered for it. Both are one
 // SQL read parsed by its contract - there is no third bag of labels, spot maps
 // or price indexes to carry alongside them (ruling 78).
 export type PurchaseDocument = {
-  order: OrderView;
-  pricing: OrderPricing;
-  package?: PackageDetails | null;
-};
+  order: OrderView
+  pricing: OrderPricing
+  package?: PackageDetails | null
+}
 
 export type SalesDocument = {
-  order: OrderView;
-  pricing: OrderPricing;
-};
+  order: OrderView
+  pricing: OrderPricing
+}
 
 export function buildPackingListHtml({
   order,
   pricing,
   package: box = null,
 }: PurchaseDocument): string {
-  const total = pricing.total;
+  const total = pricing.total
 
-  const scrapRows = buildPackingScrapRows(scrapLines(order.items), pricing.items);
-  const bullionRows = buildPackingBullionRows(bullionLines(order.items), pricing.items);
+  const scrapRows = buildPackingScrapRows(scrapLines(order.items), pricing.items)
+  const bullionRows = buildPackingBullionRows(bullionLines(order.items), pricing.items)
 
-  const shipment = inboundShipment(order);
-  const packageLabel =
-    box?.label ??
-    shipment?.package_label ??
-    null;
-  const selectedPackage = packageLabel || "Unknown Package";
+  const shipment = inboundShipment(order)
+  const packageLabel = box?.label ?? shipment?.package_label ?? null
+  const selectedPackage = packageLabel || 'Unknown Package'
 
-  const boxDimensions = [box?.length, box?.width, box?.height].map(Number);
+  const boxDimensions = [box?.length, box?.width, box?.height].map(Number)
   const svgBox = boxDimensions.every(Number.isFinite)
     ? generateBoxSVG(boxDimensions[0], boxDimensions[1], boxDimensions[2], selectedPackage)
-    : "";
+    : ''
 
   const dimension = (value: number | null | undefined): string =>
-    value == null ? "-" : String(value);
+    value == null ? '-' : String(value)
 
-  const isCarrierPickup =
-    shipment?.pickup_type !== "Store Dropoff" && order.pickup !== null;
+  const isCarrierPickup = shipment?.pickup_type !== 'Store Dropoff' && order.pickup !== null
 
   const pickupInstruction = isCarrierPickup
     ? `
       <h3>3) Wait for pickup.</h3>
       <p>
         We've scheduled a FedEx pickup on your behalf. Please ensure your package is ready by
-        <strong>${new Date(
-          order.pickup?.requested_at ?? Date.now()
-        ).toLocaleString("en-US", {
-          dateStyle: "long",
-          timeStyle: "short",
+        <strong>${new Date(order.pickup?.requested_at ?? Date.now()).toLocaleString('en-US', {
+          dateStyle: 'long',
+          timeStyle: 'short',
         })}</strong>.
         You do not need to drop off the package yourself. We'll update you via email and your dashboard
         once it's picked up and scanned by the carrier.
@@ -91,9 +85,9 @@ export function buildPackingListHtml({
         Take your package to a FedEx or affiliate location of your choosing.
         If you would like to change to a carrier pickup, please give us a call and we'll get you scheduled.
       </p>
-    `;
+    `
 
-  const shippingSection = renderPackingShippingSection(order, false, false, 0);
+  const shippingSection = renderPackingShippingSection(order, false, false, 0)
 
   const bullionTable = bullionRows
     ? `
@@ -114,7 +108,7 @@ export function buildPackingListHtml({
         </table>
       </div>
       `
-    : "";
+    : ''
 
   const scrapTable = scrapRows
     ? `
@@ -136,7 +130,7 @@ export function buildPackingListHtml({
         </table>
       </div>
       `
-    : "";
+    : ''
 
   const instructionsPage = `
     <div style="page-break-before: always; font-family: 'Poppins', Arial, sans-serif; padding: 20px; font-size: 12px;">
@@ -152,10 +146,10 @@ export function buildPackingListHtml({
           please send your items (with the packing list inside) to the following address: ${
             process.env.FEDEX_DORADO_NAME
           } ${process.env.FEDEX_RETURN_ADDRESS_LINE_1} ${
-    process.env.FEDEX_RETURN_ADDRESS_LINE_2 || ""
-  } ${process.env.FEDEX_RETURN_CITY}, ${process.env.FEDEX_RETURN_STATE} ${
-    process.env.FEDEX_RETURN_ZIP
-  }.
+            process.env.FEDEX_RETURN_ADDRESS_LINE_2 || ''
+          } ${process.env.FEDEX_RETURN_CITY}, ${process.env.FEDEX_RETURN_STATE} ${
+            process.env.FEDEX_RETURN_ZIP
+          }.
         </p>
       </div>
 
@@ -191,17 +185,17 @@ export function buildPackingListHtml({
         </p>
       </div>
     </div>
-  `;
+  `
 
   const labelPage = `
     <div style="page-break-before: always; display: flex; justify-content: center; align-items: center; height: 100vh;">
       <img
-        src="data:image/png;base64,${shipment?.label ?? ""}"
+        src="data:image/png;base64,${shipment?.label ?? ''}"
         alt="Shipping Label"
         style="width: 288pt; height: 432pt;"
       />
     </div>
-  `;
+  `
 
   const mainPageBody = `
     ${shippingSection}
@@ -210,26 +204,23 @@ export function buildPackingListHtml({
     ${scrapTable}
     ${instructionsPage}
     ${labelPage}
-  `;
+  `
 
   return renderShell({
-    title: "Packing List",
-    subtitle: "Make sure to place this packing list in your package!",
+    title: 'Packing List',
+    subtitle: 'Make sure to place this packing list in your package!',
     bodyHtml: mainPageBody,
-  });
+  })
 }
 
-export function buildReturnPackingListHtml({
-  order,
-  pricing,
-}: PurchaseDocument): string {
-  const outbound = returnShipment(order);
-  const total = (inboundShipment(order)?.cost ?? 0) + (outbound?.cost ?? 0);
+export function buildReturnPackingListHtml({ order, pricing }: PurchaseDocument): string {
+  const outbound = returnShipment(order)
+  const total = (inboundShipment(order)?.cost ?? 0) + (outbound?.cost ?? 0)
 
-  const scrapRows = buildPackingScrapRows(scrapLines(order.items), pricing.items);
-  const bullionRows = buildPackingBullionRows(bullionLines(order.items), pricing.items);
+  const scrapRows = buildPackingScrapRows(scrapLines(order.items), pricing.items)
+  const bullionRows = buildPackingBullionRows(bullionLines(order.items), pricing.items)
 
-  const shippingSection = renderPackingShippingSection(order, true, false, 0);
+  const shippingSection = renderPackingShippingSection(order, true, false, 0)
 
   const bullionTable = bullionRows
     ? `
@@ -247,7 +238,7 @@ export function buildReturnPackingListHtml({
           <tbody>${bullionRows}</tbody>
         </table>
       </div>`
-    : "";
+    : ''
 
   const scrapTable = scrapRows
     ? `
@@ -266,48 +257,48 @@ export function buildReturnPackingListHtml({
           <tbody>${scrapRows}</tbody>
         </table>
       </div>`
-    : "";
+    : ''
 
   const labelPage = `
     <div style="page-break-before: always; display: flex; justify-content: center; align-items: center; height: 100vh;">
       <img
-        src="data:image/png;base64,${outbound?.label ?? ""}"
+        src="data:image/png;base64,${outbound?.label ?? ''}"
         alt="Shipping Label"
         style="width: 288pt; height: 432pt;"
       />
     </div>
-  `;
+  `
 
   const bodyHtml = `
     ${shippingSection}
-    ${renderOrderSummaryTable(order, "-" + formatCurrency(total))}
+    ${renderOrderSummaryTable(order, '-' + formatCurrency(total))}
     ${bullionTable}
     ${scrapTable}
     ${labelPage}
-  `;
+  `
 
   return renderShell({
-    title: "Return Packing List",
-    subtitle: "This packing list is for Dorado Metals use only.",
+    title: 'Return Packing List',
+    subtitle: 'This packing list is for Dorado Metals use only.',
     bodyHtml,
-  });
+  })
 }
 
 export function buildInvoiceHtml({ order, pricing }: PurchaseDocument): string {
-  const doneStatus = ["Payment Processing", "Completed"];
-  const isDone = doneStatus.includes(order.order.status ?? "");
+  const doneStatus = ['Payment Processing', 'Completed']
+  const isDone = doneStatus.includes(order.order.status ?? '')
 
-  const total = pricing.total;
-  const payoutCost = pricing.payout_fee;
+  const total = pricing.total
+  const payoutCost = pricing.payout_fee
 
-  const scrap = scrapLines(order.items);
-  const bullion = bullionLines(order.items);
-  const scrapRows = buildInvoiceScrapRows(scrap, pricing.items);
-  const bullionRows = buildInvoiceBullionRows(bullion, pricing.items);
-  const scrapTotal = pricing.scrap_total;
-  const bullionTotal = pricing.bullion_total;
+  const scrap = scrapLines(order.items)
+  const bullion = bullionLines(order.items)
+  const scrapRows = buildInvoiceScrapRows(scrap, pricing.items)
+  const bullionRows = buildInvoiceBullionRows(bullion, pricing.items)
+  const scrapTotal = pricing.scrap_total
+  const bullionTotal = pricing.bullion_total
 
-  const lineLabel = isDone ? "Payout" : "Estimate";
+  const lineLabel = isDone ? 'Payout' : 'Estimate'
 
   const scrapTable = scrapRows
     ? `
@@ -327,7 +318,7 @@ export function buildInvoiceHtml({ order, pricing }: PurchaseDocument): string {
           <tbody>${scrapRows}</tbody>
         </table>
       </div>`
-    : "";
+    : ''
 
   const bullionTable = bullionRows
     ? `
@@ -345,10 +336,9 @@ export function buildInvoiceHtml({ order, pricing }: PurchaseDocument): string {
           <tbody>${bullionRows}</tbody>
         </table>
       </div>`
-    : "";
+    : ''
 
-  const shippingTotal =
-    (inboundShipment(order)?.cost ?? 0) + (returnShipment(order)?.cost ?? 0);
+  const shippingTotal = (inboundShipment(order)?.cost ?? 0) + (returnShipment(order)?.cost ?? 0)
 
   const totalsSection = `
     <div class="order-info">
@@ -369,7 +359,7 @@ export function buildInvoiceHtml({ order, pricing }: PurchaseDocument): string {
             <td>Addition</td>
             <td class="text-right">${formatCurrency(scrapTotal)}</td>
           </tr>`
-              : ""
+              : ''
           }
           ${
             bullionRows
@@ -379,7 +369,7 @@ export function buildInvoiceHtml({ order, pricing }: PurchaseDocument): string {
             <td>Addition</td>
             <td class="text-right">${formatCurrency(bullionTotal)}</td>
           </tr>`
-              : ""
+              : ''
           }
           <tr>
             <td class="text-left">Shipping Fees</td>
@@ -399,7 +389,7 @@ export function buildInvoiceHtml({ order, pricing }: PurchaseDocument): string {
         </tbody>
       </table>
     </div>
-  `;
+  `
 
   const bodyHtml = `
     ${renderInvoiceHeader(order, total, pricing.spots)}
@@ -407,45 +397,36 @@ export function buildInvoiceHtml({ order, pricing }: PurchaseDocument): string {
     ${bullionTable}
     ${scrapTable}
     ${totalsSection}
-  `;
+  `
 
-  const title = isDone ? "Purchase Order Invoice" : "Purchase Order Preview";
+  const title = isDone ? 'Purchase Order Invoice' : 'Purchase Order Preview'
   const subtitle = isDone
     ? "Your order's pricing has been finalized. View your final price breakdown below."
-    : "Please note: until your order's pricing has been finalized, prices seen here may not be representative of the final amounts and do not represent an obligation to purchase your items at these amounts.";
+    : "Please note: until your order's pricing has been finalized, prices seen here may not be representative of the final amounts and do not represent an obligation to purchase your items at these amounts."
 
-  return renderShell({ title, subtitle, bodyHtml });
+  return renderShell({ title, subtitle, bodyHtml })
 }
 
 const money = (value: number | null | undefined): string =>
-  value == null
-    ? "&mdash;"
-    : value.toLocaleString("en-US", { style: "currency", currency: "USD" });
+  value == null ? '&mdash;' : value.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
 
-export function buildSalesOrderInvoiceHtml({
-  order,
-  pricing,
-}: SalesDocument): string {
-  const doneStatus = ["Preparing", "In Transit", "Completed"];
+export function buildSalesOrderInvoiceHtml({ order, pricing }: SalesDocument): string {
+  const doneStatus = ['Preparing', 'In Transit', 'Completed']
 
   const bullionItems = bullionLines(order.items)
     .map(
       (line) => `
         <tr>
-          <td class="text-left">${line.product_name || "Bullion Product"}</td>
+          <td class="text-left">${line.product_name || 'Bullion Product'}</td>
           <td>${qty(line.quantity)}</td>
-          <td>${
-            line.content != null
-              ? `${line.content.toFixed(3)} t oz`
-              : "&mdash;"
-          }</td>
+          <td>${line.content != null ? `${line.content.toFixed(3)} t oz` : '&mdash;'}</td>
           <td class="text-right">
             ${money(pricing.items.find((p) => p.id === line.id)?.line_total)}
           </td>
         </tr>
       `
     )
-    .join("");
+    .join('')
 
   const spotRows = pricing.spots
     .map(
@@ -455,11 +436,11 @@ export function buildSalesOrderInvoiceHtml({
             <span class="detail-value">${money(spot.ask)}</span>
           </div>`
     )
-    .join("");
+    .join('')
 
-  const title = doneStatus.includes(order.order.status ?? "")
-    ? "Sales Order Invoice"
-    : "Sales Order Preview";
+  const title = doneStatus.includes(order.order.status ?? '')
+    ? 'Sales Order Invoice'
+    : 'Sales Order Preview'
 
   const bodyHtml = `
     <div class="shipping-info">
@@ -469,20 +450,20 @@ export function buildSalesOrderInvoiceHtml({
         <div class="detail-content">
           <div class="detail-row">
             <span class="detail-label">Number:</span>
-            <span class="detail-value">SO-${String(order.order.number ?? "").padStart(6, "0")}</span>
+            <span class="detail-value">SO-${String(order.order.number ?? '').padStart(6, '0')}</span>
           </div>
           <div class="detail-row">
             <span class="detail-label">Name:</span>
-            <span class="detail-value">${order.user?.name ?? ""}</span>
+            <span class="detail-value">${order.user?.name ?? ''}</span>
           </div>
           <div class="detail-row">
             <span class="detail-label">Placed:</span>
             <span class="detail-value">${new Date(
               order.order.created_at ?? Date.now()
-            ).toLocaleDateString("en-US", {
-              month: "long",
-              day: "numeric",
-              year: "numeric",
+            ).toLocaleDateString('en-US', {
+              month: 'long',
+              day: 'numeric',
+              year: 'numeric',
             })}</span>
           </div>
           <div class="detail-row">
@@ -501,23 +482,23 @@ export function buildSalesOrderInvoiceHtml({
         <div class="detail-content">
           <div class="detail-row">
             <span class="detail-label">Street 1:</span>
-            <span class="detail-value">${order.address?.line_1 ?? ""}</span>
+            <span class="detail-value">${order.address?.line_1 ?? ''}</span>
           </div>
           <div class="detail-row">
             <span class="detail-label">Street 2:</span>
-            <span class="detail-value">${order.address?.line_2 ?? ""}</span>
+            <span class="detail-value">${order.address?.line_2 ?? ''}</span>
           </div>
           <div class="detail-row">
             <span class="detail-label">City:</span>
-            <span class="detail-value">${order.address?.city ?? ""}</span>
+            <span class="detail-value">${order.address?.city ?? ''}</span>
           </div>
           <div class="detail-row">
             <span class="detail-label">State:</span>
-            <span class="detail-value">${order.address?.state ?? ""}</span>
+            <span class="detail-value">${order.address?.state ?? ''}</span>
           </div>
           <div class="detail-row">
             <span class="detail-label">Zip Code:</span>
-            <span class="detail-value">${order.address?.zip ?? ""}</span>
+            <span class="detail-value">${order.address?.zip ?? ''}</span>
           </div>
         </div>
       </div>
@@ -549,7 +530,7 @@ export function buildSalesOrderInvoiceHtml({
         </table>
       </div>
       `
-        : ""
+        : ''
     }
 
     <div class="order-info">
@@ -569,7 +550,7 @@ export function buildSalesOrderInvoiceHtml({
             <td class="text-right">${money(order.totals?.items ?? 0)}</td>
           </tr>
           `
-              : ""
+              : ''
           }
 
           <tr>
@@ -585,7 +566,7 @@ export function buildSalesOrderInvoiceHtml({
             <td class="text-right">-${money(order.totals?.funds ?? 0)}</td>
           </tr>
           `
-              : ""
+              : ''
           }
 
           ${
@@ -596,7 +577,7 @@ export function buildSalesOrderInvoiceHtml({
             <td class="text-right">${money(order.totals?.surcharge ?? 0)}</td>
           </tr>
           `
-              : ""
+              : ''
           }
 
           <tr>
@@ -606,31 +587,27 @@ export function buildSalesOrderInvoiceHtml({
         </tbody>
       </table>
     </div>
-  `;
+  `
 
   return renderShell({
     title,
-    subtitle: "Items and price details contained below.",
+    subtitle: 'Items and price details contained below.',
     bodyHtml,
-  });
+  })
 }
 
 export async function generatePackingList(input: PurchaseDocument): Promise<Uint8Array> {
-  return renderPdf(buildPackingListHtml(input));
+  return renderPdf(buildPackingListHtml(input))
 }
 
-export async function generateReturnPackingList(
-  input: PurchaseDocument
-): Promise<Uint8Array> {
-  return renderPdf(buildReturnPackingListHtml(input));
+export async function generateReturnPackingList(input: PurchaseDocument): Promise<Uint8Array> {
+  return renderPdf(buildReturnPackingListHtml(input))
 }
 
 export async function generateInvoice(input: PurchaseDocument): Promise<Uint8Array> {
-  return renderPdf(buildInvoiceHtml(input));
+  return renderPdf(buildInvoiceHtml(input))
 }
 
-export async function generateSalesOrderInvoice(
-  input: SalesDocument
-): Promise<Uint8Array> {
-  return renderPdf(buildSalesOrderInvoiceHtml(input));
+export async function generateSalesOrderInvoice(input: SalesDocument): Promise<Uint8Array> {
+  return renderPdf(buildSalesOrderInvoiceHtml(input))
 }

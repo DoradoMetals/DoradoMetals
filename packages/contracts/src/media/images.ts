@@ -3,23 +3,23 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: media.images
-import { z } from "zod/v4";
+import { z } from 'zod/v4'
 
 export const Image = z.object({
-  "id": z.string().uuid(),
-  "bucket": z.string(),
-  "mime_type": z.string(),
-  "size_bytes": z.number().int().nullable(),
-  "width": z.number().int().nullable(),
-  "height": z.number().int().nullable(),
-  "checksum": z.string().nullable(),
-  "metadata": z.unknown().nullable(),
-  "path": z.string(),
-  "filename": z.string(),
-  "user_id": z.string().uuid().nullable(),
-  "created_at": z.string(),
-});
-export type Image = z.infer<typeof Image>;
+  'id': z.string().uuid(),
+  'bucket': z.string(),
+  'mime_type': z.string(),
+  'size_bytes': z.number().int().nullable(),
+  'width': z.number().int().nullable(),
+  'height': z.number().int().nullable(),
+  'checksum': z.string().nullable(),
+  'metadata': z.unknown().nullable(),
+  'path': z.string(),
+  'filename': z.string(),
+  'user_id': z.string().uuid().nullable(),
+  'created_at': z.string(),
+})
+export type Image = z.infer<typeof Image>
 // generated:end
 export const MediaUploadBody = Image.pick({
   mime_type: true,
@@ -28,8 +28,8 @@ export const MediaUploadBody = Image.pick({
 }).extend({
   mime_type: Image.shape.mime_type.nullable().optional(),
   size_bytes: Image.shape.size_bytes.optional(),
-});
-export type MediaUploadBody = z.infer<typeof MediaUploadBody>;
+})
+export type MediaUploadBody = z.infer<typeof MediaUploadBody>
 
-export const MediaDeleteBody = Image.pick({ id: true });
-export type MediaDeleteBody = z.infer<typeof MediaDeleteBody>;
+export const MediaDeleteBody = Image.pick({ id: true })
+export type MediaDeleteBody = z.infer<typeof MediaDeleteBody>

@@ -3,49 +3,59 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: payments.methods
-import { z } from "zod/v4";
-import { Direction } from "../orders/enums.js";
+import { z } from 'zod/v4'
+import { Direction } from '../orders/enums.js'
 
 export const PaymentMethod = z.object({
-  "id": z.string().uuid(),
-  "image_id": z.string().uuid().nullable(),
-  "direction": Direction,
-  "type": z.string(),
-  "currency": z.string(),
-  "min_amount": z.number().nullable(),
-  "max_amount": z.number().nullable(),
-  "enabled": z.boolean(),
-  "supports_partial": z.boolean(),
-  "supports_split": z.boolean(),
-  "provider": z.string().nullable(),
-  "provider_value": z.string().nullable(),
-  "flat_fee": z.number().nullable(),
-  "surcharge_percent": z.number().nullable(),
-  "time_delay": z.string().nullable(),
-  "label": z.string(),
-  "surcharge_label": z.string().nullable(),
-  "short_description": z.string().nullable(),
-  "long_description": z.string().nullable(),
-  "fit_description": z.string().nullable(),
-  "fit_header": z.string().nullable(),
-  "fit_bullets": z.array(z.string()).nullable(),
-  "sort_order": z.number().int(),
-  "display": z.boolean(),
-  "created_at": z.string(),
-  "updated_at": z.string(),
-  "created_by": z.string().nullable(),
-  "updated_by": z.string().nullable(),
-  "created_by_id": z.string().uuid().nullable(),
-  "updated_by_id": z.string().uuid().nullable(),
-  "details": z.array(z.string()).nullable(),
-});
-export type PaymentMethod = z.infer<typeof PaymentMethod>;
+  'id': z.string().uuid(),
+  'image_id': z.string().uuid().nullable(),
+  'direction': Direction,
+  'type': z.string(),
+  'currency': z.string(),
+  'min_amount': z.number().nullable(),
+  'max_amount': z.number().nullable(),
+  'enabled': z.boolean(),
+  'supports_partial': z.boolean(),
+  'supports_split': z.boolean(),
+  'provider': z.string().nullable(),
+  'provider_value': z.string().nullable(),
+  'flat_fee': z.number().nullable(),
+  'surcharge_percent': z.number().nullable(),
+  'time_delay': z.string().nullable(),
+  'label': z.string(),
+  'surcharge_label': z.string().nullable(),
+  'short_description': z.string().nullable(),
+  'long_description': z.string().nullable(),
+  'fit_description': z.string().nullable(),
+  'fit_header': z.string().nullable(),
+  'fit_bullets': z.array(z.string()).nullable(),
+  'sort_order': z.number().int(),
+  'display': z.boolean(),
+  'created_at': z.string(),
+  'updated_at': z.string(),
+  'created_by': z.string().nullable(),
+  'updated_by': z.string().nullable(),
+  'created_by_id': z.string().uuid().nullable(),
+  'updated_by_id': z.string().uuid().nullable(),
+  'details': z.array(z.string()).nullable(),
+})
+export type PaymentMethod = z.infer<typeof PaymentMethod>
 // generated:end
 
 export const PaymentMethodPatch = PaymentMethod.omit({
-  id: true, direction: true, type: true, currency: true,
-  supports_partial: true, supports_split: true, provider: true, provider_value: true,
-  created_at: true, updated_at: true, created_by: true, updated_by: true,
-  created_by_id: true, updated_by_id: true,
-}).partial();
-export type PaymentMethodPatch = z.infer<typeof PaymentMethodPatch>;
+  id: true,
+  direction: true,
+  type: true,
+  currency: true,
+  supports_partial: true,
+  supports_split: true,
+  provider: true,
+  provider_value: true,
+  created_at: true,
+  updated_at: true,
+  created_by: true,
+  updated_by: true,
+  created_by_id: true,
+  updated_by_id: true,
+}).partial()
+export type PaymentMethodPatch = z.infer<typeof PaymentMethodPatch>

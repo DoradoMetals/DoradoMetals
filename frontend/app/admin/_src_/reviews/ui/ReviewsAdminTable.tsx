@@ -1,6 +1,6 @@
 'use client'
 
-import type { Review } from "@dorado/contracts";
+import type { Review } from '@dorado/contracts'
 import * as React from 'react'
 
 import { useDrawerStore } from '@/shared/store/drawerStore'

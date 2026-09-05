@@ -14,8 +14,7 @@ export const useSpotTypeStore = create<SpotTypeState>()(
     (set) => ({
       type: 'Ask',
       setType: (type) => set({ type }),
-      toggleType: () =>
-        set((state) => ({ type: state.type === 'Bid' ? 'Ask' : 'Bid' })),
+      toggleType: () => set((state) => ({ type: state.type === 'Bid' ? 'Ask' : 'Bid' })),
     }),
     {
       name: 'spot-type',

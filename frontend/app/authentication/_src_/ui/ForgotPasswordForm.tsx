@@ -75,9 +75,7 @@ export function ForgotPasswordDialog() {
         )}
 
         {forgotPasswordMutation.error && (
-          <p className="text-center text-destructive">
-            {forgotPasswordMutation.error.message}
-          </p>
+          <p className="text-center text-destructive">{forgotPasswordMutation.error.message}</p>
         )}
       </DialogContent>
     </Dialog>

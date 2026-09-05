@@ -72,11 +72,7 @@ export default function ResetPasswordForm() {
               />
             </div>
 
-            <Button
-              type="submit"
-              disabled={resetPasswordMutation.isPending}
-              className="w-full"
-            >
+            <Button type="submit" disabled={resetPasswordMutation.isPending} className="w-full">
               {resetPasswordMutation.isPending ? 'Resetting...' : 'Reset Password'}
             </Button>
           </form>

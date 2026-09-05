@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from '@playwright/test'
 
 // The admin purchase order drawer - where an order actually gets worked.
 //
@@ -23,49 +23,49 @@ import { test, expect } from "@playwright/test";
 // A CREATE-THEN-WORK-THEN-DELETE spec is the right way to cover the mutations
 // end to end, and it needs a seeded disposable order. That is worth building;
 // it is not worth faking by mutating production-shaped data in dev.
-test.describe("the admin purchase order drawer", () => {
+test.describe('the admin purchase order drawer', () => {
   test.beforeEach(async ({ page }) => {
     // The admin bundle is the heaviest route, and a dev-server cold compile
     // under parallel workers can eat 30s on its own - so the budget is real
     // and the wait is for rows, not a guessed sleep.
-    test.setTimeout(90_000);
-    await page.goto("/admin?tab=purchase-orders");
-    await expect(page.locator("tbody tr").first()).toBeVisible({ timeout: 60_000 });
+    test.setTimeout(90_000)
+    await page.goto('/admin?tab=purchase-orders')
+    await expect(page.locator('tbody tr').first()).toBeVisible({ timeout: 60_000 })
     // A WORKED order AT THE WORKBENCH STAGE, pinned by number. "First row"
     // broke twice (seeded e2e orders sort newest), and the stage matters as
     // much as the pick: the drawer is stage-gated - In Transit shows the
     // logistics view, and the controls this spec examines (spot lock, item
     // edits, payout totals) belong to Received and later. 242 is January-era
     // dev data sitting at Received with genuine spots and totals.
-    const search = page.getByPlaceholder(/Search orders/i).first();
-    await search.fill("242");
-    const row = page.locator("tbody tr").first();
-    await expect(row, "dev no longer has order 242 - pick a new pinned fixture").toContainText(
-      "242",
+    const search = page.getByPlaceholder(/Search orders/i).first()
+    await search.fill('242')
+    const row = page.locator('tbody tr').first()
+    await expect(row, 'dev no longer has order 242 - pick a new pinned fixture').toContainText(
+      '242',
       { timeout: 20_000 }
-    );
-    await row.click();
-    await expect(page.getByRole("dialog", { name: /Purchase order/i }).first()).toBeVisible({
+    )
+    await row.click()
+    await expect(page.getByRole('dialog', { name: /Purchase order/i }).first()).toBeVisible({
       timeout: 20_000,
-    });
-  });
+    })
+  })
 
-  test("it names the order and the customer it belongs to", async ({ page }) => {
-    const drawer = page.getByRole("dialog", { name: /Purchase order/i }).first();
-    const text = await drawer.innerText();
+  test('it names the order and the customer it belongs to', async ({ page }) => {
+    const drawer = page.getByRole('dialog', { name: /Purchase order/i }).first()
+    const text = await drawer.innerText()
 
     // An order number in the format the business uses. Without this the drawer
     // could be showing a blank shell and every other assertion would still hold.
-    expect(text, "the drawer does not show a purchase order number").toMatch(/PO\s*-\s*\d+/);
-    expect(text.length, "the drawer rendered almost nothing").toBeGreaterThan(80);
-  });
+    expect(text, 'the drawer does not show a purchase order number').toMatch(/PO\s*-\s*\d+/)
+    expect(text.length, 'the drawer rendered almost nothing').toBeGreaterThan(80)
+  })
 
-  test("the spot controls are present, because every figure depends on them", async ({ page }) => {
-    const drawer = page.getByRole("dialog", { name: /Purchase order/i }).first();
+  test('the spot controls are present, because every figure depends on them', async ({ page }) => {
+    const drawer = page.getByRole('dialog', { name: /Purchase order/i }).first()
 
     // Locking spots is what freezes the prices a payout is computed from. If
     // this control vanished, an admin could price an order against moving spot.
-    await expect(drawer.getByRole("button", { name: /Lock Spots/i })).toBeVisible();
+    await expect(drawer.getByRole('button', { name: /Lock Spots/i })).toBeVisible()
 
     // THE METALS ARE NOT ASSERTED HERE, and the reason is worth recording.
     //
@@ -84,30 +84,30 @@ test.describe("the admin purchase order drawer", () => {
     // string search over one drawer's rendered text. What is left here is the
     // thing only a browser can tell you: that the control an admin needs is on
     // the screen.
-  });
+  })
 
-  test("the item controls an admin needs are all there", async ({ page }) => {
-    const drawer = page.getByRole("dialog", { name: /Purchase order/i }).first();
+  test('the item controls an admin needs are all there', async ({ page }) => {
+    const drawer = page.getByRole('dialog', { name: /Purchase order/i }).first()
     for (const control of [/Add Scrap to Order/i, /Edit/i, /Remove/i, /Add New/i]) {
       await expect(
-        drawer.getByRole("button", { name: control }).first(),
+        drawer.getByRole('button', { name: control }).first(),
         `the drawer is missing the ${control} control`
-      ).toBeVisible();
+      ).toBeVisible()
     }
-  });
+  })
 
-  test("the totals a payout is built from are shown", async ({ page }) => {
-    const drawer = page.getByRole("dialog", { name: /Purchase order/i }).first();
-    const text = await drawer.innerText();
+  test('the totals a payout is built from are shown', async ({ page }) => {
+    const drawer = page.getByRole('dialog', { name: /Purchase order/i }).first()
+    const text = await drawer.innerText()
     // The workbench's own vocabulary (Figma rework, 2026-08-31): the charges
     // are singular lines and the per-kind "Estimate" rows belong to the
     // In-Transit logistics view, not this stage.
-    for (const label of ["Shipping Charge", "Payout Charge", "Total Estimate"]) {
-      expect(text, `the drawer does not show ${label}`).toContain(label);
+    for (const label of ['Shipping Charge', 'Payout Charge', 'Total Estimate']) {
+      expect(text, `the drawer does not show ${label}`).toContain(label)
     }
-    expect(text, "a figure rendered as NaN").not.toMatch(/NaN/);
-    expect(text, "a figure rendered as undefined").not.toMatch(/\$\s*undefined/);
-  });
+    expect(text, 'a figure rendered as NaN').not.toMatch(/NaN/)
+    expect(text, 'a figure rendered as undefined').not.toMatch(/\$\s*undefined/)
+  })
 
   // THE ASSERTION MOST WORTH HAVING. The transitions offered must match where
   // the order actually is - an order in Received offers "Finalize Pricing"
@@ -115,47 +115,46 @@ test.describe("the admin purchase order drawer", () => {
   // offering the wrong move is how an order ends up in a state the business
   // cannot recover it from.
   test("the status transitions offered match the order's current status", async ({ page }) => {
-    const drawer = page.getByRole("dialog", { name: /Purchase order/i }).first();
-    const text = await drawer.innerText();
+    const drawer = page.getByRole('dialog', { name: /Purchase order/i }).first()
+    const text = await drawer.innerText()
 
     // The purchase lifecycle, and nothing else. 'Pending' was here and is
     // gone - purchase orders never have it (Jacob, 2026-08-31; it is sales
     // vocabulary), and the five dev rows that carried it were test debris,
     // since deleted.
-    const STATUSES = [
-      "In Transit",
-      "Received",
-      "Payment Processing",
-      "Completed",
-      "Cancelled",
-    ];
-    const current = STATUSES.find((s) => new RegExp(`\\b${s}\\b`).test(text));
-    expect(current, `the drawer shows no recognisable status. Saw: ${text.slice(0, 120)}`).toBeTruthy();
+    const STATUSES = ['In Transit', 'Received', 'Payment Processing', 'Completed', 'Cancelled']
+    const current = STATUSES.find((s) => new RegExp(`\\b${s}\\b`).test(text))
+    expect(
+      current,
+      `the drawer shows no recognisable status. Saw: ${text.slice(0, 120)}`
+    ).toBeTruthy()
 
     // Whatever the status, there must be a way forward or a way to cancel -
     // an order with no available transition is stuck.
-    const moves = await drawer.getByRole("button", { name: /Move to|Back to|Cancel Order/i }).count();
-    expect(moves, `an order in ${current} offers no transition at all`).toBeGreaterThan(0);
-  });
-});
+    const moves = await drawer
+      .getByRole('button', { name: /Move to|Back to|Cancel Order/i })
+      .count()
+    expect(moves, `an order in ${current} offers no transition at all`).toBeGreaterThan(0)
+  })
+})
 
-test.describe("the admin purchase orders table", () => {
-  test("every visible row names its customer", async ({ page }) => {
+test.describe('the admin purchase orders table', () => {
+  test('every visible row names its customer', async ({ page }) => {
     // Pins the 2026-08-31 fix: the list wire carries user_id and no joined
     // user, and the User column rendered empty for weeks because it still
     // read the old composed user.user_name. Names come from the admin users
     // list matched by id now; this notices that mapping breaking back.
-    await page.goto("/admin?tab=purchase-orders");
-    const rows = page.locator("tbody tr");
-    await expect(rows.first()).toBeVisible({ timeout: 30_000 });
+    await page.goto('/admin?tab=purchase-orders')
+    const rows = page.locator('tbody tr')
+    await expect(rows.first()).toBeVisible({ timeout: 30_000 })
 
-    const count = Math.min(await rows.count(), 5);
+    const count = Math.min(await rows.count(), 5)
     for (let i = 0; i < count; i++) {
-      const text = await rows.nth(i).innerText();
+      const text = await rows.nth(i).innerText()
       expect(
-        text.replace(/PO\s*-\s*\d+/, "").trim(),
+        text.replace(/PO\s*-\s*\d+/, '').trim(),
         `purchase order row ${i} names no customer`
-      ).toMatch(/[A-Za-z]{2,}/);
+      ).toMatch(/[A-Za-z]{2,}/)
     }
-  });
-});
+  })
+})

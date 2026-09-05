@@ -1,4 +1,4 @@
-'use client';
+'use client'
 
 import VerifyEmail from './_src_/ui/VerifyEmail'
 import { Suspense } from 'react'

@@ -42,7 +42,13 @@ export const useDownloadPackingList = () => {
     return blob
   }
 
-  return { ...mutation, mutateAsync, mutate: (vars: OrderDownload) => { mutateAsync(vars).catch(() => {}) } }
+  return {
+    ...mutation,
+    mutateAsync,
+    mutate: (vars: OrderDownload) => {
+      mutateAsync(vars).catch(() => {})
+    },
+  }
 }
 
 export const useDownloadReturnPackingList = () => {
@@ -55,14 +61,24 @@ export const useDownloadReturnPackingList = () => {
     return blob
   }
 
-  return { ...mutation, mutateAsync, mutate: (vars: OrderDownload) => { mutateAsync(vars).catch(() => {}) } }
+  return {
+    ...mutation,
+    mutateAsync,
+    mutate: (vars: OrderDownload) => {
+      mutateAsync(vars).catch(() => {})
+    },
+  }
 }
 
 export const useDownloadInvoice = () => {
   const { formatPurchaseOrderNumber } = useFormatPurchaseOrderNumber()
   const mutation = useGenerateInvoice()
 
-  const mutateAsync = async ({ order_id, order_number, fileName }: OrderDownload & { fileName: string }) => {
+  const mutateAsync = async ({
+    order_id,
+    order_number,
+    fileName,
+  }: OrderDownload & { fileName: string }) => {
     const blob = await mutation.mutateAsync({ order_id })
     save(blob, `${formatPurchaseOrderNumber(order_number)}_${fileName}.pdf`)
     return blob
@@ -71,7 +87,9 @@ export const useDownloadInvoice = () => {
   return {
     ...mutation,
     mutateAsync,
-    mutate: (vars: OrderDownload & { fileName: string }) => { mutateAsync(vars).catch(() => {}) },
+    mutate: (vars: OrderDownload & { fileName: string }) => {
+      mutateAsync(vars).catch(() => {})
+    },
   }
 }
 
@@ -79,7 +97,11 @@ export const useDownloadSalesOrderInvoice = () => {
   const { formatSalesOrderNumber } = useFormatSalesOrderNumber()
   const mutation = useGenerateSalesOrderInvoice()
 
-  const mutateAsync = async ({ order_id, order_number, fileName }: OrderDownload & { fileName: string }) => {
+  const mutateAsync = async ({
+    order_id,
+    order_number,
+    fileName,
+  }: OrderDownload & { fileName: string }) => {
     const blob = await mutation.mutateAsync({ order_id })
     save(blob, `${formatSalesOrderNumber(order_number)}_${fileName}.pdf`)
     return blob
@@ -88,6 +110,8 @@ export const useDownloadSalesOrderInvoice = () => {
   return {
     ...mutation,
     mutateAsync,
-    mutate: (vars: OrderDownload & { fileName: string }) => { mutateAsync(vars).catch(() => {}) },
+    mutate: (vars: OrderDownload & { fileName: string }) => {
+      mutateAsync(vars).catch(() => {})
+    },
   }
 }

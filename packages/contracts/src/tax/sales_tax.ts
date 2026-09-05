@@ -3,14 +3,14 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: tax.sales_tax
-import { z } from "zod/v4";
+import { z } from 'zod/v4'
 
 export const SalesTax = z.object({
-  "id": z.string().uuid(),
-  "state": z.string(),
-  "reached_nexus": z.boolean(),
-  "amount_owed": z.number(),
-  "last_remitted": z.string().nullable(),
-});
-export type SalesTax = z.infer<typeof SalesTax>;
+  'id': z.string().uuid(),
+  'state': z.string(),
+  'reached_nexus': z.boolean(),
+  'amount_owed': z.number(),
+  'last_remitted': z.string().nullable(),
+})
+export type SalesTax = z.infer<typeof SalesTax>
 // generated:end

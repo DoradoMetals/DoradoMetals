@@ -1,41 +1,48 @@
-import { ShippingCancelLabelBody, ShippingCancelPickupBody, ShippingCheckPickupBody, ShippingGetLocationsBody, ShippingGetTrackingBody, ShippingValidateAddressBody } from "@dorado/contracts";
-import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
-import { parseStrict, uuidParam } from "#shared/http/validate.ts";
-import { requireFulfillmentOwner } from "#logistics/fulfillments/owner.ts";
-import * as operationsService from "#logistics/shipping/operations/service.ts";
+import {
+  ShippingCancelLabelBody,
+  ShippingCancelPickupBody,
+  ShippingCheckPickupBody,
+  ShippingGetLocationsBody,
+  ShippingGetTrackingBody,
+  ShippingValidateAddressBody,
+} from '@dorado/contracts'
+import { asyncHandler } from '#shared/middleware/asyncHandler.ts'
+import { parseStrict, uuidParam } from '#shared/http/validate.ts'
+import { requireFulfillmentOwner } from '#logistics/fulfillments/owner.ts'
+import * as operationsService from '#logistics/shipping/operations/service.ts'
 
 export const validateAddress = asyncHandler(async (req, res) => {
-  const body = parseStrict(ShippingValidateAddressBody, req.body, "shipping/validate_address body");
-  res.json(await operationsService.validateAddress(body));
-});
+  const body = parseStrict(ShippingValidateAddressBody, req.body, 'shipping/validate_address body')
+  res.json(await operationsService.validateAddress(body))
+})
 
 export const getFulfillmentRates = asyncHandler(async (req, res) => {
-  const fulfillment_id = uuidParam(req, "id");
-  await requireFulfillmentOwner(req, fulfillment_id);
-  res.json(await operationsService.getFulfillmentRates(fulfillment_id));
-});
+  const fulfillment_id = uuidParam(req, 'id')
+  await requireFulfillmentOwner(req, fulfillment_id)
+  res.json(await operationsService.getFulfillmentRates(fulfillment_id))
+})
 
 export const checkPickup = asyncHandler(async (req, res) => {
-  const body = parseStrict(ShippingCheckPickupBody, req.body, "shipping/check_pickup body");
-  res.json(await operationsService.checkPickup(body));
-});
+  const body = parseStrict(ShippingCheckPickupBody, req.body, 'shipping/check_pickup body')
+  res.json(await operationsService.checkPickup(body))
+})
 
 export const getTracking = asyncHandler(async (req, res) => {
-  const body = parseStrict(ShippingGetTrackingBody, req.body, "shipping/get_tracking body");
-  res.json(await operationsService.getTracking(body.shipment_id, req.user?.role === "admin"));
-});
+  const body = parseStrict(ShippingGetTrackingBody, req.body, 'shipping/get_tracking body')
+  res.json(await operationsService.getTracking(body.shipment_id, req.user?.role === 'admin'))
+})
 
 export const getLocations = asyncHandler(async (req, res) => {
-  const body = parseStrict(ShippingGetLocationsBody, req.body, "shipping/get_locations body");
-  res.json(await operationsService.getLocations(body));
-});
+  const body = parseStrict(ShippingGetLocationsBody, req.body, 'shipping/get_locations body')
+  res.json(await operationsService.getLocations(body))
+})
 
 export const cancelLabel = asyncHandler(async (req, res) => {
-  const body = parseStrict(ShippingCancelLabelBody, req.body, "shipping/cancel_label body");
-  res.json(await operationsService.cancelLabel(body));
-});
+  const body = parseStrict(ShippingCancelLabelBody, req.body, 'shipping/cancel_label body')
+  res.json(await operationsService.cancelLabel(body))
+})
 
 export const cancelPickup = asyncHandler(async (req, res) => {
-  const body = parseStrict(ShippingCancelPickupBody, req.body, "shipping/cancel_pickup body");
-  res.json(await operationsService.cancelPickup(body));
-});
+  const body = parseStrict(ShippingCancelPickupBody, req.body, 'shipping/cancel_pickup body')
+  res.json(await operationsService.cancelPickup(body))
+})

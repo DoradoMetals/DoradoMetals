@@ -3,32 +3,34 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: places.user_addresses
-import { z } from "zod/v4";
+import { z } from 'zod/v4'
 
 export const UserAddress = z.object({
-  "id": z.string().uuid(),
-  "address_id": z.string().uuid(),
-  "user_id": z.string().uuid(),
-  "label": z.string().nullable(),
-  "default_shipping": z.boolean(),
-  "default_billing": z.boolean(),
-  "recipient_name": z.string().nullable(),
-});
-export type UserAddress = z.infer<typeof UserAddress>;
+  'id': z.string().uuid(),
+  'address_id': z.string().uuid(),
+  'user_id': z.string().uuid(),
+  'label': z.string().nullable(),
+  'default_shipping': z.boolean(),
+  'default_billing': z.boolean(),
+  'recipient_name': z.string().nullable(),
+})
+export type UserAddress = z.infer<typeof UserAddress>
 // generated:end
-export const UserAddressRead = UserAddress.omit({ id: true, default_billing: true });
-export type UserAddressRead = z.infer<typeof UserAddressRead>;
+export const UserAddressRead = UserAddress.omit({ id: true, default_billing: true })
+export type UserAddressRead = z.infer<typeof UserAddressRead>
 
 export const UserAddressPatch = UserAddress.pick({
   recipient_name: true,
   label: true,
   default_shipping: true,
-}).partial().strict();
-export type UserAddressPatch = z.infer<typeof UserAddressPatch>;
+})
+  .partial()
+  .strict()
+export type UserAddressPatch = z.infer<typeof UserAddressPatch>
 
 export const UserAddressWriteColumns = UserAddress.omit({
   id: true,
   address_id: true,
   user_id: true,
-}).partial();
-export type UserAddressWriteColumns = z.infer<typeof UserAddressWriteColumns>;
+}).partial()
+export type UserAddressWriteColumns = z.infer<typeof UserAddressWriteColumns>

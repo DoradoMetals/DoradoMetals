@@ -44,8 +44,7 @@ export const useBasket = (direction: Direction, user_id?: string): CheckoutItem[
   return rows ?? []
 }
 
-export const useReplaceCheckoutItems = (direction: Direction) =>
-  useReplaceServerItems(direction)
+export const useReplaceCheckoutItems = (direction: Direction) => useReplaceServerItems(direction)
 
 export const useClearCheckoutItems = (direction: Direction) => useClearServerItems(direction)
 

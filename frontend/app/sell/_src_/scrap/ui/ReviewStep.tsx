@@ -94,7 +94,12 @@ export default function ReviewStep({ showBanner }: { showBanner: boolean }) {
             transition={{ duration: 0.5 }}
             className="mb-4 will-change-transform"
           >
-            <Badge variant="soft" intent="success" size="lg" icon={<CheckCircle className="w-4 h-4" />}>
+            <Badge
+              variant="soft"
+              intent="success"
+              size="lg"
+              icon={<CheckCircle className="w-4 h-4" />}
+            >
               Item submitted!
             </Badge>
           </motion.div>

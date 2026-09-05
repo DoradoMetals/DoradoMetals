@@ -4,13 +4,13 @@
 // backoff. Nine test files each carried their own copy of this before it
 // was lifted here; the two variants differed only in spelling out
 // `mutations: { retry: false }`, which is the default anyway.
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render } from "@testing-library/react";
-import type { ReactElement } from "react";
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { render } from '@testing-library/react'
+import type { ReactElement } from 'react'
 
 export const renderWithClient = (ui: ReactElement) => {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
-};
+  })
+  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>)
+}

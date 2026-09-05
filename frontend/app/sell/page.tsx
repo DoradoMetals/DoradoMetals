@@ -27,12 +27,8 @@ export default function Page() {
           className="flex w-full px-5 max-w-2xl mt-4 lg:mt-8"
         >
           <TabsList className="justify-center w-full gap-2 mb-0">
-            <TabsTrigger value="bullion">
-              Bullion
-            </TabsTrigger>
-            <TabsTrigger value="scrap">
-              Scrap
-            </TabsTrigger>
+            <TabsTrigger value="bullion">Bullion</TabsTrigger>
+            <TabsTrigger value="scrap">Scrap</TabsTrigger>
           </TabsList>
           <hr className="w-full -mt-[7px]" />
           <TabsContent value="bullion" tabIndex={-1}>

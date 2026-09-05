@@ -3,17 +3,17 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: products.mints
-import { z } from "zod/v4";
+import { z } from 'zod/v4'
 
 export const Mint = z.object({
-  "id": z.string().uuid(),
-  "name": z.string(),
-  "type": z.string(),
-  "country": z.string().nullable(),
-  "created_at": z.string().nullable(),
-  "updated_at": z.string().nullable(),
-  "image_id": z.string().uuid().nullable(),
-  "organization_id": z.string().uuid(),
-});
-export type Mint = z.infer<typeof Mint>;
+  'id': z.string().uuid(),
+  'name': z.string(),
+  'type': z.string(),
+  'country': z.string().nullable(),
+  'created_at': z.string().nullable(),
+  'updated_at': z.string().nullable(),
+  'image_id': z.string().uuid().nullable(),
+  'organization_id': z.string().uuid(),
+})
+export type Mint = z.infer<typeof Mint>
 // generated:end

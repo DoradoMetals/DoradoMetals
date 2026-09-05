@@ -1,67 +1,68 @@
-import "#env";
-import fs from "node:fs";
-import path from "node:path";
-import pool from "#pool";
+import '#env'
+import fs from 'node:fs'
+import path from 'node:path'
+import pool from '#pool'
 
 const TABLES = [
-  ["organizations", "organizations", "type = 'DORADO'"],
-  ["places", "addresses", "id IN (SELECT address_id FROM places.locations WHERE address_id IS NOT NULL)"],
-  ["places", "locations", null],
-  ["places", "location_hours", null],
+  ['organizations', 'organizations', "type = 'DORADO'"],
+  [
+    'places',
+    'addresses',
+    'id IN (SELECT address_id FROM places.locations WHERE address_id IS NOT NULL)',
+  ],
+  ['places', 'locations', null],
+  ['places', 'location_hours', null],
   // carrier_id IS NOT NULL: the carrier-less "offered" service and package rows
   // are created by 110 and 112, which run long after this file. Dumping them
   // here would seed them three migrations early and count them as reference
   // data that has always existed.
-  ["shipping", "services", "carrier_id IS NOT NULL", "created by 110, not seeded here"],
-  ["shipping", "packages", "carrier_id IS NOT NULL", "created by 112, not seeded here"],
-  ["fulfillments", "methods", null],
-  ["payments", "methods", null],
-  ["auth", "employees", null],
-];
+  ['shipping', 'services', 'carrier_id IS NOT NULL', 'created by 110, not seeded here'],
+  ['shipping', 'packages', 'carrier_id IS NOT NULL', 'created by 112, not seeded here'],
+  ['fulfillments', 'methods', null],
+  ['payments', 'methods', null],
+  ['auth', 'employees', null],
+]
 
-const q = async (sql, params = []) => (await pool.query(sql, params)).rows;
+const q = async (sql, params = []) => (await pool.query(sql, params)).rows
 
 // A reference is written as a LOOKUP BY NATURAL KEY, never as the literal id
 // this dev database happens to hold. Production's January reference data is a
 // separate creation with its own ids, so a literal would either dangle or
 // point at the wrong row; the lookup lands on whichever row is already there.
-const sq = (v) => `'${String(v).replace(/'/g, "''")}'`;
-const eq = (col, v) => (v === null || v === undefined ? `${col} IS NULL` : `${col} = ${sq(v)}`);
+const sq = (v) => `'${String(v).replace(/'/g, "''")}'`
+const eq = (col, v) => (v === null || v === undefined ? `${col} IS NULL` : `${col} = ${sq(v)}`)
 // ORDER BY ... LIMIT 1, always. A natural key that identifies a row in THIS
 // database need not identify one in production: places.addresses there holds
 // every customer address as well as the business's own, and the rehearsal hit
 // `more than one row returned by a subquery` on exactly that. Oldest-then-id
 // is deterministic, and on a from-nothing build there is only ever one match.
-const pick = (where, order) => ` ORDER BY ${order} LIMIT 1`;
+const pick = (where, order) => ` ORDER BY ${order} LIMIT 1`
 
 const RESOLVE = {
-  "places.locations.organization_id": async (id) => {
-    const [org] = await q(
-      "SELECT type, name FROM organizations.organizations WHERE id = $1",
-      [id]
-    );
-    if (!org) return null;
-    return `(SELECT id FROM organizations.organizations WHERE ${eq("type", org.type)} AND ${eq("name", org.name)}${pick(null, "created_at NULLS LAST, id")})`;
+  'places.locations.organization_id': async (id) => {
+    const [org] = await q('SELECT type, name FROM organizations.organizations WHERE id = $1', [id])
+    if (!org) return null
+    return `(SELECT id FROM organizations.organizations WHERE ${eq('type', org.type)} AND ${eq('name', org.name)}${pick(null, 'created_at NULLS LAST, id')})`
   },
-  "places.locations.address_id": async (id) => {
+  'places.locations.address_id': async (id) => {
     const [a] = await q(
-      "SELECT line_1, line_2, city, state, zip FROM places.addresses WHERE id = $1",
+      'SELECT line_1, line_2, city, state, zip FROM places.addresses WHERE id = $1',
       [id]
-    );
-    if (!a) return null;
+    )
+    if (!a) return null
     return (
-      `(SELECT id FROM places.addresses WHERE ${eq("line_1", a.line_1)}` +
-      ` AND line_2 IS NOT DISTINCT FROM ${a.line_2 === null ? "NULL" : sq(a.line_2)}` +
-      ` AND ${eq("city", a.city)} AND ${eq("state", a.state)} AND ${eq("zip", a.zip)}` +
-      `${pick(null, "created_at NULLS LAST, id")})`
-    );
+      `(SELECT id FROM places.addresses WHERE ${eq('line_1', a.line_1)}` +
+      ` AND line_2 IS NOT DISTINCT FROM ${a.line_2 === null ? 'NULL' : sq(a.line_2)}` +
+      ` AND ${eq('city', a.city)} AND ${eq('state', a.state)} AND ${eq('zip', a.zip)}` +
+      `${pick(null, 'created_at NULLS LAST, id')})`
+    )
   },
-  "places.location_hours.location_id": async (id) => {
-    const [l] = await q("SELECT type, name FROM places.locations WHERE id = $1", [id]);
-    if (!l) return null;
-    return `(SELECT id FROM places.locations WHERE ${eq("type", l.type)} AND ${eq("name", l.name)}${pick(null, "id")})`;
+  'places.location_hours.location_id': async (id) => {
+    const [l] = await q('SELECT type, name FROM places.locations WHERE id = $1', [id])
+    if (!l) return null
+    return `(SELECT id FROM places.locations WHERE ${eq('type', l.type)} AND ${eq('name', l.name)}${pick(null, 'id')})`
   },
-};
+}
 
 // THE FACT THAT IDENTIFIES THE ROW, per table. `ON CONFLICT (id)` only ever
 // saw the id, so on a database already holding January's copies of these same
@@ -71,38 +72,36 @@ const RESOLVE = {
 // now guarded by NOT EXISTS on these columns, so the file yields exactly one
 // of each fact wherever it is run.
 const NATURAL = {
-  "organizations.organizations": ["type", "name"],
-  "places.addresses": ["line_1", "line_2", "city", "state", "zip"],
-  "places.locations": ["type", "name"],
-  "places.location_hours": ["location_id", "weekday"],
-  "shipping.services": ["carrier_id", "name"],
-  "shipping.packages": ["carrier_id", "label"],
-  "fulfillments.methods": ["direction", "type", "label"],
-  "payments.methods": ["direction", "type", "provider_value"],
-  "auth.employees": ["user_id"],
-};
-const ident = (s) => (/^[a-z_][a-z0-9_]*$/.test(s) ? s : `"${s}"`);
+  'organizations.organizations': ['type', 'name'],
+  'places.addresses': ['line_1', 'line_2', 'city', 'state', 'zip'],
+  'places.locations': ['type', 'name'],
+  'places.location_hours': ['location_id', 'weekday'],
+  'shipping.services': ['carrier_id', 'name'],
+  'shipping.packages': ['carrier_id', 'label'],
+  'fulfillments.methods': ['direction', 'type', 'label'],
+  'payments.methods': ['direction', 'type', 'provider_value'],
+  'auth.employees': ['user_id'],
+}
+const ident = (s) => (/^[a-z_][a-z0-9_]*$/.test(s) ? s : `"${s}"`)
 
 function literal(v, type) {
-  if (v === null || v === undefined) return `NULL::${type}`;
-  if (typeof v === "string") return `'${v.replace(/'/g, "''")}'::${type}`;
-  if (typeof v === "boolean") return v ? "true" : "false";
-  if (typeof v === "number") return String(v);
+  if (v === null || v === undefined) return `NULL::${type}`
+  if (typeof v === 'string') return `'${v.replace(/'/g, "''")}'::${type}`
+  if (typeof v === 'boolean') return v ? 'true' : 'false'
+  if (typeof v === 'number') return String(v)
   if (Array.isArray(v)) {
-    const items = v.map(
-      (x) => `"${String(x).replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`
-    );
-    const arr = `{${items.join(",")}}`;
-    return `'${arr.replace(/'/g, "''")}'::${type}`;
+    const items = v.map((x) => `"${String(x).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`)
+    const arr = `{${items.join(',')}}`
+    return `'${arr.replace(/'/g, "''")}'::${type}`
   }
-  if (typeof v === "object") {
-    return `'${JSON.stringify(v).replace(/'/g, "''")}'::${type}`;
+  if (typeof v === 'object') {
+    return `'${JSON.stringify(v).replace(/'/g, "''")}'::${type}`
   }
-  return `'${String(v).replace(/'/g, "''")}'::${type}`;
+  return `'${String(v).replace(/'/g, "''")}'::${type}`
 }
 
-const out = [];
-const say = (s = "") => out.push(s);
+const out = []
+const say = (s = '') => out.push(s)
 
 say(`-- Reference data with no source in exchange.
 --
@@ -135,9 +134,9 @@ say(`-- Reference data with no source in exchange.
 --
 -- exchange is untouched - it is not read here either, because there is nothing
 -- in it to read.
-`);
+`)
 
-let total = 0;
+let total = 0
 
 for (const [schema, table, where, note] of TABLES) {
   const cols = await q(
@@ -146,63 +145,73 @@ for (const [schema, table, where, note] of TABLES) {
      WHERE a.attrelid = $1::regclass AND a.attnum > 0 AND NOT a.attisdropped
      ORDER BY a.attnum`,
     [`${schema}.${table}`]
-  );
+  )
 
   const rows = await q(
-    `SELECT ${cols.map((c) => `${ident(c.column_name)}::text AS ${ident(c.column_name)}`).join(", ")}
-     FROM ${ident(schema)}.${ident(table)} ${where ? `WHERE ${where}` : ""}
+    `SELECT ${cols.map((c) => `${ident(c.column_name)}::text AS ${ident(c.column_name)}`).join(', ')}
+     FROM ${ident(schema)}.${ident(table)} ${where ? `WHERE ${where}` : ''}
      ORDER BY id`
-  );
-  if (!rows.length) continue;
-  total += rows.length;
+  )
+  if (!rows.length) continue
+  total += rows.length
 
-  say(`-- ${schema}.${table} (${rows.length} row${rows.length === 1 ? "" : "s"})`);
+  say(`-- ${schema}.${table} (${rows.length} row${rows.length === 1 ? '' : 's'})`)
   if (where) {
-    say(`-- Only ${where.replace(/'/g, "")}; ${note ?? "the rest are derived from exchange by 029"}.`);
+    say(
+      `-- Only ${where.replace(/'/g, '')}; ${note ?? 'the rest are derived from exchange by 029'}.`
+    )
   }
-  const key = NATURAL[`${schema}.${table}`];
-  if (!key) throw new Error(`${schema}.${table} has no natural key in NATURAL - an insert with no fact to key on cannot be idempotent`);
+  const key = NATURAL[`${schema}.${table}`]
+  if (!key)
+    throw new Error(
+      `${schema}.${table} has no natural key in NATURAL - an insert with no fact to key on cannot be idempotent`
+    )
   for (const k of key) {
     if (!cols.some((c) => c.column_name === k)) {
-      throw new Error(`${schema}.${table}: natural key column ${k} is not a column of the table`);
+      throw new Error(`${schema}.${table}: natural key column ${k} is not a column of the table`)
     }
   }
-  const list = cols.map((c) => ident(c.column_name)).join(", ");
-  say(`INSERT INTO ${ident(schema)}.${ident(table)} (${list})`);
-  say(`SELECT ${cols.map((c) => `v.${ident(c.column_name)}`).join(", ")}`);
-  say("FROM (VALUES");
-  const rendered = [];
+  const list = cols.map((c) => ident(c.column_name)).join(', ')
+  say(`INSERT INTO ${ident(schema)}.${ident(table)} (${list})`)
+  say(`SELECT ${cols.map((c) => `v.${ident(c.column_name)}`).join(', ')}`)
+  say('FROM (VALUES')
+  const rendered = []
   for (const r of rows) {
-    const values = [];
+    const values = []
     for (const c of cols) {
-      const resolver = RESOLVE[`${schema}.${table}.${c.column_name}`];
-      const v = r[c.column_name];
+      const resolver = RESOLVE[`${schema}.${table}.${c.column_name}`]
+      const v = r[c.column_name]
       if (resolver && v != null) {
-        const expr = await resolver(v);
-        values.push(expr ?? literal(v, c.type));
+        const expr = await resolver(v)
+        values.push(expr ?? literal(v, c.type))
       } else {
-        values.push(literal(v, c.type));
+        values.push(literal(v, c.type))
       }
     }
-    rendered.push("  (" + values.join(", ") + ")");
+    rendered.push('  (' + values.join(', ') + ')')
   }
-  say(rendered.join(",\n"));
-  say(`) AS v (${list})`);
-  say(`WHERE NOT EXISTS (`);
-  say(`  SELECT 1 FROM ${ident(schema)}.${ident(table)} t`);
+  say(rendered.join(',\n'))
+  say(`) AS v (${list})`)
+  say(`WHERE NOT EXISTS (`)
+  say(`  SELECT 1 FROM ${ident(schema)}.${ident(table)} t`)
   say(
     key
-      .map((k, i) => `  ${i === 0 ? "WHERE" : "  AND"} t.${ident(k)} IS NOT DISTINCT FROM v.${ident(k)}`)
-      .join("\n")
-  );
-  say(")");
-  say("ON CONFLICT (id) DO NOTHING;");
-  say();
+      .map(
+        (k, i) =>
+          `  ${i === 0 ? 'WHERE' : '  AND'} t.${ident(k)} IS NOT DISTINCT FROM v.${ident(k)}`
+      )
+      .join('\n')
+  )
+  say(')')
+  say('ON CONFLICT (id) DO NOTHING;')
+  say()
 }
 
-await pool.end();
+await pool.end()
 
-const sql = out.join("\n");
-const target = path.join(import.meta.dirname, "..", "migrations", "047_seed_reference_data.sql");
-fs.writeFileSync(target, sql);
-console.log(`wrote ${path.relative(process.cwd(), target)} - ${total} rows across ${TABLES.length} tables`);
+const sql = out.join('\n')
+const target = path.join(import.meta.dirname, '..', 'migrations', '047_seed_reference_data.sql')
+fs.writeFileSync(target, sql)
+console.log(
+  `wrote ${path.relative(process.cwd(), target)} - ${total} rows across ${TABLES.length} tables`
+)

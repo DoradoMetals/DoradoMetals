@@ -28,7 +28,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           lastModified: now,
           changeFrequency: 'monthly',
           priority: path === '/buy' || path === '/sell' ? 0.8 : 0.5,
-        } satisfies MetadataRoute.Sitemap[number])
+        }) satisfies MetadataRoute.Sitemap[number]
     ),
   ]
 
@@ -53,7 +53,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           changeFrequency: 'weekly',
           priority: 0.7,
           images: p.image_front ? [toAbs(p.image_front)!] : undefined,
-        } satisfies MetadataRoute.Sitemap[number])
+        }) satisfies MetadataRoute.Sitemap[number]
     )
 
   return dedupe([...staticEntries, ...productEntries])

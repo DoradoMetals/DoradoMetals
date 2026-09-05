@@ -17,11 +17,7 @@ import { formatFullDate } from '@/shared/utils/formatDates'
 import formatPhoneNumber, { normalizePhone } from '@/shared/utils/formatPhoneNumber'
 
 import type { Carrier, CarrierService } from '../types'
-import {
-  useCarrierServicesByCarrier,
-  useUpdateCarrier,
-  useUpdateCarrierService,
-} from '../queries'
+import { useCarrierServicesByCarrier, useUpdateCarrier, useUpdateCarrierService } from '../queries'
 
 export default function CarriersDrawer({
   carriers,

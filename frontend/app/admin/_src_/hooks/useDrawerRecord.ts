@@ -18,10 +18,7 @@ export function useDrawerRecord<T>(
   const activeDrawer = useDrawerStore((s) => s.activeDrawer)
   const closeDrawer = useDrawerStore((s) => s.closeDrawer)
 
-  const record = useMemo(
-    () => records?.find((r) => getId(r) === id),
-    [records, id, getId]
-  )
+  const record = useMemo(() => records?.find((r) => getId(r) === id), [records, id, getId])
 
   return { open: activeDrawer === key, record, close: closeDrawer }
 }

@@ -1,4 +1,4 @@
-import type { AddressBookEntry, AdminUser } from "@dorado/contracts";
+import type { AddressBookEntry, AdminUser } from '@dorado/contracts'
 import { create } from 'zustand'
 // THE ADMIN USERS WIRE, not better-auth's session user. `setCreateSalesOrderUser`
 // has exactly one caller - features/users/ui/UsersDrawer.tsx's "Create Sales

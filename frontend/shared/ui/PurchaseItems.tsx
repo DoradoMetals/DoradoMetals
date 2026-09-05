@@ -12,7 +12,7 @@ import { getGrossLabel, getPurityLabel } from '@/shared/types/scrap'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useUser } from '@/shared/hooks/auth/authClient'
 import { useCheckoutQuote } from '@/shared/hooks/quotes/queries'
-import type { PurchaseQuoteLine } from "@dorado/contracts";
+import type { PurchaseQuoteLine } from '@dorado/contracts'
 
 // The SELL basket: direction 'purchase' - the business buys.
 export default function PurchaseItems() {
@@ -89,11 +89,7 @@ export default function PurchaseItems() {
               <Minus size={16} />
             </Button>
             <NumberFlow value={line.quantity ?? 1} trend={0} className="tabular-nums" />
-            <Button
-              variant="tertiary"
-              size="iconSm"
-              onClick={() => addOne('purchase', line)}
-            >
+            <Button variant="tertiary" size="iconSm" onClick={() => addOne('purchase', line)}>
               <Plus size={16} />
             </Button>
           </div>

@@ -1,11 +1,17 @@
 'use client'
 
-import type { AdminRate } from "@dorado/contracts";
+import type { AdminRate } from '@dorado/contracts'
 import * as React from 'react'
 import { Button, Input } from '@dorado/components'
 import { Pencil, Save, X } from '@dorado/icons'
 import { cn } from '@/shared/utils/cn'
-import { getBoundsForMetal, sortRatesByMin, pctToInt, intToPct, labelFor } from '@/shared/types/rates'
+import {
+  getBoundsForMetal,
+  sortRatesByMin,
+  pctToInt,
+  intToPct,
+  labelFor,
+} from '@/shared/types/rates'
 import { DualRangeSlider } from './DualRangeSlider'
 import { useCreateRate, useDeleteRate, useUpdateRate } from '../queries'
 
@@ -32,9 +38,7 @@ export default function RatesCard({
   const items = draft ?? sortRatesByMin(rates)
 
   const setItems = (next: AdminRate[] | ((prev: AdminRate[]) => AdminRate[])) =>
-    setDraft((prev) =>
-      typeof next === 'function' ? next(prev ?? sortRatesByMin(rates)) : next
-    )
+    setDraft((prev) => (typeof next === 'function' ? next(prev ?? sortRatesByMin(rates)) : next))
 
   const stopEditing = () => {
     setDraft(null)
@@ -224,7 +228,7 @@ function EditView({
         {rows.map((r, i) => {
           const prev = rows[i - 1]
           const next = rows[i + 1]
-          const minBound = prev ? prev.max_qty ?? 0 : 0
+          const minBound = prev ? (prev.max_qty ?? 0) : 0
           const maxBound = next ? next.min_qty : cap
 
           const current: [number, number] = [

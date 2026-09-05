@@ -36,32 +36,32 @@
 //
 //   node scripts/lint-carrier-vocabulary.mjs [--self-test] [--json]
 
-import { readFileSync, readdirSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
+import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { join, relative } from 'node:path'
 
-const ROOT = new URL("..", import.meta.url).pathname.replace(/\/$/, "");
+const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '')
 
 // Each entry is a spelling and what it is, so a finding says why it matters
 // rather than just where it is.
 const VOCABULARY = [
-  ["FEDEX_EXPRESS_SAVER", "a FedEx service type"],
-  ["PRIORITY_OVERNIGHT", "a FedEx service type"],
-  ["FEDEX_GROUND", "a FedEx service type"],
-  ["FEDEX_2_DAY", "a FedEx service type"],
-  ["FIRST_OVERNIGHT", "a FedEx service type"],
-  ["STANDARD_OVERNIGHT", "a FedEx service type"],
-  ["DROPOFF_AT_FEDEX_LOCATION", "a FedEx pickup type"],
-  ["CONTACT_FEDEX_TO_SCHEDULE", "a FedEx pickup type"],
-  ["USE_SCHEDULED_PICKUP", "a FedEx pickup type"],
-  ["FDXE", "a FedEx carrier code"],
-  ["FDXG", "a FedEx carrier code"],
-  ["YOUR_PACKAGING", "a FedEx packaging type"],
-  ["FEDEX_ENVELOPE", "a FedEx packaging type"],
-  ["FEDEX_BOX", "a FedEx packaging type"],
-  ["PAPER_4X6", "a FedEx label stock type"],
-  ["30179428-b311-4873-8d08-382901c581d8", "the FedEx carrier's production id"],
-  ["9b244ec8-7aa2-47f8-beb9-48f8f1496e7d", "the UPS carrier's production id"],
-];
+  ['FEDEX_EXPRESS_SAVER', 'a FedEx service type'],
+  ['PRIORITY_OVERNIGHT', 'a FedEx service type'],
+  ['FEDEX_GROUND', 'a FedEx service type'],
+  ['FEDEX_2_DAY', 'a FedEx service type'],
+  ['FIRST_OVERNIGHT', 'a FedEx service type'],
+  ['STANDARD_OVERNIGHT', 'a FedEx service type'],
+  ['DROPOFF_AT_FEDEX_LOCATION', 'a FedEx pickup type'],
+  ['CONTACT_FEDEX_TO_SCHEDULE', 'a FedEx pickup type'],
+  ['USE_SCHEDULED_PICKUP', 'a FedEx pickup type'],
+  ['FDXE', 'a FedEx carrier code'],
+  ['FDXG', 'a FedEx carrier code'],
+  ['YOUR_PACKAGING', 'a FedEx packaging type'],
+  ['FEDEX_ENVELOPE', 'a FedEx packaging type'],
+  ['FEDEX_BOX', 'a FedEx packaging type'],
+  ['PAPER_4X6', 'a FedEx label stock type'],
+  ['30179428-b311-4873-8d08-382901c581d8', "the FedEx carrier's production id"],
+  ['9b244ec8-7aa2-47f8-beb9-48f8f1496e7d', "the UPS carrier's production id"],
+]
 
 // Test fixtures are counted SEPARATELY and do not fail the run - the lesson
 // D55 paid for. A test spelling a carrier's service type is building a
@@ -69,46 +69,46 @@ const VOCABULARY = [
 // two together made the wire-readiness metric move the wrong way every time
 // someone wrote a test. The fixture count is still printed, because a fixture
 // is where the next real one gets copied from.
-const isFixture = (p) => /\.test\.(ts|tsx)$/.test(p) || p.includes("/e2e/");
+const isFixture = (p) => /\.test\.(ts|tsx)$/.test(p) || p.includes('/e2e/')
 
-const SKIP_DIRS = new Set(["node_modules", ".next", "dist", "build", ".turbo"]);
+const SKIP_DIRS = new Set(['node_modules', '.next', 'dist', 'build', '.turbo'])
 
 function walk(dir, out = []) {
   for (const entry of readdirSync(dir)) {
-    if (SKIP_DIRS.has(entry)) continue;
-    const full = join(dir, entry);
-    if (statSync(full).isDirectory()) walk(full, out);
-    else if (/\.(ts|tsx)$/.test(entry)) out.push(full);
+    if (SKIP_DIRS.has(entry)) continue
+    const full = join(dir, entry)
+    if (statSync(full).isDirectory()) walk(full, out)
+    else if (/\.(ts|tsx)$/.test(entry)) out.push(full)
   }
-  return out;
+  return out
 }
 
 // Replaced with spaces rather than removed, so line and column numbers survive.
-const blank = (m) => m.replace(/[^\n]/g, " ");
+const blank = (m) => m.replace(/[^\n]/g, ' ')
 
 function stripComments(src) {
   return src
     .replace(/\/\*[\s\S]*?\*\//g, blank)
-    .replace(/(^|[^:])\/\/[^\n]*/g, (m, p) => p + blank(m.slice(p.length)));
+    .replace(/(^|[^:])\/\/[^\n]*/g, (m, p) => p + blank(m.slice(p.length)))
 }
 
 function scan(files) {
-  const findings = [];
+  const findings = []
 
   for (const file of files) {
-    const rel = relative(ROOT, file);
-    const lines = stripComments(readFileSync(file, "utf8")).split("\n");
+    const rel = relative(ROOT, file)
+    const lines = stripComments(readFileSync(file, 'utf8')).split('\n')
 
     lines.forEach((line, i) => {
       for (const [word, what] of VOCABULARY) {
         if (line.includes(word)) {
-          findings.push({ file: rel, line: i + 1, word, what, fixture: isFixture(rel) });
+          findings.push({ file: rel, line: i + 1, word, what, fixture: isFixture(rel) })
         }
       }
-    });
+    })
   }
 
-  return findings;
+  return findings
 }
 
 // PROVES THE DETECTOR FIRES. The first version of the sibling script walked
@@ -116,67 +116,69 @@ function scan(files) {
 // stripComments were ever made greedy enough to eat real code.
 function selfTest() {
   const src = [
-    "// a comment naming DROPOFF_AT_FEDEX_LOCATION must NOT be a finding",
-    "/* nor PRIORITY_OVERNIGHT inside a block */",
+    '// a comment naming DROPOFF_AT_FEDEX_LOCATION must NOT be a finding',
+    '/* nor PRIORITY_OVERNIGHT inside a block */',
     "const a = 'DROPOFF_AT_FEDEX_LOCATION'",
-    "const b = { FEDEX_EXPRESS_SAVER: 1 }",
-  ].join("\n");
+    'const b = { FEDEX_EXPRESS_SAVER: 1 }',
+  ].join('\n')
 
-  const lines = stripComments(src).split("\n");
-  const hits = [];
+  const lines = stripComments(src).split('\n')
+  const hits = []
   lines.forEach((line, i) => {
-    for (const [word] of VOCABULARY) if (line.includes(word)) hits.push({ line: i + 1, word });
-  });
+    for (const [word] of VOCABULARY) if (line.includes(word)) hits.push({ line: i + 1, word })
+  })
 
   const ok =
     hits.length === 2 &&
-    hits[0].line === 3 && hits[0].word === "DROPOFF_AT_FEDEX_LOCATION" &&
-    hits[1].line === 4 && hits[1].word === "FEDEX_EXPRESS_SAVER";
+    hits[0].line === 3 &&
+    hits[0].word === 'DROPOFF_AT_FEDEX_LOCATION' &&
+    hits[1].line === 4 &&
+    hits[1].word === 'FEDEX_EXPRESS_SAVER'
 
   console.log(
     ok
-      ? "self-test OK - comments ignored, code caught (2 findings on lines 3 and 4)"
+      ? 'self-test OK - comments ignored, code caught (2 findings on lines 3 and 4)'
       : `self-test FAILED - expected 2 findings on lines 3 and 4, got ${JSON.stringify(hits)}`
-  );
-  return ok ? 0 : 1;
+  )
+  return ok ? 0 : 1
 }
 
-const args = process.argv.slice(2);
-if (args.includes("--self-test")) process.exit(selfTest());
+const args = process.argv.slice(2)
+if (args.includes('--self-test')) process.exit(selfTest())
 
-const files = walk(ROOT);
+const files = walk(ROOT)
 
 // A FLOOR, because a walk that finds nothing reports perfectly clean. Same
 // guard the sibling scripts carry and for the same reason: the first version of
 // one of them walked zero files.
 if (files.length < 200) {
-  console.error(`only ${files.length} .ts/.tsx files walked - the scan is broken, not the code`);
-  process.exit(1);
+  console.error(`only ${files.length} .ts/.tsx files walked - the scan is broken, not the code`)
+  process.exit(1)
 }
 
-const findings = scan(files);
-const real = findings.filter((f) => !f.fixture);
-const fixtures = findings.filter((f) => f.fixture);
+const findings = scan(files)
+const real = findings.filter((f) => !f.fixture)
+const fixtures = findings.filter((f) => f.fixture)
 
-if (args.includes("--json")) {
-  console.log(JSON.stringify({ files: files.length, real, fixtures }, null, 2));
-  process.exit(real.length === 0 ? 0 : 1);
+if (args.includes('--json')) {
+  console.log(JSON.stringify({ files: files.length, real, fixtures }, null, 2))
+  process.exit(real.length === 0 ? 0 : 1)
 }
 
 for (const f of real) {
-  console.log(`  ${f.file}:${f.line}  ${f.word}  - ${f.what}`);
+  console.log(`  ${f.file}:${f.line}  ${f.word}  - ${f.what}`)
 }
 
 console.log(
   `\n${files.length} file(s) scanned, ${real.length} carrier vocabulary occurrence(s) in ` +
     `product code, ${fixtures.length} in test fixtures`
-);
+)
 
 if (real.length > 0) {
   console.log(
-    "\nThe frontend should not know what a carrier calls things. The catalogue is\n" +
-      "served by GET /api/shipping/handoffs and GET /api/carrier_services/offered -\n" +
-      "render `name`, branch on the flags, hand `code` back without reading it."
-  );
-  process.exit(1);
+    '\nThe frontend should not know what a carrier calls things. The catalogue is\n' +
+      'served by GET /api/shipping/handoffs and GET /api/carrier_services/offered -\n' +
+      'render `name`, branch on the flags, hand `code` back without reading it.'
+  )
+  process.exit(1)
 }

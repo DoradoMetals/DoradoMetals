@@ -1,19 +1,25 @@
-import express from "express";
+import express from 'express'
 
 import {
-  createRate, deleteRate, getRate, listAdminRates, listRates, listTiers, updateRate,
-} from "#pricing/rates/controller.ts";
-import { requireAdmin } from "#shared/middleware/authMiddleware.ts";
+  createRate,
+  deleteRate,
+  getRate,
+  listAdminRates,
+  listRates,
+  listTiers,
+  updateRate,
+} from '#pricing/rates/controller.ts'
+import { requireAdmin } from '#shared/middleware/authMiddleware.ts'
 
-const router = express.Router();
+const router = express.Router()
 
-router.get("/tiers", listTiers);
-router.get("/admin", requireAdmin, listAdminRates);
-router.get("/", listRates);
-router.get("/:id", requireAdmin, getRate);
+router.get('/tiers', listTiers)
+router.get('/admin', requireAdmin, listAdminRates)
+router.get('/', listRates)
+router.get('/:id', requireAdmin, getRate)
 
-router.post("/", requireAdmin, createRate);
-router.patch("/:id", requireAdmin, updateRate);
-router.delete("/:id", requireAdmin, deleteRate);
+router.post('/', requireAdmin, createRate)
+router.patch('/:id', requireAdmin, updateRate)
+router.delete('/:id', requireAdmin, deleteRate)
 
-export default router;
+export default router

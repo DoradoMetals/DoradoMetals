@@ -12,7 +12,22 @@ import {
 import { userRoleOptions } from '@/shared/types/users'
 import { useGetSession } from '@/shared/hooks/auth/queries'
 import { Button, Drawer } from '@dorado/components'
-import { Calculator, CalendarIcon, ChevronLeft, Coins, Container, DollarSign, Lasso, MessagesSquare, Percent, TrendingUp, Truck, Users, ClipboardList, Wallet } from '@dorado/icons'
+import {
+  Calculator,
+  CalendarIcon,
+  ChevronLeft,
+  Coins,
+  Container,
+  DollarSign,
+  Lasso,
+  MessagesSquare,
+  Percent,
+  TrendingUp,
+  Truck,
+  Users,
+  ClipboardList,
+  Wallet,
+} from '@dorado/icons'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 
 import { UsersPage } from './_src_/users/ui/UsersAdminTable'
@@ -182,11 +197,10 @@ function AdminShell() {
         />
       </div>
 
-      <div className="md:hidden">
-        {content}
-      </div>
+      <div className="md:hidden">{content}</div>
 
-      <Drawer label="Admin"
+      <Drawer
+        label="Admin"
         open={activeDrawer === 'adminSidebar'}
         setOpen={(o) => (o ? openDrawer('adminSidebar') : closeDrawer())}
         anchor="left"

@@ -1,4 +1,11 @@
-import { FormField, FormItem, FormMessage, Input, RadioGroup, RadioOption } from '@dorado/components'
+import {
+  FormField,
+  FormItem,
+  FormMessage,
+  Input,
+  RadioGroup,
+  RadioOption,
+} from '@dorado/components'
 import { Scrap, weightOptions } from '@/shared/types/scrap'
 import { useFormContext } from 'react-hook-form'
 
@@ -8,7 +15,6 @@ export default function WeightStep() {
 
   return (
     <div className="flex-col">
-
       <FormField
         control={form.control}
         name="gross_unit"

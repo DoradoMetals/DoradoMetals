@@ -41,9 +41,7 @@ export function PasswordAndSecurity() {
         </Button>
 
         {!user?.email && (
-          <p className="mt-2">
-            Add an email to your account before requesting a reset link.
-          </p>
+          <p className="mt-2">Add an email to your account before requesting a reset link.</p>
         )}
       </div>
 
@@ -58,12 +56,7 @@ export function PasswordAndSecurity() {
             buttonLabel="Set Up"
           />
 
-          <AccountAction
-            icon={Mail}
-            label="Email"
-            description="Coming soon"
-            buttonLabel="Set Up"
-          />
+          <AccountAction icon={Mail} label="Email" description="Coming soon" buttonLabel="Set Up" />
 
           <AccountAction
             icon={MessageSquareText}

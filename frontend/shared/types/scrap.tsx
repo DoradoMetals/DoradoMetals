@@ -52,22 +52,22 @@ type WeightOption = {
 export const metalOptions: MetalOption[] = [
   {
     label: 'Gold',
-    logo: <GoldIcon size={36} className='text-primary' />,
+    logo: <GoldIcon size={36} className="text-primary" />,
     blurb: 'Jewelry, nuggets, raw gold, casting grain',
   },
   {
     label: 'Silver',
-    logo: <SilverIcon size={36} className='text-primary' />,
+    logo: <SilverIcon size={36} className="text-primary" />,
     blurb: 'Jewelry, flatware, tea sets, wire, sheets',
   },
   {
     label: 'Platinum',
-    logo: <PlatinumIcon size={36} className='text-primary' />,
+    logo: <PlatinumIcon size={36} className="text-primary" />,
     blurb: 'Jewelry stamped PLAT, PT 950, PT 900',
   },
   {
     label: 'Palladium',
-    logo: <PalladiumIcon size={36} className='text-primary' />,
+    logo: <PalladiumIcon size={36} className="text-primary" />,
     blurb: 'Jewelry stamped PD, PD 950, PD 900',
   },
 ]
@@ -113,8 +113,7 @@ export function getPurityLabel(purity: number, metal: string) {
 
   return match ? (
     <div className="flex items-center gap-1">
-      <strong>{match.label}</strong>{' '}
-      <small>({percent})</small>
+      <strong>{match.label}</strong> <small>({percent})</small>
     </div>
   ) : (
     <div className="flex items-center gap-1">

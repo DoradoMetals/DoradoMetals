@@ -49,9 +49,7 @@ export default function ChangePasswordForm({
   return (
     <div className="flex justify-center w-full">
       <div className="flex flex-col w-full gap-6">
-        {showTitle && (
-          <p className="eyebrow mr-auto">Reset Password</p>
-        )}
+        {showTitle && <p className="eyebrow mr-auto">Reset Password</p>}
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">

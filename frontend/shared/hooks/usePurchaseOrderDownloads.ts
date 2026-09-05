@@ -33,8 +33,7 @@ export function usePurchaseOrderDownloads(
     {
       statuses: ['In Transit'],
       label: labels.shipping,
-      onClick: () =>
-        downloadPackingList.mutate({ order_id: order.id, order_number: order.number }),
+      onClick: () => downloadPackingList.mutate({ order_id: order.id, order_number: order.number }),
       isPending: downloadPackingList.isPending,
     },
     {

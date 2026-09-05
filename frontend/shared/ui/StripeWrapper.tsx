@@ -1,4 +1,4 @@
-import type { Address } from "@dorado/contracts";
+import type { Address } from '@dorado/contracts'
 import { Elements } from '@stripe/react-stripe-js'
 import { Stripe } from '@stripe/stripe-js'
 import { createStripeAppearance } from '@/shared/ui/appearance'
@@ -16,7 +16,6 @@ export default function StripeWrapper({
   stripePromise: Promise<Stripe | null>
   address: Address
 } & Omit<ComponentProps<typeof StripePaymentForm>, 'clientSecret'>) {
-
   /* DARK, UNCONDITIONALLY. Light mode is gone (ruling 19 / the dark-only
      rebrand) and there is no `.dark` class on the document any more — this
      branch evaluated to 'light' and embedded a LIGHT Stripe payment form in a

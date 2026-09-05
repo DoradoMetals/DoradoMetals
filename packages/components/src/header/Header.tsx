@@ -1,19 +1,19 @@
 'use client'
 
-import * as React from "react";
-import { MenuIcon, X } from "@dorado/icons";
+import * as React from 'react'
+import { MenuIcon, X } from '@dorado/icons'
 
-import { cn } from "../cn";
-import { Button } from "../button/Button";
+import { cn } from '../cn'
+import { Button } from '../button/Button'
 
 export type HeaderProps = {
-  brand: React.ReactNode;
-  nav?: React.ReactNode;
-  trailing?: React.ReactNode;
-  drawerOpen?: boolean;
-  onDrawerToggle?: () => void;
-  className?: string;
-};
+  brand: React.ReactNode
+  nav?: React.ReactNode
+  trailing?: React.ReactNode
+  drawerOpen?: boolean
+  onDrawerToggle?: () => void
+  className?: string
+}
 
 export function Header({
   brand,
@@ -26,8 +26,8 @@ export function Header({
   return (
     <header
       className={cn(
-        "flex h-18 w-full items-center justify-between border-b border-border bg-background px-4 lg:h-16 lg:px-8",
-        className,
+        'flex h-18 w-full items-center justify-between border-b border-border bg-background px-4 lg:h-16 lg:px-8',
+        className
       )}
     >
       {brand}
@@ -62,7 +62,7 @@ export function Header({
           <Button
             variant="tertiary"
             size="icon"
-            aria-label={drawerOpen ? "Close menu" : "Open menu"}
+            aria-label={drawerOpen ? 'Close menu' : 'Open menu'}
             aria-expanded={drawerOpen}
             onClick={onDrawerToggle}
           >
@@ -71,5 +71,5 @@ export function Header({
         )}
       </div>
     </header>
-  );
+  )
 }

@@ -3,27 +3,27 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: orders.items
-import { z } from "zod/v4";
+import { z } from 'zod/v4'
 
 export const OrderItem = z.object({
-  "id": z.string().uuid(),
-  "order_id": z.string().uuid(),
-  "bullion_id": z.string().uuid().nullable(),
-  "metal_id": z.string(),
-  "pre_melt": z.number().nullable(),
-  "post_melt": z.number().nullable(),
-  "purity": z.number().nullable(),
-  "content": z.number().nullable(),
-  "premium": z.number().nullable(),
-  "quantity": z.number().nullable(),
-  "confirmed": z.boolean(),
-  "sales_tax_charged": z.number(),
-  "unit": z.string().nullable(),
-  "price": z.number().nullable(),
-});
-export type OrderItem = z.infer<typeof OrderItem>;
+  'id': z.string().uuid(),
+  'order_id': z.string().uuid(),
+  'bullion_id': z.string().uuid().nullable(),
+  'metal_id': z.string(),
+  'pre_melt': z.number().nullable(),
+  'post_melt': z.number().nullable(),
+  'purity': z.number().nullable(),
+  'content': z.number().nullable(),
+  'premium': z.number().nullable(),
+  'quantity': z.number().nullable(),
+  'confirmed': z.boolean(),
+  'sales_tax_charged': z.number(),
+  'unit': z.string().nullable(),
+  'price': z.number().nullable(),
+})
+export type OrderItem = z.infer<typeof OrderItem>
 // generated:end
-import { Bullion } from "../products/bullion.js";
+import { Bullion } from '../products/bullion.js'
 
 export const OrderViewItem = OrderItem.extend({
   product_name: Bullion.shape.name.nullable(),
@@ -34,8 +34,8 @@ export const OrderViewItem = OrderItem.extend({
   item_name: OrderItem.shape.metal_id.nullable(),
   payable: OrderItem.shape.content,
   line_total: OrderItem.shape.price,
-});
-export type OrderViewItem = z.infer<typeof OrderViewItem>;
+})
+export type OrderViewItem = z.infer<typeof OrderViewItem>
 
 export const OrderItemPatch = OrderItem.pick({
   bullion_id: true,
@@ -47,18 +47,23 @@ export const OrderItemPatch = OrderItem.pick({
   quantity: true,
   confirmed: true,
   unit: true,
-}).partial().strict();
-export type OrderItemPatch = z.infer<typeof OrderItemPatch>;
+})
+  .partial()
+  .strict()
+export type OrderItemPatch = z.infer<typeof OrderItemPatch>
 
 export const OrderItemWrite = OrderItem.omit({
-  id: true, order_id: true, bullion_id: true, metal_id: true,
-}).partial();
-export type OrderItemWrite = z.infer<typeof OrderItemWrite>;
+  id: true,
+  order_id: true,
+  bullion_id: true,
+  metal_id: true,
+}).partial()
+export type OrderItemWrite = z.infer<typeof OrderItemWrite>
 
 export const SoldLinePrice = z.object({
   line_id: OrderItem.shape.id,
   premium: OrderItem.shape.premium.unwrap(),
   sales_tax: OrderItem.shape.sales_tax_charged,
   price: OrderItem.shape.price.unwrap(),
-});
-export type SoldLinePrice = z.infer<typeof SoldLinePrice>;
+})
+export type SoldLinePrice = z.infer<typeof SoldLinePrice>

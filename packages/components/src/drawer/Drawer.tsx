@@ -1,24 +1,24 @@
-'use client';
+'use client'
 
-import { createPortal } from 'react-dom';
-import type { ReactNode } from 'react';
-import { useEffect } from 'react';
-import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { cn } from '../cn';
-import { useFocusTrap } from '../hooks/useFocusTrap';
+import { createPortal } from 'react-dom'
+import type { ReactNode } from 'react'
+import { useEffect } from 'react'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
+import { cn } from '../cn'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 
-type DrawerAnchor = 'left' | 'right' | 'bottom';
-type DrawerSurface = 'highest' | 'card' | 'none';
+type DrawerAnchor = 'left' | 'right' | 'bottom'
+type DrawerSurface = 'highest' | 'card' | 'none'
 
 export type DrawerProps = {
-  open: boolean;
-  setOpen: (open: boolean) => void;
-  children: ReactNode;
-  anchor?: DrawerAnchor;
-  surface?: DrawerSurface;
-  className?: string;
-  label?: string;
-};
+  open: boolean
+  setOpen: (open: boolean) => void
+  children: ReactNode
+  anchor?: DrawerAnchor
+  surface?: DrawerSurface
+  className?: string
+  label?: string
+}
 
 export function Drawer({
   open,
@@ -29,20 +29,20 @@ export function Drawer({
   className,
   label,
 }: DrawerProps) {
-  const shouldReduceMotion = useReducedMotion();
-  const panelRef = useFocusTrap<HTMLDivElement>(open);
-  const isBottom = anchor === 'bottom';
+  const shouldReduceMotion = useReducedMotion()
+  const panelRef = useFocusTrap<HTMLDivElement>(open)
+  const isBottom = anchor === 'bottom'
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [open, setOpen]);
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [open, setOpen])
 
-  if (typeof document === 'undefined') return null;
+  if (typeof document === 'undefined') return null
 
   return createPortal(
     <AnimatePresence>
@@ -73,7 +73,7 @@ export function Drawer({
             onDragEnd={
               isBottom
                 ? (_event, info) => {
-                    if (info.offset.y > 80 || info.velocity.y > 500) setOpen(false);
+                    if (info.offset.y > 80 || info.velocity.y > 500) setOpen(false)
                   }
                 : undefined
             }
@@ -110,7 +110,10 @@ export function Drawer({
             )}
           >
             {isBottom && (
-              <div className="flex shrink-0 items-center justify-center pb-0.5 pt-1" aria-hidden="true">
+              <div
+                className="flex shrink-0 items-center justify-center pb-0.5 pt-1"
+                aria-hidden="true"
+              >
                 <div className="h-1 w-9 rounded-full bg-border-strong" />
               </div>
             )}
@@ -120,5 +123,5 @@ export function Drawer({
       )}
     </AnimatePresence>,
     document.body as HTMLElement
-  );
+  )
 }

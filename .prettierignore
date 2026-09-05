@@ -1,0 +1,22 @@
+node_modules
+dist
+.next
+coverage
+.check-logs
+pnpm-lock.yaml
+
+# Prose stays as written - not swept, not hooked.
+*.md
+
+# SQL is not part of this sweep; 000_genesis_schema.sql is compared to a
+# regeneration (api/scripts/verify-genesis.mjs) and reformatting it would
+# only manufacture a diff against that regeneration.
+*.sql
+
+# Recorded HTTP fixtures (VCR-style) - not code, and some tooling reads them
+# by byte length/offset, not just JSON.parse.
+api/tests/cassettes/
+
+# CI workflow config lives outside the swept directories (root, api/,
+# packages/, frontend/, scripts/, .claude/) - left alone on purpose.
+.github/

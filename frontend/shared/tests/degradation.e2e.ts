@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from '@playwright/test'
 
 // The site must render its own content even when the API does not answer.
 //
@@ -17,7 +17,7 @@ import { test, expect } from "@playwright/test";
 // it. Instead the browser is told to fail the API requests, which reproduces
 // what the page sees - a request that never returns useful data - while leaving
 // the real server alone.
-test.describe("with the API unreachable", () => {
+test.describe('with the API unreachable', () => {
   test.beforeEach(async ({ page }) => {
     // ONLY THIS API. The first version of this used `**/api/**`, which is far
     // too broad - it also matched Google Maps' script URL and Sentry's ingest
@@ -27,41 +27,41 @@ test.describe("with the API unreachable", () => {
     //
     // Scoped to the API's own origin, taken from the same environment variable
     // the app uses, so this keeps working if the port moves.
-    const api = new URL(process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api");
-    await page.route(`${api.origin}/**`, (route) => route.abort("failed"));
-  });
+    const api = new URL(process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api')
+    await page.route(`${api.origin}/**`, (route) => route.abort('failed'))
+  })
 
-  test("the public rates page still renders its own copy", async ({ page }) => {
-    await page.goto("/rates");
+  test('the public rates page still renders its own copy', async ({ page }) => {
+    await page.goto('/rates')
 
     // The heading and prose are static JSX. They must not wait on a session.
-    await expect(page.getByRole("heading", { name: /Industry-Leading Rates/i })).toBeVisible({
+    await expect(page.getByRole('heading', { name: /Industry-Leading Rates/i })).toBeVisible({
       timeout: 15_000,
-    });
+    })
 
-    const body = await page.locator("body").innerText();
-    expect(body.length, "the page rendered nothing at all").toBeGreaterThan(50);
-  });
+    const body = await page.locator('body').innerText()
+    expect(body.length, 'the page rendered nothing at all').toBeGreaterThan(50)
+  })
 
   // The counterpart, so the test above is about DEGRADING rather than about the
   // page having no data requirements. The rate cards come from the API and must
   // be absent - if they appeared, the route interception is not working and the
   // test above proves nothing.
-  test("the data-driven part is absent rather than wrong", async ({ page }) => {
-    await page.goto("/rates");
-    await expect(page.getByRole("heading", { name: /Industry-Leading Rates/i })).toBeVisible({
+  test('the data-driven part is absent rather than wrong', async ({ page }) => {
+    await page.goto('/rates')
+    await expect(page.getByRole('heading', { name: /Industry-Leading Rates/i })).toBeVisible({
       timeout: 15_000,
-    });
+    })
 
     await expect(
-      page.getByRole("heading", { name: /^(Gold|Silver|Platinum|Palladium)$/ })
-    ).toHaveCount(0);
-  });
+      page.getByRole('heading', { name: /^(Gold|Silver|Platinum|Palladium)$/ })
+    ).toHaveCount(0)
+  })
 
-  test("the catalogue also renders rather than hanging blank", async ({ page }) => {
-    await page.goto("/buy");
+  test('the catalogue also renders rather than hanging blank', async ({ page }) => {
+    await page.goto('/buy')
     // /buy has no static heading of its own, so this is the weaker but still
     // meaningful assertion: the app shell renders instead of nothing.
-    await expect(page.locator("footer, nav, header").first()).toBeVisible({ timeout: 15_000 });
-  });
-});
+    await expect(page.locator('footer, nav, header').first()).toBeVisible({ timeout: 15_000 })
+  })
+})

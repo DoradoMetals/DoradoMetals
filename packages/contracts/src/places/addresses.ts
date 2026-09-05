@@ -3,26 +3,26 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: places.addresses
-import { z } from "zod/v4";
+import { z } from 'zod/v4'
 
 export const Address = z.object({
-  "id": z.string().uuid(),
-  "line_1": z.string().nullable(),
-  "line_2": z.string().nullable(),
-  "city": z.string().nullable(),
-  "state": z.string().nullable(),
-  "country": z.string().nullable(),
-  "zip": z.string().nullable(),
-  "country_code": z.string().nullable(),
-  "phone_number": z.string().nullable(),
-  "created_at": z.string(),
-  "updated_at": z.string(),
-  "is_valid": z.boolean().nullable(),
-  "is_residential": z.boolean(),
-});
-export type Address = z.infer<typeof Address>;
+  'id': z.string().uuid(),
+  'line_1': z.string().nullable(),
+  'line_2': z.string().nullable(),
+  'city': z.string().nullable(),
+  'state': z.string().nullable(),
+  'country': z.string().nullable(),
+  'zip': z.string().nullable(),
+  'country_code': z.string().nullable(),
+  'phone_number': z.string().nullable(),
+  'created_at': z.string(),
+  'updated_at': z.string(),
+  'is_valid': z.boolean().nullable(),
+  'is_residential': z.boolean(),
+})
+export type Address = z.infer<typeof Address>
 // generated:end
-import { UserAddressPatch } from "./user_addresses.js";
+import { UserAddressPatch } from './user_addresses.js'
 
 export const AddressPatch = Address.pick({
   line_1: true,
@@ -33,18 +33,20 @@ export const AddressPatch = Address.pick({
   zip: true,
   country_code: true,
   phone_number: true,
-}).partial();
-export type AddressPatch = z.infer<typeof AddressPatch>;
+}).partial()
+export type AddressPatch = z.infer<typeof AddressPatch>
 
-export const AddressWriteBody = z.object({
-  address: AddressPatch.strict().optional(),
-  user_address: UserAddressPatch.optional(),
-}).strict();
-export type AddressWriteBody = z.infer<typeof AddressWriteBody>;
+export const AddressWriteBody = z
+  .object({
+    address: AddressPatch.strict().optional(),
+    user_address: UserAddressPatch.optional(),
+  })
+  .strict()
+export type AddressWriteBody = z.infer<typeof AddressWriteBody>
 
 export const AddressWriteColumns = Address.omit({
   id: true,
   created_at: true,
   updated_at: true,
-}).partial();
-export type AddressWriteColumns = z.infer<typeof AddressWriteColumns>;
+}).partial()
+export type AddressWriteColumns = z.infer<typeof AddressWriteColumns>

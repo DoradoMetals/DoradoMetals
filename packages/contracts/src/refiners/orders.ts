@@ -3,21 +3,21 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: refiners.orders
-import { z } from "zod/v4";
+import { z } from 'zod/v4'
 
 export const RefinerOrder = z.object({
-  "id": z.string().uuid(),
-  "order_id": z.string().uuid(),
-  "refiner_id": z.string().uuid().nullable(),
-  "pool_oz_deducted": z.number().nullable(),
-  "pool_remediation": z.number().nullable(),
-  "fee": z.number().nullable(),
-  "created_at": z.string(),
-  "updated_at": z.string(),
-});
-export type RefinerOrder = z.infer<typeof RefinerOrder>;
+  'id': z.string().uuid(),
+  'order_id': z.string().uuid(),
+  'refiner_id': z.string().uuid().nullable(),
+  'pool_oz_deducted': z.number().nullable(),
+  'pool_remediation': z.number().nullable(),
+  'fee': z.number().nullable(),
+  'created_at': z.string(),
+  'updated_at': z.string(),
+})
+export type RefinerOrder = z.infer<typeof RefinerOrder>
 // generated:end
-import { RefinerSpotWrite } from "./spots.js";
+import { RefinerSpotWrite } from './spots.js'
 
 export const RefinerOrderPatch = RefinerOrder.pick({
   pool_oz_deducted: true,
@@ -32,16 +32,16 @@ export const RefinerOrderPatch = RefinerOrder.pick({
     fee: RefinerOrder.shape.fee.unwrap().optional(),
     refiner_id: RefinerOrder.shape.refiner_id.optional(),
   })
-  .strict();
-export type RefinerOrderPatch = z.infer<typeof RefinerOrderPatch>;
+  .strict()
+export type RefinerOrderPatch = z.infer<typeof RefinerOrderPatch>
 
-import { RefinerItem } from "./items.js";
-import { RefinerSpot } from "./spots.js";
-import { RefinerView } from "./refiners.js";
+import { RefinerItem } from './items.js'
+import { RefinerSpot } from './spots.js'
+import { RefinerView } from './refiners.js'
 
 export const RefinerOrderView = RefinerOrder.extend({
   refiner: RefinerView.nullable(),
   items: z.array(RefinerItem),
   spots: z.array(RefinerSpot),
-});
-export type RefinerOrderView = z.infer<typeof RefinerOrderView>;
+})
+export type RefinerOrderView = z.infer<typeof RefinerOrderView>

@@ -3,20 +3,20 @@
 //
 // Every database schema, one namespace each. src/index.ts re-exports this
 // beside the computed shapes no table backs.
-export * from "./auth/index.js";
-export * from "./checkout/index.js";
-export * from "./fulfillments/index.js";
-export * from "./leads/index.js";
-export * from "./media/index.js";
-export * from "./metals/index.js";
-export * from "./orders/index.js";
-export * from "./organizations/index.js";
-export * from "./payments/index.js";
-export * from "./places/index.js";
-export * from "./products/index.js";
-export * from "./rates/index.js";
-export * from "./refiners/index.js";
-export * from "./reviews/index.js";
-export * from "./shipping/index.js";
-export * from "./spots/index.js";
-export * from "./tax/index.js";
+export * from './auth/index.js'
+export * from './checkout/index.js'
+export * from './fulfillments/index.js'
+export * from './leads/index.js'
+export * from './media/index.js'
+export * from './metals/index.js'
+export * from './orders/index.js'
+export * from './organizations/index.js'
+export * from './payments/index.js'
+export * from './places/index.js'
+export * from './products/index.js'
+export * from './rates/index.js'
+export * from './refiners/index.js'
+export * from './reviews/index.js'
+export * from './shipping/index.js'
+export * from './spots/index.js'
+export * from './tax/index.js'

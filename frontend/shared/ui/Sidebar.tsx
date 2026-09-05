@@ -39,22 +39,28 @@ export default function Sidebar() {
       <div className="flex flex-col items-center justify-center gap-3 p-10">
         <div className="flex items-center gap-5 justify-center">
           <div className="flex flex-col items-center">
-            <Button variant="tertiary" className="h-18 w-20 flex-col gap-1"
+            <Button
+              variant="tertiary"
+              className="h-18 w-20 flex-col gap-1"
               onClick={() => {
                 router.push('/account?tab=details')
                 closeDrawer()
-              }}>
+              }}
+            >
               <User />
               <small>Account</small>
             </Button>
           </div>
 
           <div className="flex flex-col items-center">
-            <Button variant="tertiary" className="h-18 w-20 flex-col gap-1"
+            <Button
+              variant="tertiary"
+              className="h-18 w-20 flex-col gap-1"
               onClick={() => {
                 router.push('/account?tab=sold')
                 closeDrawer()
-              }}>
+              }}
+            >
               <ListIcon />
               <small>Orders</small>
             </Button>
@@ -62,7 +68,9 @@ export default function Sidebar() {
 
           {user ? (
             <div className="flex flex-col items-center">
-              <Button variant="tertiary" className="h-18 w-20 flex-col gap-1"
+              <Button
+                variant="tertiary"
+                className="h-18 w-20 flex-col gap-1"
                 onClick={async () => {
                   try {
                     await signOutMutation.mutateAsync()
@@ -71,31 +79,38 @@ export default function Sidebar() {
                     console.error('Sign out failed:', err)
                   }
                 }}
-                disabled={signOutMutation.isPending}>
-              <LogOut />
-              <small>Sign Out</small>
-            </Button>
+                disabled={signOutMutation.isPending}
+              >
+                <LogOut />
+                <small>Sign Out</small>
+              </Button>
             </div>
           ) : (
             <div className="flex flex-col items-center">
-              <Button variant="tertiary" className="h-18 w-20 flex-col gap-1"
+              <Button
+                variant="tertiary"
+                className="h-18 w-20 flex-col gap-1"
                 onClick={() => {
                   router.push('/authentication?tab=sign-in')
                   closeDrawer()
-                }}>
-              <LogIn />
-              <small>Sign In</small>
-            </Button>
+                }}
+              >
+                <LogIn />
+                <small>Sign In</small>
+              </Button>
             </div>
           )}
         </div>
 
         <div className="flex items-center gap-5 justify-center">
           <div className="flex flex-col items-center">
-            <Button variant="tertiary" className="h-18 w-20 flex-col gap-1"
+            <Button
+              variant="tertiary"
+              className="h-18 w-20 flex-col gap-1"
               onClick={() => {
                 toggleType()
-              }}>
+              }}
+            >
               <ArrowLeftRight />
               <small>{`${type === 'Bid' ? 'Ask' : 'Bid'} Spots`}</small>
             </Button>

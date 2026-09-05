@@ -1,9 +1,9 @@
-import express from "express";
+import express from 'express'
 
-import { getMethods } from "#payments/methods/controller.ts";
+import { getMethods } from '#payments/methods/controller.ts'
 
-const router = express.Router();
+const router = express.Router()
 
-router.get("/", getMethods);
+router.get('/', getMethods)
 
-export default router;
+export default router

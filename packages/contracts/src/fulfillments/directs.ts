@@ -3,27 +3,29 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: fulfillments.directs
-import { z } from "zod/v4";
+import { z } from 'zod/v4'
 
 export const FulfillmentDirect = z.object({
-  "id": z.string().uuid(),
-  "fulfillment_id": z.string().uuid(),
-  "location_id": z.string().uuid().nullable(),
-  "assigned_employee_id": z.string().uuid().nullable(),
-  "is_appointment": z.boolean(),
-  "start_time": z.string().nullable(),
-  "end_time": z.string().nullable(),
-});
-export type FulfillmentDirect = z.infer<typeof FulfillmentDirect>;
+  'id': z.string().uuid(),
+  'fulfillment_id': z.string().uuid(),
+  'location_id': z.string().uuid().nullable(),
+  'assigned_employee_id': z.string().uuid().nullable(),
+  'is_appointment': z.boolean(),
+  'start_time': z.string().nullable(),
+  'end_time': z.string().nullable(),
+})
+export type FulfillmentDirect = z.infer<typeof FulfillmentDirect>
 // generated:end
-export const FulfillmentDirectPatch = FulfillmentDirect.omit({ id: true }).partial();
-export type FulfillmentDirectPatch = z.infer<typeof FulfillmentDirectPatch>;
+export const FulfillmentDirectPatch = FulfillmentDirect.omit({ id: true }).partial()
+export type FulfillmentDirectPatch = z.infer<typeof FulfillmentDirectPatch>
 
-export const FulfillmentDirectPatchColumns = FulfillmentDirectPatch.omit({ fulfillment_id: true });
-export type FulfillmentDirectPatchColumns = z.infer<typeof FulfillmentDirectPatchColumns>;
+export const FulfillmentDirectPatchColumns = FulfillmentDirectPatch.omit({ fulfillment_id: true })
+export type FulfillmentDirectPatchColumns = z.infer<typeof FulfillmentDirectPatchColumns>
 
-export const FulfillmentScheduleDirectBody = z.object({
-  fulfillment_id: FulfillmentDirect.shape.fulfillment_id,
-  direct: FulfillmentDirectPatch.omit({ fulfillment_id: true }).strict(),
-}).strict();
-export type FulfillmentScheduleDirectBody = z.infer<typeof FulfillmentScheduleDirectBody>;
+export const FulfillmentScheduleDirectBody = z
+  .object({
+    fulfillment_id: FulfillmentDirect.shape.fulfillment_id,
+    direct: FulfillmentDirectPatch.omit({ fulfillment_id: true }).strict(),
+  })
+  .strict()
+export type FulfillmentScheduleDirectBody = z.infer<typeof FulfillmentScheduleDirectBody>

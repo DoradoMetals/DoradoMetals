@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from '@playwright/test'
 
 // The Google Places lookup inside the address drawer - the path most real
 // customers take.
@@ -19,41 +19,51 @@ import { test, expect } from "@playwright/test";
 // customer-addresses - are DELETED: their claims are made against the API
 // itself in domain/places/addresses/tests/journeys/address-crud.test.ts, which
 // says so in its own header.
-test("@maps the Places lookup offers suggestions and fills the form", async ({ page }) => {
-  test.setTimeout(120_000);
+test('@maps the Places lookup offers suggestions and fills the form', async ({ page }) => {
+  test.setTimeout(120_000)
 
-  await page.goto("/account");
-  await page.getByRole("button", { name: /^Addresses$/i }).click();
-  await page.getByText(/Add New/i).first().click();
+  await page.goto('/account')
+  await page.getByRole('button', { name: /^Addresses$/i }).click()
+  await page
+    .getByText(/Add New/i)
+    .first()
+    .click()
 
-  const dialog = page.getByRole("dialog", { name: /Address/i }).first();
-  await expect(dialog).toBeVisible({ timeout: 20_000 });
+  const dialog = page.getByRole('dialog', { name: /Address/i }).first()
+  await expect(dialog).toBeVisible({ timeout: 20_000 })
 
   // The lookup input is the drawer's opening state.
-  const search = dialog.getByRole("combobox", { name: /find address/i }).first();
-  await expect(search, "the drawer offers no address lookup input").toBeVisible({
+  const search = dialog.getByRole('combobox', { name: /find address/i }).first()
+  await expect(search, 'the drawer offers no address lookup input').toBeVisible({
     timeout: 15_000,
-  });
+  })
 
   // One query, typed once - a single autocomplete session, the cheapest
   // shape a billed interaction can take.
-  await search.fill("6100 Main St, Houston");
+  await search.fill('6100 Main St, Houston')
 
   const suggestion = page
-    .getByRole("option")
+    .getByRole('option')
     .or(page.locator('[class*="suggestion"], [class*="autocomplete"] li'))
-    .first();
-  await expect(suggestion, "the Places lookup returned no suggestions").toBeVisible({
+    .first()
+  await expect(suggestion, 'the Places lookup returned no suggestions').toBeVisible({
     timeout: 20_000,
-  });
-  await suggestion.click();
+  })
+  await suggestion.click()
 
   // Choosing a suggestion must populate the postal fields - that is the whole
   // point of the lookup. line_1 carrying the street is the load-bearing one.
   await expect
-    .poll(async () => (await dialog.locator('[name="line_1"]').inputValue().catch(() => "")) !== "", {
-      message: "choosing a suggestion did not fill line_1",
-      timeout: 15_000,
-    })
-    .toBeTruthy();
-});
+    .poll(
+      async () =>
+        (await dialog
+          .locator('[name="line_1"]')
+          .inputValue()
+          .catch(() => '')) !== '',
+      {
+        message: 'choosing a suggestion did not fill line_1',
+        timeout: 15_000,
+      }
+    )
+    .toBeTruthy()
+})

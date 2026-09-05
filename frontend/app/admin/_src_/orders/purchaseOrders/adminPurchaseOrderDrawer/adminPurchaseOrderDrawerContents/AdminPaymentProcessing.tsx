@@ -8,7 +8,9 @@ import { PurchaseOrderDrawerContentProps, statusConfig } from '@/shared/types/pu
 import RefinerValues from './editRefinerValues'
 import ActualsEditor from './editActualValues'
 
-export default function AdminPaymentProcessingPurchaseOrder({ view }: PurchaseOrderDrawerContentProps) {
+export default function AdminPaymentProcessingPurchaseOrder({
+  view,
+}: PurchaseOrderDrawerContentProps) {
   const { order } = view
 
   // THE PAYOUT COMES WITH THE VIEW. It was a read of its own beside a view
@@ -24,13 +26,11 @@ export default function AdminPaymentProcessingPurchaseOrder({ view }: PurchaseOr
 
   // Bank details are not carried by the order payload. Fetch them only for the
   // two methods that need them, and only while this drawer is open.
-  const needsBankDetails =
-    payout?.method === 'ACH' || payout?.method === 'WIRE'
+  const needsBankDetails = payout?.method === 'ACH' || payout?.method === 'WIRE'
   // Payout-keyed: GET /payouts/:id/details takes the payout's own id off the
   // order wire.
   const { data: bank, isLoading: bankLoading } = usePaymentDetailsBank(payout?.id, needsBankDetails)
-  const show = (value: string | null | undefined) =>
-    bankLoading ? 'loading…' : (value ?? '—')
+  const show = (value: string | null | undefined) => (bankLoading ? 'loading…' : (value ?? '—'))
 
   return (
     <div className="flex flex-col items-center w-full gap-4 h-full">

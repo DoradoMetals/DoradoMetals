@@ -8,7 +8,7 @@
 // *** THIS IS NOT A STORE, AND THAT IS THE POINT (ruling 63: "Frontend stores
 // should be for UI elements, not data"). *** What survives is a request being
 // built, not data being kept.
-import type { CheckoutItem, CheckoutItemPatch } from "@dorado/contracts";
+import type { CheckoutItem, CheckoutItemPatch } from '@dorado/contracts'
 import { sameLine, toNewCheckoutItem } from '@/shared/types/checkoutItems'
 
 // Two lines for the same thing are one line with a quantity - the same rule the
@@ -23,17 +23,15 @@ export const collapse = (lines: CheckoutItemPatch[]): CheckoutItemPatch[] => {
   return out
 }
 
-export const addLine = (
-  rows: CheckoutItem[],
-  line: CheckoutItemPatch
-): CheckoutItemPatch[] => collapse([...rows.map(toNewCheckoutItem), line])
+export const addLine = (rows: CheckoutItem[], line: CheckoutItemPatch): CheckoutItemPatch[] =>
+  collapse([...rows.map(toNewCheckoutItem), line])
 
 // A ROW IS KEYED BY ITS ID, never by re-matching its declaration: the server
 // answered it, so it has one.
 export const addOne = (rows: CheckoutItem[], id: string): CheckoutItemPatch[] =>
-  rows.map(toNewCheckoutItem).map((l, i) =>
-    rows[i].id === id ? { ...l, quantity: (l.quantity ?? 1) + 1 } : l
-  )
+  rows
+    .map(toNewCheckoutItem)
+    .map((l, i) => (rows[i].id === id ? { ...l, quantity: (l.quantity ?? 1) + 1 } : l))
 
 export const dropOne = (rows: CheckoutItem[], id: string): CheckoutItemPatch[] =>
   rows

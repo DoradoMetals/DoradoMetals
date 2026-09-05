@@ -3,42 +3,42 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: shipping.shipments
-import { z } from "zod/v4";
-import { ShipmentDirection } from "./enums.js";
+import { z } from 'zod/v4'
+import { ShipmentDirection } from './enums.js'
 
 export const Shipment = z.object({
-  "id": z.string().uuid(),
-  "carrier_service_id": z.string().uuid().nullable(),
-  "package_id": z.string().uuid().nullable(),
-  "recipient_address_id": z.string().uuid().nullable(),
-  "shipper_address_id": z.string().uuid().nullable(),
-  "tracking_number": z.string().nullable(),
-  "delivered_at": z.string().nullable(),
-  "shipped_at": z.string().nullable(),
-  "est_delivery": z.string().nullable(),
-  "label_type": z.string().nullable(),
-  "label": z.string().nullable(),
-  "direction": ShipmentDirection,
-  "insured": z.boolean(),
-  "declared_value": z.number().nullable(),
-  "cost": z.number().nullable(),
-  "actual_cost": z.number().nullable(),
-  "shipping_status": z.string().nullable(),
-  "pickup_type": z.string().nullable(),
-  "created_at": z.string().nullable(),
-  "pickup_date": z.string().nullable(),
-  "pickup_time": z.string().nullable(),
-});
-export type Shipment = z.infer<typeof Shipment>;
+  'id': z.string().uuid(),
+  'carrier_service_id': z.string().uuid().nullable(),
+  'package_id': z.string().uuid().nullable(),
+  'recipient_address_id': z.string().uuid().nullable(),
+  'shipper_address_id': z.string().uuid().nullable(),
+  'tracking_number': z.string().nullable(),
+  'delivered_at': z.string().nullable(),
+  'shipped_at': z.string().nullable(),
+  'est_delivery': z.string().nullable(),
+  'label_type': z.string().nullable(),
+  'label': z.string().nullable(),
+  'direction': ShipmentDirection,
+  'insured': z.boolean(),
+  'declared_value': z.number().nullable(),
+  'cost': z.number().nullable(),
+  'actual_cost': z.number().nullable(),
+  'shipping_status': z.string().nullable(),
+  'pickup_type': z.string().nullable(),
+  'created_at': z.string().nullable(),
+  'pickup_date': z.string().nullable(),
+  'pickup_time': z.string().nullable(),
+})
+export type Shipment = z.infer<typeof Shipment>
 // generated:end
-import { Carrier } from "./carriers.js";
-import { Address } from "../places/addresses.js";
+import { Carrier } from './carriers.js'
+import { Address } from '../places/addresses.js'
 
-export const OrderViewShipment = Shipment.extend({ direction: z.string() });
-export type OrderViewShipment = z.infer<typeof OrderViewShipment>;
+export const OrderViewShipment = Shipment.extend({ direction: z.string() })
+export type OrderViewShipment = z.infer<typeof OrderViewShipment>
 
-export const ShipmentRead = OrderViewShipment.omit({ label: true });
-export type ShipmentRead = z.infer<typeof ShipmentRead>;
+export const ShipmentRead = OrderViewShipment.omit({ label: true })
+export type ShipmentRead = z.infer<typeof ShipmentRead>
 
 export const ShipmentPatch = Shipment.pick({ tracking_number: true })
   .extend({
@@ -47,40 +47,47 @@ export const ShipmentPatch = Shipment.pick({ tracking_number: true })
     tracking_number: Shipment.shape.tracking_number.unwrap().optional(),
     carrier_id: Carrier.shape.id.optional(),
   })
-  .strict();
-export type ShipmentPatch = z.infer<typeof ShipmentPatch>;
+  .strict()
+export type ShipmentPatch = z.infer<typeof ShipmentPatch>
 
 export const ShipmentPatchColumns = Shipment.omit({
   id: true,
   created_at: true,
-}).partial();
-export type ShipmentPatchColumns = z.infer<typeof ShipmentPatchColumns>;
+}).partial()
+export type ShipmentPatchColumns = z.infer<typeof ShipmentPatchColumns>
 
-export const ShippingValidateAddressBody = z.object({
-  carrier_id: Carrier.shape.id.optional(),
-  address_id: Address.shape.id,
-}).strict();
-export type ShippingValidateAddressBody = z.infer<typeof ShippingValidateAddressBody>;
+export const ShippingValidateAddressBody = z
+  .object({
+    carrier_id: Carrier.shape.id.optional(),
+    address_id: Address.shape.id,
+  })
+  .strict()
+export type ShippingValidateAddressBody = z.infer<typeof ShippingValidateAddressBody>
 
-export const ShippingGetLocationsBody = z.object({
-  carrier_id: Carrier.shape.id.optional(),
-  address_id: Address.shape.id,
-}).extend({
-  radius_miles: z.number().optional(),
-  max_results: z.number().optional(),
-}).strict();
-export type ShippingGetLocationsBody = z.infer<typeof ShippingGetLocationsBody>;
+export const ShippingGetLocationsBody = z
+  .object({
+    carrier_id: Carrier.shape.id.optional(),
+    address_id: Address.shape.id,
+  })
+  .extend({
+    radius_miles: z.number().optional(),
+    max_results: z.number().optional(),
+  })
+  .strict()
+export type ShippingGetLocationsBody = z.infer<typeof ShippingGetLocationsBody>
 
-export const ShippingCancelLabelBody = z.object({
-  shipment_id: Shipment.shape.id,
-  carrier_id: Carrier.shape.id.optional(),
-}).strict();
-export type ShippingCancelLabelBody = z.infer<typeof ShippingCancelLabelBody>;
+export const ShippingCancelLabelBody = z
+  .object({
+    shipment_id: Shipment.shape.id,
+    carrier_id: Carrier.shape.id.optional(),
+  })
+  .strict()
+export type ShippingCancelLabelBody = z.infer<typeof ShippingCancelLabelBody>
 
 export const ShipmentWrite = ShipmentPatchColumns.extend({
   label: z.union([z.string(), z.custom<Uint8Array>()]).nullable().optional(),
   est_delivery: z.union([z.string(), z.date()]).nullable().optional(),
   shipped_at: z.union([z.string(), z.date()]).nullable().optional(),
   delivered_at: z.union([z.string(), z.date()]).nullable().optional(),
-});
-export type ShipmentWrite = z.infer<typeof ShipmentWrite>;
+})
+export type ShipmentWrite = z.infer<typeof ShipmentWrite>

@@ -93,10 +93,10 @@ export default function AdminPreparingSalesOrder({ view }: SalesOrderDrawerConte
         {sendOrder.isPending
           ? `Sending to ${selectedSupplier?.organization.name}...`
           : order.order_sent
-          ? `Order sent to ${selectedSupplier?.organization.name}`
-          : selectedSupplier
-          ? `Send Order to ${selectedSupplier?.organization.name}`
-          : 'Select Supplier'}
+            ? `Order sent to ${selectedSupplier?.organization.name}`
+            : selectedSupplier
+              ? `Send Order to ${selectedSupplier?.organization.name}`
+              : 'Select Supplier'}
       </Button>
 
       <Divider />
@@ -150,12 +150,12 @@ export default function AdminPreparingSalesOrder({ view }: SalesOrderDrawerConte
         {updateTracking.isPending
           ? `Updating tracking for ${selectedCarrier?.organization.name}...`
           : trackingNumber === ''
-          ? `Enter tracking for ${selectedCarrier?.organization.name}`
-          : selectedCarrier
-          ? order.tracking_updated
-            ? `Resend tracking for ${selectedCarrier?.organization.name}`
-            : `Update tracking for ${selectedCarrier?.organization.name}`
-          : 'Select Carrier'}
+            ? `Enter tracking for ${selectedCarrier?.organization.name}`
+            : selectedCarrier
+              ? order.tracking_updated
+                ? `Resend tracking for ${selectedCarrier?.organization.name}`
+                : `Update tracking for ${selectedCarrier?.organization.name}`
+              : 'Select Carrier'}
       </Button>
     </div>
   )

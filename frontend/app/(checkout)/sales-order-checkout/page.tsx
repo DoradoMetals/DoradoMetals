@@ -1,4 +1,4 @@
-'use client';
+'use client'
 
 import ProtectedPage from '@/shared/hooks/useProtectedPage'
 import SalesOrderCheckout from './_src_/salesOrderCheckout'

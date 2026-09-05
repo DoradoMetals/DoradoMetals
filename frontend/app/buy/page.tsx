@@ -11,16 +11,11 @@ export default function BuyPage() {
   const { metal, category, type, search, sort } = useProductFilterStore()
   const { data: groups = [] } = useProducts({ metal_id: metal, category, type, search, sort })
 
-
   return (
     <main className="flex justify-center">
       <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4 justify-items-center mb-6">
         {groups.map((group) => (
-          <ProductCard
-            key={group.default.id}
-            product={group.default}
-            variants={group.variants}
-          />
+          <ProductCard key={group.default.id} product={group.default} variants={group.variants} />
         ))}
       </div>
     </main>

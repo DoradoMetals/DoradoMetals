@@ -12,7 +12,7 @@ describe('Field wraps a control that is not a library component', () => {
         <select id="refiner">
           <option>Asahi</option>
         </select>
-      </Field>,
+      </Field>
     )
     expect((getByLabelText('Refiner') as HTMLSelectElement).id).toBe('refiner')
     expect(await axeViolations(container)).toEqual([])
@@ -22,7 +22,7 @@ describe('Field wraps a control that is not a library component', () => {
     const { container } = render(
       <Field label="Range">
         <div>a control that renders no labellable element</div>
-      </Field>,
+      </Field>
     )
     expect(container.querySelector('label')?.getAttribute('for')).toBeNull()
   })
@@ -31,7 +31,7 @@ describe('Field wraps a control that is not a library component', () => {
     const { container } = render(
       <Field label="Weight">
         <input />
-      </Field>,
+      </Field>
     )
     const cls = (container.firstElementChild as HTMLElement).className
     expect(cls).toContain('flex-col')
@@ -42,7 +42,7 @@ describe('Field wraps a control that is not a library component', () => {
     const { container, getByText } = render(
       <Field label="Weight" invalid message="Required">
         <input />
-      </Field>,
+      </Field>
     )
     expect(container.querySelector('label')?.className).toContain('text-destructive')
     expect(getByText('Required').className).toContain('text-destructive')
@@ -52,7 +52,7 @@ describe('Field wraps a control that is not a library component', () => {
     const { container } = render(
       <Field label="Weight" className="w-16">
         <input />
-      </Field>,
+      </Field>
     )
     expect((container.firstElementChild as HTMLElement).className).toContain('w-16')
   })

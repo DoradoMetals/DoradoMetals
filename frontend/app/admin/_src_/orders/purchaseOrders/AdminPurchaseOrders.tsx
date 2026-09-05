@@ -11,7 +11,10 @@ import AdminPurchaseOrderDrawer from './adminPurchaseOrderDrawer/adminPurchaseOr
 import { useAdminUsers } from '@dorado/client'
 
 export default function PurchaseOrdersPage() {
-  const { data: purchaseOrders = [] } = useOrders({ direction: 'purchase' }, { refetchInterval: 10_000 })
+  const { data: purchaseOrders = [] } = useOrders(
+    { direction: 'purchase' },
+    { refetchInterval: 10_000 }
+  )
   const { openDrawer } = useDrawerStore()
 
   const [activeOrder, setActiveOrder] = React.useState<string | null>(null)
@@ -83,9 +86,7 @@ export default function PurchaseOrdersPage() {
         onRowClick={handleRowClick}
       />
 
-      {activeOrder && (
-        <AdminPurchaseOrderDrawer order_id={activeOrder} />
-      )}
+      {activeOrder && <AdminPurchaseOrderDrawer order_id={activeOrder} />}
     </>
   )
 }

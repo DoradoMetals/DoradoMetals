@@ -20,10 +20,7 @@ const AvatarCircles = ({ items, maxDisplay = 3, className }: AvatarCirclesProps)
   return (
     <div className={cn('flex -space-x-5 items-center', className)}>
       {displayed.map(({ url, count }, i) => (
-        <div
-          key={i}
-          className="relative w-14 h-14 rounded-full"
-        >
+        <div key={i} className="relative w-14 h-14 rounded-full">
           <Image fill src={url} alt={`Avatar ${i + 1}`} className="w-full h-full object-cover" />
           {count > 1 && (
             <small className="absolute -top-2 left-2 bg-highest rounded-full px-1 -translate-x-1/3 translate-y-1/3">

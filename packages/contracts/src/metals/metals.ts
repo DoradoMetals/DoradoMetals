@@ -3,10 +3,10 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: metals.metals
-import { z } from "zod/v4";
+import { z } from 'zod/v4'
 
 export const Metal = z.object({
-  "id": z.string(),
-});
-export type Metal = z.infer<typeof Metal>;
+  'id': z.string(),
+})
+export type Metal = z.infer<typeof Metal>
 // generated:end

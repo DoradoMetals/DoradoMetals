@@ -2,4 +2,4 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Every entity of the `organizations` schema, one namespace each.
-export * from "./organizations.js";
+export * from './organizations.js'

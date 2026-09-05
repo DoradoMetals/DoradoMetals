@@ -2,7 +2,15 @@
 
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Button, Form, FormControl, FormField, FormItem, FormLabel, ValidatedField } from '@dorado/components'
+import {
+  Button,
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  ValidatedField,
+} from '@dorado/components'
 import { ForgotPasswordDialog } from './ForgotPasswordForm'
 import { Checkbox } from '@dorado/components'
 import { useSignIn } from '@/shared/hooks/auth/queries'
@@ -13,7 +21,6 @@ import GoogleButton from './GoogleSignInButton'
 import { verifyRecaptcha } from './VerifyRecaptcha'
 
 export default function SignInForm() {
-
   const { run: checkCaptcha, isPending: recaptchaPending } = verifyRecaptcha('sign_in')
   const { mutate: signInMutation, error, isPending: signInPending } = useSignIn()
 
@@ -36,12 +43,7 @@ export default function SignInForm() {
       <div className="flex flex-col w-full">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-            <ValidatedField
-              control={form.control}
-              name="email"
-              label="Email"
-              type="email"
-            />
+            <ValidatedField control={form.control} name="email" label="Email" type="email" />
 
             <div className="mb-2">
               <ValidatedField
@@ -67,10 +69,7 @@ export default function SignInForm() {
                         id="remember-me"
                       />
                     </FormControl>
-                    <FormLabel
-                      htmlFor="remember-me"
-                      className="cursor-pointer"
-                    >
+                    <FormLabel htmlFor="remember-me" className="cursor-pointer">
                       Remember Me
                     </FormLabel>
                   </FormItem>

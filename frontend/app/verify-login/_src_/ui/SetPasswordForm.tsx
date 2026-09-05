@@ -72,11 +72,7 @@ export default function SetPasswordForm() {
               />
             </div>
 
-            <Button
-              type="submit"
-              disabled={setPasswordMutation.isPending}
-              className="w-full"
-            >
+            <Button type="submit" disabled={setPasswordMutation.isPending} className="w-full">
               {setPasswordMutation.isPending ? 'Saving...' : 'Set Password'}
             </Button>
           </form>

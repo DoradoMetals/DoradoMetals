@@ -1,5 +1,15 @@
-import type { AdminUser } from "@dorado/contracts";
-import { Crown as CrownIcon, IconComponent as Icon, IconProps, UserCheck as UserCheckIcon, User as UserIcon, Smartphone as DeviceMobileIcon, Tablet as DeviceTabletIcon, Laptop as LaptopIcon, Monitor as DesktopIcon } from '@dorado/icons'
+import type { AdminUser } from '@dorado/contracts'
+import {
+  Crown as CrownIcon,
+  IconComponent as Icon,
+  IconProps,
+  UserCheck as UserCheckIcon,
+  User as UserIcon,
+  Smartphone as DeviceMobileIcon,
+  Tablet as DeviceTabletIcon,
+  Laptop as LaptopIcon,
+  Monitor as DesktopIcon,
+} from '@dorado/icons'
 import { z } from 'zod/v4'
 import { UAParser } from 'ua-parser-js'
 

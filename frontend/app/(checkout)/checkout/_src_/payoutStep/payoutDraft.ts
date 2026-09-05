@@ -51,7 +51,7 @@ export const usePayoutDraft = create<Draft>()((set) => ({
   clear: () => set({ payout: null }),
 }))
 
-export const isPayoutComplete = (draft: Draft["payout"]): boolean =>
+export const isPayoutComplete = (draft: Draft['payout']): boolean =>
   !!draft && payoutSchema.safeParse(draft).success
 
 // The seven columns POST /checkout/payout accepts, picked out of a form that

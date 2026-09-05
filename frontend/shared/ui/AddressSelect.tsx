@@ -1,6 +1,6 @@
 'use client'
 
-import type { Address } from "@dorado/contracts";
+import type { Address } from '@dorado/contracts'
 import { motion, AnimatePresence } from 'framer-motion'
 import { UserAddress } from '@/shared/types/addresses'
 import { cn } from '@/shared/utils/cn'
@@ -29,13 +29,7 @@ type Props = {
 // to it, so it draws its own two lines rather than passing an entry it does
 // not have. The props stay Address[] + UserAddress[] because the checkout and
 // order surfaces that call this hold those.
-function AddressRow({
-  address,
-  link,
-}: {
-  address: Address
-  link?: UserAddress
-}) {
+function AddressRow({ address, link }: { address: Address; link?: UserAddress }) {
   const Icon = address.is_residential ? House : Building2
   return (
     <div className="flex flex-col w-full">
@@ -97,12 +91,7 @@ export function AddressSelect({
         <p className="eyebrow">{title}</p>
 
         {onAddNew ? (
-          <Button
-            size="xs"
-            variant="secondary"
-            className="gap-2"
-            onClick={onAddNew}
-          >
+          <Button size="xs" variant="secondary" className="gap-2" onClick={onAddNew}>
             <Plus size={16} />
             {addNewLabel}
           </Button>

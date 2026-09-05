@@ -1,17 +1,22 @@
 'use client'
 
-import * as React from "react";
-import * as SliderPrimitive from "@radix-ui/react-slider";
-import { cn } from "../cn";
+import * as React from 'react'
+import * as SliderPrimitive from '@radix-ui/react-slider'
+import { cn } from '../cn'
 
-export type SliderProps = React.ComponentProps<typeof SliderPrimitive.Root>;
+export type SliderProps = React.ComponentProps<typeof SliderPrimitive.Root>
 
-export function Slider({ className, "aria-label": ariaLabel, "aria-labelledby": ariaLabelledby, ...props }: SliderProps) {
+export function Slider({
+  className,
+  'aria-label': ariaLabel,
+  'aria-labelledby': ariaLabelledby,
+  ...props
+}: SliderProps) {
   return (
     <SliderPrimitive.Root
       className={cn(
-        "relative flex w-full touch-none select-none items-center",
-        "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+        'relative flex w-full touch-none select-none items-center',
+        'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
         className
       )}
       {...props}
@@ -23,10 +28,10 @@ export function Slider({ className, "aria-label": ariaLabel, "aria-labelledby": 
         aria-label={ariaLabel}
         aria-labelledby={ariaLabelledby}
         className={cn(
-          "block size-4 cursor-grab rounded-full border border-border-strong bg-primary",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background"
+          'block size-4 cursor-grab rounded-full border border-border-strong bg-primary',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background'
         )}
       />
     </SliderPrimitive.Root>
-  );
+  )
 }

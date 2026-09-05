@@ -3,37 +3,37 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: payments.details
-import { z } from "zod/v4";
+import { z } from 'zod/v4'
 
 export const PaymentDetails = z.object({
-  "id": z.string().uuid(),
-  "user_id": z.string().uuid(),
-  "method_id": z.string().uuid().nullable(),
-  "account_holder": z.string().nullable(),
-  "bank_name": z.string().nullable(),
-  "account_type": z.string().nullable(),
-  "routing_number": z.string().nullable(),
-  "account_number": z.string().nullable(),
-  "last_four": z.string().nullable(),
-  "card_brand": z.string().nullable(),
-  "email_to": z.string().nullable(),
-  "created_at": z.string(),
-  "updated_at": z.string(),
-  "created_by": z.string().nullable(),
-  "updated_by": z.string().nullable(),
-  "created_by_id": z.string().uuid().nullable(),
-  "updated_by_id": z.string().uuid().nullable(),
-  "provider": z.string().nullable(),
-  "provider_ref": z.string().nullable(),
-  "routing_number_encrypted": z.string().nullable(),
-  "account_number_encrypted": z.string().nullable(),
-  "encryption_key_id": z.string().nullable(),
-  "routing_last_four": z.string().nullable(),
-});
-export type PaymentDetails = z.infer<typeof PaymentDetails>;
+  'id': z.string().uuid(),
+  'user_id': z.string().uuid(),
+  'method_id': z.string().uuid().nullable(),
+  'account_holder': z.string().nullable(),
+  'bank_name': z.string().nullable(),
+  'account_type': z.string().nullable(),
+  'routing_number': z.string().nullable(),
+  'account_number': z.string().nullable(),
+  'last_four': z.string().nullable(),
+  'card_brand': z.string().nullable(),
+  'email_to': z.string().nullable(),
+  'created_at': z.string(),
+  'updated_at': z.string(),
+  'created_by': z.string().nullable(),
+  'updated_by': z.string().nullable(),
+  'created_by_id': z.string().uuid().nullable(),
+  'updated_by_id': z.string().uuid().nullable(),
+  'provider': z.string().nullable(),
+  'provider_ref': z.string().nullable(),
+  'routing_number_encrypted': z.string().nullable(),
+  'account_number_encrypted': z.string().nullable(),
+  'encryption_key_id': z.string().nullable(),
+  'routing_last_four': z.string().nullable(),
+})
+export type PaymentDetails = z.infer<typeof PaymentDetails>
 // generated:end
-import { OrderTotals } from "../orders/transactions.js";
-import { PaymentMethod } from "./methods.js";
+import { OrderTotals } from '../orders/transactions.js'
+import { PaymentMethod } from './methods.js'
 
 export const IntentDetails = PaymentDetails.pick({
   provider: true,
@@ -44,8 +44,8 @@ export const IntentDetails = PaymentDetails.pick({
   account_type: true,
 }).extend({
   type: z.string().nullable(),
-});
-export type IntentDetails = z.infer<typeof IntentDetails>;
+})
+export type IntentDetails = z.infer<typeof IntentDetails>
 
 export const PaymentDetailsWrite = PaymentDetails.pick({
   user_id: true,
@@ -62,38 +62,62 @@ export const PaymentDetailsWrite = PaymentDetails.pick({
   routing_number_encrypted: true,
   account_number_encrypted: true,
   encryption_key_id: true,
-}).partial();
-export type PaymentDetailsWrite = z.infer<typeof PaymentDetailsWrite>;
+}).partial()
+export type PaymentDetailsWrite = z.infer<typeof PaymentDetailsWrite>
 
 export const PaymentDetailsView = PaymentDetails.pick({
-  id: true, user_id: true, method_id: true, account_holder: true, bank_name: true,
-  account_type: true, last_four: true, routing_last_four: true, card_brand: true,
-  email_to: true, provider: true, provider_ref: true, created_at: true, updated_at: true,
+  id: true,
+  user_id: true,
+  method_id: true,
+  account_holder: true,
+  bank_name: true,
+  account_type: true,
+  last_four: true,
+  routing_last_four: true,
+  card_brand: true,
+  email_to: true,
+  provider: true,
+  provider_ref: true,
+  created_at: true,
+  updated_at: true,
 }).extend({
-  order: z.object({
-    order_id: OrderTotals.shape.order_id,
-    payout_fee: OrderTotals.shape.payout_fee,
-    waive_payout_fee: OrderTotals.shape.waive_payout_fee,
-  }).nullable().optional(),
-});
-export type PaymentDetailsView = z.infer<typeof PaymentDetailsView>;
+  order: z
+    .object({
+      order_id: OrderTotals.shape.order_id,
+      payout_fee: OrderTotals.shape.payout_fee,
+      waive_payout_fee: OrderTotals.shape.waive_payout_fee,
+    })
+    .nullable()
+    .optional(),
+})
+export type PaymentDetailsView = z.infer<typeof PaymentDetailsView>
 
 export const PaymentDetailsSealed = PaymentDetails.pick({
-  id: true, account_holder: true, bank_name: true, account_type: true,
-  last_four: true, email_to: true, method_id: true,
-  routing_number_encrypted: true, account_number_encrypted: true,
+  id: true,
+  account_holder: true,
+  bank_name: true,
+  account_type: true,
+  last_four: true,
+  email_to: true,
+  method_id: true,
+  routing_number_encrypted: true,
+  account_number_encrypted: true,
   encryption_key_id: true,
-});
-export type PaymentDetailsSealed = z.infer<typeof PaymentDetailsSealed>;
+})
+export type PaymentDetailsSealed = z.infer<typeof PaymentDetailsSealed>
 
 export const PaymentDetailsBank = PaymentDetailsView.extend({
   routing_number: PaymentDetails.shape.routing_number,
   account_number: PaymentDetails.shape.account_number,
-});
-export type PaymentDetailsBank = z.infer<typeof PaymentDetailsBank>;
+})
+export type PaymentDetailsBank = z.infer<typeof PaymentDetailsBank>
 
 export const OrderViewPayout = PaymentDetails.pick({
-  id: true, user_id: true, bank_name: true, account_type: true, email_to: true,
+  id: true,
+  user_id: true,
+  bank_name: true,
+  account_type: true,
+  email_to: true,
 }).extend({
   order_id: OrderTotals.shape.order_id,
   method: PaymentMethod.shape.type.nullable(),
@@ -101,12 +125,14 @@ export const OrderViewPayout = PaymentDetails.pick({
   account_last4: PaymentDetails.shape.last_four,
   routing_last4: PaymentDetails.shape.routing_last_four,
   cost: OrderTotals.shape.payout_fee,
-});
-export type OrderViewPayout = z.infer<typeof OrderViewPayout>;
+})
+export type OrderViewPayout = z.infer<typeof OrderViewPayout>
 
-export const PaymentDetailsPatch = z.object({
-  cost: OrderTotals.shape.payout_fee.unwrap().optional(),
-  method: PaymentMethod.shape.type.optional(),
-  waive_payout_fee: OrderTotals.shape.waive_payout_fee.unwrap().optional(),
-}).strict();
-export type PaymentDetailsPatch = z.infer<typeof PaymentDetailsPatch>;
+export const PaymentDetailsPatch = z
+  .object({
+    cost: OrderTotals.shape.payout_fee.unwrap().optional(),
+    method: PaymentMethod.shape.type.optional(),
+    waive_payout_fee: OrderTotals.shape.waive_payout_fee.unwrap().optional(),
+  })
+  .strict()
+export type PaymentDetailsPatch = z.infer<typeof PaymentDetailsPatch>

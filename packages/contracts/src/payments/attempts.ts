@@ -3,21 +3,21 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: payments.attempts
-import { z } from "zod/v4";
+import { z } from 'zod/v4'
 
 export const PaymentAttempt = z.object({
-  "id": z.string().uuid(),
-  "intent_id": z.string().uuid(),
-  "method_id": z.string().uuid().nullable(),
-  "provider": z.string().nullable(),
-  "provider_ref": z.string(),
-  "amount": z.number().nullable(),
-  "status": z.string(),
-  "error_code": z.string().nullable(),
-  "error_message": z.string().nullable(),
-  "created_at": z.string(),
-});
-export type PaymentAttempt = z.infer<typeof PaymentAttempt>;
+  'id': z.string().uuid(),
+  'intent_id': z.string().uuid(),
+  'method_id': z.string().uuid().nullable(),
+  'provider': z.string().nullable(),
+  'provider_ref': z.string(),
+  'amount': z.number().nullable(),
+  'status': z.string(),
+  'error_code': z.string().nullable(),
+  'error_message': z.string().nullable(),
+  'created_at': z.string(),
+})
+export type PaymentAttempt = z.infer<typeof PaymentAttempt>
 // generated:end
 export const IntentAttempt = PaymentAttempt.pick({
   provider: true,
@@ -26,8 +26,8 @@ export const IntentAttempt = PaymentAttempt.pick({
 }).extend({
   provider_ref: PaymentAttempt.shape.provider_ref.nullable(),
   status: PaymentAttempt.shape.status.nullable(),
-});
-export type IntentAttempt = z.infer<typeof IntentAttempt>;
+})
+export type IntentAttempt = z.infer<typeof IntentAttempt>
 
 export const PaymentAttemptPatch = PaymentAttempt.pick({
   id: true,
@@ -39,7 +39,9 @@ export const PaymentAttemptPatch = PaymentAttempt.pick({
   status: true,
   error_code: true,
   error_message: true,
-}).extend({
-  status: PaymentAttempt.shape.status.nullable(),
-}).partial();
-export type PaymentAttemptPatch = z.infer<typeof PaymentAttemptPatch>;
+})
+  .extend({
+    status: PaymentAttempt.shape.status.nullable(),
+  })
+  .partial()
+export type PaymentAttemptPatch = z.infer<typeof PaymentAttemptPatch>

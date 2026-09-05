@@ -1,11 +1,11 @@
-import express from "express";
+import express from 'express'
 
-import { getTransactionHistory } from "#payments/transactions/controller.ts";
+import { getTransactionHistory } from '#payments/transactions/controller.ts'
 
-import { requireUser } from "#shared/middleware/authMiddleware.ts";
+import { requireUser } from '#shared/middleware/authMiddleware.ts'
 
-const router = express.Router();
+const router = express.Router()
 
-router.get("/", requireUser, getTransactionHistory);
+router.get('/', requireUser, getTransactionHistory)
 
-export default router;
+export default router

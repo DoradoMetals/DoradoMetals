@@ -1,26 +1,27 @@
-import { test, afterAll, beforeAll } from "vitest";
-import assert from "node:assert/strict";
-import type { PoolClient } from "pg";
-import { randomUUID } from "node:crypto";
-import type { CarrierServiceWrite } from "@dorado/contracts";
-import pool from "#pool";
-import { inRollback } from "#shared/testing/rollback.ts";
-import { actingAs } from "#shared/testing/actor.ts";
-import { aUser } from "#shared/testing/builders/index.ts";
-import * as services from "#db/shipping/services/repo.ts";
+import { test, afterAll, beforeAll } from 'vitest'
+import assert from 'node:assert/strict'
+import type { PoolClient } from 'pg'
+import { randomUUID } from 'node:crypto'
+import type { CarrierServiceWrite } from '@dorado/contracts'
+import pool from '#pool'
+import { inRollback } from '#shared/testing/rollback.ts'
+import { actingAs } from '#shared/testing/actor.ts'
+import { aUser } from '#shared/testing/builders/index.ts'
+import * as services from '#db/shipping/services/repo.ts'
 
 beforeAll(async () => {
   assert.equal(
-    new Date().getTimezoneOffset(), 0,
-    "these tests require TZ=UTC - run them with `pnpm --filter @dorado/api test`"
-  );
-});
+    new Date().getTimezoneOffset(),
+    0,
+    'these tests require TZ=UTC - run them with `pnpm --filter @dorado/api test`'
+  )
+})
 
 afterAll(async () => {
-  await pool.end();
-});
+  await pool.end()
+})
 
-const aName = () => `test-repo-service-${randomUUID().slice(0, 8)}`;
+const aName = () => `test-repo-service-${randomUUID().slice(0, 8)}`
 
 const write = (over: Partial<CarrierServiceWrite> = {}): CarrierServiceWrite => ({
   carrier_id: null,
@@ -44,50 +45,48 @@ const write = (over: Partial<CarrierServiceWrite> = {}): CarrierServiceWrite => 
   max_transit_days: 0,
   display_order: 0,
   ...over,
-});
+})
 
 const twoPeople = async (c: PoolClient) => [
-  await aUser(c, { name: "Fixture Maker" }),
-  await aUser(c, { name: "Fixture Editor" }),
-];
+  await aUser(c, { name: 'Fixture Maker' }),
+  await aUser(c, { name: 'Fixture Editor' }),
+]
 
-test("update writes a real service and leaves created_by alone", async () => {
+test('update writes a real service and leaves created_by alone', async () => {
   await inRollback(async (c: PoolClient) => {
-    const [maker, editor] = await twoPeople(c);
-    assert.ok(editor, "auth.users has fewer than two named users - this proves nothing");
+    const [maker, editor] = await twoPeople(c)
+    assert.ok(editor, 'auth.users has fewer than two named users - this proves nothing')
 
-    await actingAs(c, maker.id);
-    const row = await services.create(write(), c);
+    await actingAs(c, maker.id)
+    const row = await services.create(write(), c)
 
-    await actingAs(c, editor.id);
-    const changed = await services.update(
-      row.id, write({ name: `${row.name}-renamed` }), c
-    );
-    assert.equal(changed, true, "update reported no row changed");
+    await actingAs(c, editor.id)
+    const changed = await services.update(row.id, write({ name: `${row.name}-renamed` }), c)
+    assert.equal(changed, true, 'update reported no row changed')
 
-    const after = await services.getOne(row.id, c);
-    assert.equal(after?.name, `${row.name}-renamed`);
-    assert.equal(after?.updated_by, editor.name);
-    assert.equal(after?.created_by, maker.name, "an edit rewrote who created the service");
-  });
-});
+    const after = await services.getOne(row.id, c)
+    assert.equal(after?.name, `${row.name}-renamed`)
+    assert.equal(after?.updated_by, editor.name)
+    assert.equal(after?.created_by, maker.name, 'an edit rewrote who created the service')
+  })
+})
 
-test("update answers false for an id with no service row", async () => {
+test('update answers false for an id with no service row', async () => {
   await inRollback(async (c: PoolClient) => {
-    const changed = await services.update(randomUUID(), write(), c);
-    assert.equal(changed, false, "update reported a change for a service that does not exist");
-  });
-});
+    const changed = await services.update(randomUUID(), write(), c)
+    assert.equal(changed, false, 'update reported a change for a service that does not exist')
+  })
+})
 
-test("remove deletes a real service and answers false the second time", async () => {
+test('remove deletes a real service and answers false the second time', async () => {
   await inRollback(async (c: PoolClient) => {
-    const row = await services.create(write(), c);
+    const row = await services.create(write(), c)
 
-    const removed = await services.remove(row.id, c);
-    assert.equal(removed, true, "remove reported no row changed");
-    assert.equal(await services.getOne(row.id, c), undefined);
+    const removed = await services.remove(row.id, c)
+    assert.equal(removed, true, 'remove reported no row changed')
+    assert.equal(await services.getOne(row.id, c), undefined)
 
-    const removedAgain = await services.remove(row.id, c);
-    assert.equal(removedAgain, false, "remove reported a change for a service already gone");
-  });
-});
+    const removedAgain = await services.remove(row.id, c)
+    assert.equal(removedAgain, false, 'remove reported a change for a service already gone')
+  })
+})

@@ -1,26 +1,26 @@
 'use client'
 
-import * as React from "react";
+import * as React from 'react'
 
-import { cn } from "../cn";
+import { cn } from '../cn'
 
 export type FooterColumn = {
-  heading: string;
-  links: React.ReactNode[];
-};
+  heading: string
+  links: React.ReactNode[]
+}
 
 export type FooterProps = {
-  brand: React.ReactNode;
-  tagline?: React.ReactNode;
-  cta?: React.ReactNode;
-  columns: FooterColumn[];
-  legal: React.ReactNode;
-  legalLinks?: React.ReactNode[];
-  legalHeading?: string;
-  social?: React.ReactNode;
-  notice?: React.ReactNode;
-  className?: string;
-};
+  brand: React.ReactNode
+  tagline?: React.ReactNode
+  cta?: React.ReactNode
+  columns: FooterColumn[]
+  legal: React.ReactNode
+  legalLinks?: React.ReactNode[]
+  legalHeading?: string
+  social?: React.ReactNode
+  notice?: React.ReactNode
+  className?: string
+}
 
 export function Footer({
   brand,
@@ -29,7 +29,7 @@ export function Footer({
   columns,
   legal,
   legalLinks,
-  legalHeading = "Legal",
+  legalHeading = 'Legal',
   social,
   notice,
   className,
@@ -37,9 +37,9 @@ export function Footer({
   return (
     <footer
       className={cn(
-        "flex w-full flex-col items-center gap-3 border-t border-border bg-background px-6 pt-8 pb-6",
-        "lg:items-stretch lg:gap-12 lg:px-16 lg:pt-12 lg:pb-8",
-        className,
+        'flex w-full flex-col items-center gap-3 border-t border-border bg-background px-6 pt-8 pb-6',
+        'lg:items-stretch lg:gap-12 lg:px-16 lg:pt-12 lg:pb-8',
+        className
       )}
     >
       <div className="flex w-full flex-col items-center gap-3 lg:flex-row lg:items-start lg:justify-between lg:gap-0">
@@ -89,5 +89,5 @@ export function Footer({
         </small>
       )}
     </footer>
-  );
+  )
 }

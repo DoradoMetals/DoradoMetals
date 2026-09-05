@@ -178,8 +178,8 @@ export default function SalesOrderCheckout() {
                 {address && !address.is_valid
                   ? 'Please provide a valid address.'
                   : placeOrder.isPending || isLoading || isPending
-                  ? 'Processing…'
-                  : 'Place Order'}
+                    ? 'Processing…'
+                    : 'Place Order'}
               </Button>
             )}
           </div>

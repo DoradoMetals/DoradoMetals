@@ -111,7 +111,11 @@ export default function CarriersPage() {
             >
               <Rows3 size={28} />
             </Button>
-            <AddNewDialog open={createOpen} onOpenChange={setCreateOpen} createConfig={createConfig} />
+            <AddNewDialog
+              open={createOpen}
+              onOpenChange={setCreateOpen}
+              createConfig={createConfig}
+            />
           </>
         }
       />

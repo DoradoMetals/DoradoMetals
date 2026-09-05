@@ -1,62 +1,66 @@
-import { test, afterAll, beforeAll } from "vitest";
-import assert from "node:assert/strict";
-import { randomUUID } from "node:crypto";
-import type { PoolClient } from "pg";
-import pool from "#pool";
-import { inRollback } from "#shared/testing/rollback.ts";
-import { packageId, carrierId } from "#shared/testing/builders/index.ts";
-import * as packages from "#db/shipping/packages/repo.ts";
+import { test, afterAll, beforeAll } from 'vitest'
+import assert from 'node:assert/strict'
+import { randomUUID } from 'node:crypto'
+import type { PoolClient } from 'pg'
+import pool from '#pool'
+import { inRollback } from '#shared/testing/rollback.ts'
+import { packageId, carrierId } from '#shared/testing/builders/index.ts'
+import * as packages from '#db/shipping/packages/repo.ts'
 
 beforeAll(async () => {
   assert.equal(
-    new Date().getTimezoneOffset(), 0,
-    "these tests require TZ=UTC - run them with `pnpm --filter @dorado/api test`"
-  );
-});
+    new Date().getTimezoneOffset(),
+    0,
+    'these tests require TZ=UTC - run them with `pnpm --filter @dorado/api test`'
+  )
+})
 
 afterAll(async () => {
-  await pool.end();
-});
+  await pool.end()
+})
 
-test("getAll answers at least the seeded Small Box", async () => {
+test('getAll answers at least the seeded Small Box', async () => {
   await inRollback(async (c: PoolClient) => {
-    const rows = await packages.getAll(c);
-    assert.ok(rows.some((p) => p.label === "Small Box"), "the seed no longer offers Small Box");
-  });
-});
+    const rows = await packages.getAll(c)
+    assert.ok(
+      rows.some((p) => p.label === 'Small Box'),
+      'the seed no longer offers Small Box'
+    )
+  })
+})
 
-test("getOne answers a real package and undefined for an id nothing seeded", async () => {
+test('getOne answers a real package and undefined for an id nothing seeded', async () => {
   await inRollback(async (c: PoolClient) => {
-    const id = await packageId(c, "Small Box");
+    const id = await packageId(c, 'Small Box')
 
-    const found = await packages.getOne(id, c);
-    assert.equal(found?.label, "Small Box");
+    const found = await packages.getOne(id, c)
+    assert.equal(found?.label, 'Small Box')
 
-    assert.equal(await packages.getOne(randomUUID(), c), undefined);
-  });
-});
+    assert.equal(await packages.getOne(randomUUID(), c), undefined)
+  })
+})
 
-test("find resolves the (carrier, label) pair, and a pair nothing seeded resolves to nothing", async () => {
+test('find resolves the (carrier, label) pair, and a pair nothing seeded resolves to nothing', async () => {
   await inRollback(async (c: PoolClient) => {
-    const carrier_id = await carrierId(c, "FedEx");
+    const carrier_id = await carrierId(c, 'FedEx')
 
-    const found = await packages.find(carrier_id, "no such label", c);
-    assert.equal(found, undefined);
-  });
-});
+    const found = await packages.find(carrier_id, 'no such label', c)
+    assert.equal(found, undefined)
+  })
+})
 
 test("labelsById maps every seeded package's id to its label", async () => {
   await inRollback(async (c: PoolClient) => {
-    const id = await packageId(c, "Small Box");
-    const labels = await packages.labelsById(c);
-    assert.equal(labels.get(id), "Small Box");
-  });
-});
+    const id = await packageId(c, 'Small Box')
+    const labels = await packages.labelsById(c)
+    assert.equal(labels.get(id), 'Small Box')
+  })
+})
 
 test("getOffered answers the checkout's box menu", async () => {
   await inRollback(async (c: PoolClient) => {
-    const rows = await packages.getOffered(c);
-    assert.ok(rows.length > 0, "no packages are offered at checkout");
-    assert.ok(rows.some((p) => p.label === "Small Box"));
-  });
-});
+    const rows = await packages.getOffered(c)
+    assert.ok(rows.length > 0, 'no packages are offered at checkout')
+    assert.ok(rows.some((p) => p.label === 'Small Box'))
+  })
+})

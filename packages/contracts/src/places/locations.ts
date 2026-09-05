@@ -3,18 +3,18 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: places.locations
-import { z } from "zod/v4";
+import { z } from 'zod/v4'
 
 export const Location = z.object({
-  "id": z.string().uuid(),
-  "address_id": z.string().uuid(),
-  "image_id": z.string().uuid().nullable(),
-  "organization_id": z.string().uuid(),
-  "name": z.string().nullable(),
-  "type": z.string().nullable(),
-  "enabled": z.boolean(),
-  "label_company_name": z.string().nullable(),
-  "label_phone_number": z.string().nullable(),
-});
-export type Location = z.infer<typeof Location>;
+  'id': z.string().uuid(),
+  'address_id': z.string().uuid(),
+  'image_id': z.string().uuid().nullable(),
+  'organization_id': z.string().uuid(),
+  'name': z.string().nullable(),
+  'type': z.string().nullable(),
+  'enabled': z.boolean(),
+  'label_company_name': z.string().nullable(),
+  'label_phone_number': z.string().nullable(),
+})
+export type Location = z.infer<typeof Location>
 // generated:end

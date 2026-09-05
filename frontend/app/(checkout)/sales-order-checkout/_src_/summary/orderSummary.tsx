@@ -7,7 +7,7 @@ import { usePaymentMethods } from '@dorado/client'
 import Image from 'next/image'
 import NumberFlow from '@number-flow/react'
 import { useRouter } from 'next/navigation'
-import type { CheckoutView, SaleQuote } from "@dorado/contracts";
+import type { CheckoutView, SaleQuote } from '@dorado/contracts'
 
 // orderPrices is the server's quote, absent until the first one lands - the
 // summary renders zeros in the meantime, never a client-computed price.
@@ -74,7 +74,11 @@ export default function OrderSummary({
 
                 <div className="flex justify-between items-center mt-3">
                   <div className="flex items-center gap-2">
-                    <Button variant="tertiary" size="iconSm" onClick={() => removeOne('sale', line)}>
+                    <Button
+                      variant="tertiary"
+                      size="iconSm"
+                      onClick={() => removeOne('sale', line)}
+                    >
                       <Minus size={16} />
                     </Button>
                     <NumberFlow
@@ -85,11 +89,7 @@ export default function OrderSummary({
                       trend={0}
                       className="tabular-nums"
                     />
-                    <Button
-                      variant="tertiary"
-                      size="iconSm"
-                      onClick={() => addOne('sale', line)}
-                    >
+                    <Button variant="tertiary" size="iconSm" onClick={() => addOne('sale', line)}>
                       <Plus size={16} />
                     </Button>
                   </div>

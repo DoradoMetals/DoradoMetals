@@ -3,28 +3,28 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: leads.leads
-import { z } from "zod/v4";
+import { z } from 'zod/v4'
 
 export const Lead = z.object({
-  "id": z.string().uuid(),
-  "name": z.string(),
-  "phone": z.string().nullable(),
-  "email": z.string().nullable(),
-  "created_at": z.string(),
-  "updated_at": z.string(),
-  "last_contacted": z.string().nullable(),
-  "converted": z.boolean(),
-  "contacted": z.boolean(),
-  "responded": z.boolean(),
-  "created_by": z.string().nullable(),
-  "updated_by": z.string().nullable(),
-  "notes": z.string().nullable(),
-  "contact": z.string().nullable(),
-  "priority": z.string(),
-  "created_by_id": z.string().uuid().nullable(),
-  "updated_by_id": z.string().uuid().nullable(),
-});
-export type Lead = z.infer<typeof Lead>;
+  'id': z.string().uuid(),
+  'name': z.string(),
+  'phone': z.string().nullable(),
+  'email': z.string().nullable(),
+  'created_at': z.string(),
+  'updated_at': z.string(),
+  'last_contacted': z.string().nullable(),
+  'converted': z.boolean(),
+  'contacted': z.boolean(),
+  'responded': z.boolean(),
+  'created_by': z.string().nullable(),
+  'updated_by': z.string().nullable(),
+  'notes': z.string().nullable(),
+  'contact': z.string().nullable(),
+  'priority': z.string(),
+  'created_by_id': z.string().uuid().nullable(),
+  'updated_by_id': z.string().uuid().nullable(),
+})
+export type Lead = z.infer<typeof Lead>
 // generated:end
 export const LeadPatch = Lead.pick({
   name: true,
@@ -37,5 +37,5 @@ export const LeadPatch = Lead.pick({
   contact: true,
   notes: true,
   priority: true,
-}).partial();
-export type LeadPatch = z.infer<typeof LeadPatch>;
+}).partial()
+export type LeadPatch = z.infer<typeof LeadPatch>

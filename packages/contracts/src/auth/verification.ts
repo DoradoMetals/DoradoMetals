@@ -3,15 +3,15 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: auth.verification
-import { z } from "zod/v4";
+import { z } from 'zod/v4'
 
 export const Verification = z.object({
-  "id": z.string().uuid(),
-  "identifier": z.string(),
-  "value": z.string(),
-  "expiresAt": z.string(),
-  "createdAt": z.string(),
-  "updatedAt": z.string(),
-});
-export type Verification = z.infer<typeof Verification>;
+  'id': z.string().uuid(),
+  'identifier': z.string(),
+  'value': z.string(),
+  'expiresAt': z.string(),
+  'createdAt': z.string(),
+  'updatedAt': z.string(),
+})
+export type Verification = z.infer<typeof Verification>
 // generated:end

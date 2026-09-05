@@ -1,1 +1,1 @@
-import "#shared/testing/no-network.ts";
+import '#shared/testing/no-network.ts'

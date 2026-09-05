@@ -1,5 +1,5 @@
-import { defineConfig } from "vitest/config";
-import path from "node:path";
+import { defineConfig } from 'vitest/config'
+import path from 'node:path'
 
 // Unit tests only: pure functions and the shapes the API contract depends on.
 // They run in plain Node, need no DOM implementation and no testing library,
@@ -16,7 +16,7 @@ import path from "node:path";
 // would make the check something people skip.
 export default defineConfig({
   test: {
-    setupFiles: ["./vitest.setup.ts"],
+    setupFiles: ['./vitest.setup.ts'],
     // Component render tests are .test.tsx and get jsdom; everything .test.ts
     // stays pure-function-in-node. The split keeps the fast lane fast: a pure
     // test never pays for a DOM, and a component test never pretends it does
@@ -27,19 +27,19 @@ export default defineConfig({
       {
         extends: true,
         test: {
-          name: "node",
-          environment: "node",
-          include: ["**/*.test.ts"],
-          exclude: ["node_modules/**", ".next/**", "**/*.e2e.ts"],
+          name: 'node',
+          environment: 'node',
+          include: ['**/*.test.ts'],
+          exclude: ['node_modules/**', '.next/**', '**/*.e2e.ts'],
         },
       },
       {
         extends: true,
         test: {
-          name: "jsdom",
-          environment: "jsdom",
-          include: ["**/*.test.tsx"],
-          exclude: ["node_modules/**", ".next/**", "**/*.e2e.ts"],
+          name: 'jsdom',
+          environment: 'jsdom',
+          include: ['**/*.test.tsx'],
+          exclude: ['node_modules/**', '.next/**', '**/*.e2e.ts'],
         },
       },
     ],
@@ -49,18 +49,18 @@ export default defineConfig({
       // config carries no logic - counting any of them deflates the number
       // without describing untested behaviour.
       exclude: [
-        "node_modules/**",
-        ".next/**",
-        "scripts/**",
-        "**/*.e2e.ts",
-        "**/tests/**",
-        "*.config.*",
-        "vitest.setup.ts",
+        'node_modules/**',
+        '.next/**',
+        'scripts/**',
+        '**/*.e2e.ts',
+        '**/tests/**',
+        '*.config.*',
+        'vitest.setup.ts',
       ],
     },
   },
   resolve: {
     // Matches the `@/*` path alias in tsconfig.json.
-    alias: { "@": path.resolve(import.meta.dirname, ".") },
+    alias: { '@': path.resolve(import.meta.dirname, '.') },
   },
-});
+})

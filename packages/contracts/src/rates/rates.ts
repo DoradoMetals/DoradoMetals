@@ -3,24 +3,24 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: rates.rates
-import { z } from "zod/v4";
+import { z } from 'zod/v4'
 
 export const Rate = z.object({
-  "id": z.string().uuid(),
-  "metal_id": z.string(),
-  "unit": z.string(),
-  "min_qty": z.number(),
-  "max_qty": z.number().nullable(),
-  "scrap_pct": z.number(),
-  "bullion_pct": z.number(),
-  "created_at": z.string(),
-  "updated_at": z.string(),
-  "created_by": z.string(),
-  "updated_by": z.string(),
-  "created_by_id": z.string().uuid().nullable(),
-  "updated_by_id": z.string().uuid().nullable(),
-});
-export type Rate = z.infer<typeof Rate>;
+  'id': z.string().uuid(),
+  'metal_id': z.string(),
+  'unit': z.string(),
+  'min_qty': z.number(),
+  'max_qty': z.number().nullable(),
+  'scrap_pct': z.number(),
+  'bullion_pct': z.number(),
+  'created_at': z.string(),
+  'updated_at': z.string(),
+  'created_by': z.string(),
+  'updated_by': z.string(),
+  'created_by_id': z.string().uuid().nullable(),
+  'updated_by_id': z.string().uuid().nullable(),
+})
+export type Rate = z.infer<typeof Rate>
 // generated:end
 export const RateRead = Rate.omit({
   created_at: true,
@@ -29,16 +29,16 @@ export const RateRead = Rate.omit({
   updated_by: true,
   created_by_id: true,
   updated_by_id: true,
-});
-export type RateRead = z.infer<typeof RateRead>;
+})
+export type RateRead = z.infer<typeof RateRead>
 
 export const AdminRate = RateRead.extend({
   created_at: Rate.shape.created_at,
   updated_at: Rate.shape.updated_at,
   created_by: Rate.shape.created_by,
   updated_by: Rate.shape.updated_by,
-});
-export type AdminRate = z.infer<typeof AdminRate>;
+})
+export type AdminRate = z.infer<typeof AdminRate>
 
 export const RatePatch = Rate.pick({
   metal_id: true,
@@ -47,5 +47,5 @@ export const RatePatch = Rate.pick({
   max_qty: true,
   scrap_pct: true,
   bullion_pct: true,
-}).partial();
-export type RatePatch = z.infer<typeof RatePatch>;
+}).partial()
+export type RatePatch = z.infer<typeof RatePatch>

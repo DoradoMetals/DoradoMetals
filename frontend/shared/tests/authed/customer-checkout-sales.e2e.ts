@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from '@playwright/test'
 
 // The sales-order checkout journey - the buy side: catalogue, the checkout
 // basket, /sales-order-checkout.
@@ -15,41 +15,41 @@ import { test, expect } from "@playwright/test";
 // so `Add to Checkout` is a round trip rather than a zustand write, and every
 // basket assertion below polls rather than reading synchronously. The
 // signed-out half of this journey is shared/tests/anonymous-basket.e2e.ts.
-const API = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api").replace(/\/$/, "");
+const API = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api').replace(/\/$/, '')
 
 test.afterEach(async ({ request }) => {
   try {
-    await request.delete(`${API}/checkout/items?direction=sale`);
+    await request.delete(`${API}/checkout/items?direction=sale`)
   } catch {
     // Best effort - a leftover line is visible in the drawer and harmless.
   }
-});
+})
 
-test("a product added on /buy reaches the sales-order checkout", async ({ page }) => {
-  test.setTimeout(120_000);
+test('a product added on /buy reaches the sales-order checkout', async ({ page }) => {
+  test.setTimeout(120_000)
 
-  await page.goto("/buy");
-  const addButton = page.getByRole("button", { name: /^Add to Checkout$/i }).first();
-  await expect(addButton, "no buyable product card rendered on /buy").toBeVisible({
+  await page.goto('/buy')
+  const addButton = page.getByRole('button', { name: /^Add to Checkout$/i }).first()
+  await expect(addButton, 'no buyable product card rendered on /buy').toBeVisible({
     timeout: 30_000,
-  });
-  await addButton.click();
+  })
+  await addButton.click()
 
   // The drawer opens on the buy (sale) side; the tab click makes the intent
   // explicit rather than relying on the default.
-  await page.getByRole("button", { name: /open checkout/i }).click();
-  await page.getByRole("tab", { name: /Buying/i }).click();
+  await page.getByRole('button', { name: /open checkout/i }).click()
+  await page.getByRole('tab', { name: /Buying/i }).click()
 
   // A real rendered price on the line. NumberFlow digits are invisible to
   // innerText, so presence of the price element is the honest assertion here
   // (same lesson as the purchase spec).
   await expect(
-    page.locator("number-flow-react").first(),
-    "the sale basket rendered no price element"
-  ).toBeVisible({ timeout: 20_000 });
+    page.locator('number-flow-react').first(),
+    'the sale basket rendered no price element'
+  ).toBeVisible({ timeout: 20_000 })
 
-  await page.getByRole("button", { name: /^Checkout$/i }).click();
-  await expect(page).toHaveURL(/\/sales-order-checkout/, { timeout: 20_000 });
+  await page.getByRole('button', { name: /^Checkout$/i }).click()
+  await expect(page).toHaveURL(/\/sales-order-checkout/, { timeout: 20_000 })
 
   // The checkout surface is up and it is the priced kind. Asserting a
   // specific step title would couple this to copy that is still being
@@ -58,13 +58,13 @@ test("a product added on /buy reaches the sales-order checkout", async ({ page }
   // element survived the hand-off (NumberFlow digits are invisible to
   // innerText, hence no $-regex).
   await expect
-    .poll(async () => (await page.locator("body").innerText()).length > 200, {
-      message: "the sales-order checkout rendered nearly nothing",
+    .poll(async () => (await page.locator('body').innerText()).length > 200, {
+      message: 'the sales-order checkout rendered nearly nothing',
       timeout: 20_000,
     })
-    .toBeTruthy();
+    .toBeTruthy()
   await expect(
-    page.locator("number-flow-react").first(),
-    "the sales-order checkout rendered no price element"
-  ).toBeVisible({ timeout: 15_000 });
-});
+    page.locator('number-flow-react').first(),
+    'the sales-order checkout rendered no price element'
+  ).toBeVisible({ timeout: 15_000 })
+})

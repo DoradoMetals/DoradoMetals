@@ -1,7 +1,15 @@
 'use client'
 
 import { Button, Drawer } from '@dorado/components'
-import { Banknote, ChevronLeft, CircleUser, ContactRound, Lock, Store, UserRoundX } from '@dorado/icons'
+import {
+  Banknote,
+  ChevronLeft,
+  CircleUser,
+  ContactRound,
+  Lock,
+  Store,
+  UserRoundX,
+} from '@dorado/icons'
 import { useRouter } from 'next/navigation'
 import { useMemo } from 'react'
 import {
@@ -18,7 +26,6 @@ import { PasswordAndSecurity } from './_src_/users/ui/PasswordAndSecurity'
 import { useOrders } from '@dorado/client'
 import { PurchaseOrdersContent } from './_src_/orders/purchaseOrders/purchaseOrderTab'
 import { SalesOrdersContent } from './_src_/orders/salesOrders/salesOrderTab'
-
 
 export default function Page() {
   const { user } = useGetSession()
@@ -56,8 +63,14 @@ function AccountShell() {
   // Self-scoped even for an admin caller: `user_id` pins the rows to the
   // session's own, which is what an account page shows.
   const scope = { user_id: user?.id }
-  const { data: purchaseOrders = [] } = useOrders({ direction: 'purchase', ...scope }, { enabled: !!user?.id })
-  const { data: salesOrders = [] } = useOrders({ direction: 'sale', ...scope }, { enabled: !!user?.id })
+  const { data: purchaseOrders = [] } = useOrders(
+    { direction: 'purchase', ...scope },
+    { enabled: !!user?.id }
+  )
+  const { data: salesOrders = [] } = useOrders(
+    { direction: 'sale', ...scope },
+    { enabled: !!user?.id }
+  )
 
   const currentRole = user?.role ?? 'User'
   const roleMeta = userRoleOptions.find((r) => r.value === currentRole) ?? userRoleOptions[0]

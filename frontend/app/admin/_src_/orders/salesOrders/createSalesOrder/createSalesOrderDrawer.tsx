@@ -3,20 +3,28 @@
 // THE CUSTOMER THE ADMIN IS ORDERING FOR, off GET /users/get_all - the
 // contracts' user wire, snake_case. NOT better-auth's session user, which is
 // the admin themselves and is a different shape under the same word.
-import { Amount, Link, Skeleton, Drawer, RadioGroup, RadioOption, Divider, Button, Input, Autocomplete } from '@dorado/components'
+import {
+  Amount,
+  Link,
+  Skeleton,
+  Drawer,
+  RadioGroup,
+  RadioOption,
+  Divider,
+  Button,
+  Input,
+  Autocomplete,
+} from '@dorado/components'
 import { CircleHelp, Lock, LockOpen, Minus, Plus, Trash2 } from '@dorado/icons'
 import NextLink from 'next/link'
 import { UserAddress, makeEmptyWireAddress } from '@/shared/types/addresses'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { cn } from '@/shared/utils/cn'
 
-import {
-  saleServiceToOption,
-  SalesOrderServiceUIOption,
-} from '@/shared/types/salesOrders'
+import { saleServiceToOption, SalesOrderServiceUIOption } from '@/shared/types/salesOrders'
 import { useSaleShippingServices } from '../../../shipping/queries'
 import { usePaymentMethods } from '@dorado/client'
-import type { Address, AdminUser, SaleQuote } from "@dorado/contracts";
+import type { Address, AdminUser, SaleQuote } from '@dorado/contracts'
 import { useAdminSalesOrderCheckoutStore } from '../../../store/adminSalesOrderCheckoutStore'
 import fuzzysort from 'fuzzysort'
 import { Product } from '@/shared/types/products'
@@ -43,7 +51,6 @@ export function CreateSalesOrderDrawer() {
   const { data, setData } = useAdminSalesOrderCheckoutStore()
   const { activeDrawer, closeDrawer, createSalesOrderUser } = useDrawerStore()
 
-
   const { data: addresses = [], isLoading } = useUserAddress(createSalesOrderUser?.id ?? '')
   // The TARGET user's links (label / default), not the admin's own book.
   const { data: links = [] } = useUserAddressLinks(createSalesOrderUser?.id ?? '')
@@ -61,15 +68,12 @@ export function CreateSalesOrderDrawer() {
   const address = data.address ?? defaultAddress ?? null
   const userAddress = address ? linkOf.get(address.id) : undefined
 
-
   // THE PREVIEW IS THE CUSTOMER'S OWN SALE CHECKOUT, PRICED. It used to hand
   // a drawer-local basket plus a service CODE and a payment-method TYPE to a
   // body-shaped quote; the row holds all three, and `user_id` names the TARGET
   // customer - honored because this caller is an admin.
   const { data: answer } = useCheckoutQuote('sale', { user_id: createSalesOrderUser?.id })
   const orderPrices = answer?.direction === 'sale' ? answer : undefined
-
-
 
   return (
     <Drawer label="New sales order" open={isDrawerOpen} setOpen={closeDrawer} anchor="left">
@@ -157,7 +161,6 @@ function ProductSelector({ user_id }: { user_id: string }) {
   const lineTotals = new Map(
     (answer?.direction === 'sale' ? answer.items : []).map((line) => [line.id, line.line_total])
   )
-
 
   return (
     <div className="flex flex-col items-center w-full">
@@ -261,7 +264,13 @@ interface AddressSelectProps {
   isLoading: boolean
 }
 
-function AddressSelector({ user, address, addresses, userAddresses, isLoading }: AddressSelectProps) {
+function AddressSelector({
+  user,
+  address,
+  addresses,
+  userAddresses,
+  isLoading,
+}: AddressSelectProps) {
   const { data, setData } = useAdminSalesOrderCheckoutStore()
 
   return (
@@ -301,9 +310,7 @@ function AddressSelector({ user, address, addresses, userAddresses, isLoading }:
               Please create an address for this user.
             </p>
           ) : (
-            <p className="flex items-center justify-center">
-              Select a user to see addresses.
-            </p>
+            <p className="flex items-center justify-center">Select a user to see addresses.</p>
           )}
         </>
       )}
@@ -403,9 +410,7 @@ function OrderSummary({ orderPrices }: { orderPrices?: SaleQuote }) {
 
       {surcharge > 0 && (
         <div className="flex w-full items-center justify-between gap-2">
-          <p>{`${
-            saleMethods.find((m) => m.type === data.payment_method)?.label
-          } Surcharge (${
+          <p>{`${saleMethods.find((m) => m.type === data.payment_method)?.label} Surcharge (${
             saleMethods.find((m) => m.type === data.payment_method)?.surcharge_label
           })`}</p>
           <strong>
@@ -457,13 +462,7 @@ function OrderSummary({ orderPrices }: { orderPrices?: SaleQuote }) {
 // `funds` is the TARGET user's credit, priced by the SERVER: the quote names
 // that user (subjectOf honors it for admins), so beginning_funds is their row
 // balance. The client-state figure only bridges until the first quote lands.
-function CreditSelect({
-  orderPrices,
-  funds,
-}: {
-  orderPrices?: SaleQuote
-  funds: number
-}) {
+function CreditSelect({ orderPrices, funds }: { orderPrices?: SaleQuote; funds: number }) {
   const { data, setData } = useAdminSalesOrderCheckoutStore()
 
   // CREDIT IS NOT A CHOICE (Jacob, 2026-09-03): the server applies the
@@ -513,10 +512,15 @@ function CreditSelect({
   )
 }
 
-function PaymentSelect(
-  { orderPrices, user, address }:
-  { orderPrices?: SaleQuote; user: AdminUser; address: Address | null }
-) {
+function PaymentSelect({
+  orderPrices,
+  user,
+  address,
+}: {
+  orderPrices?: SaleQuote
+  user: AdminUser
+  address: Address | null
+}) {
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const { closeDrawer } = useDrawerStore()
   const [isPending, startTransition] = useTransition()
@@ -550,7 +554,12 @@ function PaymentSelect(
   // reference lists here; `UpdatePaymentIntentBody` is `{ user_id, type }` now
   // and the server reads the rest off the customer's own row.
   useEffect(() => {
-    if (clientSecret && (orderPrices?.post_charges_amount ?? 0) > 0 && cardNeeded && !itemsMissing) {
+    if (
+      clientSecret &&
+      (orderPrices?.post_charges_amount ?? 0) > 0 &&
+      cardNeeded &&
+      !itemsMissing
+    ) {
       updatePaymentIntent.mutate({ type: 'admin', user_id: user.id! })
     }
   }, [
@@ -625,18 +634,14 @@ function PaymentSelect(
           </div>
           <div className="flex flex-col gap-3 w-full sticky top-26">
             {!cardNeeded ? (
-              <Button
-                className="w-full"
-                disabled={disabled}
-                onClick={handleSubmit}
-              >
+              <Button className="w-full" disabled={disabled} onClick={handleSubmit}>
                 {!address?.is_valid
                   ? 'Please provide a valid address.'
                   : itemsMissing
-                  ? 'Please add items.'
-                  : isOrderCreating || isLoading || isPending
-                  ? 'Processing…'
-                  : 'Place Order'}
+                    ? 'Please add items.'
+                    : isOrderCreating || isLoading || isPending
+                      ? 'Processing…'
+                      : 'Place Order'}
               </Button>
             ) : (
               <Button
@@ -648,10 +653,10 @@ function PaymentSelect(
                 {!address?.is_valid
                   ? 'Please provide a valid address.'
                   : itemsMissing
-                  ? 'Please add items.'
-                  : isOrderCreating || isLoading || isPending
-                  ? 'Processing…'
-                  : 'Place Order'}
+                    ? 'Please add items.'
+                    : isOrderCreating || isLoading || isPending
+                      ? 'Processing…'
+                      : 'Place Order'}
               </Button>
             )}
           </div>

@@ -1,4 +1,4 @@
-import * as fedexAdapters from "#providers/shipments/adapters/fedex.ts";
+import * as fedexAdapters from '#providers/shipments/adapters/fedex.ts'
 
 export const BUILDERS = {
   fedex: {
@@ -12,4 +12,4 @@ export const BUILDERS = {
     getTracking: fedexAdapters.getTrackingInput,
     getLocations: fedexAdapters.getLocationsInput,
   },
-};
+}

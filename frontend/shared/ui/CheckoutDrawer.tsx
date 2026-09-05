@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger, Button, Drawer } from '@dorad
 import { X } from '@dorado/icons'
 import { usePathname } from 'next/navigation'
 import { useEffect } from 'react'
-import type { Direction } from "@dorado/contracts";
+import type { Direction } from '@dorado/contracts'
 import SaleItems from '@/shared/ui/SaleItems'
 import PurchaseItems from '@/shared/ui/PurchaseItems'
 import { useBasket } from '@/shared/hooks/checkout/items/queries'

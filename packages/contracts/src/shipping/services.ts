@@ -3,41 +3,41 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: shipping.services
-import { z } from "zod/v4";
+import { z } from 'zod/v4'
 
 export const CarrierService = z.object({
-  "id": z.string().uuid(),
-  "carrier_id": z.string().uuid().nullable(),
-  "name": z.string(),
-  "description": z.string().nullable(),
-  "code": z.string().nullable(),
-  "provider_code": z.string().nullable(),
-  "supports_pickups": z.boolean(),
-  "supports_dropoffs": z.boolean(),
-  "supports_returns": z.boolean(),
-  "supports_insurance": z.boolean(),
-  "is_international": z.boolean(),
-  "is_residential": z.boolean(),
-  "is_active": z.boolean(),
-  "max_weight_lb": z.number().nullable(),
-  "max_length_in": z.number().nullable(),
-  "max_width_in": z.number().nullable(),
-  "max_height_in": z.number().nullable(),
-  "max_declared_value": z.number().nullable(),
-  "min_transit_days": z.number().int().nullable(),
-  "max_transit_days": z.number().int().nullable(),
-  "display_order": z.number().int().nullable(),
-  "created_at": z.string().nullable(),
-  "updated_at": z.string().nullable(),
-  "created_by": z.string().nullable(),
-  "updated_by": z.string().nullable(),
-  "created_by_id": z.string().uuid().nullable(),
-  "updated_by_id": z.string().uuid().nullable(),
-  "max_insured_value": z.number(),
-  "price": z.number().nullable(),
-  "display": z.boolean(),
-});
-export type CarrierService = z.infer<typeof CarrierService>;
+  'id': z.string().uuid(),
+  'carrier_id': z.string().uuid().nullable(),
+  'name': z.string(),
+  'description': z.string().nullable(),
+  'code': z.string().nullable(),
+  'provider_code': z.string().nullable(),
+  'supports_pickups': z.boolean(),
+  'supports_dropoffs': z.boolean(),
+  'supports_returns': z.boolean(),
+  'supports_insurance': z.boolean(),
+  'is_international': z.boolean(),
+  'is_residential': z.boolean(),
+  'is_active': z.boolean(),
+  'max_weight_lb': z.number().nullable(),
+  'max_length_in': z.number().nullable(),
+  'max_width_in': z.number().nullable(),
+  'max_height_in': z.number().nullable(),
+  'max_declared_value': z.number().nullable(),
+  'min_transit_days': z.number().int().nullable(),
+  'max_transit_days': z.number().int().nullable(),
+  'display_order': z.number().int().nullable(),
+  'created_at': z.string().nullable(),
+  'updated_at': z.string().nullable(),
+  'created_by': z.string().nullable(),
+  'updated_by': z.string().nullable(),
+  'created_by_id': z.string().uuid().nullable(),
+  'updated_by_id': z.string().uuid().nullable(),
+  'max_insured_value': z.number(),
+  'price': z.number().nullable(),
+  'display': z.boolean(),
+})
+export type CarrierService = z.infer<typeof CarrierService>
 // generated:end
 const Fields = CarrierService.omit({
   created_by_id: true,
@@ -52,39 +52,63 @@ const Fields = CarrierService.omit({
   supports_pickup: CarrierService.shape.supports_pickups,
   supports_dropoff: CarrierService.shape.supports_dropoffs,
   max_weight_lbs: CarrierService.shape.max_weight_lb,
-});
+})
 
-export const CarrierServiceRead = Fields;
-export type CarrierServiceRead = z.infer<typeof CarrierServiceRead>;
+export const CarrierServiceRead = Fields
+export type CarrierServiceRead = z.infer<typeof CarrierServiceRead>
 
 export const CarrierServicePatch = Fields.omit({
   created_at: true,
   updated_at: true,
   created_by: true,
   updated_by: true,
-}).partial().strict();
-export type CarrierServicePatch = z.infer<typeof CarrierServicePatch>;
+})
+  .partial()
+  .strict()
+export type CarrierServicePatch = z.infer<typeof CarrierServicePatch>
 
 export const SaleShippingService = CarrierService.pick({
-  id: true, name: true, code: true, price: true, display: true, is_active: true,
-  min_transit_days: true, max_transit_days: true,
-});
-export type SaleShippingService = z.infer<typeof SaleShippingService>;
+  id: true,
+  name: true,
+  code: true,
+  price: true,
+  display: true,
+  is_active: true,
+  min_transit_days: true,
+  max_transit_days: true,
+})
+export type SaleShippingService = z.infer<typeof SaleShippingService>
 
-export const CarrierServiceDeleteBody = z.object({ id: CarrierService.shape.id }).strict();
-export type CarrierServiceDeleteBody = z.infer<typeof CarrierServiceDeleteBody>;
+export const CarrierServiceDeleteBody = z.object({ id: CarrierService.shape.id }).strict()
+export type CarrierServiceDeleteBody = z.infer<typeof CarrierServiceDeleteBody>
 
 export const CarrierServiceWrite = CarrierService.pick({
-  carrier_id: true, name: true, description: true, code: true, provider_code: true,
-  supports_pickups: true, supports_dropoffs: true, supports_returns: true,
-  supports_insurance: true, is_international: true, is_residential: true,
-  is_active: true, max_weight_lb: true, max_length_in: true, max_width_in: true,
-  max_height_in: true, max_declared_value: true, min_transit_days: true,
-  max_transit_days: true, display_order: true,
-});
-export type CarrierServiceWrite = z.infer<typeof CarrierServiceWrite>;
+  carrier_id: true,
+  name: true,
+  description: true,
+  code: true,
+  provider_code: true,
+  supports_pickups: true,
+  supports_dropoffs: true,
+  supports_returns: true,
+  supports_insurance: true,
+  is_international: true,
+  is_residential: true,
+  is_active: true,
+  max_weight_lb: true,
+  max_length_in: true,
+  max_width_in: true,
+  max_height_in: true,
+  max_declared_value: true,
+  min_transit_days: true,
+  max_transit_days: true,
+  display_order: true,
+})
+export type CarrierServiceWrite = z.infer<typeof CarrierServiceWrite>
 
 export const InsuranceCeiling = CarrierService.pick({
-  id: true, name: true, max_insured_value: true,
-});
-export type InsuranceCeiling = z.infer<typeof InsuranceCeiling>;
+  id: true,
+  name: true,
+  max_insured_value: true,
+})
+export type InsuranceCeiling = z.infer<typeof InsuranceCeiling>

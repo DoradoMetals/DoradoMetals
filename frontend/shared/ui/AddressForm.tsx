@@ -13,7 +13,15 @@
 import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Button, Field, Form, FormField, FormItem, Switch, ValidatedField } from '@dorado/components'
+import {
+  Button,
+  Field,
+  Form,
+  FormField,
+  FormItem,
+  Switch,
+  ValidatedField,
+} from '@dorado/components'
 import type { AddressBookEntry, PlaceLookup } from '@dorado/contracts'
 import { useCreateAddress, useUpdateAddress } from '@dorado/client'
 
@@ -97,9 +105,17 @@ export default function AddressForm({
   const clearAutoSelected = () => {
     ac.clear()
     applyPlace({
-      line_1: null, line_2: null, city: null, state: null, zip: null,
-      country: 'United States', country_code: 'US', phone_number: null,
-      formatted_address: null, latitude: null, longitude: null,
+      line_1: null,
+      line_2: null,
+      city: null,
+      state: null,
+      zip: null,
+      country: 'United States',
+      country_code: 'US',
+      phone_number: null,
+      formatted_address: null,
+      latitude: null,
+      longitude: null,
     })
   }
 

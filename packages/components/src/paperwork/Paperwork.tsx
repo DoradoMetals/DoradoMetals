@@ -1,95 +1,103 @@
 'use client'
 
-import * as React from "react";
-import { Download, FileText } from "@dorado/icons";
+import * as React from 'react'
+import { Download, FileText } from '@dorado/icons'
 
-import { Accordion } from "../accordion/Accordion";
-import { Button } from "../button/Button";
-import { cn } from "../cn";
+import { Accordion } from '../accordion/Accordion'
+import { Button } from '../button/Button'
+import { cn } from '../cn'
 
-export type PaperworkDocumentState = "available" | "generating" | "unavailable";
+export type PaperworkDocumentState = 'available' | 'generating' | 'unavailable'
 
 export type PaperworkDocument = {
-  id: string;
-  name: React.ReactNode;
-  meta?: React.ReactNode;
-  state: PaperworkDocumentState;
-  onDownload?: () => void;
-};
+  id: string
+  name: React.ReactNode
+  meta?: React.ReactNode
+  state: PaperworkDocumentState
+  onDownload?: () => void
+}
 
 export type PaperworkProps = {
-  documents: PaperworkDocument[];
-  open?: boolean;
-  onToggle?: () => void;
-  defaultOpen?: boolean;
-  className?: string;
-};
+  documents: PaperworkDocument[]
+  open?: boolean
+  onToggle?: () => void
+  defaultOpen?: boolean
+  className?: string
+}
 
 const NAME_STYLES: Record<PaperworkDocumentState, string> = {
-  available: "text-foreground",
-  generating: "text-foreground",
-  unavailable: "text-muted-foreground",
-};
+  available: 'text-foreground',
+  generating: 'text-foreground',
+  unavailable: 'text-muted-foreground',
+}
 
 const META_STYLES: Record<PaperworkDocumentState, string> = {
-  available: "text-muted-foreground",
-  generating: "text-placeholder",
-  unavailable: "text-foreground-disabled",
-};
+  available: 'text-muted-foreground',
+  generating: 'text-placeholder',
+  unavailable: 'text-foreground-disabled',
+}
 
 const ICON_STYLES: Record<PaperworkDocumentState, string> = {
-  available: "text-muted-foreground",
-  generating: "text-muted-foreground",
-  unavailable: "text-foreground-disabled",
-};
+  available: 'text-muted-foreground',
+  generating: 'text-muted-foreground',
+  unavailable: 'text-foreground-disabled',
+}
 
 const META_FALLBACK: Partial<Record<PaperworkDocumentState, React.ReactNode>> = {
-  generating: "Generating…",
-  unavailable: "Not yet available",
-};
+  generating: 'Generating…',
+  unavailable: 'Not yet available',
+}
 
 function PaperworkRow({ doc }: { doc: PaperworkDocument }) {
-  const { name, meta, state, onDownload } = doc;
-  const metaText = state === "available" ? meta : META_FALLBACK[state];
+  const { name, meta, state, onDownload } = doc
+  const metaText = state === 'available' ? meta : META_FALLBACK[state]
 
   return (
     <li className="flex w-full items-center gap-xs px-sm py-xs">
       <span
         className={cn(
-          "flex size-8 shrink-0 items-center justify-center rounded-sm bg-secondary",
+          'flex size-8 shrink-0 items-center justify-center rounded-sm bg-secondary',
           ICON_STYLES[state]
         )}
       >
         <FileText aria-hidden className="size-4" />
       </span>
       <span className="flex min-w-0 flex-1 flex-col gap-3xs">
-        <span className={cn("truncate text-small font-medium", NAME_STYLES[state])}>{name}</span>
+        <span className={cn('truncate text-small font-medium', NAME_STYLES[state])}>{name}</span>
         {metaText != null && (
-          <span className={cn("truncate text-micro", META_STYLES[state])}>{metaText}</span>
+          <span className={cn('truncate text-micro', META_STYLES[state])}>{metaText}</span>
         )}
       </span>
-      {state !== "unavailable" && (
+      {state !== 'unavailable' && (
         <Button
           variant="tertiary"
           size="iconSm"
-          aria-label={typeof name === "string" ? `Download ${name}` : "Download"}
-          disabled={state === "generating"}
+          aria-label={typeof name === 'string' ? `Download ${name}` : 'Download'}
+          disabled={state === 'generating'}
           onClick={onDownload}
         >
           <Download aria-hidden />
         </Button>
       )}
     </li>
-  );
+  )
 }
 
-export function Paperwork({ documents, open, onToggle, defaultOpen = true, className }: PaperworkProps) {
-  const isEmpty = documents.length === 0;
+export function Paperwork({
+  documents,
+  open,
+  onToggle,
+  defaultOpen = true,
+  className,
+}: PaperworkProps) {
+  const isEmpty = documents.length === 0
 
   return (
     <Accordion
       label="Paperwork"
-      trailing={isEmpty ? "None yet" : `${documents.length} document${documents.length === 1 ? "" : "s"}`}
+      trailing={
+        isEmpty ? 'None yet' : `${documents.length} document${documents.length === 1 ? '' : 's'}`
+      }
       chevron="leading"
       open={open}
       onToggle={onToggle}
@@ -112,5 +120,5 @@ export function Paperwork({ documents, open, onToggle, defaultOpen = true, class
         </ul>
       )}
     </Accordion>
-  );
+  )
 }

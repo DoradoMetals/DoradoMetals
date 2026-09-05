@@ -1,6 +1,6 @@
 'use client'
 
-import type { Address } from "@dorado/contracts";
+import type { Address } from '@dorado/contracts'
 import { Alert } from '@dorado/components'
 import React, { useRef, useState, FormEvent } from 'react'
 import { PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
@@ -132,7 +132,7 @@ export default function StripePaymentForm({
       setMessage(
         createdOrderRef.current
           ? orderAwaitingPayment(detail)
-          : detail ?? 'We could not create the order. Nothing has been charged.'
+          : (detail ?? 'We could not create the order. Nothing has been charged.')
       )
     } finally {
       setIsLoading(false)
@@ -186,8 +186,7 @@ export default function StripePaymentForm({
         onChange={(e) => {
           onPaymentMethodChange?.(
             saleMethods.find((m) => m.provider_value === e.value.type)?.type as
-              | PaymentMethod
-              | undefined
+              PaymentMethod | undefined
           )
         }}
       />

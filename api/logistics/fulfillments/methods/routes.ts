@@ -1,17 +1,17 @@
-import express from "express";
+import express from 'express'
 
 import {
   getAllMethods,
   getMethods,
   updateMethod,
-} from "#logistics/fulfillments/methods/controller.ts";
+} from '#logistics/fulfillments/methods/controller.ts'
 
-import { requireAdmin, requireUser } from "#shared/middleware/authMiddleware.ts";
+import { requireAdmin, requireUser } from '#shared/middleware/authMiddleware.ts'
 
-const router = express.Router();
+const router = express.Router()
 
-router.get("/", requireUser, getMethods);
-router.get("/all", requireAdmin, getAllMethods);
-router.post("/update", requireAdmin, updateMethod);
+router.get('/', requireUser, getMethods)
+router.get('/all', requireAdmin, getAllMethods)
+router.post('/update', requireAdmin, updateMethod)
 
-export default router;
+export default router

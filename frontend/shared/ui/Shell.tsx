@@ -60,7 +60,12 @@ export default function Shell() {
             >
               <CheckoutIcon isOpen={activeDrawer === 'checkout'} />
               {items > 0 && (
-                <Badge variant="solid" intent="neutral" size="sm" className="absolute top-0 -right-1">
+                <Badge
+                  variant="solid"
+                  intent="neutral"
+                  size="sm"
+                  className="absolute top-0 -right-1"
+                >
                   {items}
                 </Badge>
               )}

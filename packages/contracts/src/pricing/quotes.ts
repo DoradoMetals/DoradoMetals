@@ -1,21 +1,21 @@
-import { z } from "zod/v4";
-import { Direction } from "../orders/enums.js";
-import { Bullion } from "../products/bullion.js";
-import { Checkout } from "../checkout/checkouts.js";
-import { CheckoutItem } from "../checkout/items.js";
-import { Order } from "../orders/orders.js";
-import { OrderItem } from "../orders/items.js";
-import { OrderSpot } from "../orders/spots.js";
-import { Metal } from "../metals/metals.js";
+import { z } from 'zod/v4'
+import { Direction } from '../orders/enums.js'
+import { Bullion } from '../products/bullion.js'
+import { Checkout } from '../checkout/checkouts.js'
+import { CheckoutItem } from '../checkout/items.js'
+import { Order } from '../orders/orders.js'
+import { OrderItem } from '../orders/items.js'
+import { OrderSpot } from '../orders/spots.js'
+import { Metal } from '../metals/metals.js'
 
-export const PriceSide = z.enum(["ask", "bid"]);
-export type PriceSide = z.infer<typeof PriceSide>;
+export const PriceSide = z.enum(['ask', 'bid'])
+export type PriceSide = z.infer<typeof PriceSide>
 
-export const PriceKind = z.enum(["product", "scrap"]);
-export type PriceKind = z.infer<typeof PriceKind>;
+export const PriceKind = z.enum(['product', 'scrap'])
+export type PriceKind = z.infer<typeof PriceKind>
 
-export const PaymentSurface = z.enum(["card", "credit"]);
-export type PaymentSurface = z.infer<typeof PaymentSurface>;
+export const PaymentSurface = z.enum(['card', 'credit'])
+export type PaymentSurface = z.infer<typeof PaymentSurface>
 
 export const ProductQuote = z.object({
   bullion_id: Bullion.shape.id,
@@ -27,15 +27,17 @@ export const ProductQuote = z.object({
   premium: z.number(),
   unit_price: z.number(),
   line_total: z.number(),
-});
-export type ProductQuote = z.infer<typeof ProductQuote>;
+})
+export type ProductQuote = z.infer<typeof ProductQuote>
 
-export const ProductQuoteBody = z.object({
-  bullion_id: Bullion.shape.id,
-  side: PriceSide,
-  quantity: z.number().positive().optional(),
-}).strict();
-export type ProductQuoteBody = z.infer<typeof ProductQuoteBody>;
+export const ProductQuoteBody = z
+  .object({
+    bullion_id: Bullion.shape.id,
+    side: PriceSide,
+    quantity: z.number().positive().optional(),
+  })
+  .strict()
+export type ProductQuoteBody = z.infer<typeof ProductQuoteBody>
 
 export const PurchaseQuoteLine = z.object({
   id: CheckoutItem.shape.id,
@@ -46,11 +48,11 @@ export const PurchaseQuoteLine = z.object({
   premium: z.number(),
   unit_price: z.number(),
   line_total: z.number(),
-});
-export type PurchaseQuoteLine = z.infer<typeof PurchaseQuoteLine>;
+})
+export type PurchaseQuoteLine = z.infer<typeof PurchaseQuoteLine>
 
 export const PurchaseQuote = z.object({
-  direction: z.literal("purchase"),
+  direction: z.literal('purchase'),
   checkout_id: Checkout.shape.id,
   spots_at: z.string(),
   items: z.array(PurchaseQuoteLine),
@@ -64,8 +66,8 @@ export const PurchaseQuote = z.object({
   payout_charge: z.number(),
   declared_value: z.number(),
   estimated_payout: z.number(),
-});
-export type PurchaseQuote = z.infer<typeof PurchaseQuote>;
+})
+export type PurchaseQuote = z.infer<typeof PurchaseQuote>
 
 export const SaleQuoteLine = z.object({
   id: CheckoutItem.shape.id,
@@ -79,11 +81,11 @@ export const SaleQuoteLine = z.object({
   line_total: z.number(),
   sales_tax_rate: z.number(),
   sales_tax: z.number(),
-});
-export type SaleQuoteLine = z.infer<typeof SaleQuoteLine>;
+})
+export type SaleQuoteLine = z.infer<typeof SaleQuoteLine>
 
 export const SaleQuote = z.object({
-  direction: z.literal("sale"),
+  direction: z.literal('sale'),
   checkout_id: Checkout.shape.id,
   spots_at: z.string(),
   items: z.array(SaleQuoteLine),
@@ -102,16 +104,16 @@ export const SaleQuote = z.object({
   post_charges_amount: z.number(),
   order_total: z.number(),
   payment_surface: PaymentSurface,
-});
-export type SaleQuote = z.infer<typeof SaleQuote>;
+})
+export type SaleQuote = z.infer<typeof SaleQuote>
 
-export const CheckoutQuote = z.discriminatedUnion("direction", [PurchaseQuote, SaleQuote]);
-export type CheckoutQuote = z.infer<typeof CheckoutQuote>;
+export const CheckoutQuote = z.discriminatedUnion('direction', [PurchaseQuote, SaleQuote])
+export type CheckoutQuote = z.infer<typeof CheckoutQuote>
 
 export const OrderPricingLine = z.object({
   id: OrderItem.shape.id,
   kind: PriceKind,
-  source: z.enum(["stored", "quoted"]),
+  source: z.enum(['stored', 'quoted']),
   metal_id: Metal.shape.id,
   content: z.number(),
   quantity: z.number(),
@@ -119,8 +121,8 @@ export const OrderPricingLine = z.object({
   retier_premium: z.number().nullable(),
   unit_price: z.number(),
   line_total: z.number(),
-});
-export type OrderPricingLine = z.infer<typeof OrderPricingLine>;
+})
+export type OrderPricingLine = z.infer<typeof OrderPricingLine>
 
 // The bid and ask each of the order's metals is priced at, resolved the same
 // way every line is: the order's frozen row when it is locked, the live feed
@@ -129,8 +131,8 @@ export const OrderPricingSpot = z.object({
   metal_id: OrderSpot.shape.metal_id,
   bid: OrderSpot.shape.bid,
   ask: OrderSpot.shape.ask,
-});
-export type OrderPricingSpot = z.infer<typeof OrderPricingSpot>;
+})
+export type OrderPricingSpot = z.infer<typeof OrderPricingSpot>
 
 export const OrderPricing = z.object({
   order_id: Order.shape.id,
@@ -147,5 +149,5 @@ export const OrderPricing = z.object({
   payout_fee: z.number(),
   total: z.number(),
   declared_value: z.number(),
-});
-export type OrderPricing = z.infer<typeof OrderPricing>;
+})
+export type OrderPricing = z.infer<typeof OrderPricing>

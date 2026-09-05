@@ -4,5 +4,5 @@
 // the page it happens to back); its one call site is
 // frontend/app/images/page.tsx. `useUploadImage`/`useDeleteImage` keep their
 // names - ImageUpload.tsx needs no change.
-export { useImages, useUploadImage, useDeleteImage } from "@dorado/client";
-export type { Image, ImageUpload, ImageUploadReturn } from "@dorado/client";
+export { useImages, useUploadImage, useDeleteImage } from '@dorado/client'
+export type { Image, ImageUpload, ImageUploadReturn } from '@dorado/client'

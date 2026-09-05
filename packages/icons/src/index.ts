@@ -119,15 +119,15 @@ export {
   Wallet,
   X,
   XIcon,
-} from "lucide-react";
+} from 'lucide-react'
 
 // The prop and component types, for anything that takes an icon as a prop.
-export type { LucideIcon, LucideProps } from "lucide-react";
-export type { LucideIcon as IconComponent, LucideProps as IconProps } from "lucide-react";
+export type { LucideIcon, LucideProps } from 'lucide-react'
+export type { LucideIcon as IconComponent, LucideProps as IconProps } from 'lucide-react'
 
-export { Calendar as CalendarIcon } from "lucide-react";
+export { Calendar as CalendarIcon } from 'lucide-react'
 
-export { List as ListIcon } from "lucide-react";
+export { List as ListIcon } from 'lucide-react'
 
-export { MenuIcon, type MenuIconProps } from "./MenuIcon";
-export { GoogleLogo, type GoogleLogoProps } from "./GoogleLogo";
+export { MenuIcon, type MenuIconProps } from './MenuIcon'
+export { GoogleLogo, type GoogleLogoProps } from './GoogleLogo'

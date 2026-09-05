@@ -23,9 +23,6 @@ export default function SalesOrderDrawerContent({ view }: SalesOrderDrawerConten
         />
       )
     default:
-      return (
-        <strong className="p-4">No content available for this status.</strong>
-      )
+      return <strong className="p-4">No content available for this status.</strong>
   }
 }
-

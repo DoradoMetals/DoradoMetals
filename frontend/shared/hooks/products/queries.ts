@@ -19,7 +19,10 @@
 //   from. Admin-form glue; it dies when the interim admin drawer does.
 import { useMemo } from 'react'
 import {
-  useAdminProducts, useMetals, useMints, useProducts as useProductGroups,
+  useAdminProducts,
+  useMetals,
+  useMints,
+  useProducts as useProductGroups,
   useUpdateProduct,
 } from '@dorado/client'
 import { useAdminSuppliers } from '@/shared/hooks/refiners/queries'
@@ -56,8 +59,17 @@ export function useSaveProduct() {
   return {
     ...update,
     mutate: (product: BullionAdmin) => {
-      const { id, metal_id, mint, supplier, created_at, updated_at, created_by, updated_by, ...columns } =
-        product
+      const {
+        id,
+        metal_id,
+        mint,
+        supplier,
+        created_at,
+        updated_at,
+        created_by,
+        updated_by,
+        ...columns
+      } = product
       update.mutate({
         id,
         patch: {

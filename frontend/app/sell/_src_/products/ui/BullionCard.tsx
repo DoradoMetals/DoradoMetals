@@ -98,7 +98,12 @@ export default function BullionCard({ product, variants }: BullionCardProps) {
                     content={
                       <div className="flex w-56 flex-col gap-2">
                         <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
-                          <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-8')}>
+                          <div
+                            className={cn(
+                              'flex w-full items-center justify-between gap-2',
+                              'items-start pl-8'
+                            )}
+                          >
                             <small>{selectedProduct.metal_id} Bid Price</small>
                             <p>
                               <Amount value={spot?.bid ?? 0} />
@@ -108,7 +113,12 @@ export default function BullionCard({ product, variants }: BullionCardProps) {
                           <div className="flex w-full items-start">
                             <X size={16} className="text-subtle" />
 
-                            <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-4')}>
+                            <div
+                              className={cn(
+                                'flex w-full items-center justify-between gap-2',
+                                'items-start pl-4'
+                              )}
+                            >
                               <small>Content (oz)</small>
                               <p>{selectedProduct.content}</p>
                             </div>
@@ -121,7 +131,12 @@ export default function BullionCard({ product, variants }: BullionCardProps) {
                               <Minus size={16} className="text-subtle" />
                             )}
 
-                            <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-4')}>
+                            <div
+                              className={cn(
+                                'flex w-full items-center justify-between gap-2',
+                                'items-start pl-4'
+                              )}
+                            >
                               <small>Premium</small>
                               <p>
                                 <Amount value={Math.abs(overOrUnder)} />
@@ -131,7 +146,12 @@ export default function BullionCard({ product, variants }: BullionCardProps) {
                         </div>
                         <div className="flex w-full items-start">
                           <Equal size={16} className="text-subtle" />
-                          <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-4')}>
+                          <div
+                            className={cn(
+                              'flex w-full items-center justify-between gap-2',
+                              'items-start pl-4'
+                            )}
+                          >
                             <small>Total</small>
                             <strong>
                               <Amount value={price} />
@@ -169,14 +189,14 @@ export default function BullionCard({ product, variants }: BullionCardProps) {
                   }
                 >
                   {variants.map((option) => (
-                      <BullionFloatingButtonItem key={option.id}>
-                        <RadioOption
-                          value={option.name}
-                          variant="segment"
-                          className="h-5.5 w-8 px-0 xs:w-12 sm:h-7 sm:w-14 md:h-8.5 lg:h-9"
-                        >
-                          {option.variant_label}
-                        </RadioOption>
+                    <BullionFloatingButtonItem key={option.id}>
+                      <RadioOption
+                        value={option.name}
+                        variant="segment"
+                        className="h-5.5 w-8 px-0 xs:w-12 sm:h-7 sm:w-14 md:h-8.5 lg:h-9"
+                      >
+                        {option.variant_label}
+                      </RadioOption>
                     </BullionFloatingButtonItem>
                   ))}
                 </BullionFloatingButton>
@@ -196,18 +216,13 @@ export default function BullionCard({ product, variants }: BullionCardProps) {
           </Button>
         ) : (
           <div className="flex items-center justify-center gap-3">
-            <Button
-              size="icon"
-              onClick={() => removeOneOf('purchase')}
-            >
+            <Button size="icon" onClick={() => removeOneOf('purchase')}>
               <Minus size={20} />
             </Button>
             <NumberFlow value={quantity} trend={0} />
             <Button
               size="icon"
-              onClick={() =>
-                addItem('purchase', { bullion_id: selectedProduct.id, quantity: 1 })
-              }
+              onClick={() => addItem('purchase', { bullion_id: selectedProduct.id, quantity: 1 })}
             >
               <Plus size={20} />
             </Button>

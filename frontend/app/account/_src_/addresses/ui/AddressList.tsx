@@ -28,8 +28,14 @@ export default function AddressList() {
     if (!q) return entries
     return entries.filter((e) =>
       [
-        e.user_address.recipient_name, e.user_address.label, e.address.phone_number,
-        e.address.line_1, e.address.line_2, e.address.city, e.address.state, e.address.zip,
+        e.user_address.recipient_name,
+        e.user_address.label,
+        e.address.phone_number,
+        e.address.line_1,
+        e.address.line_2,
+        e.address.city,
+        e.address.state,
+        e.address.zip,
       ]
         .filter(Boolean)
         .join(' ')

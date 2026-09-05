@@ -1,8 +1,8 @@
-import * as React from "react";
+import * as React from 'react'
 
-export type GoogleLogoProps = Omit<React.SVGProps<SVGSVGElement>, "ref"> & {
-  size?: number;
-};
+export type GoogleLogoProps = Omit<React.SVGProps<SVGSVGElement>, 'ref'> & {
+  size?: number
+}
 
 export const GoogleLogo = React.forwardRef<SVGSVGElement, GoogleLogoProps>(
   ({ size = 24, ...props }, ref) => (
@@ -19,5 +19,5 @@ export const GoogleLogo = React.forwardRef<SVGSVGElement, GoogleLogoProps>(
       <path transform="translate(4.5 4.5)" d="Frame" />
     </svg>
   )
-);
-GoogleLogo.displayName = "GoogleLogo";
+)
+GoogleLogo.displayName = 'GoogleLogo'

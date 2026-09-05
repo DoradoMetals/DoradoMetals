@@ -10,7 +10,6 @@ import { GoogleMapDisplay, MarkerType } from '@/shared/ui/GoogleMapDisplay'
 import type { Address, CarrierLocation, ShippingGetLocationsBody } from '@dorado/contracts'
 
 export const StoreLocationsMap = ({ address }: { address?: Address }) => {
-
   // NO carrier_id. It was the production uuid
   // 30179428-b311-4873-8d08-382901c581d8 with a `// TODO: source from store
   // when you add carrier selection` beside it; the API resolves the carrier it
@@ -114,9 +113,7 @@ export const StoreLocationsMap = ({ address }: { address?: Address }) => {
                 lng: loc.geoPositionalCoordinates.longitude,
               },
               icon:
-                selected?.locationId === loc.locationId
-                  ? icons.selectedIcon
-                  : icons.defaultIcon,
+                selected?.locationId === loc.locationId ? icons.selectedIcon : icons.defaultIcon,
               title: loc.contact?.companyName || 'FedEx Location',
             },
           ]

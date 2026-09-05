@@ -63,7 +63,7 @@ describe('the combobox contract', () => {
     expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ id: 'c' }))
   })
 
-  test("caller focus handlers COMPOSE with the machinery instead of replacing it", () => {
+  test('caller focus handlers COMPOSE with the machinery instead of replacing it', () => {
     const onFocus = vi.fn()
     const { input } = setup({ inputProps: { onFocus } })
     fireEvent.focus(input)

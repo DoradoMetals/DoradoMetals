@@ -3,15 +3,18 @@
 import { useMemo, useState } from 'react'
 import { Rows3 } from '@dorado/icons'
 
-import { Badge, Button, DataTable, RadioGroup, RadioOption, type DataTableColumn } from '@dorado/components'
+import {
+  Badge,
+  Button,
+  DataTable,
+  RadioGroup,
+  RadioOption,
+  type DataTableColumn,
+} from '@dorado/components'
 import Image from 'next/image'
 
 import { useDrawerStore } from '@/shared/store/drawerStore'
-import {
-  useCarriers,
-  useCarrierServices,
-  useCreateCarrierService,
-} from '../queries'
+import { useCarriers, useCarrierServices, useCreateCarrierService } from '../queries'
 import type { Carrier, CarrierService } from '../types'
 import CarrierServiceDrawer from './CarrierServicesDrawer'
 import { AddNewDialog, CreateConfig } from '../../ui/CreateDialog'
@@ -156,7 +159,11 @@ export default function CarrierServicesPage() {
             >
               <Rows3 size={28} />
             </Button>
-            <AddNewDialog open={createOpen} onOpenChange={setCreateOpen} createConfig={createConfig} />
+            <AddNewDialog
+              open={createOpen}
+              onOpenChange={setCreateOpen}
+              createConfig={createConfig}
+            />
           </>
         }
       />

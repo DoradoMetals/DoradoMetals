@@ -1,10 +1,10 @@
-export type Baseline = { from: string; through: string };
+export type Baseline = { from: string; through: string }
 
-export type MigrationFile = { name: string };
+export type MigrationFile = { name: string }
 
 export function parseBaseline(sql: string): Baseline | null {
-  const m = sql.match(/^\s*--\s*baseline:\s*(\d+)-(\d+)/m);
-  return m ? { from: m[1], through: m[2] } : null;
+  const m = sql.match(/^\s*--\s*baseline:\s*(\d+)-(\d+)/m)
+  return m ? { from: m[1], through: m[2] } : null
 }
 
 export function coveredBy<T extends MigrationFile>(
@@ -13,16 +13,15 @@ export function coveredBy<T extends MigrationFile>(
   files: readonly T[],
   applied: ReadonlySet<string> = new Set<string>()
 ): T[] {
-  if (!baseline) return [];
-  const { from, through } = baseline;
+  if (!baseline) return []
+  const { from, through } = baseline
   return files.filter((f) => {
-    if (f.name === self) return false;
-    if (applied.has(f.name)) return false;
-    const num = f.name.slice(0, from.length);
-    return /^\d+$/.test(num) && num >= from && num <= through;
-  });
+    if (f.name === self) return false
+    if (applied.has(f.name)) return false
+    const num = f.name.slice(0, from.length)
+    return /^\d+$/.test(num) && num >= from && num <= through
+  })
 }
-
 
 /**
  * `-- superseded-by-genesis: <why>` on a migration inside a baseline range
@@ -38,17 +37,16 @@ export function coveredBy<T extends MigrationFile>(
  * skipped migration nobody can audit. Returns the reason, or null.
  */
 export function supersededByGenesis(sql: string): string | null {
-  const m = sql.match(/^\s*--\s*superseded-by-genesis:\s*(.+)$/m);
-  if (!m) return null;
-  const reason = m[1].trim();
+  const m = sql.match(/^\s*--\s*superseded-by-genesis:\s*(.+)$/m)
+  if (!m) return null
+  const reason = m[1].trim()
   if (reason.length < 20) {
     throw new Error(
       `superseded-by-genesis needs a reason of at least 20 characters, got "${reason}"`
-    );
+    )
   }
-  return reason;
+  return reason
 }
-
 
 /**
  * `-- runs-even-under-a-baseline: <why>` is the other direction: a migration
@@ -61,15 +59,15 @@ export function supersededByGenesis(sql: string): string | null {
  * A reason is mandatory, for the same reason it is on the other marker.
  */
 export function runsUnderBaseline(sql: string): string | null {
-  const m = sql.match(/^\s*--\s*runs-even-under-a-baseline:\s*(.+)$/m);
-  if (!m) return null;
-  const reason = m[1].trim();
+  const m = sql.match(/^\s*--\s*runs-even-under-a-baseline:\s*(.+)$/m)
+  if (!m) return null
+  const reason = m[1].trim()
   if (reason.length < 20) {
     throw new Error(
       `runs-even-under-a-baseline needs a reason of at least 20 characters, got "${reason}"`
-    );
+    )
   }
-  return reason;
+  return reason
 }
 
 // --------------------------------------------------------------- statements
@@ -84,51 +82,51 @@ export function runsUnderBaseline(sql: string): string | null {
  *  quotes and comments. Comments are dropped; string and dollar-quoted bodies
  *  are kept verbatim. */
 export function splitStatements(sql: string): string[] {
-  const out: string[] = [];
-  let cur = "";
-  let i = 0;
+  const out: string[] = []
+  let cur = ''
+  let i = 0
 
   while (i < sql.length) {
-    const two = sql.slice(i, i + 2);
+    const two = sql.slice(i, i + 2)
 
-    if (two === "--") {
-      const nl = sql.indexOf("\n", i);
-      i = nl === -1 ? sql.length : nl;
-      continue;
+    if (two === '--') {
+      const nl = sql.indexOf('\n', i)
+      i = nl === -1 ? sql.length : nl
+      continue
     }
-    if (two === "/*") {
-      const end = sql.indexOf("*/", i);
-      i = end === -1 ? sql.length : end + 2;
-      continue;
+    if (two === '/*') {
+      const end = sql.indexOf('*/', i)
+      i = end === -1 ? sql.length : end + 2
+      continue
     }
     if (sql[i] === "'") {
-      const end = sql.indexOf("'", i + 1);
-      const stop = end === -1 ? sql.length : end + 1;
-      cur += sql.slice(i, stop);
-      i = stop;
-      continue;
+      const end = sql.indexOf("'", i + 1)
+      const stop = end === -1 ? sql.length : end + 1
+      cur += sql.slice(i, stop)
+      i = stop
+      continue
     }
-    const dollar = /^\$[A-Za-z_]*\$/.exec(sql.slice(i));
+    const dollar = /^\$[A-Za-z_]*\$/.exec(sql.slice(i))
     if (dollar) {
-      const tag = dollar[0];
-      const end = sql.indexOf(tag, i + tag.length);
-      const stop = end === -1 ? sql.length : end + tag.length;
-      cur += sql.slice(i, stop);
-      i = stop;
-      continue;
+      const tag = dollar[0]
+      const end = sql.indexOf(tag, i + tag.length)
+      const stop = end === -1 ? sql.length : end + tag.length
+      cur += sql.slice(i, stop)
+      i = stop
+      continue
     }
-    if (sql[i] === ";") {
-      if (cur.trim()) out.push(cur.trim());
-      cur = "";
-      i++;
-      continue;
+    if (sql[i] === ';') {
+      if (cur.trim()) out.push(cur.trim())
+      cur = ''
+      i++
+      continue
     }
-    cur += sql[i];
-    i++;
+    cur += sql[i]
+    i++
   }
 
-  if (cur.trim()) out.push(cur.trim());
-  return out;
+  if (cur.trim()) out.push(cur.trim())
+  return out
 }
 
 /**
@@ -142,14 +140,24 @@ export function splitStatements(sql: string): string[] {
  * rows costs the rows.
  */
 export const DDL_VERBS = Object.freeze([
-  "CREATE", "ALTER", "DROP", "COMMENT", "GRANT", "REVOKE", "SET", "RESET",
-  "REINDEX", "CLUSTER", "ANALYZE", "SECURITY",
-]);
+  'CREATE',
+  'ALTER',
+  'DROP',
+  'COMMENT',
+  'GRANT',
+  'REVOKE',
+  'SET',
+  'RESET',
+  'REINDEX',
+  'CLUSTER',
+  'ANALYZE',
+  'SECURITY',
+])
 
 /** True when every statement in the file is pure DDL, so a baseline that
  *  covers it may stamp it instead of running it. */
 export function isDdlOnly(sql: string): boolean {
-  return dataStatements(sql).length === 0;
+  return dataStatements(sql).length === 0
 }
 
 /**
@@ -158,18 +166,18 @@ export function isDdlOnly(sql: string): boolean {
  * and data the moment it holds one. Most of the DO blocks in these migrations
  * are `IF NOT EXISTS ... CREATE TYPE` guards, which is shape and nothing else.
  */
-const WRITING = /\b(INSERT|UPDATE|DELETE|MERGE|COPY|EXECUTE|TRUNCATE)\b/i;
+const WRITING = /\b(INSERT|UPDATE|DELETE|MERGE|COPY|EXECUTE|TRUNCATE)\b/i
 
 /** Comments, string literals and the referential-action words removed, so a
  *  verb inside a RAISE message, a comment, or `ON DELETE SET NULL` is not
  *  mistaken for a statement. */
 function bare(body: string): string {
   return body
-    .replace(/--[^\n]*/g, " ")
-    .replace(/\/\*[\s\S]*?\*\//g, " ")
-    .replace(/'(?:[^']|'')*'/g, " ")
-    .replace(/\bON\s+(DELETE|UPDATE)\b/gi, " ")
-    .replace(/\bFOR\s+(NO\s+KEY\s+)?UPDATE\b/gi, " ");
+    .replace(/--[^\n]*/g, ' ')
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/'(?:[^']|'')*'/g, ' ')
+    .replace(/\bON\s+(DELETE|UPDATE)\b/gi, ' ')
+    .replace(/\bFOR\s+(NO\s+KEY\s+)?UPDATE\b/gi, ' ')
 }
 
 /**
@@ -181,7 +189,7 @@ function bare(body: string): string {
  * them; stamping those two left a rebuilt production unable to create an
  * order, which is the same symptom F5 had for a different reason.
  */
-const SEQUENCE = /\bSEQUENCE\b|\bsetval\s*\(/i;
+const SEQUENCE = /\bSEQUENCE\b|\bsetval\s*\(/i
 
 /**
  * GENESIS CREATES NO TRIGGERS EITHER, and CLAUDE.md says so on purpose: 116's
@@ -191,18 +199,18 @@ const SEQUENCE = /\bSEQUENCE\b|\bsetval\s*\(/i;
  * 116 left a rebuilt production with no audit trigger on 26 tables, and
  * stamping 133 left the two retired auth mirrors alive.
  */
-const TRIGGER = /\bTRIGGER\b/i;
+const TRIGGER = /\bTRIGGER\b/i
 
 function writesRows(stmt: string): boolean {
-  const first = /^[A-Za-z]+/.exec(stmt)?.[0]?.toUpperCase();
-  if (!first) return true;
-  const body = bare(stmt);
-  if (SEQUENCE.test(body) || TRIGGER.test(body)) return true;
-  if (first === "DO") return WRITING.test(body.slice(2));
-  return !DDL_VERBS.includes(first);
+  const first = /^[A-Za-z]+/.exec(stmt)?.[0]?.toUpperCase()
+  if (!first) return true
+  const body = bare(stmt)
+  if (SEQUENCE.test(body) || TRIGGER.test(body)) return true
+  if (first === 'DO') return WRITING.test(body.slice(2))
+  return !DDL_VERBS.includes(first)
 }
 
 /** The statements that make a file more than DDL, for the runner to print. */
 export function dataStatements(sql: string): string[] {
-  return splitStatements(sql).filter(writesRows);
+  return splitStatements(sql).filter(writesRows)
 }

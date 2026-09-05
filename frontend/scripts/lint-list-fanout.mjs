@@ -33,10 +33,10 @@
 //
 //   node scripts/lint-list-fanout.mjs [--self-test] [--json]
 
-import { readFileSync, readdirSync, statSync } from "node:fs";
-import { join, relative, basename } from "node:path";
+import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { join, relative, basename } from 'node:path'
 
-const ROOT = new URL("..", import.meta.url).pathname.replace(/\/$/, "");
+const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '')
 
 // Hooks that fetch. Not every use* — a useState in a row is fine, and flagging
 // it would bury the finding.
@@ -49,72 +49,91 @@ const ROOT = new URL("..", import.meta.url).pathname.replace(/\/$/, "");
 // script did.
 // `useFulfillment(order.id)` is a DIFFERENT KEY PER ROW. Fifty rows, fifty
 // requests, no dedupe. That is the defect.
-const FETCHING_HOOK = /\buse[A-Z]\w*\s*\(\s*[^)\s]/g;
+const FETCHING_HOOK = /\buse[A-Z]\w*\s*\(\s*[^)\s]/g
 const NON_FETCHING = new Set([
-  "useState", "useEffect", "useMemo", "useCallback", "useRef", "useContext",
-  "useReducer", "useId", "useRouter", "usePathname", "useSearchParams",
-  "useForm", "useFormContext", "useWatch", "useFieldArray", "useTheme",
-  "useMediaQuery", "useIsMobile", "useDebounce", "useLayoutEffect",
-  "useTransition", "useQueryClient", "useMutation",
-]);
+  'useState',
+  'useEffect',
+  'useMemo',
+  'useCallback',
+  'useRef',
+  'useContext',
+  'useReducer',
+  'useId',
+  'useRouter',
+  'usePathname',
+  'useSearchParams',
+  'useForm',
+  'useFormContext',
+  'useWatch',
+  'useFieldArray',
+  'useTheme',
+  'useMediaQuery',
+  'useIsMobile',
+  'useDebounce',
+  'useLayoutEffect',
+  'useTransition',
+  'useQueryClient',
+  'useMutation',
+])
 
 // Mutations are not fetches - they fire on a click, not on render, so one per
 // row costs nothing. Stores are not fetches either.
-const NOT_A_FETCH = /^use(?:Create|Update|Delete|Patch|Add|Remove|Set|Save|Send|Submit|Toggle)[A-Z]|Store$|Mutation$/;
+const NOT_A_FETCH =
+  /^use(?:Create|Update|Delete|Patch|Add|Remove|Set|Save|Send|Submit|Toggle)[A-Z]|Store$|Mutation$/
 
 // Rows that legitimately fetch, each with the reason. Pinned from both sides:
 // an unaccepted finding fails, and an entry that stops reporting is called out
 // so a fixed component cannot leave a stale excuse behind.
 const ACCEPTED = {
   // "Component": "why one request per row is right here",
-};
+}
 
 function walk(dir, out = []) {
   for (const e of readdirSync(dir)) {
-    if (e === "node_modules" || e === ".next" || e === "test-results" || e.startsWith(".")) continue;
-    const p = join(dir, e);
-    if (statSync(p).isDirectory()) walk(p, out);
-    else if (e.endsWith(".tsx")) out.push(p);
+    if (e === 'node_modules' || e === '.next' || e === 'test-results' || e.startsWith('.')) continue
+    const p = join(dir, e)
+    if (statSync(p).isDirectory()) walk(p, out)
+    else if (e.endsWith('.tsx')) out.push(p)
   }
-  return out;
+  return out
 }
 
 // Components rendered inside a .map() callback: `.map((x) => <Row ... />)` and
 // the block-bodied form that returns one.
 function renderedInLists(src) {
-  const names = new Set();
-  const re = /\.map\s*\(\s*\(?[^)]*\)?\s*=>\s*\{?[\s\S]{0,400}?<([A-Z]\w+)/g;
-  let m;
-  while ((m = re.exec(src))) names.add(m[1]);
-  return names;
+  const names = new Set()
+  const re = /\.map\s*\(\s*\(?[^)]*\)?\s*=>\s*\{?[\s\S]{0,400}?<([A-Z]\w+)/g
+  let m
+  while ((m = re.exec(src))) names.add(m[1])
+  return names
 }
 
 // Data hooks called in a component's own body.
 function fetchingHooksIn(src, component) {
   const start = new RegExp(
     `(?:function\\s+${component}\\b|const\\s+${component}\\s*[:=][^=]*=>|const\\s+${component}\\s*=\\s*function)`
-  ).exec(src);
-  if (!start) return [];
+  ).exec(src)
+  if (!start) return []
   // Body ends at the next top-level component declaration, or EOF.
-  const rest = src.slice(start.index);
-  const next = /\n(?:export\s+)?(?:function\s+[A-Z]|const\s+[A-Z]\w*\s*[:=])/.exec(rest.slice(1));
-  const body = next ? rest.slice(0, next.index + 1) : rest;
-  const found = new Set();
+  const rest = src.slice(start.index)
+  const next = /\n(?:export\s+)?(?:function\s+[A-Z]|const\s+[A-Z]\w*\s*[:=])/.exec(rest.slice(1))
+  const body = next ? rest.slice(0, next.index + 1) : rest
+  const found = new Set()
   for (const h of body.matchAll(FETCHING_HOOK)) {
     // Take the identifier only. `.replace(/\s*\(.*$/)` left a newline and the
     // first argument attached when a call spanned lines.
-    const name = /^use[A-Z]\w*/.exec(h[0])[0];
-    if (NON_FETCHING.has(name) || NOT_A_FETCH.test(name)) continue;
-    found.add(name);
+    const name = /^use[A-Z]\w*/.exec(h[0])[0]
+    if (NON_FETCHING.has(name) || NOT_A_FETCH.test(name)) continue
+    found.add(name)
   }
-  return [...found];
+  return [...found]
 }
 
-if (process.argv.includes("--self-test")) {
+if (process.argv.includes('--self-test')) {
   const parent = `
     export const List = ({ orders }) => (
       <tbody>{orders.map((o) => <OrderRow key={o.id} order={o} />)}</tbody>
-    );`;
+    );`
   const child = `
     export const OrderRow = ({ order }) => {
       const [open, setOpen] = useState(false);
@@ -122,77 +141,92 @@ if (process.argv.includes("--self-test")) {
       const { data: spots } = useSpotPrices();
       const save = useUpdateOrder();
       return <tr>{data?.status}</tr>;
-    };`;
-  const listed = renderedInLists(parent);
-  if (!listed.has("OrderRow")) { console.error("SELF-TEST FAILED: did not see OrderRow in the map"); process.exit(1); }
-  const hooks = fetchingHooksIn(child, "OrderRow");
-  if (!hooks.includes("useFulfillment")) { console.error(`SELF-TEST FAILED: hooks ${hooks}`); process.exit(1); }
-  if (hooks.includes("useState")) { console.error("SELF-TEST FAILED: useState must not count as fetching"); process.exit(1); }
-  if (hooks.includes("useSpotPrices")) { console.error("SELF-TEST FAILED: an argument-less hook dedupes and must not flag"); process.exit(1); }
-  if (hooks.includes("useUpdateOrder")) { console.error("SELF-TEST FAILED: a mutation must not flag"); process.exit(1); }
-  console.log("self-test ok: flags a per-row-keyed fetch, and ignores useState,");
-  console.log("an argument-less (deduped) query, and a mutation.");
-  process.exit(0);
+    };`
+  const listed = renderedInLists(parent)
+  if (!listed.has('OrderRow')) {
+    console.error('SELF-TEST FAILED: did not see OrderRow in the map')
+    process.exit(1)
+  }
+  const hooks = fetchingHooksIn(child, 'OrderRow')
+  if (!hooks.includes('useFulfillment')) {
+    console.error(`SELF-TEST FAILED: hooks ${hooks}`)
+    process.exit(1)
+  }
+  if (hooks.includes('useState')) {
+    console.error('SELF-TEST FAILED: useState must not count as fetching')
+    process.exit(1)
+  }
+  if (hooks.includes('useSpotPrices')) {
+    console.error('SELF-TEST FAILED: an argument-less hook dedupes and must not flag')
+    process.exit(1)
+  }
+  if (hooks.includes('useUpdateOrder')) {
+    console.error('SELF-TEST FAILED: a mutation must not flag')
+    process.exit(1)
+  }
+  console.log('self-test ok: flags a per-row-keyed fetch, and ignores useState,')
+  console.log('an argument-less (deduped) query, and a mutation.')
+  process.exit(0)
 }
 
-const files = walk(ROOT).filter((f) => !f.includes("/scripts/"));
-const byName = new Map();
-for (const f of files) byName.set(basename(f, ".tsx"), f);
+const files = walk(ROOT).filter((f) => !f.includes('/scripts/'))
+const byName = new Map()
+for (const f of files) byName.set(basename(f, '.tsx'), f)
 
-const listed = new Map(); // component -> file that renders it in a list
+const listed = new Map() // component -> file that renders it in a list
 for (const f of files) {
-  const src = readFileSync(f, "utf8");
-  for (const name of renderedInLists(src)) if (!listed.has(name)) listed.set(name, f);
+  const src = readFileSync(f, 'utf8')
+  for (const name of renderedInLists(src)) if (!listed.has(name)) listed.set(name, f)
 }
 
 if (!files.length || !listed.size) {
-  console.error("REFUSING TO REPORT: found no component rendered inside a .map().");
-  console.error("A scan that recognises nothing looks exactly like a codebase with no lists.");
-  process.exit(1);
+  console.error('REFUSING TO REPORT: found no component rendered inside a .map().')
+  console.error('A scan that recognises nothing looks exactly like a codebase with no lists.')
+  process.exit(1)
 }
 
-const findings = [];
+const findings = []
 for (const [name, renderedBy] of listed) {
   // Where is it defined? Its own file, or the file that renders it.
-  const defFile = byName.get(name) ?? renderedBy;
-  const hooks = fetchingHooksIn(readFileSync(defFile, "utf8"), name);
-  if (hooks.length) findings.push({ name, defFile, renderedBy, hooks });
+  const defFile = byName.get(name) ?? renderedBy
+  const hooks = fetchingHooksIn(readFileSync(defFile, 'utf8'), name)
+  if (hooks.length) findings.push({ name, defFile, renderedBy, hooks })
 }
 
-const unaccepted = findings.filter((f) => !ACCEPTED[f.name]);
-const accepted = findings.filter((f) => ACCEPTED[f.name]);
+const unaccepted = findings.filter((f) => !ACCEPTED[f.name])
+const accepted = findings.filter((f) => ACCEPTED[f.name])
 
-if (process.argv.includes("--json")) {
-  console.log(JSON.stringify({ scanned: files.length, listed: listed.size, findings }, null, 2));
-  process.exit(unaccepted.length ? 1 : 0);
+if (process.argv.includes('--json')) {
+  console.log(JSON.stringify({ scanned: files.length, listed: listed.size, findings }, null, 2))
+  process.exit(unaccepted.length ? 1 : 0)
 }
 
-console.log(`${files.length} .tsx scanned; ${listed.size} component(s) rendered inside a .map()\n`);
+console.log(`${files.length} .tsx scanned; ${listed.size} component(s) rendered inside a .map()\n`)
 
 if (accepted.length) {
-  console.log(`${accepted.length} accepted:`);
-  for (const a of accepted) console.log(`  ok ${a.name} — ${ACCEPTED[a.name]}`);
-  console.log("");
+  console.log(`${accepted.length} accepted:`)
+  for (const a of accepted) console.log(`  ok ${a.name} — ${ACCEPTED[a.name]}`)
+  console.log('')
 }
 
-const stale = Object.keys(ACCEPTED).filter((k) => !findings.some((f) => f.name === k));
+const stale = Object.keys(ACCEPTED).filter((k) => !findings.some((f) => f.name === k))
 if (stale.length) {
-  console.log(`${stale.length} ACCEPTED entr(ies) no longer report — remove them:`);
-  for (const s of stale) console.log(`  - ${s}`);
-  console.log("");
+  console.log(`${stale.length} ACCEPTED entr(ies) no longer report — remove them:`)
+  for (const s of stale) console.log(`  - ${s}`)
+  console.log('')
 }
 
 if (!unaccepted.length) {
-  console.log("no row component fetches its own data.");
-  process.exit(stale.length ? 1 : 0);
+  console.log('no row component fetches its own data.')
+  process.exit(stale.length ? 1 : 0)
 }
 
-console.log(`${unaccepted.length} row component(s) fetch per row:\n`);
+console.log(`${unaccepted.length} row component(s) fetch per row:\n`)
 for (const f of unaccepted) {
-  console.log(`  ${f.name}  ${f.hooks.join(", ")}`);
-  console.log(`      defined  ${relative(ROOT, f.defFile)}`);
-  console.log(`      listed   ${relative(ROOT, f.renderedBy)}`);
+  console.log(`  ${f.name}  ${f.hooks.join(', ')}`)
+  console.log(`      defined  ${relative(ROOT, f.defFile)}`)
+  console.log(`      listed   ${relative(ROOT, f.renderedBy)}`)
 }
-console.log("\n  One request per row is the client-side shape of D101. The fix is to add");
-console.log("  the column to the LIST read, not to fetch from the row — D111 in FOLLOWUPS.md.");
-process.exit(1);
+console.log('\n  One request per row is the client-side shape of D101. The fix is to add')
+console.log('  the column to the LIST read, not to fetch from the row — D111 in FOLLOWUPS.md.')
+process.exit(1)

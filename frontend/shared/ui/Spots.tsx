@@ -5,7 +5,13 @@ import { Amount, Marquee, MarqueeItem } from '@dorado/components'
 import { useSpotTypeStore } from '@/shared/store/spotStore'
 import { useSpotPrices } from '@dorado/client'
 
-const DELTA_FORMAT = { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2, signDisplay: 'exceptZero' } as const
+const DELTA_FORMAT = {
+  style: 'currency',
+  currency: 'USD',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+  signDisplay: 'exceptZero',
+} as const
 
 export default function Spots() {
   const { data: spots } = useSpotPrices()

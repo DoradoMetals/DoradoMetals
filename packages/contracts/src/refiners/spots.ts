@@ -3,26 +3,28 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: refiners.spots
-import { z } from "zod/v4";
+import { z } from 'zod/v4'
 
 export const RefinerSpot = z.object({
-  "id": z.string().uuid(),
-  "metal_id": z.string(),
-  "refiner_id": z.string().uuid().nullable(),
-  "order_id": z.string().uuid(),
-  "pool_oz_deducted": z.number().nullable(),
-  "ask": z.number().nullable(),
-  "bid": z.number().nullable(),
-  "scrap_percentage": z.number().nullable(),
-  "bullion_percentage": z.number().nullable(),
-  "created_at": z.string().nullable(),
-  "updated_at": z.string().nullable(),
-  "refiner_order_id": z.string().uuid().nullable(),
-});
-export type RefinerSpot = z.infer<typeof RefinerSpot>;
+  'id': z.string().uuid(),
+  'metal_id': z.string(),
+  'refiner_id': z.string().uuid().nullable(),
+  'order_id': z.string().uuid(),
+  'pool_oz_deducted': z.number().nullable(),
+  'ask': z.number().nullable(),
+  'bid': z.number().nullable(),
+  'scrap_percentage': z.number().nullable(),
+  'bullion_percentage': z.number().nullable(),
+  'created_at': z.string().nullable(),
+  'updated_at': z.string().nullable(),
+  'refiner_order_id': z.string().uuid().nullable(),
+})
+export type RefinerSpot = z.infer<typeof RefinerSpot>
 // generated:end
-export const RefinerSpotWrite = z.object({
-  metal_id: RefinerSpot.shape.metal_id,
-  bid: RefinerSpot.shape.bid.unwrap(),
-}).strict();
-export type RefinerSpotWrite = z.infer<typeof RefinerSpotWrite>;
+export const RefinerSpotWrite = z
+  .object({
+    metal_id: RefinerSpot.shape.metal_id,
+    bid: RefinerSpot.shape.bid.unwrap(),
+  })
+  .strict()
+export type RefinerSpotWrite = z.infer<typeof RefinerSpotWrite>

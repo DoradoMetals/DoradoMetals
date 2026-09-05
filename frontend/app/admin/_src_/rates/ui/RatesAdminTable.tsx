@@ -1,6 +1,6 @@
 'use client'
 
-import type { AdminRate } from "@dorado/contracts";
+import type { AdminRate } from '@dorado/contracts'
 import { useMemo } from 'react'
 
 import { useAdminRates } from '../queries'

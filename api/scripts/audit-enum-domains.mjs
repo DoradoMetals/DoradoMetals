@@ -1,36 +1,44 @@
-import "#env";
-import { Pool } from "pg";
+import '#env'
+import { Pool } from 'pg'
 
-const prod = process.argv.includes("--prod");
-const url = prod ? process.env.PROD_READONLY_DATABASE_URL : process.env.DATABASE_URL;
+const prod = process.argv.includes('--prod')
+const url = prod ? process.env.PROD_READONLY_DATABASE_URL : process.env.DATABASE_URL
 if (!url) {
-  console.error(prod ? "PROD_READONLY_DATABASE_URL is not set" : "DATABASE_URL is not set");
-  process.exit(1);
+  console.error(prod ? 'PROD_READONLY_DATABASE_URL is not set' : 'DATABASE_URL is not set')
+  process.exit(1)
 }
-const pool = new Pool({ connectionString: url, ssl: { rejectUnauthorized: false } });
+const pool = new Pool({ connectionString: url, ssl: { rejectUnauthorized: false } })
 
 const COUPLINGS = [
   {
-    table: "exchange.products", column: "product_type",
-    enumSchema: "exchange", enumType: "sales_tax_product_type",
+    table: 'exchange.products',
+    column: 'product_type',
+    enumSchema: 'exchange',
+    enumType: 'sales_tax_product_type',
     site: "features/sales-tax/repo.exchange.js - r.product_type IN ($3, 'All'), $3 = item.product_type",
   },
   {
-    table: "products.bullion", column: "type",
-    enumSchema: "tax", enumType: "sales_tax_product_type",
+    table: 'products.bullion',
+    column: 'type',
+    enumSchema: 'tax',
+    enumType: 'sales_tax_product_type',
     site: "features/sales-tax/repo.next.ts - r.product_type IN ($3, 'All')",
   },
   {
-    table: "exchange.metals", column: "type",
-    enumSchema: "exchange", enumType: "sales_tax_metal_category",
+    table: 'exchange.metals',
+    column: 'type',
+    enumSchema: 'exchange',
+    enumType: 'sales_tax_metal_category',
     site: "features/sales-tax/repo.exchange.js - r.metal_category IN ($2, 'All')",
   },
   {
-    table: "metals.metals", column: "name",
-    enumSchema: "tax", enumType: "sales_tax_metal_category",
+    table: 'metals.metals',
+    column: 'name',
+    enumSchema: 'tax',
+    enumType: 'sales_tax_metal_category',
     site: "features/sales-tax/repo.next.ts - r.metal_category IN ($2, 'All')",
   },
-];
+]
 
 const labelsOf = async (schema, type) => {
   const { rows } = await pool.query(
@@ -40,64 +48,72 @@ const labelsOf = async (schema, type) => {
        JOIN pg_namespace n ON n.oid = t.typnamespace
       WHERE t.typname = $1 AND n.nspname = $2`,
     [type, schema]
-  );
-  return rows.map((r) => r.label);
-};
+  )
+  return rows.map((r) => r.label)
+}
 
-let checked = 0;
-const bad = [];
-const skipped = [];
+let checked = 0
+const bad = []
+const skipped = []
 
 for (const c of COUPLINGS) {
-  const [schema, table] = c.table.split(".");
+  const [schema, table] = c.table.split('.')
   const { rows: exists } = await pool.query(
     `SELECT 1 FROM information_schema.columns
       WHERE table_schema = $1 AND table_name = $2 AND column_name = $3`,
     [schema, table, c.column]
-  );
-  if (!exists.length) { skipped.push(`${c.table}.${c.column} - no such column`); continue; }
+  )
+  if (!exists.length) {
+    skipped.push(`${c.table}.${c.column} - no such column`)
+    continue
+  }
 
-  const labels = await labelsOf(c.enumSchema, c.enumType);
-  if (!labels.length) { skipped.push(`${c.enumSchema}.${c.enumType} - no such enum`); continue; }
+  const labels = await labelsOf(c.enumSchema, c.enumType)
+  if (!labels.length) {
+    skipped.push(`${c.enumSchema}.${c.enumType} - no such enum`)
+    continue
+  }
 
-  checked += 1;
+  checked += 1
   const { rows } = await pool.query(
     `SELECT ${c.column}::text AS value, count(*)::int AS n
        FROM ${c.table}
       WHERE ${c.column} IS NOT NULL AND ${c.column}::text <> ALL($1::text[])
       GROUP BY 1 ORDER BY 2 DESC`,
     [labels]
-  );
-  for (const r of rows) bad.push({ ...c, value: r.value, n: r.n, labels });
+  )
+  for (const r of rows) bad.push({ ...c, value: r.value, n: r.n, labels })
 }
 
-const COUPLING_FLOOR = Number(process.env.AUDIT_ENUM_FLOOR ?? 4);
+const COUPLING_FLOOR = Number(process.env.AUDIT_ENUM_FLOOR ?? 4)
 if (checked < COUPLING_FLOOR) {
   console.error(
     `audit:enum-domains resolved only ${checked} coupling(s), expected at least ` +
       `${COUPLING_FLOOR}. This is the audit that found two products carrying ` +
       `E'\\n\\tBar'; a coupling that stops resolving reports as a clean sweep.`
-  );
-  process.exit(1);
+  )
+  process.exit(1)
 }
 
-console.log(`${prod ? "production" : "dev"}: ${checked} value coupling(s) checked against their enum`);
-if (skipped.length) for (const s of skipped) console.log(`  skipped: ${s}`);
+console.log(
+  `${prod ? 'production' : 'dev'}: ${checked} value coupling(s) checked against their enum`
+)
+if (skipped.length) for (const s of skipped) console.log(`  skipped: ${s}`)
 
 if (bad.length === 0) {
-  console.log("\nevery value that reaches an enum comparison is a label of that enum");
+  console.log('\nevery value that reaches an enum comparison is a label of that enum')
 } else {
-  console.log(`\n${bad.length} value(s) that would raise 22P02 rather than simply not match:\n`);
+  console.log(`\n${bad.length} value(s) that would raise 22P02 rather than simply not match:\n`)
   for (const b of bad) {
-    console.log(`  ${b.table}.${b.column} = ${JSON.stringify(b.value)}  (${b.n} row(s))`);
-    console.log(`      valid labels: ${b.labels.join(", ")}`);
-    console.log(`      coupled at:   ${b.site}`);
+    console.log(`  ${b.table}.${b.column} = ${JSON.stringify(b.value)}  (${b.n} row(s))`)
+    console.log(`      valid labels: ${b.labels.join(', ')}`)
+    console.log(`      coupled at:   ${b.site}`)
   }
   console.log(
-    "\nFixing this means an UPDATE against production data, which is not this\n" +
-    "repo's to run - see D39. Exits non-zero by design while it is outstanding."
-  );
+    '\nFixing this means an UPDATE against production data, which is not this\n' +
+      "repo's to run - see D39. Exits non-zero by design while it is outstanding."
+  )
 }
 
-await pool.end();
-process.exit(bad.length ? 1 : 0);
+await pool.end()
+process.exit(bad.length ? 1 : 0)

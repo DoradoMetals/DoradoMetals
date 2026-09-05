@@ -1,11 +1,11 @@
-"use client";
+'use client'
 
-import { useGoogleSignIn } from "@/shared/hooks/auth/queries";
-import { Button } from '@dorado/components';
-import { GoogleLogo } from '@dorado/icons';
+import { useGoogleSignIn } from '@/shared/hooks/auth/queries'
+import { Button } from '@dorado/components'
+import { GoogleLogo } from '@dorado/icons'
 
-export default function GoogleButton({buttonLabel} : {buttonLabel: string}) {
-  const googleSignInMutation = useGoogleSignIn();
+export default function GoogleButton({ buttonLabel }: { buttonLabel: string }) {
+  const googleSignInMutation = useGoogleSignIn()
 
   return (
     <Button
@@ -15,7 +15,7 @@ export default function GoogleButton({buttonLabel} : {buttonLabel: string}) {
       disabled={googleSignInMutation.isPending}
     >
       <GoogleLogo />
-      {googleSignInMutation.isPending ? "Signing In..." : buttonLabel}
+      {googleSignInMutation.isPending ? 'Signing In...' : buttonLabel}
     </Button>
-  );
+  )
 }

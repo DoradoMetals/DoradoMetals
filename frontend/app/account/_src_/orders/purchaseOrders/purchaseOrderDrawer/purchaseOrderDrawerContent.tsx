@@ -5,7 +5,6 @@ import ReceivedPurchaseOrder from './drawerContents/Received'
 import OrderCompletedReview from '../../ui/OrderCompletedReview'
 import { PurchaseOrderDrawerContentProps } from '@/shared/types/purchaseOrders'
 
-
 export default function PurchaseOrderDrawerContent({ view }: PurchaseOrderDrawerContentProps) {
   const { order } = view
 
@@ -27,8 +26,6 @@ export default function PurchaseOrderDrawerContent({ view }: PurchaseOrderDrawer
         />
       )
     default:
-      return (
-        <strong className="p-4">No content available for this status.</strong>
-      )
+      return <strong className="p-4">No content available for this status.</strong>
   }
 }

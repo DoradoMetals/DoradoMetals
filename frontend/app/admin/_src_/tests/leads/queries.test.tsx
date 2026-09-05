@@ -12,72 +12,72 @@
 // package's own `apiRequest` (a thin wrapper over the global `fetch`, not
 // axios) - so this test stubs `fetch` directly rather than mocking
 // `@/shared/queries/axios`, which the new hooks never call.
-import { describe, expect, test, vi, beforeEach } from "vitest";
-import { act, renderHook, waitFor } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ReactNode } from "react";
-import { LeadPatch } from "@dorado/contracts";
+import { describe, expect, test, vi, beforeEach } from 'vitest'
+import { act, renderHook, waitFor } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import type { ReactNode } from 'react'
+import { LeadPatch } from '@dorado/contracts'
 
-import { useUpdateLead } from "../../leads/queries";
+import { useUpdateLead } from '../../leads/queries'
 
 function wrapper({ children }: { children: ReactNode }) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
-  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+  })
+  return <QueryClientProvider client={client}>{children}</QueryClientProvider>
 }
 
 beforeEach(() => {
   vi.stubGlobal(
-    "fetch",
+    'fetch',
     vi.fn().mockResolvedValue({
       ok: true,
-      text: async () => JSON.stringify({ id: "9f1c2b3a-0000-4000-8000-000000000001" }),
+      text: async () => JSON.stringify({ id: '9f1c2b3a-0000-4000-8000-000000000001' }),
     })
-  );
-});
+  )
+})
 
-describe("useUpdateLead sends exactly what PATCH /leads/:id accepts", () => {
-  test("a real edit PATCHes /leads/:id with a bare patch that parses clean", async () => {
-    const { result } = renderHook(() => useUpdateLead(), { wrapper });
+describe('useUpdateLead sends exactly what PATCH /leads/:id accepts', () => {
+  test('a real edit PATCHes /leads/:id with a bare patch that parses clean', async () => {
+    const { result } = renderHook(() => useUpdateLead(), { wrapper })
 
     await act(async () => {
       await result.current.mutateAsync({
-        lead_id: "9f1c2b3a-0000-4000-8000-000000000001",
-        patch: { name: "New Name" },
-      });
-    });
+        lead_id: '9f1c2b3a-0000-4000-8000-000000000001',
+        patch: { name: 'New Name' },
+      })
+    })
 
-    await waitFor(() => expect(fetch).toHaveBeenCalled());
-    const [url, init] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit];
-    expect(url).toMatch(/\/leads\/9f1c2b3a-0000-4000-8000-000000000001$/);
-    expect(init.method).toBe("PATCH");
+    await waitFor(() => expect(fetch).toHaveBeenCalled())
+    const [url, init] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit]
+    expect(url).toMatch(/\/leads\/9f1c2b3a-0000-4000-8000-000000000001$/)
+    expect(init.method).toBe('PATCH')
 
-    const body: unknown = JSON.parse(init.body as string);
-    expect(body).not.toHaveProperty("lead_id");
-    expect(body).not.toHaveProperty("patch");
-    expect(LeadPatch.strict().safeParse(body).success).toBe(true);
-  });
+    const body: unknown = JSON.parse(init.body as string)
+    expect(body).not.toHaveProperty('lead_id')
+    expect(body).not.toHaveProperty('patch')
+    expect(LeadPatch.strict().safeParse(body).success).toBe(true)
+  })
 
   // The regression this test exists for: the hook used to also send
   // user_name, which the strict contract has never declared.
-  test("never carries user_name - the strict schema would 400 on it", async () => {
-    const { result } = renderHook(() => useUpdateLead(), { wrapper });
+  test('never carries user_name - the strict schema would 400 on it', async () => {
+    const { result } = renderHook(() => useUpdateLead(), { wrapper })
 
     await act(async () => {
       await result.current.mutateAsync({
-        lead_id: "9f1c2b3a-0000-4000-8000-000000000001",
-        patch: { name: "New Name" },
-      });
-    });
+        lead_id: '9f1c2b3a-0000-4000-8000-000000000001',
+        patch: { name: 'New Name' },
+      })
+    })
 
-    await waitFor(() => expect(fetch).toHaveBeenCalled());
-    const [, init] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit];
-    const body = JSON.parse(init.body as string) as Record<string, unknown>;
-    expect(body).not.toHaveProperty("user_name");
+    await waitFor(() => expect(fetch).toHaveBeenCalled())
+    const [, init] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit]
+    const body = JSON.parse(init.body as string) as Record<string, unknown>
+    expect(body).not.toHaveProperty('user_name')
 
     // Proven, not just asserted: naming it would fail the same parse.
-    const withUserName = { ...body, user_name: "Dorado Admin" };
-    expect(LeadPatch.strict().safeParse(withUserName).success).toBe(false);
-  });
-});
+    const withUserName = { ...body, user_name: 'Dorado Admin' }
+    expect(LeadPatch.strict().safeParse(withUserName).success).toBe(false)
+  })
+})

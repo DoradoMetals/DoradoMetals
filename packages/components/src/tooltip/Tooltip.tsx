@@ -1,19 +1,19 @@
 'use client'
 
-import * as React from "react";
-import * as TooltipPrimitive from "@radix-ui/react-tooltip";
-import { cn } from "../cn";
+import * as React from 'react'
+import * as TooltipPrimitive from '@radix-ui/react-tooltip'
+import { cn } from '../cn'
 
-export const TooltipProvider = TooltipPrimitive.Provider;
+export const TooltipProvider = TooltipPrimitive.Provider
 
 export type TooltipProps = {
-  content: React.ReactNode;
-  side?: "top" | "bottom" | "left" | "right";
-  children: React.ReactNode;
-  delayDuration?: number;
-};
+  content: React.ReactNode
+  side?: 'top' | 'bottom' | 'left' | 'right'
+  children: React.ReactNode
+  delayDuration?: number
+}
 
-export function Tooltip({ content, side = "top", children, delayDuration = 300 }: TooltipProps) {
+export function Tooltip({ content, side = 'top', children, delayDuration = 300 }: TooltipProps) {
   return (
     <TooltipPrimitive.Root delayDuration={delayDuration}>
       <TooltipPrimitive.Trigger asChild>{children}</TooltipPrimitive.Trigger>
@@ -22,8 +22,8 @@ export function Tooltip({ content, side = "top", children, delayDuration = 300 }
           side={side}
           sideOffset={6}
           className={cn(
-            "z-50 rounded-sm border border-border bg-highest px-3 py-2 text-small text-foreground",
-            "data-[state=delayed-open]:animate-in motion-reduce:animate-none"
+            'z-50 rounded-sm border border-border bg-highest px-3 py-2 text-small text-foreground',
+            'data-[state=delayed-open]:animate-in motion-reduce:animate-none'
           )}
         >
           {content}
@@ -32,5 +32,5 @@ export function Tooltip({ content, side = "top", children, delayDuration = 300 }
         </TooltipPrimitive.Content>
       </TooltipPrimitive.Portal>
     </TooltipPrimitive.Root>
-  );
+  )
 }

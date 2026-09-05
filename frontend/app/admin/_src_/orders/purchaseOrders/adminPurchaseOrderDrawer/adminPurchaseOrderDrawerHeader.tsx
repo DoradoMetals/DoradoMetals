@@ -6,7 +6,10 @@ import { useSpotPrices } from '@/shared/hooks/spots/queries'
 import { OrderDrawerHeader } from '@/shared/ui/OrderDrawerHeader'
 import { useOrderSpots } from '@dorado/client'
 
-export default function PurchaseOrderDrawerHeader({ view, username }: PurchaseOrderDrawerHeaderProps) {
+export default function PurchaseOrderDrawerHeader({
+  view,
+  username,
+}: PurchaseOrderDrawerHeaderProps) {
   const { order } = view
 
   const downloadOptions = usePurchaseOrderDownloads(order, 'admin')

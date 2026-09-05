@@ -44,7 +44,7 @@ export default function PickupScheduler({
   const shownDate =
     stored && times.some((t) => t.pickupDate === stored)
       ? stored
-      : nextAvailable?.pickupDate ?? times[0]?.pickupDate
+      : (nextAvailable?.pickupDate ?? times[0]?.pickupDate)
 
   if (!times.length || !shownDate) return null
 
@@ -93,9 +93,7 @@ export default function PickupScheduler({
                   variant={fulfillment?.parcel?.pickup_time === slot ? 'primary' : 'secondary'}
                   size="sm"
                   className="w-full"
-                  onClick={() =>
-                    patchSlot({ pickup_date: shownDate, pickup_time: slot })
-                  }
+                  onClick={() => patchSlot({ pickup_date: shownDate, pickup_time: slot })}
                 >
                   {formatPickupTime(slot)}
                 </Button>

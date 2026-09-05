@@ -3,20 +3,20 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: fulfillments.shipments
-import { z } from "zod/v4";
+import { z } from 'zod/v4'
 
 export const FulfillmentShipment = z.object({
-  "id": z.string().uuid(),
-  "fulfillment_id": z.string().uuid(),
-  "recipient_location_id": z.string().uuid().nullable(),
-  "shipper_location_id": z.string().uuid().nullable(),
-  "shipment_id": z.string().uuid(),
-});
-export type FulfillmentShipment = z.infer<typeof FulfillmentShipment>;
+  'id': z.string().uuid(),
+  'fulfillment_id': z.string().uuid(),
+  'recipient_location_id': z.string().uuid().nullable(),
+  'shipper_location_id': z.string().uuid().nullable(),
+  'shipment_id': z.string().uuid(),
+})
+export type FulfillmentShipment = z.infer<typeof FulfillmentShipment>
 // generated:end
 
 export const FulfillmentShipmentPatch = FulfillmentShipment.omit({
   id: true,
   shipment_id: true,
-}).partial();
-export type FulfillmentShipmentPatch = z.infer<typeof FulfillmentShipmentPatch>;
+}).partial()
+export type FulfillmentShipmentPatch = z.infer<typeof FulfillmentShipmentPatch>

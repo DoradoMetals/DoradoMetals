@@ -25,7 +25,6 @@ export const geistMono = Geist_Mono({
   variable: '--font-mono-loaded',
 })
 
-
 export const metadata: Metadata = {
   title: 'Dorado Metals Exchange',
   description: 'Secure online platform to exchange precious metals.',
@@ -33,11 +32,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html
-      lang="en"
-      suppressHydrationWarning
-      className={`${geist.variable} ${geistMono.variable}`}
-    >
+    <html lang="en" suppressHydrationWarning className={`${geist.variable} ${geistMono.variable}`}>
       <body className="bg-background antialiased">
         {/* Light mode is gone (app/styles/theme.css: ":root" IS the dark
             palette, and the `dark:` variant always matches). `forcedTheme`

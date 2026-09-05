@@ -3,23 +3,27 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Postgres table: shipping.carriers
-import { z } from "zod/v4";
+import { z } from 'zod/v4'
 
 export const Carrier = z.object({
-  "id": z.string().uuid(),
-  "organization_id": z.string().uuid().nullable(),
-  "logo": z.string().nullable(),
-});
-export type Carrier = z.infer<typeof Carrier>;
+  'id': z.string().uuid(),
+  'organization_id': z.string().uuid().nullable(),
+  'logo': z.string().nullable(),
+})
+export type Carrier = z.infer<typeof Carrier>
 // generated:end
-import { Organization, OrganizationSummary, OrganizationPatch } from "../organizations/organizations.js";
+import {
+  Organization,
+  OrganizationSummary,
+  OrganizationPatch,
+} from '../organizations/organizations.js'
 
 export const CarrierRead = Carrier.omit({ organization_id: true }).extend({
   created_at: Organization.shape.created_at.nullable(),
   updated_at: Organization.shape.updated_at.nullable(),
   organization: OrganizationSummary,
-});
-export type CarrierRead = z.infer<typeof CarrierRead>;
+})
+export type CarrierRead = z.infer<typeof CarrierRead>
 
 export const CarrierPatch = Carrier.pick({ logo: true })
   .extend({
@@ -27,17 +31,21 @@ export const CarrierPatch = Carrier.pick({ logo: true })
     organization: OrganizationPatch.strict().optional(),
   })
   .partial({ logo: true })
-  .strict();
-export type CarrierPatch = z.infer<typeof CarrierPatch>;
+  .strict()
+export type CarrierPatch = z.infer<typeof CarrierPatch>
 
-export const CarrierDeleteBody = z.object({ carrier_id: Carrier.shape.id }).strict();
-export type CarrierDeleteBody = z.infer<typeof CarrierDeleteBody>;
+export const CarrierDeleteBody = z.object({ carrier_id: Carrier.shape.id }).strict()
+export type CarrierDeleteBody = z.infer<typeof CarrierDeleteBody>
 
 export const ComposedCarrier = Carrier.pick({ id: true, logo: true }).extend({
   created_at: Organization.shape.created_at,
   updated_at: Organization.shape.updated_at,
   organization: Organization.pick({
-    id: true, name: true, email: true, phone: true, enabled: true,
+    id: true,
+    name: true,
+    email: true,
+    phone: true,
+    enabled: true,
   }),
-});
-export type ComposedCarrier = z.infer<typeof ComposedCarrier>;
+})
+export type ComposedCarrier = z.infer<typeof ComposedCarrier>

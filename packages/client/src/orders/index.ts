@@ -1,2 +1,2 @@
-export * from "./reads";
-export * from "./mutations";
+export * from './reads'
+export * from './mutations'

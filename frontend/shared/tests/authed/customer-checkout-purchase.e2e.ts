@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from '@playwright/test'
 
 // The purchase-order checkout journey, from the sell catalogue to the
 // stepper - the path every dollar the business pays out starts on.
@@ -22,27 +22,27 @@ import { test, expect } from "@playwright/test";
 // THE BASKET IS SERVER STATE FOR EVERYONE NOW (ruling 63), signed in or not -
 // so every add here is a round trip rather than a zustand write. The
 // signed-out half of this journey is shared/tests/anonymous-basket.e2e.ts.
-const API = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api").replace(/\/$/, "");
+const API = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api').replace(/\/$/, '')
 
 test.afterEach(async ({ request }) => {
   try {
-    await request.delete(`${API}/checkout/items?direction=purchase`);
+    await request.delete(`${API}/checkout/items?direction=purchase`)
   } catch {
     // Best effort - a leftover line is visible in the drawer and harmless.
   }
-});
+})
 
-test("bullion and scrap added on /sell reach the checkout stepper", async ({ page }) => {
-  test.setTimeout(150_000);
+test('bullion and scrap added on /sell reach the checkout stepper', async ({ page }) => {
+  test.setTimeout(150_000)
 
   // BULLION first. The sell catalogue prices through /quotes/*, so cards can
   // take a moment.
-  await page.goto("/sell");
-  const addButton = page.getByRole("button", { name: /^Sell to Us$/i }).first();
-  await expect(addButton, "no sellable product card rendered on /sell").toBeVisible({
+  await page.goto('/sell')
+  const addButton = page.getByRole('button', { name: /^Sell to Us$/i }).first()
+  await expect(addButton, 'no sellable product card rendered on /sell').toBeVisible({
     timeout: 30_000,
-  });
-  await addButton.click();
+  })
+  await addButton.click()
 
   // SCRAP second - a purchase order carries both kinds, and a spec that only
   // ever sells bullion never notices the scrap intake breaking (Jacob's ask).
@@ -51,36 +51,36 @@ test("bullion and scrap added on /sell reach the checkout stepper", async ({ pag
   // FormField-controlled - so the placeholder is the stable handle. The tab
   // is CLICKED, not reached by ?tab=scrap: the URL param races hydration and
   // intermittently leaves the page on Bullion.
-  await page.getByRole("tab", { name: /^Scrap$/i }).click();
-  const weight = page.getByLabel(/^Enter Weight$/);
-  await expect(weight, "the scrap form never rendered").toBeVisible({ timeout: 20_000 });
-  await weight.fill("10");
-  await page.getByRole("button", { name: /^Add Item$/i }).click();
+  await page.getByRole('tab', { name: /^Scrap$/i }).click()
+  const weight = page.getByLabel(/^Enter Weight$/)
+  await expect(weight, 'the scrap form never rendered').toBeVisible({ timeout: 20_000 })
+  await weight.fill('10')
+  await page.getByRole('button', { name: /^Add Item$/i }).click()
 
   // The scrap stepper lands on its Review step once the item is in - the
   // 'Add Another' control appearing is the sign the add took.
   await expect(
-    page.getByRole("button", { name: /Add Another/i }).first(),
-    "the scrap item was never accepted"
-  ).toBeVisible({ timeout: 15_000 });
+    page.getByRole('button', { name: /Add Another/i }).first(),
+    'the scrap item was never accepted'
+  ).toBeVisible({ timeout: 15_000 })
 
   // The checkout drawer, on its purchase (selling) side, now carrying TWO
   // kinds. The tab names carry live counts - "Selling (2)" - so match on the
   // prefix.
-  await page.getByRole("button", { name: /open checkout/i }).click();
-  await page.getByRole("tab", { name: /Selling/i }).click();
+  await page.getByRole('button', { name: /open checkout/i }).click()
+  await page.getByRole('tab', { name: /Selling/i }).click()
 
   // The scrap line is named "<Metal> Item N" by useDecoratedLines; the
   // bullion line carries its product name. Both being present is the point.
   await expect(
     page.getByText(/Gold Item/i).first(),
-    "the scrap line never reached the purchase basket"
-  ).toBeVisible({ timeout: 15_000 });
+    'the scrap line never reached the purchase basket'
+  ).toBeVisible({ timeout: 15_000 })
 
   await expect(
     page.getByText(/Price Estimate/i).first(),
-    "the purchase basket shows no price estimate for the added item"
-  ).toBeVisible({ timeout: 20_000 });
+    'the purchase basket shows no price estimate for the added item'
+  ).toBeVisible({ timeout: 20_000 })
 
   // The estimate must be a real rendered price. Prices render through
   // NumberFlow custom elements whose digits do NOT appear in innerText - a
@@ -88,26 +88,26 @@ test("bullion and scrap added on /sell reach the checkout stepper", async ({ pag
   // (found the hard way). The element being present and visible is the
   // assertion innerText cannot make.
   await expect(
-    page.locator("number-flow-react").first(),
-    "the purchase basket rendered no price element"
-  ).toBeVisible({ timeout: 15_000 });
+    page.locator('number-flow-react').first(),
+    'the purchase basket rendered no price element'
+  ).toBeVisible({ timeout: 15_000 })
 
   // Signed in, the proceed button reads 'Sell Your Items' and lands on the
   // stepper. Anonymous it reads 'Sign In to...' - so this asserting the
   // signed-in label also asserts the session survived the journey.
-  await page.getByRole("button", { name: /^Sell Your Items$/i }).click();
-  await expect(page).toHaveURL(/\/checkout/, { timeout: 20_000 });
+  await page.getByRole('button', { name: /^Sell Your Items$/i }).click()
+  await expect(page).toHaveURL(/\/checkout/, { timeout: 20_000 })
 
   // The stepper's first step. Its h2 carries the current step title.
   await expect(
-    page.getByRole("heading", { name: /Shipping/i }).first(),
-    "the checkout stepper did not open on its Shipping step"
-  ).toBeVisible({ timeout: 20_000 });
+    page.getByRole('heading', { name: /Shipping/i }).first(),
+    'the checkout stepper did not open on its Shipping step'
+  ).toBeVisible({ timeout: 20_000 })
 
   // The shipping step offers the customer's addresses or the way to add one.
   // Either is a correct state for the e2e account; a blank panel is not.
   await expect(
     page.getByText(/Add New|Address/i).first(),
-    "the Shipping step offers neither an address nor a way to add one"
-  ).toBeVisible({ timeout: 15_000 });
-});
+    'the Shipping step offers neither an address nor a way to add one'
+  ).toBeVisible({ timeout: 15_000 })
+})
