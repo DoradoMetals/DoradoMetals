@@ -68,5 +68,11 @@
   "POST /api/stripe/cancel_payment_intent",
   "POST /api/users/:id/credit",
   "PUT /api/orders/:id/spots",
-  "POST /api/orders/admin"
+  "POST /api/orders/admin",
+  "GET /api/sms",
+  "GET /api/sms/:id",
+  "POST /api/calls/token",
+  "POST /api/calls/presence",
+  "GET /api/calls/:id",
+  "GET /api/customers/:id/timeline"
 ]

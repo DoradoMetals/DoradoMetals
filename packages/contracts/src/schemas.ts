@@ -5,6 +5,7 @@
 // beside the computed shapes no table backs.
 export * from './auth/index.js'
 export * from './checkout/index.js'
+export * from './crm/index.js'
 export * from './fulfillments/index.js'
 export * from './leads/index.js'
 export * from './media/index.js'

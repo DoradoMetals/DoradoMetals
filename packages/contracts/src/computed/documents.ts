@@ -90,3 +90,12 @@ export const PromoMail = MailerAddressee.extend({
   url: z.string(),
 })
 export type PromoMail = z.infer<typeof PromoMail>
+
+// An internal notice to staff, not a customer mailer: no Figma design exists
+// for it, so it wears the plain base layout.
+export const VoicemailReceivedMail = MailerAddressee.extend({
+  from_number: z.string(),
+  received_at: z.string(),
+  recording_url: z.string().nullable(),
+})
+export type VoicemailReceivedMail = z.infer<typeof VoicemailReceivedMail>

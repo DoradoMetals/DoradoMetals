@@ -21,7 +21,7 @@ export function scoreThreshold(): number {
 
 const DEFAULT_THRESHOLD = 0.5
 
-export async function verifyToken(token: string): Promise<unknown> {
+export async function verify(token: string, ip: string | null): Promise<boolean> {
   if (!token) {
     throw new Error('Captcha token is missing')
   }
@@ -29,11 +29,12 @@ export async function verifyToken(token: string): Promise<unknown> {
   const params = new URLSearchParams()
   params.append('secret', requiredEnv('RECAPTCHA_SECRET_KEY'))
   params.append('response', token)
+  if (ip) params.append('remoteip', ip)
 
   const threshold = scoreThreshold()
 
   const response = await axios.post('https://www.google.com/recaptcha/api/siteverify', params)
-  const { success, score } = response.data
+  const { success, score } = response.data ?? {}
 
-  return success && (score ?? 0) >= threshold
+  return success === true && (score ?? 0) >= threshold
 }

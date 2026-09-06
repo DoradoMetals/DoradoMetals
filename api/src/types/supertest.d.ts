@@ -17,6 +17,7 @@ declare module 'supertest' {
     ): Test
     query(params: Record<string, unknown>): Test
     set(field: string, value: string): Test
+    type(value: string): Test
     expect(status: number): Test
   }
   interface SuperTest {

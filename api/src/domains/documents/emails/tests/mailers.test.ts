@@ -15,7 +15,7 @@ import * as appointmentTomorrow from '#documents/emails/templates/appointment-to
 import * as documentSent from '#documents/emails/templates/document-sent.ts'
 import * as promo from '#documents/emails/templates/promo.ts'
 import { detailsChangedRows } from '#documents/emails/rules.ts'
-import { maskEmail, maskPhone } from '#documents/emails/render/mask.ts'
+import { maskEmail, maskPhone } from '#shared/text/mask.ts'
 import type { MailerRow } from '@dorado/contracts'
 
 process.env.FRONTEND_URL ??= 'https://example.test'

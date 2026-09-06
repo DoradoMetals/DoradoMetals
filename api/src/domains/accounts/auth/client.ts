@@ -1,22 +1,19 @@
-import { requiredEnv } from '#shared/env/required.ts'
 import '#env'
 import { betterAuth } from 'better-auth'
-import { magicLink, admin, anonymous } from 'better-auth/plugins'
+import { admin, anonymous, emailOTP, phoneNumber } from 'better-auth/plugins'
 import { stripe as stripePlugin } from '@better-auth/stripe'
 import { Pool } from 'pg'
 
 import stripeClient from '#providers/payment/stripe-client.ts'
+import * as sms from '#providers/sms/index.ts'
 import { fillMissingRole, withoutAnonymousCustomers } from '#accounts/auth/anonymous.ts'
+import * as rules from '#accounts/auth/rules.ts'
 import { adoptAnonymousCheckoutQuietly } from '#checkout/adopt.ts'
-import { sendEmail } from '#providers/emails/nodemailer.ts'
-import { sendAuthVerificationEmail } from '#documents/emails/service.ts'
-import { renderChangeEmail, renderResetPasswordEmail } from '#documents/emails/utils/renderEmail.ts'
-// The magic link IS the "account created" moment, and ruling 95 gave that
-// moment a mailer. Only the RENDERER moved here; the passwordless-auth lane
-// owns what this callback does next, and `emails.sendAccountCreated` is the
-// version that also files a paper-trail row.
-import * as accountCreatedMail from '#documents/emails/templates/account-created.ts'
+import { sendSignInCode } from '#documents/emails/service.ts'
 
+// Every route ends in a code (ruling 91). There is no credential provider, no
+// reset flow and no magic link: better-auth mints every code, SMS or email
+// alike, and Twilio only delivers it.
 export const auth = betterAuth({
   database: new Pool({
     connectionString: process.env.DATABASE_URL,
@@ -27,17 +24,6 @@ export const auth = betterAuth({
       role: { type: 'string', required: false, defaultValue: 'user', input: false },
       stripeCustomerId: { type: 'string', required: false, input: false },
       dorado_funds: { type: 'number', required: false, defaultValue: 0, input: false },
-    },
-    changeEmail: {
-      enabled: true,
-      sendChangeEmailConfirmation: async ({ user, token }) => {
-        const emailUrl = `${requiredEnv('FRONTEND_URL')}/change-email?token=${token}`
-        await sendEmail({
-          to: user.email,
-          subject: 'Approve Email Change',
-          html: renderChangeEmail({ firstName: user.name, url: emailUrl }),
-        })
-      },
     },
   },
   session: {
@@ -53,28 +39,6 @@ export const auth = betterAuth({
   databaseHooks: {
     user: { create: { before: async (user) => fillMissingRole(user) } },
   },
-  emailAndPassword: {
-    enabled: true,
-    sendResetPassword: async ({ user, token }) => {
-      const emailUrl = `${requiredEnv('FRONTEND_URL')}/reset-password?token=${token}`
-      await sendEmail({
-        to: user.email,
-        subject: 'Reset Your Password',
-        html: renderResetPasswordEmail({ firstName: user.name, url: emailUrl }),
-      })
-    },
-  },
-  emailVerification: {
-    sendOnSignUp: true,
-    autoSignInAfterVerification: true,
-    sendVerificationEmail: async ({ user, token }, request) => {
-      await sendAuthVerificationEmail(
-        user,
-        `${requiredEnv('FRONTEND_URL')}/verify-email?token=${token}`,
-        request?.url?.includes('/sign-up') ?? false
-      )
-    },
-  },
   socialProviders: {
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID as string,
@@ -84,19 +48,46 @@ export const auth = betterAuth({
 
   trustedOrigins: [process.env.FRONTEND_URL as string],
   plugins: [
-    magicLink({
-      sendMagicLink: async ({ email, token }) => {
-        const emailUrl = `${requiredEnv('FRONTEND_URL')}/verify-login?token=${token}`
-        await sendEmail({
-          to: email,
-          subject: accountCreatedMail.subject(),
-          html: accountCreatedMail.render({
-            order_id: null,
-            user_id: null,
-            email,
-            name: null,
-            url: emailUrl,
-          }),
+    phoneNumber({
+      otpLength: rules.OTP_LENGTH,
+      expiresIn: rules.OTP_EXPIRES_SECONDS,
+      allowedAttempts: rules.PLUGIN_ALLOWED_ATTEMPTS,
+      phoneNumberValidator: (value: string) => rules.isUsPhone(value),
+      sendOTP: async ({ phoneNumber: to, code }) => {
+        await sms.send(
+          to,
+          `${code} is your Dorado Metals code. It expires in ` +
+            `${rules.OTP_EXPIRES_SECONDS / 60} minutes.`
+        )
+      },
+      signUpOnVerification: {
+        getTempEmail: (value: string) => rules.temporaryEmailFor(value),
+      },
+      schema: {
+        user: {
+          fields: {
+            phoneNumber: 'phone_number',
+            phoneNumberVerified: 'phone_number_verified',
+          },
+        },
+      },
+    }),
+
+    emailOTP({
+      otpLength: rules.OTP_LENGTH,
+      expiresIn: rules.OTP_EXPIRES_SECONDS,
+      allowedAttempts: rules.PLUGIN_ALLOWED_ATTEMPTS,
+      // Without this an unknown address gets an account minted with no phone,
+      // and the send itself would say whether the address is known.
+      disableSignUp: true,
+      sendVerificationOTP: async ({ email, otp }) => {
+        await sendSignInCode({
+          order_id: null,
+          user_id: null,
+          email,
+          name: null,
+          code: otp,
+          expires_in_minutes: rules.OTP_EXPIRES_SECONDS / 60,
         })
       },
     }),

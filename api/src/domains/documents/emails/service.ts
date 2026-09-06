@@ -16,10 +16,8 @@ import * as documentSent from '#documents/emails/templates/document-sent.ts'
 import * as signInCode from '#documents/emails/templates/sign-in-code.ts'
 import * as accountCreated from '#documents/emails/templates/account-created.ts'
 import * as detailsChanged from '#documents/emails/templates/details-changed.ts'
-import {
-  renderSalesOrderToSupplierEmail,
-  renderVerifyEmail,
-} from '#documents/emails/utils/renderEmail.ts'
+import * as voicemailReceived from '#documents/emails/templates/voicemail-received.ts'
+import { renderSalesOrderToSupplierEmail } from '#documents/emails/utils/renderEmail.ts'
 import { requiredEnv } from '#shared/env/required.ts'
 
 import { deliver } from '#providers/emails/nodemailer.ts'
@@ -32,9 +30,9 @@ import type { PoolClient } from 'pg'
 import type {
   AccountCreatedMail,
   DetailsChangedMail,
-  EmailRecipient,
   MailerAddressee,
   SignInCodeMail,
+  VoicemailReceivedMail,
 } from '@dorado/contracts'
 import {
   formatPurchaseOrderNumber,
@@ -445,6 +443,25 @@ export async function sendDetailsChanged(
 // Not in the Figma page, and staying
 // ---------------------------------------------------------------------------
 
+// An internal notice to staff when a caller reaches nobody. No Figma mailer
+// exists for it; it wears the plain base layout.
+export async function sendVoicemailReceived(
+  mail: VoicemailReceivedMail,
+  transport?: Transport,
+  executor?: PoolClient
+): Promise<void> {
+  await post(
+    'voicemail_received',
+    mail,
+    voicemailReceived.subject(),
+    voicemailReceived.render(mail),
+    [],
+    null,
+    transport,
+    executor
+  )
+}
+
 // The refiner's copy of a sales order. It goes to a SUPPLIER, not a customer,
 // so it is not one of the customer mailers and keeps its own template.
 export async function sendSalesOrderToSupplier(
@@ -482,45 +499,6 @@ export async function sendSalesOrderToSupplier(
 
   await recordEmail(
     { kind: 'sales_order_to_supplier', to: email, subject, order_id, pdf_id: pdfId },
-    rules.outcomeOf(delivery),
-    executor
-  )
-  rules.assertDelivered(delivery)
-}
-
-// better-auth's verification callback. A SIGN-UP gets the Account created
-// mailer from the design now; the plain verify link keeps the old template
-// until the passwordless-auth lane deletes both it and this function.
-export async function sendAuthVerificationEmail(
-  user: EmailRecipient,
-  url: string,
-  isSignUp: boolean,
-  transport?: Transport,
-  executor?: PoolClient
-): Promise<void> {
-  const user_id = typeof user.id === 'string' ? user.id : null
-  if (isSignUp) {
-    await sendAccountCreated(
-      { order_id: null, user_id, email: user.email, name: user.name ?? null, url },
-      transport,
-      executor
-    )
-    return
-  }
-
-  const subject = 'Verify Your Email Address'
-  const delivery = await deliver(
-    {
-      to: user.email,
-      subject,
-      text: `Click the link to verify your email: ${url}`,
-      html: renderVerifyEmail({ firstName: String(user.name ?? ''), url }),
-    },
-    transport
-  )
-
-  await recordEmail(
-    { kind: 'auth_verification', to: user.email, subject, user_id },
     rules.outcomeOf(delivery),
     executor
   )

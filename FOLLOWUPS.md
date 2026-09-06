@@ -190,3 +190,52 @@ lands in `shared/assets/fonts`. **NONE OF THESE HAS BEEN SEEN IN A REAL CLIENT**
 the design's own note says a dark mailer can come back partly inverted from
 Gmail's and Outlook's transforms, and no send has left the stub. Detail in
 `docs/waves/mailers.md`.
+
+## D216 - Passwordless, phone-first auth, plus SMS and calls (2026-09-06, rulings 91-94, 96)
+
+Passwords are gone from the API. `emailAndPassword`, `emailVerification`,
+`user.changeEmail` and the `magicLink` plugin are out of the better-auth config
+(pinned 1.6.9, not bumped), replaced by its `phoneNumber` and `emailOTP` plugins
+mapped onto the existing snake_case columns; `set_password`, the reset and
+change-password surfaces, three raw mail templates and `sendAuthVerificationEmail`
+are deleted. **No password row in `auth.account` was deleted and no `exchange`
+table was touched** - they simply stop being read. Eight endpoints under
+`/api/account` feed all twelve Figma "Auth Form" states from one
+`VerificationView` plus a `ChangeConfirmedView`, and every rule the design carries
+is a test: a factor change is verified through the OTHER factor with no choice,
+sign-in is free choice, step-up only for a session older than five minutes,
+the OLD value notified after commit, one factor per session, enumeration-safe
+responses padded to a constant-time floor so shape AND timing match for a known
+and an unknown identity, a five-attempt lockout with a fifteen-minute cooldown,
+and masking everywhere except the caller's own new value on the confirmed screen.
+SMS is a provider (`send` + signature verification) with a **recording fake as
+the default**, so the app boots with no Twilio keys and nothing in a test run can
+reach the network; the real adapter is written against Twilio's documented REST
+API and refuses to construct without its keys. **The Twilio signature constant
+quoted in this lane's brief (`RSOYDt4T1cUTdK1PDd93/VVr8B8=`) does not reproduce
+from the inputs given with it**; the algorithm was implemented from the
+documentation instead and the HMAC primitive is pinned against an external
+HMAC-SHA1 vector, so the test proves the hash rather than its own output.
+`crm.sms_messages` and `crm.calls` are one table each for both directions, the
+four Twilio webhooks mount before the JSON parser and are idempotent on
+`provider_sid` and order-tolerant on status, and `GET /api/customers/:id/timeline`
+merges sms, calls and emails in ONE SQL read. Calls are a softphone with a
+voicemail path; **there is NO frontend for them (ruling 96)** and no Figma design
+for the `voicemail_received` notice either, which is why it wears the plain base
+layout - **it wants a design**. Migrations **142, 143 and 144** are additive and
+dev-only; 144's index on `auth.verification (identifier)` is a column every OTP
+check filters on that better-auth's own schema never indexed. **Genesis carries
+144 by hand**, because dev has moved under this branch (the lots and refining
+lanes are at 167) and a regeneration would import their schemas.
+**Five dev-db gate members fail for that reason - `verify:fresh`, `verify:genesis`,
+`verify:backfill`, `audit:non-finite` and both wire validators, on `orders.lots`,
+`lots`/`refining` and 167's new `fulfillments.methods.category` label - and not one
+of them names anything this wave wrote.** **THE FRONTEND IS BROKEN ON PURPOSE (ruling 44)**: seven
+files still call `useSetPassword` or better-auth's password and magic-link
+methods, and `auth.setup.ts` still signs in with a password - all listed in
+`docs/waves/auth-passwordless.md`, none fixed, and the gate runs no frontend
+member. **What Jacob owes**: eleven env keys, four Twilio webhook URLs on the one
+business number, a TwiML App whose SID is an env key rather than a database row
+(dev, UAT and prod each need a different one), the A2P 10DLC campaign that gates
+OUTBOUND messaging only, and Cloudflare bot rules allowing the webhook paths.
+Detail in `docs/waves/auth-passwordless.md`.

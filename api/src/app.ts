@@ -31,10 +31,15 @@ import quoteRoutes from '#pricing/routes.ts'
 import shippingRoutes from '#logistics/shipping/routes.ts'
 import carrierServiceRoutes from '#logistics/shipping/services/routes.ts'
 import fulfillmentRoutes from '#logistics/fulfillments/routes.ts'
+import smsRoutes from '#crm/sms/routes.ts'
+import callsRoutes from '#crm/calls/routes.ts'
+import timelineRoutes from '#crm/timeline/routes.ts'
 
 import { toNodeHandler } from 'better-auth/node'
 import { auth } from '#accounts/auth/client.ts'
 import { handleStripeWebhook } from '#transactions/controller.ts'
+import * as smsController from '#crm/sms/controller.ts'
+import * as callsController from '#crm/calls/controller.ts'
 import errorHandler from '#shared/middleware/errorHandler.ts'
 import { httpLogger } from '#shared/logging/http.ts'
 
@@ -51,6 +56,15 @@ app.use(
 )
 
 app.post('/api/auth/stripe/webhook', express.raw({ type: 'application/json' }), handleStripeWebhook)
+
+// Twilio's four webhooks are form-encoded and mount before express.json(),
+// each with its own express.urlencoded() - the same shape as the Stripe
+// webhook above. Their signatures are the guard; the admin reads for these
+// same resources mount later, with the rest, after the JSON parser.
+app.post('/api/sms/inbound', express.urlencoded({ extended: false }), smsController.inbound)
+app.post('/api/sms/status', express.urlencoded({ extended: false }), smsController.status)
+app.post('/api/calls/twiml', express.urlencoded({ extended: false }), callsController.twiml)
+app.post('/api/calls/status', express.urlencoded({ extended: false }), callsController.status)
 
 app.all('/api/auth/*splat', toNodeHandler(auth))
 
@@ -89,6 +103,9 @@ app.use('/api/quotes', quoteRoutes)
 app.use('/api/carriers', carriersRoutes)
 app.use('/api/carrier_services', carrierServiceRoutes)
 app.use('/api/fulfillments', fulfillmentRoutes)
+app.use('/api/sms', smsRoutes)
+app.use('/api/calls', callsRoutes)
+app.use('/api/customers', timelineRoutes)
 
 app.use((req, res) => {
   res.status(404).json({ error: 'Not Found' })

@@ -33,9 +33,29 @@ const PUBLIC = new Set([
   'POST /api/quotes/catalog',
   'GET /api/payments/methods/',
   'GET /api/carrier_services/sale_options',
+  // Signing in has no session to guard with (ruling 91). What stands in for one
+  // is the captcha on the send, the per-number and per-IP limits, and the
+  // wrong-code lockout - all in accounts/auth/rules.ts.
+  'POST /api/account/send_code',
+  'POST /api/account/verify_code',
+  'POST /api/account/sign_up',
+  // The e2e read-back. It is MOUNTED only while the recording fake is the SMS
+  // adapter and NODE_ENV is not production, so in a real deployment there is no
+  // route here to guard - see accounts/auth/routes.ts and its test.
+  'GET /api/account/last_code',
 ])
 
-const NOT_OURS = new Set(['POST /api/auth/stripe/webhook', 'ALL /api/auth/*splat'])
+const NOT_OURS = new Set([
+  'POST /api/auth/stripe/webhook',
+  'ALL /api/auth/*splat',
+  // Twilio's four webhooks, mounted directly on app.ts before express.json()
+  // the same way the Stripe webhook is - no session to guard with, and their
+  // own signature check is the real guard (rulings 92/93).
+  'POST /api/sms/inbound',
+  'POST /api/sms/status',
+  'POST /api/calls/twiml',
+  'POST /api/calls/status',
+])
 
 const send = (verb: string, url: string) => {
   const req = request(app)
