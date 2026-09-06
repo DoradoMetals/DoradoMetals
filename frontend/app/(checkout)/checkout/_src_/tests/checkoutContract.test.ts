@@ -25,10 +25,12 @@ const serverRow = (over: Record<string, unknown> = {}) => ({
   payment_details_id: null,
   recipient_address_id: null,
   fulfillment_id: null,
-  // The view carries the basket now, not just the pointers.
-  items: [],
+  // The view carries the basket now, not just the pointers - and a basket
+  // line is a LOT (docs/waves/lots-build.md), so the key and the step are
+  // both `lots`.
+  lots: [],
   missing: [
-    'items',
+    'lots',
     'shipper_address_id',
     'package_id',
     'carrier_service_id',
@@ -52,7 +54,7 @@ describe('the composed checkout row', () => {
     for (const step of row.missing) {
       expect(CheckoutMissing.safeParse(step).success).toBe(true)
     }
-    expect(row.missing[0]).toBe('items')
+    expect(row.missing[0]).toBe('lots')
     expect(row.missing).toContain('package_id')
   })
 

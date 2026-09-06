@@ -11,7 +11,7 @@ import { test, expect, request as pwRequest } from '@playwright/test'
 // useAdminCreateSalesOrder drives: retrieve the admin-flavoured intent for the
 // customer and re-price it (`{ user_id, type }` - the row supplies the rest),
 // sync the customer's buy cart through the admin-scoped accessor
-// (PUT /api/checkout/items?user_id=, admin-only - api/src/domains/checkout/controller.ts),
+// (PUT /api/checkout/lots?user_id=, admin-only - api/src/domains/checkout/controller.ts),
 // and then place with ONE `AdminSaleCreate` body against POST /api/orders/admin
 // (orders pass 2), which runs the checkout steps server-side in one transaction. The intent is a REAL Stripe TEST-MODE object
 // (Jacob: "as long as we're hitting the stripe sandbox in testing it's
@@ -107,8 +107,10 @@ test.beforeAll(async ({ playwright }) => {
 
   // THE ADMIN-SCOPED ACCESSOR (D214 item 2): user_id is admin-only, checked
   // the same way createOrderFromCheckout already checks admin ownership.
-  const synced = await admin.put(`${API}/checkout/items?direction=sale&user_id=${customerId}`, {
-    data: { items: [{ bullion_id: product.id, quantity: 1 }] },
+  // A BASKET LINE IS A LOT (docs/waves/lots-build.md, ruling 98): the endpoint
+  // is `/checkout/lots` and the body key is `lots`.
+  const synced = await admin.put(`${API}/checkout/lots?direction=sale&user_id=${customerId}`, {
+    data: { lots: [{ bullion_id: product.id, quantity: 1 }] },
   })
   expect(synced.ok(), `admin basket sync failed: ${await synced.text()}`).toBeTruthy()
 
@@ -133,7 +135,7 @@ test.beforeAll(async ({ playwright }) => {
     data: {
       direction: 'sale',
       user_id: customerId,
-      items: [{ bullion_id: product.id, quantity: 1 }],
+      lots: [{ bullion_id: product.id, quantity: 1 }],
       fulfillment: {
         method_id: shipment.id,
         choices: {

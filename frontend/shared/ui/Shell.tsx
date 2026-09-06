@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useDrawerStore } from '@/shared/store/drawerStore'
-import { useBasket } from '@/shared/hooks/checkout/items/queries'
+import { useBasket } from '@/shared/hooks/checkout/lots/queries'
 
 import { Badge, Button, Header, Link as DsLink } from '@dorado/components'
 import { CheckoutIcon } from '@/shared/ui/CheckoutIcon'

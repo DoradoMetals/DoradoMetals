@@ -3,7 +3,7 @@
 import { useMemo } from 'react'
 import { useProducts } from '@/shared/hooks/products/queries'
 import type { Product } from '@/shared/types/products'
-import { type CheckoutLine } from '@/shared/types/checkoutItems'
+import { type CheckoutLine } from '@/shared/types/checkoutLots'
 
 // Flair only (ruling 51): the catalogue supplies the picture and the words, and
 // nothing else. Every weight, purity and price on the screen is the line's own

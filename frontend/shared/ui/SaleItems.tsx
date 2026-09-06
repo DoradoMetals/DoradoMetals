@@ -5,7 +5,7 @@ import { Minus, Plus, ShoppingCart, Trash2 } from '@dorado/icons'
 import Image from 'next/image'
 import NumberFlow from '@number-flow/react'
 import { useRouter } from 'next/navigation'
-import { useBasket, useCheckoutItemActions } from '@/shared/hooks/checkout/items/queries'
+import { useBasket, useCheckoutLotActions } from '@/shared/hooks/checkout/lots/queries'
 import { useDecoratedLines } from '@/shared/utils/flair'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useUser } from '@/shared/hooks/auth/authClient'
@@ -18,7 +18,7 @@ export default function SaleItems() {
   const { closeDrawer } = useDrawerStore()
 
   const items = useBasket('sale')
-  const { addOne, removeOne, removeAll } = useCheckoutItemActions()
+  const { addOne, removeOne, removeAll } = useCheckoutLotActions()
   const rows = useDecoratedLines(items)
 
   // ONE quote for the whole basket - every line total and the footer total are

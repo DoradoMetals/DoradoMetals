@@ -46,7 +46,7 @@ const order = () =>
   ({
     order: { id: 'po-1', status: 'Received', direction: 'purchase' },
     totals: null,
-    items: items(),
+    lots: lots(),
     address: null,
     shipments: shipments(),
     pickup: null,
@@ -54,43 +54,54 @@ const order = () =>
     user: null,
     actions: {
       cancel: true,
-      finalize_pricing: false,
+      reopen: false,
+      finalize: false,
       add_funds: false,
-      send_to_refiner: false,
+      supply: false,
       buy_label: false,
       update_tracking: true,
-      edit_lines: true,
+      edit_lots: true,
+      assign_lots: false,
       statuses: [],
+      finalize_blocked_by: [],
     },
   }) as unknown as OrderView
 
-// OrderView items, VERBATIM: bullion_id is the discriminator (null means
-// scrap), the weights live on the line, and BOTH NAMES ARE THE VIEW'S -
-// `item_name` numbers a scrap lot per metal in `db/orders/sql/view.sql`, and
-// `product_name` is one scalar subselect (ruling 78).
-const items = () => [
+// OrderView LOTS, VERBATIM (docs/waves/lots-build.md): the link row carries
+// this order's money (`premium`, `payable`, `line_total`) and `lot` carries the
+// physical thing. `bullion_id` is still the discriminator, and a scrap lot's
+// display name is its metal - `metals.metals.id` IS the metal's name
+// (ruling 79), so nothing composes an "Item 1" label any more.
+const lots = () => [
   {
     id: 'i-scrap',
-    bullion_id: null,
-    metal_id: 'Gold',
-    content: 2,
     premium: 0.75,
-    unit: 't oz',
     payable: 1.5,
     line_total: null,
-    item_name: 'Gold Item 1',
-    product_name: null,
+    lot: {
+      id: 'l-scrap',
+      bullion_id: null,
+      metal_id: 'Gold',
+      content: 2,
+      unit: 't oz',
+      quantity: 1,
+      product_name: null,
+      form: 'Scrap',
+    },
   },
   {
     id: 'i-bullion',
-    bullion_id: 'p-1',
-    metal_id: 'Gold',
-    quantity: 2,
     premium: 0.98,
     payable: null,
     line_total: null,
-    item_name: null,
-    product_name: 'Gold American Eagle',
+    lot: {
+      id: 'l-bullion',
+      bullion_id: 'p-1',
+      metal_id: 'Gold',
+      quantity: 2,
+      product_name: 'Gold American Eagle',
+      form: 'Coin',
+    },
   },
 ]
 const spots = () => [{ id: 'Gold' }]
@@ -182,10 +193,10 @@ describe('the purchase-order drawer footer', () => {
       expect(screen.getAllByText('10295.9').length).toBeGreaterThan(0)
     })
 
-    // The line rows are behind the toggles; the view numbers the scrap lines
-    // per metal, so the browser reads `item_name` rather than composing one.
+    // The line rows are behind the toggles; a scrap lot is named by its metal
+    // and a catalogue lot by the view's `product_name`.
     await userEvent.click(screen.getByRole('button', { name: /Scrap Estimate/ }))
-    expect(await screen.findByText('Gold Item 1')).toBeDefined()
+    expect(await screen.findByText('Gold')).toBeDefined()
 
     await userEvent.click(screen.getByRole('button', { name: /Bullion Estimate/ }))
     expect(await screen.findByText('Gold American Eagle')).toBeDefined()

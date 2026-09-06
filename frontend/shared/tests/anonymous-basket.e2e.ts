@@ -26,7 +26,7 @@ test.afterEach(async ({ page }) => {
   await page
     .evaluate(
       (api) =>
-        fetch(`${api}/checkout/items?direction=sale`, {
+        fetch(`${api}/checkout/lots?direction=sale`, {
           method: 'DELETE',
           credentials: 'include',
         }).then(() => undefined),
@@ -53,7 +53,7 @@ test("a signed-out visitor's basket is the server's", async ({ page }) => {
       async () =>
         await page.evaluate(
           (api) =>
-            fetch(`${api}/checkout/items?direction=sale`, { credentials: 'include' })
+            fetch(`${api}/checkout/lots?direction=sale`, { credentials: 'include' })
               .then((r) => (r.ok ? r.json() : []))
               .then((rows: unknown[]) => rows.length),
           API

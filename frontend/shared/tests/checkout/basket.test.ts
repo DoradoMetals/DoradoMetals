@@ -1,10 +1,12 @@
 import { describe, expect, test } from 'vitest'
 
 import { addLine, addOne, collapse, dropAll, dropOne } from '@/shared/utils/basket'
-import type { CheckoutItem, CheckoutItemPatch } from '@dorado/contracts'
+import type { CheckoutLotPatch, Lot } from '@dorado/contracts'
 
 // THE BASKET'S LINE ARITHMETIC, pinned - the functions that compose the next
-// `PUT /checkout/items` out of the rows the server last answered with. It was a
+// `PUT /checkout/lots` out of the rows the server last answered with. A row is
+// a `lots.items` LOT now (docs/waves/lots-build.md): the basket link carries no
+// premium and the physical facts live on the lot itself. It was a
 // zustand store's methods until ruling 63 made the basket server rows for
 // everybody, visitors included; the arithmetic survived the store because
 // building a request is not holding data.
@@ -13,34 +15,35 @@ import type { CheckoutItem, CheckoutItemPatch } from '@dorado/contracts'
 // the server answered every row it holds, so each one has one. Only `addLine`
 // takes a patch, because a thing not yet in the basket has no row id yet.
 
-const row = (over: Partial<CheckoutItem> = {}): CheckoutItem => ({
+const row = (over: Partial<Lot> = {}): Lot => ({
   id: 'row-1',
   bullion_id: null,
-  metal_id: null,
-  checkout_id: 'c-1',
+  metal_id: 'Gold',
+  unit: 't oz',
+  quantity: 1,
   pre_melt: null,
   post_melt: null,
   purity: null,
-  premium: null,
-  quantity: 1,
-  created_by: null,
-  updated_by: null,
+  content_snapshot: null,
+  content: null,
+  image_id: null,
+  split_from_id: null,
   created_at: '2026-09-06T00:00:00.000Z',
   updated_at: '2026-09-06T00:00:00.000Z',
-  content: null,
-  unit: null,
+  created_by_id: null,
+  updated_by_id: null,
   ...over,
 })
 
-const coinRow = (id: string, bullion_id: string, quantity = 1): CheckoutItem =>
+const coinRow = (id: string, bullion_id: string, quantity = 1): Lot =>
   row({ id, bullion_id, quantity })
 
-const lotRow = (id: string, over: Partial<CheckoutItem> = {}): CheckoutItem =>
+const lotRow = (id: string, over: Partial<Lot> = {}): Lot =>
   row({ id, metal_id: 'Gold', pre_melt: 10, purity: 0.585, unit: 'g', ...over })
 
-const coin = (bullion_id: string, quantity = 1): CheckoutItemPatch => ({ bullion_id, quantity })
+const coin = (bullion_id: string, quantity = 1): CheckoutLotPatch => ({ bullion_id, quantity })
 
-const lot = (over: Partial<Extract<CheckoutItemPatch, { metal_id: string }>> = {}) => ({
+const lot = (over: Partial<Extract<CheckoutLotPatch, { metal_id: string }>> = {}) => ({
   metal_id: 'Gold',
   pre_melt: 10,
   purity: 0.585,

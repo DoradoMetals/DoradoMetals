@@ -1,7 +1,7 @@
 import { useAdminCreateOrder, useFulfillmentMethods, usePaymentMethods } from '@dorado/client'
 import { useSaleShippingServices } from '../../shipping/queries'
 import type { AdminSaleCheckoutForm } from '@/shared/types/salesOrders'
-import type { CheckoutItemPatch } from '@dorado/contracts'
+import type { CheckoutLotPatch } from '@dorado/contracts'
 
 // AN ADMIN PLACING A SALE IS ONE CALL NOW (orders pass 2). It was five - sync
 // the customer's basket, patch their checkout, create a draft fulfillment,
@@ -20,10 +20,10 @@ export const useAdminCreateSalesOrder = (user_id: string) => {
   const { data: fulfillmentMethods = [] } = useFulfillmentMethods('sale')
   const create = useAdminCreateOrder()
 
-  const bodyFor = (sales_order: AdminSaleCheckoutForm, items: CheckoutItemPatch[]) => ({
+  const bodyFor = (sales_order: AdminSaleCheckoutForm, lots: CheckoutLotPatch[]) => ({
     direction: 'sale' as const,
     user_id,
-    items,
+    lots,
     fulfillment: {
       method_id: fulfillmentMethods.find((m) => m.type === 'SHIPMENT')?.id ?? '',
       choices: {
@@ -40,11 +40,11 @@ export const useAdminCreateSalesOrder = (user_id: string) => {
 
   return {
     ...create,
-    mutateAsync: async (vars: { sales_order: AdminSaleCheckoutForm; items: CheckoutItemPatch[] }) =>
-      await create.mutateAsync(bodyFor(vars.sales_order, vars.items)),
+    mutateAsync: async (vars: { sales_order: AdminSaleCheckoutForm; lots: CheckoutLotPatch[] }) =>
+      await create.mutateAsync(bodyFor(vars.sales_order, vars.lots)),
     mutate: (
-      vars: { sales_order: AdminSaleCheckoutForm; items: CheckoutItemPatch[] },
+      vars: { sales_order: AdminSaleCheckoutForm; lots: CheckoutLotPatch[] },
       options?: { onSuccess?: () => void }
-    ) => create.mutate(bodyFor(vars.sales_order, vars.items), { onSuccess: options?.onSuccess }),
+    ) => create.mutate(bodyFor(vars.sales_order, vars.lots), { onSuccess: options?.onSuccess }),
   }
 }

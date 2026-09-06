@@ -6,7 +6,7 @@ import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { loadStripe } from '@stripe/stripe-js'
 
-import { useBasket, useClearCheckoutItems } from '@/shared/hooks/checkout/items/queries'
+import { useBasket, useClearCheckoutLots } from '@/shared/hooks/checkout/lots/queries'
 import ShippingSelect from './shipping/shippingSelect'
 import { useGetSession } from '@/shared/hooks/auth/queries'
 import { usePaymentIntentSecret } from '@dorado/client'
@@ -79,7 +79,7 @@ export default function SalesOrderCheckout() {
   // The basket the order was built from is emptied SERVER-side - there is no
   // browser copy to clear (ruling 63). The purchase side does this in the use
   // case itself; the sale side does not, so the surface asks.
-  const clearBasket = useClearCheckoutItems('sale')
+  const clearBasket = useClearCheckoutLots('sale')
 
   const finishCheckout = () => {
     startTransition(() => router.push('/order-placed'))

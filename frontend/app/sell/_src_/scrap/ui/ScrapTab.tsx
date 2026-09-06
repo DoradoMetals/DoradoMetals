@@ -6,7 +6,7 @@ import { purityOptions, ScrapInput, scrapSchema, type Scrap } from '@/shared/typ
 import { Button, Divider, Form } from '@dorado/components'
 import { useEffect, useState } from 'react'
 import { defineStepper } from '@stepperize/react'
-import { useCheckoutItemActions } from '@/shared/hooks/checkout/items/queries'
+import { useCheckoutLotActions } from '@/shared/hooks/checkout/lots/queries'
 import { useRouter } from 'next/navigation'
 import { useSpotPrices } from '@/shared/hooks/spots/queries'
 import ReviewStep from './ReviewStep'
@@ -37,7 +37,7 @@ export default function ScrapForm() {
   const stepper = useStepper()
   const currentIndex = utils.getIndex(stepper.current.id)
 
-  const { addItem } = useCheckoutItemActions()
+  const { addItem } = useCheckoutLotActions()
   const { data: metals = [] } = useSpotPrices()
 
   const [submitted, setSubmitted] = useState(false)

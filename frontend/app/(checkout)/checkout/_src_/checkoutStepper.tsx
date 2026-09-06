@@ -13,7 +13,7 @@ import { isPayoutComplete, toPayoutForm, usePayoutDraft } from './payoutStep/pay
 import { readyForPayment, resolveHandoff } from '@/shared/utils/gates'
 
 import { useGetSession } from '@/shared/hooks/auth/queries'
-import { useBasket } from '@/shared/hooks/checkout/items/queries'
+import { useBasket } from '@/shared/hooks/checkout/lots/queries'
 import { useCarrierHandoffs } from '@dorado/client'
 import {
   useFulfillment,

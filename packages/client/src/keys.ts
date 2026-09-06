@@ -24,6 +24,14 @@ export const keys = {
     orderIntent: (order_id: string) => ['payments', 'intent', 'order', order_id] as const,
     details: (id: string) => ['payments', 'details', id] as const,
     detailsBank: (id: string) => ['payments', 'details', id, 'bank'] as const,
+    // The rails (docs/waves/payment-rails.md): a payout and a charge are ROWS
+    // with a state, and the Payment card is one read keyed by the order.
+    view: (order_id: string) => ['payments', 'view', order_id] as const,
+    transfer: (id: string) => ['payments', 'transfer', id] as const,
+    payTo: (user_id?: string | null) => ['payments', 'pay_to', user_id ?? null] as const,
+    unmatched: () => ['payments', 'inbound', 'unmatched'] as const,
+    candidates: (order_id: string) => ['payments', 'inbound', 'candidates', order_id] as const,
+    banks: (user_id?: string | null) => ['payments', 'banks', user_id ?? null] as const,
   },
   addresses: {
     book: (subject?: string | null) => ['addresses', subject ?? null] as const,

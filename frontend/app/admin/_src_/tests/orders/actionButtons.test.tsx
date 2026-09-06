@@ -75,16 +75,18 @@ describe('the admin purchase-order actions', () => {
     expect(screen.getByRole('button', { name: 'Cancel Order' })).toBeDefined()
   })
 
-  test('pricing and crediting appear only when the server says they may', () => {
+  // `finalize_pricing` became `finalize` in the lots lane, and the button's
+  // label with it - the frontend follows the API (ruling 44).
+  test('finalizing and crediting appear only when the server says they may', () => {
     const { unmount } = renderWithClient(<PurchaseOrderActionButtons view={view({})} />)
-    expect(screen.queryByRole('button', { name: /Finalize Pricing/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Finalize/ })).toBeNull()
     expect(screen.queryByRole('button', { name: /Credit Customer Account/ })).toBeNull()
     unmount()
 
     renderWithClient(
-      <PurchaseOrderActionButtons view={view({ finalize_pricing: true, add_funds: true })} />
+      <PurchaseOrderActionButtons view={view({ finalize: true, add_funds: true })} />
     )
-    expect(screen.getByRole('button', { name: /Finalize Pricing/ })).toBeDefined()
+    expect(screen.getByRole('button', { name: /Finalize/ })).toBeDefined()
     expect(screen.getByRole('button', { name: /Credit Customer Account/ })).toBeDefined()
   })
 

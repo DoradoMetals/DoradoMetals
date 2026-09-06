@@ -10,7 +10,7 @@ import { formatFullDate } from '@/shared/utils/formatDates'
 import { useOrderPricing } from '@/shared/hooks/quotes/queries'
 import { useFormatPurchaseOrderNumber } from '@/shared/utils/formatOrderNumbers'
 import { OrderCardShell } from '../ui/OrderCardShell'
-import { useOrderItems } from '@dorado/client'
+import { useOrderLots } from '@dorado/client'
 
 export default function PurchaseOrderCard({
   order,
@@ -23,7 +23,7 @@ export default function PurchaseOrderCard({
   const downloadButtons = usePurchaseOrderDownloads(order)
 
   const { formatPurchaseOrderNumber } = useFormatPurchaseOrderNumber()
-  const { data: items = [] } = useOrderItems(order.id)
+  const { data: items = [] } = useOrderLots(order.id)
 
   const status = statusConfig[order.status ?? '']
   const Icon = status?.icon

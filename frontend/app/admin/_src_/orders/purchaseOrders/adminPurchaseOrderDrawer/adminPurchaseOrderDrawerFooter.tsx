@@ -49,7 +49,9 @@ export default function AdminPurchaseOrderDrawerFooter({ view }: PurchaseOrderDr
   // A CONTAINER (ruling 14): every piece the composed order used to carry -
   // lines, parcels, the payout, the address - is its own read keyed by the id
   // this component already holds.
-  const { items } = view
+  // A LINE IS A LOT (docs/waves/lots-build.md): the link row carries this
+  // stage's money and `row.lot` carries the physical facts.
+  const { lots } = view
   const address = view.address
   const { data: catalogue = [] } = useProducts()
   const { data: spotPrices = [] } = useSpotPrices()
@@ -63,8 +65,8 @@ export default function AdminPurchaseOrderDrawerFooter({ view }: PurchaseOrderDr
 
   // bullion_id IS the discriminator - null means scrap; `item_type` was
   // derived in the compose layer and has no column.
-  const scrapItems = items.filter((item) => item.bullion_id === null)
-  const bullionItems = items.filter((item) => item.bullion_id !== null)
+  const scrapItems = lots.filter((row) => row.lot.bullion_id === null)
+  const bullionItems = lots.filter((row) => row.lot.bullion_id !== null)
   const { data: payoutMethods = [] } = usePaymentMethods('purchase')
   const payoutMethod = payoutMethods.find((p) => p.type === payout?.method)
   const payoutFee = payout?.cost ?? 0
@@ -98,23 +100,23 @@ export default function AdminPurchaseOrderDrawerFooter({ view }: PurchaseOrderDr
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {scrapItems.map((item, i) => (
+                  {scrapItems.map((row, i) => (
                     <TableRow key={i}>
-                      <TableCell className="text-left">{item.item_name}</TableCell>
-                      <TableCell className="text-right">{item.content?.toFixed(3)}</TableCell>
+                      <TableCell className="text-left">{row.lot.metal_id}</TableCell>
+                      <TableCell className="text-right">{row.lot.content?.toFixed(3)}</TableCell>
                       {/* One premium, read once: 085 folded scrap into the
                           items table, and the composed wire's
                           scrap.bid_premium was served FROM item.premium. */}
-                      <TableCell className="text-center">{formatRate(item.premium)}</TableCell>
+                      <TableCell className="text-center">{formatRate(row.premium)}</TableCell>
                       {/* THE PAYABLE OUNCES ARE THE SERVER'S (rules.payableOf).
                           This cell multiplied a content by a premium itself. */}
                       <TableCell className="text-right">
-                        {(item.payable ?? 0).toFixed(3)}{' '}
+                        {(row.payable ?? 0).toFixed(3)}{' '}
                       </TableCell>
                       <TableCell className="text-right">
                         {/* Scrap line_total is the whole line - content is not
                             multiplied by quantity - and honours a stored price. */}
-                        <Amount value={quoteLineById.get(item.id)?.line_total ?? 0} />
+                        <Amount value={quoteLineById.get(row.id)?.line_total ?? 0} />
                       </TableCell>
                     </TableRow>
                   ))}
@@ -133,13 +135,13 @@ export default function AdminPurchaseOrderDrawerFooter({ view }: PurchaseOrderDr
             >
               <Table className="overflow-hidden">
                 <TableBody>
-                  {bullionItems.map((item, i) => (
+                  {bullionItems.map((row, i) => (
                     <TableRow key={i}>
-                      <TableCell>{item.quantity}</TableCell>
-                      <TableCell>{item.product_name}</TableCell>
+                      <TableCell>{row.lot.quantity}</TableCell>
+                      <TableCell>{row.lot.product_name}</TableCell>
                       <TableCell className="text-right p-0">
                         {/* line_total is already unit_price * quantity. */}
-                        <Amount value={quoteLineById.get(item.id)?.line_total ?? 0} />
+                        <Amount value={quoteLineById.get(row.id)?.line_total ?? 0} />
                       </TableCell>
                     </TableRow>
                   ))}
