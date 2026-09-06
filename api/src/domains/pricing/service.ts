@@ -35,11 +35,7 @@ export async function priceCheckout(
 
   const quote =
     direction === 'sale'
-      ? await pricing.saleQuote(
-          checkout_id,
-          process.env.COLLECTING_NEXUS_TAXES === 'true',
-          executor
-        )
+      ? await pricing.saleQuote(checkout_id, executor)
       : await pricing.purchaseQuote(checkout_id, executor)
   rules.assertPriced(quote, `checkout ${checkout_id}`)
   rules.assertPriceable(quote.unpriceable, `checkout ${checkout_id}`)

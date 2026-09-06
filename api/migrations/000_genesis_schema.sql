@@ -399,7 +399,8 @@ CREATE TABLE IF NOT EXISTS fulfillments.pickups (
   pickup_address_id uuid,
   assigned_employee_id uuid,
   start_time timestamp with time zone,
-  end_time timestamp with time zone
+  end_time timestamp with time zone,
+  user_id uuid
 );
 ALTER TABLE fulfillments.pickups ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE fulfillments.pickups ADD COLUMN IF NOT EXISTS fulfillment_id uuid;
@@ -407,6 +408,7 @@ ALTER TABLE fulfillments.pickups ADD COLUMN IF NOT EXISTS pickup_address_id uuid
 ALTER TABLE fulfillments.pickups ADD COLUMN IF NOT EXISTS assigned_employee_id uuid;
 ALTER TABLE fulfillments.pickups ADD COLUMN IF NOT EXISTS start_time timestamp with time zone;
 ALTER TABLE fulfillments.pickups ADD COLUMN IF NOT EXISTS end_time timestamp with time zone;
+ALTER TABLE fulfillments.pickups ADD COLUMN IF NOT EXISTS user_id uuid;
 
 CREATE TABLE IF NOT EXISTS fulfillments.shipments (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -1014,7 +1016,9 @@ CREATE TABLE IF NOT EXISTS places.locations (
   type text,
   enabled boolean DEFAULT true NOT NULL,
   label_company_name text,
-  label_phone_number text
+  label_phone_number text,
+  default_return boolean DEFAULT false NOT NULL,
+  carrier_location_code text
 );
 ALTER TABLE places.locations ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE places.locations ADD COLUMN IF NOT EXISTS address_id uuid;
@@ -1025,6 +1029,8 @@ ALTER TABLE places.locations ADD COLUMN IF NOT EXISTS type text;
 ALTER TABLE places.locations ADD COLUMN IF NOT EXISTS enabled boolean DEFAULT true;
 ALTER TABLE places.locations ADD COLUMN IF NOT EXISTS label_company_name text;
 ALTER TABLE places.locations ADD COLUMN IF NOT EXISTS label_phone_number text;
+ALTER TABLE places.locations ADD COLUMN IF NOT EXISTS default_return boolean DEFAULT false;
+ALTER TABLE places.locations ADD COLUMN IF NOT EXISTS carrier_location_code text;
 
 CREATE TABLE IF NOT EXISTS places.user_addresses (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -1404,7 +1410,8 @@ CREATE TABLE IF NOT EXISTS shipping.shipments (
   pickup_type text,
   created_at timestamp with time zone,
   pickup_date text,
-  pickup_time text
+  pickup_time text,
+  user_id uuid
 );
 ALTER TABLE shipping.shipments ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE shipping.shipments ADD COLUMN IF NOT EXISTS carrier_service_id uuid;
@@ -1427,6 +1434,7 @@ ALTER TABLE shipping.shipments ADD COLUMN IF NOT EXISTS pickup_type text;
 ALTER TABLE shipping.shipments ADD COLUMN IF NOT EXISTS created_at timestamp with time zone;
 ALTER TABLE shipping.shipments ADD COLUMN IF NOT EXISTS pickup_date text;
 ALTER TABLE shipping.shipments ADD COLUMN IF NOT EXISTS pickup_time text;
+ALTER TABLE shipping.shipments ADD COLUMN IF NOT EXISTS user_id uuid;
 
 CREATE TABLE IF NOT EXISTS shipping.tracking (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -1463,13 +1471,17 @@ CREATE TABLE IF NOT EXISTS tax.sales_tax (
   state character(2) NOT NULL,
   reached_nexus boolean DEFAULT false NOT NULL,
   amount_owed numeric(16,2) DEFAULT 0 NOT NULL,
-  last_remitted date
+  last_remitted date,
+  sales_volume numeric(16,2) DEFAULT 0 NOT NULL,
+  sales_count integer DEFAULT 0 NOT NULL
 );
 ALTER TABLE tax.sales_tax ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE tax.sales_tax ADD COLUMN IF NOT EXISTS state character(2);
 ALTER TABLE tax.sales_tax ADD COLUMN IF NOT EXISTS reached_nexus boolean DEFAULT false;
 ALTER TABLE tax.sales_tax ADD COLUMN IF NOT EXISTS amount_owed numeric(16,2) DEFAULT 0;
 ALTER TABLE tax.sales_tax ADD COLUMN IF NOT EXISTS last_remitted date;
+ALTER TABLE tax.sales_tax ADD COLUMN IF NOT EXISTS sales_volume numeric(16,2) DEFAULT 0;
+ALTER TABLE tax.sales_tax ADD COLUMN IF NOT EXISTS sales_count integer DEFAULT 0;
 
 CREATE TABLE IF NOT EXISTS tax.sales_tax_rules (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -2559,6 +2571,16 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'pickups_pickup_address_theirs_fk' AND c.relname = 'pickups' AND n.nspname = 'fulfillments'
+  ) THEN
+    ALTER TABLE fulfillments.pickups ADD CONSTRAINT pickups_pickup_address_theirs_fk FOREIGN KEY (user_id, pickup_address_id) REFERENCES places.user_addresses(user_id, address_id) ON DELETE SET NULL (pickup_address_id) DEFERRABLE;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'fulfillment_shipments_fulfillment_id_fkey' AND c.relname = 'shipments' AND n.nspname = 'fulfillments'
   ) THEN
     ALTER TABLE fulfillments.shipments ADD CONSTRAINT fulfillment_shipments_fulfillment_id_fkey FOREIGN KEY (fulfillment_id) REFERENCES fulfillments.fulfillments(id) ON DELETE CASCADE;
@@ -3449,9 +3471,29 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'shipments_recipient_address_theirs_fk' AND c.relname = 'shipments' AND n.nspname = 'shipping'
+  ) THEN
+    ALTER TABLE shipping.shipments ADD CONSTRAINT shipments_recipient_address_theirs_fk FOREIGN KEY (user_id, recipient_address_id) REFERENCES places.user_addresses(user_id, address_id) ON DELETE SET NULL (recipient_address_id) DEFERRABLE;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'shipments_shipper_address_fk' AND c.relname = 'shipments' AND n.nspname = 'shipping'
   ) THEN
     ALTER TABLE shipping.shipments ADD CONSTRAINT shipments_shipper_address_fk FOREIGN KEY (shipper_address_id) REFERENCES places.addresses(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'shipments_shipper_address_theirs_fk' AND c.relname = 'shipments' AND n.nspname = 'shipping'
+  ) THEN
+    ALTER TABLE shipping.shipments ADD CONSTRAINT shipments_shipper_address_theirs_fk FOREIGN KEY (user_id, shipper_address_id) REFERENCES places.user_addresses(user_id, address_id) ON DELETE SET NULL (shipper_address_id) DEFERRABLE;
   END IF;
 END $$;
 DO $$ BEGIN
@@ -3514,6 +3556,7 @@ CREATE INDEX IF NOT EXISTS idx_fulfillments_methods_updated_by_id ON fulfillment
 CREATE INDEX IF NOT EXISTS idx_fulfillment_pickups_assigned_to ON fulfillments.pickups USING btree (assigned_employee_id);
 CREATE INDEX IF NOT EXISTS idx_fulfillment_pickups_fulfillment_id ON fulfillments.pickups USING btree (fulfillment_id);
 CREATE INDEX IF NOT EXISTS idx_fulfillment_pickups_pickup_address_id ON fulfillments.pickups USING btree (pickup_address_id);
+CREATE INDEX IF NOT EXISTS pickups_user_pickup_address_idx ON fulfillments.pickups USING btree (user_id, pickup_address_id);
 CREATE UNIQUE INDEX IF NOT EXISTS fulfillment_shipments_one_per_shipment ON fulfillments.shipments USING btree (shipment_id);
 CREATE INDEX IF NOT EXISTS idx_fulfillment_shipments_fulfillment_id ON fulfillments.shipments USING btree (fulfillment_id);
 CREATE INDEX IF NOT EXISTS idx_fulfillment_shipments_recipient_location_id ON fulfillments.shipments USING btree (recipient_location_id);
@@ -3592,6 +3635,7 @@ CREATE INDEX IF NOT EXISTS location_hours_lookup_idx ON places.location_hours US
 CREATE UNIQUE INDEX IF NOT EXISTS location_hours_slot_uniq ON places.location_hours USING btree (location_id, weekday, sort_order);
 CREATE INDEX IF NOT EXISTS idx_places_locations_image_id ON places.locations USING btree (image_id);
 CREATE INDEX IF NOT EXISTS locations_address_idx ON places.locations USING btree (address_id);
+CREATE UNIQUE INDEX IF NOT EXISTS locations_one_default_return ON places.locations USING btree (default_return) WHERE default_return;
 CREATE INDEX IF NOT EXISTS locations_org_idx ON places.locations USING btree (organization_id);
 CREATE INDEX IF NOT EXISTS user_addresses_address_idx ON places.user_addresses USING btree (address_id);
 CREATE UNIQUE INDEX IF NOT EXISTS user_addresses_one_default_per_user ON places.user_addresses USING btree (user_id) WHERE default_shipping;
@@ -3644,6 +3688,8 @@ CREATE INDEX IF NOT EXISTS idx_shipping_shipments_shipper_address_id ON shipping
 CREATE INDEX IF NOT EXISTS shipments_service_idx ON shipping.shipments USING btree (carrier_service_id);
 CREATE INDEX IF NOT EXISTS shipments_tracking_idx ON shipping.shipments USING btree (tracking_number);
 CREATE UNIQUE INDEX IF NOT EXISTS shipments_tracking_number_unique ON shipping.shipments USING btree (tracking_number) WHERE (tracking_number IS NOT NULL);
+CREATE INDEX IF NOT EXISTS shipments_user_recipient_address_idx ON shipping.shipments USING btree (user_id, recipient_address_id);
+CREATE INDEX IF NOT EXISTS shipments_user_shipper_address_idx ON shipping.shipments USING btree (user_id, shipper_address_id);
 CREATE INDEX IF NOT EXISTS shipment_events_shipment_time_idx ON shipping.tracking USING btree (shipment_id, "time");
 CREATE INDEX IF NOT EXISTS idx_current_spots_metal ON spots.spots USING btree (metal_id);
 CREATE UNIQUE INDEX IF NOT EXISTS sales_tax_state_key ON tax.sales_tax USING btree (state);

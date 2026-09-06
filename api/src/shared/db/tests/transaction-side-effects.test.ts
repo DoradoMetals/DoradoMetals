@@ -12,7 +12,10 @@ const walkAll = (): string[] => LAYER_ROOTS.flatMap((r) => walk(r))
 const EXTERNAL = [
   { name: 'email', pattern: /\bsendEmail\(|\bemailService\.\w+\(/ },
   { name: 'stripe', pattern: /\bstripeClient\.\w+|\bstripe\.(charges|paymentIntents|refunds)\b/ },
-  { name: 'carrier', pattern: /\bprovider\.\w+\(|\bfedex\w*\.\w+\(/ },
+  {
+    name: 'carrier',
+    pattern: /\bprovider\.\w+\(|\bfedex\w*\.\w+\(|\bshippingOps\.\w+\(|\bshippingHandler\.\w+\(/,
+  },
   { name: 'http', pattern: /\baxios\.\w+\(|(?<![.\w])fetch\(/ },
 ]
 
@@ -75,5 +78,27 @@ test('no irreversible side effect happens inside a transaction', () => {
     [],
     'a transaction can be rolled back; an email, a charge and a shipping label cannot. ' +
       'Do the database work first, commit, then act on the outside world.'
+  )
+})
+
+test('the carrier rule matches every real carrier call shape', () => {
+  const carrierRule = EXTERNAL.find((rule) => rule.name === 'carrier')
+  assert.ok(carrierRule, 'no carrier rule in EXTERNAL')
+
+  const carrierCalls = [
+    'const labelData = await shippingOps.createLabel(',
+    '? await shippingOps.createPickup(',
+    'trackingInfo = await shippingHandler.getTracking(carrier_id, client, {',
+    'await shippingHandler.cancelLabel(await carrierIdOr(carrier_id), undefined, {',
+    'await provider.voidLabel(trackingNumber)',
+    'await fedexClient.createShipment(payload)',
+  ]
+  for (const line of carrierCalls) {
+    assert.ok(carrierRule!.pattern.test(line), `carrier rule did not match: ${line}`)
+  }
+
+  assert.ok(
+    !carrierRule!.pattern.test('await ordersRepo.update(id, patch, tx)'),
+    'carrier rule matched an unrelated repo call'
   )
 })

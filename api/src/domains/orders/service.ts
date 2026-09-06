@@ -175,25 +175,19 @@ export async function cancel(
   const box = await packagesRepo.getOne(package_id)
   shippingRules.assertParcelPackage(box)
   const service = await carrierServices.labelServiceFor(carrier_service_id)
-  const declaredValue = await carrierServices.clampInsuredValue(
-    shippingRules.declaredValue(order.totals?.total ?? 0),
+  // The floor is what the customer declared on the way in, so metal cancelled
+  // before it was priced does not travel back uninsured (MP F5).
+  const declaredValue = await shippingLabels.returnDeclaredValue(
+    order_id,
+    order.totals?.total ?? null,
     service.code
   )
   const insured = declaredValue > 0
 
-  const existing = order.shipments.find((s) => s.direction === 'Return' && !s.tracking_number)
-
   const shipment_id = await withTransaction(async (tx) => {
     await orderSpotsService.applyLock(order_id, false, tx)
-
-    let id = existing?.id
-    if (!id) {
-      const shipment = await shipmentService.create(order_id, 'Return', tx)
-      shippingRules.assertReturnShipment(shipment)
-      id = shipment.id
-    }
-    await shipmentService.update(
-      id,
+    return await shipmentService.returnLeg(
+      order_id,
       {
         package_id,
         carrier_service_id,
@@ -202,10 +196,11 @@ export async function cancel(
       },
       tx
     )
-    return id
   })
 
-  await buy(shipment_id)
+  // null is a pickup or an appointment order: it is cancelled, and there is no
+  // parcel to post back (LD F4).
+  if (shipment_id) await buy(shipment_id)
 
   return await viewOf(order_id)
 }

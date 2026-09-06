@@ -5,6 +5,8 @@ import * as itemsRepo from '#db/orders/items/repo.ts'
 import * as totalsRepo from '#db/orders/transactions/repo.ts'
 import * as orderAddresses from '#db/orders/addresses/repo.ts'
 import * as checkoutsRepo from '#db/checkout/checkouts/repo.ts'
+import * as fulfillmentService from '#logistics/fulfillments/service.ts'
+import { aHandover } from '#shared/testing/builders/fulfillments.ts'
 import { metalIds, type MetalName } from '#shared/testing/builders/reference.ts'
 import type { BuiltUser } from '#shared/testing/builders/users.ts'
 import type { BuiltProduct } from '#shared/testing/builders/products.ts'
@@ -17,6 +19,7 @@ export type BuiltOrder = {
   user_id: string | null
   direction: Direction
   status: string
+  checkout_id: string
   items: { id: string; bullion_id: string | null; metal_id: string }[]
 }
 
@@ -163,6 +166,21 @@ class OrderPlan implements PromiseLike<BuiltOrder> {
     return this
   }
 
+  // A real order always reaches the database with a fulfillment, because the
+  // checkout makes one. Tests that cancel, label or schedule need it too: the
+  // return leg is linked to the fulfillment, and an order with none has no
+  // handover to describe.
+  withFulfillment(method = 'CARRIER DROPOFF'): this {
+    this.steps.push(async (c, order) => {
+      const draft = await aHandover(c, order.checkout_id, {
+        method,
+        direction: order.direction,
+      })
+      await fulfillmentService.attachToOrder(draft.fulfillment.id, order.id, c)
+    })
+    return this
+  }
+
   withAddress(address: { id: string }): this {
     this.steps.push(async (c, order) => {
       const snapshot = await c.query<{ id: string }>(
@@ -215,6 +233,7 @@ class OrderPlan implements PromiseLike<BuiltOrder> {
       user_id: this.user.id,
       direction,
       status,
+      checkout_id: checkout.id,
       items: [],
     }
     for (const step of this.steps) await step(this.c, order)

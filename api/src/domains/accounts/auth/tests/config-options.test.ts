@@ -102,24 +102,52 @@ test('every option this codebase sets is one better-auth has heard of', () => {
   console.log(`      ${checked} configured option(s) checked against better-auth's build`)
 })
 
-test('UNDECIDED, pinned as it stands: a ban bites only after the cookie cache expires', () => {
+test('RULED (90): the five-minute cookie cache stays, and a ban bites at once', () => {
   const cookieCache = options.session.cookieCache
 
   assert.equal(
     cookieCache.enabled,
     true,
-    'this is finding 35 and it is a decision Jacob has not made. With cookieCache ' +
-      'on, better-auth answers the session route from the SIGNED COOKIE with no ' +
-      'database read, and the admin plugin only checks `banned` at sign-in - so a ' +
-      'ban, a revoked session and a demotion from admin all keep working until the ' +
-      'cached payload expires. Changing this without a ruling is not the fix.'
+    'ruling 90 keeps the cache. It is what lets better-auth answer a session ' +
+      'from the SIGNED COOKIE without verifying a token and reading two rows, ' +
+      'and the cookie lives in a browser the server cannot reach - so the cache ' +
+      'was never the thing that could be made immediate. Immediacy comes from ' +
+      'the freshness read below instead.'
   )
-  assert.equal(cookieCache.maxAge, 5 * 60, 'the window a stale session survives, in seconds')
+  assert.equal(cookieCache.maxAge, 5 * 60, 'the window a cached PAYLOAD survives, in seconds')
 
-  const source = fs.readFileSync(new URL('../../../../shared/middleware/authMiddleware.ts', import.meta.url), 'utf8')
+  const seam = fs.readFileSync(new URL('../session.ts', import.meta.url), 'utf8')
+  const middleware = fs.readFileSync(
+    new URL('../../../../shared/middleware/authMiddleware.ts', import.meta.url),
+    'utf8'
+  )
+
   assert.ok(
-    !/\bbanned\b/.test(source),
-    'requireAuth still never looks at `banned`; if that changed, the decision was ' +
-      'taken and this pin should move with it'
+    /\bbetterAuth\b|\bsessions\b/.test(seam) && /requireAuth/.test(middleware),
+    'both files read as source - a check that reads nothing accepts everything'
+  )
+  assert.ok(
+    /sessions\.current\(/.test(middleware),
+    'requireAuth must go through the session seam, not straight to ' +
+      'auth.api.getSession - the seam is where the freshness read lives'
+  )
+  assert.ok(
+    !/auth\.api\.getSession/.test(middleware),
+    'a second, unchecked path to a session is the finding all over again'
+  )
+  assert.ok(
+    /freshnessOf\(/.test(seam),
+    'the seam reads the session row and its user on every authenticated ' +
+      'request; without it a revoked session keeps working for five minutes'
+  )
+  assert.ok(
+    /sessionVerdict\(/.test(seam) && /sessionRole\(/.test(seam),
+    'ban state AND role both come from that read - the admin plugin only ' +
+      'checks `banned` when a session is created, and the cookie carries the ' +
+      'role it was signed with, so a demotion would otherwise survive the cache'
+  )
+  assert.ok(
+    /403/.test(middleware),
+    'a banned caller is refused with 403, not quietly served'
   )
 })

@@ -209,8 +209,28 @@ export function assertHandoff<T>(
   }
 }
 
-export function assertReturnShipment<T>(shipment: T | null | undefined): asserts shipment is T {
-  if (!shipment) throw new Error('the return shipment was not created')
+// A return leg hangs off the order's fulfillment. No fulfillment means nothing
+// records how the metal arrived, and answering "no return label needed" would
+// cancel the order and quietly keep the customer's metal (LD F4 is about a
+// PICKUP order, which HAS a fulfillment and correctly needs no label).
+export function assertHandoverKnown<T>(category: T | null | undefined, order_id: string): asserts category is T {
+  if (!category) {
+    throw new NotFound(
+      `order ${order_id} has no fulfillment, so there is no handover to return the metal by`
+    )
+  }
+}
+
+// RULING 89. A label held for collection needs a place to be held at, and that
+// place is a row now. No default_return row, or one the carrier knows by no
+// code, and no label is bought - the alternative is a payload naming nowhere.
+export function assertReturnLocation<T>(hold: T | null | undefined): asserts hold is T {
+  if (!hold) {
+    throw new Invalid(
+      'no places.locations row is marked default_return with a carrier location ' +
+        'code, so there is nowhere to hold a label for collection'
+    )
+  }
 }
 
 export function assertLabelledOrder<T>(

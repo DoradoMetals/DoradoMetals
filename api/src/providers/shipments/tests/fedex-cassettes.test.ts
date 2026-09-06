@@ -20,6 +20,24 @@ const STORE_ADDRESS = {
   country_code: 'US',
   is_residential: false,
 }
+// The recorded exchange carries a hold-at-location detail the adapter used to
+// supply from a constant. Ruling 89 moved that to a places.locations row the
+// caller reads, so the test hands over the same values - already in FedEx's own
+// shape, which the adapter passes through untouched - and the recorded request
+// still matches.
+const RECORDED_HOLD = {
+  code: 'ADSK',
+  type: 'FEDEX_OFFICE',
+  company_name: 'FedEx Office Print & Ship Center',
+  phone_number: '9727880816',
+  address: {
+    streetLines: ['13605 Midway Rd'],
+    city: 'Farmers Branch',
+    stateOrProvinceCode: 'TX',
+    postalCode: '75244',
+    countryCode: 'US',
+  },
+}
 const PKG = {
   weight: { units: 'LB', value: 5 },
   dimensions: { length: 10, width: 8, height: 6, units: 'IN' },
@@ -131,6 +149,7 @@ test('a label is created and then voided', async () => {
         serviceType: 'FEDEX_GROUND',
         pickupType: 'DROPOFF_AT_FEDEX_LOCATION',
         pkg: PKG,
+        hold: RECORDED_HOLD as never,
       })
     )
     const cancelled = await fedex.cancelLabel(

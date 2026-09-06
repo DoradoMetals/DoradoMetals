@@ -13,26 +13,6 @@ export const DORADO_CONTACT = {
   phoneNumber: process.env.FEDEX_DORADO_PHONE_NUMBER,
 }
 
-export const FEDEX_STORE_ADDRESS = {
-  streetLines: ['13605 Midway Rd'],
-  city: 'Farmers Branch',
-  stateOrProvinceCode: 'TX',
-  postalCode: '75244',
-  countryCode: 'US',
-}
-
-export const DEFAULT_HOLD_AT_LOCATION_DETAIL = {
-  locationId: 'ADSK',
-  locationContactAndAddress: {
-    address: FEDEX_STORE_ADDRESS,
-    contact: {
-      phoneNumber: '9727880816',
-      companyName: 'FedEx Office Print & Ship Center',
-    },
-  },
-  locationType: 'FEDEX_OFFICE',
-}
-
 export const DEFAULT_EMAIL_NOTIFICATION_DETAIL = {
   aggregationType: 'PER_SHIPMENT',
   emailNotificationRecipients: [

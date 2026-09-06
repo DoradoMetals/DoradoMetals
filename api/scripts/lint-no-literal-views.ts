@@ -25,13 +25,20 @@ const RESULT = 'a small result record (counts, ids) a caller reads once - it nam
 
 const ACCEPTED: Record<string, { count: number; why: string }> = {
   'domains/checkout/adopt.ts': { count: 2, why: RESULT },
+  'domains/accounts/auth/session.ts': {
+    count: 3,
+    why:
+      'a verdict, not a view: the session comes from better-auth and the ' +
+      'freshness row from one SQL read, and this pairs the answer with the ' +
+      'reason the middleware answers 401 or 403 with (ruling 90)',
+  },
   'domains/checkout/sweep.ts': { count: 2, why: RESULT },
   'domains/accounts/images/service.ts': { count: 1, why: RESULT },
   'domains/documents/pdfs/order-inputs.ts': { count: 5, why: RESULT },
   'domains/documents/pdfs/serve.ts': { count: 3, why: RESULT },
   'domains/orders/place.ts': { count: 3, why: RESULT },
   'domains/transactions/details/service.ts': { count: 2, why: CRUD },
-  'domains/transactions/sweeps.ts': { count: 2, why: RESULT },
+  'domains/transactions/sweeps.ts': { count: 1, why: RESULT },
   'domains/logistics/shipping/operations/resolver.ts': { count: 1, why: RESULT },
   'domains/logistics/shipping/services/service.ts': { count: 2, why: CRUD },
   'domains/logistics/shipping/shipments/service.ts': { count: 1, why: RESULT },

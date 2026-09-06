@@ -10,6 +10,7 @@ import {
   aProduct,
   aUser,
   aVisitor,
+  aHandover,
   anAddress,
   paymentMethodId,
 } from '#shared/testing/builders/index.ts'
@@ -139,7 +140,7 @@ test('linking a user to itself does nothing at all', async () => {
       const customer = await aUser(c)
       const cart = await aCart(c, customer, { direction: 'purchase' }).withLots(1)
       const result = await adoptAnonymousCheckout(customer.id, customer.id, c)
-      assert.deepEqual(result, { adopted: [], addresses: 0 })
+      assert.deepEqual(result, { adopted: [], addresses: 0, parcels: 0 })
       assert.equal((await checkouts.getOne(cart.id, c))?.user_id, customer.id)
     },
     { actor: TEST_ACTOR.id, lock: LOCKS_HERE }
@@ -152,7 +153,7 @@ test('a visitor with nothing to carry is not an error', async () => {
       const visitor = await aVisitor(c)
       const customer = await aUser(c)
       const result = await adoptAnonymousCheckout(visitor.id, customer.id, c)
-      assert.deepEqual(result, { adopted: [], addresses: 0 })
+      assert.deepEqual(result, { adopted: [], addresses: 0, parcels: 0 })
     },
     { actor: TEST_ACTOR.id, lock: LOCKS_HERE }
   )
@@ -184,5 +185,37 @@ test('adoptAnonymousCheckoutQuietly swallows a failure and answers undefined', a
       assert.equal(result, undefined)
     },
     { actor: TEST_ACTOR.id, lock: LOCKS_HERE }
+  )
+})
+
+test("a visitor's parcel changes hands with the address book it points at", async () => {
+  await inPinnedTransaction(
+    async (c: PoolClient) => {
+      const visitor = await aVisitor(c)
+      const customer = await aUser(c)
+      const address = await anAddress(c, visitor)
+      const cart = await aCart(c, visitor, { direction: 'purchase' })
+      const draft = await aHandover(c, cart.id, {
+        choices: { shipment: { shipper_address_id: address.id } },
+      })
+
+      const result = await adoptAnonymousCheckout(visitor.id, customer.id, c)
+      assert.equal(result.parcels, 1, 'the parcel was left behind with the visitor')
+
+      const { rows } = await c.query(
+        `SELECT s.user_id, s.shipper_address_id FROM shipping.shipments s
+           JOIN fulfillments.shipments fs ON fs.shipment_id = s.id
+          WHERE fs.fulfillment_id = $1`,
+        [draft.fulfillment.id]
+      )
+      assert.equal(rows[0].user_id, customer.id)
+      assert.equal(rows[0].shipper_address_id, address.id)
+      assert.equal(
+        (await userAddresses.listFor(customer.id, c)).length,
+        1,
+        'the book did not move with the parcel'
+      )
+    },
+    { actor: TEST_ACTOR.id, lock: [...LOCKS_HERE, LOCKS.FULFILLMENTS] }
   )
 })

@@ -34,7 +34,9 @@ export type FulfillmentParcel = z.infer<typeof FulfillmentParcel>
 export const FulfillmentViewFacts = z.object({
   fulfillment: Fulfillment,
   method: FulfillmentMethodRead,
-  pickup: FulfillmentPickup.nullable(),
+  // Without user_id: the owner 137 stamps on the row is plumbing for the
+  // composite key, not a fact about the collection anybody reads.
+  pickup: FulfillmentPickup.omit({ user_id: true }).nullable(),
   direct: FulfillmentDirect.nullable(),
   shipments: z.array(FulfillmentShipment),
   parcel: FulfillmentParcel.nullable(),

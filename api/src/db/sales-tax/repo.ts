@@ -27,8 +27,14 @@ export async function reachedNexus(state: string, executor?: Executor): Promise<
   return rows[0]?.reached_nexus ?? false
 }
 
-export async function accrue(amount: number, state: string, executor?: Executor): Promise<void> {
-  await query(sql('accrue'), [amount, state], executor)
+export async function accrue(
+  amount: number,
+  volume: number,
+  state: string,
+  executor?: Executor
+): Promise<boolean> {
+  const { rowCount } = await query(sql('accrue'), [amount, volume, state], executor)
+  return rowCount === 1
 }
 
 export async function allRules(executor?: Executor): Promise<TaxRule[]> {

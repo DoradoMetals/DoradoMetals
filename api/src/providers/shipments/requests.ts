@@ -1,25 +1,35 @@
-import {
-  DORADO_ADDRESS,
-  DORADO_CONTACT,
-  FEDEX_STORE_ADDRESS,
-} from '#providers/shipments/constants.ts'
-import type { Address, Parcel, ParcelSchedule } from '@dorado/contracts'
+import { DORADO_ADDRESS, DORADO_CONTACT } from '#providers/shipments/constants.ts'
+import type { Address, HoldAtLocation, Parcel, ParcelSchedule } from '@dorado/contracts'
 
-export function inboundLabelRequest(shipper: Address, personName: string, parcel: Parcel) {
+// `hold` is where the parcel waits to be collected, and it comes from the
+// caller because it is a row of places.locations (ruling 89). The inbound leg
+// travels TO that place; the return leg is held THERE for the customer.
+export function inboundLabelRequest(
+  shipper: Address,
+  personName: string,
+  parcel: Parcel,
+  hold: HoldAtLocation
+) {
   return {
     shipper: {
       contact: { personName, phoneNumber: shipper.phone_number ?? '' },
       address: shipper,
     },
-    recipient: { contact: DORADO_CONTACT, address: FEDEX_STORE_ADDRESS },
+    recipient: { contact: DORADO_CONTACT, address: hold.address },
     serviceType: parcel.serviceType,
     pickupType: parcel.handoff.code,
     pkg: { weight: parcel.weight, dimensions: parcel.dimensions },
     insurance: { declaredValue: { amount: parcel.declaredValue, currency: 'USD' } },
+    hold,
   }
 }
 
-export function returnLabelRequest(personName: string, recipient: Address, parcel: Parcel) {
+export function returnLabelRequest(
+  personName: string,
+  recipient: Address,
+  parcel: Parcel,
+  hold: HoldAtLocation
+) {
   return {
     shipper: { contact: DORADO_CONTACT, address: DORADO_ADDRESS },
     recipient: {
@@ -29,6 +39,7 @@ export function returnLabelRequest(personName: string, recipient: Address, parce
     serviceType: parcel.serviceType,
     pkg: { weight: parcel.weight, dimensions: parcel.dimensions },
     insurance: { declaredValue: { amount: parcel.declaredValue, currency: 'USD' } },
+    hold,
   }
 }
 

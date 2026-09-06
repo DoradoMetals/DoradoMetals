@@ -60,7 +60,7 @@ test('accrue adds to what a nexus state is owed', async () => {
       c
     )
 
-    await salesTax.accrue(25.5, state, c)
+    await salesTax.accrue(25.5, 400, state, c)
 
     const { rows } = await query<{ amount_owed: number }>(
       `SELECT amount_owed FROM tax.sales_tax WHERE state = $1`,
@@ -71,7 +71,7 @@ test('accrue adds to what a nexus state is owed', async () => {
   })
 })
 
-test('accrue against a state below its nexus threshold changes nothing - the zero-row update is correct, not silent failure', async () => {
+test('accrue against a state below its nexus threshold records the volume and owes nothing', async () => {
   await inRollback(async (c: PoolClient) => {
     const state = await aState(c)
     await query(
@@ -80,10 +80,10 @@ test('accrue against a state below its nexus threshold changes nothing - the zer
       c
     )
 
-    await salesTax.accrue(25.5, state, c)
+    await salesTax.accrue(25.5, 400, state, c)
 
-    const { rows } = await query<{ amount_owed: number }>(
-      `SELECT amount_owed FROM tax.sales_tax WHERE state = $1`,
+    const { rows } = await query<{ amount_owed: number; sales_volume: number }>(
+      `SELECT amount_owed, sales_volume FROM tax.sales_tax WHERE state = $1`,
       [state],
       c
     )
@@ -91,6 +91,10 @@ test('accrue against a state below its nexus threshold changes nothing - the zer
       Number(rows[0]?.amount_owed),
       100,
       'accrue added to a state that has not reached economic nexus'
+    )
+    assert.ok(
+      Number(rows[0]?.sales_volume) >= 400,
+      'the sale was not counted towards the threshold that decides nexus (ruling 87)'
     )
   })
 })

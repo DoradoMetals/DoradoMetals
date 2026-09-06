@@ -27,10 +27,3 @@ export const AbandonedSale = z.object({
   payment_status: z.string().nullable(),
 })
 export type AbandonedSale = z.infer<typeof AbandonedSale>
-
-export const ReservedFunds = AbandonedSale.pick({
-  user_id: true,
-  used_funds: true,
-  reserved_funds: true,
-})
-export type ReservedFunds = z.infer<typeof ReservedFunds>

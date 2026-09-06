@@ -174,29 +174,81 @@ test('a rolled-back movement leaves neither the balance nor the log changed', as
   }
 })
 
-test('UNDECIDED, pinned as it stands: a debit is immediate and records nothing', async () => {
+// RULING 88 (Jacob, 2026-09-07), executed. Finding 28 was that credit applied
+// to a sale was SPENT at placement with nothing recording why, and came back
+// only when somebody ran a script. The reservation is now a ledger fact tied to
+// the order, and these four tests are its whole life.
+
+const ledgerRows = async (c: PoolClient, order_id: string) =>
+  (
+    await c.query(`SELECT type, amount FROM payments.ledger WHERE order_id = $1`, [order_id])
+  ).rows
+
+test('a reservation moves the balance and records itself against the order', async () => {
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c)
+    const order = await anOrder(c, user, { direction: 'sale' })
     await creditService.addFunds(user.id, 400, c)
 
-    await creditService.removeFunds(user.id, 250, c)
+    await creditService.reserve(user.id, 250, order.id, c)
+
+    assert.equal(await balance(c, user.id), 150, 'the reservation did not hold the money')
+    const rows = await ledgerRows(c, order.id)
+    assert.equal(rows.length, 1, 'the reservation left no record, so only a script could undo it')
+    assert.equal(rows[0].type, 'Reserve')
+    assert.equal(Number(rows[0].amount), 250)
+  })
+})
+
+test('a cancel returns the reservation, and a second cancel returns nothing', async () => {
+  await inRollback(async (c: PoolClient) => {
+    const user = await aUser(c)
+    const order = await anOrder(c, user, { direction: 'sale' })
+    await creditService.addFunds(user.id, 400, c)
+    await creditService.reserve(user.id, 250, order.id, c)
+
+    assert.equal(await creditService.releaseReservation(order.id, c), 250)
+    assert.equal(await balance(c, user.id), 400, 'the customer did not get their credit back')
+    assert.equal((await ledgerRows(c, order.id))[0].type, 'Released')
 
     assert.equal(
-      await balance(c, user.id),
-      150,
-      'this is finding 28 and it is a decision Jacob has not made (it meets ruling ' +
-        '85). Credit is SPENT at placement, not reserved, and only the abandoned ' +
-        'sweep gives it back.'
-    )
-    const { rows } = await c.query(
-      `SELECT count(*)::int AS n FROM payments.ledger WHERE user_id = $1 AND type = 'Debit'`,
-      [user.id]
-    )
-    assert.equal(
-      rows[0].n,
+      await creditService.releaseReservation(order.id, c),
       0,
-      'the placement debit writes no ledger row - the ledger records the RETURN ' +
-        'only, which is why hasCreditFor is what stops a double refund'
+      'a second release paid the customer twice'
     )
+    assert.equal(await balance(c, user.id), 400)
+  })
+})
+
+test('settlement converts the reservation to a debit and moves no money', async () => {
+  await inRollback(async (c: PoolClient) => {
+    const user = await aUser(c)
+    const order = await anOrder(c, user, { direction: 'sale' })
+    await creditService.addFunds(user.id, 400, c)
+    await creditService.reserve(user.id, 250, order.id, c)
+
+    assert.equal(await creditService.settleReservation(order.id, c), true)
+    assert.equal(await balance(c, user.id), 150, 'settling the reservation moved money again')
+    assert.equal((await ledgerRows(c, order.id))[0].type, 'Debit')
+
+    assert.equal(
+      await creditService.releaseReservation(order.id, c),
+      0,
+      'a settled reservation was returned to the customer as well as spent'
+    )
+    assert.equal(await balance(c, user.id), 150)
+  })
+})
+
+test('a released reservation cannot then be settled', async () => {
+  await inRollback(async (c: PoolClient) => {
+    const user = await aUser(c)
+    const order = await anOrder(c, user, { direction: 'sale' })
+    await creditService.addFunds(user.id, 400, c)
+    await creditService.reserve(user.id, 250, order.id, c)
+    await creditService.releaseReservation(order.id, c)
+
+    assert.equal(await creditService.settleReservation(order.id, c), false)
+    assert.equal(await balance(c, user.id), 400)
   })
 })

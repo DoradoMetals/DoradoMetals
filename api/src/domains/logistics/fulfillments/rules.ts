@@ -239,3 +239,11 @@ export function assertTimestamp(value: unknown): void {
     throw new Invalid(`start_time is not a timestamp`)
   }
 }
+
+// 137's composite key is checked against the owner this stamps, so a stamp that
+// matched no row would leave the next write unguarded.
+export function assertOwnerClaimed(claimed: boolean, id: string): void {
+  if (!claimed) {
+    throw new NotFound(`${id} vanished before its owner could be stamped on it`)
+  }
+}

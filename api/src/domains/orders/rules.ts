@@ -100,8 +100,15 @@ export function belowStripeMinimum(cents: number): boolean {
   return cents > 0 && cents < STRIPE_MINIMUM_CENTS
 }
 
+// The payment FACT, not the label: nothing is owed, or Stripe has already taken
+// it. `statusAtPlacement` names the same fact for the customer, and ruling 88's
+// reservation converts to a debit on it.
+export function settlesAtPlacement(cents: number, alreadySucceeded: boolean): boolean {
+  return cents === 0 || alreadySucceeded
+}
+
 export function statusAtPlacement(cents: number, alreadySucceeded: boolean): string {
-  return cents > 0 && !alreadySucceeded ? 'Pending' : 'Preparing'
+  return settlesAtPlacement(cents, alreadySucceeded) ? 'Preparing' : 'Pending'
 }
 
 export function confirmsAtPlacement(status: string): boolean {

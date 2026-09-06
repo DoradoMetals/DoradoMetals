@@ -28,13 +28,19 @@ export const Shipment = z.object({
   'created_at': z.string().nullable(),
   'pickup_date': z.string().nullable(),
   'pickup_time': z.string().nullable(),
+  'user_id': z.string().uuid().nullable(),
 })
 export type Shipment = z.infer<typeof Shipment>
 // generated:end
 import { Carrier } from './carriers.js'
 import { Address } from '../places/addresses.js'
 
-export const OrderViewShipment = Shipment.extend({ direction: z.string() })
+// Without user_id: 137 stamps the parcel's owner so the composite key can check
+// its addresses, and no read projects it - the owner of a parcel is the order's
+// owner, which every one of these views already carries.
+export const OrderViewShipment = Shipment.omit({ user_id: true }).extend({
+  direction: z.string(),
+})
 export type OrderViewShipment = z.infer<typeof OrderViewShipment>
 
 export const ShipmentRead = OrderViewShipment.omit({ label: true })
@@ -52,9 +58,13 @@ export const ShipmentPatch = Shipment.pick({ tracking_number: true })
   .strict()
 export type ShipmentPatch = z.infer<typeof ShipmentPatch>
 
+// `user_id` is the parcel owner 137's composite key checks the address against.
+// It is claimed by its own statement (`claimOwner`), never through a patch, so
+// no caller can move a parcel into somebody else's book by sending a field.
 export const ShipmentPatchColumns = Shipment.omit({
   id: true,
   created_at: true,
+  user_id: true,
 }).partial()
 export type ShipmentPatchColumns = z.infer<typeof ShipmentPatchColumns>
 

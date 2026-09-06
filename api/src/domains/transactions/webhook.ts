@@ -15,6 +15,7 @@ import {
 } from '#transactions/rules.ts'
 import { findIntentByRef, updateFromProvider } from '#transactions/service.ts'
 import * as emailService from '#documents/emails/service.ts'
+import * as credit from '#transactions/credit/service.ts'
 import withTransaction from '#shared/db/withTransaction.ts'
 import { reportError } from '#shared/observability/report.ts'
 import type { Executor } from '#shared/db/executor.ts'
@@ -46,9 +47,13 @@ export async function applyIntentEvent(
   if (paymentIntent.status === 'succeeded' && order_id) {
     const owed = (await ordersRepo.getOne(order_id))?.totals?.post_charges_amount
     if (settlementCovers(toDollars(paymentIntent.amount_received), owed)) {
-      await withTransaction((tx) =>
-        ordersRepo.update(order_id, { status: 'Preparing' }, { status: 'Pending' }, tx)
-      )
+      await withTransaction(async (tx) => {
+        if (await ordersRepo.update(order_id, { status: 'Preparing' }, { status: 'Pending' }, tx)) {
+          // The payment settled, so the credit the customer reserved is spent
+          // rather than held (ruling 88).
+          await credit.settleReservation(order_id, tx)
+        }
+      })
       if (!(await emails.hasSent(order_id, PLACED))) await world.confirm(order_id)
     } else {
       reportError({

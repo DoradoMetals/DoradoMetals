@@ -1,5 +1,5 @@
 import type { NextFunction, Request, RequestHandler, Response } from 'express'
-import { auth } from '#accounts/auth/client.ts'
+import { sessions } from '#accounts/auth/session.ts'
 import { fromNodeHeaders } from 'better-auth/node'
 import { runWithActor } from '#shared/http/actor.ts'
 
@@ -13,11 +13,17 @@ export const requireAuth = async (
       return res.status(400).json({ error: 'Bad Request', message: 'Headers are missing' })
     }
 
-    const session = await auth.api.getSession({
-      headers: fromNodeHeaders(req.headers),
-    })
+    // Ruling 90: the seam re-reads the session's ban state and role from the
+    // database, because the cookie cache answers from a five-minute-old cookie.
+    const { session, reason } = await sessions.current(fromNodeHeaders(req.headers))
 
     if (!session || !session.user) {
+      if (reason === 'banned') {
+        return res.status(403).json({
+          error: 'Forbidden',
+          message: 'This account is banned',
+        })
+      }
       return res.status(401).json({ error: 'Unauthorized' })
     }
 
@@ -44,6 +50,8 @@ const requireRole = (minimumRole: Role): RequestHandler => {
 
   return async (req: Request, res: Response, next: NextFunction) => {
     await requireAuth(req, res, () => {
+      // The DATABASE's role, put here by the seam - not the role the cookie
+      // was signed with, so a demotion from admin bites on the next request.
       const userRole = req.user?.role
       const userLevel = userRole && userRole in roleLevels ? roleLevels[userRole as Role] : 0
       const requiredLevel = roleLevels[minimumRole]

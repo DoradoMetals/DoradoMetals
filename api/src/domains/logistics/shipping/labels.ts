@@ -2,6 +2,7 @@ import * as shipmentsRepo from '#db/shipping/shipments/repo.ts'
 import * as packagesRepo from '#db/shipping/packages/repo.ts'
 import * as orderAddresses from '#db/orders/addresses/repo.ts'
 import * as placeAddresses from '#db/places/addresses/repo.ts'
+import * as locationsRepo from '#db/places/locations/repo.ts'
 import * as orderItems from '#db/orders/items/repo.ts'
 import * as ordersRepo from '#db/orders/repo.ts'
 import * as orderTransactions from '#db/orders/transactions/repo.ts'
@@ -24,6 +25,7 @@ import type { Executor } from '#shared/db/executor.ts'
 import type {
   Address,
   CarrierPickupBooking,
+  HoldAtLocation,
   Parcel,
   ParcelSchedule,
 } from '@dorado/contracts'
@@ -109,7 +111,7 @@ export async function buyLabel(shipment_id: string): Promise<void> {
   const labelData = await shippingOps.createLabel(
     parcel.carrier_id,
     undefined,
-    requests.inboundLabelRequest(shipper, personName, parcel)
+    requests.inboundLabelRequest(shipper, personName, parcel, await holdLocation())
   )
   const label = await shippingOperations.labelBufferOrVoid(labelData)
   const booking = parcel.schedule
@@ -165,7 +167,8 @@ export async function buyReturnLabel(shipment_id: string): Promise<void> {
     requests.returnLabelRequest(
       await customerName(order_id),
       await snapshotOf(order_id, shipment_id),
-      parcel
+      parcel,
+      await holdLocation()
     )
   )
   const label = await shippingOperations.labelBufferOrVoid(labelData)
@@ -248,6 +251,15 @@ async function record(
       )
     }
   })
+}
+
+// Where a label is held for collection. One row, read from the database, so
+// nothing about the business's own address is written into the carrier adapter
+// (ruling 89).
+async function holdLocation(): Promise<HoldAtLocation> {
+  const hold = await locationsRepo.defaultReturn()
+  rules.assertReturnLocation(hold)
+  return hold
 }
 
 async function boxOf(package_id: string | null) {

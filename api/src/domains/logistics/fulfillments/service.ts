@@ -3,6 +3,7 @@ import * as methodService from '#logistics/fulfillments/methods/service.ts'
 import * as pickups from '#db/fulfillments/pickups/repo.ts'
 import * as directs from '#db/fulfillments/directs/repo.ts'
 import * as shipmentLinks from '#db/fulfillments/shipments/repo.ts'
+import * as shipments from '#db/shipping/shipments/repo.ts'
 import * as parcel from '#logistics/shipping/parcel.ts'
 import * as handoffsService from '#logistics/shipping/handoffs/service.ts'
 import * as orders from '#db/orders/repo.ts'
@@ -140,16 +141,19 @@ export async function ownerOf(
   return checkout?.user_id ?? (await orderOwnerOf(fulfillment_id, executor))
 }
 
+async function ownerNaming(fulfillment_id: string, executor?: Executor): Promise<string> {
+  const owner = await ownerOf(fulfillment_id, executor)
+  rules.assertFulfillmentOwner(owner, fulfillment_id)
+  return owner
+}
+
 // An address a customer names must be one of their own. `requireFulfillmentOwner`
 // proves the FULFILLMENT is theirs; this proves the ADDRESS is (LD F2).
 async function assertAddressIsTheirs(
-  fulfillment_id: string,
-  address_id: string | null | undefined,
+  owner: string,
+  address_id: string,
   executor?: Executor
 ): Promise<void> {
-  if (address_id == null) return
-  const owner = await ownerOf(fulfillment_id, executor)
-  rules.assertFulfillmentOwner(owner, fulfillment_id)
   const book = await addressService.list(owner, executor)
   rules.assertAddressIsTheirs(
     book.some((entry) => entry.address.id === address_id),
@@ -169,14 +173,32 @@ export async function patchChoices(
 
   if ('shipment' in body) {
     rules.assertChoicesMatchCategory(method.category, 'SHIPMENT', id)
-    await assertAddressIsTheirs(id, body.shipment.shipper_address_id, executor)
-    await assertAddressIsTheirs(id, body.shipment.recipient_address_id, executor)
     const [link] = await shipmentLinks.getFor(id, executor)
     rules.assertParcel(link, id)
+    // The owner is stamped on the parcel BEFORE the address is written, because
+    // 137's composite key checks the address against that owner's book and a
+    // row with no owner satisfies the key whatever address it carries.
+    if (body.shipment.shipper_address_id != null || body.shipment.recipient_address_id != null) {
+      const owner = await ownerNaming(id, executor)
+      if (body.shipment.shipper_address_id != null) {
+        await assertAddressIsTheirs(owner, body.shipment.shipper_address_id, executor)
+      }
+      if (body.shipment.recipient_address_id != null) {
+        await assertAddressIsTheirs(owner, body.shipment.recipient_address_id, executor)
+      }
+      rules.assertOwnerClaimed(
+        await shipments.claimOwner(link.shipment_id, owner, executor),
+        link.shipment_id
+      )
+    }
     await parcel.applyChoices(link.shipment_id, body.shipment, executor)
   } else if ('pickup' in body) {
     rules.assertChoicesMatchCategory(method.category, 'PICKUP', id)
-    await assertAddressIsTheirs(id, body.pickup.pickup_address_id, executor)
+    if (body.pickup.pickup_address_id != null) {
+      const owner = await ownerNaming(id, executor)
+      await assertAddressIsTheirs(owner, body.pickup.pickup_address_id, executor)
+      rules.assertOwnerClaimed(await pickups.claimOwner(id, owner, executor), id)
+    }
     rules.assertTimestamp(body.pickup.start_time)
     await pickups.update(id, body.pickup, executor)
   } else {

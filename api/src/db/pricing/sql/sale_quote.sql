@@ -58,14 +58,17 @@ aggregate AS (
   SELECT COALESCE(sum(l.unit_ask * l.quantity), 0) AS item_total FROM lines l
 ),
 taxed AS (
+  -- RULING 87: tax is COLLECTED only where the business has reached nexus.
+  -- A state with no tax.sales_tax row has not reached it either, so the
+  -- COALESCE is false and the rate falls to zero. `sales-tax/sql/accrue.sql`
+  -- owes money on exactly the same condition, which is what the review found
+  -- them disagreeing about.
   SELECT l.*,
-         CASE WHEN $2::boolean
-                   AND delivery.state IS NOT NULL
-                   AND NOT COALESCE((SELECT st.reached_nexus
-                                       FROM tax.sales_tax st
-                                      WHERE st.state::text = delivery.state), false)
-              THEN 0
-              ELSE COALESCE(rule.tax_rate, 0) END AS sales_tax_rate
+         CASE WHEN COALESCE((SELECT st.reached_nexus
+                               FROM tax.sales_tax st
+                              WHERE st.state::text = delivery.state), false)
+              THEN COALESCE(rule.tax_rate, 0)
+              ELSE 0 END AS sales_tax_rate
     FROM lines l
    CROSS JOIN delivery
    CROSS JOIN aggregate

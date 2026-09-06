@@ -2,6 +2,7 @@ import { test } from 'vitest'
 import assert from 'node:assert/strict'
 import * as payloads from '#providers/shipments/payloads.ts'
 import * as requests from '#providers/shipments/requests.ts'
+import * as adapters from '#providers/shipments/adapters/fedex.ts'
 import { handoffFor } from '#logistics/shipping/rules.ts'
 import type { CarrierHandoff, Parcel } from '@dorado/contracts'
 
@@ -70,33 +71,94 @@ test('a quote with no pickup type is visibly missing it, which is the state F6 d
   assert.equal(quoted.requestedShipment.pickupType, undefined)
 })
 
-// LD F12 - a DECISION, not a fix. This pins TODAY'S behaviour so a change is
-// deliberate: every return label is bought HOLD_AT_LOCATION at the business's
-// own FedEx Office, because `createShipmentPayload` defaults
-// `holdAtLocation` to true and `returnLabelRequest` passes no options. The
-// parcel goes back to a hold location beside Dorado instead of to the customer.
-// Jacob has not ruled on whether that is intended.
-test("a return label is bought HOLD_AT_LOCATION today - pinned, not endorsed", () => {
-  const built = requests.returnLabelRequest('A Customer', ADDRESS as never, parcelWith(HANDOFFS[0]))
-  const payload = payloads.createShipmentPayload({
-    shipper: built.shipper,
-    recipient: built.recipient,
-    serviceType: built.serviceType,
-    packageDetails: built.pkg,
-    totalDeclaredValue: built.insurance.declaredValue,
-  } as unknown as Parameters<typeof payloads.createShipmentPayload>[0])
+// RULING 89 (Jacob, 2026-09-07), executed. HOLD_AT_LOCATION stays; where the
+// parcel is held is the business's default return location, read from
+// places.locations and handed to the request builder. Nothing about it is
+// written into the adapter any more, so this test supplies the row and proves
+// every field of the payload came from it.
+const HOLD = {
+  code: 'TEST1',
+  type: 'FEDEX_OFFICE',
+  company_name: 'A Print And Ship Center',
+  phone_number: '5550000000',
+  address: {
+    line_1: '1 Hold Street',
+    line_2: null,
+    city: 'Farmers Branch',
+    state: 'TX',
+    zip: '75244',
+    country_code: 'US',
+    is_residential: false,
+  },
+}
 
-  const special = payload.requestedShipment.shipmentSpecialServices as {
-    specialServiceTypes?: string[]
-    holdAtLocationDetail?: { locationId?: string }
-  } | undefined
+const returnPayload = (hold: typeof HOLD | null) => {
+  const built = requests.returnLabelRequest(
+    'A Customer',
+    ADDRESS as never,
+    parcelWith(HANDOFFS[0]),
+    hold as never
+  )
+  return payloads.createShipmentPayload(
+    adapters.createLabelInput(built) as unknown as Parameters<
+      typeof payloads.createShipmentPayload
+    >[0]
+  )
+}
+
+const specialOf = (payload: ReturnType<typeof payloads.createShipmentPayload>) =>
+  payload.requestedShipment.shipmentSpecialServices as
+    | {
+        specialServiceTypes?: string[]
+        holdAtLocationDetail?: {
+          locationId?: string
+          locationType?: string
+          locationContactAndAddress?: {
+            address?: { streetLines?: string[]; postalCode?: string }
+            contact?: { companyName?: string; phoneNumber?: string }
+          }
+        }
+      }
+    | undefined
+
+test('a return label is held at the row the caller read, field for field', () => {
+  const special = specialOf(returnPayload(HOLD))
+
+  assert.deepEqual(special?.specialServiceTypes, ['HOLD_AT_LOCATION'], 'ruling 89 keeps the hold')
+  assert.equal(special?.holdAtLocationDetail?.locationId, HOLD.code)
+  assert.equal(special?.holdAtLocationDetail?.locationType, HOLD.type)
   assert.deepEqual(
-    special?.specialServiceTypes,
-    ['HOLD_AT_LOCATION'],
-    'return-label HOLD_AT_LOCATION changed - if that was deliberate, this is the test to rewrite'
+    special?.holdAtLocationDetail?.locationContactAndAddress?.address?.streetLines,
+    ['1 Hold Street']
   )
-  assert.ok(
-    special?.holdAtLocationDetail?.locationId,
-    'the hold location is no longer named in the payload'
+  assert.equal(
+    special?.holdAtLocationDetail?.locationContactAndAddress?.address?.postalCode,
+    HOLD.address.zip
   )
+  assert.equal(
+    special?.holdAtLocationDetail?.locationContactAndAddress?.contact?.companyName,
+    HOLD.company_name
+  )
+  assert.equal(
+    special?.holdAtLocationDetail?.locationContactAndAddress?.contact?.phoneNumber,
+    HOLD.phone_number
+  )
+})
+
+test('no hold location, no hold service - nothing is defaulted in the adapter', () => {
+  assert.equal(
+    specialOf(returnPayload(null)),
+    undefined,
+    'the payload still names a place the caller never gave it'
+  )
+})
+
+test("the inbound leg travels to the same row's address", () => {
+  const built = requests.inboundLabelRequest(
+    ADDRESS as never,
+    'A Customer',
+    parcelWith(HANDOFFS[0]),
+    HOLD as never
+  )
+  assert.equal(built.recipient.address, HOLD.address)
 })

@@ -55,18 +55,37 @@ test('the settled sweep advances an order whose webhook went missing', async () 
       const id = await seedSale(c)
       await seedIntent(c, `pi_rec_settled_${Date.now()}`, 'succeeded', id)
 
+      const { rows: users } = await query<{ id: string }>(`SELECT id FROM auth.users LIMIT 1`, [], c)
+      await query(
+        `INSERT INTO payments.ledger (user_id, type, order_id, amount)
+         VALUES ($1, 'Reserve', $2, 20)`,
+        [users[0]!.id, id],
+        c
+      )
+
       const results = await sweepSettledIntents(c)
       assert.ok(
         results.some((r) => r.order_id === id && r.outcome === 'advanced'),
         'the missed-webhook order was not advanced'
       )
       assert.equal(await statusOf(c, id), 'Preparing')
+
+      const { rows: ledger } = await query<{ type: string }>(
+        `SELECT type FROM payments.ledger WHERE order_id = $1`,
+        [id],
+        c
+      )
+      assert.deepEqual(
+        ledger.map((row) => row.type),
+        ['Debit'],
+        'the settled sale still holds its credit in reserve (ruling 88)'
+      )
     },
     { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.ADDRESSES, LOCKS.USERS] }
   )
 })
 
-test('the abandonment sweep cancels a stale unpaid order and refunds its credit', async () => {
+test('the abandonment sweep cancels a stale unpaid order and returns its reservation', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
       const { rows: users } = await query<{ id: string; dorado_funds: number | null }>(
@@ -82,6 +101,14 @@ test('the abandonment sweep cancels a stale unpaid order and refunds its credit'
       await query(
         `INSERT INTO orders.transactions (order_id, funds, used_funds) VALUES ($1, 125.50, true)`,
         [id],
+        c
+      )
+      // What a placement writes under ruling 88: the credit is held against
+      // this order, and the ledger row is the fact the sweep returns.
+      await query(
+        `INSERT INTO payments.ledger (user_id, type, order_id, amount)
+         VALUES ($1, 'Reserve', $2, 125.50)`,
+        [user.id, id],
         c
       )
       await seedIntent(c, NO_SUCH_INTENT, 'requires_payment_method', id)
@@ -105,13 +132,16 @@ test('the abandonment sweep cancels a stale unpaid order and refunds its credit'
         'the credit did not come back'
       )
 
-      const { rows: ledger } = await query<{ n: number }>(
-        `SELECT count(*)::int n FROM payments.ledger
-        WHERE order_id = $1 AND type = 'Credit'`,
+      const { rows: ledger } = await query<{ type: string }>(
+        `SELECT type FROM payments.ledger WHERE order_id = $1`,
         [id],
         c
       )
-      assert.equal(ledger[0]!.n, 1, 'the refund has no ledger entry')
+      assert.deepEqual(
+        ledger.map((row) => row.type),
+        ['Released'],
+        'the reservation was not resolved, so a second sweep would pay again'
+      )
     },
     { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.ADDRESSES, LOCKS.USERS] }
   )

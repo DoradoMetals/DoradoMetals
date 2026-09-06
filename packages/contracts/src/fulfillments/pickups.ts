@@ -12,19 +12,25 @@ export const FulfillmentPickup = z.object({
   'assigned_employee_id': z.string().uuid().nullable(),
   'start_time': z.string().nullable(),
   'end_time': z.string().nullable(),
+  'user_id': z.string().uuid().nullable(),
 })
 export type FulfillmentPickup = z.infer<typeof FulfillmentPickup>
 // generated:end
 export const FulfillmentPickupPatch = FulfillmentPickup.omit({ id: true }).partial()
 export type FulfillmentPickupPatch = z.infer<typeof FulfillmentPickupPatch>
 
-export const FulfillmentPickupPatchColumns = FulfillmentPickupPatch.omit({ fulfillment_id: true })
+// `user_id` is claimed by its own statement, never patched - see
+// ShipmentPatchColumns for why.
+export const FulfillmentPickupPatchColumns = FulfillmentPickupPatch.omit({
+  fulfillment_id: true,
+  user_id: true,
+})
 export type FulfillmentPickupPatchColumns = z.infer<typeof FulfillmentPickupPatchColumns>
 
 export const FulfillmentSchedulePickupBody = z
   .object({
     fulfillment_id: FulfillmentPickup.shape.fulfillment_id,
-    pickup: FulfillmentPickupPatch.omit({ fulfillment_id: true }).strict(),
+    pickup: FulfillmentPickupPatchColumns.strict(),
   })
   .strict()
 export type FulfillmentSchedulePickupBody = z.infer<typeof FulfillmentSchedulePickupBody>

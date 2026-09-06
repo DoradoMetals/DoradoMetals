@@ -3,6 +3,7 @@ import * as ledger from '#transactions/ledger/service.ts'
 import withTransaction from '#shared/db/withTransaction.ts'
 import {
   assertCreditSubject,
+  assertReservationOwner,
   balanceAfter,
   movementBetween,
   refuseNegativeBalance,
@@ -59,4 +60,33 @@ export async function removeFunds(
   )
   refuseNegativeBalance(balanceAfter('subtract', before, Number(total)))
   return await users.adjustCredit(user_id, 'subtract', total, tx)
+}
+
+// RULING 88. Credit applied to a sale is RESERVED, not spent: the balance moves
+// at placement so nobody can spend it twice, and the ledger carries a `Reserve`
+// row tied to the order that says why. That row is the fact - it is returned by
+// a cancel or by the abandoned sweep, and converted to a `Debit` the moment the
+// payment settles. Before this, the debit wrote nothing at all and only a
+// script could reverse it (finding 28).
+export async function reserve(
+  user_id: string,
+  amount: number,
+  order_id: string,
+  tx: Executor
+): Promise<void> {
+  await removeFunds(user_id, amount, tx)
+  await ledger.addTransactionLog({ user_id, type: 'Reserve', order_id, amount }, tx)
+}
+
+export async function releaseReservation(order_id: string, tx: Executor): Promise<number> {
+  const released = await ledger.resolveReservation(order_id, 'Released', tx)
+  if (!released) return 0
+  const amount = Number(released.amount ?? 0)
+  const owner = assertReservationOwner(released.user_id, order_id)
+  assertCreditSubject(owner, await users.adjustCredit(owner, 'add', amount, tx))
+  return amount
+}
+
+export async function settleReservation(order_id: string, tx: Executor): Promise<boolean> {
+  return (await ledger.resolveReservation(order_id, 'Debit', tx)) !== undefined
 }

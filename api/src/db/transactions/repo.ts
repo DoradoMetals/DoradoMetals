@@ -19,6 +19,19 @@ export async function create(row: LedgerEntryPatch, executor?: Executor): Promis
   return rows[0]
 }
 
+export async function resolveReservation(
+  order_id: string,
+  type: 'Debit' | 'Released',
+  executor?: Executor
+): Promise<LedgerEntry | undefined> {
+  const { rows } = await query<LedgerEntry>(
+    sql('resolve_reservation'),
+    [order_id, type],
+    executor
+  )
+  return rows[0]
+}
+
 export async function hasCreditFor(order_id: string, executor?: Executor): Promise<boolean> {
   const { rows } = await query<{ refunded: boolean }>(sql('has_credit_for'), [order_id], executor)
   return rows[0]?.refunded === true

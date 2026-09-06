@@ -1,4 +1,4 @@
-import { auth } from '#accounts/auth/client.ts'
+import { sessions } from '#accounts/auth/session.ts'
 
 type TestUser = {
   id: string
@@ -16,15 +16,22 @@ type TestSession = {
 let current: TestSession = null
 let real: ((...args: unknown[]) => unknown) | null = null
 
+// Ruling 90 moved the middleware off `auth.api.getSession` and onto the
+// session seam, which reads ban state and role from the database on every
+// request. Patching the seam is what keeps these tests off that read; the
+// public surface below is unchanged.
 export async function mockSessions() {
   if (real) return
-  real = auth.api.getSession.bind(auth.api) as (...args: unknown[]) => unknown
-  ;(auth.api as Record<string, unknown>).getSession = async () => current
+  real = sessions.current as (...args: unknown[]) => unknown
+  ;(sessions as Record<string, unknown>).current = async () => ({
+    session: current,
+    reason: current ? null : 'unauthenticated',
+  })
 }
 
 export function restoreSessions() {
   if (!real) return
-  ;(auth.api as Record<string, unknown>).getSession = real
+  ;(sessions as Record<string, unknown>).current = real
   real = null
 }
 

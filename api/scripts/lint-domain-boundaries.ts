@@ -38,7 +38,7 @@ const LANES: { dir: string; forbidden: string[]; why: string }[] = [
 
 const ACCEPTED: Record<string, { count: number; why: string }> = {
   'domains/orders/service.ts': {
-    count: 10,
+    count: 9,
     why:
       'the ADMIN cancel and the hand-entered tracking number. `cancel` takes ' +
       "OrderCancelBody's carrier_service_id + package_id - an admin choosing the " +

@@ -22,12 +22,13 @@ afterAll(async () => {
   await pool.end()
 })
 
-async function aCancellableOrder(c: PoolClient) {
+async function aCancellableOrder(c: PoolClient, method = 'CARRIER DROPOFF') {
   const seller = await aUser(c, { name: 'Cancel Test Seller' })
   const address = await anAddress(c, seller)
   const order = await anOrder(c, seller, { direction: 'purchase' })
     .withLots(1)
     .withAddress(address)
+    .withFulfillment(method)
     .withTotals({ total: 500 })
   return {
     order_id: order.id,
@@ -122,6 +123,58 @@ test('a clean cancel buys the label against the row it already committed', async
       assert.deepEqual(asked, [returns[0].id])
       assert.equal(returns[0].carrier_service_id, input.carrier_service_id)
       assert.equal(returns[0].package_id, input.package_id)
+    },
+    { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS }
+  )
+})
+
+test('a pickup order is cancelled with no return label at all', async () => {
+  await inPinnedTransaction(
+    async (c: PoolClient) => {
+      const { order_id, input } = await aCancellableOrder(c, 'PICKUP')
+
+      const asked: string[] = []
+      const view = await orders.cancel(order_id, input, async (shipment_id: string) => {
+        asked.push(shipment_id)
+      })
+
+      assert.deepEqual(asked, [], 'a carrier was asked for a label the customer will never post')
+      assert.equal(view.order.spots_locked, false, 'the cancel did not commit its own unpin')
+      assert.deepEqual(await returnShipmentsFor(c, order_id), [], 'a return parcel was minted')
+    },
+    { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS }
+  )
+})
+
+test('a cancel before pricing insures the return for what came in, not for zero', async () => {
+  await inPinnedTransaction(
+    async (c: PoolClient) => {
+      const seller = await aUser(c, { name: 'Unpriced Cancel Seller' })
+      const address = await anAddress(c, seller)
+      const order = await anOrder(c, seller, { direction: 'purchase' })
+        .withLots(1)
+        .withAddress(address)
+        .withFulfillment()
+      const inbound = await c.query(
+        `SELECT s.id FROM shipping.shipments s
+           JOIN fulfillments.shipments fs ON fs.shipment_id = s.id
+           JOIN fulfillments.fulfillments f ON f.id = fs.fulfillment_id
+          WHERE f.order_id = $1 AND s.direction <> 'Return'`,
+        [order.id]
+      )
+      await c.query(`UPDATE shipping.shipments SET declared_value = 4000 WHERE id = $1`, [
+        inbound.rows[0].id,
+      ])
+
+      const view = await orders.cancel(
+        order.id,
+        { carrier_service_id: await carrierServiceId(c), package_id: await packageId(c) },
+        async () => {}
+      )
+
+      const leg = view.shipments.find((s) => s.direction === 'Return')
+      assert.equal(leg?.insured, true, 'metal with no order total went back uninsured')
+      assert.ok(Number(leg?.declared_value) > 0, 'the return was declared at zero')
     },
     { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS }
   )

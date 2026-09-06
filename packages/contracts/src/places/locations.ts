@@ -15,6 +15,32 @@ export const Location = z.object({
   'enabled': z.boolean(),
   'label_company_name': z.string().nullable(),
   'label_phone_number': z.string().nullable(),
+  'default_return': z.boolean(),
+  'carrier_location_code': z.string().nullable(),
 })
 export type Location = z.infer<typeof Location>
 // generated:end
+import { Address } from './addresses.js'
+
+// RULING 89: where a label is held for collection. It is the business's default
+// return location - one row of places.locations - and not a constant in the
+// carrier adapter. Only the fields a label needs.
+export const HoldAtLocation = z
+  .object({
+    type: Location.shape.type,
+    company_name: Location.shape.label_company_name,
+    phone_number: Location.shape.label_phone_number,
+    address: Address.pick({
+      line_1: true,
+      line_2: true,
+      city: true,
+      state: true,
+      zip: true,
+      country_code: true,
+      is_residential: true,
+    }),
+  })
+  // The column is nullable; the read filters the nulls out, because a location
+  // the carrier knows by no code cannot be named on a label.
+  .extend({ code: z.string() })
+export type HoldAtLocation = z.infer<typeof HoldAtLocation>

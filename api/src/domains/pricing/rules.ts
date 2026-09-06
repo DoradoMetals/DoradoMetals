@@ -12,3 +12,16 @@ export function assertPriceable(unpriceable: string[], what: string): void {
     )
   }
 }
+
+// Tax that was charged must land on a state's row. A state with no
+// tax.sales_tax row cannot have reached nexus, so it can only ever be charged
+// zero - and an accrual of zero that matches nothing is the normal case, not a
+// fault. Anything else is a charge recorded nowhere (MP F3).
+export function assertAccrued(accrued: boolean, amount: number, state: string): void {
+  if (!accrued && amount > 0) {
+    throw new Invalid(
+      `${amount.toFixed(2)} of sales tax was charged for ${state}, which has no ` +
+        `tax.sales_tax row to owe it`
+    )
+  }
+}
