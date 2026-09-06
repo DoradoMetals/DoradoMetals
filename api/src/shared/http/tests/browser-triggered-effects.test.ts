@@ -26,7 +26,7 @@ const walk = (dir: string, out: string[] = []): string[] => {
   return out
 }
 
-const ALLOWED: string[] = ['(top level) GET /products']
+const ALLOWED: string[] = []
 
 test('only the two order emails are triggered after an operation already succeeded', () => {
   const found: string[] = []
@@ -51,13 +51,21 @@ test('only the two order emails are triggered after an operation already succeed
     }
   }
 
+  // THE CONTROL AND THE FLOOR BOTH MOVED WITH THE NUKE (ruling 99). The known
+  // call used to be `/spots`, and `packages/client/src/spots` is deleted along
+  // with every other resource module; the floor was 95, against a client that
+  // called every endpoint the API has. What is left is the auth module, so the
+  // control is the session read and the floor is the nine calls that module
+  // really makes. Both rise again as surfaces are built - and both matter as
+  // much as ever, because a control naming a deleted file is a scan passing
+  // over nothing.
   assert.ok(
-    all.includes('queryFn GET /spots'),
-    'packages/client/src was not scanned - the known /spots queryFn call is missing'
+    all.includes('queryFn GET /account/session'),
+    'packages/client/src was not scanned - the known /account/session queryFn call is missing'
   )
 
   assert.ok(
-    total >= 95,
+    total >= 9,
     `only ${total} apiRequest call(s) found - the scan has stopped matching, ` +
       'and a check that reads nothing accepts everything'
   )

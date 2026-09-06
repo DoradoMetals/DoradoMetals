@@ -53,9 +53,9 @@ api/                  @dorado/api          Express 5, ESM, TypeScript (Node runs
   scripts/              lints, audits, verifiers, migrate
   migrations/           000_genesis_schema.sql .. 140_*.sql
   tests/                cassettes and the external suite
-frontend/             @dorado/frontend     Next.js app router, TypeScript strict
+frontend/             @dorado/frontend     Next.js app router - NUKED to auth + a placeholder home; surfaces regrow one at a time (ruling 99, docs/waves/frontend-nuke.md)
   app/<route>/_src_/    a route's own code
-  shared/<kind>/        ui hooks types utils store providers tests
+  shared/<kind>/        ui hooks utils providers tests (store and types went with the surfaces)
 packages/contracts/   @dorado/contracts    generated zod row schemas and wire shapes
 packages/client/      @dorado/client       the typed API client; the frontend's ONLY way to reach the API
 packages/components/  @dorado/components   the component library
