@@ -43,7 +43,10 @@ export default function Home() {
       />
 
       <main className="flex-1">
-        <Hero sellerCount={2400} />
+        <Hero
+          sellerCount={2400}
+          primaryAction={{ href: '/auth/sign-in', label: 'Get a Quote' }}
+        />
       </main>
 
       <Footer

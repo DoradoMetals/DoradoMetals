@@ -12,6 +12,7 @@ export type TimePickerProps = {
   value?: string | null
   onValueChange: (value: string) => void
   bare?: boolean
+  columns?: 2 | 3
   className?: string
 }
 
@@ -21,6 +22,7 @@ export function TimePicker({
   value,
   onValueChange,
   bare = false,
+  columns = 2,
   className,
 }: TimePickerProps) {
   return (
@@ -53,7 +55,7 @@ export function TimePicker({
           )}
         >
           <span className="text-micro font-medium text-muted-foreground">{group.label}</span>
-          <div className="grid grid-cols-2 gap-2">
+          <div className={cn('grid gap-2', columns === 3 ? 'grid-cols-3' : 'grid-cols-2')}>
             {group.slots.map((slot) => {
               const available = slot.available !== false
               const selected = slot.value === value

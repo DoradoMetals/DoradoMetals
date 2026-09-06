@@ -1,261 +1,341 @@
 {
   "fileKey": "8A73quhBLBqotJlX95jN9j",
   "fileName": "Themes and Components",
-  "capturedAt": "2026-09-03",
+  "capturedAt": "2026-09-06",
   "collections": {
     "Color": {
-      "modes": ["Dark"],
+      "modes": [
+        "Dark"
+      ],
       "variables": [
         {
           "name": "accent/default",
           "type": "COLOR",
           "alias": null,
-          "value": "#23252a"
+          "value": "#23252a",
+          "opacity": 1
         },
         {
           "name": "accent/foreground",
           "type": "COLOR",
           "alias": null,
-          "value": "#f6f7f9"
+          "value": "#f6f7f9",
+          "opacity": 1
         },
         {
           "name": "border/default",
           "type": "COLOR",
           "alias": null,
-          "value": "#2c2f35"
+          "value": "#2c2f35",
+          "opacity": 1
         },
         {
           "name": "border/input",
           "type": "COLOR",
           "alias": null,
-          "value": "#383b43"
+          "value": "#383b43",
+          "opacity": 1
         },
         {
           "name": "border/strong",
           "type": "COLOR",
           "alias": null,
-          "value": "#3f434b"
+          "value": "#3f434b",
+          "opacity": 1
         },
         {
           "name": "brand/default",
           "type": "COLOR",
           "alias": null,
-          "value": "#d9b559"
+          "value": "#d9b559",
+          "opacity": 1
         },
         {
           "name": "focus/ring",
           "type": "COLOR",
           "alias": null,
-          "value": "#a7b0be"
+          "value": "#a7b0be",
+          "opacity": 1
         },
         {
           "name": "primary/default",
           "type": "COLOR",
           "alias": null,
-          "value": "#fafafa"
+          "value": "#fafafa",
+          "opacity": 1
         },
         {
           "name": "primary/foreground",
           "type": "COLOR",
           "alias": null,
-          "value": "#0d0e11"
+          "value": "#0d0e11",
+          "opacity": 1
         },
         {
           "name": "secondary/default",
           "type": "COLOR",
           "alias": null,
-          "value": "#23252a"
+          "value": "#23252a",
+          "opacity": 1
         },
         {
           "name": "secondary/foreground",
           "type": "COLOR",
           "alias": null,
-          "value": "#f6f7f9"
+          "value": "#f6f7f9",
+          "opacity": 1
         },
         {
           "name": "status/destructive",
           "type": "COLOR",
           "alias": null,
-          "value": "#ec5165"
+          "value": "#ec5165",
+          "opacity": 1
         },
         {
           "name": "status/destructive-foreground",
           "type": "COLOR",
           "alias": null,
-          "value": "#fafafa"
+          "value": "#fafafa",
+          "opacity": 1
         },
         {
           "name": "status/destructive-muted",
           "type": "COLOR",
           "alias": null,
-          "value": "#32161c"
+          "value": "#32161c",
+          "opacity": 1
+        },
+        {
+          "name": "status/destructive-soft",
+          "type": "COLOR",
+          "alias": null,
+          "value": "#ec5165",
+          "opacity": 0.16
         },
         {
           "name": "status/info",
           "type": "COLOR",
           "alias": null,
-          "value": "#3eaef4"
+          "value": "#3eaef4",
+          "opacity": 1
         },
         {
           "name": "status/info-foreground",
           "type": "COLOR",
           "alias": null,
-          "value": "#0d0e11"
+          "value": "#0d0e11",
+          "opacity": 1
         },
         {
           "name": "status/info-muted",
           "type": "COLOR",
           "alias": null,
-          "value": "#132736"
+          "value": "#132736",
+          "opacity": 1
+        },
+        {
+          "name": "status/info-soft",
+          "type": "COLOR",
+          "alias": null,
+          "value": "#3eaef4",
+          "opacity": 0.16
         },
         {
           "name": "status/success",
           "type": "COLOR",
           "alias": null,
-          "value": "#3ecc89"
+          "value": "#3ecc89",
+          "opacity": 1
         },
         {
           "name": "status/success-foreground",
           "type": "COLOR",
           "alias": null,
-          "value": "#0d0e11"
+          "value": "#0d0e11",
+          "opacity": 1
         },
         {
           "name": "status/success-muted",
           "type": "COLOR",
           "alias": null,
-          "value": "#172c22"
+          "value": "#172c22",
+          "opacity": 1
+        },
+        {
+          "name": "status/success-soft",
+          "type": "COLOR",
+          "alias": null,
+          "value": "#3ecc89",
+          "opacity": 0.16
         },
         {
           "name": "status/warning",
           "type": "COLOR",
           "alias": null,
-          "value": "#f6ae31"
+          "value": "#f6ae31",
+          "opacity": 1
         },
         {
           "name": "status/warning-foreground",
           "type": "COLOR",
           "alias": null,
-          "value": "#0d0e11"
+          "value": "#0d0e11",
+          "opacity": 1
         },
         {
           "name": "status/warning-muted",
           "type": "COLOR",
           "alias": null,
-          "value": "#342713"
+          "value": "#342713",
+          "opacity": 1
+        },
+        {
+          "name": "status/warning-soft",
+          "type": "COLOR",
+          "alias": null,
+          "value": "#f6ae31",
+          "opacity": 0.16
         },
         {
           "name": "surface/background",
           "type": "COLOR",
           "alias": null,
-          "value": "#09090c"
+          "value": "#09090c",
+          "opacity": 1
         },
         {
           "name": "surface/card",
           "type": "COLOR",
           "alias": null,
-          "value": "#101114"
+          "value": "#101114",
+          "opacity": 1
         },
         {
           "name": "surface/default",
           "type": "COLOR",
           "alias": "surface/card",
-          "value": "#101114"
+          "value": "#101114",
+          "opacity": 1
         },
         {
           "name": "surface/highest",
           "type": "COLOR",
           "alias": null,
-          "value": "#191b1f"
+          "value": "#191b1f",
+          "opacity": 1
         },
         {
           "name": "surface/muted",
           "type": "COLOR",
           "alias": null,
-          "value": "#1e2024"
+          "value": "#1e2024",
+          "opacity": 1
         },
         {
           "name": "surface/overlay",
           "type": "COLOR",
           "alias": "surface/highest",
-          "value": "#191b1f"
+          "value": "#191b1f",
+          "opacity": 1
         },
         {
           "name": "surface/popover",
           "type": "COLOR",
           "alias": null,
-          "value": "#151619"
+          "value": "#151619",
+          "opacity": 1
         },
         {
           "name": "surface/raised",
           "type": "COLOR",
           "alias": "surface/popover",
-          "value": "#151619"
+          "value": "#151619",
+          "opacity": 1
+        },
+        {
+          "name": "surface/soft",
+          "type": "COLOR",
+          "alias": null,
+          "value": "#2c2f35",
+          "opacity": 0.16
         },
         {
           "name": "text/danger",
           "type": "COLOR",
           "alias": "status/destructive",
-          "value": "#ec5165"
+          "value": "#ec5165",
+          "opacity": 1
         },
         {
           "name": "text/default",
           "type": "COLOR",
           "alias": null,
-          "value": "#f6f7f9"
+          "value": "#f6f7f9",
+          "opacity": 1
         },
         {
           "name": "text/disabled",
           "type": "COLOR",
           "alias": null,
-          "value": "#5b5e67"
+          "value": "#5b5e67",
+          "opacity": 1
         },
         {
           "name": "text/info",
           "type": "COLOR",
           "alias": "status/info",
-          "value": "#3eaef4"
+          "value": "#3eaef4",
+          "opacity": 1
         },
         {
           "name": "text/inverse",
           "type": "COLOR",
           "alias": "primary/foreground",
-          "value": "#0d0e11"
+          "value": "#0d0e11",
+          "opacity": 1
         },
         {
           "name": "text/muted",
           "type": "COLOR",
           "alias": null,
-          "value": "#9499a4"
+          "value": "#9499a4",
+          "opacity": 1
         },
         {
           "name": "text/placeholder",
           "type": "COLOR",
           "alias": null,
-          "value": "#787c87"
+          "value": "#787c87",
+          "opacity": 1
         },
         {
           "name": "text/subtle",
           "type": "COLOR",
           "alias": null,
-          "value": "#babec5"
+          "value": "#babec5",
+          "opacity": 1
         },
         {
           "name": "text/success",
           "type": "COLOR",
           "alias": "status/success",
-          "value": "#3ecc89"
+          "value": "#3ecc89",
+          "opacity": 1
         },
         {
           "name": "text/warning",
           "type": "COLOR",
           "alias": "status/warning",
-          "value": "#f6ae31"
+          "value": "#f6ae31",
+          "opacity": 1
         }
       ]
     },
     "Scale": {
-      "modes": ["Default"],
+      "modes": [
+        "Default"
+      ],
       "variables": [
         {
           "name": "breakpoint/xs",
@@ -264,10 +344,46 @@
           "value": 304
         },
         {
+          "name": "opacity/disabled",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 50
+        },
+        {
+          "name": "opacity/hover",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 0.85
+        },
+        {
+          "name": "opacity/muted",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 40
+        },
+        {
+          "name": "opacity/scrim",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 0.7
+        },
+        {
+          "name": "opacity/soft",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 0.16
+        },
+        {
           "name": "radius/base",
           "type": "FLOAT",
           "alias": null,
           "value": 8
+        },
+        {
+          "name": "radius/full",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 9999
         },
         {
           "name": "radius/lg",
@@ -346,11 +462,31 @@
           "type": "FLOAT",
           "alias": null,
           "value": 8
+        },
+        {
+          "name": "stroke/emphasis",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 1.5
+        },
+        {
+          "name": "stroke/hairline",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 1
+        },
+        {
+          "name": "stroke/heavy",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 2
         }
       ]
     },
     "Typography": {
-      "modes": ["Default"],
+      "modes": [
+        "Default"
+      ],
       "variables": [
         {
           "name": "letter-spacing/body",
@@ -793,6 +929,10 @@
       "name": "Chart"
     },
     {
+      "id": "619:2",
+      "name": "Chat"
+    },
+    {
       "id": "14:6",
       "name": "Checkbox"
     },
@@ -905,12 +1045,16 @@
       "name": "Stat"
     },
     {
+      "id": "609:2",
+      "name": "Amount"
+    },
+    {
       "id": "54:45",
       "name": "Stepper"
     },
     {
       "id": "59:2",
-      "name": "Swiper"
+      "name": "Carousel"
     },
     {
       "id": "14:8",
@@ -927,6 +1071,10 @@
     {
       "id": "37:2",
       "name": "Textarea"
+    },
+    {
+      "id": "698:2",
+      "name": "Thumbnail"
     },
     {
       "id": "32:156",
@@ -947,391 +1095,143 @@
     {
       "id": "96:2",
       "name": "OTP"
+    },
+    {
+      "id": "626:2",
+      "name": "Swiper"
     }
   ],
   "hygiene": {
-    "scanned": 3153,
+    "scanned": 3520,
     "totals": {
-      "color": 4,
-      "spacing": 695,
-      "radius": 766,
-      "textStyle": 172,
+      "color": 0,
+      "spacing": 24,
+      "radius": 0,
+      "textStyle": 93,
       "iconFill": 0,
-      "iconWeight": 31
+      "iconWeight": 8
     },
     "perPage": {
-      "Address Card": {
-        "color": 0,
-        "spacing": 29,
-        "radius": 8,
-        "textStyle": 0,
-        "iconFill": 0,
-        "iconWeight": 4
-      },
-      "Alert": {
-        "color": 0,
-        "spacing": 0,
-        "radius": 0,
-        "textStyle": 0,
-        "iconFill": 0,
-        "iconWeight": 10
-      },
-      "Attachment": {
-        "color": 0,
-        "spacing": 18,
-        "radius": 0,
-        "textStyle": 0,
-        "iconFill": 0,
-        "iconWeight": 6
-      },
-      "Accordion": {
-        "color": 1,
-        "spacing": 0,
-        "radius": 0,
-        "textStyle": 0,
-        "iconFill": 0,
-        "iconWeight": 0
-      },
-      "Autocomplete": {
-        "color": 0,
-        "spacing": 0,
-        "radius": 0,
-        "textStyle": 0,
-        "iconFill": 0,
-        "iconWeight": 2
-      },
-      "Avatar": {
-        "color": 0,
-        "spacing": 0,
-        "radius": 16,
-        "textStyle": 0,
-        "iconFill": 0,
-        "iconWeight": 0
-      },
-      "Badge": {
-        "color": 0,
-        "spacing": 31,
-        "radius": 0,
-        "textStyle": 0,
-        "iconFill": 0,
-        "iconWeight": 0
-      },
-      "Banner": {
-        "color": 0,
-        "spacing": 6,
-        "radius": 0,
-        "textStyle": 0,
-        "iconFill": 0,
-        "iconWeight": 0
-      },
-      "Breadcrumb": {
-        "color": 0,
-        "spacing": 7,
-        "radius": 0,
-        "textStyle": 0,
-        "iconFill": 0,
-        "iconWeight": 0
-      },
-      "Button": {
-        "color": 0,
-        "spacing": 135,
-        "radius": 0,
-        "textStyle": 135,
-        "iconFill": 0,
-        "iconWeight": 0
-      },
-      "Icon Button": {
-        "color": 0,
-        "spacing": 5,
-        "radius": 0,
-        "textStyle": 0,
-        "iconFill": 0,
-        "iconWeight": 0
-      },
-      "Chart": {
-        "color": 0,
-        "spacing": 0,
-        "radius": 8,
-        "textStyle": 0,
-        "iconFill": 0,
-        "iconWeight": 0
-      },
-      "Checkbox": {
-        "color": 0,
-        "spacing": 10,
-        "radius": 0,
-        "textStyle": 0,
-        "iconFill": 0,
-        "iconWeight": 0
-      },
-      "Chip": {
-        "color": 0,
-        "spacing": 5,
-        "radius": 24,
-        "textStyle": 0,
-        "iconFill": 0,
-        "iconWeight": 5
-      },
-      "Datepicker": {
-        "color": 0,
-        "spacing": 41,
-        "radius": 8,
-        "textStyle": 0,
-        "iconFill": 0,
-        "iconWeight": 0
-      },
-      "Dialog": {
-        "color": 0,
-        "spacing": 8,
-        "radius": 0,
-        "textStyle": 0,
-        "iconFill": 0,
-        "iconWeight": 0
-      },
-      "Divider": {
-        "color": 0,
-        "spacing": 5,
-        "radius": 0,
-        "textStyle": 0,
-        "iconFill": 0,
-        "iconWeight": 0
-      },
-      "Drawer": {
-        "color": 2,
-        "spacing": 32,
-        "radius": 30,
-        "textStyle": 0,
-        "iconFill": 0,
-        "iconWeight": 0
-      },
-      "Empty State": {
-        "color": 0,
-        "spacing": 14,
-        "radius": 8,
-        "textStyle": 0,
-        "iconFill": 0,
-        "iconWeight": 0
-      },
-      "Footer": {
-        "color": 0,
-        "spacing": 52,
-        "radius": 0,
-        "textStyle": 0,
-        "iconFill": 0,
-        "iconWeight": 0
-      },
-      "Header": {
-        "color": 0,
-        "spacing": 11,
-        "radius": 16,
-        "textStyle": 0,
-        "iconFill": 0,
-        "iconWeight": 0
-      },
-      "Hero": {
-        "color": 0,
-        "spacing": 8,
-        "radius": 0,
-        "textStyle": 1,
-        "iconFill": 0,
-        "iconWeight": 0
-      },
-      "Link": {
+      "Chat": {
         "color": 0,
         "spacing": 15,
         "radius": 0,
         "textStyle": 0,
         "iconFill": 0,
-        "iconWeight": 0
-      },
-      "List": {
-        "color": 0,
-        "spacing": 1,
-        "radius": 0,
-        "textStyle": 0,
-        "iconFill": 0,
-        "iconWeight": 0
-      },
-      "Marquee": {
-        "color": 0,
-        "spacing": 9,
-        "radius": 0,
-        "textStyle": 0,
-        "iconFill": 0,
-        "iconWeight": 0
-      },
-      "Masked Field (deprecated)": {
-        "color": 0,
-        "spacing": 10,
-        "radius": 0,
-        "textStyle": 0,
-        "iconFill": 0,
-        "iconWeight": 0
-      },
-      "Menu": {
-        "color": 0,
-        "spacing": 34,
-        "radius": 4,
-        "textStyle": 0,
-        "iconFill": 0,
-        "iconWeight": 0
-      },
-      "Pagination": {
-        "color": 0,
-        "spacing": 6,
-        "radius": 44,
-        "textStyle": 0,
-        "iconFill": 0,
-        "iconWeight": 0
-      },
-      "Paperwork": {
-        "color": 0,
-        "spacing": 0,
-        "radius": 0,
-        "textStyle": 0,
-        "iconFill": 0,
         "iconWeight": 4
       },
-      "Progress": {
+      "Footer": {
         "color": 0,
-        "spacing": 6,
-        "radius": 24,
-        "textStyle": 0,
-        "iconFill": 0,
-        "iconWeight": 0
-      },
-      "Quantity Stepper": {
-        "color": 0,
-        "spacing": 5,
-        "radius": 16,
-        "textStyle": 0,
-        "iconFill": 0,
-        "iconWeight": 0
-      },
-      "Radio": {
-        "color": 0,
-        "spacing": 24,
-        "radius": 192,
-        "textStyle": 0,
-        "iconFill": 0,
-        "iconWeight": 0
-      },
-      "Scroll Area": {
-        "color": 0,
-        "spacing": 20,
-        "radius": 136,
-        "textStyle": 0,
-        "iconFill": 0,
-        "iconWeight": 0
-      },
-      "Select": {
-        "color": 0,
-        "spacing": 0,
-        "radius": 32,
-        "textStyle": 0,
-        "iconFill": 0,
-        "iconWeight": 0
-      },
-      "Skeleton": {
-        "color": 0,
-        "spacing": 0,
-        "radius": 4,
-        "textStyle": 0,
-        "iconFill": 0,
-        "iconWeight": 0
-      },
-      "Slider": {
-        "color": 0,
-        "spacing": 0,
-        "radius": 48,
-        "textStyle": 0,
-        "iconFill": 0,
-        "iconWeight": 0
-      },
-      "Stat": {
-        "color": 0,
-        "spacing": 0,
-        "radius": 0,
-        "textStyle": 36,
-        "iconFill": 0,
-        "iconWeight": 0
-      },
-      "Stepper": {
-        "color": 0,
-        "spacing": 0,
-        "radius": 48,
-        "textStyle": 0,
-        "iconFill": 0,
-        "iconWeight": 0
-      },
-      "Switch": {
-        "color": 0,
-        "spacing": 12,
-        "radius": 24,
-        "textStyle": 0,
-        "iconFill": 0,
-        "iconWeight": 0
-      },
-      "Table": {
-        "color": 1,
         "spacing": 4,
         "radius": 0,
         "textStyle": 0,
         "iconFill": 0,
         "iconWeight": 0
       },
-      "Tabs": {
+      "Input": {
         "color": 0,
-        "spacing": 10,
+        "spacing": 0,
         "radius": 0,
-        "textStyle": 0,
+        "textStyle": 72,
         "iconFill": 0,
         "iconWeight": 0
       },
-      "Upload": {
+      "Select": {
         "color": 0,
-        "spacing": 113,
-        "radius": 76,
-        "textStyle": 0,
+        "spacing": 0,
+        "radius": 0,
+        "textStyle": 11,
         "iconFill": 0,
         "iconWeight": 0
       },
-      "OTP": {
+      "Textarea": {
         "color": 0,
-        "spacing": 9,
+        "spacing": 0,
+        "radius": 0,
+        "textStyle": 10,
+        "iconFill": 0,
+        "iconWeight": 0
+      },
+      "Thumbnail": {
+        "color": 0,
+        "spacing": 5,
         "radius": 0,
         "textStyle": 0,
         "iconFill": 0,
-        "iconWeight": 0
+        "iconWeight": 4
       }
     },
     "samples": {
-      "color": [
-        "Accordion :: Open=False, State=Hover, Chevron=Leading [COMPONENT.fills]",
-        "Drawer :: Side=Bottom/Overlay [RECTANGLE.fills]",
-        "Drawer :: Side=Right/Overlay [RECTANGLE.fills]",
-        "Table :: Header/Head 1/funnel/Vector [VECTOR.strokes]"
-      ],
-      "textStyle": [
-        "Button :: 135 - one unstyled Label, counted once per variant. One fix.",
-        "Stat :: 36",
-        "Hero :: 1 - the 44px headline, an off-ramp size (see the component description)"
-      ],
-      "iconWeight": [
-        "Alert :: 5 x 28px icons at w=1.333, want 2.333 - too THIN",
-        "Alert / Attachment / Address Card :: Button's 14px arrow at w=2, want 1.167",
-        "Chip :: 5 x 14px dismiss at w=0.833, want 1.167",
-        "Paperwork :: 4 x file-text (16px at w=2, and the 32px empty-state glyph at w=2)",
-        "Autocomplete :: 2 x 16px scale at w=2, want 1.333"
-      ],
+      "color": [],
       "spacing": [
-        "Button :: 135 - one unbound gap, counted once per variant. One fix.",
-        "Upload :: 113, Footer :: 52, Datepicker :: 41, Menu :: 34, Drawer :: 32, Badge :: 31, Address Card :: 29",
-        "Attachment :: 18 - the Layout=Row 10px vertical padding is off-token (Scale has 8 and 12)"
+        "Chat :: Message gap=24",
+        "Chat :: Message paddingTop=24",
+        "Chat :: Message paddingRight=24",
+        "Chat :: Message paddingBottom=24",
+        "Chat :: Message paddingLeft=24",
+        "Chat :: Call Event gap=16",
+        "Chat :: Call Event paddingTop=24",
+        "Chat :: Call Event paddingRight=24",
+        "Chat :: Call Event paddingBottom=24",
+        "Chat :: Call Event paddingLeft=24",
+        "Chat :: Chat gap=48",
+        "Chat :: Chat paddingTop=24",
+        "Chat :: Chat paddingRight=24",
+        "Chat :: Chat paddingBottom=24",
+        "Chat :: Chat paddingLeft=24",
+        "Footer :: Footer/Layout=Mobile/Bottom row gap=90",
+        "Footer :: Footer/Layout=Desktop/Legal gap=16",
+        "Footer :: Footer/Layout=Desktop/Columns gap=378",
+        "Footer :: Footer/Layout=Desktop/Columns/Link columns gap=64",
+        "Thumbnail :: Thumbnail gap=24",
+        "Thumbnail :: Thumbnail paddingTop=24",
+        "Thumbnail :: Thumbnail paddingRight=24",
+        "Thumbnail :: Thumbnail paddingBottom=24",
+        "Thumbnail :: Thumbnail paddingLeft=24"
       ],
-      "radius": [
-        "Radio :: 192, Scroll Area :: 136, Upload :: 76, Slider/Stepper :: 48 each - largely pills and circles, which have no token by design",
-        "Pagination :: 44, Select :: 32, Drawer :: 30"
+      "radius": [],
+      "textStyle": [
+        "Input :: Input/Content=Filled, State=ReadOnly, Trailing=Clear/Box/Value",
+        "Input :: Input/Content=Filled, State=ReadOnly, Trailing=Clear/Box/Leading label",
+        "Input :: Input/Content=Filled, State=ReadOnly, Trailing=Label/Box/Value",
+        "Input :: Input/Content=Filled, State=ReadOnly, Trailing=Label/Box/Leading label",
+        "Input :: Input/Content=Filled, State=ReadOnly, Trailing=None/Box/Value",
+        "Input :: Input/Content=Filled, State=ReadOnly, Trailing=None/Box/Leading label",
+        "Input :: Input/Content=Placeholder, State=ReadOnly, Trailing=Clear/Box/Value",
+        "Input :: Input/Content=Placeholder, State=ReadOnly, Trailing=Clear/Box/Leading label",
+        "Input :: Input/Content=Placeholder, State=ReadOnly, Trailing=Label/Box/Value",
+        "Input :: Input/Content=Placeholder, State=ReadOnly, Trailing=Label/Box/Leading label",
+        "Input :: Input/Content=Placeholder, State=ReadOnly, Trailing=None/Box/Value",
+        "Input :: Input/Content=Placeholder, State=ReadOnly, Trailing=None/Box/Leading label",
+        "Input :: Input/Content=Filled, State=Success, Trailing=Clear/Box/Value",
+        "Input :: Input/Content=Filled, State=Success, Trailing=Clear/Box/Leading label",
+        "Input :: Input/Content=Filled, State=Success, Trailing=Label/Box/Value",
+        "Input :: Input/Content=Filled, State=Success, Trailing=Label/Box/Leading label",
+        "Input :: Input/Content=Filled, State=Success, Trailing=None/Box/Value",
+        "Input :: Input/Content=Filled, State=Success, Trailing=None/Box/Leading label",
+        "Input :: Input/Content=Placeholder, State=Success, Trailing=Clear/Box/Value",
+        "Input :: Input/Content=Placeholder, State=Success, Trailing=Clear/Box/Leading label",
+        "Input :: Input/Content=Placeholder, State=Success, Trailing=Label/Box/Value",
+        "Input :: Input/Content=Placeholder, State=Success, Trailing=Label/Box/Leading label",
+        "Input :: Input/Content=Placeholder, State=Success, Trailing=None/Box/Value",
+        "Input :: Input/Content=Placeholder, State=Success, Trailing=None/Box/Leading label",
+        "Input :: Input/Content=Filled, State=Disabled, Trailing=Clear/Box/Value",
+        "Input :: Input/Content=Filled, State=Disabled, Trailing=Clear/Box/Leading label",
+        "Input :: Input/Content=Filled, State=Disabled, Trailing=Label/Box/Value",
+        "Input :: Input/Content=Filled, State=Disabled, Trailing=Label/Box/Leading label",
+        "Input :: Input/Content=Filled, State=Disabled, Trailing=None/Box/Value",
+        "Input :: Input/Content=Filled, State=Disabled, Trailing=None/Box/Leading label"
+      ],
+      "iconFill": [],
+      "iconWeight": [
+        "Chat :: Call Event/Kind=Missed/Glyph 16px w=2 want 1.333",
+        "Chat :: Call Event/Kind=Incoming/Glyph 16px w=2 want 1.333",
+        "Chat :: Call Event/Kind=No answer/Glyph 16px w=2 want 1.333",
+        "Chat :: Call Event/Kind=Outgoing/Glyph 16px w=2 want 1.333",
+        "Thumbnail :: Thumbnail/Size=MD, State=Hover/Download 16px w=2 want 1.333",
+        "Thumbnail :: Thumbnail/Size=MD, State=Default/Empty glyph 16px w=2 want 1.333",
+        "Thumbnail :: Thumbnail/Size=SM, State=Hover/Download 16px w=2 want 1.333",
+        "Thumbnail :: Thumbnail/Size=SM, State=Default/Empty glyph 16px w=2 want 1.333"
       ]
     }
   }

@@ -12,17 +12,20 @@ describe('Textarea', () => {
     expect(await axeViolations(container)).toEqual([])
   })
 
-  it('disabled reads as a muted fill, not an opacity fade', () => {
+  it('disabled is the normal chrome at 50% (2026-09-05 convention)', () => {
     const { getByLabelText } = render(<Textarea label="Notes" disabled />)
     const textarea = getByLabelText('Notes') as HTMLTextAreaElement
-    expect(textarea.className).toContain('disabled:bg-muted')
+    expect(textarea.className).toContain('bg-card')
+    expect(textarea.className).toContain('disabled:opacity-50')
     expect(textarea.className).toContain('disabled:text-foreground-disabled')
-    expect(textarea.className).not.toContain('opacity-50')
+    expect(textarea.className).not.toContain('disabled:bg-muted')
   })
 
   it('value text binds to size/h5, not size/body (37:63, 2026-09-04)', () => {
     const { getByLabelText } = render(<Textarea label="Notes" />)
-    expect((getByLabelText('Notes') as HTMLTextAreaElement).className).toContain('text-h5')
+    const el = getByLabelText('Notes') as HTMLTextAreaElement
+    expect(el.className).toContain('text-h5')
+    expect(el.className).toContain('font-normal')
   })
 
   it('message and counter stack as two lines, not one split row (37:63)', () => {

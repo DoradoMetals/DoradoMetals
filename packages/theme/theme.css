@@ -30,6 +30,12 @@
   --color-destructive-muted: var(--destructive-muted);
   --color-warning-muted: var(--warning-muted);
   --color-info-muted: var(--info-muted);
+
+  --color-success-soft: var(--success-soft);
+  --color-destructive-soft: var(--destructive-soft);
+  --color-warning-soft: var(--warning-soft);
+  --color-info-soft: var(--info-soft);
+  --color-surface-soft: var(--surface-soft);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -188,11 +194,39 @@
   --destructive-muted: #32161c;
   --warning-muted: #342713;
   --info-muted: #132736;
+
+  /* The soft tints: the hue itself at opacity/soft (16%), NOT a mixed-down
+     opaque step. Figma moved Badge's Soft treatment onto these tokens on
+     2026-09-04 because paint opacity is dropped when a Soft variant is
+     instanced. hsl() carries the alpha so figma:tokens can read both halves. */
+  --success-soft: hsl(152 58% 52% / 0.16);
+  --destructive-soft: hsl(352 80% 62% / 0.16);
+  --warning-soft: hsl(38 92% 58% / 0.16);
+  --info-soft: hsl(203 89% 60% / 0.16);
+  --surface-soft: hsl(222 9% 19% / 0.16);
   --info-foreground: hsl(228, 13%, 6%);
 
   --brand: hsl(43, 63%, 60%);
 
   --radius: 0.5rem;
+
+  /* radius/full. Deliberately NOT in @theme: Tailwind already ships a static
+     rounded-full, and defining --radius-full there would shadow it. */
+  --radius-full: 9999px;
+
+  /* Scale/stroke. Hairline is the one every card and row seam uses. */
+  --stroke-hairline: 1px;
+  --stroke-emphasis: 1.5px;
+  --stroke-heavy: 2px;
+
+  /* Scale/opacity, as CSS ratios. Figma stores disabled and muted on a 0-100
+     scale and hover, scrim and soft on a 0-1 scale; map.mjs SCALE_PERCENT
+     records which is which and why. */
+  --opacity-disabled: 0.5;
+  --opacity-muted: 0.4;
+  --opacity-hover: 0.85;
+  --opacity-scrim: 0.7;
+  --opacity-soft: 0.16;
 }
 
 @keyframes shine {

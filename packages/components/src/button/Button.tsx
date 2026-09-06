@@ -23,13 +23,13 @@ const buttonVariants = cva(
         info: '',
       },
       size: {
-        xs: 'h-7 px-2.5 text-micro gap-1 [&_svg]:size-3.5',
+        xs: 'h-7 px-2.5 text-micro gap-xs [&_svg]:size-3.5',
 
-        sm: 'h-8 px-3 text-micro tracking-normal gap-1 [&_svg]:size-3.5',
-        default: 'h-10 px-4 text-small gap-1.5 [&_svg]:size-4',
+        sm: 'h-8 px-sm text-micro tracking-normal gap-xs [&_svg]:size-3.5',
+        default: 'h-10 px-md text-small gap-xs [&_svg]:size-4',
 
-        lg: 'h-11 px-6 text-small sm:text-body gap-2 [&_svg]:size-5',
-        xl: 'h-12 px-10 text-body sm:text-h6 gap-2 [&_svg]:size-5',
+        lg: 'h-11 px-6 text-small sm:text-body gap-xs [&_svg]:size-5',
+        xl: 'h-12 px-10 text-body sm:text-h6 gap-xs [&_svg]:size-5',
         icon: 'h-10 w-10 p-0 [&_svg]:size-5',
         iconSm: 'h-8 w-8 p-0 [&_svg]:size-4',
         iconXs: 'h-7 w-7 p-0 [&_svg]:size-3.5',
@@ -54,10 +54,6 @@ const buttonVariants = cva(
       { variant: 'secondary', intent: 'info', className: 'border-info text-info' },
 
       { variant: 'tertiary', className: 'px-2 -mx-2' },
-
-      { variant: 'tertiary', size: 'sm', className: 'gap-1' },
-      { variant: 'tertiary', size: 'default', className: 'gap-[5px]' },
-      { variant: 'tertiary', size: 'lg', className: 'gap-1.5' },
 
       { variant: 'tertiary', intent: 'neutral', className: 'text-subtle' },
       { variant: 'tertiary', intent: 'success', className: 'text-success' },

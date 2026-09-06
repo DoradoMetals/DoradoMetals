@@ -529,3 +529,38 @@ bugs that were expensive to find and are invisible in the CSS itself.
     Colour is deliberately NOT set here. Nav colour is a STATE (active is
   --foreground, rest is --muted-foreground, ruling 19), and a state belongs
   to the component, not to a typography utility.
+
+## Added 2026-09-06 from the Figma refresh
+
+`packages/theme` gained fourteen tokens, all of them variables the library
+already had and the CSS did not. `figma:tokens` reported every one as unmapped,
+which is exactly the case the check exists for.
+
+- **The soft status tints** — `--success-soft`, `--destructive-soft`,
+  `--warning-soft`, `--info-soft`, `--surface-soft`, plus their
+  `--color-*-soft` aliases in `@theme inline`. Each is the SAME rgb as its
+  solid sibling at 16% alpha, written as `hsl(h s% l% / 0.16)`. Badge's Soft
+  variants used to guess this with a `/15` opacity modifier; they name the
+  token now. Figma moved them onto tokens because paint opacity is dropped
+  when a Soft variant is instanced, which left the label invisible on a solid
+  pill.
+- **`--radius-full: 9999px`**, deliberately in `:root` and NOT in `@theme`:
+  Tailwind already ships a static `rounded-full`, and declaring
+  `--radius-full` inside `@theme` would generate a competing utility.
+- **`--stroke-hairline` (1px), `--stroke-emphasis` (1.5px), `--stroke-heavy`
+  (2px)** — the seam weights every card and row divider uses.
+- **The opacity family** — `--opacity-disabled` 0.5, `--opacity-muted` 0.4,
+  `--opacity-hover` 0.85, `--opacity-scrim` 0.7, `--opacity-soft` 0.16, all as
+  CSS ratios.
+
+**The opacity family is where Figma and the CSS deliberately disagree, and it
+is worth knowing why.** Figma reads an opacity binding as a PERCENTAGE. The
+two tokens Jacob added on 2026-09-04 are on that scale — `opacity/disabled`
+= 50 renders at 0.5, correctly. The three older ones are on a 0-1 scale, so
+`opacity/hover` = 0.85 renders at **0.0085**, which is 0.85%. Every Button and
+Icon Button `State=Hover` variant measures `op=0.0085` on the canvas today.
+Button's own description records this exact bug being found and fixed on the
+Disabled variants ("someone entered 0.5 meaning 50%"); nobody went back for
+hover. The CSS carries the intended ratios, and `map.mjs`'s `SCALE_PERCENT`
+declares which Figma variables are percent-scaled so `figma:tokens` compares
+like with like instead of reporting a 100x drift.

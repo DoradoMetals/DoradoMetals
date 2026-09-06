@@ -49,16 +49,45 @@ export function hslToHex(h, s, l) {
   )
 }
 
-/** Accepts `hsl(h, s%, l%)`, `#rgb`, `#rrggbb`. Returns lowercase #rrggbb. */
-export function toHex(value) {
+/**
+ * Accepts `hsl(h, s%, l%)`, the space form `hsl(h s% l% / a)`, `#rgb`,
+ * `#rrggbb` and `#rrggbbaa`. Returns `{ hex, alpha }` or null.
+ *
+ * Alpha is a separate field rather than baked into the hex because Figma
+ * stores it that way: the soft status tokens are the SAME rgb as their solid
+ * sibling, and only the alpha distinguishes them. Comparing hex alone would
+ * report four duplicate colours and never notice a 16% that drifted to 20%.
+ */
+export function toColor(value) {
   const v = String(value).trim()
-  const hsl = /^hsl\(\s*([\d.]+)\s*,\s*([\d.]+)%\s*,\s*([\d.]+)%\s*\)$/i.exec(v)
-  if (hsl) return hslToHex(Number(hsl[1]), Number(hsl[2]), Number(hsl[3]))
+  const hsl =
+    /^hsl\(\s*([\d.]+)(?:deg)?\s*[, ]\s*([\d.]+)%\s*[, ]\s*([\d.]+)%\s*(?:[,/]\s*([\d.]+%?)\s*)?\)$/i.exec(
+      v
+    )
+  if (hsl) {
+    const raw = hsl[4]
+    const alpha = raw === undefined ? 1 : raw.endsWith('%') ? Number(raw.slice(0, -1)) / 100 : Number(raw)
+    return { hex: hslToHex(Number(hsl[1]), Number(hsl[2]), Number(hsl[3])), alpha }
+  }
   const short = /^#([0-9a-f])([0-9a-f])([0-9a-f])$/i.exec(v)
   if (short)
-    return ('#' + short[1] + short[1] + short[2] + short[2] + short[3] + short[3]).toLowerCase()
-  if (/^#[0-9a-f]{6}$/i.test(v)) return v.toLowerCase()
+    return {
+      hex: ('#' + short[1] + short[1] + short[2] + short[2] + short[3] + short[3]).toLowerCase(),
+      alpha: 1,
+    }
+  const long = /^#([0-9a-f]{6})([0-9a-f]{2})?$/i.exec(v)
+  if (long)
+    return {
+      hex: ('#' + long[1]).toLowerCase(),
+      alpha: long[2] === undefined ? 1 : parseInt(long[2], 16) / 255,
+    }
   return null // not a literal colour - a var() reference, a gradient, something else
+}
+
+/** The rgb half only, for callers that do not care about alpha. */
+export function toHex(value) {
+  const c = toColor(value)
+  return c === null ? null : c.hex
 }
 
 /** "0.5rem" -> 8, "16px" -> 16, "1.05" -> 1.05. Root font size is 16. */

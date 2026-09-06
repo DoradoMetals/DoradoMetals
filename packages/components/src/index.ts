@@ -66,7 +66,11 @@ export {
 } from './dialog/Dialog'
 export { Calendar, type CalendarProps } from './date-picker/Calendar'
 export type { TimeGroup, TimeSlotShape } from './date-picker/TimePicker'
-export { DatePicker, type DatePickerProps } from './date-picker/DatePicker'
+export {
+  DatePicker,
+  type DatePickerProps,
+  type DatePickerLayout,
+} from './date-picker/DatePicker'
 export { Swiper, type SwiperProps } from './swiper/Swiper'
 export {
   Menu,
@@ -97,11 +101,28 @@ export { Marquee, type MarqueeProps } from './marquee/Marquee'
 export { MarqueeItem, type MarqueeItemProps } from './marquee/MarqueeItem'
 export { MaskedField, type MaskedFieldProps, type MaskKind } from './masked-field/MaskedField'
 export {
-  Paperwork,
-  type PaperworkProps,
-  type PaperworkDocument,
-  type PaperworkDocumentState,
-} from './paperwork/Paperwork'
+  Documents,
+  DOCUMENT_NAMES,
+  type DocumentsProps,
+  type DocumentRow,
+  type DocumentName,
+  type DocumentState,
+} from './documents/Documents'
+export {
+  Chat,
+  type ChatProps,
+  type ChatView,
+  type ChatMessage,
+  type ChatCall,
+} from './chat/Chat'
+export {
+  Message,
+  type MessageProps,
+  type MessageDirection,
+  type MessageStatus,
+} from './chat/Message'
+export { CallEvent, type CallEventProps, type CallKind } from './chat/CallEvent'
+export { Thumbnail, type ThumbnailProps, type ThumbnailSize } from './thumbnail/Thumbnail'
 export { ScrollArea, ScrollBar, type ScrollAreaProps } from './scroll-area/ScrollArea'
 export {
   Tracker,

@@ -66,11 +66,11 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
           aria-invalid={invalid || undefined}
           aria-describedby={message != null ? messageId : undefined}
           className={cn(
-            'min-h-24 w-full resize-y rounded-lg border border-border bg-card px-3 py-2 text-h5 text-foreground outline-none transition-colors',
+            'min-h-24 w-full resize-y rounded-lg border border-border bg-card px-3 py-2 text-h5 font-normal text-foreground outline-none transition-colors',
             'placeholder:text-placeholder focus-visible:border-primary',
             invalid && 'border-destructive',
             success && 'border-success',
-            'disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-muted disabled:text-foreground-disabled'
+            'disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 disabled:text-foreground-disabled'
           )}
           {...props}
         />

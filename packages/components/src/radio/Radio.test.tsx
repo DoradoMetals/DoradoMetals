@@ -54,15 +54,16 @@ describe('Radio', () => {
     expect(radio.className).not.toMatch(/data-\[state=checked\]:bg-primary/)
   })
 
-  it('disabled unselected is a flat muted fill, not a translucent one', () => {
+  it('disabled unselected keeps its own surface and fades to 50% (15:27, 2026-09-05)', () => {
     const { getByRole } = render(
       <RadioGroup aria-label="Purity">
         <Radio value="14k" aria-label="x" disabled />
       </RadioGroup>
     )
     const radio = getByRole('radio')
-    expect(radio.className).toMatch(/disabled:data-\[state=unchecked\]:bg-muted/)
-    expect(radio.className).not.toMatch(/disabled:opacity-50/)
+    expect(radio.className).toContain('bg-card')
+    expect(radio.className).toMatch(/disabled:opacity-50/)
+    expect(radio.className).not.toMatch(/disabled:data-\[state=unchecked\]:bg-muted/)
   })
 })
 

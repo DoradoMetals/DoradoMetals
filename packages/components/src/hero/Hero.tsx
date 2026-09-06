@@ -5,11 +5,18 @@ import * as React from 'react'
 import { Badge } from '../badge/Badge'
 import { Button } from '../button/Button'
 
-export type HeroProps = {
-  sellerCount: number
+export type HeroAction = {
+  href: string
+  label: React.ReactNode
 }
 
-export function Hero({ sellerCount }: HeroProps) {
+export type HeroProps = {
+  sellerCount: number
+  primaryAction: HeroAction
+  secondaryAction?: HeroAction
+}
+
+export function Hero({ sellerCount, primaryAction, secondaryAction }: HeroProps) {
   return (
     <section className="flex flex-col items-center gap-md bg-background px-6 py-16 text-center sm:p-3xl">
       <Badge>Live spot pricing, locked at checkout</Badge>
@@ -22,11 +29,13 @@ export function Hero({ sellerCount }: HeroProps) {
 
       <div className="flex w-full flex-col items-stretch gap-2.5 pt-2 sm:w-auto sm:flex-row sm:items-start">
         <Button asChild size="lg" variant="primary" className="w-full sm:w-auto">
-          <a href="/sell">Get a Quote</a>
+          <a href={primaryAction.href}>{primaryAction.label}</a>
         </Button>
-        <Button asChild size="lg" variant="secondary" className="w-full sm:w-auto">
-          <a href="/buy">Browse bullion</a>
-        </Button>
+        {secondaryAction != null && (
+          <Button asChild size="lg" variant="secondary" className="w-full sm:w-auto">
+            <a href={secondaryAction.href}>{secondaryAction.label}</a>
+          </Button>
+        )}
       </div>
 
       <p className="text-micro text-placeholder">

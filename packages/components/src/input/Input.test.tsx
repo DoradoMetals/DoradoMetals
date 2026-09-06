@@ -26,13 +26,26 @@ describe('Input', () => {
     expect(getByText('t oz')).toBeTruthy()
   })
 
-  it('disabled reads as a muted fill, not an opacity fade', () => {
+  it('disabled is the normal chrome at 50% (2026-09-05 convention)', () => {
     const { container } = render(<Input label="Weight" disabled />)
     const wrapper = container.querySelector('[data-disabled]') as HTMLElement
-    expect(wrapper.className).toContain('disabled:bg-muted')
-    expect(wrapper.className).not.toContain('opacity-50')
+    expect(wrapper.className).toContain('disabled:opacity-50')
+    expect(wrapper.className).toContain('bg-card')
+    expect(wrapper.className).not.toContain('disabled:bg-muted')
     const input = container.querySelector('input') as HTMLInputElement
     expect(input.className).toContain('disabled:text-foreground-disabled')
+  })
+
+  it('State=ReadOnly keeps the full-contrast Default chrome and only stops edits (26:391, 2026-09-05)', () => {
+    const { container } = render(<Input label="Order number" readOnly value="PO-2481" onChange={() => {}} />)
+    const input = container.querySelector('input') as HTMLInputElement
+    expect(input.readOnly).toBe(true)
+    expect(input.disabled).toBe(false)
+    expect(input.className).toContain('text-foreground')
+    expect(input.className).toContain('read-only:cursor-default')
+    const wrapper = container.querySelector('[data-readonly]') as HTMLElement
+    expect(wrapper).toBeTruthy()
+    expect(wrapper.getAttribute('data-disabled')).toBeNull()
   })
 
   it('disabled dims the label to foreground-disabled too (26:391)', () => {

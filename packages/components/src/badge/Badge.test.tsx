@@ -21,8 +21,9 @@ describe('Badge', () => {
   it('defaults to size=default, matching the drawn spec', () => {
     const { getByText } = render(<Badge>Paid</Badge>)
     const span = getByText('Paid')
-    expect(span.className).toContain('px-2')
-    expect(span.className).toContain('py-0.5')
+    expect(span.className).toContain('px-xs')
+    expect(span.className).toContain('py-3xs')
+    expect(span.className).toContain('gap-2xs')
     expect(span.className).toContain('text-micro')
     expect(span.className).toContain('rounded-md')
   })

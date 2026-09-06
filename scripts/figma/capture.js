@@ -18,6 +18,9 @@
 export const PART_1 = `
 const colls = await figma.variables.getLocalVariableCollectionsAsync();
 const hex = (c) => '#' + [c.r, c.g, c.b].map((n) => Math.round(n * 255).toString(16).padStart(2, '0')).join('');
+// Figma stores floats as float32, so 0.045 reads back as 0.04500000178813934.
+// Rounding here keeps a re-capture from diffing against itself.
+const round = (n) => (typeof n === 'number' ? Math.round(n * 10000) / 10000 : n);
 
 const collections = {};
 for (const c of colls) {
@@ -39,9 +42,14 @@ for (const c of colls) {
         resolved = val; break;
       }
     }
+    // Alpha is captured separately. The soft status tokens (status/*-soft,
+    // surface/soft) are the SAME hex as their solid sibling at 16% - so hex
+    // alone reports four duplicate colours and the CSS side cannot be checked.
+    const isColor = v.resolvedType === 'COLOR' && resolved && typeof resolved === 'object';
     vars.push({
       name: v.name, type: v.resolvedType, alias,
-      value: v.resolvedType === 'COLOR' && resolved && typeof resolved === 'object' ? hex(resolved) : resolved,
+      value: isColor ? hex(resolved) : round(resolved),
+      opacity: isColor ? round(resolved.a === undefined ? 1 : resolved.a) : undefined,
     });
   }
   collections[c.name] = { modes: c.modes.map((m) => m.name), variables: vars.sort((a, b) => a.name < b.name ? -1 : 1) };
@@ -49,8 +57,8 @@ for (const c of colls) {
 
 const textStyles = (await figma.getLocalTextStylesAsync()).map((s) => ({
   name: s.name, family: s.fontName.family, style: s.fontName.style, fontSize: s.fontSize,
-  lineHeight: s.lineHeight && s.lineHeight.unit === 'PIXELS' ? s.lineHeight.value : s.lineHeight,
-  letterSpacing: s.letterSpacing && s.letterSpacing.unit === 'PIXELS' ? s.letterSpacing.value : s.letterSpacing,
+  lineHeight: s.lineHeight && s.lineHeight.unit === 'PIXELS' ? round(s.lineHeight.value) : s.lineHeight,
+  letterSpacing: s.letterSpacing && s.letterSpacing.unit === 'PIXELS' ? round(s.letterSpacing.value) : s.letterSpacing,
 })).sort((a, b) => a.name < b.name ? -1 : 1);
 
 const pages = figma.root.children.map((p) => ({ id: p.id, name: p.name }));

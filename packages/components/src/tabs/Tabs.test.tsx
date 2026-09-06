@@ -66,4 +66,24 @@ describe('Tabs', () => {
     expect(getByRole('tablist').className).toMatch(/bg-muted/)
     expect(container.querySelector('[aria-hidden="true"]')).toBe(null)
   })
+
+  it('a fourth tab is just a fourth child - the Tab Bar redistributes (39:37, 2026-09-05)', () => {
+    const { getAllByRole, getByRole } = render(
+      <Tabs defaultValue="shipment">
+        <TabsList>
+          <TabsTrigger value="shipment">Shipment</TabsTrigger>
+          <TabsTrigger value="pickup">Pickup</TabsTrigger>
+          <TabsTrigger value="appointment">Appointment</TabsTrigger>
+          <TabsTrigger value="return">Return</TabsTrigger>
+        </TabsList>
+        <TabsContent value="shipment">Shipment panel</TabsContent>
+        <TabsContent value="pickup">Pickup panel</TabsContent>
+        <TabsContent value="appointment">Appointment panel</TabsContent>
+        <TabsContent value="return">Return panel</TabsContent>
+      </Tabs>
+    )
+    expect(getAllByRole('tab')).toHaveLength(4)
+    fireEvent.mouseDown(getByRole('tab', { name: 'Return' }), { button: 0 })
+    expect(getByRole('tabpanel').textContent).toBe('Return panel')
+  })
 })
