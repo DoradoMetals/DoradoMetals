@@ -10,6 +10,7 @@ import {
   aDocument,
   aFulfillment,
   aLiveSpot,
+  aLocation,
   aMessage,
   aMethod,
   aPayTo,
@@ -17,9 +18,11 @@ import {
   aProfitBreakdown,
   aShipment,
   aSpot,
+  aRefiner,
   aTimelineCall,
   anActions,
   anAdmin,
+  anEmployee,
   anOrderView,
 } from '@/app/admin/_src_/orders/tests/fixtures'
 
@@ -37,7 +40,7 @@ vi.mock('@dorado/client', () => ({
   useOrder: () => query(state.order),
   useOrderSpots: () => query([aSpot('Gold', 2411.2)]),
   useLiveSpots: () => query([aLiveSpot('Gold', 2450)]),
-  useOrderDocuments: () => query([aDocument('Invoice', false), aDocument('Packing List', true)]),
+  useOrderDocuments: () => query([aDocument('invoice', 'Invoice', false), aDocument('packing_list', 'Packing List', true)]),
   useOrderFulfillment: () => query(state.fulfillment),
   useOrderShipments: () => query(state.shipments),
   usePaymentView: () => query(state.payment),
@@ -52,6 +55,9 @@ vi.mock('@dorado/client', () => ({
   useCarrierServices: () => query([]),
   usePackages: () => query([]),
   useHandoffs: () => query([]),
+  useLocations: () => query([aLocation()]),
+  useEmployees: () => query([anEmployee()]),
+  useRefiners: () => query([aRefiner()]),
   usePatchOrder: mutation,
   useFinalizeOrder: mutation,
   useReopenOrder: mutation,
@@ -71,6 +77,14 @@ vi.mock('@dorado/client', () => ({
   useCancelSchedule: mutation,
   usePatchShipment: mutation,
   useCancelLabel: mutation,
+  useCancelOrder: mutation,
+  useCreateRefiningOrder: mutation,
+  useCreateRefiningSale: mutation,
+  useCreateFulfillment: mutation,
+  useScheduleDropoff: mutation,
+  useSendOrderDocument: mutation,
+  useImportOrderDocument: mutation,
+  useSendSms: mutation,
 }))
 
 const { AdminOrderScreen } = await import('../AdminOrderScreen')

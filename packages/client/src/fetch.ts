@@ -67,3 +67,27 @@ export async function apiRequestBlob(
   }
   return response.blob()
 }
+
+// A document import is multipart, so the body is a FormData and the browser
+// sets its own boundary - Content-Type must not be named here.
+export async function apiRequestForm<T>(
+  method: ApiMethod,
+  url: string,
+  form: FormData
+): Promise<T> {
+  const response = await fetch(`${baseUrl()}${url}`, {
+    method,
+    credentials: 'include',
+    body: form,
+  })
+  const text = await response.text()
+  const body: unknown = text ? JSON.parse(text) : null
+  if (!response.ok) {
+    const message =
+      (body && typeof body === 'object' && 'message' in body
+        ? String((body as { message: unknown }).message)
+        : null) ?? `${method} ${url} failed with ${response.status}`
+    throw new ApiError(response.status, message, body)
+  }
+  return body as T
+}

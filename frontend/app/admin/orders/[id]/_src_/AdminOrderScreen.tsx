@@ -3,16 +3,26 @@
 import * as React from 'react'
 import {
   useAdmins,
+  useAdminUser,
   useCancelLabel,
+  useCancelOrder,
+  useCancelSchedule,
   useCarrierServices,
   useConfirmMatch,
   useConversation,
+  useCreateFulfillment,
+  useCreateOrderLot,
+  useCreateRefiningOrder,
+  useCreateRefiningSale,
   useCustomerTimeline,
   useDeleteOrderLot,
+  useEmployees,
   useFinalizeOrder,
   useFulfillmentMethods,
   useHandoffs,
+  useImportOrderDocument,
   useLiveSpots,
+  useLocations,
   useMatchCandidates,
   useOpenCharge,
   useOpenPayout,
@@ -30,17 +40,23 @@ import {
   usePaymentView,
   useProfitBreakdown,
   usePutOrderSpots,
+  useRefiners,
   useReopenOrder,
-  useSchedulePickup,
   useScheduleDirect,
+  useScheduleDropoff,
+  useSchedulePickup,
+  useSendOrderDocument,
   useSendPayout,
+  useSendSms,
   useSetFulfillmentMethod,
   useSetFulfillmentStatus,
-  useCancelSchedule,
-  useCreateOrderLot,
-  useAdminUser,
 } from '@dorado/client'
-import { Rail, type FulfillmentPatchBody, type OrderLotPatch } from '@dorado/contracts'
+import {
+  Rail,
+  type FulfillmentPatchBody,
+  type OrderLotPatch,
+  type SmsMedia,
+} from '@dorado/contracts'
 import { Skeleton } from '@dorado/components'
 
 import {
@@ -50,6 +66,7 @@ import {
   DocumentsCard,
   DropoffCard,
   FulfillmentCard,
+  LinkedFulfillmentCard,
   LotsCard,
   OrderHeaderCard,
   PaymentCard,
@@ -72,6 +89,9 @@ export function AdminOrderScreen({ id }: { id: string }) {
   const shipments = useOrderShipments(id)
   const payment = usePaymentView(id)
   const admins = useAdmins()
+  const locations = useLocations()
+  const employees = useEmployees()
+  const refiners = useRefiners()
 
   const direction = order.data?.order.direction ?? 'purchase'
   const userId = order.data?.order.user_id ?? null
@@ -90,26 +110,35 @@ export function AdminOrderScreen({ id }: { id: string }) {
   const patchOrder = usePatchOrder(id)
   const finalize = useFinalizeOrder(id)
   const reopen = useReopenOrder(id)
+  const cancel = useCancelOrder(id)
   const putSpots = usePutOrderSpots(id)
   const createLot = useCreateOrderLot(id)
   const patchLot = usePatchOrderLot(id)
   const deleteLot = useDeleteOrderLot(id)
+  const batch = useCreateRefiningOrder()
+  const createSale = useCreateRefiningSale(id)
   const openPayout = useOpenPayout(id)
   const sendPayout = useSendPayout(id)
   const openCharge = useOpenCharge(id)
   const confirmMatch = useConfirmMatch(id)
+  const createFulfillment = useCreateFulfillment(id)
   const setMethod = useSetFulfillmentMethod(id)
   const patchFulfillment = usePatchFulfillment(id)
   const schedulePickup = useSchedulePickup(id)
   const scheduleDirect = useScheduleDirect(id)
+  const scheduleDropoff = useScheduleDropoff(id)
   const setStatus = useSetFulfillmentStatus(id)
   const cancelSchedule = useCancelSchedule(id)
   const patchShipment = usePatchShipment(id)
   const cancelLabel = useCancelLabel(id)
+  const sendDocument = useSendOrderDocument(id)
+  const importDocument = useImportOrderDocument(id)
+  const sendSms = useSendSms(userId)
 
   const [rail, setRail] = React.useState<Rail | null>(null)
   const [payToId, setPayToId] = React.useState<string | null>(null)
   const [matching, setMatching] = React.useState(false)
+  const [batchRefiner, setBatchRefiner] = React.useState<string | null>(null)
 
   if (order.isPending || !order.data) return <ScreenSkeleton />
 
@@ -117,7 +146,6 @@ export function AdminOrderScreen({ id }: { id: string }) {
   const actions = view.actions
   const cancelled = (view.order.status ?? '').toLowerCase() === 'cancelled'
   const isSale = direction === 'sale'
-  const reference = `${isSale ? 'SO' : 'PO'}-${view.order.number}`
   const fulfilment = fulfillment.data ?? null
   const category = fulfilment?.method.category ?? null
   const scheduled = !!fulfilment?.scheduled_at
@@ -126,18 +154,22 @@ export function AdminOrderScreen({ id }: { id: string }) {
 
   const chosenRail = rail ?? payment.data?.rail ?? null
   const chosenPayTo = payToId ?? payment.data?.pay_to?.id ?? null
+  const refinerItems = (refiners.data ?? []).map((one) => ({
+    id: one.id,
+    name: one.organization.name ?? 'Unnamed refiner',
+  }))
 
   return (
     <div className="flex flex-col gap-lg p-xl">
       <OrderHeaderCard
         eyebrow={isSale ? 'SALES ORDER' : 'PURCHASE ORDER'}
-        reference={reference}
+        reference={view.reference}
         cancelled={cancelled}
         party={{
           kind: 'customer',
-          name: view.user?.name ?? view.user?.email ?? 'Unknown customer',
+          name: view.user?.name ?? 'Unknown customer',
           place: place(view.address?.city ?? null, view.address?.state ?? null),
-          ordersToDate: null,
+          ordersToDate: view.user?.orders_to_date ?? null,
         }}
         assignedToId={view.order.assigned_to_id}
         admins={admins.data ?? []}
@@ -145,7 +177,11 @@ export function AdminOrderScreen({ id }: { id: string }) {
         onAssign={(assigned_to_id) => patchOrder.mutate({ assigned_to_id })}
         cancel={
           actions.cancel
-            ? { label: 'Cancel Order', onClick: () => undefined, disabled: true, reason: 'Cancelling needs a return service and package' }
+            ? {
+                label: 'Cancel Order',
+                onClick: () => cancel.mutate({}),
+                disabled: cancel.isPending,
+              }
             : undefined
         }
         primary={{
@@ -161,13 +197,27 @@ export function AdminOrderScreen({ id }: { id: string }) {
 
       <div className="flex items-start gap-lg">
         <div className="flex min-w-0 flex-1 flex-col gap-lg">
-          {cancelled && returned ? (
+          {fulfilment?.linked_order ? (
+            <LinkedFulfillmentCard
+              shipsFrom={parcel?.shipment.shipper_address_id ?? null}
+              shipsTo={parcel?.shipment.recipient_address_id ?? null}
+              linked={fulfilment.linked_order}
+              linkedState={parcel?.tracking_status ?? null}
+            />
+          ) : cancelled && returned ? (
             <ShipmentCard
               shipment={returned}
               onSaveTracking={(tracking_number) =>
                 patchShipment.mutate({ shipment_id: returned.shipment.id, patch: { tracking_number } })
               }
+              onSetCarrier={(carrier_service_id) =>
+                patchShipment.mutate({
+                  shipment_id: returned.shipment.id,
+                  patch: { carrier_service_id },
+                })
+              }
               onCancelLabel={() => cancelLabel.mutate({ shipment_id: returned.shipment.id })}
+              services={(services.data ?? []).map((one) => ({ id: one.id, name: one.name }))}
               pending={patchShipment.isPending}
             />
           ) : scheduled && category === 'SHIPMENT' && parcel ? (
@@ -176,6 +226,12 @@ export function AdminOrderScreen({ id }: { id: string }) {
               onSaveTracking={(tracking_number) =>
                 patchShipment.mutate({ shipment_id: parcel.shipment.id, patch: { tracking_number } })
               }
+              onSetCarrier={(carrier_service_id) =>
+                patchShipment.mutate({
+                  shipment_id: parcel.shipment.id,
+                  patch: { carrier_service_id },
+                })
+              }
               onCancelLabel={() => cancelLabel.mutate({ shipment_id: parcel.shipment.id })}
               services={(services.data ?? []).map((one) => ({ id: one.id, name: one.name }))}
               pending={patchShipment.isPending}
@@ -183,6 +239,8 @@ export function AdminOrderScreen({ id }: { id: string }) {
           ) : scheduled && category === 'PICKUP' && fulfilment ? (
             <PickupCard
               fulfillment={fulfilment}
+              locations={locations.data ?? []}
+              employees={employees.data ?? []}
               onCancel={() => cancelSchedule.mutate({ fulfillment_id: fulfilment.fulfillment.id })}
               onReschedule={() => cancelSchedule.mutate({ fulfillment_id: fulfilment.fulfillment.id })}
               onAdvance={(status) =>
@@ -193,6 +251,8 @@ export function AdminOrderScreen({ id }: { id: string }) {
           ) : scheduled && category === 'DIRECT' && fulfilment ? (
             <AppointmentCard
               fulfillment={fulfilment}
+              locations={locations.data ?? []}
+              employees={employees.data ?? []}
               onCancel={() => cancelSchedule.mutate({ fulfillment_id: fulfilment.fulfillment.id })}
               onReschedule={() => cancelSchedule.mutate({ fulfillment_id: fulfilment.fulfillment.id })}
               onAdvance={(status) =>
@@ -203,6 +263,9 @@ export function AdminOrderScreen({ id }: { id: string }) {
           ) : scheduled && category === 'DROPOFF' && fulfilment ? (
             <DropoffCard
               fulfillment={fulfilment}
+              locations={locations.data ?? []}
+              employees={employees.data ?? []}
+              refiners={refiners.data ?? []}
               onCancel={() => cancelSchedule.mutate({ fulfillment_id: fulfilment.fulfillment.id })}
               onReschedule={() => cancelSchedule.mutate({ fulfillment_id: fulfilment.fulfillment.id })}
               onAdvance={(status) =>
@@ -218,8 +281,12 @@ export function AdminOrderScreen({ id }: { id: string }) {
               packages={packages.data ?? []}
               handoffs={handoffs.data ?? []}
               addresses={view.address ? [view.address] : []}
-              createReason="An order gets its fulfillment at placement; there is no route to add one later."
-              createDisabled
+              cover={parcel?.shipment ?? null}
+              locations={locations.data ?? []}
+              employees={employees.data ?? []}
+              refiners={refiners.data ?? []}
+              onCreate={() => createFulfillment.mutate({ order_id: id })}
+              createDisabled={createFulfillment.isPending}
               onSetMethod={(method_id) =>
                 fulfilment &&
                 setMethod.mutate({ fulfillment_id: fulfilment.fulfillment.id, method_id })
@@ -228,7 +295,7 @@ export function AdminOrderScreen({ id }: { id: string }) {
                 fulfilment &&
                 patchFulfillment.mutate({ fulfillment_id: fulfilment.fulfillment.id, choices })
               }
-              onSchedule={() => {
+              onSchedule={(dropoff) => {
                 if (!fulfilment) return
                 const fulfillment_id = fulfilment.fulfillment.id
                 if (fulfilment.method.category === 'PICKUP') {
@@ -236,7 +303,22 @@ export function AdminOrderScreen({ id }: { id: string }) {
                     fulfillment_id,
                     pickup: {
                       pickup_address_id: fulfilment.pickup?.pickup_address_id ?? null,
+                      location_id: fulfilment.pickup?.location_id ?? null,
+                      assigned_employee_id: fulfilment.pickup?.assigned_employee_id ?? null,
                       start_time: fulfilment.pickup?.start_time ?? null,
+                    },
+                  })
+                  return
+                }
+                if (fulfilment.method.category === 'DROPOFF') {
+                  scheduleDropoff.mutate({
+                    fulfillment_id,
+                    dropoff: {
+                      refiner_id: fulfilment.dropoff?.refiner_id ?? null,
+                      location_id: fulfilment.dropoff?.location_id ?? null,
+                      driver_employee_id: fulfilment.dropoff?.driver_employee_id ?? null,
+                      start_time: fulfilment.dropoff?.start_time ?? null,
+                      ...dropoff,
                     },
                   })
                   return
@@ -245,6 +327,7 @@ export function AdminOrderScreen({ id }: { id: string }) {
                   fulfillment_id,
                   direct: {
                     location_id: fulfilment.direct?.location_id ?? null,
+                    assigned_employee_id: fulfilment.direct?.assigned_employee_id ?? null,
                     start_time: fulfilment.direct?.start_time ?? null,
                   },
                 })
@@ -257,8 +340,8 @@ export function AdminOrderScreen({ id }: { id: string }) {
             spots={spots.data ?? []}
             live={live.data ?? []}
             locked={view.order.spots_locked}
-            canToggle
-            toggleDisabled={!actions.finalize && view.order.spots_locked}
+            canToggle={actions.lock_spots || actions.unlock_spots}
+            toggleDisabled={view.order.spots_locked ? !actions.unlock_spots : !actions.lock_spots}
             onToggleLock={(lock) => putSpots.mutate({ lock })}
             onSetBid={(metal_id, bid) => putSpots.mutate({ set: [{ metal_id, bid }] })}
             pending={putSpots.isPending}
@@ -267,10 +350,23 @@ export function AdminOrderScreen({ id }: { id: string }) {
           <LotsCard
             kind={isSale ? 'bullion' : 'scrap'}
             lots={view.lots}
+            readOnly={!actions.edit_lots}
+            refiners={refinerItems}
+            refinerId={batchRefiner}
+            onRefinerChange={setBatchRefiner}
             onEdit={(lot_id, patch: OrderLotPatch) => patchLot.mutate({ lot_id, patch })}
             onNew={() => createLot.mutate({})}
             onDelete={(ids) => ids.forEach((lot_id) => deleteLot.mutate(lot_id))}
-            onBatch={() => undefined}
+            onBatch={(lot_ids) => {
+              if (!batchRefiner) return
+              batch.mutate({ refiner_id: batchRefiner, direction: 'sell', lot_ids })
+            }}
+            onCreateSale={
+              actions.supply
+                ? () => batchRefiner && createSale.mutate({ refiner_id: batchRefiner })
+                : undefined
+            }
+            createSaleDisabled={createSale.isPending}
             pending={patchLot.isPending || deleteLot.isPending || createLot.isPending}
           />
 
@@ -319,11 +415,21 @@ export function AdminOrderScreen({ id }: { id: string }) {
           {direction === 'purchase' && (
             <ProfitBreakdownCard breakdown={profit.data ?? null} loading={profit.isPending} />
           )}
-          <DocumentsCard documents={documents.data ?? []} />
+          <DocumentsCard
+            documents={documents.data ?? []}
+            onSend={(kind) => sendDocument.mutate(kind)}
+            onImport={(kind, file) => importDocument.mutate({ kind, file })}
+          />
           <ChatCard
             phone={customer.data?.phone_number ?? null}
             messages={conversation.data ?? []}
             timeline={timeline.data ?? []}
+            onSend={
+              userId
+                ? (body: string, media?: SmsMedia[]) =>
+                    sendSms.mutate({ user_id: userId, body, ...(media ? { media } : {}) })
+                : undefined
+            }
           />
         </div>
       </div>

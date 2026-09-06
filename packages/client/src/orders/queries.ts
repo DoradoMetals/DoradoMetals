@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type {
+  FulfillmentDropoff,
   LotSplit,
   OrderCancelBody,
   OrderDocument,
@@ -13,10 +14,11 @@ import type {
   OrderSupplyBody,
   OrderView,
   ProfitBreakdown,
+  RefiningOrderView,
   ShipmentView,
 } from '@dorado/contracts'
 
-import { apiRequest } from '../fetch'
+import { apiRequest, apiRequestForm } from '../fetch'
 import { keys } from '../keys'
 
 export function useOrder(id: string, options: { enabled?: boolean } = {}) {
@@ -50,6 +52,16 @@ export function useOrderShipments(id: string, options: { enabled?: boolean } = {
     queryKey: keys.orders.shipments(id),
     enabled: (options.enabled ?? true) && id.length > 0,
     queryFn: () => apiRequest<ShipmentView[]>('GET', `/orders/${id}/shipments`),
+  })
+}
+
+// The refiner drop-offs booked against this order. Its own read, keyed by the
+// order, because the fulfillment view carries one dropoff and this is the list.
+export function useOrderDropoffs(id: string, options: { enabled?: boolean } = {}) {
+  return useQuery<FulfillmentDropoff[]>({
+    queryKey: keys.orders.dropoffs(id),
+    enabled: (options.enabled ?? true) && id.length > 0,
+    queryFn: () => apiRequest<FulfillmentDropoff[]>('GET', `/orders/${id}/dropoffs`),
   })
 }
 
@@ -138,5 +150,27 @@ export function useDeleteOrderLot(id: string) {
 export function useSplitOrderLot(id: string) {
   return useOrderWrite(id, ({ lot_id, parts }: { lot_id: string } & LotSplit) =>
     apiRequest<OrderLotView[]>('POST', `/orders/lots/${lot_id}/split`, { parts })
+  )
+}
+
+export function useSendOrderDocument(id: string) {
+  return useOrderWrite(id, (kind: string) =>
+    apiRequest<OrderDocument>('POST', `/orders/${id}/documents/${kind}/send`, {})
+  )
+}
+
+export function useImportOrderDocument(id: string) {
+  return useOrderWrite(id, ({ kind, file }: { kind: string; file: File }) => {
+    const form = new FormData()
+    form.append('file', file, file.name)
+    return apiRequestForm<OrderDocument>('POST', `/orders/${id}/documents/${kind}`, form)
+  })
+}
+
+// Create Sale: a finalized purchase order's lots wrapped onto the refiner's one
+// open SELL order.
+export function useCreateRefiningSale(id: string) {
+  return useOrderWrite(id, (body: OrderSupplyBody) =>
+    apiRequest<RefiningOrderView>('POST', `/orders/${id}/refining-sale`, body)
   )
 }

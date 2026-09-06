@@ -88,3 +88,97 @@ test('the screen refuses a signed-out visitor', async ({ browser }) => {
   await expect(page).toHaveURL(/\/auth\/sign-in/)
   await anonymous.close()
 })
+
+// THE WRITES THE SECOND PASS WIRED. They live in this file rather than beside
+// it because `seed:e2e:order` clears the previous e2e order as it mints the
+// next: two spec files seeding in parallel workers raced on the same rows and
+// failed on a foreign key. One seed, one file.
+
+test('the composer sends a message and the conversation shows it back', async ({ page }) => {
+  const body = `e2e ${Date.now()}`
+  await page.goto(`/admin/orders/${orderId}`)
+
+  const composer = page.getByPlaceholder('Text the customer…')
+  await expect(composer).toBeVisible()
+  await composer.fill(body)
+
+  const sent = page.waitForResponse(
+    (res) => res.url().endsWith('/api/sms') && res.request().method() === 'POST'
+  )
+  await page.getByRole('button', { name: 'Send', exact: true }).click()
+  expect((await sent).status()).toBe(201)
+
+  await expect(page.getByText(body)).toBeVisible()
+})
+
+test('an available document offers Send, and pressing it calls the send route', async ({ page }) => {
+  await page.goto(`/admin/orders/${orderId}`)
+
+  const send = page.getByRole('button', { name: /^Send [A-Z]/ }).first()
+  await expect(send).toBeVisible()
+
+  const call = page.waitForRequest(
+    (req) => /\/documents\/[a-z_]+\/send$/.test(req.url()) && req.method() === 'POST'
+  )
+  await send.click()
+  expect((await call).url()).toMatch(/\/orders\/[0-9a-f-]+\/documents\/[a-z_]+\/send$/)
+})
+
+test('an unavailable document offers Import, which is a multipart POST', async ({ page }) => {
+  await page.goto(`/admin/orders/${orderId}`)
+
+  const importRow = page.getByRole('button', { name: /^Import / }).first()
+  const count = await importRow.count()
+  test.skip(count === 0, 'every document on this order is available, so nothing offers Import')
+
+  await importRow.click()
+  const call = page.waitForRequest(
+    (req) => /\/documents\/[a-z_]+$/.test(req.url()) && req.method() === 'POST'
+  )
+  await page.locator('[data-testid="document-import"]').setInputFiles({
+    name: 'imported.pdf',
+    mimeType: 'application/pdf',
+    buffer: Buffer.from('%PDF-1.4\n%e2e\n'),
+  })
+  const request = await call
+  expect(request.headers()['content-type'] ?? '').toContain('multipart/form-data')
+})
+
+// BATCH IS ONE CALL NOW (GAP 8). It used to be a create followed by an assign
+// with nothing between them, so this asserts the lot ids ride with the create.
+test('Batch creates the refiner order and assigns the lots in one call', async ({
+  page,
+  playwright,
+}) => {
+  const api = await playwright.request.newContext({ storageState: statePath('admin') })
+  const [refiners, open] = await Promise.all([
+    api.get(`${API}/suppliers/get_all`),
+    api.get(`${API}/refining/orders`),
+  ])
+  const all = (await refiners.json()) as { id: string; organization: { name: string | null } }[]
+  const busy = new Set(
+    ((await open.json()) as { refiner_id: string; direction: string; sent_at: string | null }[])
+      .filter((one) => one.direction === 'sell' && one.sent_at === null)
+      .map((one) => one.refiner_id)
+  )
+  await api.dispose()
+
+  const free = all.find((one) => !busy.has(one.id) && one.organization.name)
+  test.skip(!free, 'every refiner already holds an open sell order, so a batch would 409')
+
+  await page.goto(`/admin/orders/${orderId}`)
+  await page.getByLabel('Select all lots').check()
+
+  await page.getByRole('combobox', { name: 'Refiner' }).click()
+  await page.getByRole('option', { name: free!.organization.name! }).click()
+
+  const created = page.waitForResponse(
+    (res) => res.url().endsWith('/api/refining/orders') && res.request().method() === 'POST'
+  )
+  await page.getByRole('button', { name: 'Batch' }).click()
+
+  const response = await created
+  expect(response.status(), await response.text()).toBe(201)
+  const body = response.request().postDataJSON() as { lot_ids?: string[] }
+  expect(body.lot_ids?.length ?? 0).toBeGreaterThan(0)
+})

@@ -6,8 +6,8 @@
 // with the fixture and fails against the API, so the fixtures are typed by the
 // contracts and nothing here invents a field.
 import { describe, expect, test, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
-import type { Rail } from '@dorado/contracts'
+import { fireEvent, render, screen, within } from '@testing-library/react'
+import type { FulfillmentMethodRead, FulfillmentStatus, Rail } from '@dorado/contracts'
 
 import {
   AppointmentCard,
@@ -41,14 +41,20 @@ import {
   aPaymentView,
   aPayout,
   aProfitBreakdown,
+  aFoundLot,
+  aLocation,
+  aRefiner,
   aRefiningLot,
   aRefiningOrder,
+  aRefiningSpot,
   aShipment,
   aSpot,
   aTimelineCall,
   aTotals,
   anActions,
   anAdmin,
+  anEmployee,
+  anOrderView,
 } from './fixtures'
 
 const noop = () => {}
@@ -132,6 +138,7 @@ describe('Order Header', () => {
           onRefinerChange: noop,
           locked: false,
           place: 'SO-4471',
+          ordersToDate: 12,
         }}
         primary={{ label: 'Send to Refiner', onClick: noop }}
       />
@@ -282,7 +289,7 @@ describe('Charges', () => {
         showPoolOz
         chargeLabel="Payment Charge"
         poolOz={0.003}
-        refinerFee={20}
+        refining={{ fee: 20, pool_remediation: 7.24, payment_charge: 20, total: 41871.4 }}
       />
     )
     expect(screen.getByText('Payment Charge')).toBeTruthy()
@@ -530,8 +537,27 @@ describe('Shipment', () => {
 describe('Pickup, Appointment and Drop-off', () => {
   const handlers = { onCancel: noop, onReschedule: noop, onAdvance: noop }
 
+  // The badge is the fulfillment's own status and the buttons are the moves the
+  // API says are open - `FulfillmentActions.transitions`, not a table here.
+  const booked = (
+    category: FulfillmentMethodRead['category'],
+    label: string,
+    status: FulfillmentStatus,
+    transitions: FulfillmentStatus[]
+  ) =>
+    aFulfillment({
+      method: aMethod(category, label),
+      fulfillment: { ...aFulfillment().fulfillment, status },
+      actions: { ...aFulfillment().actions, transitions },
+    })
+
   test('pickup · Scheduled -> Headed to Pickup', () => {
-    render(<PickupCard fulfillment={aFulfillment({ method: aMethod('PICKUP', 'Pickup') })} {...handlers} />)
+    render(
+      <PickupCard
+        fulfillment={booked('PICKUP', 'Pickup', 'SCHEDULED', ['IN_TRANSIT', 'PICKED_UP'])}
+        {...handlers}
+      />
+    )
     expect(screen.getByText('Pickup')).toBeTruthy()
     expect(screen.getByText('Scheduled')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Headed to Pickup' })).toBeTruthy()
@@ -541,10 +567,7 @@ describe('Pickup, Appointment and Drop-off', () => {
   test('pickup · In Transit -> Mark Picked Up', () => {
     render(
       <PickupCard
-        fulfillment={aFulfillment({
-          method: aMethod('PICKUP', 'Pickup'),
-          fulfillment: { ...aFulfillment().fulfillment, status: 'In Transit' },
-        })}
+        fulfillment={booked('PICKUP', 'Pickup', 'IN_TRANSIT', ['PICKED_UP'])}
         {...handlers}
       />
     )
@@ -553,20 +576,17 @@ describe('Pickup, Appointment and Drop-off', () => {
 
   test('pickup · Picked Up is the end of the line', () => {
     render(
-      <PickupCard
-        fulfillment={aFulfillment({
-          method: aMethod('PICKUP', 'Pickup'),
-          fulfillment: { ...aFulfillment().fulfillment, status: 'Picked Up' },
-        })}
-        {...handlers}
-      />
+      <PickupCard fulfillment={booked('PICKUP', 'Pickup', 'PICKED_UP', [])} {...handlers} />
     )
     expect(screen.getByRole('button', { name: 'Picked Up' }).hasAttribute('disabled')).toBe(true)
   })
 
   test('appointment · Scheduled -> Check In', () => {
     render(
-      <AppointmentCard fulfillment={aFulfillment({ method: aMethod('DIRECT', 'Appointment') })} {...handlers} />
+      <AppointmentCard
+        fulfillment={booked('DIRECT', 'Appointment', 'SCHEDULED', ['IN_PROGRESS', 'COMPLETED'])}
+        {...handlers}
+      />
     )
     expect(screen.getByText('Appointment')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Check In' })).toBeTruthy()
@@ -575,10 +595,7 @@ describe('Pickup, Appointment and Drop-off', () => {
   test('appointment · In Progress -> Mark Complete', () => {
     render(
       <AppointmentCard
-        fulfillment={aFulfillment({
-          method: aMethod('DIRECT', 'Appointment'),
-          fulfillment: { ...aFulfillment().fulfillment, status: 'In Progress' },
-        })}
+        fulfillment={booked('DIRECT', 'Appointment', 'IN_PROGRESS', ['COMPLETED'])}
         {...handlers}
       />
     )
@@ -587,7 +604,10 @@ describe('Pickup, Appointment and Drop-off', () => {
 
   test('drop-off · Scheduled -> Headed to Refinery', () => {
     render(
-      <DropoffCard fulfillment={aFulfillment({ method: aMethod('DROPOFF', 'Drop-off') })} {...handlers} />
+      <DropoffCard
+        fulfillment={booked('DROPOFF', 'Drop-off', 'SCHEDULED', ['IN_TRANSIT', 'DROPPED_OFF'])}
+        {...handlers}
+      />
     )
     expect(screen.getByText('Drop-off')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Headed to Refinery' })).toBeTruthy()
@@ -601,8 +621,7 @@ describe('Linked Fulfillment', () => {
       <LinkedFulfillmentCard
         shipsFrom="Elemetal"
         shipsTo="Marguerite Whitfield"
-        linkedReference="SO-1112"
-        linkedHref="/admin/orders/abc"
+        linked={{ id: 'abc', number: 1112, direction: 'sale', reference: 'SO-1112' }}
         linkedState="In Transit"
       />
     )
@@ -619,10 +638,10 @@ describe('Documents', () => {
     render(
       <DocumentsCard
         documents={[
-          aDocument('Invoice', false),
-          aDocument('Packing List', true),
-          aDocument('Return Packing List', true),
-          aDocument('Shipping Instructions', true),
+          aDocument('invoice', 'Invoice', false),
+          aDocument('packing_list', 'Packing List', true),
+          aDocument('return_packing_list', 'Return Packing List', true),
+          aDocument('shipping_instructions', 'Shipping Instructions', true),
         ]}
         onSend={noop}
         onImport={noop}
@@ -638,9 +657,9 @@ describe('Documents', () => {
     render(
       <DocumentsCard
         documents={[
-          aDocument('Invoice', true),
-          aDocument('Pickup Manifest', true),
-          aDocument('Pickup Instructions', true),
+          aDocument('invoice', 'Invoice', true),
+          aDocument('pickup_manifest', 'Pickup Manifest', true),
+          aDocument('pickup_instructions', 'Pickup Instructions', true),
         ]}
       />
     )
@@ -710,25 +729,34 @@ describe('Refiner items', () => {
   })
 })
 
-// STATES WAITING ON AN API GAP. Each of these renders what the API can feed
-// today, and names the gap the second pass closes. The gap numbers are the
-// table in docs/waves/admin-orders-screen.md.
-describe('states waiting on an API gap', () => {
-  test('GAP 2: orders-to-date is absent, so the header simply drops the line', () => {
+// THE STATES THAT WERE WAITING ON AN API GAP, now wired. Each names the gap it
+// closes; the table is docs/waves/admin-orders-screen.md. Only GAP 23 - six
+// document renderers, waiting on a Figma Documents page - has nothing here,
+// and it never had a marker: it is a rendering gap, not a screen state.
+describe('the states the API lane unblocked', () => {
+  test('GAP 1 and 2: the header prints the server reference and the orders-to-date line', () => {
+    const view = anOrderView()
     render(
       <OrderHeaderCard
         eyebrow="PURCHASE ORDER"
-        reference="PO-2481"
-        party={{ kind: 'customer', name: 'X', place: 'Austin, TX', ordersToDate: null }}
+        reference={view.reference}
+        party={{
+          kind: 'customer',
+          name: 'X',
+          place: 'Austin, TX',
+          ordersToDate: view.user?.orders_to_date ?? null,
+        }}
         assignedToId={null}
         admins={[]}
         onAssign={noop}
       />
     )
-    expect(screen.queryByText(/orders to date/)).toBeNull()
+    expect(screen.getByText(/PO-2481/)).toBeTruthy()
+    expect(screen.getByText('7 orders to date')).toBeTruthy()
   })
 
-  test('GAP 3: Cancel Order is offered but refused - the route wants a return service and package', () => {
+  test('GAP 3: Cancel Order is live - the body is optional and the server picks the return leg', () => {
+    const onClick = vi.fn()
     render(
       <OrderHeaderCard
         eyebrow="PURCHASE ORDER"
@@ -737,39 +765,188 @@ describe('states waiting on an API gap', () => {
         assignedToId={null}
         admins={[]}
         onAssign={noop}
-        cancel={{
-          label: 'Cancel Order',
-          onClick: noop,
-          disabled: true,
-          reason: 'Cancelling needs a return service and package',
-        }}
+        cancel={{ label: 'Cancel Order', onClick }}
       />
     )
-    expect(screen.getByRole('button', { name: 'Cancel Order' }).hasAttribute('disabled')).toBe(true)
+    const button = screen.getByRole('button', { name: 'Cancel Order' })
+    expect(button.hasAttribute('disabled')).toBe(false)
+    fireEvent.click(button)
+    expect(onClick).toHaveBeenCalled()
   })
 
-  test('GAP 10: the lot search panel renders and finds nothing until /lots?q= exists', () => {
+  test('GAP 4 and 5: a refiner header carries an office select and a live Cancel', () => {
+    const onChange = vi.fn()
+    render(
+      <OrderHeaderCard
+        eyebrow="SALES ORDER"
+        reference="SO-4471"
+        party={{
+          kind: 'refiner',
+          refinerId: 'r1',
+          refiners: [{ id: 'r1', name: 'Elemetal' }],
+          onRefinerChange: noop,
+          locked: false,
+          place: '',
+          ordersToDate: 12,
+        }}
+        office={{ locations: [aLocation()], locationId: null, onChange }}
+        assignedToId={null}
+        admins={[]}
+        onAssign={noop}
+        cancel={{ label: 'Cancel Order', onClick: noop }}
+      />
+    )
+    expect(screen.getByText('Office')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Cancel Order' }).hasAttribute('disabled')).toBe(false)
+  })
+
+  test('GAP 6: the lock button follows actions.lock_spots / unlock_spots, not a guess', () => {
+    const { rerender } = render(
+      <SpotsCard
+        spots={[aSpot('Gold', 2411.2)]}
+        live={[]}
+        locked
+        canToggle
+        toggleDisabled={!anActions({ unlock_spots: false }).unlock_spots}
+        onToggleLock={noop}
+        onSetBid={noop}
+      />
+    )
+    expect(screen.getByRole('button', { name: 'Unlock Spots' }).hasAttribute('disabled')).toBe(true)
+
+    rerender(
+      <SpotsCard
+        spots={[aSpot('Gold', 2411.2)]}
+        live={[]}
+        locked
+        canToggle
+        toggleDisabled={!anActions({ unlock_spots: true }).unlock_spots}
+        onToggleLock={noop}
+        onSetBid={noop}
+      />
+    )
+    expect(screen.getByRole('button', { name: 'Unlock Spots' }).hasAttribute('disabled')).toBe(false)
+  })
+
+  test('GAP 7: a refiner order draws its own frozen prices and no lock button', () => {
+    render(
+      <SpotsCard
+        spots={[aRefiningSpot('Gold', 2411.2), aRefiningSpot('Silver', 28.4)]}
+        live={[]}
+        locked
+        canToggle={false}
+        onToggleLock={noop}
+        onSetBid={noop}
+      />
+    )
+    expect(screen.getByLabelText('Gold')).toBeTruthy()
+    expect(screen.getByLabelText('Silver')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Unlock Spots' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Lock Spots' })).toBeNull()
+  })
+
+  test('GAP 8: Batch hands the selected lot ids over in one call, once a refiner is chosen', () => {
+    const onBatch = vi.fn()
+    render(
+      <LotsCard
+        kind="scrap"
+        lots={[aLot()]}
+        refiners={[{ id: 'r1', name: 'Elemetal' }]}
+        refinerId="r1"
+        onRefinerChange={noop}
+        onEdit={noop}
+        onNew={noop}
+        onDelete={noop}
+        onBatch={onBatch}
+      />
+    )
+    fireEvent.click(screen.getByLabelText('Select all lots'))
+    fireEvent.click(screen.getByRole('button', { name: 'Batch' }))
+    expect(onBatch).toHaveBeenCalledWith([aLot().lot_id])
+  })
+
+  test('GAP 9: a finalized order offers Create Sale instead of the editing controls', () => {
+    const onCreateSale = vi.fn()
+    render(
+      <LotsCard
+        kind="scrap"
+        lots={[aLot()]}
+        readOnly
+        refiners={[{ id: 'r1', name: 'Elemetal' }]}
+        refinerId="r1"
+        onRefinerChange={noop}
+        onEdit={noop}
+        onNew={noop}
+        onDelete={noop}
+        onBatch={noop}
+        onCreateSale={onCreateSale}
+      />
+    )
+    expect(screen.queryByRole('button', { name: 'New' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Create Sale' }))
+    expect(onCreateSale).toHaveBeenCalled()
+  })
+
+  test('GAP 10: the lot search offers what /lots answered and Add Lot sends its id', () => {
+    const onAdd = vi.fn()
     render(
       <RefiningItemsCard
         lots={[aRefiningLot()]}
         kindLabel="Lots"
-        query=""
+        query="2493"
         onQueryChange={noop}
+        found={[aFoundLot()]}
         onEdit={noop}
         onDelete={noop}
-        onAdd={noop}
+        onAdd={onAdd}
       />
     )
     expect(screen.getByRole('button', { name: 'Add Lot' }).hasAttribute('disabled')).toBe(true)
+    fireEvent.focus(screen.getByPlaceholderText('Search lots…'))
+    fireEvent.click(screen.getByRole('option', { name: /Lot 2493-B/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add Lot' }))
+    expect(onAdd).toHaveBeenCalledWith([aFoundLot().id])
   })
 
-  test('GAP 13: Settlement shows the expected DATE, because the view has no money figure', () => {
+  test('GAP 11: a refiner order has Charges and Totals off refining.order_money', () => {
+    const order = aRefiningOrder()
+    render(<TotalsCard totals={null} totalLabel="Total payment" refining={order.totals} />)
+    expect(screen.getByText('Refiner fee')).toBeTruthy()
+    expect(screen.getByText('Pool remediation')).toBeTruthy()
+    expect(screen.getByText('Payment charge')).toBeTruthy()
+    expect(screen.getAllByText('$41,871.40').length).toBeGreaterThan(0)
+  })
+
+  test('GAP 12: a refiner order gets a Payment card of its own', () => {
+    render(
+      <PaymentCard
+        payment={aPaymentView({ order_id: null, refining_order_id: aRefiningOrder().id })}
+        payout={null}
+        payTo={[]}
+        rails={['ACH', 'WIRE'] as Rail[]}
+        rail={'WIRE' as Rail}
+        onRailChange={noop}
+        payToId={null}
+        onPayToChange={noop}
+        candidates={[]}
+        matching={false}
+        onStartMatching={noop}
+        onConfirmMatch={noop}
+        onSend={noop}
+      />
+    )
+    expect(screen.getByText('Not sent')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Send payment' })).toBeTruthy()
+  })
+
+  test('GAP 13: Settlement shows the expected settlement as MONEY', () => {
     render(<SettlementCard order={aRefiningOrder()} />)
     expect(screen.getByText('Expected settlement')).toBeTruthy()
-    expect(screen.getByText('Sep 19, 2026')).toBeTruthy()
+    expect(screen.getAllByText('$41,871.40').length).toBeGreaterThan(0)
   })
 
-  test('GAP 14: Create fulfillment is refused - POST /fulfillments takes a checkout id', () => {
+  test('GAP 14: Create fulfillment is live - POST /fulfillments takes an order id', () => {
+    const onCreate = vi.fn()
     render(
       <FulfillmentCard
         fulfillment={null}
@@ -778,39 +955,85 @@ describe('states waiting on an API gap', () => {
         packages={[]}
         handoffs={[]}
         addresses={[]}
-        onCreate={noop}
-        createDisabled
-        createReason="An order gets its fulfillment at placement; there is no route to add one later."
+        onCreate={onCreate}
         onSetMethod={noop}
         onPatch={noop}
         onSchedule={noop}
       />
     )
-    expect(screen.getByRole('button', { name: 'Create fulfillment' }).hasAttribute('disabled')).toBe(
-      true
-    )
-    expect(
-      screen.getByText(
-        'An order gets its fulfillment at placement; there is no route to add one later.'
-      )
-    ).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Create fulfillment' }))
+    expect(onCreate).toHaveBeenCalled()
   })
 
-  test('GAP 17 and 18: pickup Office and Driver are dashes - no location and no employee name', () => {
+  test('GAP 15 and 16: the shipment choices carry cover, extra cover and who pays a return', () => {
+    const onPatch = vi.fn()
+    render(
+      <FulfillmentCard
+        fulfillment={aFulfillment({
+          parcel: { ...aShipment().shipment, direction: 'Return' },
+        })}
+        methods={[aMethod('SHIPMENT', 'Shipment')]}
+        services={[]}
+        packages={[]}
+        handoffs={[]}
+        addresses={[]}
+        cover={{ insured: true, additional_coverage: 500, bill_return_to_customer: false }}
+        onSetMethod={noop}
+        onPatch={onPatch}
+        onSchedule={noop}
+      />
+    )
+    expect(screen.getByText('Coverage')).toBeTruthy()
+    expect(screen.getByText('Bill return shipping to the customer')).toBeTruthy()
+    expect((screen.getByLabelText('Additional coverage') as HTMLInputElement).value).toBe('500')
+  })
+
+  test('GAP 17 and 18: pickup Office and Driver read their names off the two list routes', () => {
     render(
       <PickupCard
-        fulfillment={aFulfillment({ method: aMethod('PICKUP', 'Pickup') })}
+        fulfillment={aFulfillment({
+          method: aMethod('PICKUP', 'Pickup'),
+          pickup: {
+            id: 'p1',
+            fulfillment_id: aFulfillment().fulfillment.id,
+            pickup_address_id: null,
+            location_id: aLocation().id,
+            assigned_employee_id: anEmployee().id,
+            start_time: '2026-09-10T15:00:00.000Z',
+            end_time: null,
+          },
+        })}
+        locations={[aLocation()]}
+        employees={[anEmployee()]}
         onCancel={noop}
         onReschedule={noop}
         onAdvance={noop}
       />
     )
-    expect(screen.getByText('Office')).toBeTruthy()
-    expect(screen.getByText('Driver')).toBeTruthy()
-    expect(screen.getAllByText('—').length).toBeGreaterThan(0)
+    expect(screen.getByText('Austin office')).toBeTruthy()
+    expect(screen.getByText('Dana Whitlock')).toBeTruthy()
   })
 
-  test('GAP 20: drop-off has no read, so its choices tab says so rather than inventing one', () => {
+  test('GAP 19: the button labels are the open transitions, not a table in the browser', () => {
+    render(
+      <PickupCard
+        fulfillment={aFulfillment({
+          method: aMethod('PICKUP', 'Pickup'),
+          fulfillment: { ...aFulfillment().fulfillment, status: 'IN_TRANSIT' },
+          actions: { ...aFulfillment().actions, transitions: ['PICKED_UP'] },
+        })}
+        onCancel={noop}
+        onReschedule={noop}
+        onAdvance={noop}
+      />
+    )
+    expect(screen.getByText('In Transit')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Mark Picked Up' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Headed to Pickup' })).toBeNull()
+  })
+
+  test('GAP 20: drop-off has choices of its own - Driver, Refinery and the date', () => {
+    const onPatch = vi.fn()
     render(
       <FulfillmentCard
         fulfillment={aFulfillment({ method: aMethod('DROPOFF', 'Drop-off') })}
@@ -819,20 +1042,62 @@ describe('states waiting on an API gap', () => {
         packages={[]}
         handoffs={[]}
         addresses={[]}
+        employees={[anEmployee()]}
+        refiners={[aRefiner()]}
         onSetMethod={noop}
-        onPatch={noop}
+        onPatch={onPatch}
         onSchedule={noop}
       />
     )
-    expect(screen.getByText('Drop-offs are arranged off-screen for now.')).toBeTruthy()
+    expect(screen.getByText('Driver')).toBeTruthy()
+    expect(screen.getAllByText('Refinery').length).toBeGreaterThan(0)
+    expect(screen.getByRole('group', { name: 'Drop-off date' })).toBeTruthy()
+    expect(screen.queryByText('Drop-offs are arranged off-screen for now.')).toBeNull()
   })
 
-  test('GAP 21: the Awaiting Tracking carrier select is read-only - nothing sets it after the fact', () => {
+  // A drop-off has no row until it is scheduled and the PATCH arm writes
+  // nothing, so its choices are held in the card and sent whole to Schedule.
+  test('GAP 20: the drop-off choices ride with Schedule, not one PATCH each', () => {
+    const onPatch = vi.fn()
+    const onSchedule = vi.fn()
+    render(
+      <FulfillmentCard
+        fulfillment={aFulfillment({
+          method: aMethod('DROPOFF', 'Drop-off'),
+          missing: ['refiner_id', 'start_time'],
+        })}
+        methods={[aMethod('DROPOFF', 'Drop-off')]}
+        services={[]}
+        packages={[]}
+        handoffs={[]}
+        addresses={[]}
+        employees={[anEmployee()]}
+        refiners={[aRefiner()]}
+        onSetMethod={noop}
+        onPatch={onPatch}
+        onSchedule={onSchedule}
+      />
+    )
+    expect(screen.getByText('Still to choose: refiner_id, start_time')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Schedule' }).hasAttribute('disabled')).toBe(true)
+
+    const group = screen.getByRole('group', { name: 'Drop-off date' })
+    const days = within(group)
+      .getAllByRole('button')
+      .filter((one) => /^\d{1,2}$/.test(one.textContent ?? ''))
+    fireEvent.click(days[10]!)
+    expect(onPatch).not.toHaveBeenCalled()
+    expect(screen.getByText('Still to choose: refiner_id')).toBeTruthy()
+  })
+
+  test('GAP 21: the Awaiting Tracking carrier select writes carrier_service_id', () => {
+    const onSetCarrier = vi.fn()
     render(
       <ShipmentCard
         shipment={aShipment({ tracking_number: null })}
         services={[{ id: 'svc', name: 'FedEx Priority' }]}
         onSaveTracking={noop}
+        onSetCarrier={onSetCarrier}
         onCancelLabel={noop}
       />
     )
@@ -840,37 +1105,87 @@ describe('states waiting on an API gap', () => {
     expect(screen.getByLabelText('Tracking #')).toBeTruthy()
   })
 
-  test('GAP 22: a drop ship with no linked order still draws, with dashes', () => {
+  test('GAP 22: the linked order comes off the fulfillment view', () => {
+    const linked = aFulfillment({
+      linked_order: { id: 'abc', number: 1112, direction: 'sale', reference: 'SO-1112' },
+    })
     render(
       <LinkedFulfillmentCard
         shipsFrom="Elemetal"
         shipsTo={null}
-        linkedReference={null}
-        linkedHref={null}
+        linked={linked.linked_order}
         linkedState={null}
       />
     )
-    expect(screen.getByText('Fulfillment · Drop ship')).toBeTruthy()
-    expect(screen.queryByRole('link')).toBeNull()
+    expect(screen.getByRole('link', { name: 'Open SO-1112' }).getAttribute('href')).toBe(
+      '/admin/orders/abc'
+    )
   })
 
-  test('GAPs 24 and 25: with no send or import handler the rows carry neither action', () => {
-    render(<DocumentsCard documents={[aDocument('Invoice', false), aDocument('Packing List', true)]} />)
-    expect(screen.queryByRole('button', { name: 'Send' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Import' })).toBeNull()
+  test('GAPs 24 and 25: an available row sends and an unavailable row imports a file', () => {
+    const onSend = vi.fn()
+    const onImport = vi.fn()
+    const { container } = render(
+      <DocumentsCard
+        documents={[
+          aDocument('invoice', 'Invoice', false),
+          aDocument('packing_list', 'Packing List', true),
+        ]}
+        onSend={onSend}
+        onImport={onImport}
+      />
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Send Packing List' }))
+    expect(onSend).toHaveBeenCalledWith('packing_list')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Import Invoice' }))
+    const picker = container.querySelector('[data-testid="document-import"]') as HTMLInputElement
+    const file = new File(['%PDF-1.4'], 'invoice.pdf', { type: 'application/pdf' })
+    Object.defineProperty(picker, 'files', { value: [file] })
+    fireEvent.change(picker)
+    expect(onImport).toHaveBeenCalledWith('invoice', file)
   })
 
-  test('GAP 26: a refiner order has no documents read, so the card is empty rather than wrong', () => {
-    render(<DocumentsCard documents={[]} />)
-    expect(screen.queryByText('Invoice')).toBeNull()
+  test('GAP 26: a refiner order names its own documents', () => {
+    render(
+      <DocumentsCard
+        documents={[
+          aDocument('invoice', 'Invoice', true),
+          aDocument('settlement', 'Settlement', false),
+        ]}
+        onImport={noop}
+      />
+    )
+    expect(screen.getByText('Settlement')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Import Settlement' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Send Invoice' })).toBeNull()
   })
 
-  test('GAP 27: with no send handler the composer cannot post a message', () => {
-    render(<ChatCard phone="(512) 555-0143" messages={[aMessage()]} timeline={[]} />)
-    expect(screen.getByText('Has my gold arrived?')).toBeTruthy()
+  test('GAPs 27 and 28: the composer sends, and an attachment rides with it', () => {
+    const onSend = vi.fn()
+    const { container } = render(
+      <ChatCard phone="(512) 555-0143" messages={[aMessage()]} timeline={[]} onSend={onSend} />
+    )
+    const field = screen.getByPlaceholderText('Text the customer…')
+    fireEvent.change(field, { target: { value: 'On its way' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+    expect(onSend).toHaveBeenCalledWith('On its way', undefined)
+    expect(container.querySelector('[data-testid="sms-attach"]')).toBeTruthy()
+  })
+
+  test('GAP 29: a call row is the API call_kind, not direction and status read here', () => {
+    render(
+      <ChatCard
+        phone="(512) 555-0143"
+        messages={[]}
+        timeline={[aTimelineCall({ call_kind: 'Missed', direction: 'inbound', status: 'busy' })]}
+        onSend={noop}
+      />
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Calls' }))
+    expect(screen.getByText('Missed call')).toBeTruthy()
   })
 })
-
 describe('nothing is decided in the browser', () => {
   test('actions come off the view, so a view with everything off offers nothing', () => {
     render(

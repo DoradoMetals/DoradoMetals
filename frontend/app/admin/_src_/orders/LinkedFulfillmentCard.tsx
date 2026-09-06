@@ -1,6 +1,7 @@
 'use client'
 
 import { Badge, Button, Link } from '@dorado/components'
+import type { LinkedOrder } from '@dorado/contracts'
 
 import { CardFact, OrderCard } from './OrderCard'
 import { DASH } from './format'
@@ -8,8 +9,7 @@ import { DASH } from './format'
 export type LinkedFulfillmentCardProps = {
   shipsFrom: string | null
   shipsTo: string | null
-  linkedReference: string | null
-  linkedHref: string | null
+  linked: LinkedOrder | null
   linkedState: string | null
 }
 
@@ -19,10 +19,11 @@ export type LinkedFulfillmentCardProps = {
 export function LinkedFulfillmentCard({
   shipsFrom,
   shipsTo,
-  linkedReference,
-  linkedHref,
+  linked,
   linkedState,
 }: LinkedFulfillmentCardProps) {
+  const linkedReference = linked?.reference ?? null
+  const linkedHref = linked ? `/admin/orders/${linked.id}` : null
   return (
     <OrderCard
       title="Fulfillment · Drop ship"

@@ -2,6 +2,8 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type {
+  OrderDocument,
+  PaymentView,
   RefinerView,
   RefiningLot,
   RefiningLotPatch,
@@ -11,9 +13,10 @@ import type {
   RefiningOrderPatch,
   RefiningOrderView,
   RefiningSettlement,
+  RefiningSpot,
 } from '@dorado/contracts'
 
-import { apiRequest } from '../fetch'
+import { apiRequest, apiRequestForm } from '../fetch'
 import { keys } from '../keys'
 
 export function useRefiningOrder(id: string, options: { enabled?: boolean } = {}) {
@@ -29,6 +32,32 @@ export function useRefiningLots(id: string, options: { enabled?: boolean } = {})
     queryKey: keys.refining.lots(id),
     enabled: (options.enabled ?? true) && id.length > 0,
     queryFn: () => apiRequest<RefiningLot[]>('GET', `/refining/orders/${id}/lots`),
+  })
+}
+
+// A refiner order's four frozen prices: the pool's last lock for that refiner
+// and metal, with `locked` saying whether it is a lock or the live bid.
+export function useRefiningSpots(id: string, options: { enabled?: boolean } = {}) {
+  return useQuery<RefiningSpot[]>({
+    queryKey: keys.refining.spots(id),
+    enabled: (options.enabled ?? true) && id.length > 0,
+    queryFn: () => apiRequest<RefiningSpot[]>('GET', `/refining/orders/${id}/spots`),
+  })
+}
+
+export function useRefiningPayment(id: string, options: { enabled?: boolean } = {}) {
+  return useQuery<PaymentView>({
+    queryKey: keys.refining.payment(id),
+    enabled: (options.enabled ?? true) && id.length > 0,
+    queryFn: () => apiRequest<PaymentView>('GET', `/refining/orders/${id}/payment`),
+  })
+}
+
+export function useRefiningDocuments(id: string, options: { enabled?: boolean } = {}) {
+  return useQuery<OrderDocument[]>({
+    queryKey: keys.refining.documents(id),
+    enabled: (options.enabled ?? true) && id.length > 0,
+    queryFn: () => apiRequest<OrderDocument[]>('GET', `/refining/orders/${id}/documents`),
   })
 }
 
@@ -91,4 +120,21 @@ export function useDeleteRefiningLot() {
   return useRefiningWrite((lot_id: string) =>
     apiRequest<null>('DELETE', `/refining/lots/${lot_id}`)
   )
+}
+
+// Cancelling RELEASES the lots, so the order namespace goes too.
+export function useCancelRefiningOrder(id: string) {
+  return useRefiningWrite(() =>
+    apiRequest<RefiningOrderView>('POST', `/refining/orders/${id}/cancel`, {})
+  )
+}
+
+// The refiner's settlement statement arrives as a file; there is no Send on a
+// refiner order, because a refiner is not a customer (ruling 15).
+export function useImportRefiningDocument(id: string) {
+  return useRefiningWrite(({ kind, file }: { kind: string; file: File }) => {
+    const form = new FormData()
+    form.append('file', file, file.name)
+    return apiRequestForm<OrderDocument>('POST', `/refining/orders/${id}/documents/${kind}`, form)
+  })
 }

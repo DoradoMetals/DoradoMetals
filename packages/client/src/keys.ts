@@ -18,12 +18,16 @@ export const keys = {
     fulfillment: (id: string) => ['orders', 'fulfillment', id] as const,
     shipments: (id: string) => ['orders', 'shipments', id] as const,
     profit: (id: string) => ['orders', 'profit', id] as const,
+    dropoffs: (id: string) => ['orders', 'dropoffs', id] as const,
   },
   refining: {
     all: () => ['refining'] as const,
     view: (id: string) => ['refining', 'view', id] as const,
     lots: (id: string) => ['refining', 'lots', id] as const,
     refiners: () => ['refining', 'refiners'] as const,
+    spots: (id: string) => ['refining', 'spots', id] as const,
+    documents: (id: string) => ['refining', 'documents', id] as const,
+    payment: (id: string) => ['refining', 'payment', id] as const,
   },
   payments: {
     all: () => ['payments'] as const,
@@ -51,6 +55,18 @@ export const keys = {
     all: () => ['users'] as const,
     admins: () => ['users', 'admins'] as const,
     one: (id: string) => ['users', 'one', id] as const,
+  },
+  lots: {
+    all: () => ['lots'] as const,
+    search: (q: string, unassigned: boolean) => ['lots', 'search', q, unassigned] as const,
+  },
+  places: {
+    all: () => ['places'] as const,
+    locations: () => ['places', 'locations'] as const,
+  },
+  employees: {
+    all: () => ['employees'] as const,
+    list: () => ['employees', 'list'] as const,
   },
   crm: {
     all: () => ['crm'] as const,

@@ -4,16 +4,17 @@ import { Badge } from '@dorado/components'
 import type { RefiningOrderView } from '@dorado/contracts'
 
 import { CardHairline, CardRow, OrderCard } from './OrderCard'
-import { DASH, day, ounces } from './format'
+import { DASH, money, ounces } from './format'
 
 export type SettlementCardProps = {
   order: RefiningOrderView
 }
 
-const BADGE_INTENT: Record<string, 'warning' | 'success' | 'danger'> = {
+const BADGE_INTENT: Record<string, 'warning' | 'success' | 'danger' | 'neutral'> = {
   'Pending assay': 'warning',
   Settled: 'success',
   Disputed: 'danger',
+  Cancelled: 'neutral',
 }
 
 // The refiner sales order's replacement for Profit Breakdown: what we estimated
@@ -40,7 +41,7 @@ export function SettlementCard({ order }: SettlementCardProps) {
       <div className="flex w-full items-center justify-between gap-md">
         <p className="text-small font-medium text-foreground">Expected settlement</p>
         <p className="text-right text-stat-sm font-semibold text-foreground">
-          {day(order.expected_settlement_on)}
+          {money(order.expected_settlement)}
         </p>
       </div>
     </OrderCard>

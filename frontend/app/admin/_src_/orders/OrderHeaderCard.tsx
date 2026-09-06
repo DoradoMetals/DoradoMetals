@@ -1,7 +1,7 @@
 'use client'
 
 import { Badge, Button, Select } from '@dorado/components'
-import type { AdminUser } from '@dorado/contracts'
+import type { AdminUser, Location } from '@dorado/contracts'
 
 export type OrderHeaderParty =
   | { kind: 'customer'; name: string; place: string; ordersToDate: number | null }
@@ -12,7 +12,15 @@ export type OrderHeaderParty =
       onRefinerChange: (id: string) => void
       locked: boolean
       place: string
+      ordersToDate: number | null
     }
+
+export type OrderHeaderOffice = {
+  locations: Location[]
+  locationId: string | null
+  onChange: (id: string) => void
+  disabled?: boolean
+}
 
 export type OrderHeaderAction = {
   label: string
@@ -33,6 +41,7 @@ export type OrderHeaderCardProps = {
   cancel?: OrderHeaderAction
   primary?: OrderHeaderAction
   reopen?: OrderHeaderAction
+  office?: OrderHeaderOffice
 }
 
 // PURCHASE ORDER / SALES ORDER, who it is with, where it is, and the two things
@@ -51,8 +60,9 @@ export function OrderHeaderCard({
   cancel,
   primary,
   reopen,
+  office,
 }: OrderHeaderCardProps) {
-  const meta = party.kind === 'customer' ? party.place : party.place
+  const meta = party.place
   const shown = (cancelled ? [reopen] : [cancel, primary]).filter(
     (action): action is OrderHeaderAction => action != null
   )
@@ -90,10 +100,25 @@ export function OrderHeaderCard({
         <p className="text-small text-muted-foreground">
           {meta ? `${reference}   ·   ${meta}` : reference}
         </p>
-        {party.kind === 'customer' && party.ordersToDate !== null && (
+        {party.ordersToDate !== null && (
           <p className="text-small text-muted-foreground">
             {party.ordersToDate} orders to date
           </p>
+        )}
+        {office && (
+          <div className="w-[320px] pt-2xs">
+            <Select
+              label="Office"
+              items={office.locations.map((one) => ({
+                value: one.id,
+                label: one.name ?? one.type ?? one.id,
+              }))}
+              value={office.locationId ?? undefined}
+              onValueChange={office.onChange}
+              disabled={office.disabled}
+              placeholder="Choose an office"
+            />
+          </div>
         )}
       </div>
 

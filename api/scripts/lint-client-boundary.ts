@@ -157,8 +157,9 @@ function checkClientPackage(files: string[]): Finding[] {
 }
 
 // THE FLOORS RISE WITH EACH SURFACE. They were 100/4 before the nuke, 55/4
-// after it, and are 100/20 now that the admin order screens are built and
-// `@dorado/client` has eight resource modules again. Original note follows.
+// after it, 100/20 when the admin order screens were built, and are 100/25 now
+// that wiring their states gave `@dorado/client` eleven resource modules.
+// Original note follows.
 //
 // THE FLOORS MOVED WITH THE NUKE (ruling 99). They were 100/4 against a
 // frontend of ~370 files and a client of 47; the frontend is the auth surface
@@ -168,7 +169,7 @@ function checkClientPackage(files: string[]): Finding[] {
 // delete, so it failed the scan rather than the code. These are the honest
 // numbers for what is left, and they rise again as surfaces are built.
 const FRONTEND_FLOOR = Number(process.env.LINT_CLIENT_BOUNDARY_FRONTEND_FLOOR ?? 100)
-const CLIENT_FLOOR = Number(process.env.LINT_CLIENT_BOUNDARY_CLIENT_FLOOR ?? 20)
+const CLIENT_FLOOR = Number(process.env.LINT_CLIENT_BOUNDARY_CLIENT_FLOOR ?? 25)
 
 if (process.argv.includes('--self-test')) {
   const { selfTest } = await import('./lib/self-test-harness.ts')

@@ -15,6 +15,10 @@ import type {
   OrderTotals,
   OrderView,
   OrderViewPayout,
+  EmployeeSummary,
+  Location,
+  LotView,
+  RefiningSpot,
   PayTo,
   PaymentView,
   ProfitBreakdown,
@@ -37,6 +41,8 @@ export const anActions = (over: Partial<OrderActions> = {}): OrderActions => ({
   update_tracking: false,
   edit_lots: true,
   assign_lots: true,
+  lock_spots: true,
+  unlock_spots: false,
   statuses: [],
   finalize_blocked_by: [],
   ...over,
@@ -174,8 +180,14 @@ export const anOrderView = (over: Partial<OrderView> = {}): OrderView =>
     shipments: [],
     pickup: null,
     payout: aPayout(),
-    user: { id: ID(2), name: 'Marguerite Whitfield', email: 'm@example.com' },
+    user: {
+      id: ID(2),
+      name: 'Marguerite Whitfield',
+      email: 'm@example.com',
+      orders_to_date: 7,
+    },
     credited: false,
+    reference: 'PO-2481',
     actions: anActions(),
     ...over,
   }) satisfies OrderView
@@ -215,6 +227,7 @@ export const aPaymentView = (over: Partial<PaymentView> = {}): PaymentView => ({
   completed_at: null,
   pay_to: null,
   payout_account: null,
+  refining_order_id: null,
   ...over,
 })
 
@@ -260,11 +273,11 @@ export const aLiveSpot = (id: string, bid: number): SpotPrice => ({
   dollar_change: 9.1,
 })
 
-export const aDocument = (name: string, available: boolean): OrderDocument => ({
-  kind: name.toLowerCase().replace(/ /g, '_'),
-  name,
-  available,
-})
+export const aDocument = (
+  kind: OrderDocument['kind'],
+  name: string,
+  available: boolean
+): OrderDocument => ({ kind, name, available, pdf_id: available ? ID(120) : null })
 
 export const aMethod = (
   category: FulfillmentMethodRead['category'],
@@ -289,7 +302,7 @@ export const aFulfillment = (over: Partial<FulfillmentView> = {}): FulfillmentVi
       id: ID(50),
       method_id: ID(48),
       order_id: ID(1),
-      status: 'Scheduled',
+      status: 'SCHEDULED',
       created_by: null,
       updated_by: null,
       created_at: '2026-09-01T12:00:00.000Z',
@@ -301,11 +314,19 @@ export const aFulfillment = (over: Partial<FulfillmentView> = {}): FulfillmentVi
     method: aMethod('SHIPMENT', 'Shipment'),
     pickup: null,
     direct: null,
+    dropoff: null,
     shipments: [],
     parcel: null,
     scheduled_at: null,
+    linked_order: null,
     missing: [],
-    actions: { set_method: true, schedule: true, cancel_schedule: true, categories: [] },
+    actions: {
+      set_method: true,
+      schedule: true,
+      cancel_schedule: true,
+      categories: [],
+      transitions: [],
+    },
     ...over,
   }) satisfies FulfillmentView
 
@@ -332,6 +353,8 @@ export const aShipment = (over: Partial<ShipmentView['shipment']> = {}, rest: Pa
       created_at: '2026-09-01T12:00:00.000Z',
       pickup_date: null,
       pickup_time: null,
+      additional_coverage: null,
+      bill_return_to_customer: false,
       ...over,
     },
     service: null,
@@ -391,6 +414,7 @@ export const aRefiningLot = (over: Partial<RefiningLotView> = {}): RefiningLotVi
     order_number: 2481,
     order_direction: 'purchase',
     customer_premium: 5102.4,
+    order_reference: 'PO-2481',
     ...over,
   }) satisfies RefiningLotView
 
@@ -412,6 +436,8 @@ export const aRefiningOrder = (over: Partial<RefiningOrderView> = {}): RefiningO
     updated_at: '2026-09-01T12:00:00.000Z',
     created_by_id: null,
     updated_by_id: null,
+    location_id: null,
+    cancelled_at: null,
     state: 'Pending assay',
     refiner: {
       id: ID(102),
@@ -432,6 +458,9 @@ export const aRefiningOrder = (over: Partial<RefiningOrderView> = {}): RefiningO
     settled_content: null,
     variance: null,
     pool_oz: 0.003,
+    totals: { fee: 20, pool_remediation: 7.24, payment_charge: 20, total: 41871.4 },
+    expected_settlement: 41871.4,
+    orders_to_date: 12,
     ...over,
   }) satisfies RefiningOrderView
 
@@ -478,7 +507,46 @@ export const aTimelineCall = (over: Partial<CustomerTimeline> = {}): CustomerTim
   direction: 'outbound',
   summary: '2m 14s',
   status: 'completed',
+  call_kind: 'Outgoing',
   ...over,
 })
 
 export const aRefiner = (): RefinerView => aRefiningOrder().refiner!
+
+export const aLocation = (over: Partial<Location> = {}): Location => ({
+  id: ID(130),
+  address_id: ID(131),
+  image_id: null,
+  organization_id: ID(132),
+  name: 'Austin office',
+  type: 'office',
+  enabled: true,
+  label_company_name: 'Dorado Metals',
+  label_phone_number: '+15125550100',
+  default_return: true,
+  carrier_location_code: null,
+  ...over,
+})
+
+export const anEmployee = (over: Partial<EmployeeSummary> = {}): EmployeeSummary => ({
+  id: ID(140),
+  user_id: ID(3),
+  role: 'admin',
+  enabled: true,
+  name: 'Dana Whitlock',
+  ...over,
+})
+
+export const aFoundLot = (over: Partial<LotView> = {}): LotView => ({
+  ...aLot().lot,
+  id: ID(150),
+  reference: 'Lot 2493-B',
+  ...over,
+})
+
+export const aRefiningSpot = (metal_id: string, bid: number): RefiningSpot => ({
+  metal_id,
+  ask: bid + 8,
+  bid,
+  locked: true,
+})

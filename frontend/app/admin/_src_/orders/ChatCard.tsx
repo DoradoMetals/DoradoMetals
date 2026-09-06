@@ -1,7 +1,8 @@
 'use client'
 
+import * as React from 'react'
 import { Chat, type ChatCall, type ChatMessage } from '@dorado/components'
-import type { CustomerTimeline, SmsMessage } from '@dorado/contracts'
+import type { CallKind, CustomerTimeline, SmsMedia, SmsMessage } from '@dorado/contracts'
 
 import { DASH, when } from './format'
 
@@ -9,21 +10,23 @@ export type ChatCardProps = {
   phone: string | null
   messages: SmsMessage[]
   timeline: CustomerTimeline[]
-  onSend?: (body: string) => void
-  onAttach?: () => void
+  onSend?: (body: string, media?: SmsMedia[]) => void
   onCall?: () => void
 }
 
-// Ours right, theirs left. The Calls view is the same customer timeline
-// filtered on kind; the four call kinds come off the row's own direction and
-// status, which is the vocabulary the timeline read hands over.
-function callKind(row: CustomerTimeline): ChatCall['kind'] {
-  const answered = !/no-?answer|missed|voicemail|busy|failed|canceled/i.test(row.status)
-  if (row.direction === 'outbound') return answered ? 'outgoing' : 'no-answer'
-  return answered ? 'incoming' : 'missed'
+// The four call kinds are the API's `call_kind`, paired from direction and
+// status in SQL; the card only spells them.
+const KIND: Record<CallKind, ChatCall['kind']> = {
+  Outgoing: 'outgoing',
+  'No answer': 'no-answer',
+  Incoming: 'incoming',
+  Missed: 'missed',
 }
 
-export function ChatCard({ phone, messages, timeline, onSend, onAttach, onCall }: ChatCardProps) {
+export function ChatCard({ phone, messages, timeline, onSend, onCall }: ChatCardProps) {
+  const [media, setMedia] = React.useState<SmsMedia[]>([])
+  const input = React.useRef<HTMLInputElement>(null)
+
   const chatMessages: ChatMessage[] = messages.map((message) => ({
     id: message.id,
     direction: message.direction,
@@ -38,22 +41,48 @@ export function ChatCard({ phone, messages, timeline, onSend, onAttach, onCall }
   }))
 
   const calls: ChatCall[] = timeline
-    .filter((row) => row.kind === 'call')
+    .filter((row) => row.kind === 'call' && row.call_kind !== null)
     .map((row) => ({
       id: row.id,
-      kind: callKind(row),
+      kind: KIND[row.call_kind!],
       detail: row.summary,
       time: when(row.at),
     }))
 
   return (
-    <Chat
-      phone={phone ?? DASH}
-      messages={chatMessages}
-      calls={calls}
-      onSend={onSend}
-      onAttach={onAttach}
-      onCall={onCall}
-    />
+    <>
+      <Chat
+        phone={phone ?? DASH}
+        messages={chatMessages}
+        calls={calls}
+        onSend={
+          onSend
+            ? (body) => {
+                onSend(body, media.length > 0 ? media : undefined)
+                setMedia([])
+              }
+            : undefined
+        }
+        onAttach={onSend ? () => input.current?.click() : undefined}
+        onCall={onCall}
+      />
+      {onSend && (
+        <input
+          ref={input}
+          type="file"
+          accept="image/*"
+          hidden
+          data-testid="sms-attach"
+          onChange={(event) => {
+            const file = event.target.files?.[0]
+            if (file) setMedia([{ url: URL.createObjectURL(file), content_type: file.type }])
+            event.target.value = ''
+          }}
+        />
+      )}
+      {media.length > 0 && (
+        <p className="text-micro text-muted-foreground">{media.length} attachment ready to send</p>
+      )}
+    </>
   )
 }
