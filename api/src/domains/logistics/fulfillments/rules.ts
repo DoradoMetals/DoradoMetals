@@ -9,6 +9,14 @@ import type {
   FulfillmentViewFacts,
 } from '@dorado/contracts'
 
+// A handover that is DONE. The status column is free text an admin sets, so the
+// decision about which words mean "the driver has left with the metal" lives
+// here rather than being spelled at the one call site that asks.
+export function isCollected(status: string | null | undefined): boolean {
+  const word = (status ?? '').trim().toUpperCase()
+  return word === 'COMPLETE' || word === 'COMPLETED' || word === 'COLLECTED'
+}
+
 export function requiresSchedule(category: FulfillmentCategory): boolean {
   return category === 'PICKUP' || category === 'DIRECT'
 }

@@ -7,7 +7,6 @@ import * as emails from '#documents/emails/service.ts'
 import { recordEmail } from '#documents/emails/record.ts'
 import { closeBrowser } from '#providers/pdfs/puppeteer.ts'
 import * as orderRead from '#orders/read.ts'
-import * as inputs from '#documents/pdfs/order-inputs.ts'
 import { LOCKS } from '#shared/testing/locks.ts'
 import { inRollback } from '#shared/testing/rollback.ts'
 import type { Transport } from '#providers/emails/nodemailer.ts'
@@ -63,12 +62,7 @@ const anOrderWithAUser = () => {
 test('a successful send leaves a sent row pointing at its stored document', async () => {
   await inRollback(async (c: PoolClient) => {
     const { order, email, user } = anOrderWithAUser()
-    await emails.sendCreatedEmail(
-      await inputs.packingListInputs(order.order.id, c),
-      email,
-      recorder(),
-      c
-    )
+    await emails.sendOrderReceived(order.order.id, recorder(), c)
 
     const { rows } = await c.query(
       `SELECT e.status, e.to_address, e.provider_message_id, e.order_id, e.pdf_id,
@@ -93,13 +87,7 @@ test('a failed send throws AND leaves a failed row carrying the error', async ()
   await inRollback(async (c: PoolClient) => {
     const { order, email } = anOrderWithAUser()
     await assert.rejects(
-      async () =>
-        emails.sendCreatedEmail(
-          await inputs.packingListInputs(order.order.id, c),
-          email,
-          failing(),
-          c
-        ),
+      async () => emails.sendOrderReceived(order.order.id, failing(), c),
       /535 Authentication failed/
     )
 
@@ -138,14 +126,14 @@ test('a record for an order the new schema does not know keeps everything but th
 
 test('without a transaction, a test-run send records nothing', async () => {
   const { order, email, user } = anOrderWithAUser()
-  await emails.sendCreatedEmail(await inputs.packingListInputs(order.order.id), email, recorder())
+  await emails.sendOrderReceived(order.order.id, recorder())
   const { rows } = await client.query(
     `SELECT count(*)::int AS n FROM media.emails WHERE kind = 'purchase_order_created'`
   )
   assert.equal(rows[0].n, 0, 'an executor-less test send committed a real row - the guard rotted')
 })
 
-test('a verification mail leaves an auth_verification row with its user', async () => {
+test('a sign-up mail leaves an account_created row with its user', async () => {
   await inRollback(async (c: PoolClient) => {
     const { order, email, user } = anOrderWithAUser()
     const t = recorder()
@@ -162,7 +150,7 @@ test('a verification mail leaves an auth_verification row with its user', async 
 
     const { rows } = await c.query(
       `SELECT status, to_address, user_id, order_id, pdf_id, provider_message_id
-         FROM media.emails WHERE kind = 'auth_verification' AND to_address = $1`,
+         FROM media.emails WHERE kind = 'account_created' AND to_address = $1`,
       [email]
     )
     assert.equal(rows.length, 1, 'one send, one row')

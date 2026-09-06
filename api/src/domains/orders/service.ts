@@ -2,6 +2,7 @@ import * as ordersRepo from '#db/orders/repo.ts'
 import * as itemsRepo from '#db/orders/items/repo.ts'
 import * as orderSpots from '#db/orders/spots/repo.ts'
 import * as orderTransactions from '#db/orders/transactions/repo.ts'
+import * as orderTransactionsService from '#orders/transactions/service.ts'
 import * as refinerSpots from '#db/refiners/spots/repo.ts'
 import * as refinerOrders from '#db/refiners/orders/repo.ts'
 import * as packagesRepo from '#db/shipping/packages/repo.ts'
@@ -159,6 +160,10 @@ export async function addFunds(order_id: string): Promise<OrderView> {
       tx
     )
   })
+
+  // The money has moved and the ledger row is committed. Telling the customer
+  // is the next thing, and it happens outside the transaction on purpose.
+  await orderTransactionsService.payoutRecorded(order_id)
 
   return await viewOf(order_id)
 }

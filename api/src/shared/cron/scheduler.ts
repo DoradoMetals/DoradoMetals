@@ -5,6 +5,7 @@ import cron from 'node-cron'
 import { logger } from '#shared/logging/logger.ts'
 
 import { updateSpotPrices } from '#pricing/spots/service.ts'
+import { sendTomorrowsReminders } from '#documents/emails/service.ts'
 
 export const ABANDONED_AFTER_HOURS = 24
 
@@ -25,6 +26,17 @@ export const jobs = (): Job[] => [
     schedule: process.env.ANONYMOUS_SWEEP_SCHEDULE,
     run: async () => {
       await sweepAnonymousVisitorsNow()
+    },
+  },
+  {
+    // The one SCHEDULED mailer (ruling 95). Which appointments are due is a SQL
+    // question whose answer already excludes every order the email trail says
+    // has been reminded, so running this twice in a day sends nothing the
+    // second time and a missed tick is caught by the next one.
+    name: 'appointment reminders',
+    schedule: process.env.APPOINTMENT_REMINDER_SCHEDULE,
+    run: async () => {
+      await sendTomorrowsReminders()
     },
   },
   {

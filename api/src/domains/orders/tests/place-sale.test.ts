@@ -421,9 +421,9 @@ test('a sale paid entirely by credit sends its confirmation at placement', async
     assert.equal(placed.order.status, 'Preparing')
     assert.equal(t.sent.length, 1, 'expected the confirmation to go out at placement')
     const [msg] = t.sent
-    assert.match(String(msg.subject), /Order Has Been Placed/)
+    assert.match(String(msg.subject), /We've got your order/)
     assert.ok(
-      (msg.html ?? '').includes('prepared for shipment'),
+      (msg.html ?? '').includes('preparing your order for shipment'),
       'the sale template did not render'
     )
     assert.ok(msg.attachments, 'the confirmation carries no attachments at all')
@@ -467,9 +467,9 @@ test('a sale paid by card waits for the webhook before it confirms', async () =>
     assert.equal((await statusOf(c, placed.order.id)).native, 'Preparing')
     assert.equal(t.sent.length, 1, 'expected the confirmation once the webhook landed')
     const [msg] = t.sent
-    assert.match(String(msg.subject), /Order Has Been Placed/)
+    assert.match(String(msg.subject), /We've got your order/)
     assert.ok(
-      (msg.html ?? '').includes('prepared for shipment'),
+      (msg.html ?? '').includes('preparing your order for shipment'),
       'the sale template did not render'
     )
     assert.ok(msg.attachments, 'the confirmation carries no attachments at all')
