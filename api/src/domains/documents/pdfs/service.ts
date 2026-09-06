@@ -15,18 +15,18 @@ import {
   qty,
 } from '#documents/pdfs/render/sections.ts'
 import type { PackageDetails } from '#documents/pdfs/render/sections.ts'
-import type { OrderView, OrderViewItem, OrderPricing } from '@dorado/contracts'
+import type { OrderView, OrderLotView, OrderPricing } from '@dorado/contracts'
 
 export type { PackageDetails } from '#documents/pdfs/render/sections.ts'
 
 const inboundShipment = (order: OrderView): OrderView['shipments'][number] | null =>
   order.shipments.find((s) => s.direction !== 'Return') ?? null
 
-const scrapLines = (lines: OrderViewItem[]): OrderViewItem[] =>
-  lines.filter((line) => line.bullion_id === null)
+const scrapLines = (lines: OrderLotView[]): OrderLotView[] =>
+  lines.filter((line) => line.lot.bullion_id === null)
 
-const bullionLines = (lines: OrderViewItem[]): OrderViewItem[] =>
-  lines.filter((line) => line.bullion_id !== null)
+const bullionLines = (lines: OrderLotView[]): OrderLotView[] =>
+  lines.filter((line) => line.lot.bullion_id !== null)
 
 // A document is the order view plus what pricing answered for it. Both are one
 // SQL read parsed by its contract - there is no third bag of labels, spot maps
@@ -49,8 +49,8 @@ export function buildPackingListHtml({
 }: PurchaseDocument): string {
   const total = pricing.total
 
-  const scrapRows = buildPackingScrapRows(scrapLines(order.items), pricing.items)
-  const bullionRows = buildPackingBullionRows(bullionLines(order.items), pricing.items)
+  const scrapRows = buildPackingScrapRows(scrapLines(order.lots), pricing.items)
+  const bullionRows = buildPackingBullionRows(bullionLines(order.lots), pricing.items)
 
   const shipment = inboundShipment(order)
   const packageLabel = box?.label ?? shipment?.package_label ?? null
@@ -217,8 +217,8 @@ export function buildReturnPackingListHtml({ order, pricing }: PurchaseDocument)
   const outbound = returnShipment(order)
   const total = (inboundShipment(order)?.cost ?? 0) + (outbound?.cost ?? 0)
 
-  const scrapRows = buildPackingScrapRows(scrapLines(order.items), pricing.items)
-  const bullionRows = buildPackingBullionRows(bullionLines(order.items), pricing.items)
+  const scrapRows = buildPackingScrapRows(scrapLines(order.lots), pricing.items)
+  const bullionRows = buildPackingBullionRows(bullionLines(order.lots), pricing.items)
 
   const shippingSection = renderPackingShippingSection(order, true, false, 0)
 
@@ -291,8 +291,8 @@ export function buildInvoiceHtml({ order, pricing }: PurchaseDocument): string {
   const total = pricing.total
   const payoutCost = pricing.payout_fee
 
-  const scrap = scrapLines(order.items)
-  const bullion = bullionLines(order.items)
+  const scrap = scrapLines(order.lots)
+  const bullion = bullionLines(order.lots)
   const scrapRows = buildInvoiceScrapRows(scrap, pricing.items)
   const bullionRows = buildInvoiceBullionRows(bullion, pricing.items)
   const scrapTotal = pricing.scrap_total
@@ -416,13 +416,13 @@ const money = (value: number | null | undefined): string =>
 export function buildSalesOrderInvoiceHtml({ order, pricing }: SalesDocument): string {
   const doneStatus = ['Preparing', 'In Transit', 'Completed']
 
-  const bullionItems = bullionLines(order.items)
+  const bullionItems = bullionLines(order.lots)
     .map(
       (line) => `
         <tr>
-          <td class="text-left">${line.product_name || 'Bullion Product'}</td>
-          <td>${qty(line.quantity)}</td>
-          <td>${line.content != null ? `${line.content.toFixed(3)} t oz` : '&mdash;'}</td>
+          <td class="text-left">${line.lot.product_name || 'Bullion Product'}</td>
+          <td>${qty(line.lot.quantity)}</td>
+          <td>${line.lot.content != null ? `${line.lot.content.toFixed(3)} t oz` : '&mdash;'}</td>
           <td class="text-right">
             ${money(pricing.items.find((p) => p.id === line.id)?.line_total)}
           </td>
@@ -475,7 +475,7 @@ export function buildSalesOrderInvoiceHtml({ order, pricing }: SalesDocument): s
           </div>
           <div class="detail-row">
             <span class="detail-label">Items:</span>
-            <span class="detail-value">${order.items.length}</span>
+            <span class="detail-value">${order.lots.length}</span>
           </div>
         </div>
       </div>

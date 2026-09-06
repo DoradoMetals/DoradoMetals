@@ -34,6 +34,13 @@ const LANES: { dir: string; forbidden: string[]; why: string }[] = [
     forbidden: ['checkout'],
     why: "a draft belongs to a checkout; the checkout's own columns are its own",
   },
+  {
+    dir: 'refining',
+    forbidden: ['checkout', 'fulfillments'],
+    why:
+      'a refiner order joins a customer order through the LOT and nothing else ' +
+      '(ruling 42); its handover is logistics\' to describe',
+  },
 ]
 
 const ACCEPTED: Record<string, { count: number; why: string }> = {
@@ -394,7 +401,9 @@ for (const lane of LANES) {
   }
 }
 
-const FLOOR = Number(process.env.LINT_DOMAIN_BOUNDARIES_FLOOR ?? 50)
+// Was 50 until the lots build deleted orders/items and orders/refiners - 13
+// files - and added the five of domains/refining.
+const FLOOR = Number(process.env.LINT_DOMAIN_BOUNDARIES_FLOOR ?? 40)
 if (scanned < FLOOR) {
   console.error(
     `lint:domain-boundaries scanned ${scanned} file(s), fewer files than the lanes ` +

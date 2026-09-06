@@ -2,7 +2,7 @@ import { formatPhoneNumber } from '#shared/utils/formatPhoneNumber.ts'
 import { formatCurrency, getPayoutDelay } from '#documents/pdfs/render/format.ts'
 import type {
   OrderView,
-  OrderViewItem,
+  OrderLotView,
   OrderPricingLine,
   OrderPricingSpot,
 } from '@dorado/contracts'
@@ -29,7 +29,7 @@ const packageOf = (shipment: OrderView['shipments'][number] | null): string =>
 // A priced line is read out of the rows the pricing domain answered with. The
 // list is one order's lines - a handful - and reading one with .find is what
 // the profit rewrite settled on rather than a per-call index.
-const priceFor = (prices: OrderPricingLine[], line: OrderViewItem): OrderPricingLine | undefined =>
+const priceFor = (prices: OrderPricingLine[], line: OrderLotView): OrderPricingLine | undefined =>
   prices.find((p) => p.id === line.id)
 
 export function returnShipment(order: OrderView): OrderView['shipments'][number] | null {
@@ -111,7 +111,7 @@ export function renderInvoiceHeader(
           </div>
           <div class="invoice-card-row">
             <span>Items:</span>
-            <span>${order.items.length}</span>
+            <span>${order.lots.length}</span>
           </div>
         </div>
       </div>
@@ -336,16 +336,16 @@ export function renderOrderSummaryTable(order: OrderView, totalDisplay: string):
   `
 }
 
-export function buildPackingScrapRows(lines: OrderViewItem[], prices: OrderPricingLine[]): string {
+export function buildPackingScrapRows(lines: OrderLotView[], prices: OrderPricingLine[]): string {
   return lines
     .map((line) => {
       const price = priceFor(prices, line)?.unit_price
       return `
         <tr>
-          <td>${line.item_name ?? 'Scrap Item'}</td>
-          <td>${line.pre_melt ?? '-'} ${line.unit ?? ''}</td>
-          <td>${pct(line.purity)}</td>
-          <td>${oz(line.content)}</td>
+          <td>${line.lot.reference ?? 'Scrap Item'}</td>
+          <td>${line.lot.pre_melt ?? '-'} ${line.lot.unit ?? ''}</td>
+          <td>${pct(line.lot.purity)}</td>
+          <td>${oz(line.lot.content)}</td>
           <td>${pct(line.premium)}</td>
           <td>${price ? formatCurrency(price) : '-'}</td>
         </tr>`
@@ -354,7 +354,7 @@ export function buildPackingScrapRows(lines: OrderViewItem[], prices: OrderPrici
 }
 
 export function buildPackingBullionRows(
-  lines: OrderViewItem[],
+  lines: OrderLotView[],
   prices: OrderPricingLine[]
 ): string {
   return lines
@@ -362,27 +362,27 @@ export function buildPackingBullionRows(
       const total = priceFor(prices, line)?.line_total
       return `
         <tr>
-          <td>${line.product_name || 'Bullion Product'}</td>
-          <td>${line.metal_id}</td>
-          <td>${qty(line.quantity)}</td>
-          <td>${line.content ?? '-'}</td>
+          <td>${line.lot.product_name || 'Bullion Product'}</td>
+          <td>${line.lot.metal_id}</td>
+          <td>${qty(line.lot.quantity)}</td>
+          <td>${line.lot.content ?? '-'}</td>
           <td>${total ? formatCurrency(total) : '-'}</td>
         </tr>`
     })
     .join('')
 }
 
-export function buildInvoiceScrapRows(lines: OrderViewItem[], prices: OrderPricingLine[]): string {
+export function buildInvoiceScrapRows(lines: OrderLotView[], prices: OrderPricingLine[]): string {
   return lines
     .map((line) => {
       const price = priceFor(prices, line)?.unit_price
       return `
         <tr>
-          <td class="text-left">${line.item_name ?? 'Scrap Item'}</td>
-          <td>${line.pre_melt ?? '-'} ${line.unit ?? ''}</td>
-          <td>${line.post_melt ?? line.pre_melt ?? '-'} ${line.unit ?? ''}</td>
-          <td>${pct(line.purity)}</td>
-          <td>${line.content != null ? `${line.content.toFixed(3)} t oz` : '&mdash;'}</td>
+          <td class="text-left">${line.lot.reference ?? 'Scrap Item'}</td>
+          <td>${line.lot.pre_melt ?? '-'} ${line.lot.unit ?? ''}</td>
+          <td>${line.lot.post_melt ?? line.lot.pre_melt ?? '-'} ${line.lot.unit ?? ''}</td>
+          <td>${pct(line.lot.purity)}</td>
+          <td>${line.lot.content != null ? `${line.lot.content.toFixed(3)} t oz` : '&mdash;'}</td>
           <td>${pct(line.premium)}</td>
           <td class="text-right">${price ? formatCurrency(price) : '-'}</td>
         </tr>`
@@ -391,7 +391,7 @@ export function buildInvoiceScrapRows(lines: OrderViewItem[], prices: OrderPrici
 }
 
 export function buildInvoiceBullionRows(
-  lines: OrderViewItem[],
+  lines: OrderLotView[],
   prices: OrderPricingLine[]
 ): string {
   return lines
@@ -399,9 +399,9 @@ export function buildInvoiceBullionRows(
       const total = priceFor(prices, line)?.line_total
       return `
         <tr>
-          <td class="text-left">${line.product_name || 'Bullion Product'}</td>
-          <td>${qty(line.quantity)}</td>
-          <td>${line.content != null ? `${line.content.toFixed(3)} t oz` : '&mdash;'}</td>
+          <td class="text-left">${line.lot.product_name || 'Bullion Product'}</td>
+          <td>${qty(line.lot.quantity)}</td>
+          <td>${line.lot.content != null ? `${line.lot.content.toFixed(3)} t oz` : '&mdash;'}</td>
           <td>${line.premium != null ? `${pct(line.premium)} of spot` : '&mdash;'}</td>
           <td class="text-right">${total ? formatCurrency(total) : '-'}</td>
         </tr>`

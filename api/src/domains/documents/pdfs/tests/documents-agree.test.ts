@@ -11,10 +11,10 @@ import {
   buildSalesOrderInvoiceHtml,
 } from '#documents/pdfs/service.ts'
 import { LOCKS } from '#shared/testing/locks.ts'
-import type { OrderView, OrderViewItem, OrderPricingLine } from '@dorado/contracts'
+import type { OrderView, OrderLotView, OrderPricingLine } from '@dorado/contracts'
 
-const scrapLines = (lines: OrderViewItem[]): OrderViewItem[] =>
-  lines.filter((line) => line.bullion_id === null)
+const scrapLines = (lines: OrderLotView[]): OrderLotView[] =>
+  lines.filter((line) => line.lot.bullion_id === null)
 
 let orders: OrderView[]
 let lockClient: PoolClient
@@ -45,7 +45,7 @@ test("every order's packing list and invoice quote the same premiums", async () 
   let compared = 0
 
   for (const order of orders) {
-    const scrap = scrapLines(order.items)
+    const scrap = scrapLines(order.lots)
     if (!scrap.length) continue
 
     const own = await inputs.invoiceInputs(order.order.id)
@@ -75,17 +75,22 @@ test('a line with no premium renders unpriced on both documents, not differently
   const line = {
     id: 'line-1',
     order_id: 'order-1',
-    bullion_id: null,
-    metal_id: GOLD,
+    lot_id: 'lot-1',
     price: null,
     premium: null,
-    quantity: 1,
-    content: 1,
-    purity: 0.999,
-    pre_melt: 1,
-    post_melt: 1,
-    unit: 't oz',
-  } as unknown as OrderViewItem
+    lot: {
+      id: 'lot-1',
+      bullion_id: null,
+      metal_id: GOLD,
+      quantity: 1,
+      content: 1,
+      purity: 0.999,
+      pre_melt: 1,
+      post_melt: 1,
+      unit: 't oz',
+      reference: 'Lot 1-A',
+    },
+  } as unknown as OrderLotView
 
   const prices: OrderPricingLine[] = []
 

@@ -5,8 +5,9 @@ import type {
   AdminOrderCreate,
   OrderCancelBody,
   OrderCreateBody,
-  OrderItem,
-  OrderItemPatch,
+  OrderLotView,
+  LotSplit,
+  OrderLotPatch,
   OrderPatch,
   OrderSpotsPutBody,
   OrderView,
@@ -62,11 +63,20 @@ export function useCreateOrderReview() {
   })
 }
 
-export function useFinalizePricing() {
+export function useFinalizeOrder() {
   const client = useQueryClient()
   return useMutation({
     mutationFn: async ({ id }: { id: string }) =>
-      await apiRequest<OrderView>('POST', `/orders/${id}/finalize_pricing`),
+      await apiRequest<OrderView>('POST', `/orders/${id}/finalize`),
+    onSuccess: (view) => absorb(client, view),
+  })
+}
+
+export function useReopenOrder() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id }: { id: string }) =>
+      await apiRequest<OrderView>('POST', `/orders/${id}/reopen`),
     onSuccess: (view) => absorb(client, view),
   })
 }
@@ -89,45 +99,45 @@ export function useCancelOrder() {
   })
 }
 
-export function useSendToRefiner() {
+export function useCreateOrderLot() {
   const client = useQueryClient()
   return useMutation({
-    mutationFn: async ({ id, refiner_id }: { id: string; refiner_id: string }) =>
-      await apiRequest<OrderView>('POST', `/orders/${id}/send_to_refiner`, { refiner_id }),
-    onSuccess: (view) => absorb(client, view),
-  })
-}
-
-export function useCreateOrderItem() {
-  const client = useQueryClient()
-  return useMutation({
-    mutationFn: async ({ order_id, patch }: { order_id: string; patch: OrderItemPatch }) =>
-      await apiRequest<OrderItem>('POST', `/orders/${order_id}/items`, patch),
+    mutationFn: async ({ order_id, patch }: { order_id: string; patch: OrderLotPatch }) =>
+      await apiRequest<OrderLotView>('POST', `/orders/${order_id}/lots`, patch),
     onSuccess: (_line, { order_id }) => invalidateOrder(client, order_id),
   })
 }
 
-export function usePatchOrderItem() {
+export function usePatchOrderLot() {
   const client = useQueryClient()
   return useMutation({
     mutationFn: async ({
-      item_id,
+      lot_id,
       patch,
     }: {
-      item_id: string
+      lot_id: string
       order_id: string
-      patch: OrderItemPatch
-    }) => await apiRequest<OrderItem>('PATCH', `/orders/items/${item_id}`, patch),
+      patch: OrderLotPatch
+    }) => await apiRequest<OrderLotView>('PATCH', `/orders/lots/${lot_id}`, patch),
     onSuccess: (_line, { order_id }) => invalidateOrder(client, order_id),
   })
 }
 
-export function useDeleteOrderItem() {
+export function useDeleteOrderLot() {
   const client = useQueryClient()
   return useMutation({
-    mutationFn: async ({ item_id }: { item_id: string; order_id: string }) =>
-      await apiRequest<{ success: true }>('DELETE', `/orders/items/${item_id}`),
+    mutationFn: async ({ lot_id }: { lot_id: string; order_id: string }) =>
+      await apiRequest<void>('DELETE', `/orders/lots/${lot_id}`),
     onSuccess: (_answer, { order_id }) => invalidateOrder(client, order_id),
+  })
+}
+
+export function useSplitOrderLot() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ lot_id, body }: { lot_id: string; order_id: string; body: LotSplit }) =>
+      await apiRequest<OrderLotView[]>('POST', `/orders/lots/${lot_id}/split`, body),
+    onSuccess: (_lines, { order_id }) => invalidateOrder(client, order_id),
   })
 }
 

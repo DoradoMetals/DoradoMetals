@@ -111,7 +111,7 @@ await checkoutService.saveCheckoutPayout(user_id, 'purchase', {
   payout_email: E2E_CUSTOMER.email,
   account_holder_name: E2E_CUSTOMER.name,
 })
-await checkoutService.replaceItems(user_id, 'purchase', [
+await checkoutService.replaceLots(user_id, 'purchase', [
   { bullion_id: products[0].id, quantity: 1 },
 ])
 

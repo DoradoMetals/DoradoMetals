@@ -74,14 +74,14 @@ const startsPdf = (content: string | Buffer | Uint8Array, what: string) => {
 }
 
 const anOrderWithAUser = () => {
-  const order = orders.find((o) => o.user?.email && o.items.length > 0) ?? orders[0]
+  const order = orders.find((o) => o.user?.email && o.lots.length > 0) ?? orders[0]
   assert.ok(order, 'dev has no purchase order to email')
   assert.ok(order.user?.email, `order ${order.order.id} has no email address to send to`)
   return { order, email: order.user!.email }
 }
 
 const aSaleOrderWithAUser = () => {
-  const order = salesOrders.find((o) => o.user?.email && o.items.length > 0) ?? salesOrders[0]
+  const order = salesOrders.find((o) => o.user?.email && o.lots.length > 0) ?? salesOrders[0]
   assert.ok(order, 'dev has no sales order to email')
   assert.ok(order.user?.email, `order ${order.order.id} has no email address to send to`)
   return { order, email: order.user!.email }
@@ -156,7 +156,7 @@ test('the pricing notice carries the invoice, named for the same order', async (
 })
 
 test("the refiner's copy goes to the address it was given, not the customer's", async () => {
-  const order = salesOrders.find((o) => o.items.length > 0) ?? salesOrders[0]
+  const order = salesOrders.find((o) => o.lots.length > 0) ?? salesOrders[0]
   assert.ok(order, 'dev has no sales orders')
   const t = recorder()
 

@@ -244,7 +244,7 @@ console.log(
   `${listReturning.size} feature(s) with ${fnCount} list-returning repo function(s) known`
 )
 
-const CONTROL = process.env.LINT_ROW_CONTROL ?? 'checkout/items'
+const CONTROL = process.env.LINT_ROW_CONTROL ?? 'checkout/lots'
 if (!listReturning.has(CONTROL)) {
   console.error(
     `the known-present control "${CONTROL}" contributed no list-returning repo ` +

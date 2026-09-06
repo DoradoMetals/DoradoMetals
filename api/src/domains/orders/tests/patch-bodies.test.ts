@@ -76,7 +76,7 @@ test("the order PATCH is the row's own columns, and the four actions are not amo
   assert.equal(OrderPatch.safeParse({ status: 'Received' }).success, true)
   assert.equal(OrderPatch.safeParse({ notes: 'left on the porch' }).success, true)
   assert.equal(OrderPatch.safeParse({ notes: null }).success, true)
-  for (const action of ['add_funds', 'finalize_pricing', 'cancel', 'supplier']) {
+  for (const action of ['add_funds', 'finalize', 'cancel', 'supplier']) {
     refusesField(OrderPatch, { [action]: true }, action)
   }
 })

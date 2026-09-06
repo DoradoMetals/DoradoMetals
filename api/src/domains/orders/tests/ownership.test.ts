@@ -60,7 +60,7 @@ test("a plain user cannot finalize an order's pricing, even their own", async ()
       await as(victim, async () => {
         const res = await request(app)
           .patch(`/api/orders/${order.id}`)
-          .send({ finalize_pricing: true })
+          .send({ finalize: true })
         assert.equal(res.status, 403, `answered ${res.status} - a customer priced an order`)
       })
     },

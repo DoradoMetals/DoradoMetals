@@ -17,7 +17,8 @@ import * as shipmentService from '#logistics/shipping/shipments/service.ts'
 import * as packagesRepo from '#db/shipping/packages/repo.ts'
 import * as shipmentsRepo from '#db/shipping/shipments/repo.ts'
 import * as servicesService from '#logistics/shipping/services/service.ts'
-import * as itemsRepo from '#db/orders/items/repo.ts'
+import * as lotsRepo from '#db/lots/items/repo.ts'
+import * as orderLots from '#db/orders/lots/repo.ts'
 import { parcelWeightLb } from '#logistics/shipping/rules.ts'
 
 await mockSessions()
@@ -46,7 +47,10 @@ async function anUnlabelledParcel(c: PoolClient) {
   )
 
   const box = await packagesRepo.getOne(package_id, c)
-  const items = await itemsRepo.getFor(order.id, c)
+  const items = await lotsRepo.getByIds(
+    (await orderLots.getFor(order.id, c)).map((row) => row.lot_id),
+    c
+  )
   return {
     order_id: order.id,
     shipment_id: shipment.id,

@@ -23,18 +23,19 @@ export const Order = z.object({
   'order_sent': z.boolean().nullable(),
   'tracking_updated': z.boolean().nullable(),
   'spots_locked': z.boolean(),
+  'assigned_to_id': z.string().uuid().nullable(),
 })
 export type Order = z.infer<typeof Order>
 // generated:end
 import { OrderTotals } from './transactions.js'
-import { OrderViewItem } from './items.js'
+import { OrderLotView } from './lots.js'
 import { Address } from '../places/addresses.js'
 import { OrderViewShipment } from '../shipping/shipments.js'
 import { ShipmentPickup } from '../shipping/pickups.js'
 import { OrderViewPayout } from '../payments/details.js'
 import { User, UserSummary } from '../auth/users.js'
 import { Checkout, CheckoutPayoutForm } from '../checkout/checkouts.js'
-import { CheckoutItemPatch } from '../checkout/items.js'
+import { CheckoutLotPatch } from '../checkout/lots.js'
 import { FulfillmentMethod } from '../fulfillments/methods.js'
 import { FulfillmentPatchBody } from '../fulfillments/fulfillments.js'
 import { CarrierService } from '../shipping/services.js'
@@ -58,7 +59,7 @@ export const OrderViewFacts = z
   .object({
     order: Order,
     totals: OrderTotals.nullable(),
-    items: z.array(OrderViewItem),
+    lots: z.array(OrderLotView),
     address: Address.nullable(),
     shipments: z.array(OrderViewShipmentDetail),
     pickup: ShipmentPickup.nullable(),
@@ -76,7 +77,9 @@ export type OrderViewFacts = z.infer<typeof OrderViewFacts>
 export const OrderView = OrderViewFacts.extend({ actions: OrderActions })
 export type OrderView = z.infer<typeof OrderView>
 
-export const OrderPatch = Order.pick({ status: true, notes: true }).partial().strict()
+export const OrderPatch = Order.pick({ status: true, notes: true, assigned_to_id: true })
+  .partial()
+  .strict()
 export type OrderPatch = z.infer<typeof OrderPatch>
 
 export const OrderCreateBody = z.object({ checkout_id: Checkout.shape.id }).strict()
@@ -98,7 +101,7 @@ export const AdminPurchaseCreate = z
   .object({
     direction: Direction.extract(['purchase']),
     user_id: User.shape.id,
-    items: z.array(CheckoutItemPatch),
+    lots: z.array(CheckoutLotPatch),
     fulfillment: AdminOrderFulfillment,
     payout: CheckoutPayoutForm,
   })
@@ -109,7 +112,7 @@ export const AdminSaleCreate = z
   .object({
     direction: Direction.extract(['sale']),
     user_id: User.shape.id,
-    items: z.array(CheckoutItemPatch),
+    lots: z.array(CheckoutLotPatch),
     fulfillment: AdminOrderFulfillment,
     payment_method_id: Checkout.shape.payment_method_id.unwrap(),
     recipient_address_id: Checkout.shape.recipient_address_id.unwrap(),
@@ -131,12 +134,12 @@ export const OrderCancelBody = z
   .strict()
 export type OrderCancelBody = z.infer<typeof OrderCancelBody>
 
-export const OrderSendToRefinerBody = z
+export const OrderSupplyBody = z
   .object({
     refiner_id: Refiner.shape.id,
   })
   .strict()
-export type OrderSendToRefinerBody = z.infer<typeof OrderSendToRefinerBody>
+export type OrderSupplyBody = z.infer<typeof OrderSupplyBody>
 
 export const OrderWrite = Order.omit({
   id: true,

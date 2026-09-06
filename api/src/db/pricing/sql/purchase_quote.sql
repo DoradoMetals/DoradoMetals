@@ -5,19 +5,19 @@ WITH checkout AS (
      AND c.direction = 'purchase'
 ),
 lines AS (
-  SELECT ci.id,
-         ci.bullion_id,
-         ci.metal_id,
-         COALESCE(ci.content, 0) AS content,
-         COALESCE(ci.quantity, 1) AS quantity,
-         ci.premium AS stored_premium,
+  SELECT li.id,
+         li.bullion_id,
+         li.metal_id,
+         COALESCE(li.content, 0) AS content,
+         li.quantity,
          s.bid AS bid,
-         CASE WHEN ci.bullion_id IS NULL
-              THEN COALESCE(ci.content, 0)
-              ELSE COALESCE(ci.content, 0) * COALESCE(ci.quantity, 1) END AS weighed
-    FROM checkout.items ci
-    JOIN checkout ON checkout.id = ci.checkout_id
-    LEFT JOIN spots.spots s ON s.metal_id = ci.metal_id
+         CASE WHEN li.bullion_id IS NULL
+              THEN COALESCE(li.content, 0)
+              ELSE COALESCE(li.content, 0) * li.quantity END AS weighed
+    FROM checkout.lots cl
+    JOIN lots.items li ON li.id = cl.lot_id
+    JOIN checkout ON checkout.id = cl.checkout_id
+    LEFT JOIN spots.spots s ON s.metal_id = li.metal_id
 ),
 by_metal AS (
   SELECT metal_id, sum(weighed) AS total
@@ -54,8 +54,8 @@ priced AS (
          t.metal_id,
          t.content,
          t.quantity,
-         COALESCE(t.band_pct, t.stored_premium, 0) AS premium,
-         t.content * (COALESCE(t.bid, 0) * COALESCE(t.band_pct, t.stored_premium, 0)) AS unit_price,
+         COALESCE(t.band_pct, 0) AS premium,
+         t.content * (COALESCE(t.bid, 0) * COALESCE(t.band_pct, 0)) AS unit_price,
          t.bid,
          t.bullion_id
     FROM tiered t

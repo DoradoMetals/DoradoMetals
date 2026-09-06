@@ -66,7 +66,7 @@ const isPdf = (buf: Uint8Array, what: string) => {
 }
 
 test('every document renders for a real order', async () => {
-  const order = orders.find((o) => o.items.length > 0) ?? orders[0]
+  const order = orders.find((o) => o.lots.length > 0) ?? orders[0]
   const own = await inputsFor(order)
 
   isPdf(
@@ -83,13 +83,13 @@ test('every document renders for a real order', async () => {
 })
 
 test('a packing list renders with no package details', async () => {
-  const order = orders.find((o) => o.items.length > 0) ?? orders[0]
+  const order = orders.find((o) => o.lots.length > 0) ?? orders[0]
   const own = await inputsFor(order)
   isPdf(await pdf.generatePackingList(own), 'packing list without package details')
 })
 
 test('a sales order invoice renders', async () => {
-  const order = salesOrders.find((o) => o.items.length > 0) ?? salesOrders[0]
+  const order = salesOrders.find((o) => o.lots.length > 0) ?? salesOrders[0]
   assert.ok(order, 'dev has no sales orders to render')
   isPdf(
     await pdf.generateSalesOrderInvoice(await inputs.salesOrderInvoiceInputs(order.order.id)),
@@ -149,7 +149,7 @@ test('a packing list with no package details draws no box, rather than a broken 
 })
 
 test('a sales order invoice builds with no spot prices at all', async () => {
-  const order = salesOrders.find((o) => o.items.length > 0) ?? salesOrders[0]
+  const order = salesOrders.find((o) => o.lots.length > 0) ?? salesOrders[0]
   assert.ok(order, 'dev has no sales order')
   const salePricing = await pricing.priceOrder(order.order.id)
 
@@ -200,14 +200,14 @@ test('the packing list and the invoice report the same total', async () => {
 test('every order item appears as a row in the packing list', async () => {
   const missing: string[] = []
   for (const order of orders) {
-    if (!order.items.length) continue
+    if (!order.lots.length) continue
 
     const own = await inputsFor(order)
     const html = pdf.buildPackingListHtml(own)
     const rows = (html.match(/<tr>/g) ?? []).length
 
-    if (rows < order.items.length) {
-      missing.push(`order ${order.order.number}: ${order.items.length} items but only ${rows} rows`)
+    if (rows < order.lots.length) {
+      missing.push(`order ${order.order.number}: ${order.lots.length} items but only ${rows} rows`)
     }
   }
   assert.deepEqual(missing, [])
@@ -226,9 +226,7 @@ test('a scrap line with no recorded weight, purity or quantity shows a dash, nev
       pre_melt: null,
       post_melt: null,
       purity: null,
-      content: null,
       premium: null,
-      quantity: null,
       unit: 'g',
     })
 

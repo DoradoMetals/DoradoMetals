@@ -1,8 +1,10 @@
 export const NATIVE_SCHEMAS = [
   'auth',
   'checkout',
+  'crm',
   'fulfillments',
   'leads',
+  'lots',
   'media',
   'metals',
   'orders',
@@ -12,6 +14,7 @@ export const NATIVE_SCHEMAS = [
   'products',
   'rates',
   'refiners',
+  'refining',
   'reviews',
   'shipping',
   'spots',

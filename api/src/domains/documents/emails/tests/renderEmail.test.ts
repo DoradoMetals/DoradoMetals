@@ -19,14 +19,18 @@ const order = (over: Record<string, unknown> = {}): OrderView =>
         zip: '75201',
       },
       user: { id: 'u1', name: 'Jacob', email: 'jacob@example.com' },
-      items: [
+      lots: [
         {
           id: 'line-1',
-          bullion_id: 'prod-1',
-          metal_id: GOLD,
-          quantity: 2,
+          lot_id: 'lot-1',
           price: 100,
-          product_name: '1 oz Gold Eagle',
+          lot: {
+            id: 'lot-1',
+            bullion_id: 'prod-1',
+            metal_id: GOLD,
+            quantity: 2,
+            product_name: '1 oz Gold Eagle',
+          },
         },
       ],
       shipments: [],

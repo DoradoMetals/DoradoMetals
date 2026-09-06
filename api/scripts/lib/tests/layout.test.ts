@@ -39,7 +39,7 @@ test('db, shared and providers are layers, not domains', () => {
   assert.deepEqual(domainDirs(root), [])
 })
 
-test("the api's own manifest yields the nine domains of ruling 84", () => {
+test("the api's own manifest yields the domains of ruling 84, plus refining", () => {
   assert.deepEqual(domainDirs(API), [
     'domains/accounts',
     'domains/catalog',
@@ -49,6 +49,7 @@ test("the api's own manifest yields the nine domains of ruling 84", () => {
     'domains/logistics',
     'domains/orders',
     'domains/pricing',
+    'domains/refining',
     'domains/transactions',
   ])
 })

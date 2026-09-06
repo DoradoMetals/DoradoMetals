@@ -162,7 +162,7 @@ export async function getFulfillmentRates(fulfillment_id: string): Promise<Check
 
   const checkout = await checkoutService.ownerOfFulfillment(fulfillment_id)
   shippingRules.assertRatableCheckout(checkout, fulfillment_id)
-  const cart = await checkoutService.getItemsForOrder(checkout.id)
+  const cart = await checkoutService.lotsFor(checkout.id)
   shippingRules.assertRatableCart(cart.length)
 
   shippingRules.assertPackageChosen(parcel.package_id)

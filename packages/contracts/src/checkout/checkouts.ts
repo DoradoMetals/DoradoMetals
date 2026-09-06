@@ -19,7 +19,7 @@ export type Checkout = z.infer<typeof Checkout>
 // generated:end
 import { FulfillmentStep } from '../fulfillments/fulfillments.js'
 import { PaymentDetails } from '../payments/details.js'
-import { CheckoutItem } from './items.js'
+import { Lot } from '../lots/items.js'
 
 export const CheckoutPatch = Checkout.pick({
   payment_method_id: true,
@@ -56,7 +56,7 @@ export const CheckoutPayoutBody = CheckoutPayoutForm.extend({ direction: Directi
 export type CheckoutPayoutBody = z.infer<typeof CheckoutPayoutBody>
 
 export const CheckoutStep = z.enum([
-  'items',
+  'lots',
   'fulfillment_id',
   'recipient_address_id',
   'payment_details_id',
@@ -66,7 +66,7 @@ export type CheckoutStep = z.infer<typeof CheckoutStep>
 export const CheckoutMissing = z.union([CheckoutStep, FulfillmentStep])
 export type CheckoutMissing = z.infer<typeof CheckoutMissing>
 
-export const CheckoutViewFacts = Checkout.extend({ items: z.array(CheckoutItem) })
+export const CheckoutViewFacts = Checkout.extend({ lots: z.array(Lot) })
 export type CheckoutViewFacts = z.infer<typeof CheckoutViewFacts>
 
 export const CheckoutDecisions = z.object({ missing: z.array(CheckoutMissing) })

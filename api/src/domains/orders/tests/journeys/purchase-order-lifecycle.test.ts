@@ -31,32 +31,34 @@ test('a purchase order walks pricing, funds and status, and the money facts agre
       await c.query(`UPDATE orders.orders SET spots_locked = true WHERE id = $1`, [order.id])
       await orders.retierPremiums(order.id, c)
 
-      const before = await asAdmin(admin, () => request(app).get(`/api/orders/${order.id}/items`))
+      const before = await asAdmin(admin, () => request(app).get(`/api/orders/${order.id}/lots`))
       assert.equal(before.status, 200, before.text)
       for (const line of before.body) {
         const confirmed = await asAdmin(admin, () =>
-          request(app).patch(`/api/orders/items/${line.id}`).send({ confirmed: true })
+          request(app).patch(`/api/orders/lots/${line.id}`).send({ confirmed: true })
         )
         assert.equal(confirmed.status, 200, confirmed.text)
       }
 
       const priced = await asAdmin(admin, () =>
-        request(app).post(`/api/orders/${order.id}/finalize_pricing`)
+        request(app).post(`/api/orders/${order.id}/finalize`)
       )
       assert.equal(priced.status, 200, priced.text)
-      assert.ok(priced.body.order.spots_locked, 'finalize_pricing did not lock the spots')
+      assert.ok(priced.body.order.spots_locked, 'finalize did not lock the spots')
       const total = Number(priced.body.totals?.total)
-      assert.ok(total > 0, 'finalize_pricing wrote no positive total')
+      assert.ok(total > 0, 'finalize wrote no positive total')
 
-      for (const line of priced.body.items) {
-        assert.equal(line.payable, Number(line.content) * Number(line.premium))
+      for (const line of priced.body.lots) {
+        assert.equal(line.payable, Number(line.lot.content) * Number(line.premium))
         assert.equal(line.line_total, Number(line.price))
       }
 
       const actions = priced.body.actions
-      assert.equal(actions.finalize_pricing, true)
-      assert.equal(actions.edit_lines, true)
-      assert.equal(actions.send_to_refiner, false)
+      // Finalized: the spots are locked, so Finalize is spent and the lots are
+      // read-only (Jacob's Sep 4-5 notes, section 4).
+      assert.equal(actions.finalize, false)
+      assert.equal(actions.edit_lots, false)
+      assert.equal(actions.supply, false)
       assert.equal(actions.add_funds, true, 'a DORADO_ACCOUNT payout with a total is creditable')
       assert.deepEqual(actions.statuses, ['Received', 'Cancelled'])
 
@@ -114,7 +116,7 @@ test('a purchase order walks pricing, funds and status, and the money facts agre
   )
 })
 
-test('finalize_pricing and add_funds refuse a sales order - purchase-only actions', async () => {
+test('finalize and add_funds refuse a sales order - purchase-only actions', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
       const admin = await anAdmin(c)
@@ -122,7 +124,7 @@ test('finalize_pricing and add_funds refuse a sales order - purchase-only action
       const order = await anOrder(c, buyer, { direction: 'sale' }).withSpots()
 
       const priced = await asAdmin(admin, () =>
-        request(app).post(`/api/orders/${order.id}/finalize_pricing`)
+        request(app).post(`/api/orders/${order.id}/finalize`)
       )
       assert.equal(priced.status, 422, priced.text)
 

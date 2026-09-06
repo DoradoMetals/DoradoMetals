@@ -6,10 +6,10 @@ import {
   type UseQueryResult,
 } from '@tanstack/react-query'
 import type {
-  CheckoutItem,
+  Lot,
   OrderView,
   Package,
-  CheckoutItemPatch,
+  CheckoutLotPatch,
   CheckoutPatch,
   CheckoutPayoutForm,
   CheckoutView,
@@ -72,53 +72,53 @@ export function useSaveCheckoutPayout(
   })
 }
 
-export function useCheckoutItems(
+export function useCheckoutLots(
   direction: Direction,
   options: ReadOptions & Subject = {}
-): UseQueryResult<CheckoutItem[], Error> {
+): UseQueryResult<Lot[], Error> {
   return useQuery({
-    queryKey: keys.checkout.items(direction, options.user_id),
+    queryKey: keys.checkout.lots(direction, options.user_id),
     enabled: options.enabled ?? true,
     queryFn: () =>
-      apiRequest<CheckoutItem[]>('GET', '/checkout/items', undefined, scope(direction, options)),
+      apiRequest<Lot[]>('GET', '/checkout/lots', undefined, scope(direction, options)),
   })
 }
 
-export function useReplaceCheckoutItems(
+export function useReplaceCheckoutLots(
   direction: Direction
-): UseMutationResult<CheckoutItem[], Error, { items: CheckoutItemPatch[] } & Subject> {
+): UseMutationResult<Lot[], Error, { lots: CheckoutLotPatch[] } & Subject> {
   const client = useQueryClient()
   return useMutation({
-    mutationFn: async ({ items, user_id }: { items: CheckoutItemPatch[] } & Subject) => {
+    mutationFn: async ({ lots, user_id }: { lots: CheckoutLotPatch[] } & Subject) => {
       await ensureSession()
-      return await apiRequest<CheckoutItem[]>(
+      return await apiRequest<Lot[]>(
         'PUT',
-        '/checkout/items',
-        { items },
+        '/checkout/lots',
+        { lots },
         scope(direction, { user_id })
       )
     },
     onSuccess: (rows, { user_id }) => {
-      client.setQueryData(keys.checkout.items(direction, user_id), rows)
+      client.setQueryData(keys.checkout.lots(direction, user_id), rows)
       if (user_id) return
       client.invalidateQueries({ queryKey: keys.checkout.row(direction) })
     },
   })
 }
 
-export function useClearCheckoutItems(
+export function useClearCheckoutLots(
   direction: Direction
 ): UseMutationResult<{ removed: number }, Error, void> {
   const client = useQueryClient()
   return useMutation({
     mutationFn: async () => {
       await ensureSession()
-      return await apiRequest<{ removed: number }>('DELETE', '/checkout/items', undefined, {
+      return await apiRequest<{ removed: number }>('DELETE', '/checkout/lots', undefined, {
         direction,
       })
     },
     onSuccess: () => {
-      client.setQueryData(keys.checkout.items(direction), [])
+      client.setQueryData(keys.checkout.lots(direction), [])
       client.invalidateQueries({ queryKey: keys.checkout.row(direction) })
     },
   })
@@ -145,7 +145,7 @@ export function usePlaceOrderFromCheckout(
     },
     onSettled: () => {
       client.invalidateQueries({ queryKey: keys.checkout.row(direction) })
-      client.invalidateQueries({ queryKey: keys.checkout.items(direction) })
+      client.invalidateQueries({ queryKey: keys.checkout.lots(direction) })
     },
   })
 }

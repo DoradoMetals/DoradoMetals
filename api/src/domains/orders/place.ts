@@ -1,7 +1,7 @@
 import type { PoolClient } from 'pg'
 
 import * as ordersRepo from '#db/orders/repo.ts'
-import * as orderItems from '#db/orders/items/repo.ts'
+import * as orderLots from '#db/orders/lots/repo.ts'
 import * as orderSpots from '#db/orders/spots/repo.ts'
 import * as orderAddresses from '#db/orders/addresses/repo.ts'
 import * as orderTransactions from '#db/orders/transactions/repo.ts'
@@ -18,7 +18,6 @@ import * as emailService from '#documents/emails/service.ts'
 import * as taxService from '#pricing/sales-tax/service.ts'
 import * as paymentsService from '#transactions/service.ts'
 import * as credit from '#transactions/credit/service.ts'
-import * as refinerService from '#orders/refiners/service.ts'
 import * as sweeps from '#transactions/sweeps.ts'
 import * as stripeProvider from '#providers/payment/stripe.ts'
 import * as orderRead from '#orders/read.ts'
@@ -32,10 +31,10 @@ import { attempt } from '#shared/attempt.ts'
 import type {
   AdminOrderCreate,
   Checkout,
-  OrderItem,
-  OrderLine,
+  Lot,
+  OrderLot,
   OrderView,
-  SoldLinePrice,
+  SoldLotPrice,
 } from '@dorado/contracts'
 
 export const LIVE = {
@@ -49,7 +48,7 @@ export async function place(checkout_id: string, world: typeof LIVE = LIVE): Pro
   rules.assertCheckout(checkout, checkout_id)
   await checkoutService.assertRealAccount(checkout.user_id, 'place an order')
   rules.assertPlaceable(await checkoutService.missingFor(checkout_id))
-  const cart = await checkoutService.getItemsForOrder(checkout_id)
+  const cart = await checkoutService.lotsFor(checkout_id)
 
   const order_id =
     checkout.direction === 'sale'
@@ -73,7 +72,7 @@ export async function placeForAdmin(
 
 async function buildFor(order: AdminOrderCreate, tx: PoolClient): Promise<string> {
   const row = await checkoutService.getRowFor(order.user_id, order.direction, tx)
-  await checkoutService.replaceItems(order.user_id, order.direction, order.items, tx)
+  await checkoutService.replaceLots(order.user_id, order.direction, order.lots, tx)
 
   const draft = await fulfillmentDrafts.createForCheckout(
     { checkout_id: row.id, method_id: order.fulfillment.method_id },
@@ -102,8 +101,8 @@ async function buildFor(order: AdminOrderCreate, tx: PoolClient): Promise<string
 async function writeOrder(
   checkout: Checkout,
   status: string,
-  cart: OrderLine[],
-  lines: (order_id: string, tx: PoolClient) => Promise<OrderItem[]>,
+  cart: Lot[],
+  lines: (order_id: string, tx: PoolClient) => Promise<OrderLot[]>,
   tx: PoolClient
 ): Promise<string> {
   const order = await ordersRepo.createForCheckout(checkout.id, status, tx)
@@ -115,11 +114,13 @@ async function writeOrder(
 
   await retierPremiums(order_id, tx)
 
-  rules.assertEveryMetalQuoted(written, await orderSpots.freezeForOrder(order_id, tx))
+  rules.assertEveryMetalQuoted(
+    cart.map((lot) => lot.metal_id),
+    await orderSpots.freezeForOrder(order_id, tx)
+  )
 
   await snapshotAddress(order_id, checkout, tx)
   await fulfillmentService.attachToOrder(checkout.fulfillment_id!, order_id, tx)
-  await refinerService.mirrorForOrder(order_id, tx)
   return order_id
 }
 
@@ -143,7 +144,7 @@ async function snapshotAddress(
 
 async function placePurchase(
   checkout: Checkout,
-  cart: OrderLine[],
+  cart: Lot[],
   world: typeof LIVE
 ): Promise<string> {
   const draft = rules.requireFreeFulfillmentDraft(
@@ -164,7 +165,7 @@ async function placePurchase(
       checkout,
       'In Transit',
       cart,
-      (id, client) => orderItems.createBought(id, checkout.id, client),
+      (id, client) => orderLots.createBought(id, checkout.id, client),
       tx
     )
     rules.assertTotalsWritten(
@@ -182,7 +183,7 @@ async function placePurchase(
   if (placed.shipment_id) await world.buyLabel(placed.shipment_id)
 
   await attempt('clear the purchase basket', () =>
-    checkoutService.clearItems(checkout.user_id, 'purchase')
+    checkoutService.clearLots(checkout.user_id, 'purchase')
   )
   await world.confirm(placed.order_id)
   return placed.order_id
@@ -190,7 +191,7 @@ async function placePurchase(
 
 async function placeSale(
   checkout: Checkout,
-  cart: OrderLine[],
+  cart: Lot[],
   world: typeof LIVE
 ): Promise<string> {
   const address = rules.requireAddress(
@@ -204,8 +205,8 @@ async function placeSale(
   const intent = cents > 0 ? await openIntentFor(checkout.user_id, cents) : null
   const status = rules.statusAtPlacement(cents, intent?.settled === true)
 
-  const lines: SoldLinePrice[] = quote.items.map((line) => ({
-    line_id: line.id,
+  const lines: SoldLotPrice[] = quote.items.map((line) => ({
+    lot_id: line.id,
     premium: line.premium,
     sales_tax: line.sales_tax_rate,
     price: line.unit_ask,
@@ -216,7 +217,7 @@ async function placeSale(
       checkout,
       status,
       cart,
-      (order, client) => orderItems.createSold(order, checkout.id, lines, client),
+      (order, client) => orderLots.createSold(order, checkout.id, lines, client),
       tx
     )
     await orderTransactions.create(

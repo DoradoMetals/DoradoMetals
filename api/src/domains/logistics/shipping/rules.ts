@@ -8,7 +8,7 @@ import type {
   LabelService,
   FulfillmentPickup,
   InsuranceCeiling,
-  OrderItem,
+  Lot,
   Package,
   Parcel,
   ParcelSchedule,
@@ -23,7 +23,7 @@ import type {
 } from '@dorado/contracts'
 
 export function parcelWeightLb(
-  items: Pick<OrderItem, 'pre_melt' | 'unit' | 'quantity'>[],
+  items: Pick<Lot, 'pre_melt' | 'unit' | 'quantity'>[],
   pkg: Pick<Package, 'min_weight_lb'> | null | undefined
 ): number {
   const itemsWeight = items.reduce((sum, item) => {

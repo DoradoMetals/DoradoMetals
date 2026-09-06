@@ -10,7 +10,7 @@ import {
   anAddress,
   aProduct,
   anOrder,
-  aRefinerEngagement,
+  aRefiningOrder,
   aPayout,
   carrierServiceId,
   packageId,
@@ -39,7 +39,7 @@ const anOpenPurchaseOrder = async (c: PoolClient) => {
     .withAddress(address)
     .withFulfillment()
     .withTotals({ total: 1000, payout_fee: 0 })
-  await aRefinerEngagement(c, built)
+  await aRefiningOrder(c, built)
   await aPayout(c, owner, { order: built })
   return {
     order: { id: built.id, user_id: owner.id, status: 'Pending' },
@@ -71,7 +71,7 @@ test("the PATCH takes the order row's own fields, and refuses everything else", 
     async (c: PoolClient) => {
       const { order } = await anOpenPurchaseOrder(c)
       await asAdmin(admin, async () => {
-        for (const named of ['add_funds', 'finalize_pricing', 'cancel', 'supplier']) {
+        for (const named of ['add_funds', 'finalize', 'cancel', 'supplier']) {
           const res = await request(app)
             .patch(`/api/orders/${order.id}`)
             .send({ [named]: true })
@@ -114,15 +114,15 @@ test('an action of the wrong direction is refused, naming the direction', async 
       const { order } = await anOpenPurchaseOrder(c)
       const sale = await anOrder(c, await aUser(c), { direction: 'sale' }).withLots(1)
       await asAdmin(admin, async () => {
-        const res = await request(app).post(`/api/orders/${sale.id}/finalize_pricing`).send({})
+        const res = await request(app).post(`/api/orders/${sale.id}/finalize`).send({})
         assert.equal(res.status, 422, `answered ${res.status}`)
         assert.match(
           res.body?.error?.message ?? '',
-          /purchase-direction operation and this is a sale order/
+          /this is not a purchase order/
         )
 
         const refiner = await request(app)
-          .post(`/api/orders/${order.id}/send_to_refiner`)
+          .post(`/api/orders/${order.id}/supply`)
           .send({ refiner_id: '00000000-0000-4000-8000-000000000000' })
         assert.equal(refiner.status, 422, `answered ${refiner.status}`)
         assert.match(
@@ -153,14 +153,14 @@ test('a customer is refused outright, their own order included', async () => {
           .send({ status: 'Completed' })
         assert.equal(label.status, 403, 'the owner reached the status label')
 
-        for (const action of ['add_funds', 'finalize_pricing', 'cancel', 'send_to_refiner']) {
+        for (const action of ['add_funds', 'finalize', 'cancel', 'supply']) {
           const res = await request(app).post(`/api/orders/${order.id}/${action}`).send({})
           assert.equal(res.status, 403, `the owner reached ${action}`)
         }
         const spots = await request(app).put(`/api/orders/${order.id}/spots`).send({ lock: true })
         assert.equal(spots.status, 403, 'the owner reached the spots PUT')
         const item = await request(app)
-          .post(`/api/orders/${order.id}/items`)
+          .post(`/api/orders/${order.id}/lots`)
           .send({ bullion_id: '00000000-0000-4000-8000-000000000000' })
         assert.equal(item.status, 403, 'the owner reached line creation')
 
@@ -192,7 +192,7 @@ test('a status write moves the label and NOTHING else', async () => {
         ).rows[0]
         const pricesBefore = (
           await client.query(
-            `SELECT id, price FROM orders.items
+            `SELECT id, price FROM orders.lots
             WHERE order_id = $1 ORDER BY id`,
             [order.id]
           )
@@ -221,7 +221,7 @@ test('a status write moves the label and NOTHING else', async () => {
         )
         const pricesAfter = (
           await client.query(
-            `SELECT id, price FROM orders.items
+            `SELECT id, price FROM orders.lots
             WHERE order_id = $1 ORDER BY id`,
             [order.id]
           )
@@ -353,7 +353,7 @@ const snapshot = async (client: PoolClient, id: string) => ({
   ).rows,
   items: (
     await client.query(
-      `SELECT id, price FROM orders.items
+      `SELECT id, price FROM orders.lots
         WHERE order_id = $1 ORDER BY id`,
       [id]
     )
@@ -367,10 +367,10 @@ test('finalizing prices the order and pins its spots; the label that follows mov
     async (client: PoolClient) => {
       const { order } = await anOpenPurchaseOrder(client)
       await pinMetals(client)
-      await client.query(`UPDATE orders.items SET confirmed = true WHERE order_id = $1`, [order.id])
+      await client.query(`UPDATE orders.lots SET confirmed = true WHERE order_id = $1`, [order.id])
       await asAdmin(admin, async () => {
         const finalize = await request(app)
-          .post(`/api/orders/${order.id}/finalize_pricing`)
+          .post(`/api/orders/${order.id}/finalize`)
           .send({})
         assert.equal(
           finalize.status,

@@ -4,7 +4,7 @@ export const keys = {
     list: (narrowing: { direction?: string; user_id?: string } = {}) =>
       ['orders', 'list', narrowing.direction ?? null, narrowing.user_id ?? null] as const,
     view: (order_id: string) => ['orders', 'view', order_id] as const,
-    items: (order_id: string) => ['orders', order_id, 'items'] as const,
+    lots: (order_id: string) => ['orders', order_id, 'lots'] as const,
     spots: (order_id: string) => ['orders', order_id, 'spots'] as const,
     address: (order_id: string) => ['orders', order_id, 'address'] as const,
     shipments: (order_id: string) => ['orders', order_id, 'shipments'] as const,
@@ -14,8 +14,8 @@ export const keys = {
   checkout: {
     all: () => ['checkout'] as const,
     row: (direction: string) => ['checkout', direction] as const,
-    items: (direction: string, subject?: string | null) =>
-      ['checkout', 'items', direction, subject ?? null] as const,
+    lots: (direction: string, subject?: string | null) =>
+      ['checkout', 'lots', direction, subject ?? null] as const,
   },
   payments: {
     methods: (direction?: string) => ['payments', 'methods', direction ?? null] as const,
@@ -100,11 +100,15 @@ export const keys = {
     order: (order_id: string) => ['quote', 'order', order_id] as const,
     profit: (order_id: string) => ['quote', 'order', order_id, 'profit'] as const,
   },
-  refiners: {
+  refining: {
     suppliers: () => ['suppliers'] as const,
-    order: (order_id: string) => ['refiner_order', order_id] as const,
-    metals: (order_id: string) => ['refiner_metals', order_id] as const,
-    items: (order_id: string) => ['refiner_items', order_id] as const,
+    orders: (filters?: string) => ['refining', 'orders', filters ?? null] as const,
+    order: (id: string) => ['refining', 'order', id] as const,
+    lots: (id: string) => ['refining', 'order', id, 'lots'] as const,
+    pool: (refiner_id?: string | null, metal_id?: string | null) =>
+      ['refining', 'pool', refiner_id ?? null, metal_id ?? null] as const,
+    poolEntries: (refiner_id?: string | null, metal_id?: string | null) =>
+      ['refining', 'pool', 'entries', refiner_id ?? null, metal_id ?? null] as const,
   },
   leads: {
     all: () => ['leads'] as const,

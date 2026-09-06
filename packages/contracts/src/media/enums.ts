@@ -22,6 +22,7 @@ export const EmailKind = z.enum([
   'appointment_tomorrow',
   'document_sent',
   'promo',
+  'voicemail_received',
 ])
 export type EmailKind = z.infer<typeof EmailKind>
 
@@ -33,5 +34,12 @@ export const PdfKind = z.enum([
   'return_packing_list',
   'invoice',
   'sales_order_invoice',
+  'shipping_instructions',
+  'pickup_manifest',
+  'pickup_instructions',
+  'intake_receipt',
+  'appointment_instructions',
+  'settlement',
+  'lot_manifest',
 ])
 export type PdfKind = z.infer<typeof PdfKind>

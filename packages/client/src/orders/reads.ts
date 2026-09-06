@@ -1,7 +1,8 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
-import type { Address, OrderItem, OrderRead, OrderSpot, OrderView } from '@dorado/contracts'
+import type { Address, OrderLotView,
+  OrderDocument, OrderRead, OrderSpot, OrderView } from '@dorado/contracts'
 
 import { apiRequest } from '../fetch'
 import { keys } from '../keys'
@@ -26,10 +27,18 @@ export function useOrder(order_id: string | null | undefined, enabled = true) {
   })
 }
 
-export function useOrderItems(order_id: string | null | undefined, enabled = true) {
-  return useQuery<OrderItem[]>({
-    queryKey: keys.orders.items(order_id ?? ''),
-    queryFn: () => apiRequest<OrderItem[]>('GET', `/orders/${order_id}/items`),
+export function useOrderLots(order_id: string | null | undefined, enabled = true) {
+  return useQuery<OrderLotView[]>({
+    queryKey: keys.orders.lots(order_id ?? ''),
+    queryFn: () => apiRequest<OrderLotView[]>('GET', `/orders/${order_id}/lots`),
+    enabled: enabled && !!order_id,
+  })
+}
+
+export function useOrderDocuments(order_id: string | null | undefined, enabled = true) {
+  return useQuery<OrderDocument[]>({
+    queryKey: [...keys.orders.scoped(order_id ?? ''), 'documents'],
+    queryFn: () => apiRequest<OrderDocument[]>('GET', `/orders/${order_id}/documents`),
     enabled: enabled && !!order_id,
   })
 }

@@ -382,6 +382,45 @@ const TABLES = [
     },
   },
   {
+    name: 'lots.items',
+    key: 'id',
+    cols: `id, bullion_id, metal_id, unit, quantity, pre_melt, post_melt, purity,
+           content_snapshot`,
+    population: {
+      sql: `SELECT poi.id FROM exchange.purchase_order_items poi
+             WHERE EXISTS (SELECT 1 FROM exchange.purchase_orders p WHERE p.id = poi.purchase_order_id)
+            UNION ALL
+            SELECT soi.id FROM exchange.sales_order_items soi
+             JOIN exchange.products pr ON pr.id = soi.product_id
+             WHERE EXISTS (SELECT 1 FROM exchange.sales_orders o WHERE o.id = soi.sales_order_id)`,
+      why: '161 mints one lot per orders.items row, KEEPING ITS ID, so the population is the one orders.items has; a lot minted natively after the pivot, and the three that came out of a basket, are outside it',
+    },
+    native: {
+      unit: 'the admin drawer re-states the weight unit on the lot itself',
+      post_melt: 'the drawer records the post-melt weight once the parcel is opened',
+      purity: 'the drawer corrects the declared purity after testing',
+    },
+  },
+  {
+    name: 'orders.lots',
+    key: 'lot_id',
+    cols: 'lot_id, order_id, premium, price, sales_tax_charged, confirmed',
+    population: {
+      sql: `SELECT poi.id AS lot_id FROM exchange.purchase_order_items poi
+             WHERE EXISTS (SELECT 1 FROM exchange.purchase_orders p WHERE p.id = poi.purchase_order_id)
+            UNION ALL
+            SELECT soi.id FROM exchange.sales_order_items soi
+             JOIN exchange.products pr ON pr.id = soi.product_id
+             WHERE EXISTS (SELECT 1 FROM exchange.sales_orders o WHERE o.id = soi.sales_order_id)`,
+      why: 'the link row carries the id of the line it came from, so it has the same population orders.items has',
+    },
+    native: {
+      confirmed: 'the admin drawer confirms a lot once the parcel is opened',
+      premium: 'placement re-tiers the premium by the whole order\'s ounces, and the drawer edits it after',
+      price: 'finalize writes the frozen unit price; exchange has no value to carry',
+    },
+  },
+  {
     name: 'orders.spots',
     key: 'order_id, metal_id',
     cols: `order_id, metal_id, ask, bid, scrap_percentage, bullion_percentage,
@@ -421,6 +460,19 @@ const TABLES = [
 const NOT_REBUILT = {
   'refiners.orders':
     'created and seeded by 093/094/096 from the ledger; invariant pinned by refiner-edits.test.ts',
+  'refining.orders':
+    'derived by 163 from refiners.orders, which is itself NOT_REBUILT: the ' +
+    'engagements were seeded from the ledger rather than from exchange, so ' +
+    'there is no exchange population a rebuild could resolve them against. ' +
+    'What 163 preserves instead is the ENGAGEMENT ID, so the mapping is a ' +
+    'join anyone can re-run rather than a match on columns.',
+  'refining.lots':
+    'the assays go with the engagement they were reported against, and ' +
+    'refining.orders is not rebuilt from exchange either',
+  'refining.pool':
+    'two entries derived by 165 from refiners.orders.pool_oz_deducted and ' +
+    '.pool_remediation - one legacy column each, on a table exchange does not ' +
+    'back; the ledger is append-only afterwards and nothing re-derives it',
   'auth.users': 'backfilled by 029 but compared per-column there, not row-wise',
   'auth.employees': 'seed data, no exchange source',
   'auth.account': 'better-auth owns these tables; auth is not migrated',
@@ -436,6 +488,7 @@ const NOT_REBUILT = {
 
   'checkout.checkouts': 'cart contents are transient and deliberately not carried across',
   'checkout.items': 'a cart line is as transient as the cart holding it',
+  'checkout.lots': 'a basket link is as transient as the cart holding it',
   'shipping.services': 'seed data from 047, no exchange source',
   'shipping.packages': 'seed data from 047, no exchange source',
 

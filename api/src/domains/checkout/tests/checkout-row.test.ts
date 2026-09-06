@@ -79,7 +79,7 @@ test('GET /api/checkout mints the row on first read, one per direction', async (
       assert.equal(first.body.requires_schedule, undefined)
       assert.equal(first.body.item_count, undefined)
       assert.equal(first.body.ready_to_place, undefined)
-      assert.deepEqual(first.body.missing, ['items', 'fulfillment_id', 'payment_details_id'])
+      assert.deepEqual(first.body.missing, ['lots', 'fulfillment_id', 'payment_details_id'])
       assert.ok(!first.body.missing.includes('package_id'))
 
       const again = await as(customer, () => request(app).get('/api/checkout?direction=purchase'))

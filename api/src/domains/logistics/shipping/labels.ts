@@ -3,7 +3,8 @@ import * as packagesRepo from '#db/shipping/packages/repo.ts'
 import * as orderAddresses from '#db/orders/addresses/repo.ts'
 import * as placeAddresses from '#db/places/addresses/repo.ts'
 import * as locationsRepo from '#db/places/locations/repo.ts'
-import * as orderItems from '#db/orders/items/repo.ts'
+import * as lotsRepo from '#db/lots/items/repo.ts'
+import * as orderLots from '#db/orders/lots/repo.ts'
 import * as ordersRepo from '#db/orders/repo.ts'
 import * as orderTransactions from '#db/orders/transactions/repo.ts'
 import * as usersRepo from '#db/users/repo.ts'
@@ -53,7 +54,7 @@ export async function sealForPlacement(
     handoff,
     declaredValue,
     rules.parcelWeightLb(
-      await checkoutService.getItemsForOrder(checkout_id, tx),
+      await checkoutService.lotsFor(checkout_id, tx),
       await packagesRepo.getOne(shipment.package_id!, tx)
     ),
     rules.scheduleOf(shipment.pickup_date, shipment.pickup_time)
@@ -68,6 +69,13 @@ export async function sealForPlacement(
     },
     tx
   )
+}
+
+// The parcel's weight is the lots' declared weight. The lots are read through
+// their link rows, so a lot split after placement is weighed once per child and
+// never twice.
+async function lotsOf(order_id: string) {
+  return await lotsRepo.getByIds((await orderLots.getFor(order_id)).map((row) => row.lot_id))
 }
 
 export async function buyLabel(shipment_id: string): Promise<void> {
@@ -89,7 +97,7 @@ export async function buyLabel(shipment_id: string): Promise<void> {
     await packagesRepo.getOne(shipment.package_id!),
     handoff,
     shipment.declared_value ?? 0,
-    rules.parcelWeightLb(await orderItems.getFor(order_id), await boxOf(shipment.package_id)),
+    rules.parcelWeightLb(await lotsOf(order_id), await boxOf(shipment.package_id)),
     rules.scheduleOf(shipment.pickup_date, shipment.pickup_time) ??
       rules.scheduleFromPickup((await fulfillmentPickups.forOrder(order_id))[0])
   )
@@ -157,7 +165,7 @@ export async function buyReturnLabel(shipment_id: string): Promise<void> {
     await packagesRepo.getOne(shipment.package_id!),
     rules.handoffFor(await handoffsService.getHandoffs(), null),
     shipment.declared_value ?? 0,
-    rules.parcelWeightLb(await orderItems.getFor(order_id), await boxOf(shipment.package_id)),
+    rules.parcelWeightLb(await lotsOf(order_id), await boxOf(shipment.package_id)),
     null
   )
 

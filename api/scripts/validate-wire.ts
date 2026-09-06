@@ -119,22 +119,17 @@ add('GET /orders/:id/spots', c.OrderSpot, async () => {
   const lists = await Promise.all(orders.map((o) => orderSpotsRepo.getRowsFor(o.id)))
   return lists.flat()
 })
-const refinerService = await import('#orders/refiners/service.ts')
-add('GET /suppliers/get_all', c.RefinerView, () => refinerService.getAllRefiners())
-const refinerOrdersService = await import('#orders/refiners/orders/service.ts')
-const refinerSpotsService = await import('#orders/refiners/spots/service.ts')
-add('GET /orders/:orderId/refiners', c.RefinerOrderView, async () => {
-  const reads = await Promise.all(orders.map((o) => refinerOrdersService.getByOrder(o.id)))
-  return reads.filter(Boolean)
-})
-const refinerItemsRepo = await import('#db/refiners/items/repo.ts')
-add('GET /orders/:orderId/refiners/items', c.RefinerItem, async () => {
-  const lists = await Promise.all(orders.map((o) => refinerItemsRepo.getForOrder(o.id)))
+const refining = await import('#refining/service.ts')
+add('GET /suppliers/get_all', c.RefinerView, () => refining.allRefiners())
+add('GET /refining/orders', c.RefiningOrderView, () => refining.list(null, null, null))
+add('GET /refining/pool', c.PoolBalance, () => refining.balances(null, null))
+add('GET /refining/pool/entries', c.PoolEntry, () => refining.entries(null, null))
+const refiningOrdersRepo = await import('#db/refining/orders/repo.ts')
+const refiningLotsRepo = await import('#db/refining/lots/repo.ts')
+add('GET /refining/orders/:id/lots', c.RefiningLot, async () => {
+  const all = await refiningOrdersRepo.list(null, null, null)
+  const lists = await Promise.all(all.map((o) => refiningLotsRepo.getFor(o.id)))
   return lists.flat()
-})
-add('GET /orders/:orderId/refiners/spots', c.RefinerSpot, async () => {
-  const lists = await Promise.all(orders.map((o) => refinerSpotsService.forOrder(o.id)))
-  return lists.filter(Boolean).flat()
 })
 const fulfillmentPickups = await import('#logistics/fulfillments/pickups/service.ts')
 const fulfillmentDirects = await import('#logistics/fulfillments/directs/service.ts')
@@ -143,9 +138,9 @@ add('GET /orders/:orderId/fulfillments', c.FulfillmentView, async () => {
   return reads.filter(Boolean)
 })
 
-const orderItemsRepo = await import('#db/orders/items/repo.ts')
-add('GET /orders/:id/items', c.OrderItem, async () => {
-  const lists = await Promise.all(orders.map((o) => orderItemsRepo.getFor(o.id)))
+const orderLotsRepo = await import('#db/orders/lots/repo.ts')
+add('GET /orders/:id/lots', c.OrderLotView, async () => {
+  const lists = await Promise.all(orders.map((o) => orderLotsRepo.viewFor(o.id)))
   return lists.flat()
 })
 const shipmentView = await import('#logistics/shipping/shipments/view.ts')
@@ -203,7 +198,7 @@ const saleBasket =
   addressUser && quotable.length ? await checkoutService.getRowFor(addressUser, 'sale') : null
 if (saleBasket) {
   await withTransaction((tx) =>
-    checkoutService.replaceItems(
+    checkoutService.replaceLots(
       addressUser!,
       'sale',
       [{ bullion_id: quotable[0].id, quantity: 1 }],
@@ -224,7 +219,7 @@ const purchaseBasket =
     : null
 if (purchaseBasket) {
   await withTransaction((tx) =>
-    checkoutService.replaceItems(
+    checkoutService.replaceLots(
       addressUser!,
       'purchase',
       [

@@ -49,7 +49,7 @@ test('the order view is one read that parses through OrderViewFacts', async () =
     assert.equal(parsed.user?.id, user.id)
     assert.equal(parsed.address?.id ? true : false, true, 'the address did not nest')
     assert.equal(parsed.totals?.total, 1234.5)
-    assert.equal(parsed.items.length, 2, 'the lines did not nest by table')
+    assert.equal(parsed.lots.length, 2, 'the lines did not nest by table')
     assert.equal(parsed.shipments.length, 1, 'the shipment did not nest by table')
     assert.ok(parsed.payout, 'the payout did not nest')
   })
@@ -65,13 +65,13 @@ test('a bullion line carries its payable and its line total from SQL, and no pro
 
     const view = await orders.view(order.id, c)
     assert.ok(view)
-    const line = view.items.find((i) => i.bullion_id === product.id)
+    const line = view.lots.find((i) => i.lot.bullion_id === product.id)
     assert.ok(line, 'the bullion line is missing')
     assert.ok(!('product' in line), 'the view still embeds the catalogue row')
     assert.equal(line.line_total, 100, 'line_total is not price x quantity')
     assert.equal(
       line.payable,
-      line.content === null || line.premium === null ? null : line.content * line.premium,
+      line.lot.content === null || line.premium === null ? null : line.lot.content * line.premium,
       'payable is not content x premium'
     )
   })
@@ -84,7 +84,7 @@ test('an order with no children answers empty arrays and nulls, not undefined', 
 
     const view = await orders.view(order.id, c)
     assert.ok(view)
-    assert.deepEqual(view.items, [])
+    assert.deepEqual(view.lots, [])
     assert.deepEqual(view.shipments, [])
     assert.equal(view.address, null)
     assert.equal(view.totals, null)
@@ -111,19 +111,21 @@ test('a scrap line is named by the SQL read, numbered per metal; a product line 
     const view = await orders.view(order.id, c)
     assert.ok(view)
 
-    const scrap = view.items
-      .filter((i) => i.bullion_id === null)
+    const scrap = view.lots
+      .filter((i) => i.lot.bullion_id === null)
       .sort((a, b) => (a.id < b.id ? -1 : 1))
     assert.equal(scrap.length, 3, 'the three scrap lots did not all come back')
+    const references = view.lots.map((i) => i.lot.reference)
     assert.deepEqual(
-      scrap.map((i) => i.item_name).sort(),
-      ['Gold Item 1', 'Gold Item 2', 'Silver Item 1'],
-      "the per-metal numbering is not the window function's"
+      [...references].sort(),
+      [`Lot ${order.number}-A`, `Lot ${order.number}-B`, `Lot ${order.number}-C`, `Lot ${order.number}-D`],
+      "the per-order lettering is not the window function's"
     )
+    assert.equal(new Set(references).size, 4, 'two lots share a reference')
 
-    const bullion = view.items.find((i) => i.bullion_id === product.id)
+    const bullion = view.lots.find((i) => i.lot.bullion_id === product.id)
     assert.ok(bullion, 'the bullion line is missing')
-    assert.equal(bullion.item_name, null, 'a product line was given a scrap name')
+    assert.ok(bullion.lot.form, 'a product lot lost its form')
   })
 })
 

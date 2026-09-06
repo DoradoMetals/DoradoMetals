@@ -102,15 +102,15 @@ export function renderSalesOrderToSupplierEmail({
     )
     .join('')
 
-  const orderRows = order.items
-    .filter((line) => line.bullion_id !== null)
+  const orderRows = order.lots
+    .filter((line) => line.lot.bullion_id !== null)
     .map((line) => {
       const priced = pricing.items.find((p) => p.id === line.id)
       const subtotal = (priced?.line_total ?? 0).toFixed(2)
       return `
       <tr>
-        <td style="padding:8px 0">${line.product_name ?? ''}</td>
-        <td style="padding:8px 0;text-align:center">${line.quantity}</td>
+        <td style="padding:8px 0">${line.lot.product_name ?? ''}</td>
+        <td style="padding:8px 0;text-align:center">${line.lot.quantity}</td>
         <td style="padding:8px 0;text-align:right">$${subtotal}</td>
       </tr>
     `

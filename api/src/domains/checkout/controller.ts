@@ -1,5 +1,5 @@
 import {
-  CheckoutItemsBody,
+  CheckoutLotsBody,
   CheckoutPatch,
   CheckoutPatchBody,
   CheckoutPayoutBody,
@@ -19,25 +19,23 @@ function subjectOf(req: Request): Promise<string> {
   return cartService.resolveSubject(callerId(req), req.user?.role === 'admin', oneString(named))
 }
 
-export const getCheckoutItems = asyncHandler(async (req, res) => {
+export const getCheckoutLots = asyncHandler(async (req, res) => {
   const direction = parseStrict(Direction, oneString(req.query.direction), 'direction')
-  return res.status(200).json(await cartService.listItems(await subjectOf(req), direction))
+  return res.status(200).json(await cartService.listLots(await subjectOf(req), direction))
 })
 
-export const putCheckoutItems = asyncHandler(async (req, res) => {
+export const putCheckoutLots = asyncHandler(async (req, res) => {
   const direction = parseStrict(Direction, oneString(req.query.direction), 'direction')
-  const body = parseStrict(CheckoutItemsBody, req.body, 'checkout/items body')
+  const body = parseStrict(CheckoutLotsBody, req.body, 'checkout/lots body')
   const subject = await subjectOf(req)
   return res
     .status(200)
-    .json(
-      await withTransaction((tx) => cartService.replaceItems(subject, direction, body.items, tx))
-    )
+    .json(await withTransaction((tx) => cartService.replaceLots(subject, direction, body.lots, tx)))
 })
 
-export const deleteCheckoutItems = asyncHandler(async (req, res) => {
+export const deleteCheckoutLots = asyncHandler(async (req, res) => {
   const direction = parseStrict(Direction, oneString(req.query.direction), 'direction')
-  const removed = await cartService.clearItems(await subjectOf(req), direction)
+  const removed = await cartService.clearLots(await subjectOf(req), direction)
   return res.status(200).json({ removed })
 })
 

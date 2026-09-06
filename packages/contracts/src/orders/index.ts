@@ -5,6 +5,7 @@
 export * from './enums.js'
 export * from './addresses.js'
 export * from './items.js'
+export * from './lots.js'
 export * from './orders.js'
 export * from './spots.js'
 export * from './transactions.js'

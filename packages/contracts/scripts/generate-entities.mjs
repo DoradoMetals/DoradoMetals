@@ -97,6 +97,7 @@ const formatFile = async (text) =>
 // only made the flat namespace collide with itself.
 const DEFAULT_SCHEMAS = [
   'leads',
+  'lots',
   'reviews',
   'rates',
   'spots',
@@ -113,6 +114,7 @@ const DEFAULT_SCHEMAS = [
   'auth',
   'checkout',
   'refiners',
+  'refining',
 ].join(',')
 
 const SCHEMAS = (process.env.CONTRACT_SCHEMAS ?? DEFAULT_SCHEMAS)
@@ -196,14 +198,18 @@ const ENTITY = {
 
   'checkout.checkouts': 'Checkout',
   'checkout.items': 'CheckoutItem',
+  'checkout.lots': 'CheckoutLot',
 
   'fulfillments.directs': 'FulfillmentDirect',
+  'fulfillments.dropoffs': 'FulfillmentDropoff',
   'fulfillments.fulfillments': 'Fulfillment',
   'fulfillments.methods': 'FulfillmentMethod',
   'fulfillments.pickups': 'FulfillmentPickup',
   'fulfillments.shipments': 'FulfillmentShipment',
 
   'leads.leads': 'Lead',
+
+  'lots.items': 'Lot',
 
   'media.emails': 'Email',
   'media.images': 'Image',
@@ -213,6 +219,7 @@ const ENTITY = {
 
   'orders.addresses': 'OrderAddressLink',
   'orders.items': 'OrderItem',
+  'orders.lots': 'OrderLot',
   'orders.orders': 'Order',
   'orders.spots': 'OrderSpot',
   'orders.transactions': 'OrderTotals',
@@ -220,6 +227,14 @@ const ENTITY = {
   'organizations.organizations': 'Organization',
 
   'payments.attempts': 'PaymentAttempt',
+  'auth.pending_signups': 'PendingSignup',
+  'auth.pending_changes': 'PendingChange',
+  'auth.otp_throttles': 'OtpThrottle',
+  'payments.transfers': 'Transfer',
+  'payments.transfer_events': 'TransferEvent',
+  'payments.bank_links': 'BankLink',
+  'payments.feed_cursors': 'FeedCursor',
+  'payments.inbound_transactions': 'InboundTransaction',
   'payments.details': 'PaymentDetails',
   'payments.intents': 'PaymentIntent',
   'payments.ledger': 'LedgerEntry',
@@ -241,6 +256,10 @@ const ENTITY = {
   'refiners.orders': 'RefinerOrder',
   'refiners.refiners': 'Refiner',
   'refiners.spots': 'RefinerSpot',
+
+  'refining.orders': 'RefiningOrder',
+  'refining.lots': 'RefiningLot',
+  'refining.pool': 'PoolEntry',
 
   'reviews.reviews': 'Review',
 
@@ -265,6 +284,8 @@ const ENTITY = {
 const ENUM_NAME = {
   'shipping.direction': 'ShipmentDirection',
   'fulfillments.category': 'FulfillmentCategory',
+  'refining.direction': 'RefiningDirection',
+  'refining.pool_entry': 'PoolEntryKind',
 }
 
 const entityName = (schema, table) => {

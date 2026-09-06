@@ -15,11 +15,12 @@ import {
   aProduct,
   aShipment,
   aPayout,
-  aRefinerEngagement,
+  aRefiningOrder,
   anUnknownId,
 } from '#shared/testing/builders/index.ts'
 import * as totalsRepo from '#db/orders/transactions/repo.ts'
-import * as refinerItemsRepo from '#db/refiners/items/repo.ts'
+import * as refiningOrdersRepo from '#db/refining/orders/repo.ts'
+import * as refiningLotsRepo from '#db/refining/lots/repo.ts'
 import { profitBreakdown } from '#pricing/service.ts'
 import type { ProfitBreakdown } from '@dorado/contracts'
 
@@ -61,17 +62,28 @@ test('a purchase order splits every line three ways, per metal and per category'
         .withSpots({ bid: 100, ask: 200 })
         .withTotals({})
 
-      const [scrapLine, bullionLine] = order.items
+      const [scrapLine, bullionLine] = order.lots
 
-      await totalsRepo.update(order.id, { shipping_fee_actual: 10, refiner_fee: 7 }, {}, c)
+      await totalsRepo.update(order.id, { shipping_fee_actual: 10 }, {}, c)
       await aPayout(c, seller, { order, payout_fee: 20 })
       await aShipment(c, order, { cost: 24.5 })
 
-      // The refiner takes the parcel at a higher spot and a higher premium, and
-      // its assay weighs the scrap HEAVIER than the customer declared.
-      await aRefinerEngagement(c, order, { bid: 120, ask: 130 })
-      await refinerItemsRepo.update(scrapLine!.id, { content: 10.5, premium: 0.94 }, c)
-      await refinerItemsRepo.update(bullionLine!.id, { premium: 0.98 }, c)
+      // The refiner takes the parcel at a higher premium, and its assay weighs
+      // the scrap HEAVIER than the customer declared. Its feed is the pool's
+      // last lock price, which is what the metal changed hands at.
+      const engagement = await aRefiningOrder(c, order, {
+        lock: { metal_id: 'Gold', troy_oz: 1, lock_price: 120 },
+      })
+      await refiningOrdersRepo.update(engagement.id, { fee: 7 }, c)
+      const assayed = await refiningLotsRepo.getFor(engagement.id, c)
+      const scrapAssay = assayed.find((row) => row.lot_id === scrapLine!.lot_id)!
+      const bullionAssay = assayed.find((row) => row.lot_id === bullionLine!.lot_id)!
+      await refiningLotsRepo.update(
+        scrapAssay.id,
+        { post_melt: 10.5, purity: 1, unit: 't oz', premium: 0.94 },
+        c
+      )
+      await refiningLotsRepo.update(bullionAssay.id, { premium: 0.98 }, c)
 
       const b = await profitBreakdown(order.id)
 
@@ -170,7 +182,9 @@ test("a scrap line with no premium of its own takes the band the order's ounces 
         .withLines({ metal_id: 'Gold', content: 10, quantity: 1 })
         .withSpots({ bid: 100, ask: 200 })
         .withTotals({})
-      await aRefinerEngagement(c, order, { bid: 120, ask: 130 })
+      await aRefiningOrder(c, order, {
+        lock: { metal_id: 'Gold', troy_oz: 1, lock_price: 120 },
+      })
 
       const b = await profitBreakdown(order.id)
 

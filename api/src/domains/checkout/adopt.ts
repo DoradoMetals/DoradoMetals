@@ -1,4 +1,4 @@
-import { checkouts, checkoutItems, fulfillmentPickups, shipments, userAddresses } from '#db'
+import { checkouts, checkoutLots, fulfillmentPickups, shipments, userAddresses } from '#db'
 import withTransaction from '#shared/db/withTransaction.ts'
 import * as rules from '#checkout/rules.ts'
 import { attempt } from '#shared/attempt.ts'
@@ -61,10 +61,10 @@ async function adopt(
     if (Object.keys(patch).length > 0) await checkouts.update(mine.id, patch, client)
 
     let replaced = 0
-    const lines = await checkoutItems.listFor(visitor.id, client)
+    const lines = await checkoutLots.listFor(visitor.id, client)
     if (lines.length > 0) {
-      replaced = await checkoutItems.removeFor(mine.id, client)
-      const carried = await checkoutItems.reassign(visitor.id, mine.id, client)
+      replaced = await checkoutLots.removeFor(mine.id, client)
+      const carried = await checkoutLots.reassign(visitor.id, mine.id, client)
       rules.assertLinesCarried(carried, lines.length, visitor.id)
     }
 

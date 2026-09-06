@@ -89,9 +89,9 @@ test('no package chosen is refused before any carrier is asked', async () => {
       const product = await aProduct(c)
       const put = await as(customer, () =>
         request(app)
-          .put('/api/checkout/items')
+          .put('/api/checkout/lots')
           .query({ direction: 'purchase' })
-          .send({ items: [{ bullion_id: product.id, quantity: 1 }] })
+          .send({ lots: [{ bullion_id: product.id, quantity: 1 }] })
       )
       assert.equal(put.status, 200, put.text)
 
@@ -113,9 +113,9 @@ test('no address chosen is refused before any carrier is asked', async () => {
 
       await as(customer, () =>
         request(app)
-          .put('/api/checkout/items')
+          .put('/api/checkout/lots')
           .query({ direction: 'purchase' })
-          .send({ items: [{ bullion_id: product.id, quantity: 1 }] })
+          .send({ lots: [{ bullion_id: product.id, quantity: 1 }] })
       )
       const draft = await aDraft(customer)
       const patched = await as(customer, () =>
@@ -187,9 +187,9 @@ test('a complete purchase checkout gets back priced services', async () => {
       const product = await aProduct(c)
       const put = await as(customer, () =>
         request(app)
-          .put('/api/checkout/items')
+          .put('/api/checkout/lots')
           .query({ direction: 'purchase' })
-          .send({ items: [{ bullion_id: product.id, quantity: 1 }] })
+          .send({ lots: [{ bullion_id: product.id, quantity: 1 }] })
       )
       assert.equal(put.status, 200, put.text)
 
