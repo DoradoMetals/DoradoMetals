@@ -10,17 +10,10 @@
     "lint:call-site-styling": "node scripts/lint-call-site-styling.mjs",
     "lint:typography-scatter": "node scripts/lint-call-site-styling.mjs --scatter",
     "lint:call-site-styling:self-test": "node scripts/lint-call-site-styling.mjs --self-test",
-    "audit:state-collapse": "node scripts/audit-state-collapse.mts",
-    "audit:state-collapse:self-test": "node scripts/audit-state-collapse.mts --self-test",
-    "lint:carrier-vocabulary": "node scripts/lint-carrier-vocabulary.mjs",
-    "lint:carrier-vocabulary:self-test": "node scripts/lint-carrier-vocabulary.mjs --self-test",
     "typecheck": "tsc --noEmit",
     "test": "TZ=UTC vitest run",
-    "e2e": "playwright test --grep-invert @maps",
-    "e2e:maps": "playwright test --grep @maps",
-    "e2e:ui": "playwright test --ui",
-    "lint:list-fanout": "node scripts/lint-list-fanout.mjs",
-    "lint:list-fanout:self-test": "node scripts/lint-list-fanout.mjs --self-test"
+    "e2e": "playwright test",
+    "e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "@better-auth/stripe": "~1.6.9",

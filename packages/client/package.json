@@ -8,39 +8,11 @@
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
-    },
-    "./orders": {
-      "types": "./src/orders/index.ts",
-      "default": "./src/orders/index.ts"
-    },
-    "./checkout": {
-      "types": "./src/checkout/index.ts",
-      "default": "./src/checkout/index.ts"
-    },
-    "./payments": {
-      "types": "./src/payments/index.ts",
-      "default": "./src/payments/index.ts"
-    },
-    "./payouts": {
-      "types": "./src/payouts/index.ts",
-      "default": "./src/payouts/index.ts"
-    },
-    "./users": {
-      "types": "./src/users/index.ts",
-      "default": "./src/users/index.ts"
-    },
-    "./fulfillments": {
-      "types": "./src/fulfillments/index.ts",
-      "default": "./src/fulfillments/index.ts"
-    },
-    "./shipping": {
-      "types": "./src/shipping/index.ts",
-      "default": "./src/shipping/index.ts"
     }
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run --passWithNoTests"
   },
   "peerDependencies": {
     "@tanstack/react-query": "*",

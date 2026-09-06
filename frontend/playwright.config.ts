@@ -62,9 +62,13 @@ if (/doradometals\.com/i.test(baseURL) && !process.env.I_MEANT_PRODUCTION) {
 export default defineConfig({
   // TESTS LIVE WITH THE ROUTE THEY DRIVE, not in one central directory.
   //
-  //   app/rates/_src_/tests/rates.e2e.ts
-  //   app/buy/_src_/tests/catalogue.e2e.ts
-  //   shared/tests/degradation.e2e.ts       <- genuinely cross-cutting
+  //   app/auth/_src_/tests/auth-screens.e2e.ts
+  //   shared/tests/auth.setup.ts            <- mints the sessions, runs first
+  //
+  // AFTER THE NUKE (ruling 99) THOSE TWO ARE ALL THERE IS. Every other spec -
+  // the checkout journeys, the address drawer, the admin creates, the public
+  // pages, the degradation suite - drove a surface that is deleted, so it went
+  // with the surface. Each comes back with the screen it drives.
   //
   // That matches where the vitest unit tests already sit, so a route slice is
   // one directory rather than a folder here and a folder there. The `.e2e.ts`
@@ -93,7 +97,10 @@ export default defineConfig({
     ...(chrome ? { launchOptions: { executablePath: chrome } } : { channel: 'chromium' }),
   },
   projects: [
-    // Runs first and once: signs the e2e accounts in and saves their sessions.
+    // Runs first and once: signs the e2e accounts in through the real OTP flow
+    // and saves their sessions. It is kept even though nothing depends on it
+    // any more, because it is the one spec that exercises sign-in end to end -
+    // send the code, read it back, verify it, get a cookie.
     { name: 'setup', testMatch: /auth\.setup\.ts$/ },
 
     // Public pages. No session, because most of the app must work without one -
@@ -105,19 +112,13 @@ export default defineConfig({
       testIgnore: [/\/authed\//, /auth\.setup\.ts$/],
     },
 
-    // Signed in, one project per role, reusing the saved state.
-    {
-      name: 'customer',
-      use: { ...devices['Desktop Chrome'], storageState: 'playwright/.auth/customer.json' },
-      dependencies: ['setup'],
-      testMatch: /\/authed\/.*customer.*\.e2e\.ts$/,
-    },
-    {
-      name: 'admin',
-      use: { ...devices['Desktop Chrome'], storageState: 'playwright/.auth/admin.json' },
-      dependencies: ['setup'],
-      testMatch: /\/authed\/.*admin.*\.e2e\.ts$/,
-    },
+    // THE `customer` AND `admin` PROJECTS ARE GONE (ruling 99). They matched
+    // `**/authed/**`, one project per role, reusing the state `setup` writes -
+    // and every spec in that directory drove a deleted surface. A project whose
+    // testMatch names a directory that does not exist reports a clean run over
+    // nothing, which is the failure mode every floor in this repo exists to
+    // prevent. They come back, unchanged, with the first authed spec; the
+    // sessions they need are still written to playwright/.auth/*.json.
   ],
 
   // Boots `next dev` unless something is already listening. Not `next build &&

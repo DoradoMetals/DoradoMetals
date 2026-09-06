@@ -15,12 +15,12 @@ import GoogleRecaptchaProvider from '@/shared/providers/GoogleRecaptchaProvider'
 // weights the drawings use (400 body, 500 chrome, 600 headings; variable font,
 // so no weight list). Geist Mono takes the numeric/mono slot from the
 // ui-monospace stack.
-export const geist = Geist({
+const geist = Geist({
   subsets: ['latin'],
   variable: '--font-sans',
 })
 
-export const geistMono = Geist_Mono({
+const geistMono = Geist_Mono({
   subsets: ['latin'],
   variable: '--font-mono-loaded',
 })

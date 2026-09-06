@@ -156,7 +156,14 @@ function checkClientPackage(files: string[]): Finding[] {
   return findings
 }
 
-const FRONTEND_FLOOR = Number(process.env.LINT_CLIENT_BOUNDARY_FRONTEND_FLOOR ?? 100)
+// THE FLOORS MOVED WITH THE NUKE (ruling 99). They were 100/4 against a
+// frontend of ~370 files and a client of 47; the frontend is the auth surface
+// and a placeholder homepage now, and the client is the fetcher, the keys, the
+// session bridge, the cache and the auth hooks. A floor is only useful while
+// it is below the real count and above zero - 100 was neither after the
+// delete, so it failed the scan rather than the code. These are the honest
+// numbers for what is left, and they rise again as surfaces are built.
+const FRONTEND_FLOOR = Number(process.env.LINT_CLIENT_BOUNDARY_FRONTEND_FLOOR ?? 55)
 const CLIENT_FLOOR = Number(process.env.LINT_CLIENT_BOUNDARY_CLIENT_FLOOR ?? 4)
 
 if (process.argv.includes('--self-test')) {

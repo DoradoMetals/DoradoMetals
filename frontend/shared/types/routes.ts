@@ -1,273 +1,44 @@
+// THE ROUTE TABLE, AFTER THE NUKE (ruling 99).
+//
+// This used to carry twenty-odd entries and eight fields each, because it fed
+// three consumers at once: the desktop nav, the mobile sidebar and the footer
+// all read their labels and their visibility out of it, and `sitemap.ts` read
+// which paths to publish. All four are deleted. What is left reads two fields
+// from two consumers:
+//
+//   - `roles`, by `ProtectedPage` on the two `/settings` change screens.
+//   - `seoIndex`, by `app/robots.ts`, which disallows every path that is not
+//     indexable.
+//
+// EVERY SURVIVING ROUTE IS AN AUTH ROUTE, AND NONE OF THEM IS INDEXABLE. A
+// sign-in panel is not a landing page and a verification screen is a dead end
+// to a crawler, so `robots.ts` keeps the whole surface out of the index and
+// only `/` is left to allow. The labels and the display flags come back with
+// the nav, when there is something to navigate to.
 type RouteConfig = {
   path: string
   roles: string[]
-  desktopLabel: string
-  mobileLabel: string
-  desktopDisplay: boolean
-  mobileDisplay: boolean
-  footerDisplay: boolean
   seoIndex: boolean
 }
 
 export const protectedRoutes: Record<string, RouteConfig> = {
-  buy: {
-    path: '/buy',
-    roles: [],
-    desktopLabel: 'Buy',
-    mobileLabel: 'Buy from Us',
-    desktopDisplay: true,
-    mobileDisplay: true,
-    footerDisplay: false,
-    seoIndex: true,
-  },
-  sell: {
-    path: '/sell',
-    roles: [],
-    desktopLabel: 'Sell',
-    mobileLabel: 'Sell to Us',
-    desktopDisplay: true,
-    mobileDisplay: true,
-    footerDisplay: false,
-    seoIndex: true,
-  },
-  rates: {
-    path: '/rates',
-    roles: [],
-    desktopLabel: 'Rates',
-    mobileLabel: 'See Rates',
-    desktopDisplay: false,
-    mobileDisplay: false,
-    footerDisplay: false,
-    seoIndex: true,
-  },
-  payoutOptions: {
-    path: '/payout-options',
-    roles: [],
-    desktopLabel: 'Payout Options',
-    mobileLabel: 'See Payout Options',
-    desktopDisplay: false,
-    mobileDisplay: false,
-    footerDisplay: false,
-    seoIndex: true,
-  },
-  // resources: {
-  //   path: '/resources',
-  //   roles: [],
-  //   desktopLabel: 'Resources',
-  //   mobileLabel: 'Resources',
-  //   desktopDisplay: false,
-  //   mobileDisplay: false,
-  //   footerDisplay: false,
-  //   seoIndex: true,
-  // },
-  aboutUs: {
-    path: '/about-us',
-    roles: [],
-    desktopLabel: 'About Us',
-    mobileLabel: 'About Us',
-    desktopDisplay: false,
-    mobileDisplay: false,
-    footerDisplay: true,
-    seoIndex: true,
-  },
-  signIn: {
-    path: '/auth/sign-in',
-    roles: [],
-    desktopLabel: 'Sign In',
-    mobileLabel: 'Sign In',
-    desktopDisplay: false,
-    mobileDisplay: false,
-    footerDisplay: false,
-    seoIndex: true,
-  },
-  signInEmail: {
-    path: '/auth/sign-in/email',
-    roles: [],
-    desktopLabel: 'Sign In',
-    mobileLabel: 'Sign In',
-    desktopDisplay: false,
-    mobileDisplay: false,
-    footerDisplay: false,
-    seoIndex: false,
-  },
-  signUp: {
-    path: '/auth/sign-up',
-    roles: [],
-    desktopLabel: 'Create Account',
-    mobileLabel: 'Create Account',
-    desktopDisplay: false,
-    mobileDisplay: false,
-    footerDisplay: false,
-    seoIndex: true,
-  },
-  verify: {
-    path: '/auth/verify',
-    roles: [],
-    desktopLabel: 'Enter Your Code',
-    mobileLabel: 'Enter Your Code',
-    desktopDisplay: false,
-    mobileDisplay: false,
-    footerDisplay: false,
-    seoIndex: false,
-  },
-  verifyStepUp: {
-    path: '/auth/verify/step-up',
-    roles: ['user', 'admin'],
-    desktopLabel: "Verify It's You",
-    mobileLabel: "Verify It's You",
-    desktopDisplay: false,
-    mobileDisplay: false,
-    footerDisplay: false,
-    seoIndex: false,
-  },
-  locked: {
-    path: '/auth/locked',
-    roles: [],
-    desktopLabel: 'Too Many Attempts',
-    mobileLabel: 'Too Many Attempts',
-    desktopDisplay: false,
-    mobileDisplay: false,
-    footerDisplay: false,
-    seoIndex: false,
-  },
-  sessionExpired: {
-    path: '/auth/session-expired',
-    roles: [],
-    desktopLabel: 'Signed Out',
-    mobileLabel: 'Signed Out',
-    desktopDisplay: false,
-    mobileDisplay: false,
-    footerDisplay: false,
-    seoIndex: false,
-  },
-  salesTax: {
-    path: '/sales-tax',
-    roles: [],
-    desktopLabel: 'Sales Tax',
-    mobileLabel: 'Sales Tax',
-    desktopDisplay: false,
-    mobileDisplay: false,
-    footerDisplay: false,
-    seoIndex: true,
-  },
-  termsAndConditions: {
-    path: '/terms-and-conditions',
-    roles: [],
-    desktopLabel: 'Terms and Conditions',
-    mobileLabel: 'Terms and Conditions',
-    desktopDisplay: false,
-    mobileDisplay: false,
-    footerDisplay: false,
-    seoIndex: true,
-  },
-  privacyPolicy: {
-    path: '/privacy-policy',
-    roles: [],
-    desktopLabel: 'Privacy Policy',
-    mobileLabel: 'Privacy Policy',
-    desktopDisplay: false,
-    mobileDisplay: false,
-    footerDisplay: false,
-    seoIndex: true,
-  },
-  admin: {
-    path: '/admin',
-    roles: ['admin'],
-    desktopLabel: 'Admin',
-    mobileLabel: 'Admin',
-    desktopDisplay: true,
-    mobileDisplay: true,
-    footerDisplay: false,
-    seoIndex: false,
-  },
-  settingsEmail: {
-    path: '/settings/email',
-    roles: ['user', 'admin'],
-    desktopLabel: 'Change Email',
-    mobileLabel: 'Change Email',
-    desktopDisplay: false,
-    mobileDisplay: false,
-    footerDisplay: false,
-    seoIndex: false,
-  },
+  signIn: { path: '/auth/sign-in', roles: [], seoIndex: false },
+  signInEmail: { path: '/auth/sign-in/email', roles: [], seoIndex: false },
+  signUp: { path: '/auth/sign-up', roles: [], seoIndex: false },
+  verify: { path: '/auth/verify', roles: [], seoIndex: false },
+  verifyStepUp: { path: '/auth/verify/step-up', roles: ['user', 'admin'], seoIndex: false },
+  locked: { path: '/auth/locked', roles: [], seoIndex: false },
+  sessionExpired: { path: '/auth/session-expired', roles: [], seoIndex: false },
+  settingsEmail: { path: '/settings/email', roles: ['user', 'admin'], seoIndex: false },
   settingsEmailConfirmed: {
     path: '/settings/email/confirmed',
     roles: ['user', 'admin'],
-    desktopLabel: 'Email Changed',
-    mobileLabel: 'Email Changed',
-    desktopDisplay: false,
-    mobileDisplay: false,
-    footerDisplay: false,
     seoIndex: false,
   },
-  settingsPhone: {
-    path: '/settings/phone',
-    roles: ['user', 'admin'],
-    desktopLabel: 'Change Phone',
-    mobileLabel: 'Change Phone',
-    desktopDisplay: false,
-    mobileDisplay: false,
-    footerDisplay: false,
-    seoIndex: false,
-  },
+  settingsPhone: { path: '/settings/phone', roles: ['user', 'admin'], seoIndex: false },
   settingsPhoneConfirmed: {
     path: '/settings/phone/confirmed',
     roles: ['user', 'admin'],
-    desktopLabel: 'Phone Changed',
-    mobileLabel: 'Phone Changed',
-    desktopDisplay: false,
-    mobileDisplay: false,
-    footerDisplay: false,
-    seoIndex: false,
-  },
-  account: {
-    path: '/account',
-    roles: ['user', 'admin'],
-    desktopLabel: 'Account',
-    mobileLabel: 'Account',
-    desktopDisplay: false,
-    mobileDisplay: false,
-    footerDisplay: false,
-    seoIndex: false,
-  },
-  checkout: {
-    path: '/checkout',
-    roles: ['user', 'admin'],
-    desktopLabel: 'Checkout',
-    mobileLabel: 'Checkout',
-    desktopDisplay: false,
-    mobileDisplay: false,
-    footerDisplay: false,
-    seoIndex: false,
-  },
-  orderPlaced: {
-    path: '/order-placed',
-    roles: ['user', 'admin'],
-    desktopLabel: 'Order Placed',
-    mobileLabel: 'Order Placed',
-    desktopDisplay: false,
-    mobileDisplay: false,
-    footerDisplay: false,
-    seoIndex: false,
-  },
-  salesOrderCheckout: {
-    path: '/sales-order-checkout',
-    roles: ['user', 'admin'],
-    desktopLabel: 'Sales Order Checkout',
-    mobileLabel: 'Sales Order Checkout',
-    desktopDisplay: false,
-    mobileDisplay: false,
-    footerDisplay: false,
-    seoIndex: false,
-  },
-  images: {
-    path: '/images',
-    roles: ['admin'],
-    desktopLabel: 'Images',
-    mobileLabel: 'Images',
-    desktopDisplay: false,
-    mobileDisplay: false,
-    footerDisplay: false,
     seoIndex: false,
   },
 }
@@ -277,12 +48,7 @@ type R = (typeof protectedRoutes)[keyof typeof protectedRoutes]
 export const isPublic = (r: R) => r.roles.length === 0 || r.roles.every((role) => !role?.trim?.())
 
 export const shouldIndex = (r: R) => isPublic(r) && r.seoIndex
-export const shouldDisallow = (r: R) => !isPublic(r) || (isPublic(r) && !r.seoIndex)
-
-export const indexablePaths = () =>
-  Object.values(protectedRoutes)
-    .filter(shouldIndex)
-    .map((r) => r.path)
+export const shouldDisallow = (r: R) => !shouldIndex(r)
 
 export const nonIndexablePaths = () =>
   Object.values(protectedRoutes)

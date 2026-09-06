@@ -23,7 +23,6 @@
     "lint:test-actor": "node scripts/lint-test-actor.ts",
     "lint:test-actor:self-test": "node scripts/lint-test-actor.ts --self-test",
     "audit:routes": "node scripts/route-guards.ts --list",
-    "audit:frontend-nullability": "node scripts/audit-frontend-nullability.ts",
     "migrate": "node scripts/migrate.mjs",
     "migrate:reset-january": "node scripts/reset-january.ts",
     "migrate:reset-january:self-test": "node scripts/reset-january.ts --self-test",
@@ -102,8 +101,7 @@
     "suite-invocation:self-test": "node scripts/lib/suite-invocation.ts --self-test",
     "lint:migrations:self-test": "node scripts/lint-migrations.ts --self-test",
     "audit:query-paths:self-test": "TZ=UTC node scripts/audit-query-paths.mjs --self-test",
-    "audit:routes:self-test": "node scripts/route-guards.ts --self-test",
-    "audit:frontend-nullability:self-test": "node scripts/audit-frontend-nullability.ts --self-test"
+    "audit:routes:self-test": "node scripts/route-guards.ts --self-test"
   },
   "imports": {
     "#env": "./src/env.ts",

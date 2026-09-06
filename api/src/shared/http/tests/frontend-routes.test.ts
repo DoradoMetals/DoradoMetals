@@ -58,9 +58,16 @@ test('every frontend API call names a route the API actually has', () => {
   const known = new Set(allRoutes.filter((r) => r.url).map((r) => `${r.verb} ${r.url}`))
   assert.ok(known.size > 100, `only ${known.size} routes known - the route walk is wrong`)
 
+  // THE FLOOR MOVED WITH THE NUKE (ruling 99). It was 45, against a frontend
+  // that called every resource the API has. Every one of those surfaces is
+  // deleted and `@dorado/client` is down to the auth module, so the literal
+  // calls left are the nine `/account/*` endpoints plus the recaptcha verify.
+  // A floor above the real count fails the SCAN rather than the code, which is
+  // the failure this floor exists to prevent - so it comes down to what is
+  // actually there and goes back up as each surface is built.
   const { calls, skipped } = collect()
   assert.ok(
-    calls.length >= 45,
+    calls.length >= 9,
     `only ${calls.length} frontend call(s) found - the patterns have stopped ` +
       'matching, and a check that reads nothing accepts everything'
   )

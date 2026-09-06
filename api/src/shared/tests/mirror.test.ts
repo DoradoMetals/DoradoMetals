@@ -4,14 +4,25 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 const ROOT = path.resolve(import.meta.dirname, '../../../..')
-const PAIRS = [
-  {
-    what: 'weight conversion',
-    api: 'api/src/shared/utils/convertWeights.ts',
-    web: 'frontend/shared/utils/convertWeights.ts',
-    shared: ['convertTroyOz'],
-  },
-]
+
+// THERE IS NOTHING TO MIRROR RIGHT NOW (the frontend nuke, ruling 99).
+//
+// This held one pair: `convertTroyOz`, written twice because the API quoted a
+// weight and the browser re-showed it. The frontend copy went with the sell
+// and buy surfaces, so the drift this file exists to catch cannot happen -
+// there is only one copy left, which is the state the file wants.
+//
+// The list is empty rather than the file deleted, because the SECOND copy is
+// what comes back first: the moment a surface shows a weight somebody will
+// reach for `convertTroyOz` in the browser, and this is where that copy gets
+// pinned to the API's. `no second copy has come back` below fails the day one
+// appears without an entry here.
+const PAIRS: {
+  what: string
+  api: string
+  web: string
+  shared: string[]
+}[] = []
 
 function extract(file: string, name: string): string {
   const src = fs.readFileSync(file, 'utf8')
@@ -65,16 +76,33 @@ for (const pair of PAIRS) {
 }
 
 test('the comparison is reading real function bodies, not empty strings', () => {
-  let checked = 0
   for (const pair of PAIRS) {
     for (const name of pair.shared) {
       const body = normalise(extract(path.join(ROOT, pair.api), name))
       assert.ok(body.length > 80, `${name} extracted only ${body.length} chars`)
       assert.match(body, /return/)
-      checked += 1
     }
   }
-  assert.equal(checked, 1, 'expected one shared function')
+})
+
+// THE GUARD THAT REPLACES THE PAIR. An empty PAIRS list passes every test
+// above trivially, and a check that reads nothing accepts everything - so the
+// emptiness has to be asserted from the other side. These are the frontend
+// files that USED to hold a second copy of a number the API also computes. If
+// one comes back, it is either a duplicate to delete or a pair to declare.
+test('no second copy of an API calculation has come back to the frontend', () => {
+  const copies = [
+    'frontend/shared/utils/convertWeights.ts',
+    'frontend/features/rates/utils/resolveRate.ts',
+  ].filter((rel) => fs.existsSync(path.join(ROOT, rel)))
+
+  assert.deepEqual(
+    copies,
+    [],
+    'a calculation the API owns has a second copy in the frontend again. ' +
+      'Either delete it, or add the pair to PAIRS so the two are pinned ' +
+      'together: one quotes the customer a number and the other pays it.'
+  )
 })
 
 test("the rate resolution has exactly one copy, and it is the API's SQL", () => {
