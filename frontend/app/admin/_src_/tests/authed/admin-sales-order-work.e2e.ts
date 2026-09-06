@@ -23,18 +23,27 @@ let orderId = ''
 let orderNumber = 0
 
 test.beforeAll(async ({ playwright }) => {
+  // The hook builds the whole sale server-side - a dozen API calls including a
+  // real Stripe TEST-MODE intent - and the default 30s hook budget was not
+  // enough under parallel workers sharing one dev API.
+  test.setTimeout(120_000)
   const admin = await pwRequest.newContext({ storageState: 'playwright/.auth/admin.json' })
   const customer = await pwRequest.newContext({ storageState: 'playwright/.auth/customer.json' })
 
   // The customer's own context answers what only they can see: their id (off
   // the users list would need admin, but the address list is theirs) and the
   // stable seeded address.
-  const addresses = await customer.get(`${API}/addresses/get`)
-  expect(addresses.ok(), `addresses/get failed: ${addresses.status()}`).toBeTruthy()
-  const addressList = await addresses.json()
+  const addresses = await customer.get(`${API}/addresses`)
+  expect(addresses.ok(), `addresses failed: ${addresses.status()}`).toBeTruthy()
+  // GET /addresses answers BOOK ENTRIES now - { address, user_address, locked,
+  // actions } - not flat address rows. The nickname is the user_address's
+  // `label`; the id an order needs is the address's own.
+  type BookEntry = { address?: { id?: string }; user_address?: { label?: string } }
+  const addressList: BookEntry[] = await addresses.json()
   const seedAddress =
-    addressList.find((a: { name?: string }) => a?.name === 'e2e-order-seed') ?? addressList[0]
-  expect(seedAddress?.id, 'the e2e customer has no address - run seed:e2e:order once').toBeTruthy()
+    addressList.find((a) => a?.user_address?.label === 'e2e-order-seed') ?? addressList[0]
+  const seedAddressId = seedAddress?.address?.id
+  expect(seedAddressId, 'the e2e customer has no address - run seed:e2e:order once').toBeTruthy()
 
   // The address wire deliberately carries no user_id; the customer's own
   // session is the honest source of their id.
@@ -108,8 +117,11 @@ test.beforeAll(async ({ playwright }) => {
     fulfillmentMethods.ok(),
     `fulfillment methods failed: ${await fulfillmentMethods.text()}`
   ).toBeTruthy()
+  // SHIPMENT is the CATEGORY; `type` is the flavour within it (CARRIER
+  // DROPOFF / CARRIER PICKUP / DROPSHIP). Matching `type === 'SHIPMENT'`
+  // matched nothing.
   const shipment = (await fulfillmentMethods.json()).find(
-    (m: { type?: string }) => m?.type === 'SHIPMENT'
+    (m: { category?: string }) => m?.category === 'SHIPMENT'
   )
   expect(shipment?.id, 'no SHIPMENT fulfillment method to place against').toBeTruthy()
 
@@ -127,12 +139,12 @@ test.beforeAll(async ({ playwright }) => {
         choices: {
           shipment: {
             carrier_service_id: service.id,
-            recipient_address_id: seedAddress.id,
+            recipient_address_id: seedAddressId,
           },
         },
       },
       payment_method_id: method.id,
-      recipient_address_id: seedAddress.id,
+      recipient_address_id: seedAddressId,
     },
   })
   expect(created.ok(), `admin order create failed: ${await created.text()}`).toBeTruthy()
@@ -196,11 +208,18 @@ test('a seeded sale is born Pending and walks its lifecycle to Cancelled', async
   await ctx.dispose()
 
   await page.reload()
-  await page
-    .getByPlaceholder(/Search orders/i)
-    .first()
-    .fill(String(orderNumber))
-  await page.locator('tbody tr').first().click()
+  const searchAgain = page.getByPlaceholder(/Search orders/i).first()
+  await expect(searchAgain).toBeVisible({ timeout: 60_000 })
+  await searchAgain.fill(String(orderNumber))
+  // WAIT FOR THE FILTER, then click. Clicking `tbody tr` straight after the
+  // fill raced the re-render and landed on a row that was replaced, so no
+  // drawer opened at all.
+  const cancelledRow = page.locator('tbody tr').first()
+  await expect(cancelledRow, 'the seeded sale never reappeared').toContainText(
+    String(orderNumber),
+    { timeout: 20_000 }
+  )
+  await cancelledRow.click()
   await expect(
     page.getByRole('dialog', { name: /Sales order/i }).first(),
     'the sale does not show Cancelled after the status write'

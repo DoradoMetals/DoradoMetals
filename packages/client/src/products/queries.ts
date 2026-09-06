@@ -5,20 +5,7 @@ import type { BullionAdmin, BullionGroup, BullionPatch, Metal, Mint } from '@dor
 
 import { apiRequest } from '../fetch'
 import { keys } from '../keys'
-
-export type ProductQuery = {
-  side?: 'ask' | 'bid'
-  placement?: 'storefront' | 'homepage'
-  metal_id?: string
-  category?: string
-  type?: string
-  search?: string
-  generic?: boolean
-  sort?: 'name' | 'content' | 'newest'
-}
-
-export const fetchProducts = (query: ProductQuery = {}) =>
-  apiRequest<BullionGroup[]>('GET', '/products', undefined, query)
+import { fetchProducts, type ProductQuery } from './fetch'
 
 export function useProducts(query: ProductQuery = {}, enabled = true) {
   return useQuery<BullionGroup[]>({
