@@ -41,10 +41,10 @@ schema. That schema holds every row the business has; a genuinely intended
 destructive change needs an explicit `-- allow-destructive:` marker saying why
 it is safe and what backup exists.
 
-**`pnpm --filter @dorado/api test`** — `TZ=UTC node --test`. Pure pricing
-functions, the migration baseline logic, a test that no `*_SOURCE` switch has
-been promoted, and database-backed repo tests for every migrated feature. The
-pure ones need nothing; the rest need `DATABASE_URL`. **`TZ=UTC` is not
+**`pnpm --filter @dorado/api test`** — `TZ=UTC` vitest, against a local
+Postgres the preflight provisions. Pure functions and contract shapes
+(`test:unit`), repo and service tests (`test:db`) and supertest routes
+(`test:http`). The pure ones need nothing; the rest need the test database. **`TZ=UTC` is not
 optional** — the API reads naive timestamps as UTC, and outside UTC the repo
 tests disagree with the database by the local offset.
 
@@ -61,8 +61,6 @@ Not in CI, because CI has no database. Run them locally before committing anythi
 pnpm --filter @dorado/api audit:coverage    # exchange columns with nowhere to go
 pnpm --filter @dorado/api verify:genesis    # can the schema be built from nothing
 pnpm --filter @dorado/api verify:backfill   # can the data be, and is it identical
-pnpm --filter @dorado/api verify:parity     # source table vs target table
-pnpm --filter @dorado/api diff              # old repo vs new repo, same rows
 pnpm --filter @dorado/contracts validate    # generated schemas vs real rows
 pnpm --filter @dorado/api validate:wire     # wire contracts vs real API responses
 ```
@@ -91,13 +89,9 @@ idempotency, and checks the guard refuses once the new schema holds rows
 `exchange` does not. Against dev the backfills are all no-ops, so this is the
 only check that exercises them at all.
 
-**`verify:parity`** compares a source table against its target, type-aware,
-with reviewed `intentionallyDropped` waivers for renames.
-
-**`diff`** runs both schema implementations of a migrated feature over real rows
-and requires identical responses. The gate for promoting a `*_SOURCE` switch.
-Where a migration deliberately changes a returned *value* rather than a shape,
-declare it in the per-read `ignore` map with the reason rather than hiding it.
+`verify:parity` and `diff` are gone with the migration that needed them: one
+implementation per feature now, and both sides of every old table pair are
+frozen.
 
 `DATABASE_URL` in `api/.env` points at **dev**. `PROD_READONLY_DATABASE_URL` is read-only production — use it for audits, never for migrations.
 
