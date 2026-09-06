@@ -58,16 +58,16 @@ test('every frontend API call names a route the API actually has', () => {
   const known = new Set(allRoutes.filter((r) => r.url).map((r) => `${r.verb} ${r.url}`))
   assert.ok(known.size > 100, `only ${known.size} routes known - the route walk is wrong`)
 
-  // THE FLOOR MOVED WITH THE NUKE (ruling 99). It was 45, against a frontend
-  // that called every resource the API has. Every one of those surfaces is
-  // deleted and `@dorado/client` is down to the auth module, so the literal
-  // calls left are the nine `/account/*` endpoints plus the recaptcha verify.
-  // A floor above the real count fails the SCAN rather than the code, which is
-  // the failure this floor exists to prevent - so it comes down to what is
-  // actually there and goes back up as each surface is built.
+  // THE FLOOR RISES WITH EACH SURFACE. It was 45 before the nuke, 9 after it,
+  // and it is 30 now that the admin order screens brought back eight resource
+  // modules - orders, refining, payments, fulfillments, shipping, spots, users
+  // and crm - on top of the ten `/account/*` calls. Only literal URLs count, so
+  // a hook whose path is a template contributes nothing to it. A floor above the real
+  // count fails the SCAN rather than the code, which is the failure this floor
+  // exists to prevent, so it tracks what is actually there.
   const { calls, skipped } = collect()
   assert.ok(
-    calls.length >= 9,
+    calls.length >= 30,
     `only ${calls.length} frontend call(s) found - the patterns have stopped ` +
       'matching, and a check that reads nothing accepts everything'
   )

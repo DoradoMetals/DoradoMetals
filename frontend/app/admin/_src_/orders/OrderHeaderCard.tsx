@@ -1,0 +1,132 @@
+'use client'
+
+import { Badge, Button, Select } from '@dorado/components'
+import type { AdminUser } from '@dorado/contracts'
+
+export type OrderHeaderParty =
+  | { kind: 'customer'; name: string; place: string; ordersToDate: number | null }
+  | {
+      kind: 'refiner'
+      refinerId: string | null
+      refiners: { id: string; name: string }[]
+      onRefinerChange: (id: string) => void
+      locked: boolean
+      place: string
+    }
+
+export type OrderHeaderAction = {
+  label: string
+  onClick: () => void
+  disabled?: boolean
+  reason?: string
+}
+
+export type OrderHeaderCardProps = {
+  eyebrow: string
+  reference: string
+  party: OrderHeaderParty
+  cancelled?: boolean
+  assignedToId: string | null
+  admins: AdminUser[]
+  onAssign: (id: string) => void
+  assignDisabled?: boolean
+  cancel?: OrderHeaderAction
+  primary?: OrderHeaderAction
+  reopen?: OrderHeaderAction
+}
+
+// PURCHASE ORDER / SALES ORDER, who it is with, where it is, and the two things
+// an admin may do to the order itself. The Cancelled badge earns its place here
+// because it stops every other card; no other order-level status does, so none
+// is drawn.
+export function OrderHeaderCard({
+  eyebrow,
+  reference,
+  party,
+  cancelled = false,
+  assignedToId,
+  admins,
+  onAssign,
+  assignDisabled = false,
+  cancel,
+  primary,
+  reopen,
+}: OrderHeaderCardProps) {
+  const meta = party.kind === 'customer' ? party.place : party.place
+  const shown = (cancelled ? [reopen] : [cancel, primary]).filter(
+    (action): action is OrderHeaderAction => action != null
+  )
+  const blocked = shown.filter((a) => a.disabled && a.reason).map((a) => a.reason!)
+
+  return (
+    <section className="flex items-start justify-between gap-lg overflow-clip rounded-lg border border-border bg-card p-md">
+      <div className="flex min-w-0 flex-col gap-xs">
+        <div className="flex items-center gap-xs">
+          <p className="font-mono text-micro uppercase tracking-[0.1em] text-muted-foreground">
+            {eyebrow}
+          </p>
+          {cancelled && (
+            <Badge intent="danger" variant="soft">
+              Cancelled
+            </Badge>
+          )}
+        </div>
+
+        {party.kind === 'customer' ? (
+          <h2 className="truncate">{party.name}</h2>
+        ) : (
+          <div className="w-[320px]">
+            <Select
+              label="Refiner"
+              items={party.refiners.map((r) => ({ value: r.id, label: r.name }))}
+              value={party.refinerId ?? undefined}
+              onValueChange={party.onRefinerChange}
+              disabled={party.locked}
+              placeholder="Choose a refiner"
+            />
+          </div>
+        )}
+
+        <p className="text-small text-muted-foreground">
+          {meta ? `${reference}   ·   ${meta}` : reference}
+        </p>
+        {party.kind === 'customer' && party.ordersToDate !== null && (
+          <p className="text-small text-muted-foreground">
+            {party.ordersToDate} orders to date
+          </p>
+        )}
+      </div>
+
+      <div className="flex w-[240px] shrink-0 flex-col items-end gap-xs">
+        <Select
+          label="Assigned to"
+          items={admins.map((a) => ({ value: a.id, label: a.name ?? a.email }))}
+          value={assignedToId ?? undefined}
+          onValueChange={onAssign}
+          disabled={assignDisabled}
+          placeholder="Unassigned"
+        />
+        <div className="flex w-full items-center gap-sm">
+          {shown.map((action) => (
+            <Button
+              key={action.label}
+              variant={action.label.startsWith('Cancel') ? 'secondary' : 'primary'}
+              intent={action.label.startsWith('Cancel') ? 'danger' : 'neutral'}
+              size="lg"
+              disabled={action.disabled}
+              onClick={action.onClick}
+              className="flex-1"
+            >
+              {action.label}
+            </Button>
+          ))}
+        </div>
+        {blocked.length > 0 && (
+          <p className="text-right text-micro text-muted-foreground">
+            {blocked.join(' · ')}
+          </p>
+        )}
+      </div>
+    </section>
+  )
+}
