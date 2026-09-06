@@ -20,7 +20,9 @@ const ACCEPTED: Record<string, { count: number; why: string }> = {
   'db/refiners/spots/repo.ts': { count: 4, why: SMALL_FEATURES },
   'db/sales-tax/repo.ts': { count: 1, why: SMALL_FEATURES },
   'domains/documents/emails/record.ts': { count: 4, why: SMALL_FEATURES },
-  'domains/documents/emails/utils/renderEmail.ts': { count: 2, why: SMALL_FEATURES },
+  // Was 2. `TemplateVars` went with the three password-era renderers when the
+  // passwordless-auth lane deleted them; only the refiner's own input is left.
+  'domains/documents/emails/utils/renderEmail.ts': { count: 1, why: SMALL_FEATURES },
   'domains/documents/pdfs/render/layout.ts': { count: 1, why: SMALL_FEATURES },
   'domains/documents/pdfs/render/sections.ts': { count: 1, why: SMALL_FEATURES },
   'domains/documents/pdfs/serve.ts': { count: 3, why: SMALL_FEATURES },

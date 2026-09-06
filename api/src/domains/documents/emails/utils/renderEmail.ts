@@ -1,8 +1,7 @@
 // What is left of the old string-substitution templates: the refiner's copy of
-// a sales order, and the three auth mails the passwordless-auth lane will
-// delete with the templates behind them. Every CUSTOMER mailer is built from
-// the Figma page now - see templates/*.ts - and renders through
-// render/base.ts rather than through [BODY] and [First Name].
+// a sales order. Every CUSTOMER mailer is built from the Figma page now - see
+// templates/*.ts - and renders through render/base.ts rather than through
+// [BODY] and [First Name]. The three auth mails died with the passwords.
 import fs from 'fs'
 import path from 'path'
 import { formatSalesOrderNumber } from '#shared/utils/formatOrderNumbers.ts'
@@ -11,40 +10,6 @@ import type { OrderPricing, OrderView } from '@dorado/contracts'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
-
-type TemplateVars = {
-  firstName?: string | null
-  url?: string | null
-}
-
-function renderTemplate(contentFile: string, { firstName = 'there', url }: TemplateVars): string {
-  const templatesDir = path.join(__dirname, '..', 'templates')
-
-  const layoutPath = path.join(templatesDir, 'baseLayout.raw.html')
-  const contentPath = path.join(templatesDir, contentFile)
-
-  const layout = fs.readFileSync(layoutPath, 'utf8')
-  const content = fs.readFileSync(contentPath, 'utf8')
-
-  const safeUrl = url ?? 'https://www.doradometals.com'
-
-  return layout
-    .replace('[BODY]', content)
-    .replace(/\[First Name\]/g, firstName ?? 'there')
-    .replace(/\[URL\]/g, safeUrl)
-}
-
-export function renderResetPasswordEmail({ firstName, url }: TemplateVars): string {
-  return renderTemplate('resetPassword.raw.html', { firstName, url })
-}
-
-export function renderVerifyEmail({ firstName, url }: TemplateVars): string {
-  return renderTemplate('verifyEmail.raw.html', { firstName, url })
-}
-
-export function renderChangeEmail({ firstName, url }: TemplateVars): string {
-  return renderTemplate('changeEmail.raw.html', { firstName, url })
-}
 
 type RefinerEmailInput = {
   firstName?: string | null

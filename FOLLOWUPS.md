@@ -210,3 +210,51 @@ Gmail's and Outlook's transforms, and no send has left the stub. Detail in
 - **`shared/db/tests/transaction-side-effects.test.ts` gained a `rails` rule**, so a Moov or Plaid call inside a transaction fails the build the way a carrier call does. It passes: every rail call happens after the commit, and `sendPayout` writes `Processing` and commits BEFORE asking Moov, so a crash leaves a visible Processing row rather than a payment nothing recorded.
 - **Coverage's domain ratchet moved 86/73/89/88 -> 88/77/92/91** (measured, floored): every route is driven by an HTTP test as a real admin or customer, and four dead helpers written on the way (`isTerminal`, `dollarsOf`, `assertNotTerminal`, `assertProviderAccepted`, plus `rails.openTransfer`) were deleted rather than left as coverage debt.
 - **`pnpm check` is green except `figma:inventory` (pre-existing) and three dev-database members blocked by the OTHER lanes**: `dump:schema`/`verify:genesis`/`verify:backfill` refuse with `NATIVE_SCHEMAS does not list: crm, lots, refining`, `contracts:verify:fresh` refuses with `no entity name for auth.otp_throttles` then `orders.lots`, and `contracts:validate`/`api:validate:wire` diverge on one table because the lots lane added `DROPOFF` to `fulfillments.category` on dev. Run individually, `audit:coverage`, `audit:indexes`, `audit:query-paths`, `audit:constraints` and `audit:nullability` are all GREEN - which is what says the five new tables are indexed on the columns their queries filter on. `000_genesis_schema.sql` was regenerated from `test_rails_lane` instead (440 added lines, none removed) so it carries the five new tables; **it needs one more `dump:schema` against dev once the three lanes converge.** Detail in `docs/waves/payment-rails.md`.
+## D216 - Passwordless, phone-first auth, plus SMS and calls (2026-09-06, rulings 91-94, 96)
+
+Passwords are gone from the API. `emailAndPassword`, `emailVerification`,
+`user.changeEmail` and the `magicLink` plugin are out of the better-auth config
+(pinned 1.6.9, not bumped), replaced by its `phoneNumber` and `emailOTP` plugins
+mapped onto the existing snake_case columns; `set_password`, the reset and
+change-password surfaces, three raw mail templates and `sendAuthVerificationEmail`
+are deleted. **No password row in `auth.account` was deleted and no `exchange`
+table was touched** - they simply stop being read. Eight endpoints under
+`/api/account` feed all twelve Figma "Auth Form" states from one
+`VerificationView` plus a `ChangeConfirmedView`, and every rule the design carries
+is a test: a factor change is verified through the OTHER factor with no choice,
+sign-in is free choice, step-up only for a session older than five minutes,
+the OLD value notified after commit, one factor per session, enumeration-safe
+responses padded to a constant-time floor so shape AND timing match for a known
+and an unknown identity, a five-attempt lockout with a fifteen-minute cooldown,
+and masking everywhere except the caller's own new value on the confirmed screen.
+SMS is a provider (`send` + signature verification) with a **recording fake as
+the default**, so the app boots with no Twilio keys and nothing in a test run can
+reach the network; the real adapter is written against Twilio's documented REST
+API and refuses to construct without its keys. **The Twilio signature constant
+quoted in this lane's brief (`RSOYDt4T1cUTdK1PDd93/VVr8B8=`) does not reproduce
+from the inputs given with it**; the algorithm was implemented from the
+documentation instead and the HMAC primitive is pinned against an external
+HMAC-SHA1 vector, so the test proves the hash rather than its own output.
+`crm.sms_messages` and `crm.calls` are one table each for both directions, the
+four Twilio webhooks mount before the JSON parser and are idempotent on
+`provider_sid` and order-tolerant on status, and `GET /api/customers/:id/timeline`
+merges sms, calls and emails in ONE SQL read. Calls are a softphone with a
+voicemail path; **there is NO frontend for them (ruling 96)** and no Figma design
+for the `voicemail_received` notice either, which is why it wears the plain base
+layout - **it wants a design**. Migrations **142, 143 and 144** are additive and
+dev-only; 144's index on `auth.verification (identifier)` is a column every OTP
+check filters on that better-auth's own schema never indexed. **Genesis carries
+144 by hand**, because dev has moved under this branch (the lots and refining
+lanes are at 167) and a regeneration would import their schemas.
+**Five dev-db gate members fail for that reason - `verify:fresh`, `verify:genesis`,
+`verify:backfill`, `audit:non-finite` and both wire validators, on `orders.lots`,
+`lots`/`refining` and 167's new `fulfillments.methods.category` label - and not one
+of them names anything this wave wrote.** **THE FRONTEND IS BROKEN ON PURPOSE (ruling 44)**: seven
+files still call `useSetPassword` or better-auth's password and magic-link
+methods, and `auth.setup.ts` still signs in with a password - all listed in
+`docs/waves/auth-passwordless.md`, none fixed, and the gate runs no frontend
+member. **What Jacob owes**: eleven env keys, four Twilio webhook URLs on the one
+business number, a TwiML App whose SID is an env key rather than a database row
+(dev, UAT and prod each need a different one), the A2P 10DLC campaign that gates
+OUTBOUND messaging only, and Cloudflare bot rules allowing the webhook paths.
+Detail in `docs/waves/auth-passwordless.md`.

@@ -1,5 +1,8 @@
 export * as checkouts from '#db/checkout/checkouts/repo.ts'
 export * as checkoutItems from '#db/checkout/items/repo.ts'
+export * as smsMessages from '#db/crm/sms-messages/repo.ts'
+export * as calls from '#db/crm/calls/repo.ts'
+export * as timeline from '#db/crm/timeline/repo.ts'
 export * as fulfillments from '#db/fulfillments/repo.ts'
 export * as fulfillmentMethods from '#db/fulfillments/methods/repo.ts'
 export * as fulfillmentPickups from '#db/fulfillments/pickups/repo.ts'

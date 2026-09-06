@@ -112,6 +112,7 @@ const DEFAULT_SCHEMAS = [
   'places',
   'auth',
   'checkout',
+  'crm',
   'refiners',
 ].join(',')
 
@@ -190,12 +191,18 @@ const pascal = (s) =>
 const ENTITY = {
   'auth.account': 'AuthAccount',
   'auth.employees': 'Employee',
+  'auth.otp_throttles': 'AuthOtpThrottle',
+  'auth.pending_changes': 'AuthPendingChange',
+  'auth.pending_signups': 'AuthPendingSignup',
   'auth.sessions': 'Session',
   'auth.users': 'User',
   'auth.verification': 'Verification',
 
   'checkout.checkouts': 'Checkout',
   'checkout.items': 'CheckoutItem',
+
+  'crm.calls': 'Call',
+  'crm.sms_messages': 'SmsMessage',
 
   'fulfillments.directs': 'FulfillmentDirect',
   'fulfillments.fulfillments': 'Fulfillment',
@@ -267,9 +274,14 @@ const ENTITY = {
 // is THE direction of this business; shipping.direction is a parcel's leg.
 // (`public` owned two more, used only by exchange.sales_tax_rules; they left
 // with the exchange contracts.)
+// crm.sms_status and crm.call_status are the DELIVERY state of a row; the
+// flat namespace already spends SmsStatus and CallStatus on the provider's
+// status callbacks, which are different shapes with the same words in them.
 const ENUM_NAME = {
   'shipping.direction': 'ShipmentDirection',
   'fulfillments.category': 'FulfillmentCategory',
+  'crm.sms_status': 'SmsDeliveryStatus',
+  'crm.call_status': 'CallState',
 }
 
 const entityName = (schema, table) => {

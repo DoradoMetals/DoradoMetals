@@ -42,6 +42,12 @@ const ACCEPTED: Record<string, { count: number; why: string }> = {
   'domains/logistics/shipping/operations/resolver.ts': { count: 1, why: RESULT },
   'domains/logistics/shipping/services/service.ts': { count: 2, why: CRUD },
   'domains/logistics/shipping/shipments/service.ts': { count: 1, why: RESULT },
+  'domains/crm/calls/service.ts': {
+    count: 1,
+    why:
+      'a Voice SDK access token: the token and its expiry are computed, not read ' +
+      'from a table row, so there is no view to build in SQL (CallToken names no column)',
+  },
 }
 
 const acceptedHit = new Map<string, number>()

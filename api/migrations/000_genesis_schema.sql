@@ -54,6 +54,7 @@
 
 CREATE SCHEMA IF NOT EXISTS auth;
 CREATE SCHEMA IF NOT EXISTS checkout;
+CREATE SCHEMA IF NOT EXISTS crm;
 CREATE SCHEMA IF NOT EXISTS fulfillments;
 CREATE SCHEMA IF NOT EXISTS leads;
 CREATE SCHEMA IF NOT EXISTS media;
@@ -79,6 +80,78 @@ CREATE SCHEMA IF NOT EXISTS tax;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE t.typname = 'factor' AND n.nspname = 'auth'
+  ) THEN
+    CREATE TYPE auth.factor AS ENUM ('email', 'phone');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE t.typname = 'otp_channel' AND n.nspname = 'auth'
+  ) THEN
+    CREATE TYPE auth.otp_channel AS ENUM ('sms', 'email');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE t.typname = 'otp_purpose' AND n.nspname = 'auth'
+  ) THEN
+    CREATE TYPE auth.otp_purpose AS ENUM ('sign_in', 'sign_up', 'step_up', 'change_email', 'change_phone');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE t.typname = 'throttle_kind' AND n.nspname = 'auth'
+  ) THEN
+    CREATE TYPE auth.throttle_kind AS ENUM ('phone', 'email', 'ip');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE t.typname = 'call_direction' AND n.nspname = 'crm'
+  ) THEN
+    CREATE TYPE crm.call_direction AS ENUM ('inbound', 'outbound');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE t.typname = 'call_status' AND n.nspname = 'crm'
+  ) THEN
+    CREATE TYPE crm.call_status AS ENUM ('queued', 'ringing', 'in-progress', 'completed', 'busy', 'no-answer', 'failed', 'canceled', 'voicemail');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE t.typname = 'sms_direction' AND n.nspname = 'crm'
+  ) THEN
+    CREATE TYPE crm.sms_direction AS ENUM ('inbound', 'outbound');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE t.typname = 'sms_status' AND n.nspname = 'crm'
+  ) THEN
+    CREATE TYPE crm.sms_status AS ENUM ('received', 'queued', 'sent', 'delivered', 'failed', 'undelivered');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
     WHERE t.typname = 'category' AND n.nspname = 'fulfillments'
   ) THEN
     CREATE TYPE fulfillments.category AS ENUM ('SHIPMENT', 'PICKUP', 'DIRECT');
@@ -90,7 +163,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
     WHERE t.typname = 'email_kind' AND n.nspname = 'media'
   ) THEN
-    CREATE TYPE media.email_kind AS ENUM ('purchase_order_created', 'purchase_order_priced', 'sales_order_to_supplier', 'auth_verification', 'sales_order_created', 'sign_in_code', 'account_created', 'details_changed', 'payout_sent', 'shipment_sent', 'shipment_received', 'pickup_booked', 'pickup_complete', 'appointment_booked', 'appointment_tomorrow', 'document_sent', 'promo');
+    CREATE TYPE media.email_kind AS ENUM ('purchase_order_created', 'purchase_order_priced', 'sales_order_to_supplier', 'auth_verification', 'sales_order_created', 'sign_in_code', 'account_created', 'details_changed', 'payout_sent', 'shipment_sent', 'shipment_received', 'pickup_booked', 'pickup_complete', 'appointment_booked', 'appointment_tomorrow', 'document_sent', 'promo', 'voicemail_received');
   END IF;
 END $$;
 
@@ -264,6 +337,81 @@ ALTER TABLE auth.employees ADD COLUMN IF NOT EXISTS updated_at timestamp with ti
 ALTER TABLE auth.employees ADD COLUMN IF NOT EXISTS created_by text;
 ALTER TABLE auth.employees ADD COLUMN IF NOT EXISTS updated_by text;
 
+CREATE TABLE IF NOT EXISTS auth.otp_throttles (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  subject text NOT NULL,
+  kind auth.throttle_kind NOT NULL,
+  sends integer DEFAULT 0 NOT NULL,
+  window_started_at timestamp with time zone,
+  attempts integer DEFAULT 0 NOT NULL,
+  locked_until timestamp with time zone,
+  last_sent_at timestamp with time zone,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  created_by_id uuid,
+  updated_by_id uuid
+);
+ALTER TABLE auth.otp_throttles ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE auth.otp_throttles ADD COLUMN IF NOT EXISTS subject text;
+ALTER TABLE auth.otp_throttles ADD COLUMN IF NOT EXISTS kind auth.throttle_kind;
+ALTER TABLE auth.otp_throttles ADD COLUMN IF NOT EXISTS sends integer DEFAULT 0;
+ALTER TABLE auth.otp_throttles ADD COLUMN IF NOT EXISTS window_started_at timestamp with time zone;
+ALTER TABLE auth.otp_throttles ADD COLUMN IF NOT EXISTS attempts integer DEFAULT 0;
+ALTER TABLE auth.otp_throttles ADD COLUMN IF NOT EXISTS locked_until timestamp with time zone;
+ALTER TABLE auth.otp_throttles ADD COLUMN IF NOT EXISTS last_sent_at timestamp with time zone;
+ALTER TABLE auth.otp_throttles ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE auth.otp_throttles ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE auth.otp_throttles ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE auth.otp_throttles ADD COLUMN IF NOT EXISTS updated_by_id uuid;
+
+CREATE TABLE IF NOT EXISTS auth.pending_changes (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  user_id uuid NOT NULL,
+  factor auth.factor NOT NULL,
+  next_value text NOT NULL,
+  verified_via auth.otp_channel NOT NULL,
+  sent_to text NOT NULL,
+  expires_at timestamp with time zone NOT NULL,
+  confirmed_at timestamp with time zone,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  created_by_id uuid,
+  updated_by_id uuid
+);
+ALTER TABLE auth.pending_changes ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE auth.pending_changes ADD COLUMN IF NOT EXISTS user_id uuid;
+ALTER TABLE auth.pending_changes ADD COLUMN IF NOT EXISTS factor auth.factor;
+ALTER TABLE auth.pending_changes ADD COLUMN IF NOT EXISTS next_value text;
+ALTER TABLE auth.pending_changes ADD COLUMN IF NOT EXISTS verified_via auth.otp_channel;
+ALTER TABLE auth.pending_changes ADD COLUMN IF NOT EXISTS sent_to text;
+ALTER TABLE auth.pending_changes ADD COLUMN IF NOT EXISTS expires_at timestamp with time zone;
+ALTER TABLE auth.pending_changes ADD COLUMN IF NOT EXISTS confirmed_at timestamp with time zone;
+ALTER TABLE auth.pending_changes ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE auth.pending_changes ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE auth.pending_changes ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE auth.pending_changes ADD COLUMN IF NOT EXISTS updated_by_id uuid;
+
+CREATE TABLE IF NOT EXISTS auth.pending_signups (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  phone_number text NOT NULL,
+  email text NOT NULL,
+  name text NOT NULL,
+  expires_at timestamp with time zone NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  created_by_id uuid,
+  updated_by_id uuid
+);
+ALTER TABLE auth.pending_signups ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE auth.pending_signups ADD COLUMN IF NOT EXISTS phone_number text;
+ALTER TABLE auth.pending_signups ADD COLUMN IF NOT EXISTS email text;
+ALTER TABLE auth.pending_signups ADD COLUMN IF NOT EXISTS name text;
+ALTER TABLE auth.pending_signups ADD COLUMN IF NOT EXISTS expires_at timestamp with time zone;
+ALTER TABLE auth.pending_signups ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE auth.pending_signups ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE auth.pending_signups ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE auth.pending_signups ADD COLUMN IF NOT EXISTS updated_by_id uuid;
+
 CREATE TABLE IF NOT EXISTS auth.sessions (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
   "userId" uuid NOT NULL,
@@ -273,7 +421,9 @@ CREATE TABLE IF NOT EXISTS auth.sessions (
   "updatedAt" timestamp without time zone DEFAULT now() NOT NULL,
   "ipAddress" text,
   "userAgent" text,
-  "impersonatedBy" uuid
+  "impersonatedBy" uuid,
+  factor_changed auth.factor,
+  stepped_up_at timestamp with time zone
 );
 ALTER TABLE auth.sessions ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE auth.sessions ADD COLUMN IF NOT EXISTS "userId" uuid;
@@ -284,6 +434,8 @@ ALTER TABLE auth.sessions ADD COLUMN IF NOT EXISTS "updatedAt" timestamp without
 ALTER TABLE auth.sessions ADD COLUMN IF NOT EXISTS "ipAddress" text;
 ALTER TABLE auth.sessions ADD COLUMN IF NOT EXISTS "userAgent" text;
 ALTER TABLE auth.sessions ADD COLUMN IF NOT EXISTS "impersonatedBy" uuid;
+ALTER TABLE auth.sessions ADD COLUMN IF NOT EXISTS factor_changed auth.factor;
+ALTER TABLE auth.sessions ADD COLUMN IF NOT EXISTS stepped_up_at timestamp with time zone;
 
 CREATE TABLE IF NOT EXISTS auth.users (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -300,7 +452,8 @@ CREATE TABLE IF NOT EXISTS auth.users (
   "banReason" text,
   "banExpires" timestamp without time zone,
   phone_number text,
-  "isAnonymous" boolean DEFAULT false NOT NULL
+  "isAnonymous" boolean DEFAULT false NOT NULL,
+  phone_number_verified boolean DEFAULT false NOT NULL
 );
 ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS email text;
@@ -317,6 +470,7 @@ ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS "banReason" text;
 ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS "banExpires" timestamp without time zone;
 ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS phone_number text;
 ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS "isAnonymous" boolean DEFAULT false;
+ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS phone_number_verified boolean DEFAULT false;
 
 CREATE TABLE IF NOT EXISTS auth.verification (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -382,6 +536,80 @@ ALTER TABLE checkout.items ADD COLUMN IF NOT EXISTS created_at timestamp with ti
 ALTER TABLE checkout.items ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
 ALTER TABLE checkout.items ADD COLUMN IF NOT EXISTS content numeric;
 ALTER TABLE checkout.items ADD COLUMN IF NOT EXISTS unit text;
+
+CREATE TABLE IF NOT EXISTS crm.calls (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  provider text DEFAULT 'twilio'::text NOT NULL,
+  provider_sid text NOT NULL,
+  direction crm.call_direction NOT NULL,
+  from_number text NOT NULL,
+  to_number text NOT NULL,
+  user_id uuid,
+  employee_id uuid,
+  status crm.call_status NOT NULL,
+  duration_seconds integer,
+  recording_url text,
+  started_at timestamp with time zone DEFAULT now() NOT NULL,
+  ended_at timestamp with time zone,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  created_by_id uuid,
+  updated_by_id uuid
+);
+ALTER TABLE crm.calls ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE crm.calls ADD COLUMN IF NOT EXISTS provider text DEFAULT 'twilio'::text;
+ALTER TABLE crm.calls ADD COLUMN IF NOT EXISTS provider_sid text;
+ALTER TABLE crm.calls ADD COLUMN IF NOT EXISTS direction crm.call_direction;
+ALTER TABLE crm.calls ADD COLUMN IF NOT EXISTS from_number text;
+ALTER TABLE crm.calls ADD COLUMN IF NOT EXISTS to_number text;
+ALTER TABLE crm.calls ADD COLUMN IF NOT EXISTS user_id uuid;
+ALTER TABLE crm.calls ADD COLUMN IF NOT EXISTS employee_id uuid;
+ALTER TABLE crm.calls ADD COLUMN IF NOT EXISTS status crm.call_status;
+ALTER TABLE crm.calls ADD COLUMN IF NOT EXISTS duration_seconds integer;
+ALTER TABLE crm.calls ADD COLUMN IF NOT EXISTS recording_url text;
+ALTER TABLE crm.calls ADD COLUMN IF NOT EXISTS started_at timestamp with time zone DEFAULT now();
+ALTER TABLE crm.calls ADD COLUMN IF NOT EXISTS ended_at timestamp with time zone;
+ALTER TABLE crm.calls ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE crm.calls ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE crm.calls ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE crm.calls ADD COLUMN IF NOT EXISTS updated_by_id uuid;
+
+CREATE TABLE IF NOT EXISTS crm.sms_messages (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  direction crm.sms_direction NOT NULL,
+  provider text DEFAULT 'twilio'::text NOT NULL,
+  provider_sid text NOT NULL,
+  from_number text NOT NULL,
+  to_number text NOT NULL,
+  body text,
+  media jsonb DEFAULT '[]'::jsonb NOT NULL,
+  status crm.sms_status NOT NULL,
+  error_code text,
+  user_id uuid,
+  received_at timestamp with time zone,
+  sent_at timestamp with time zone,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  created_by_id uuid,
+  updated_by_id uuid
+);
+ALTER TABLE crm.sms_messages ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE crm.sms_messages ADD COLUMN IF NOT EXISTS direction crm.sms_direction;
+ALTER TABLE crm.sms_messages ADD COLUMN IF NOT EXISTS provider text DEFAULT 'twilio'::text;
+ALTER TABLE crm.sms_messages ADD COLUMN IF NOT EXISTS provider_sid text;
+ALTER TABLE crm.sms_messages ADD COLUMN IF NOT EXISTS from_number text;
+ALTER TABLE crm.sms_messages ADD COLUMN IF NOT EXISTS to_number text;
+ALTER TABLE crm.sms_messages ADD COLUMN IF NOT EXISTS body text;
+ALTER TABLE crm.sms_messages ADD COLUMN IF NOT EXISTS media jsonb DEFAULT '[]'::jsonb;
+ALTER TABLE crm.sms_messages ADD COLUMN IF NOT EXISTS status crm.sms_status;
+ALTER TABLE crm.sms_messages ADD COLUMN IF NOT EXISTS error_code text;
+ALTER TABLE crm.sms_messages ADD COLUMN IF NOT EXISTS user_id uuid;
+ALTER TABLE crm.sms_messages ADD COLUMN IF NOT EXISTS received_at timestamp with time zone;
+ALTER TABLE crm.sms_messages ADD COLUMN IF NOT EXISTS sent_at timestamp with time zone;
+ALTER TABLE crm.sms_messages ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE crm.sms_messages ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE crm.sms_messages ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE crm.sms_messages ADD COLUMN IF NOT EXISTS updated_by_id uuid;
 
 CREATE TABLE IF NOT EXISTS fulfillments.directs (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -1785,6 +2013,56 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'otp_throttles_pkey' AND c.relname = 'otp_throttles' AND n.nspname = 'auth'
+  ) THEN
+    ALTER TABLE auth.otp_throttles ADD CONSTRAINT otp_throttles_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'otp_throttles_subject_key' AND c.relname = 'otp_throttles' AND n.nspname = 'auth'
+  ) THEN
+    ALTER TABLE auth.otp_throttles ADD CONSTRAINT otp_throttles_subject_key UNIQUE (subject);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'pending_changes_pkey' AND c.relname = 'pending_changes' AND n.nspname = 'auth'
+  ) THEN
+    ALTER TABLE auth.pending_changes ADD CONSTRAINT pending_changes_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'pending_signups_phone_number_key' AND c.relname = 'pending_signups' AND n.nspname = 'auth'
+  ) THEN
+    ALTER TABLE auth.pending_signups ADD CONSTRAINT pending_signups_phone_number_key UNIQUE (phone_number);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'pending_signups_pkey' AND c.relname = 'pending_signups' AND n.nspname = 'auth'
+  ) THEN
+    ALTER TABLE auth.pending_signups ADD CONSTRAINT pending_signups_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'session_pkey' AND c.relname = 'sessions' AND n.nspname = 'auth'
   ) THEN
     ALTER TABLE auth.sessions ADD CONSTRAINT session_pkey PRIMARY KEY (id);
@@ -1858,6 +2136,46 @@ DO $$ BEGIN
     WHERE con.conname = 'checkout_items_pkey' AND c.relname = 'items' AND n.nspname = 'checkout'
   ) THEN
     ALTER TABLE checkout.items ADD CONSTRAINT checkout_items_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'calls_pkey' AND c.relname = 'calls' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.calls ADD CONSTRAINT calls_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'calls_provider_sid_key' AND c.relname = 'calls' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.calls ADD CONSTRAINT calls_provider_sid_key UNIQUE (provider_sid);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'sms_messages_pkey' AND c.relname = 'sms_messages' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.sms_messages ADD CONSTRAINT sms_messages_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'sms_messages_provider_sid_key' AND c.relname = 'sms_messages' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.sms_messages ADD CONSTRAINT sms_messages_provider_sid_key UNIQUE (provider_sid);
   END IF;
 END $$;
 DO $$ BEGIN
@@ -2625,6 +2943,76 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'otp_throttles_created_by_id_fkey' AND c.relname = 'otp_throttles' AND n.nspname = 'auth'
+  ) THEN
+    ALTER TABLE auth.otp_throttles ADD CONSTRAINT otp_throttles_created_by_id_fkey FOREIGN KEY (created_by_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'otp_throttles_updated_by_id_fkey' AND c.relname = 'otp_throttles' AND n.nspname = 'auth'
+  ) THEN
+    ALTER TABLE auth.otp_throttles ADD CONSTRAINT otp_throttles_updated_by_id_fkey FOREIGN KEY (updated_by_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'pending_changes_created_by_id_fkey' AND c.relname = 'pending_changes' AND n.nspname = 'auth'
+  ) THEN
+    ALTER TABLE auth.pending_changes ADD CONSTRAINT pending_changes_created_by_id_fkey FOREIGN KEY (created_by_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'pending_changes_updated_by_id_fkey' AND c.relname = 'pending_changes' AND n.nspname = 'auth'
+  ) THEN
+    ALTER TABLE auth.pending_changes ADD CONSTRAINT pending_changes_updated_by_id_fkey FOREIGN KEY (updated_by_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'pending_changes_user_id_fkey' AND c.relname = 'pending_changes' AND n.nspname = 'auth'
+  ) THEN
+    ALTER TABLE auth.pending_changes ADD CONSTRAINT pending_changes_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'pending_signups_created_by_id_fkey' AND c.relname = 'pending_signups' AND n.nspname = 'auth'
+  ) THEN
+    ALTER TABLE auth.pending_signups ADD CONSTRAINT pending_signups_created_by_id_fkey FOREIGN KEY (created_by_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'pending_signups_updated_by_id_fkey' AND c.relname = 'pending_signups' AND n.nspname = 'auth'
+  ) THEN
+    ALTER TABLE auth.pending_signups ADD CONSTRAINT pending_signups_updated_by_id_fkey FOREIGN KEY (updated_by_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'session_impersonatedBy_fkey' AND c.relname = 'sessions' AND n.nspname = 'auth'
   ) THEN
     ALTER TABLE auth.sessions ADD CONSTRAINT "session_impersonatedBy_fkey" FOREIGN KEY ("impersonatedBy") REFERENCES auth.users(id);
@@ -2718,6 +3106,76 @@ DO $$ BEGIN
     WHERE con.conname = 'checkout_items_metal_fk' AND c.relname = 'items' AND n.nspname = 'checkout'
   ) THEN
     ALTER TABLE checkout.items ADD CONSTRAINT checkout_items_metal_fk FOREIGN KEY (metal_id) REFERENCES metals.metals(id) ON UPDATE CASCADE;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'calls_created_by_id_fkey' AND c.relname = 'calls' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.calls ADD CONSTRAINT calls_created_by_id_fkey FOREIGN KEY (created_by_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'calls_employee_id_fkey' AND c.relname = 'calls' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.calls ADD CONSTRAINT calls_employee_id_fkey FOREIGN KEY (employee_id) REFERENCES auth.employees(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'calls_updated_by_id_fkey' AND c.relname = 'calls' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.calls ADD CONSTRAINT calls_updated_by_id_fkey FOREIGN KEY (updated_by_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'calls_user_id_fkey' AND c.relname = 'calls' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.calls ADD CONSTRAINT calls_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'sms_messages_created_by_id_fkey' AND c.relname = 'sms_messages' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.sms_messages ADD CONSTRAINT sms_messages_created_by_id_fkey FOREIGN KEY (created_by_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'sms_messages_updated_by_id_fkey' AND c.relname = 'sms_messages' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.sms_messages ADD CONSTRAINT sms_messages_updated_by_id_fkey FOREIGN KEY (updated_by_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'sms_messages_user_id_fkey' AND c.relname = 'sms_messages' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.sms_messages ADD CONSTRAINT sms_messages_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id);
   END IF;
 END $$;
 DO $$ BEGIN
@@ -3949,10 +4407,14 @@ END $$;
 CREATE INDEX IF NOT EXISTS account_userid_idx ON auth.account USING btree ("userId");
 CREATE INDEX IF NOT EXISTS employees_enabled_idx ON auth.employees USING btree (enabled);
 CREATE UNIQUE INDEX IF NOT EXISTS employees_user_uniq ON auth.employees USING btree (user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS pending_changes_one_open_per_user ON auth.pending_changes USING btree (user_id) WHERE (confirmed_at IS NULL);
+CREATE INDEX IF NOT EXISTS pending_signups_email ON auth.pending_signups USING btree (email);
 CREATE INDEX IF NOT EXISTS session_impersonatedby_idx ON auth.sessions USING btree ("impersonatedBy");
 CREATE INDEX IF NOT EXISTS session_userid_idx ON auth.sessions USING btree ("userId");
 CREATE INDEX IF NOT EXISTS users_anonymous_stale_idx ON auth.users USING btree ("updatedAt") WHERE "isAnonymous";
+CREATE UNIQUE INDEX IF NOT EXISTS users_one_phone_number ON auth.users USING btree (phone_number) WHERE (phone_number IS NOT NULL);
 CREATE INDEX IF NOT EXISTS verification_expiresat_idx ON auth.verification USING btree ("expiresAt");
+CREATE INDEX IF NOT EXISTS verification_identifier_idx ON auth.verification USING btree (identifier);
 CREATE INDEX IF NOT EXISTS checkout_user_idx ON checkout.checkouts USING btree (user_id);
 CREATE INDEX IF NOT EXISTS checkouts_fulfillment_idx ON checkout.checkouts USING btree (fulfillment_id) WHERE (fulfillment_id IS NOT NULL);
 CREATE UNIQUE INDEX IF NOT EXISTS checkouts_user_direction_key ON checkout.checkouts USING btree (user_id, direction);
@@ -3964,6 +4426,10 @@ CREATE INDEX IF NOT EXISTS checkout_items_bullion_idx ON checkout.items USING bt
 CREATE UNIQUE INDEX IF NOT EXISTS checkout_items_checkout_bullion_key ON checkout.items USING btree (checkout_id, bullion_id);
 CREATE INDEX IF NOT EXISTS checkout_items_checkout_idx ON checkout.items USING btree (checkout_id);
 CREATE INDEX IF NOT EXISTS checkout_items_metal_idx ON checkout.items USING btree (metal_id);
+CREATE INDEX IF NOT EXISTS calls_user_started ON crm.calls USING btree (user_id, started_at);
+CREATE INDEX IF NOT EXISTS sms_messages_from_created ON crm.sms_messages USING btree (from_number, created_at);
+CREATE INDEX IF NOT EXISTS sms_messages_to_created ON crm.sms_messages USING btree (to_number, created_at);
+CREATE INDEX IF NOT EXISTS sms_messages_user_created ON crm.sms_messages USING btree (user_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_fulfillment_directs_assigned_to ON fulfillments.directs USING btree (assigned_employee_id);
 CREATE INDEX IF NOT EXISTS idx_fulfillment_directs_fulfillment_id ON fulfillments.directs USING btree (fulfillment_id);
 CREATE INDEX IF NOT EXISTS idx_fulfillment_directs_location_id ON fulfillments.directs USING btree (location_id);

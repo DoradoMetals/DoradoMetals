@@ -137,10 +137,14 @@ test('a sign-up mail leaves an account_created row with its user', async () => {
   await inRollback(async (c: PoolClient) => {
     const { order, email, user } = anOrderWithAUser()
     const t = recorder()
-    await emails.sendAuthVerificationEmail(
-      { id: user.id, email: email, name: user.name },
-      'https://example.test/verify-email?token=t',
-      true,
+    await emails.sendAccountCreated(
+      {
+        order_id: null,
+        user_id: user.id,
+        email,
+        name: user.name,
+        url: 'https://example.test/',
+      },
       t,
       c
     )
@@ -163,14 +167,19 @@ test('a sign-up mail leaves an account_created row with its user', async () => {
   })
 })
 
-test('a failed verification mail throws, reaches better-auth unchanged, and is recorded', async () => {
+test('a failed sign-in code throws, reaches the caller unchanged, and is recorded', async () => {
   await inRollback(async (c: PoolClient) => {
     await assert.rejects(
       () =>
-        emails.sendAuthVerificationEmail(
-          { id: null, email: 'new-signup@example.test', name: 'New Signup' },
-          'https://example.test/verify-email?token=t',
-          false,
+        emails.sendSignInCode(
+          {
+            order_id: null,
+            user_id: null,
+            email: 'new-signup@example.test',
+            name: 'New Signup',
+            code: '418209',
+            expires_in_minutes: 10,
+          },
           failing(),
           c
         ),
@@ -179,9 +188,9 @@ test('a failed verification mail throws, reaches better-auth unchanged, and is r
 
     const { rows } = await c.query(
       `SELECT status, error, user_id FROM media.emails
-        WHERE kind = 'auth_verification' AND to_address = 'new-signup@example.test'`
+        WHERE kind = 'sign_in_code' AND to_address = 'new-signup@example.test'`
     )
-    assert.equal(rows.length, 1, 'a verification mail that never arrived left no trace')
+    assert.equal(rows.length, 1, 'a code that never arrived left no trace')
     assert.equal(rows[0].status, 'failed')
     assert.match(rows[0].error, /535 Authentication failed/)
   })

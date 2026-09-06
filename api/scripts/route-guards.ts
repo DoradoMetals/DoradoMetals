@@ -304,6 +304,12 @@ if (isMain) {
         'POST /api/orders/admin': 'requireAdmin',
         'POST /api/orders/:id/review': 'requireUser',
         'GET /api/payments/details/:id/bank': 'requireAdmin',
+        'GET /api/sms': 'requireAdmin',
+        'GET /api/sms/:id': 'requireAdmin',
+        'POST /api/calls/token': 'requireAdmin',
+        'POST /api/calls/presence': 'requireAdmin',
+        'GET /api/calls/:id': 'requireAdmin',
+        'GET /api/customers/:id/timeline': 'requireAdmin',
       }
   const byUrl = new Map(routes.filter((r) => r.url).map((r) => [`${r.verb} ${r.url}`, r]))
   const missing: string[] = []

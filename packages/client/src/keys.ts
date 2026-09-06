@@ -31,6 +31,10 @@ export const keys = {
     suggestions: (q: string) => ['addresses', 'suggestions', q] as const,
     place: (place_id: string) => ['addresses', 'place', place_id] as const,
   },
+  auth: {
+    all: () => ['auth'] as const,
+    session: () => ['auth', 'session'] as const,
+  },
   users: {
     one: (user_id: string) => ['users', user_id] as const,
     all: () => ['users', 'all'] as const,

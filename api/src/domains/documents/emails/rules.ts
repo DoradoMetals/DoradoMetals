@@ -1,7 +1,7 @@
 import type { Delivery } from '#providers/emails/nodemailer.ts'
 import type { EmailOutcome } from '#documents/emails/record.ts'
 import type { Direction, MailerRow } from '@dorado/contracts'
-import { maskEmail, maskPhone } from '#documents/emails/render/mask.ts'
+import { maskEmail, maskPhone } from '#shared/text/mask.ts'
 import {
   formatPurchaseOrderNumber,
   formatSalesOrderNumber,

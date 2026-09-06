@@ -35,6 +35,13 @@ const ACCEPTED: Record<string, { count: number; why: string }> = {
     count: 2,
     why: "better-auth's own plugin contract - the { data: user } hook shape and the plugin object are the library's, not ours",
   },
+  'domains/crm/calls/presence.ts': {
+    count: 1,
+    why:
+      'an in-process admin presence registry, not rows stitched into a dictionary - ' +
+      'there is no SQL read to parse because there is no table yet (see the lane ' +
+      'report for the presence tradeoff and the migration it recommends)',
+  },
 }
 
 function walk(dir: string, out: string[] = []): string[] {

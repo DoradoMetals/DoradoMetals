@@ -36,6 +36,13 @@ const COMPUTED: Record<string, string> = {
   'computed/documents.ts':
     'what one mailer prints - a label/value row, a summary ' +
     'card and the copy slots the Figma mailers expose; no table holds a rendered line',
+  'computed/auth.ts':
+    'the passwordless surface - the bodies a caller sends and ' +
+    'the masked verification, confirmation and session views; a code, a captcha token and a ' +
+    'masked destination are none of them columns',
+  'computed/crm.ts':
+    "the provider's own webhook bodies and the customer " +
+    'timeline - Twilio field names on the way in, three tables merged on the way out',
 }
 
 const FILE_FLOOR = 60

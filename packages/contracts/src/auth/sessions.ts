@@ -4,6 +4,7 @@
 //
 // Postgres table: auth.sessions
 import { z } from 'zod/v4'
+import { Factor } from './enums.js'
 
 export const Session = z.object({
   'id': z.string().uuid(),
@@ -15,6 +16,8 @@ export const Session = z.object({
   'ipAddress': z.string().nullable(),
   'userAgent': z.string().nullable(),
   'impersonatedBy': z.string().uuid().nullable(),
+  'factor_changed': Factor.nullable(),
+  'stepped_up_at': z.string().nullable(),
 })
 export type Session = z.infer<typeof Session>
 // generated:end

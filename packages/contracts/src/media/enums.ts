@@ -11,6 +11,7 @@ export const EmailKind = z.enum([
   'auth_verification',
   'sales_order_created',
   'sign_in_code',
+  'voicemail_received',
   'account_created',
   'details_changed',
   'payout_sent',

@@ -1,6 +1,7 @@
 export const NATIVE_SCHEMAS = [
   'auth',
   'checkout',
+  'crm',
   'fulfillments',
   'leads',
   'media',
