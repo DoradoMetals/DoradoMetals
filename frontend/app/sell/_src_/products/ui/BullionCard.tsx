@@ -10,7 +10,7 @@ import { useState } from 'react'
 import { Tooltip, TooltipProvider } from '@dorado/components'
 import { cn } from '@/shared/utils/cn'
 import { AnimatePresence, motion } from 'framer-motion'
-import { useBasket, useCheckoutItemActions } from '@/shared/hooks/checkout/items/queries'
+import { useBasket, useCheckoutLotActions } from '@/shared/hooks/checkout/lots/queries'
 import { useProductQuote } from '@/shared/hooks/quotes/queries'
 import { useSpotPrices } from '@dorado/client'
 
@@ -26,7 +26,7 @@ export default function BullionCard({ product, variants }: BullionCardProps) {
   const [variantsOpen, setVariantsOpen] = useState(false)
 
   const items = useBasket('purchase')
-  const { addItem, removeOne } = useCheckoutItemActions()
+  const { addItem, removeOne } = useCheckoutLotActions()
 
   const row = items.find((i) => i.bullion_id === selectedProduct.id)
   const quantity = row?.quantity ?? 0

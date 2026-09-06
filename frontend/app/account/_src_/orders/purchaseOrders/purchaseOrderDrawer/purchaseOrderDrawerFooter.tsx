@@ -34,7 +34,9 @@ export default function PurchaseOrderDrawerFooter({ view }: PurchaseOrderDrawerF
 
   const valueLabel = statusConfig[order.status ?? '']?.value_label ?? ''
 
-  const { items } = view
+  // A LINE IS A LOT (docs/waves/lots-build.md): the link row carries this
+  // stage's money (premium, price) and `row.lot` carries the physical facts.
+  const { lots } = view
   const { data: catalogue = [] } = useProducts()
   // The spots reference list: its `id` IS the metal's id, which is how a
   // scrap line's metal_id becomes "Gold".
@@ -69,8 +71,8 @@ export default function PurchaseOrderDrawerFooter({ view }: PurchaseOrderDrawerF
   })
   // bullion_id IS the discriminator now - null means scrap. `item_type` was
   // derived in the compose layer and has no column.
-  const scrapItems = items.filter((item) => item.bullion_id === null)
-  const bullionItems = items.filter((item) => item.bullion_id !== null)
+  const scrapItems = lots.filter((row) => row.lot.bullion_id === null)
+  const bullionItems = lots.filter((row) => row.lot.bullion_id !== null)
   const { data: payoutMethods = [] } = usePaymentMethods('purchase')
   const payoutMethod = payoutMethods.find((p) => p.type === payout?.method)
   const payoutFee = Number(payoutMethod?.flat_fee ?? 0)
@@ -102,23 +104,23 @@ export default function PurchaseOrderDrawerFooter({ view }: PurchaseOrderDrawerF
               </TableRow>
             </TableHeader>
             <TableBody>
-              {scrapItems.map((item, i) => (
+              {scrapItems.map((row, i) => (
                 <TableRow key={i}>
-                  <TableCell className="text-left">{item.item_name}</TableCell>
-                  <TableCell className="text-center">{item.content?.toFixed(3)} toz</TableCell>
+                  <TableCell className="text-left">{row.lot.metal_id}</TableCell>
+                  <TableCell className="text-center">{row.lot.content?.toFixed(3)} toz</TableCell>
                   {/* THE SCRAP LINE'S PREMIUM IS ITS OWN. The composed wire
                       served scrap.bid_premium FROM item.premium - 085 dropped
                       the separate column when scrap folded into the items
                       table - so `item.premium ?? item.scrap?.bid_premium` was
                       one value read twice. */}
-                  <TableCell className="text-center">{formatRate(item.premium)}</TableCell>
+                  <TableCell className="text-center">{formatRate(row.premium)}</TableCell>
                   <TableCell className="text-center">
-                    {(item.payable ?? 0).toFixed(3)} toz
+                    {(row.payable ?? 0).toFixed(3)} toz
                   </TableCell>
                   <TableCell className="text-right">
                     {/* Scrap line_total is the whole line - content is not
                         multiplied by quantity - and honours a stored price. */}
-                    <Amount value={quoteLineById.get(item.id)?.line_total ?? 0} />
+                    <Amount value={quoteLineById.get(row.id)?.line_total ?? 0} />
                   </TableCell>
                 </TableRow>
               ))}
@@ -137,13 +139,13 @@ export default function PurchaseOrderDrawerFooter({ view }: PurchaseOrderDrawerF
         >
           <Table className="overflow-hidden">
             <TableBody>
-              {bullionItems.map((item, i) => (
+              {bullionItems.map((row, i) => (
                 <TableRow key={i}>
-                  <TableCell>{item.quantity}</TableCell>
-                  <TableCell>{item.product_name}</TableCell>
+                  <TableCell>{row.lot.quantity}</TableCell>
+                  <TableCell>{row.lot.product_name}</TableCell>
                   <TableCell className="text-right p-0">
                     {/* line_total is already unit_price * quantity. */}
-                    <Amount value={quoteLineById.get(item.id)?.line_total ?? 0} />
+                    <Amount value={quoteLineById.get(row.id)?.line_total ?? 0} />
                   </TableCell>
                 </TableRow>
               ))}

@@ -13,9 +13,13 @@ import { convertToPounds, convertTroyOz } from '@/shared/utils/convertWeights'
 describe('convertTroyOz', () => {
   test('converts each unit the business actually quotes in', () => {
     expect(convertTroyOz(1, 't oz')).toBe(1)
-    expect(convertTroyOz(31.1035, 'g')).toBeCloseTo(1, 10)
+    // THE EXACT CONSTANTS, not the rounded ones. `convertWeights.ts` and its
+    // API mirror both use 31.1034768 g/t oz and 453.59237 g/lb; asserting the
+    // three-decimal 31.1035 to ten decimal places was arithmetically
+    // impossible and had gone red on the branch.
+    expect(convertTroyOz(31.1034768, 'g')).toBeCloseTo(1, 10)
     expect(convertTroyOz(20, 'dwt')).toBe(1)
-    expect(convertTroyOz(1, 'lb')).toBeCloseTo(14.5833105, 6)
+    expect(convertTroyOz(1, 'lb')).toBeCloseTo(453.59237 / 31.1034768, 6)
   })
 
   // Units arrive from a dropdown, but also from data written years ago.
@@ -25,8 +29,8 @@ describe('convertTroyOz', () => {
   })
 
   test('a pound is a pound, whichever way it is expressed', () => {
-    // 453.592 g in a pound, 31.1035 g in a troy ounce.
-    expect(convertTroyOz(453.592, 'g')).toBeCloseTo(convertTroyOz(1, 'lb'), 10)
+    // 453.59237 g in a pound, 31.1034768 g in a troy ounce.
+    expect(convertTroyOz(453.59237, 'g')).toBeCloseTo(convertTroyOz(1, 'lb'), 10)
     // 20 dwt in a troy ounce.
     expect(convertTroyOz(20 * 5, 'dwt')).toBeCloseTo(convertTroyOz(5, 't oz'), 10)
   })
@@ -56,9 +60,9 @@ describe('convertTroyOz', () => {
 
 describe('convertToPounds', () => {
   test('converts each unit back to pounds', () => {
-    expect(convertToPounds(453.592, 'g')).toBeCloseTo(1, 10)
+    expect(convertToPounds(453.59237, 'g')).toBeCloseTo(1, 10)
     expect(convertToPounds(1, 'lb')).toBe(1)
-    expect(convertToPounds(14.5833105, 't oz')).toBeCloseTo(1, 6)
+    expect(convertToPounds(453.59237 / 31.1034768, 't oz')).toBeCloseTo(1, 6)
   })
 
   // Shipping weight, so a negative or zero is meaningless rather than merely

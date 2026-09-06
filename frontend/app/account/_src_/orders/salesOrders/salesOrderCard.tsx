@@ -11,7 +11,7 @@ import { useSalesOrderDownloads } from '@/shared/hooks/useSalesOrderDownloads'
 import { useFormatSalesOrderNumber } from '@/shared/utils/formatOrderNumbers'
 import { OrderCardShell } from '../ui/OrderCardShell'
 import { useProducts } from '@/shared/hooks/products/queries'
-import { useOrderItems } from '@dorado/client'
+import { useOrderLots } from '@dorado/client'
 
 export default function SalesOrderCard({
   order,
@@ -23,16 +23,16 @@ export default function SalesOrderCard({
   const { openDrawer } = useDrawerStore()
   const { formatSalesOrderNumber } = useFormatSalesOrderNumber()
 
-  const { data: items = [] } = useOrderItems(order.id)
+  const { data: items = [] } = useOrderLots(order.id)
   const { data: catalogue = [] } = useProducts()
   const downloadOptions = useSalesOrderDownloads(order)
 
   const status = statusConfig[order.status ?? '']
   const Icon = status?.icon
 
-  const avatarItems = items.map((item) => ({
-    url: catalogue.find((p) => p.id === item.bullion_id)?.image_front || '',
-    count: item.quantity || 1,
+  const avatarItems = items.map((row) => ({
+    url: catalogue.find((p) => p.id === row.lot.bullion_id)?.image_front || '',
+    count: row.lot.quantity || 1,
   }))
 
   const itemsLabel =

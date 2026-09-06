@@ -10,7 +10,7 @@ import { useState } from 'react'
 
 import { cn } from '@/shared/utils/cn'
 import { AnimatePresence, motion } from 'framer-motion'
-import { useBasket, useCheckoutItemActions } from '@/shared/hooks/checkout/items/queries'
+import { useBasket, useCheckoutLotActions } from '@/shared/hooks/checkout/lots/queries'
 import { paymentMethodIcon, transitLabel } from '@/shared/types/salesOrders'
 import { usePaymentMethods, useSaleShippingServices } from '@dorado/client'
 import { useSpotPrices } from '@dorado/client'
@@ -44,7 +44,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
 
   const buyItems = useBasket('sale')
   const sellItems = useBasket('purchase')
-  const { addItem, removeOne } = useCheckoutItemActions()
+  const { addItem, removeOne } = useCheckoutLotActions()
 
   const buyRow = buyItems.find((i) => i.bullion_id === selectedProduct.id)
   const sellRow = sellItems.find((i) => i.bullion_id === selectedProduct.id)

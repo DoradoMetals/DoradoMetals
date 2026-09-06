@@ -7,7 +7,7 @@ import { useEffect } from 'react'
 import type { Direction } from '@dorado/contracts'
 import SaleItems from '@/shared/ui/SaleItems'
 import PurchaseItems from '@/shared/ui/PurchaseItems'
-import { useBasket } from '@/shared/hooks/checkout/items/queries'
+import { useBasket } from '@/shared/hooks/checkout/lots/queries'
 import { useCheckoutTab } from '@/shared/store/checkoutTabStore'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 

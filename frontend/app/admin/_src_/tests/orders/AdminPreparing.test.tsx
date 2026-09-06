@@ -3,10 +3,12 @@
 // This is the screen where metal leaves the building: an admin picks the
 // refiner and the click emails them the order. Same rules as the other
 // converted features - jsdom, real component tree, network mocked by URL.
-// The send is its own action route now (D214 item 11):
-// POST /orders/:id/send_to_refiner { refiner_id } - no longer a flag inside
-// the order's PATCH - and the order's spots resolved SERVER-side, so the
-// body carries no pricing arrays. The URL and the exact document are the pin.
+// The send is its own action route, and the lots lane RENAMED it:
+// POST /orders/:id/supply { refiner_id } (was `send_to_refiner`). It answers
+// the refining order it opened - the business's own order to a counterparty -
+// and the order's spots resolve SERVER-side, so the body carries no pricing
+// arrays. The URL and the exact document are the pin (ruling 44: the frontend
+// follows the API).
 import { describe, expect, test, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -40,7 +42,7 @@ const view = (order: Record<string, unknown>) =>
   ({
     order,
     totals: null,
-    items: [],
+    lots: [],
     address: null,
     shipments: [],
     pickup: null,
@@ -48,13 +50,16 @@ const view = (order: Record<string, unknown>) =>
     user: null,
     actions: {
       cancel: false,
-      finalize_pricing: false,
+      reopen: false,
+      finalize: false,
       add_funds: false,
-      send_to_refiner: true,
+      supply: true,
       buy_label: false,
       update_tracking: true,
-      edit_lines: false,
+      edit_lots: false,
+      assign_lots: false,
       statuses: [],
+      finalize_blocked_by: [],
     },
   }) as unknown as OrderView
 const order = () => view({ id: 'so-1', status: 'Preparing', order_sent: false })
@@ -62,9 +67,10 @@ const order = () => view({ id: 'so-1', status: 'Preparing', order_sent: false })
 // THE CLIENT PACKAGE TALKS TO `fetch`, NOT TO THIS APP'S AXIOS WRAPPER.
 // @dorado/client carries no runtime dependency of its own, so the seam a test
 // stubs for an order action is the platform one. Recorded, so the assertion
-// below can read the URL and the body it sent. The refiners hooks moved into
-// @dorado/client (small-features lane) - the supplier list and the order's
-// refiner engagement now answer through this seam too, not the axios mock.
+// below can read the URL and the body it sent. The supplier list answers
+// through this seam too. THE ENGAGEMENT READ IS GONE: `refiners.orders` died
+// with the lots lane and no key joins a refining order to a customer order
+// (ruling 42), so nothing asks `/orders/:id/refiners` any more.
 const sent: { method: string; url: string; body: unknown }[] = []
 
 beforeEach(() => {
@@ -93,13 +99,6 @@ beforeEach(() => {
             ]),
         } as unknown as Response
       }
-      if (String(url).endsWith('/orders/so-1/refiners')) {
-        return {
-          ok: true,
-          status: 200,
-          text: async () => JSON.stringify({ id: 'ro-1', order_id: 'so-1', refiner_id: null }),
-        } as unknown as Response
-      }
       // A LIST where the endpoint answers rows - `useCarriers`/`.find()`
       // and `outboundOf` both throw on a bare `{}` fallback.
       const isList = /\/shipments|\/carriers\/get|\/carrier_services\/get/.test(String(url))
@@ -115,7 +114,7 @@ describe('sending a sales order to a supplier', () => {
     await waitFor(() => expect(screen.getAllByText('Elemetal').length).toBeGreaterThan(0))
   })
 
-  test('the send POSTs the refiner id to send_to_refiner', async () => {
+  test('the send POSTs the refiner id to supply', async () => {
     renderWithClient(<AdminPreparingSalesOrder view={order()} />)
     await waitFor(() => expect(screen.getAllByText('Elemetal').length).toBeGreaterThan(0))
 
@@ -124,7 +123,7 @@ describe('sending a sales order to a supplier', () => {
 
     await waitFor(() => {
       const call = sent.find(
-        (c) => c.method === 'POST' && c.url.endsWith('/orders/so-1/send_to_refiner')
+        (c) => c.method === 'POST' && c.url.endsWith('/orders/so-1/supply')
       )
       expect(call).toBeTruthy()
       // The WHOLE document: the refiner id and nothing else - no spots, no

@@ -5,7 +5,7 @@
 // edit the whole READ row in place, so the trim down to the write contract
 // (dropping organization.id/created_at/updated_at for a carrier,
 // created_by/updated_by/created_at/updated_at for a service) lives here, the
-// same shape adaptation `useReplaceCheckoutItems` does for a basket line.
+// same shape adaptation `useReplaceCheckoutLots` does for a basket line.
 import {
   useCarrierServicesFor,
   useCarriers as useCarriersBase,

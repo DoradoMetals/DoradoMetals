@@ -15,32 +15,24 @@ import { PurchaseOrderDrawerContentProps } from '@/shared/types/purchaseOrders'
 import { useSpotPrices } from '@/shared/hooks/spots/queries'
 import { usePatchShipment, outboundOf } from '../../../../shipping/queries'
 import { useOrderShipments } from '@dorado/client'
-import {
-  usePatchRefinerItem,
-  usePatchRefinerOrder,
-  useRefinerOrder,
-  useRefinerItems,
-} from '@/shared/hooks/refiners/queries'
+import { usePatchOrderLot } from '@dorado/client'
 
 export default function ActualsEditor({ view }: PurchaseOrderDrawerContentProps) {
-  const { order, items } = view
-  // Assay actuals are per-line refiner data; the pool figures are ENGAGEMENT
-  // facts on refiners.orders; the shipping actual is the SHIPMENT row's.
+  const { order, lots } = view
+  // THE ASSAY ACTUALS ARE THE LOT'S OWN (docs/waves/lots-build.md). They used
+  // to be `refiners.items` rows keyed by an order line - three columns of a
+  // per-order engagement wearing customer-facing names. `refiners.*` is dead:
+  // the lot IS the physical thing, it keeps its id from the basket to the
+  // refiner, and `PATCH /api/orders/lots/:id` writes the weights straight
+  // onto it. The shipping actual is still the SHIPMENT row's.
   const patchShipment = usePatchShipment()
-  const patchRefinerItem = usePatchRefinerItem()
-  const patchRefinerOrder = usePatchRefinerOrder()
-  // The engagement row, by the order id this component holds - its own id is
-  // the PATCH's key.
-  const { data: refinerOrder } = useRefinerOrder(order.id)
-  const { data: refinerItems = [] } = useRefinerItems(order.id)
+  const patchLot = usePatchOrderLot()
 
   const { data: spotPrices = [] } = useSpotPrices()
   const { data: shipments = [] } = useOrderShipments(order.id)
   const shipment = outboundOf(shipments)
 
-  const scrapItems = items.filter((it) => it.bullion_id === null)
-  const refinerOf = (item_id: string) =>
-    refinerItems.find((r) => r.order_item_id === item_id) ?? null
+  const scrapItems = lots.filter((row) => row.lot.bullion_id === null)
 
   const parseNumber = (raw: string): number | null => {
     const s = raw.replace(/\s+/g, '')
@@ -60,34 +52,15 @@ export default function ActualsEditor({ view }: PurchaseOrderDrawerContentProps)
     return Math.max(0, Math.min(1, decimal))
   }
 
-  // The assay actuals are REFINER data - what was actually recovered from the
-  // parcel - so they write to the refiners feature's own item endpoint, keyed
-  // by the order line, not to the customer-side scrap row. `content` is not
-  // sent: the API derives it from post_melt and purity (and refuses a raw
-  // value by name), which is the same arithmetic this component used to do.
-  // THE ASSAY FIGURES ARE THE REFINER'S ROW, not the customer's line. They
-  // rode on the composed order as scrap.purity_actual / post_melt_actual /
-  // content_actual - three fields of refiners.items wearing customer-facing
-  // names - and are their own read now, keyed by item_id.
+  // ONE FIELD PER BLUR, and nothing is re-sent alongside it. `buildUpdate`
+  // sets the keys present and leaves the rest alone, so the read-modify-write
+  // this used to do (send both columns, filling the other from a cached row)
+  // is the thing that could lose an edit made in between. `content` is not
+  // sent: the database generates it from post_melt and purity.
   const mutateActuals = (
-    item: { id: string },
-    fields: Partial<{
-      purity_actual: number | null
-      post_melt_actual: number | null
-    }>
-  ) => {
-    const prev = refinerOf(item.id)
-    const { purity_actual, post_melt_actual } = fields
-
-    patchRefinerItem.mutate({
-      order_item_id: item.id,
-      order_id: order.id,
-      patch: {
-        purity: purity_actual ?? prev?.purity ?? null,
-        post_melt: post_melt_actual ?? prev?.post_melt ?? null,
-      },
-    })
-  }
+    row: { id: string },
+    patch: Partial<{ purity: number | null; post_melt: number | null }>
+  ) => patchLot.mutate({ lot_id: row.id, order_id: order.id, patch })
 
   return (
     <>
@@ -105,11 +78,11 @@ export default function ActualsEditor({ view }: PurchaseOrderDrawerContentProps)
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {scrapItems.map((item) => {
-                    const label = item.item_name ?? item.metal_id
-                    const s = refinerOf(item.id)
+                  {scrapItems.map((row) => {
+                    const label = row.lot.metal_id
+                    const s = row.lot
                     return (
-                      <TableRow key={item.id}>
+                      <TableRow key={row.id}>
                         <TableCell className="text-left">{label}</TableCell>
 
                         <TableCell className="text-right">
@@ -124,7 +97,7 @@ export default function ActualsEditor({ view }: PurchaseOrderDrawerContentProps)
                               placeholder="Enter Actual Purity"
                               onBlur={(e) => {
                                 const parsed = parsePercentToDecimal(e.target.value)
-                                mutateActuals(item, { purity_actual: parsed })
+                                mutateActuals(row, { purity: parsed })
                               }}
                             />
                             <small className="select-none whitespace-nowrap">%</small>
@@ -140,12 +113,10 @@ export default function ActualsEditor({ view }: PurchaseOrderDrawerContentProps)
                             placeholder="Enter Actual Post-Melt"
                             onBlur={(e) => {
                               const n = parseNumber(e.target.value)
-                              mutateActuals(item, { post_melt_actual: n })
+                              mutateActuals(row, { post_melt: n })
                             }}
                           />
-                          <small className="whitespace-nowrap">
-                            {s?.unit ?? item.unit ?? 't oz'}
-                          </small>
+                          <small className="whitespace-nowrap">{s.unit}</small>
                         </TableCell>
                       </TableRow>
                     )
@@ -187,57 +158,6 @@ export default function ActualsEditor({ view }: PurchaseOrderDrawerContentProps)
                       patchShipment.mutate({
                         shipment_id: shipment.shipment.id,
                         patch: { shipping_actual: Number(e.target.value) },
-                      })
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <Divider />
-        <div className="flex flex-col gap-4 w-full">
-          <div className="w-full eyebrow">Pool</div>
-
-          <div className="rounded-xl border border-border overflow-hidden">
-            <div className="flex items-center justify-between w-full px-3 py-2 eyebrow bg-muted/40">
-              <div>Pool Deduction (t oz)</div>
-              <div className="text-right">Pool Remediation ($)</div>
-            </div>
-
-            <div className="divide-y">
-              <div className="flex items-center justify-between w-full items-center px-3 py-2 gap-2">
-                <div className="truncate">
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="-9999"
-                    inputClassName={cn('text-right h-8')}
-                    defaultValue={Number(refinerOrder?.pool_oz_deducted ?? 0).toFixed(3)}
-                    onBlur={(e) => {
-                      if (!refinerOrder?.id) return
-                      patchRefinerOrder.mutate({
-                        refiner_order_id: refinerOrder.id,
-                        order_id: order.id,
-                        patch: { pool_oz_deducted: Number(e.target.value) },
-                      })
-                    }}
-                  />
-                </div>
-
-                <div className="flex items-center gap-1">
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="-9999"
-                    inputClassName={cn('text-right h-8')}
-                    defaultValue={Number(refinerOrder?.pool_remediation ?? 0).toFixed(2)}
-                    onBlur={(e) => {
-                      if (!refinerOrder?.id) return
-                      patchRefinerOrder.mutate({
-                        refiner_order_id: refinerOrder.id,
-                        order_id: order.id,
-                        patch: { pool_remediation: Number(e.target.value) },
                       })
                     }}
                   />

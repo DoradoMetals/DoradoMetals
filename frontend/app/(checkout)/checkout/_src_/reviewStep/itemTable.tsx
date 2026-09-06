@@ -2,7 +2,7 @@
 
 import { Accordion, Amount, Table, TableBody, TableCell, TableRow } from '@dorado/components'
 import { useMemo, useState } from 'react'
-import { useBasket } from '@/shared/hooks/checkout/items/queries'
+import { useBasket } from '@/shared/hooks/checkout/lots/queries'
 import { cn } from '@/shared/utils/cn'
 import { useDecoratedLines, type DecoratedLine } from '@/shared/utils/flair'
 import { formatRate } from '@/shared/types/rates'

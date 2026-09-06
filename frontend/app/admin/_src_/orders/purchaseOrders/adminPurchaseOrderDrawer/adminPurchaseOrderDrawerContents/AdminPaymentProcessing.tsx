@@ -5,7 +5,6 @@ import { payoutMethodIcon, PayoutMethodType } from '@/shared/types/payouts'
 import { usePaymentMethods } from '@dorado/client'
 import { usePaymentDetailsBank } from '@dorado/client'
 import { PurchaseOrderDrawerContentProps, statusConfig } from '@/shared/types/purchaseOrders'
-import RefinerValues from './editRefinerValues'
 import ActualsEditor from './editActualValues'
 
 export default function AdminPaymentProcessingPurchaseOrder({
@@ -121,8 +120,16 @@ export default function AdminPaymentProcessingPurchaseOrder({
           </div>
         </div>
       </div>
-      <Divider />
-      <RefinerValues view={view} />
+      {/* THE REFINER-VALUES PANEL IS GONE, not moved. It edited a per-order
+          refiner ENGAGEMENT - `refiners.orders` spots, `refiners.items`
+          premiums and the engagement's fee - and the lots lane deleted all
+          three tables' code. A refining order is the business's OWN order to a
+          counterparty now, with its own number and its own lots, and no
+          foreign key joins it to a customer order (ruling 42): it cannot be
+          reached from the id this drawer holds. Its screen is the Figma
+          Orders/Inventory rebuild (docs/design/orders-notes-2026-09-05.md),
+          and drawing one here would be a component that is not in Figma
+          (ruling 96). */}
       <Divider />
       <ActualsEditor view={view} />
     </div>

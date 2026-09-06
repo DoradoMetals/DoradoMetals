@@ -29,7 +29,7 @@ import { useAdminSalesOrderCheckoutStore } from '../../../store/adminSalesOrderC
 import fuzzysort from 'fuzzysort'
 import { Product } from '@/shared/types/products'
 import { useDecoratedLines } from '@/shared/utils/flair'
-import { useBasket, useCheckoutItemActions } from '@/shared/hooks/checkout/items/queries'
+import { useBasket, useCheckoutLotActions } from '@/shared/hooks/checkout/lots/queries'
 import Image from 'next/image'
 import NumberFlow from '@number-flow/react'
 import { useEffect, useMemo, useState, useTransition } from 'react'
@@ -41,7 +41,7 @@ import { useSpotPrices } from '@/shared/hooks/spots/queries'
 import { useCheckoutQuote } from '@/shared/hooks/quotes/queries'
 import { useProducts } from '@/shared/hooks/products/queries'
 import { useAdminCreateSalesOrder } from '../queries'
-import { toNewCheckoutItem } from '@/shared/types/checkoutItems'
+import { toNewCheckoutLot } from '@/shared/types/checkoutLots'
 import { usePaymentIntentSecret, useUpdatePaymentIntent } from '@dorado/client'
 import StripeWrapper from '@/shared/ui/StripeWrapper'
 
@@ -145,7 +145,7 @@ function SpotSelector() {
 function ProductSelector({ user_id }: { user_id: string }) {
   const { data: products = [] } = useProducts()
   const items = useBasket('sale', user_id)
-  const { addItem, addOne, removeOne, removeAll } = useCheckoutItemActions(user_id)
+  const { addItem, addOne, removeOne, removeAll } = useCheckoutLotActions(user_id)
   const rows = useDecoratedLines(items)
   const [productQuery, setProductQuery] = useState('')
 
@@ -596,12 +596,12 @@ function PaymentSelect({
   // intent is selected by user_id, because an id in the body could name
   // somebody else's. The card flow calls this once Stripe has confirmed.
   const createOrderForIntent = async () => {
-    await createOrder.mutateAsync({ sales_order: form(), items: items.map(toNewCheckoutItem) })
+    await createOrder.mutateAsync({ sales_order: form(), lots: items.map(toNewCheckoutLot) })
   }
 
   const handleSubmit = () => {
     createOrder.mutate(
-      { sales_order: form(), items: items.map(toNewCheckoutItem) },
+      { sales_order: form(), lots: items.map(toNewCheckoutLot) },
       { onSuccess: finishCreate }
     )
   }

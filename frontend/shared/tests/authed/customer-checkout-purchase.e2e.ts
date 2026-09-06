@@ -26,7 +26,7 @@ const API = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api').rep
 
 test.afterEach(async ({ request }) => {
   try {
-    await request.delete(`${API}/checkout/items?direction=purchase`)
+    await request.delete(`${API}/checkout/lots?direction=purchase`)
   } catch {
     // Best effort - a leftover line is visible in the drawer and harmless.
   }

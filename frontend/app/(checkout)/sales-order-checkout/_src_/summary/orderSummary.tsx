@@ -1,7 +1,7 @@
 import { Amount, Button, Divider } from '@dorado/components'
 import { CircleHelp, Minus, Plus, Trash2 } from '@dorado/icons'
-import { useBasket } from '@/shared/hooks/checkout/items/queries'
-import { useCheckoutItemActions } from '@/shared/hooks/checkout/items/queries'
+import { useBasket } from '@/shared/hooks/checkout/lots/queries'
+import { useCheckoutLotActions } from '@/shared/hooks/checkout/lots/queries'
 import { useDecoratedLines } from '@/shared/utils/flair'
 import { usePaymentMethods } from '@dorado/client'
 import Image from 'next/image'
@@ -20,7 +20,7 @@ export default function OrderSummary({
 }) {
   const { data: saleMethods = [] } = usePaymentMethods('sale')
   const items = useBasket('sale')
-  const { addOne, removeOne, removeAll } = useCheckoutItemActions()
+  const { addOne, removeOne, removeAll } = useCheckoutLotActions()
   const rows = useDecoratedLines(items)
   const router = useRouter()
 

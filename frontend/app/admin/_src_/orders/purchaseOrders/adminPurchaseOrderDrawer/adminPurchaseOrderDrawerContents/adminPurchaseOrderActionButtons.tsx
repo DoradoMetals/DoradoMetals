@@ -1,5 +1,5 @@
 import { Button } from '@dorado/components'
-import { usePatchOrder, useAddFunds, useFinalizePricing } from '@dorado/client'
+import { usePatchOrder, useAddFunds, useFinalizeOrder } from '@dorado/client'
 import { cn } from '@/shared/utils/cn'
 import { PurchaseOrderActionButtonsProps } from '@/shared/types/purchaseOrders'
 import { actionLabel } from '../../../actionLabel'
@@ -19,21 +19,25 @@ import { actionLabel } from '../../../actionLabel'
 export function PurchaseOrderActionButtons({ view }: PurchaseOrderActionButtonsProps) {
   const { order, actions } = view
   const patchOrder = usePatchOrder()
-  const finalizePricing = useFinalizePricing()
+  const finalizeOrder = useFinalizeOrder()
   const addFunds = useAddFunds()
 
-  const busy = patchOrder.isPending || finalizePricing.isPending || addFunds.isPending
+  const busy = patchOrder.isPending || finalizeOrder.isPending || addFunds.isPending
 
   return (
     <div className="flex flex-col w-full gap-2 mt-4">
-      {actions.finalize_pricing && (
+      {/* FINALIZE, not "finalize pricing" - the lots lane renamed the endpoint
+          and the action, and gave the gate a reason: `finalize_blocked_by`
+          says what it is waiting on, in the operator's own words. The button
+          is still the server's answer and nothing here decides it. */}
+      {actions.finalize && (
         <Button
           variant="primary"
           className="w-full"
           disabled={busy}
-          onClick={() => finalizePricing.mutate({ id: order.id })}
+          onClick={() => finalizeOrder.mutate({ id: order.id })}
         >
-          Finalize Pricing
+          Finalize
         </Button>
       )}
 

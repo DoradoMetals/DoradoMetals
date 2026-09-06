@@ -6,19 +6,21 @@ import Image from 'next/image'
 import { useAdminSuppliers } from '@/shared/hooks/refiners/queries'
 import { usePatchShipment, outboundOf } from '../../../../shipping/queries'
 import { useOrderShipments } from '@dorado/client'
-import { useRefinerOrder } from '@/shared/hooks/refiners/queries'
 import { Supplier } from '@/shared/types/products'
 import { useCarriers } from '../../../../carriers/queries'
 import { Carrier } from '../../../../carriers/types'
-import { useSendToRefiner } from '@dorado/client'
+import { useSupplyOrder } from '@dorado/client'
 export default function AdminPreparingSalesOrder({ view }: SalesOrderDrawerContentProps) {
   const { order } = view
 
   const { data: suppliers = [] } = useAdminSuppliers()
-  // WHICH REFINERY HAS THE METAL IS THE ENGAGEMENT'S (ruling 6): the composed
-  // wire aliased refiners.orders.refiner_id onto the order as supplier_id, and
-  // orders.orders.refinery_id was dropped in 094.
-  const { data: engagement } = useRefinerOrder(order.id)
+  // THE ENGAGEMENT READ IS GONE (docs/waves/lots-build.md). `refiners.orders`
+  // died with the lots lane and NO foreign key joins a refining order to a
+  // customer order any more (ruling 42) - the join is the lot, and the badge
+  // that names it is `OrderLotView.refining_order_number`. There is no
+  // "which refiner is this order's" read to pre-select from, so the admin's
+  // own pick is the only selection. Supplying twice is the API's 409 to
+  // refuse, not this screen's.
   const { data: shipments = [] } = useOrderShipments(order.id)
   const shipment = outboundOf(shipments)
   const shipmentCarrierId = shipment?.carrier_id ?? null
@@ -27,7 +29,7 @@ export default function AdminPreparingSalesOrder({ view }: SalesOrderDrawerConte
   // Tracking writes to the SHIPMENT resource; sending to the refiner is its
   // own action route, not a flag in the order's PATCH.
   const updateTracking = usePatchShipment()
-  const sendOrder = useSendToRefiner()
+  const supplyOrder = useSupplyOrder(order.id)
 
   // WHAT IS SELECTED IS DERIVED, NOT SYNCED. Two useEffects used to copy the
   // server's answers into state once the reads landed - so the screen held a
@@ -38,7 +40,7 @@ export default function AdminPreparingSalesOrder({ view }: SalesOrderDrawerConte
   const [pickedCarrier, setPickedCarrier] = useState<string | null>(null)
   const [trackingNumber, setTrackingNumber] = useState('')
 
-  const supplierId = pickedSupplier ?? engagement?.refiner_id ?? ''
+  const supplierId = pickedSupplier ?? ''
   const carrierId = pickedCarrier ?? shipmentCarrierId ?? ''
   const selectedSupplier: Supplier | null = suppliers.find((s) => s.id === supplierId) ?? null
   const selectedCarrier: Carrier | null = carriers.find((c) => c.id === carrierId) ?? null
@@ -86,11 +88,11 @@ export default function AdminPreparingSalesOrder({ view }: SalesOrderDrawerConte
         onClick={() => {
           // The refiner's copy prints the order's own frozen spots, resolved
           // SERVER-side - the browser no longer reads them back and posts them.
-          sendOrder.mutate({ id: order.id, refiner_id: selectedSupplier?.id ?? '' })
+          supplyOrder.mutate(selectedSupplier?.id ?? '')
         }}
-        disabled={!selectedSupplier || sendOrder.isPending || !view.actions.send_to_refiner}
+        disabled={!selectedSupplier || supplyOrder.isPending || !view.actions.supply}
       >
-        {sendOrder.isPending
+        {supplyOrder.isPending
           ? `Sending to ${selectedSupplier?.organization.name}...`
           : order.order_sent
             ? `Order sent to ${selectedSupplier?.organization.name}`
@@ -139,10 +141,13 @@ export default function AdminPreparingSalesOrder({ view }: SalesOrderDrawerConte
           if (!shipment?.shipment.id) return
           updateTracking.mutate({
             shipment_id: shipment.shipment.id,
-            patch: {
-              tracking_number: trackingNumber,
-              carrier_id: selectedCarrier?.id ?? '',
-            },
+            // CARRIER IS NOT IN `ShipmentPatch` any more - the contract is
+            // strict and carries tracking and the two charges only. The
+            // carrier the label was bought from is the shipment's own, and
+            // re-pointing it is an API gap, listed in
+            // docs/waves/frontend-sync-2026-09-08.md rather than bent here
+            // (ruling 44).
+            patch: { tracking_number: trackingNumber },
           })
         }}
         disabled={!selectedCarrier || updateTracking.isPending || trackingNumber === ''}

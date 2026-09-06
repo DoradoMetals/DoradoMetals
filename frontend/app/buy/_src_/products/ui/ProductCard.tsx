@@ -8,7 +8,7 @@ import NumberFlow from '@number-flow/react'
 import { FloatingButton, FloatingButtonItem } from '@/shared/ui/FloatingButton'
 
 import { useState } from 'react'
-import { useBasket, useCheckoutItemActions } from '@/shared/hooks/checkout/items/queries'
+import { useBasket, useCheckoutLotActions } from '@/shared/hooks/checkout/lots/queries'
 import { useProductQuote } from '@/shared/hooks/quotes/queries'
 
 import { Tooltip, TooltipProvider } from '@dorado/components'
@@ -30,7 +30,7 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
   const [variantsOpen, setVariantsOpen] = useState(false)
 
   const items = useBasket('sale')
-  const { addItem, removeOne } = useCheckoutItemActions()
+  const { addItem, removeOne } = useCheckoutLotActions()
 
   const row = items.find((i) => i.bullion_id === selectedProduct.id)
   const quantity = row?.quantity ?? 0

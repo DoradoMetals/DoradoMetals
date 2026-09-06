@@ -2,16 +2,16 @@
 
 import { PurchaseOrderDrawerContentProps, statusConfig } from '@/shared/types/purchaseOrders'
 import { cn } from '@/shared/utils/cn'
-import { useOrderItems } from '@dorado/client'
+import { useOrderLots } from '@dorado/client'
 export default function ReceivedPurchaseOrder({ view }: PurchaseOrderDrawerContentProps) {
   const { order } = view
 
   const config = statusConfig[order.status ?? '']
 
   // A CONTAINER for the one thing it shows: how many lines are assayed.
-  const { data: items = [] } = useOrderItems(order.id)
+  const { data: items = [] } = useOrderLots(order.id)
   const totalItems = items.length
-  const confirmedItems = items.filter((item) => item.confirmed).length
+  const confirmedItems = items.filter((row) => row.confirmed).length
   const percent = totalItems > 0 ? Math.round((confirmedItems / totalItems) * 100) : 0
 
   return (

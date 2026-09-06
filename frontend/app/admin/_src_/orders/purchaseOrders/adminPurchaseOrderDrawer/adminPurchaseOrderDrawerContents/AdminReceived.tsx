@@ -15,7 +15,7 @@ import { Lock, RotateCcw, Unlock } from '@dorado/icons'
 import { outboundOf } from '../../../../shipping/queries'
 import { usePatchShipment } from '../../../../shipping/queries'
 import { useOrderShipments, usePatchPaymentDetails } from '@dorado/client'
-import type { OrderItemPatch, OrderSpot, OrderViewItem } from '@dorado/contracts'
+import type { OrderLotPatch, OrderLotView, OrderSpot } from '@dorado/contracts'
 import { cn } from '@/shared/utils/cn'
 import { payoutMethodIcon, PayoutMethodType } from '@/shared/types/payouts'
 import { usePaymentMethods } from '@dorado/client'
@@ -29,10 +29,10 @@ import { Product } from '@/shared/types/products'
 import { useSpotPrices } from '@/shared/hooks/spots/queries'
 import { useProducts } from '@/shared/hooks/products/queries'
 import {
-  useCreateOrderItem,
-  useDeleteOrderItem,
+  useCreateOrderLot,
+  useDeleteOrderLot,
   useOrderSpots,
-  usePatchOrderItem,
+  usePatchOrderLot,
   useSetOrderSpots,
 } from '@dorado/client'
 import { byId } from '@/shared/utils/byId'
@@ -57,15 +57,18 @@ export default function AdminReceivedPurchaseOrder({ view }: PurchaseOrderDrawer
   // THE LINES, THE PARCEL AND THE PAYOUT ARE ALREADY HERE. This screen used
   // to call three more order-scoped reads for them; the view carries all
   // three, and each line carries its own `payable` and `line_total` besides.
-  const { items } = view
+  // A LINE IS A LOT (docs/waves/lots-build.md). `orders.items` is gone: the
+  // link row carries this order's money (premium, price, confirmed) and
+  // `row.lot` is the physical thing, whose id survives to the refiner.
+  const { lots } = view
   const { data: catalogue = [] } = useProducts()
   const { data: shipments = [] } = useOrderShipments(order.id)
   const shipment = outboundOf(shipments)
   const payout = view.payout
 
   // bullion_id is the discriminator - null means scrap.
-  const scrapItems = items.filter((item) => item.bullion_id === null)
-  const bullionItems = items.filter((item) => item.bullion_id !== null)
+  const scrapItems = lots.filter((row) => row.lot.bullion_id === null)
+  const bullionItems = lots.filter((row) => row.lot.bullion_id !== null)
 
   const handleUpdateSpot = (spot: OrderSpot, updated_spot: number) => {
     setSpots.mutate({ order_id: order.id, set: [{ metal_id: spot.metal_id, bid: updated_spot }] })
@@ -274,7 +277,7 @@ function ScrapTable({
   config,
   order_id,
 }: {
-  scrapItems: OrderViewItem[]
+  scrapItems: OrderLotView[]
   config: StatusConfigEntry
   order_id: string
 }) {
@@ -282,38 +285,38 @@ function ScrapTable({
   const [editMode, setEditMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
 
-  const patchItem = usePatchOrderItem()
-  const deleteItem = useDeleteOrderItem()
-  const createItem = useCreateOrderItem()
+  const patchLot = usePatchOrderLot()
+  const deleteLot = useDeleteOrderLot()
+  const createLot = useCreateOrderLot()
 
   // ONE FLAT PATCH (D214 item 11): the row's own columns, at the top level -
   // a key present is written, an absent one is left alone. The old body sent
   // the full scrap object on every edit because the API's op SET every
   // column it knew; this sends only the field that changed.
-  const handleUpdateItem = (item: OrderViewItem, changes: OrderItemPatch) => {
-    patchItem.mutate({ item_id: item.id, order_id, patch: changes })
+  const handleUpdateItem = (row: OrderLotView, changes: OrderLotPatch) => {
+    patchLot.mutate({ lot_id: row.id, order_id, patch: changes })
   }
 
   // Per-resource means one DELETE per line; the selection is small by
   // construction (checked rows in one drawer).
   const handleDeleteItems = (ids: string[]) => {
-    for (const id of ids) deleteItem.mutate({ item_id: id, order_id })
+    for (const id of ids) deleteLot.mutate({ lot_id: id, order_id })
   }
 
   const handleSavedItems = (ids: string[]) => {
     for (const id of ids) {
-      patchItem.mutate({ item_id: id, order_id, patch: { confirmed: true } })
+      patchLot.mutate({ lot_id: id, order_id, patch: { confirmed: true } })
     }
   }
 
-  const handleResetItem = (item: { id: string }) => {
-    patchItem.mutate({ item_id: item.id, order_id, patch: { confirmed: false } })
+  const handleResetItem = (row: { id: string }) => {
+    patchLot.mutate({ lot_id: row.id, order_id, patch: { confirmed: false } })
   }
 
   // The metal's id IS its name, so METAL_ITEMS' value is the column's value.
   const handleAddNew = (metal_id: string) => {
     if (!metal_id) return
-    createItem.mutate({
+    createLot.mutate({
       order_id,
       patch: { metal_id, pre_melt: 1, purity: 1, unit: 't oz' },
     })
@@ -365,7 +368,7 @@ function ScrapTable({
                       />
                     )}
                   </TableCell>
-                  <TableCell className="text-left">{item.item_name}</TableCell>
+                  <TableCell className="text-left">{item.lot.metal_id}</TableCell>
                   <TableCell className="text-center">
                     {editMode && selectedIds.includes(item.id) ? (
                       <div className="relative flex justify-center">
@@ -373,7 +376,7 @@ function ScrapTable({
                           type="number"
                           pattern="[0-9]*"
                           inputClassName={cn('text-left h-6')}
-                          defaultValue={item.pre_melt ?? ''}
+                          defaultValue={item.lot.pre_melt ?? ''}
                           onBlur={(e) => {
                             const pre_melt = parseFloat(e.target.value)
                             if (!isNaN(pre_melt)) {
@@ -382,13 +385,13 @@ function ScrapTable({
                           }}
                         />
                         <div className="absolute right-1 top-1/2 -translate-y-1/2 hover:bg-transparent">
-                          {item.unit}
+                          {item.lot.unit}
                         </div>
                       </div>
                     ) : (
                       <div className="flex items-center gap-1 justify-center">
-                        <div>{item.pre_melt}</div>
-                        <div>{item.unit}</div>
+                        <div>{item.lot.pre_melt}</div>
+                        <div>{item.lot.unit}</div>
                       </div>
                     )}
                   </TableCell>
@@ -399,7 +402,7 @@ function ScrapTable({
                           type="number"
                           pattern="[0-9]*"
                           inputClassName={cn('text-left h-6')}
-                          defaultValue={item.post_melt ?? ''}
+                          defaultValue={item.lot.post_melt ?? ''}
                           onBlur={(e) => {
                             const post_melt = parseFloat(e.target.value)
                             if (!isNaN(post_melt)) {
@@ -408,13 +411,13 @@ function ScrapTable({
                           }}
                         />
                         <div className="absolute right-1 top-1/2 -translate-y-1/2 hover:bg-transparent">
-                          {item.unit}
+                          {item.lot.unit}
                         </div>
                       </div>
                     ) : (
                       <div className="flex items-center gap-1 justify-center">
-                        <div>{item.post_melt}</div>
-                        <div>{item.post_melt && item.unit}</div>
+                        <div>{item.lot.post_melt}</div>
+                        <div>{item.lot.post_melt && item.lot.unit}</div>
                       </div>
                     )}
                   </TableCell>
@@ -425,7 +428,7 @@ function ScrapTable({
                           type="number"
                           pattern="[0-9]*"
                           inputClassName={cn('text-center h-6')}
-                          defaultValue={item.purity ?? ''}
+                          defaultValue={item.lot.purity ?? ''}
                           onBlur={(e) => {
                             const purity = parseFloat(e.target.value)
                             if (!isNaN(purity)) {
@@ -435,7 +438,7 @@ function ScrapTable({
                         />
                       </div>
                     ) : (
-                      <>{((item.purity ?? 0) * 100).toFixed(1)}%</>
+                      <>{((item.lot.purity ?? 0) * 100).toFixed(1)}%</>
                     )}
                   </TableCell>
 
@@ -537,7 +540,7 @@ function BullionTable({
   config,
   order_id,
 }: {
-  bullionItems: OrderViewItem[]
+  bullionItems: OrderLotView[]
   // Reference data, resolved by the container and passed down - the row
   // carries bullion_id and nothing else about the product.
   catalogue: Product[]
@@ -549,29 +552,29 @@ function BullionTable({
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const { data: products = [] } = useProducts()
 
-  const patchItem = usePatchOrderItem()
-  const deleteItem = useDeleteOrderItem()
-  const createItem = useCreateOrderItem()
+  const patchLot = usePatchOrderLot()
+  const deleteLot = useDeleteOrderLot()
+  const createLot = useCreateOrderLot()
 
   // ONE FLAT PATCH (D214 item 11): only the field that changed rides the
   // wire now - an absent key is left alone, so a quantity edit no longer has
   // to resend the current premium and vice versa.
-  const handleUpdateItem = (item: OrderViewItem, changes: OrderItemPatch) => {
-    patchItem.mutate({ item_id: item.id, order_id, patch: changes })
+  const handleUpdateItem = (row: OrderLotView, changes: OrderLotPatch) => {
+    patchLot.mutate({ lot_id: row.id, order_id, patch: changes })
   }
 
   const handleDeleteItems = (ids: string[]) => {
-    for (const id of ids) deleteItem.mutate({ item_id: id, order_id })
+    for (const id of ids) deleteLot.mutate({ lot_id: id, order_id })
   }
 
   const handleSavedItems = (ids: string[]) => {
     for (const id of ids) {
-      patchItem.mutate({ item_id: id, order_id, patch: { confirmed: true } })
+      patchLot.mutate({ lot_id: id, order_id, patch: { confirmed: true } })
     }
   }
 
-  const handleResetItem = (item: { id: string }) => {
-    patchItem.mutate({ item_id: item.id, order_id, patch: { confirmed: false } })
+  const handleResetItem = (row: { id: string }) => {
+    patchLot.mutate({ lot_id: row.id, order_id, patch: { confirmed: false } })
   }
 
   // A bullion line is created from the catalogue row itself - its id is what
@@ -585,7 +588,7 @@ function BullionTable({
 
   const handleAddNewById = (id: string) => {
     const item = products.find((product) => product.id === id)
-    if (item) createItem.mutate({ order_id, patch: { bullion_id: item.id } })
+    if (item) createLot.mutate({ order_id, patch: { bullion_id: item.id } })
   }
 
   return (
@@ -632,7 +635,7 @@ function BullionTable({
                       />
                     )}
                   </TableCell>
-                  <TableCell className="text-left">{item.product_name}</TableCell>
+                  <TableCell className="text-left">{item.lot.product_name}</TableCell>
                   <TableCell className="text-center">
                     {editMode && selectedIds.includes(item.id) ? (
                       <div className=" flex justify-center">
@@ -640,7 +643,7 @@ function BullionTable({
                           type="number"
                           pattern="[0-9]*"
                           inputClassName={cn('text-center h-6')}
-                          defaultValue={item.quantity ?? ''}
+                          defaultValue={item.lot.quantity ?? ''}
                           onBlur={(e) => {
                             const quantity = parseFloat(e.target.value)
                             if (!isNaN(quantity)) {
@@ -651,7 +654,7 @@ function BullionTable({
                       </div>
                     ) : (
                       <div className="flex items-center gap-1 justify-center">
-                        <div>{item.quantity}</div>
+                        <div>{item.lot.quantity}</div>
                       </div>
                     )}
                   </TableCell>
@@ -663,7 +666,7 @@ function BullionTable({
                           pattern="[0-9]*"
                           inputClassName={cn('text-right h-6')}
                           defaultValue={
-                            item.premium ?? byId(catalogue, item.bullion_id)?.bid_premium ?? ''
+                            item.premium ?? byId(catalogue, item.lot.bullion_id)?.bid_premium ?? ''
                           }
                           onBlur={(e) => {
                             const premium = parseFloat(e.target.value)
@@ -676,7 +679,7 @@ function BullionTable({
                     ) : (
                       <div>
                         {(
-                          (item.premium ?? byId(catalogue, item.bullion_id)?.bid_premium ?? 0) * 100
+                          (item.premium ?? byId(catalogue, item.lot.bullion_id)?.bid_premium ?? 0) * 100
                         ).toFixed(1)}
                         %
                       </div>

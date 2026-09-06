@@ -27,15 +27,20 @@ import { User } from '@/shared/types/users'
 // type; there is an order, and a `direction` column.
 //
 // Everything that used to hang off it is its own hook now:
-//   order_items      useOrderItems(order.id)          features/orders/reads
+//   lots             useOrderLots(order.id)           @dorado/client
 //   address          useOrderAddress(order.id)        features/orders/reads
 //   shipment /       useOrderShipments(order.id)      features/shipping
 //   return_shipment    + outboundOf / returnOf
 //   payout           useOrderPaymentDetails(order.id)        features/payouts
 //   carrier_pickup   useShipmentPickups(shipment.id)  features/shipping
 //   user             user_id, mapped off useAdminUsers
-//   the assay        useRefinerItems(order.id)        features/refiners
-//   the refinery     useRefinerOrder(order.id)        the ENGAGEMENT's refiner_id
+// The assay and the refinery are NOT in that list any more. They were the
+// per-order refiner ENGAGEMENT (`refiners.orders` / `refiners.items`), and the
+// lots lane deleted both: the assay is the lot's own weights, and a refining
+// order is the business's own order to a counterparty, reached by its own id
+// (`useRefiningOrder`) rather than by a customer order's - no key joins the
+// two (ruling 42), and the badge that names one is
+// `OrderLotView.refining_order_number`.
 // and the money that was flattened onto the order - shipping_paid,
 // waive_shipping_fee, waive_payout_fee, shipping_fee_actual, used_funds,
 // shipping_service - is on `totals`, which is the orders.transactions row it
