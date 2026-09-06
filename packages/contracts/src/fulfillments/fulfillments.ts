@@ -4,12 +4,13 @@
 //
 // Postgres table: fulfillments.fulfillments
 import { z } from 'zod/v4'
+import { FulfillmentStatus } from './enums.js'
 
 export const Fulfillment = z.object({
   'id': z.string().uuid(),
   'method_id': z.string().uuid(),
   'order_id': z.string().uuid().nullable(),
-  'status': z.string(),
+  'status': FulfillmentStatus,
   'created_by': z.string().nullable(),
   'updated_by': z.string().nullable(),
   'created_at': z.string(),
@@ -22,6 +23,7 @@ export type Fulfillment = z.infer<typeof Fulfillment>
 // generated:end
 import { FulfillmentMethod } from './methods.js'
 import { FulfillmentDirect } from './directs.js'
+import { FulfillmentDropoff } from './dropoffs.js'
 import { FulfillmentPickup } from './pickups.js'
 import { Shipment } from '../shipping/shipments.js'
 
@@ -55,6 +57,9 @@ export const FulfillmentCancelScheduleBody = z
   .strict()
 export type FulfillmentCancelScheduleBody = z.infer<typeof FulfillmentCancelScheduleBody>
 
+// `declared_value` is not here and never will be: the server computes the
+// parcel at label time (ruling 58). What the operator chooses is whether it is
+// covered, how much cover to buy on top, and - on a return - who pays.
 export const FulfillmentShipmentChoices = Shipment.pick({
   shipper_address_id: true,
   recipient_address_id: true,
@@ -62,6 +67,9 @@ export const FulfillmentShipmentChoices = Shipment.pick({
   carrier_service_id: true,
   pickup_date: true,
   pickup_time: true,
+  insured: true,
+  additional_coverage: true,
+  bill_return_to_customer: true,
 })
   .partial()
   .strict()
@@ -69,6 +77,8 @@ export type FulfillmentShipmentChoices = z.infer<typeof FulfillmentShipmentChoic
 
 export const FulfillmentPickupChoices = FulfillmentPickup.pick({
   pickup_address_id: true,
+  location_id: true,
+  assigned_employee_id: true,
   start_time: true,
 })
   .partial()
@@ -77,16 +87,29 @@ export type FulfillmentPickupChoices = z.infer<typeof FulfillmentPickupChoices>
 
 export const FulfillmentDirectChoices = FulfillmentDirect.pick({
   location_id: true,
+  assigned_employee_id: true,
   start_time: true,
 })
   .partial()
   .strict()
 export type FulfillmentDirectChoices = z.infer<typeof FulfillmentDirectChoices>
 
+export const FulfillmentDropoffChoices = FulfillmentDropoff.pick({
+  refiner_id: true,
+  location_id: true,
+  driver_employee_id: true,
+  start_time: true,
+  end_time: true,
+})
+  .partial()
+  .strict()
+export type FulfillmentDropoffChoices = z.infer<typeof FulfillmentDropoffChoices>
+
 export const FulfillmentPatchBody = z.union([
   z.object({ shipment: FulfillmentShipmentChoices }).strict(),
   z.object({ pickup: FulfillmentPickupChoices }).strict(),
   z.object({ direct: FulfillmentDirectChoices }).strict(),
+  z.object({ dropoff: FulfillmentDropoffChoices }).strict(),
 ])
 export type FulfillmentPatchBody = z.infer<typeof FulfillmentPatchBody>
 
@@ -98,6 +121,7 @@ export const FulfillmentStep = z.enum([
   'pickup_time',
   'pickup_address_id',
   'location_id',
+  'refiner_id',
   'start_time',
 ])
 export type FulfillmentStep = z.infer<typeof FulfillmentStep>

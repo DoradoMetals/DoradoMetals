@@ -28,6 +28,11 @@ export async function labelsById(executor?: Executor): Promise<Map<string, strin
   return new Map((await getAll(executor)).map((p) => [p.id, p.label]))
 }
 
+export async function defaultReturn(executor?: Executor): Promise<Package | undefined> {
+  const { rows } = await query<Package>(sql('default_return'), [], executor)
+  return rows[0]
+}
+
 export async function getOffered(executor?: Executor): Promise<OfferedPackage[]> {
   const { rows } = await query<OfferedPackage>(sql('get_offered'), [], executor)
   return rows

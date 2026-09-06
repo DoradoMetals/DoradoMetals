@@ -29,6 +29,8 @@ export const Shipment = z.object({
   'pickup_date': z.string().nullable(),
   'pickup_time': z.string().nullable(),
   'user_id': z.string().uuid().nullable(),
+  'additional_coverage': z.number().nullable(),
+  'bill_return_to_customer': z.boolean(),
 })
 export type Shipment = z.infer<typeof Shipment>
 // generated:end
@@ -49,11 +51,15 @@ export type ShipmentRead = z.infer<typeof ShipmentRead>
 // No `carrier_id`. It was required to travel with `tracking_number` and then
 // discarded - the carrier a tracking number belongs to is whatever the
 // shipment's own `carrier_service_id` already says (LD F16).
+// `carrier_service_id` is here for ONE case: a drop-shipped parcel the refiner
+// posted, where the tracking number and the carrier both arrive after the fact.
+// A parcel that already has a tracking number or a label refuses it.
 export const ShipmentPatch = Shipment.pick({ tracking_number: true })
   .extend({
     shipping_charge: z.number().optional(),
     shipping_actual: z.number().optional(),
     tracking_number: Shipment.shape.tracking_number.unwrap().optional(),
+    carrier_service_id: Shipment.shape.carrier_service_id.unwrap().optional(),
   })
   .strict()
 export type ShipmentPatch = z.infer<typeof ShipmentPatch>

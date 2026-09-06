@@ -1,4 +1,5 @@
 SELECT o.id AS order_id,
+       NULL::uuid AS refining_order_id,
        o.number,
        o.direction,
        CASE WHEN o.direction = 'sale' THEN t.post_charges_amount ELSE t.total END AS amount_due,

@@ -9,6 +9,7 @@ import type {
   FulfillmentPickup,
   InsuranceCeiling,
   Lot,
+  OrderViewShipment,
   Package,
   Parcel,
   ParcelSchedule,
@@ -150,6 +151,20 @@ export function quotedCharge(
     throw new Invalid(`the carrier quoted no rate for ${serviceType} - try a different service`)
   }
   return quoted.netCharge
+}
+
+// A parcel that already carries a label or a tracking number has its carrier
+// settled - changing it would describe a box that is already in the network.
+export function assertAwaitingTracking(
+  shipment: OrderViewShipment,
+  shipment_id: string
+): void {
+  if (shipment.tracking_number || shipment.label) {
+    throw new Conflict(
+      `shipment ${shipment_id} already has a label or a tracking number, so its ` +
+        `carrier service cannot be changed`
+    )
+  }
 }
 
 export function assertParcelPackage<T>(box: T | null | undefined): asserts box is T {

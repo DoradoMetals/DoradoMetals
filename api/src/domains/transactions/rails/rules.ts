@@ -80,6 +80,23 @@ export function referenceFor(direction: Direction | null, number: number): strin
   return `${direction === 'sale' ? 'SO' : 'PO'}-${number}`
 }
 
+// A refiner order's own number. It shares no sequence with a customer order, so
+// the memo an operator matches against carries its own prefix.
+export function refiningReferenceFor(number: number): string {
+  return `RO-${number}`
+}
+
+// The table's CHECK, asked before the insert so the refusal names the mistake
+// rather than a constraint (GAP 12).
+export function assertOneOrder(
+  order_id: string | null | undefined,
+  refining_order_id: string | null | undefined
+): void {
+  if (Boolean(order_id) === Boolean(refining_order_id)) {
+    throw new Invalid('a payment names an order_id or a refining_order_id, and exactly one')
+  }
+}
+
 // The provider's idempotency key. It names the row, not the click, so a
 // double-submit and a network retry both replay the SAME provider transfer,
 // and a genuine second attempt after a failure is a new row with a new key.

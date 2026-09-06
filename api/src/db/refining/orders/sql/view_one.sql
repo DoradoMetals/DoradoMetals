@@ -10,9 +10,14 @@ SELECT
             'expected_settlement_on', to_char(ro.expected_settlement_on, 'YYYY-MM-DD'),
             'created_at', to_char(ro.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
             'updated_at', to_char(ro.updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
-            'state', CASE WHEN ro.disputed_at IS NOT NULL THEN 'Disputed'
+            'cancelled_at', to_char(ro.cancelled_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+            'state', CASE WHEN ro.cancelled_at IS NOT NULL THEN 'Cancelled'
+                          WHEN ro.disputed_at IS NOT NULL THEN 'Disputed'
                           WHEN ro.settled_at IS NOT NULL THEN 'Settled'
                           ELSE 'Pending assay' END,
+            'orders_to_date',
+              (SELECT count(*) FROM refining.orders peer
+                WHERE peer.refiner_id = ro.refiner_id),
             'refiner',
               (SELECT jsonb_build_object(
                         'id', r.id, 'logo', r.logo,
@@ -42,6 +47,10 @@ SELECT
                             'order_id', od.id,
                             'order_number', od.number,
                             'order_direction', od.direction,
+                            'order_reference',
+                              CASE WHEN od.number IS NULL THEN NULL
+                                   ELSE (CASE WHEN od.direction = 'sale' THEN 'SO-'
+                                              ELSE 'PO-' END) || od.number END,
                             'customer_premium', ol.premium)
                        ORDER BY li.metal_id ASC, rl.id ASC)
                 FROM refining.lots rl
@@ -75,7 +84,13 @@ SELECT
             'variance', CASE WHEN sums.settled IS NULL OR sums.estimated IS NULL THEN NULL
                              ELSE sums.settled - sums.estimated END,
             'pool_oz', (SELECT sum(p.troy_oz) FROM refining.pool p
-                         WHERE p.refining_order_id = ro.id)) AS view
+                         WHERE p.refining_order_id = ro.id),
+            'expected_settlement', money.expected_settlement,
+            'totals', jsonb_build_object(
+              'fee', money.fee,
+              'pool_remediation', money.pool_remediation,
+              'payment_charge', money.payment_charge,
+              'total', money.total)) AS view
   FROM refining.orders ro
   LEFT JOIN LATERAL (
          SELECT sum(li.content * li.quantity) AS estimated,
@@ -84,4 +99,5 @@ SELECT
            JOIN lots.items li ON li.id = rl.lot_id
           WHERE rl.refining_order_id = ro.id
        ) sums ON TRUE
+  LEFT JOIN refining.order_money money ON money.refining_order_id = ro.id
  WHERE ro.id = $1

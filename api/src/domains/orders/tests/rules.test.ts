@@ -200,6 +200,7 @@ const facts = (over: Partial<Facts> = {}): Facts => ({
   payout: null,
   user: null,
   credited: false,
+  reference: 'PO-1',
   ...over,
 })
 
@@ -347,23 +348,23 @@ test('a cancelled order can be reopened, and only a cancelled one', () => {
 })
 
 test('the documents a method prints, and the one that waits for finalization', () => {
-  const shipment = rules.documentsFor('SHIPMENT', false)
+  const shipment = rules.documentsFor('SHIPMENT', false, [])
   assert.deepEqual(
     shipment.map((d) => d.name),
     ['Invoice', 'Packing List', 'Return Packing List', 'Shipping Instructions']
   )
   assert.equal(shipment[0]!.available, false, 'an invoice was offered before finalization')
-  assert.equal(rules.documentsFor('SHIPMENT', true)[0]!.available, true)
+  assert.equal(rules.documentsFor('SHIPMENT', true, [])[0]!.available, true)
   assert.deepEqual(
-    rules.documentsFor('PICKUP', true).map((d) => d.name),
+    rules.documentsFor('PICKUP', true, []).map((d) => d.name),
     ['Invoice', 'Pickup Manifest', 'Pickup Instructions']
   )
   assert.deepEqual(
-    rules.documentsFor('DIRECT', true).map((d) => d.name),
+    rules.documentsFor('DIRECT', true, []).map((d) => d.name),
     ['Invoice', 'Intake Receipt', 'Appointment Instructions']
   )
   assert.deepEqual(
-    rules.documentsFor('DROPOFF', true).map((d) => d.name),
+    rules.documentsFor('DROPOFF', true, []).map((d) => d.name),
     ['Invoice', 'Settlement', 'Lot Manifest']
   )
 })

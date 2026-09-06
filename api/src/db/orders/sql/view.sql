@@ -81,6 +81,8 @@ SELECT to_jsonb(o)
                      'label', encode(s.label, 'base64'),
                      'direction', s.direction::text,
                      'insured', s.insured,
+                     'additional_coverage', s.additional_coverage,
+                     'bill_return_to_customer', s.bill_return_to_customer,
                      'declared_value', s.declared_value,
                      'cost', s.cost,
                      'actual_cost', s.actual_cost,
@@ -129,9 +131,16 @@ SELECT to_jsonb(o)
           JOIN payments.details d ON d.id = t.payout_details_id
           LEFT JOIN payments.methods m ON m.id = d.method_id
          WHERE t.order_id = o.id) AS payout,
-       (SELECT jsonb_build_object('id', u.id, 'name', u.name, 'email', u.email)
+       (SELECT jsonb_build_object(
+                 'id', u.id, 'name', u.name, 'email', u.email,
+                 'orders_to_date',
+                   (SELECT count(*) FROM orders.orders prior
+                     WHERE prior.user_id = u.id))
           FROM auth.users u
          WHERE u.id = o.user_id) AS "user",
+       -- The header's PO-2481 / SO-2481. The prefix is a label, and deciding it
+       -- in the browser is deciding it in three browsers (ruling 83).
+       CASE WHEN o.direction = 'sale' THEN 'SO-' ELSE 'PO-' END || o.number AS reference,
        -- Whether this order's payout has already been credited to the
        -- customer's balance. The add_funds action turns itself off from it, and
        -- the endpoint refuses on it (MP F4).

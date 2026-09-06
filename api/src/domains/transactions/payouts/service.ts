@@ -1,12 +1,13 @@
 import withTransaction from '#shared/db/withTransaction.ts'
 import { attempt } from '#shared/attempt.ts'
-import { orders, paymentTransfers as transfers, bankLinks } from '#db'
+import { orders, paymentTransfers as transfers, bankLinks, refiningOrders } from '#db'
 import * as moov from '#providers/moov/index.ts'
 import * as rails from '#transactions/rails/service.ts'
 import {
   assertKind,
   assertOpenable,
   assertPayable,
+  assertOneOrder,
   assertRail,
   assertSendable,
   assertTransfer,
@@ -15,6 +16,7 @@ import {
   centsOf,
   openingState,
   referenceFor,
+  refiningReferenceFor,
   transferKeyFor,
 } from '#transactions/rails/rules.ts'
 import { PayTo as PayToShape } from '@dorado/contracts'
@@ -24,14 +26,17 @@ const MOOV = 'moov'
 const MANUAL = 'manual'
 
 export async function openPayout(body: OpenPayoutBody): Promise<Transfer> {
+  assertOneOrder(body.order_id, body.refining_order_id)
+  assertRail(body.rail, 'payout')
+  if (body.refining_order_id) return await openRefiningPayout(body, body.refining_order_id)
   return await withTransaction(async (tx) => {
-    const order = await orders.getOne(body.order_id, tx)
-    const owed = assertOpenable(body.order_id, order?.totals?.total)
-    assertRail(body.rail, 'payout')
+    const order = await orders.getOne(body.order_id as string, tx)
+    const owed = assertOpenable(body.order_id as string, order?.totals?.total)
 
     const created = await transfers.create(
       {
-        order_id: body.order_id,
+        order_id: body.order_id as string,
+        refining_order_id: null,
         kind: 'payout',
         rail: body.rail,
         state: openingState('payout'),
@@ -47,7 +52,47 @@ export async function openPayout(body: OpenPayoutBody): Promise<Transfer> {
       tx
     )
     if (created) return created
-    return assertTransfer(body.order_id, await transfers.getForOrder(body.order_id, 'payout', tx))
+    return assertTransfer(
+      body.order_id as string,
+      await transfers.getForOrder(body.order_id as string, 'payout', tx)
+    )
+  })
+}
+
+// A refiner is paid the way a customer is. What it owes comes off
+// `refining.order_money`, so the Payment card and the Totals card cannot
+// disagree about the figure (GAP 12).
+async function openRefiningPayout(
+  body: OpenPayoutBody,
+  refining_order_id: string
+): Promise<Transfer> {
+  return await withTransaction(async (tx) => {
+    const order = await refiningOrders.view(refining_order_id, tx)
+    const owed = assertOpenable(refining_order_id, order?.totals.total)
+
+    const created = await transfers.create(
+      {
+        order_id: null,
+        refining_order_id,
+        kind: 'payout',
+        rail: body.rail,
+        state: openingState('payout'),
+        amount: owed,
+        counterparty_user_id: null,
+        details_id: body.details_id ?? null,
+        bank_link_id: body.bank_link_id ?? null,
+        provider: null,
+        provider_ref: null,
+        reference: refiningReferenceFor(order?.number ?? 0),
+        idempotency_key: null,
+      },
+      tx
+    )
+    if (created) return created
+    return assertTransfer(
+      refining_order_id,
+      await transfers.getForRefiningOrder(refining_order_id, 'payout', tx)
+    )
   })
 }
 

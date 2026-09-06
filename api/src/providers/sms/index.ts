@@ -2,6 +2,7 @@ import * as fake from '#providers/sms/fake.ts'
 import * as twilio from '#providers/sms/twilio.ts'
 import type {
   SmsInbound,
+  SmsMedia,
   SmsProvider,
   SmsSendResult,
   SmsStatusUpdate,
@@ -25,8 +26,8 @@ function provider(): SmsProvider {
   return isFake() ? fake : twilio
 }
 
-export function send(to: string, body: string): Promise<SmsSendResult> {
-  return provider().send(to, body)
+export function send(to: string, body: string, media?: SmsMedia[]): Promise<SmsSendResult> {
+  return provider().send(to, body, media)
 }
 
 export function verifySignature(

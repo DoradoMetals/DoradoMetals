@@ -35,7 +35,7 @@ const aDirectFulfilment = async (c: PoolClient) => {
   const method_id = await fulfillmentMethodId(c, 'APPOINTMENT', 'purchase')
   const { rows } = await c.query<IdRow>(
     `INSERT INTO fulfillments.fulfillments (id, order_id, method_id, status)
-     VALUES (gen_random_uuid(), $1, $2, 'Pending') RETURNING id`,
+     VALUES (gen_random_uuid(), $1, $2, 'PENDING') RETURNING id`,
     [order.id, method_id]
   )
   return { id: rows[0]!.id, order_id: order.id, user_id: user.id }

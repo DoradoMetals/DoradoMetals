@@ -5,11 +5,13 @@ import * as lots from '#db/lots/items/repo.ts'
 import * as ordersRepo from '#db/orders/repo.ts'
 import * as orderLots from '#db/orders/lots/repo.ts'
 import * as refiners from '#db/refiners/repo.ts'
+import * as pdfs from '#db/media/pdfs/repo.ts'
 
 import * as rules from '#refining/rules.ts'
 import withTransaction from '#shared/db/withTransaction.ts'
 import type { Executor } from '#shared/db/executor.ts'
 import type {
+  OrderDocument,
   PoolBalance,
   PoolEntry,
   PoolLockCreate,
@@ -21,6 +23,7 @@ import type {
   RefiningOrderPatch,
   RefiningOrderView,
   RefiningSettlement,
+  RefiningSpot,
 } from '@dorado/contracts'
 
 export async function list(
@@ -47,8 +50,47 @@ export async function create(body: RefiningOrderCreate): Promise<RefiningOrderVi
   if (body.direction === 'sell') {
     rules.assertNoOpenSellOrder(await refiningOrders.findOpenSell(body.refiner_id))
   }
-  const created = await withTransaction((tx) => refiningOrders.create(body, tx))
+  const lot_ids = body.lot_ids ?? []
+  if (lot_ids.length > 0) {
+    rules.assertLotsExist(await lots.getByIds(lot_ids), lot_ids)
+    rules.assertUnassigned(await refiningLots.getByLots(lot_ids), lot_ids)
+  }
+
+  // The batch is ONE transaction. Creating the order and then assigning its lots
+  // in two calls left an empty refiner order behind whenever the second failed.
+  const created = await withTransaction(async (tx) => {
+    const row = await refiningOrders.create(body, tx)
+    if (lot_ids.length > 0) await refiningLots.assign(row.id, lot_ids, tx)
+    return row
+  })
   return await view(created.id)
+}
+
+// Cancelling releases the lots: `a_lot_goes_to_one_refiner` is unique on lot_id,
+// so a lot left on a cancelled order could never be batched again.
+export async function cancel(id: string): Promise<RefiningOrderView> {
+  const order = await refiningOrders.getOne(id)
+  rules.assertRefiningOrder(order, id)
+  rules.assertCancellable(order)
+
+  await withTransaction(async (tx) => {
+    await refiningLots.removeFor(id, tx)
+    rules.assertRefiningOrder(await refiningOrders.cancel(id, tx), id)
+  })
+  return await view(id)
+}
+
+// A refiner order's four frozen prices. It never has an orders.spots row - the
+// price its metal changed hands at is the pool's last lock (GAP 7).
+export async function spotsFor(id: string): Promise<RefiningSpot[]> {
+  rules.assertRefiningOrder(await refiningOrders.getOne(id), id)
+  return await refiningOrders.spots(id)
+}
+
+export async function documentsFor(id: string): Promise<OrderDocument[]> {
+  const order = await refiningOrders.getOne(id)
+  rules.assertRefiningOrder(order, id)
+  return rules.documentsFor(order.sent_at !== null, await pdfs.storedKinds(null, id))
 }
 
 export async function patch(id: string, changes: RefiningOrderPatch): Promise<RefiningOrderView> {
@@ -187,6 +229,32 @@ export async function supplyOrder(
   })
 
   return await send(id)
+}
+
+// The "Create Sale" action: a finalized customer PURCHASE order's lots become a
+// refiner SELL order. It obeys the pooling mechanic rather than fighting it -
+// lots accumulate onto the one open sell order per refiner, so a second call for
+// the same refiner adds to that order instead of being refused (GAP 9).
+export async function sellToRefiner(
+  order_id: string,
+  refiner_id: string
+): Promise<RefiningOrderView> {
+  rules.assertPurchaseOrder(await ordersRepo.directionOf(order_id), order_id)
+  rules.assertFinalizedOrder(await ordersRepo.getOne(order_id), order_id)
+  const refiner = await refiners.viewOne(refiner_id)
+  rules.assertRefiner(refiner, refiner_id)
+
+  const lot_ids = (await orderLots.getFor(order_id)).map((row) => row.lot_id)
+  rules.assertSuppliable(lot_ids, order_id)
+  rules.assertUnassigned(await refiningLots.getByLots(lot_ids), lot_ids)
+
+  const open = await refiningOrders.findOpenSell(refiner_id)
+  const id = await withTransaction(async (tx) => {
+    const target = open ?? (await refiningOrders.create({ refiner_id, direction: 'sell' }, tx))
+    await refiningLots.assign(target.id, lot_ids, tx)
+    return target.id
+  })
+  return await view(id)
 }
 
 export async function allRefiners(): Promise<RefinerView[]> {

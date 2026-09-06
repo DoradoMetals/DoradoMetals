@@ -11,6 +11,10 @@ export const getPaymentView = asyncHandler(async (req, res) => {
   return res.json(await rails.paymentView(uuidParam(req, 'orderId')))
 })
 
+export const getRefiningPayment = asyncHandler(async (req, res) => {
+  return res.json(await rails.refiningPaymentView(uuidParam(req, 'id')))
+})
+
 // An unsigned webhook is an unauthenticated caller, and is answered as one.
 export const handleMoovWebhook = asyncHandler(async (req, res) => {
   const raw = Buffer.isBuffer(req.body) ? req.body.toString('utf8') : ''

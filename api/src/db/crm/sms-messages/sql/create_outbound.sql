@@ -4,9 +4,10 @@
 -- until mark_sent overwrites it - generated in SQL, never minted in
 -- TypeScript.
 INSERT INTO crm.sms_messages
-       (direction, provider, provider_sid, from_number, to_number, body,
+       (direction, provider, provider_sid, from_number, to_number, body, media,
         status, user_id)
 VALUES ('outbound', $1, 'pending:' || gen_random_uuid()::text, $2, $3, $4,
+        COALESCE($5::jsonb, '[]'::jsonb),
         'queued',
         (SELECT id FROM auth.users WHERE phone_number = $3 AND phone_number_verified))
 RETURNING id, direction, provider, provider_sid, from_number, to_number, body, media,

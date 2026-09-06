@@ -1,11 +1,12 @@
 import withTransaction from '#shared/db/withTransaction.ts'
 import { attempt } from '#shared/attempt.ts'
-import { orders, paymentTransfers as transfers, bankLinks } from '#db'
+import { orders, paymentTransfers as transfers, bankLinks, refiningOrders } from '#db'
 import * as moov from '#providers/moov/index.ts'
 import * as rails from '#transactions/rails/service.ts'
 import {
   assertKind,
   assertLink,
+  assertOneOrder,
   assertOpenable,
   assertPayable,
   assertSendable,
@@ -15,6 +16,7 @@ import {
   centsOf,
   openingState,
   referenceFor,
+  refiningReferenceFor,
   transferKeyFor,
 } from '#transactions/rails/rules.ts'
 import type { OpenChargeBody, Transfer } from '@dorado/contracts'
@@ -22,13 +24,16 @@ import type { OpenChargeBody, Transfer } from '@dorado/contracts'
 const MOOV = 'moov'
 
 export async function openCharge(body: OpenChargeBody): Promise<Transfer> {
+  assertOneOrder(body.order_id, body.refining_order_id)
+  if (body.refining_order_id) return await openRefiningCharge(body, body.refining_order_id)
   return await withTransaction(async (tx) => {
-    const order = await orders.getOne(body.order_id, tx)
-    const owed = assertOpenable(body.order_id, order?.totals?.post_charges_amount)
+    const order = await orders.getOne(body.order_id as string, tx)
+    const owed = assertOpenable(body.order_id as string, order?.totals?.post_charges_amount)
 
     const created = await transfers.create(
       {
-        order_id: body.order_id,
+        order_id: body.order_id as string,
+        refining_order_id: null,
         kind: 'charge',
         rail: body.rail,
         state: openingState('charge'),
@@ -44,7 +49,45 @@ export async function openCharge(body: OpenChargeBody): Promise<Transfer> {
       tx
     )
     if (created) return created
-    return assertTransfer(body.order_id, await transfers.getForOrder(body.order_id, 'charge', tx))
+    return assertTransfer(
+      body.order_id as string,
+      await transfers.getForOrder(body.order_id as string, 'charge', tx)
+    )
+  })
+}
+
+// A refiner SELL order is money coming IN: the refiner pays us for the lots.
+async function openRefiningCharge(
+  body: OpenChargeBody,
+  refining_order_id: string
+): Promise<Transfer> {
+  return await withTransaction(async (tx) => {
+    const order = await refiningOrders.view(refining_order_id, tx)
+    const owed = assertOpenable(refining_order_id, order?.totals.total)
+
+    const created = await transfers.create(
+      {
+        order_id: null,
+        refining_order_id,
+        kind: 'charge',
+        rail: body.rail,
+        state: openingState('charge'),
+        amount: owed,
+        counterparty_user_id: null,
+        details_id: null,
+        bank_link_id: null,
+        provider: null,
+        provider_ref: null,
+        reference: refiningReferenceFor(order?.number ?? 0),
+        idempotency_key: null,
+      },
+      tx
+    )
+    if (created) return created
+    return assertTransfer(
+      refining_order_id,
+      await transfers.getForRefiningOrder(refining_order_id, 'charge', tx)
+    )
   })
 }
 

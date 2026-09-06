@@ -26,7 +26,7 @@ export type SmsStatusUpdate = {
 export type TwilioForm = Record<string, unknown>
 
 export type SmsProvider = {
-  send(to: string, body: string): Promise<SmsSendResult>
+  send(to: string, body: string, media?: SmsMedia[]): Promise<SmsSendResult>
   verifySignature(url: string, params: Record<string, string>, signature: string): boolean
   parseInbound(form: TwilioForm): SmsInbound
   parseStatus(form: TwilioForm): SmsStatusUpdate

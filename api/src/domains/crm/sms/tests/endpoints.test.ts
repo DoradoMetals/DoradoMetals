@@ -62,7 +62,7 @@ test('an anonymous caller is refused the admin reads', async () => {
         assert.ok([401, 403].includes(res.status))
       })
     },
-    { actor: TEST_ACTOR.id }
+    { lock: LOCKS.USERS, actor: TEST_ACTOR.id }
   )
 })
 
@@ -74,6 +74,6 @@ test('sendMessage writes the row before returning', async () => {
       assert.equal(row.to_number, '+15125559199')
       assert.ok(row.id)
     },
-    { actor: TEST_ACTOR.id }
+    { lock: LOCKS.USERS, actor: TEST_ACTOR.id }
   )
 })

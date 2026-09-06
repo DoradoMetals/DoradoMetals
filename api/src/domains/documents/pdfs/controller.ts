@@ -1,7 +1,11 @@
 import { z } from 'zod/v4'
-import type { Response } from 'express'
+import type { Request, Response } from 'express'
+import { PdfKind } from '@dorado/contracts'
 import { asyncHandler } from '#shared/middleware/asyncHandler.ts'
-import { parseStrict, uuidLike } from '#shared/http/validate.ts'
+import { parseStrict, uuidLike, uuidParam } from '#shared/http/validate.ts'
+import { param } from '#shared/http/caller.ts'
+import { firstFile } from '#shared/http/multipart.ts'
+import * as delivery from '#documents/pdfs/delivery.ts'
 import * as pdfService from '#documents/pdfs/service.ts'
 import { serveOrderDocument } from '#documents/pdfs/serve.ts'
 import * as inputs from '#documents/pdfs/order-inputs.ts'
@@ -69,4 +73,32 @@ export const generateSalesOrderInvoice = asyncHandler(async (req, res) => {
       pdfService.generateSalesOrderInvoice(await inputs.salesOrderInvoiceInputs(order_id)),
   })
   sendPdf(res, bytes, 'invoice.pdf')
+})
+
+const kindParam = (req: Request): PdfKind =>
+  parseStrict(PdfKind, param(req, 'kind'), 'document kind')
+
+export const sendOrderDocument = asyncHandler(async (req, res) => {
+  const sent = await delivery.sendOrderDocument(uuidParam(req, 'id'), kindParam(req))
+  return res.status(200).json(sent)
+})
+
+export const importOrderDocument = asyncHandler(async (req, res) => {
+  const file = firstFile(req.get('content-type') ?? '', req.body)
+  const written = await delivery.importOrderDocument(
+    uuidParam(req, 'id'),
+    kindParam(req),
+    file?.bytes ?? null
+  )
+  return res.status(201).json(written)
+})
+
+export const importRefiningDocument = asyncHandler(async (req, res) => {
+  const file = firstFile(req.get('content-type') ?? '', req.body)
+  const written = await delivery.importRefiningDocument(
+    uuidParam(req, 'id'),
+    kindParam(req),
+    file?.bytes ?? null
+  )
+  return res.status(201).json(written)
 })

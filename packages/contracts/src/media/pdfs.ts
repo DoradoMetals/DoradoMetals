@@ -14,6 +14,7 @@ export const Pdf = z.object({
   'size_bytes': z.number().int().nullable(),
   'checksum': z.string().nullable(),
   'created_at': z.string(),
+  'refining_order_id': z.string().uuid().nullable(),
 })
 export type Pdf = z.infer<typeof Pdf>
 // generated:end

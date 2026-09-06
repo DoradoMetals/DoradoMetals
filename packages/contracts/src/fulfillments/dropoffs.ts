@@ -23,4 +23,18 @@ export const FulfillmentDropoff = z.object({
 export type FulfillmentDropoff = z.infer<typeof FulfillmentDropoff>
 // generated:end
 
-// Hand-written derivations go here: New, Patch, named reads.
+export const FulfillmentDropoffPatch = FulfillmentDropoff.omit({ id: true }).partial()
+export type FulfillmentDropoffPatch = z.infer<typeof FulfillmentDropoffPatch>
+
+export const FulfillmentDropoffPatchColumns = FulfillmentDropoffPatch.omit({
+  fulfillment_id: true,
+})
+export type FulfillmentDropoffPatchColumns = z.infer<typeof FulfillmentDropoffPatchColumns>
+
+export const FulfillmentScheduleDropoffBody = z
+  .object({
+    fulfillment_id: FulfillmentDropoff.shape.fulfillment_id,
+    dropoff: FulfillmentDropoffPatchColumns.strict(),
+  })
+  .strict()
+export type FulfillmentScheduleDropoffBody = z.infer<typeof FulfillmentScheduleDropoffBody>

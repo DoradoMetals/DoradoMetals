@@ -36,7 +36,7 @@ test('upsertInbound is idempotent on provider_sid', async () => {
 test('createOutbound then markSent updates the provider_sid and sent_at', async () => {
   await inPinnedTransaction(
     async (client) => {
-      const row = await repo.createOutbound('twilio', '+15125550000', '+15125550002', 'hey', client)
+      const row = await repo.createOutbound('twilio', '+15125550000', '+15125550002', 'hey', [], client)
       assert.equal(row.status, 'queued')
       assert.ok(row.provider_sid.startsWith('pending:'))
       assert.equal(row.sent_at, null)

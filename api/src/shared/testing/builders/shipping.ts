@@ -69,7 +69,7 @@ export async function aShipment(
   const fulfillment = await fulfillments.create(
     order.id,
     method_id,
-    options.fulfillment_status ?? 'Pending',
+    options.fulfillment_status ?? 'PENDING',
     c
   )
   const fulfillment_id = fulfillment!.id

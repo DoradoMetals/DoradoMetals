@@ -1,10 +1,11 @@
-import type { SmsSendResult } from '#providers/sms/types.ts'
+import type { SmsMedia, SmsSendResult } from '#providers/sms/types.ts'
 
 export { parseInbound, parseStatus } from '#providers/sms/twilio.ts'
 
 export type FakeMessage = {
   to: string
   body: string
+  media: SmsMedia[]
   provider_sid: string
   sent_at: string
 }
@@ -14,11 +15,16 @@ let counter = 0
 
 const digits = (value: string): string => value.replace(/\D/g, '')
 
-export async function send(to: string, body: string): Promise<SmsSendResult> {
+export async function send(
+  to: string,
+  body: string,
+  media: SmsMedia[] = []
+): Promise<SmsSendResult> {
   counter += 1
   const message: FakeMessage = {
     to,
     body,
+    media,
     provider_sid: `SMfake${String(counter).padStart(26, '0')}`,
     sent_at: new Date().toISOString(),
   }

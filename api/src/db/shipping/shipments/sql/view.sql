@@ -11,6 +11,8 @@ SELECT jsonb_build_object(
          'label_type', s.label_type,
          'direction', s.direction::text,
          'insured', s.insured,
+         'additional_coverage', s.additional_coverage,
+         'bill_return_to_customer', s.bill_return_to_customer,
          'declared_value', s.declared_value,
          'cost', s.cost,
          'actual_cost', s.actual_cost,

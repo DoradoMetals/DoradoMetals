@@ -20,9 +20,9 @@ const GUARDABLE = columnsOf(Guard)
 
 export async function create(row: TransferWrite, executor?: Executor): Promise<Transfer | undefined> {
   const { rows } = await query<Transfer>(
-    sql('create'),
+    sql(row.refining_order_id ? 'create_refining' : 'create'),
     [
-      row.order_id,
+      row.refining_order_id ?? row.order_id,
       row.kind,
       row.rail,
       row.state,
@@ -75,6 +75,27 @@ export async function listForOrder(order_id: string, executor?: Executor): Promi
 export async function view(order_id: string, executor?: Executor): Promise<PaymentView | undefined> {
   const { rows } = await query(sql('payment_view'), [order_id], executor)
   return rows[0] === undefined ? undefined : View.parse(rows[0])
+}
+
+export async function viewRefining(
+  refining_order_id: string,
+  executor?: Executor
+): Promise<PaymentView | undefined> {
+  const { rows } = await query(sql('payment_view_refining'), [refining_order_id], executor)
+  return rows[0] === undefined ? undefined : View.parse(rows[0])
+}
+
+export async function getForRefiningOrder(
+  refining_order_id: string,
+  kind: TransferKind,
+  executor?: Executor
+): Promise<Transfer | undefined> {
+  const { rows } = await query<Transfer>(
+    sql('get_for_refining_order'),
+    [refining_order_id, kind],
+    executor
+  )
+  return rows[0]
 }
 
 export async function update(

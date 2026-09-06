@@ -143,3 +143,9 @@ export async function getTransfer(id: string): Promise<Transfer> {
 export async function paymentView(order_id: string): Promise<PaymentView> {
   return assertViewable(order_id, await transfers.view(order_id))
 }
+
+// A refiner order answers the same shape. Its `amount_due` is the Totals card's
+// total, which `refining.order_money` defines once for every read of it.
+export async function refiningPaymentView(refining_order_id: string): Promise<PaymentView> {
+  return assertViewable(refining_order_id, await transfers.viewRefining(refining_order_id))
+}

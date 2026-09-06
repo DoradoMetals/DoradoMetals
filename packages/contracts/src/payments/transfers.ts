@@ -8,7 +8,7 @@ import { Rail, TransferKind, TransferState } from './enums.js'
 
 export const Transfer = z.object({
   'id': z.string().uuid(),
-  'order_id': z.string().uuid(),
+  'order_id': z.string().uuid().nullable(),
   'kind': TransferKind,
   'rail': Rail,
   'state': TransferState,
@@ -28,6 +28,7 @@ export const Transfer = z.object({
   'updated_at': z.string(),
   'created_by_id': z.string().uuid().nullable(),
   'updated_by_id': z.string().uuid().nullable(),
+  'refining_order_id': z.string().uuid().nullable(),
 })
 export type Transfer = z.infer<typeof Transfer>
 // generated:end
@@ -35,6 +36,7 @@ export type Transfer = z.infer<typeof Transfer>
 // Hand-written derivations go here: New, Patch, named reads.
 import { Order } from '../orders/orders.js'
 import { OrderTotals } from '../orders/transactions.js'
+import { RefiningOrder } from '../refining/orders.js'
 import { BankLink } from './bank_links.js'
 import { PaymentDetails } from './details.js'
 
@@ -46,6 +48,7 @@ export type Charge = z.infer<typeof Charge>
 
 export const TransferWrite = Transfer.pick({
   order_id: true,
+  refining_order_id: true,
   kind: true,
   rail: true,
   state: true,
@@ -98,10 +101,13 @@ export const PayoutAccount = PaymentDetails.pick({
 }).extend({ method: z.string().nullable() })
 export type PayoutAccount = z.infer<typeof PayoutAccount>
 
+// One shape for both sides of the Payment card. A customer order and a refiner
+// order answer the same fields; which key is set says which one this is, and
+// `direction` carries either vocabulary because they are different enums.
 export const PaymentView = z.object({
-  order_id: Order.shape.id,
+  order_id: Order.shape.id.nullable(),
   number: Order.shape.number,
-  direction: Order.shape.direction,
+  direction: Order.shape.direction.or(RefiningOrder.shape.direction),
   amount_due: OrderTotals.shape.post_charges_amount,
   transfer_id: Transfer.shape.id.nullable(),
   kind: Transfer.shape.kind.nullable(),
@@ -116,5 +122,5 @@ export const PaymentView = z.object({
   completed_at: Transfer.shape.completed_at,
   pay_to: PayTo.nullable(),
   payout_account: PayoutAccount.nullable(),
-})
+}).extend({ refining_order_id: RefiningOrder.shape.id.nullable() })
 export type PaymentView = z.infer<typeof PaymentView>

@@ -47,6 +47,11 @@ export type CallToken = z.infer<typeof CallToken>
 export const TimelineKind = z.enum(['sms', 'call', 'email'])
 export type TimelineKind = z.infer<typeof TimelineKind>
 
+// The four Call Event rows the design draws. Direction and status together say
+// which one a call is, and that pairing is made in SQL so no browser makes it.
+export const CallKind = z.enum(['Outgoing', 'No answer', 'Incoming', 'Missed'])
+export type CallKind = z.infer<typeof CallKind>
+
 // One SQL read merges messages, calls and mailers; status reads differently per
 // kind, so it crosses as text.
 export const CustomerTimeline = z.object({
@@ -56,5 +61,16 @@ export const CustomerTimeline = z.object({
   direction: SmsDirection,
   summary: z.string(),
   status: z.string(),
-})
+}).extend({ call_kind: CallKind.nullable() })
 export type CustomerTimeline = z.infer<typeof CustomerTimeline>
+
+// The composer. `user_id` because that is the id the screen holds; the number
+// it goes to is the customer's own verified one, read server-side (ruling 10).
+export const SmsSendBody = z
+  .object({
+    user_id: SmsMessage.shape.user_id.unwrap(),
+    body: SmsMessage.shape.body.unwrap(),
+  })
+  .extend({ media: z.array(SmsMedia).optional() })
+  .strict()
+export type SmsSendBody = z.infer<typeof SmsSendBody>

@@ -31,6 +31,7 @@ test('create writes a row and returns its id', async () => {
       {
         kind: 'packing_list',
         order_id: orderId,
+        refining_order_id: null,
         path: `pdfs/${orderId}/packing_list-test.pdf`,
         size_bytes: 42,
         checksum: 'deadbeef',
@@ -48,6 +49,7 @@ test('latestOfKind reads back a row this transaction just wrote', async () => {
       {
         kind: 'invoice',
         order_id: orderId,
+        refining_order_id: null,
         path: `pdfs/${orderId}/invoice-1.pdf`,
         size_bytes: 20,
         checksum: 'new-checksum',

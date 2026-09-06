@@ -6,6 +6,7 @@ import { isTestRun } from '#shared/testing/is-test-run.ts'
 import { orderOwnedBy } from '#shared/middleware/ownership.ts'
 import { linkableOrderId } from '#documents/emails/record.ts'
 import { latestPdf, persistPdf } from '#documents/pdfs/store.ts'
+import type { PdfRow } from '#db/media/pdfs/repo.ts'
 import type { PdfKind } from '#documents/pdfs/store.ts'
 import { attempt } from '#shared/attempt.ts'
 import * as rules from '#documents/pdfs/rules.ts'
@@ -34,6 +35,20 @@ type ServeInput = {
 type ServedDocument = {
   bytes: Uint8Array
   source: 'stored' | 'rendered'
+}
+
+// The bytes of a file already stored, checksum-verified. Used by the Send path,
+// which has already established the caller is an admin (GAP 24).
+export async function storedBytes(
+  row: PdfRow,
+  storage: StoredReader = readFromStorage
+): Promise<Uint8Array | null> {
+  const bytes = await attempt(`read stored document ${row.id}`, async () => {
+    const b = await storage(row.path)
+    if (row.checksum) rules.assertChecksum(sha256(b) === row.checksum, row.checksum)
+    return b
+  })
+  return bytes ?? null
 }
 
 export async function serveOrderDocument(

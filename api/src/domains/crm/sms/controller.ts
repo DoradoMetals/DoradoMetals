@@ -7,6 +7,8 @@ import { oneString } from '#shared/http/query.ts'
 import type { WebhookForm } from '#shared/http/webhook-form.ts'
 import * as sms from '#providers/sms/index.ts'
 import * as service from '#crm/sms/service.ts'
+import { SmsSendBody } from '@dorado/contracts'
+import { strictBody } from '#shared/http/validate.ts'
 
 const EMPTY_TWIML = '<?xml version="1.0" encoding="UTF-8"?><Response/>'
 
@@ -40,6 +42,10 @@ export const getConversation = asyncHandler(async (req, res) => {
     number ?? null
   )
   return res.status(200).json(rows)
+})
+
+export const send = asyncHandler(async (req, res) => {
+  return res.status(201).json(await service.sendToCustomer(strictBody(SmsSendBody, req.body)))
 })
 
 export const getOne = asyncHandler(async (req, res) => {

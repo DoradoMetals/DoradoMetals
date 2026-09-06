@@ -2,7 +2,7 @@ import query from '#shared/db/query.ts'
 import { buildUpdate } from '#shared/db/patch.ts'
 import { sqlFrom } from '#shared/db/sql.ts'
 import { columnsOf, returningOf } from '#shared/db/columns.ts'
-import { Lot, LotPatch } from '@dorado/contracts'
+import { Lot, LotPatch, LotView } from '@dorado/contracts'
 import type { Executor } from '#shared/db/executor.ts'
 
 const sql = sqlFrom(import.meta.dirname)
@@ -19,6 +19,15 @@ export async function getByIds(ids: string[], executor?: Executor): Promise<Lot[
   if (ids.length === 0) return []
   const { rows } = await query<Lot>(sql('get_by_ids'), [ids], executor)
   return rows
+}
+
+export async function search(
+  q: string | null,
+  unassigned: boolean,
+  executor?: Executor
+): Promise<LotView[]> {
+  const { rows } = await query(sql('search'), [q, unassigned], executor)
+  return rows.map((row) => LotView.parse(row))
 }
 
 export async function create(row: LotPatch, executor?: Executor): Promise<Lot> {

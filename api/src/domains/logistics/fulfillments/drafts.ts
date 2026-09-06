@@ -36,9 +36,11 @@ export async function createForCheckout(
   is_admin: boolean,
   tx: Executor
 ): Promise<FulfillmentView> {
-  const row = await checkoutService.getRowById(body.checkout_id, tx)
-  rules.assertFulfillment(row, body.checkout_id)
-  rules.assertOwnedDraft(row.user_id, is_admin ? row.user_id : caller_id, body.checkout_id)
+  rules.assertCheckoutSubject(body.checkout_id)
+  const checkout_id = body.checkout_id
+  const row = await checkoutService.getRowById(checkout_id, tx)
+  rules.assertFulfillment(row, checkout_id)
+  rules.assertOwnedDraft(row.user_id, is_admin ? row.user_id : caller_id, checkout_id)
 
   const direction = row.direction
   const method_id = await methodFor(body, direction, tx)

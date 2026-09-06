@@ -23,21 +23,30 @@ export const RefiningOrder = z.object({
   'updated_at': z.string(),
   'created_by_id': z.string().uuid().nullable(),
   'updated_by_id': z.string().uuid().nullable(),
+  'location_id': z.string().uuid().nullable(),
+  'cancelled_at': z.string().nullable(),
 })
 export type RefiningOrder = z.infer<typeof RefiningOrder>
 // generated:end
 
+import { Lot } from '../lots/items.js'
 import { RefiningLot, RefiningLotPatch } from './lots.js'
 
+// `lot_ids` is optional and, when named, the create and the assignment are one
+// transaction - a failure after the insert used to leave an empty refiner order
+// behind.
 export const RefiningOrderCreate = RefiningOrder.pick({
   refiner_id: true,
   direction: true,
-}).strict()
+})
+  .extend({ lot_ids: z.array(Lot.shape.id).min(1).optional() })
+  .strict()
 export type RefiningOrderCreate = z.infer<typeof RefiningOrderCreate>
 
 export const RefiningOrderPatch = RefiningOrder.pick({
   refiner_id: true,
   assigned_to_id: true,
+  location_id: true,
   fee: true,
   statement_reference: true,
   assay_lab: true,
