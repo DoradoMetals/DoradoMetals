@@ -2,7 +2,7 @@ import { test } from 'vitest'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 
-import { jobs } from '#shared/cron/scheduler.ts'
+import { jobs, setupScheduler } from '#shared/cron/scheduler.ts'
 
 const SCHEDULE_VARS: string[] = (() => {
   const source = fs.readFileSync(new URL('../scheduler.ts', import.meta.url), 'utf8')
@@ -34,7 +34,7 @@ const withEnv = <T>(values: Record<string, string | undefined>, fn: () => T): T 
 
 test('the jobs are declared, and not invoked by reading them', () => {
   const names = jobs().map((j) => j.name)
-  assert.deepEqual(names, ['spot prices', 'anonymous visitors', 'settle paid orders'])
+  assert.deepEqual(names, ['spot prices', 'anonymous visitors', 'reconcile payments'])
   for (const job of jobs()) {
     assert.equal(typeof job.run, 'function', `${job.name} has something to run`)
   }
@@ -65,4 +65,27 @@ test('an unset schedule is undefined rather than a string', () => {
     assert.equal(job.schedule, undefined, `${job.name} reports no schedule`)
     assert.notEqual(job.schedule, 'undefined')
   }
+})
+
+test('nothing runs at boot - an unscheduled job stays unscheduled', () => {
+  const source = fs.readFileSync(new URL('../scheduler.ts', import.meta.url), 'utf8')
+  const body = source.slice(source.indexOf('export function setupScheduler'))
+  const call = body.indexOf('runJob(job)')
+  const check = body.indexOf('if (!job.schedule)')
+  assert.ok(check >= 0 && call > check, 'runJob(job) fires above the schedule check')
+
+  withEnv(cleared(), () => {
+    setupScheduler()
+  })
+})
+
+test('the abandoned sweep - the half that gives the customer their credit back - has a caller', () => {
+  const source = fs.readFileSync(new URL('../scheduler.ts', import.meta.url), 'utf8')
+  assert.match(
+    source,
+    /sweepAbandoned\(/,
+    'sweepAbandoned was scheduled nowhere; a customer who abandoned the card step ' +
+      'lost the credit portion until somebody ran reconcile:payments by hand'
+  )
+  assert.match(source, /sweepSettledIntentsNow\(/)
 })

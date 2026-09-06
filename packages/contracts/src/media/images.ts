@@ -26,7 +26,6 @@ export const MediaUploadBody = Image.pick({
   size_bytes: true,
   filename: true,
 }).extend({
-  mime_type: Image.shape.mime_type.nullable().optional(),
   size_bytes: Image.shape.size_bytes.optional(),
 })
 export type MediaUploadBody = z.infer<typeof MediaUploadBody>

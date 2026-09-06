@@ -13,7 +13,7 @@ const GET_TTL_SECONDS = 60 * 10
 export async function uploadImage(
   user_id: string,
   filename: string,
-  mime_type: string | null,
+  mime_type: string,
   size_bytes: number | null
 ): Promise<{ id: string; uploadUrl: string }> {
   const bucket = process.env.MINIO_BUCKET as string

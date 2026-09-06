@@ -441,10 +441,10 @@ const NOT_REBUILT = {
 
   'media.emails': 'the mail log was created by 090, after the pivot; exchange never had one',
   'media.pdfs':
-    'the document log was created by 090 alongside media.emails, after the ' +
-    'pivot; exchange never held a generated PDF, so there is no source to ' +
-    'rebuild one from. It only surfaced here when dev rendered its first ' +
-    'document.',
+    'a rendered document, not a record: the row is a generated artifact of a ' +
+    'packing list or invoice and exchange never stored one. Rebuilding it means ' +
+    're-rendering from the order, which the document endpoints already do on ' +
+    'demand, so there is nothing here a backfill could reproduce or lose.',
   'shipping.pickups':
     'NOT CARRIED, by ruling (Jacob, 2026-09-06): production holds no ' +
     "exchange.carrier_pickups rows at all and dev's are sandbox test rows, so " +

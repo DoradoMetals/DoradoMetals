@@ -54,5 +54,9 @@ export async function removeFunds(
   tx: Executor
 ): Promise<UserCredit | undefined> {
   if (!user_id || total === null) return undefined
+  const before = Number(
+    assertCreditSubject(user_id, await users.balanceForUpdate(user_id, tx)) ?? 0
+  )
+  refuseNegativeBalance(balanceAfter('subtract', before, Number(total)))
   return await users.adjustCredit(user_id, 'subtract', total, tx)
 }

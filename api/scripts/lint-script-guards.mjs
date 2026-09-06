@@ -58,11 +58,19 @@ const REAL_EXCUSED = {
   },
   'api/scripts/seed-e2e-users.mjs': {
     kind: 'action',
-    why: 'creates the e2e fixtures. An action against the test database.',
+    why:
+      'creates the e2e fixtures, including an admin with a hardcoded password, ' +
+      'so every path it has WRITES and there is no safe self-test. Its guard is ' +
+      'a refusal that fires before anything happens: assertSafeDatabase in ' +
+      'scripts/lib/safe-database.ts exits 1 unless DATABASE_URL names dev, test ' +
+      'or test_<branch>, and it prints the database it resolved.',
   },
   'api/scripts/seed-e2e-order.mjs': {
     kind: 'action',
-    why: 'mints the disposable e2e purchase order. An action against the dev database, consumed by the admin drawer-work spec.',
+    why:
+      'mints the disposable e2e purchase order consumed by the admin drawer-work ' +
+      'spec. Every path WRITES, so no self-test; the same assertSafeDatabase ' +
+      'refusal gates the target database before any statement runs.',
   },
   'api/scripts/reconcile-payments.ts': {
     kind: 'action',
@@ -116,6 +124,10 @@ const REAL_EXCUSED = {
   'api/scripts/lib/feature-map.ts': {
     kind: 'library',
     why: 'has scripts/lib/tests/feature-map.test.ts.',
+  },
+  'api/scripts/lib/safe-database.ts': {
+    kind: 'library',
+    why: 'has scripts/lib/tests/safe-database.test.ts.',
   },
   'api/scripts/lib/layout.ts': {
     kind: 'library',

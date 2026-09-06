@@ -2,6 +2,7 @@ import pool from '#pool'
 import type { PoolClient } from 'pg'
 import { currentActor } from '#shared/http/actor.ts'
 import { asDomainError } from '#shared/db/pg-error.ts'
+import { reportError } from '#shared/observability/report.ts'
 
 export default async function withTransaction<T>(
   fn: (client: PoolClient) => Promise<T>,
@@ -17,7 +18,15 @@ export default async function withTransaction<T>(
     await client.query('COMMIT')
     return result
   } catch (err) {
-    await client.query('ROLLBACK')
+    try {
+      await client.query('ROLLBACK')
+    } catch (rollbackErr) {
+      reportError({
+        at: 'withTransaction.rollback',
+        message: 'the ROLLBACK itself failed; the original failure is what is thrown',
+        err: rollbackErr,
+      })
+    }
     throw asDomainError(err)
   } finally {
     client.release()

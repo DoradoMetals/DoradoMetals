@@ -40,7 +40,7 @@ test("an intent is recorded against the session's user, in dollars", async () =>
     const caller = aCaller(user.id)
     const paymentIntent = anIntent()
 
-    await service.recordIntent(paymentIntent, caller, 'checkout', undefined, c)
+    await service.recordIntent(paymentIntent, caller, 'sales_order_checkout', undefined, c)
 
     const { rows } = await c.query(
       `SELECT i.user_id, i.type, i.status, i.amount_expected
@@ -51,7 +51,7 @@ test("an intent is recorded against the session's user, in dollars", async () =>
     )
     assert.equal(rows.length, 1, 'the intent and its attempt were not both written')
     assert.equal(rows[0].user_id, user.id)
-    assert.equal(rows[0].type, 'checkout')
+    assert.equal(rows[0].type, 'sales_order_checkout')
     assert.equal(rows[0].status, paymentIntent.status)
     assert.equal(Number(rows[0].amount_expected), 100)
   })
@@ -82,8 +82,8 @@ test('what the provider says lands on the intent, the attempt and the settlement
     const mine = anIntent()
     const mineRef = mine.id
     const other = anIntent()
-    await service.recordIntent(mine, aCaller(user.id), 'checkout', undefined, c)
-    await service.recordIntent(other, aCaller(user.id), 'checkout', undefined, c)
+    await service.recordIntent(mine, aCaller(user.id), 'sales_order_checkout', undefined, c)
+    await service.recordIntent(other, aCaller(user.id), 'sales_order_checkout', undefined, c)
 
     const matched = await service.updateFromProvider(
       { id: mineRef, status: 'succeeded', amount: 25000, amount_received: 25000 },
@@ -123,7 +123,7 @@ test('attaching an order lands on the intent behind that reference alone', async
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c)
     const paymentIntent = anIntent()
-    await service.recordIntent(paymentIntent, aCaller(user.id), 'checkout', undefined, c)
+    await service.recordIntent(paymentIntent, aCaller(user.id), 'sales_order_checkout', undefined, c)
 
     const order = await anOrder(c, user, { direction: 'sale' })
 
@@ -152,7 +152,7 @@ test("recordIntent joins the caller's transaction rather than opening its own", 
 
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c)
-    await service.recordIntent(paymentIntent, aCaller(user.id), 'checkout', undefined, c)
+    await service.recordIntent(paymentIntent, aCaller(user.id), 'sales_order_checkout', undefined, c)
 
     const { rows: seen } = await findBoth(c)
     assert.equal(seen.length, 1, "recordIntent did not write on the caller's own connection")

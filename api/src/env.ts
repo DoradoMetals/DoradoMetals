@@ -53,7 +53,7 @@ const deriveTestDatabaseName = (testUrl: string): string | null => {
 }
 
 const COMPOSED: Record<string, () => string | undefined> = {
-  DATABASE_URL: () => dorado(process.env.DEV_DATABASE ?? 'dev'),
+  DATABASE_URL: () => (process.env.DEV_DATABASE ? dorado(process.env.DEV_DATABASE) : undefined),
   TEST_DATABASE_URL: () => dorado(process.env.TEST_DATABASE ?? 'test'),
   DUMP_SOURCE_DATABASE_URL: () => dorado(process.env.PROD_DATABASE ?? 'prod'),
   BACKUP_SOURCE_DATABASE_URL: () => dorado(process.env.PROD_DATABASE ?? 'prod'),

@@ -17,6 +17,15 @@ export type NewEmail = {
   error?: string | null
 }
 
+export async function hasSent(
+  order_id: string,
+  kinds: readonly Email['kind'][],
+  executor?: Executor
+): Promise<boolean> {
+  const { rows } = await query<{ present: boolean }>(sql('has_sent'), [order_id, kinds], executor)
+  return rows[0]?.present === true
+}
+
 export async function create(row: NewEmail, executor?: Executor): Promise<{ id: string }> {
   const { rows } = await query<{ id: string }>(
     sql('create'),

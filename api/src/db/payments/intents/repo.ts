@@ -17,13 +17,16 @@ export async function getOne(id: string, executor?: Executor): Promise<PaymentIn
   return rows[0]
 }
 
-export async function create(row: PaymentIntentPatch, executor?: Executor): Promise<PaymentIntent> {
+export async function create(
+  row: PaymentIntentPatch & Pick<PaymentIntent, 'type'>,
+  executor?: Executor
+): Promise<PaymentIntent> {
   const { rows } = await query<PaymentIntent>(
     sql('create'),
     [
       row.session_id ?? null,
       row.user_id ?? null,
-      row.type ?? null,
+      row.type,
       row.status ?? null,
       row.amount_expected ?? null,
       row.order_id ?? null,
@@ -68,6 +71,20 @@ export async function findReusable(
     executor
   )
   return rows[0]
+}
+
+export async function countFor(
+  session_id: string,
+  user_id: string | null,
+  type: string,
+  executor?: Executor
+): Promise<number> {
+  const { rows } = await query<{ n: number }>(
+    sql('count_for'),
+    [session_id, user_id, type],
+    executor
+  )
+  return rows[0]?.n ?? 0
 }
 
 export async function findForOrder(

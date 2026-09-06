@@ -50,7 +50,7 @@ test('every route refuses an anonymous caller', async () => {
         const calls = [
           [
             'retrieve_payment_intent',
-            request(app).get('/api/stripe/retrieve_payment_intent').query({ type: 'customer' }),
+            request(app).get('/api/stripe/retrieve_payment_intent').query({ type: 'sales_order_checkout' }),
           ],
           [
             'get_sales_order_payment_intent',
@@ -159,7 +159,7 @@ test("an admin reading a sales order's payment intent gets it, in the nested wir
       await paymentsService.recordIntent(
         { id: providerRef, status: 'succeeded', amount: 25000, amount_received: 25000 },
         { session_id: anUnknownId(), user_id: buyer.id },
-        'checkout',
+        'sales_order_checkout',
         undefined,
         c
       )

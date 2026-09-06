@@ -19,30 +19,36 @@ import {
   assertBillingIdentity,
   assertIntentSubject,
   assertPriceableBalance,
+  idempotencyKeyFor,
 } from '#transactions/rules.ts'
 
 import type { StripeIntentLike } from '#providers/payment/stripe.ts'
-import type { PaymentIntentView, PaymentIntentFacts, PaymentCaller } from '@dorado/contracts'
+import type {
+  PaymentIntentView,
+  PaymentIntentFacts,
+  PaymentCaller,
+  PaymentIntentType,
+} from '@dorado/contracts'
 import type { Executor } from '#shared/db/executor.ts'
 import type { UpdatePaymentIntentBody } from '@dorado/contracts'
 
 async function findReusableIntent(
   caller: PaymentCaller,
-  type: string | undefined,
+  type: PaymentIntentType,
   named_user_id: string | undefined,
   executor?: Executor
 ): Promise<PaymentIntentView | undefined> {
   return await intents.findReusable(
     caller.session_id,
     intentOwner(type, caller.user_id, named_user_id),
-    type ?? null,
+    type,
     executor
   )
 }
 
 export async function retrievePaymentIntent(
   caller: PaymentCaller,
-  type: string | undefined,
+  type: PaymentIntentType,
   user_id: string | undefined
 ): Promise<StripeIntentLike> {
   const open = await findReusableIntent(caller, type, user_id)
@@ -52,7 +58,7 @@ export async function retrievePaymentIntent(
 
 async function billingIdentity(
   caller: PaymentCaller,
-  type: string | undefined,
+  type: PaymentIntentType,
   user_id: string | undefined
 ) {
   const subject = type === 'admin' ? user_id : caller.user_id
@@ -61,7 +67,7 @@ async function billingIdentity(
 
 export async function createPaymentIntent(
   caller: PaymentCaller,
-  type: string | undefined,
+  type: PaymentIntentType,
   user_id: string | undefined
 ): Promise<StripeIntentLike> {
   const target = await billingIdentity(caller, type, user_id)
@@ -78,15 +84,17 @@ export async function createPaymentIntent(
     return await stripe.retrieveIntent(existing.attempt.provider_ref)
   }
 
+  const attempt = await intents.countFor(caller.session_id, target.id, type)
+
   const paymentIntent = await stripe.createIntent({
     amount: 1000,
     customerId,
     metadata: {
-      type: String(type),
+      type,
       user_id: String(target.id),
       session_id: caller.session_id,
     },
-    idempotencyKey: `intent:${type}:${target.id}:${caller.session_id}`,
+    idempotencyKey: idempotencyKeyFor(type, target.id, caller.session_id, attempt),
   })
 
   await withTransaction((tx) => recordIntent(paymentIntent, caller, type, user_id, tx))
@@ -96,7 +104,7 @@ export async function createPaymentIntent(
 export async function recordIntent(
   paymentIntent: StripeIntentLike,
   caller: PaymentCaller,
-  type: string | undefined,
+  type: PaymentIntentType,
   user_id: string | undefined,
   tx: Executor
 ): Promise<void> {
@@ -106,7 +114,7 @@ export async function recordIntent(
     {
       session_id: caller.session_id,
       user_id: intentOwner(type, caller.user_id, user_id),
-      type: type ?? null,
+      type,
       status: paymentIntent.status ?? null,
       amount_expected,
     },

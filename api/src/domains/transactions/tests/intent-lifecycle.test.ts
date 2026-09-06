@@ -16,7 +16,7 @@ afterAll(async () => {
   await pool.end()
 })
 
-const METADATA = { type: 'customer', user_id: 'cassette-user', session_id: 'cassette-session' }
+const METADATA = { type: 'sales_order_checkout', user_id: 'cassette-user', session_id: 'cassette-session' }
 
 async function seedOpenIntent(
   c: PoolClient,
@@ -26,7 +26,7 @@ async function seedOpenIntent(
 ): Promise<void> {
   const { rows } = await query<{ id: string }>(
     `INSERT INTO payments.intents (session_id, type, status, amount_expected, user_id)
-     VALUES ($1, 'customer', 'requires_payment_method', 42, $2) RETURNING id`,
+     VALUES ($1, 'sales_order_checkout', 'requires_payment_method', 42, $2) RETURNING id`,
     [session_id, user_id],
     c
   )
@@ -49,7 +49,7 @@ test('retrievePaymentIntent creates a fresh intent when nothing is reusable', as
 
       const caller = { session_id: anUnknownId(), user_id: customer.id }
       const intent = await withCassette('stripe/create-payment-intent.json', () =>
-        service.retrievePaymentIntent(caller, 'customer', undefined)
+        service.retrievePaymentIntent(caller, 'sales_order_checkout', undefined)
       )
 
       assert.ok(intent.id.startsWith('pi_'), `unexpected intent id ${intent.id}`)
@@ -75,7 +75,7 @@ test('updatePaymentIntent self-heals when Stripe reports the local intent went s
 
       const caller = { session_id, user_id: customer.id }
       const result = await withCassette('stripe/self-heal-stale-intent.json', () =>
-        service.updatePaymentIntent(caller, { type: 'customer' })
+        service.updatePaymentIntent(caller, { type: 'sales_order_checkout' })
       )
 
       assert.ok(result.id.startsWith('pi_'), `unexpected intent id ${result.id}`)

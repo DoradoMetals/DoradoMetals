@@ -64,7 +64,7 @@ test('update_payment_intent succeeds against a recorded Stripe response', async 
         as(Object.assign({}, customer, { role: 'user' }), async () => {
           const res = await request(app)
             .post('/api/stripe/update_payment_intent')
-            .send({ type: 'customer' })
+            .send({ type: 'sales_order_checkout' })
 
           assert.equal(
             res.status,

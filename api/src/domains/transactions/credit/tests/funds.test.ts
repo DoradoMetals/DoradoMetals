@@ -73,21 +73,41 @@ test('adding then removing the same amount is a round trip', async () => {
   })
 })
 
-// MP F7 / MI F3. `removeFunds` still has no floor of its own - the guard that
-// stops a placement spending a balance it no longer has lives in `placeSale`,
-// under FOR UPDATE - but migration 134's CHECK is what makes the remaining race
-// a rollback instead of a negative balance.
-test('removing more than the balance is refused by the database, not recorded', async () => {
+test('removing more than the balance is REFUSED, and the balance does not move', async () => {
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c)
-    const before = await balance(c, user.id)
-    await c.query('SAVEPOINT before_overspend')
+    await creditService.addFunds(user.id, 100, c)
     await assert.rejects(
-      () => creditService.removeFunds(user.id, before + 1000, c),
+      () => creditService.removeFunds(user.id, 100.01, c),
+      /cannot go below zero/
+    )
+    assert.equal(await balance(c, user.id), 100)
+  })
+})
+
+test('two placements pricing the same balance cannot both spend it', async () => {
+  await inRollback(async (c: PoolClient) => {
+    const user = await aUser(c)
+    await creditService.addFunds(user.id, 100, c)
+
+    await creditService.removeFunds(user.id, 100, c)
+    await assert.rejects(
+      () => creditService.removeFunds(user.id, 100, c),
+      /cannot go below zero/,
+      'the second placement debited a balance the first had already spent'
+    )
+    assert.equal(await balance(c, user.id), 0)
+  })
+})
+
+test('the column itself refuses a negative balance, whatever wrote it', async () => {
+  await inRollback(async (c: PoolClient) => {
+    const user = await aUser(c)
+    await assert.rejects(
+      () =>
+        c.query('UPDATE auth.users SET dorado_funds = -1 WHERE id = $1', [user.id]),
       /users_dorado_funds_non_negative/
     )
-    await c.query('ROLLBACK TO SAVEPOINT before_overspend')
-    assert.equal(await balance(c, user.id), before)
   })
 })
 
@@ -152,4 +172,31 @@ test('a rolled-back movement leaves neither the balance nor the log changed', as
   } finally {
     other.release()
   }
+})
+
+test('UNDECIDED, pinned as it stands: a debit is immediate and records nothing', async () => {
+  await inRollback(async (c: PoolClient) => {
+    const user = await aUser(c)
+    await creditService.addFunds(user.id, 400, c)
+
+    await creditService.removeFunds(user.id, 250, c)
+
+    assert.equal(
+      await balance(c, user.id),
+      150,
+      'this is finding 28 and it is a decision Jacob has not made (it meets ruling ' +
+        '85). Credit is SPENT at placement, not reserved, and only the abandoned ' +
+        'sweep gives it back.'
+    )
+    const { rows } = await c.query(
+      `SELECT count(*)::int AS n FROM payments.ledger WHERE user_id = $1 AND type = 'Debit'`,
+      [user.id]
+    )
+    assert.equal(
+      rows[0].n,
+      0,
+      'the placement debit writes no ledger row - the ledger records the RETURN ' +
+        'only, which is why hasCreditFor is what stops a double refund'
+    )
+  })
 })

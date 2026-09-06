@@ -3,11 +3,8 @@ import pg from 'pg'
 
 const { Pool, types } = pg
 
-export function refusesUnsetDatabaseUrl(env: {
-  DATABASE_URL?: string
-  NODE_ENV?: string
-}): boolean {
-  return !env.DATABASE_URL && env.NODE_ENV !== 'production'
+export function refusesUnsetDatabaseUrl(env: { DATABASE_URL?: string }): boolean {
+  return !env.DATABASE_URL
 }
 
 if (refusesUnsetDatabaseUrl(process.env)) {
@@ -15,8 +12,8 @@ if (refusesUnsetDatabaseUrl(process.env)) {
     'DATABASE_URL is not set.\n' +
       'Refusing rather than letting pg fall back to PGHOST/PGUSER/PGDATABASE, ' +
       'which would open a working connection to a different database.\n' +
-      'env.js composes it from DORADO_USER, DORADO_PASSWORD and PGHOST - one ' +
-      'of those is missing from api/.env.'
+      'env.ts composes it only when DEV_DATABASE names the database explicitly, ' +
+      'so set DATABASE_URL in api/.env - it will not be guessed.'
   )
 }
 

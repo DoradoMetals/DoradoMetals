@@ -1,6 +1,10 @@
 process.env.NODE_ENV = 'test'
 
 import '#env'
+import { assertSafeDatabase } from './lib/safe-database.ts'
+
+console.log(`database: ${assertSafeDatabase('seed-e2e-users', process.env.DATABASE_URL)}`)
+
 import pool from '#pool'
 import query from '#shared/db/query.ts'
 import { auth } from '#accounts/auth/client.ts'

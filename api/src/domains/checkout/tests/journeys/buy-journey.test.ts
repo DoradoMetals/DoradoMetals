@@ -86,7 +86,7 @@ test('basket, row, a real intent and placement agree on one sales order', async 
 
       const intent = await withCassette('stripe/create-payment-intent.json', () =>
         as(customer, () =>
-          request(app).post('/api/stripe/update_payment_intent').send({ type: 'customer' })
+          request(app).post('/api/stripe/update_payment_intent').send({ type: 'sales_order_checkout' })
         )
       )
       assert.equal(intent.status, 200, intent.text)

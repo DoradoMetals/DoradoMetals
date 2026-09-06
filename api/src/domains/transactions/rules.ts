@@ -68,6 +68,22 @@ export function paymentSurface(post_charges_amount: number): PaymentSurface {
   return isChargeable(chargeCents(post_charges_amount)) ? 'card' : 'credit'
 }
 
+// The Stripe idempotency key. It used to be `intent:<type>:<user>:<session>` -
+// stable for the whole better-auth session, while Stripe replays a key for 24
+// hours, so the second checkout in a session got the FIRST (already resolved)
+// PaymentIntent back and then collided on payments.attempts.provider_ref. The
+// attempt ordinal is a database fact (how many intents this session/user/type
+// already has), so a genuine network retry of the same call still replays and
+// a new intent never does.
+export function idempotencyKeyFor(
+  type: string,
+  user_id: string,
+  session_id: string,
+  attempt: number
+): string {
+  return `intent:${type}:${user_id}:${session_id}:${attempt}`
+}
+
 export function assertBillingIdentity<T extends { id?: string | null }>(
   identity: T | null | undefined,
   type: string | undefined
@@ -90,6 +106,17 @@ export function assertPriceableBalance(
 ): number {
   if (balance === undefined) throw new NotFound(`no user ${subject} to price this intent for`)
   return Number(balance ?? 0)
+}
+
+const HALF_CENT = 0.005
+
+export function settlementCovers(
+  amount_received: number | string | null | undefined,
+  post_charges_amount: number | string | null | undefined
+): boolean {
+  const expected = Number(post_charges_amount ?? 0)
+  if (!(expected > 0)) return true
+  return Number(amount_received ?? 0) + HALF_CENT >= expected
 }
 
 export function assertWebhookMatched(provider_ref: string, matched: boolean): void {
