@@ -4,9 +4,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type {
   Direction,
   FulfillmentCancelScheduleBody,
+  FulfillmentCreateBody,
   FulfillmentMethodRead,
   FulfillmentPatchBody,
   FulfillmentScheduleDirectBody,
+  FulfillmentScheduleDropoffBody,
   FulfillmentSchedulePickupBody,
   FulfillmentSetMethodBody,
   FulfillmentSetStatusBody,
@@ -49,6 +51,14 @@ function useFulfillmentWrite<TVariables, TResult>(
   })
 }
 
+// An order that reached the database without a handover gets one made against
+// itself. The body takes exactly one of three keys.
+export function useCreateFulfillment(orderId: string) {
+  return useFulfillmentWrite(orderId, (body: FulfillmentCreateBody) =>
+    apiRequest<FulfillmentView>('POST', '/fulfillments', body)
+  )
+}
+
 export function useSetFulfillmentMethod(orderId: string) {
   return useFulfillmentWrite(orderId, (body: FulfillmentSetMethodBody) =>
     apiRequest<FulfillmentView>('POST', '/fulfillments/set_method', body)
@@ -84,5 +94,11 @@ export function usePatchFulfillment(orderId: string) {
     orderId,
     ({ fulfillment_id, choices }: { fulfillment_id: string; choices: FulfillmentPatchBody }) =>
       apiRequest<FulfillmentView>('PATCH', `/fulfillments/${fulfillment_id}`, choices)
+  )
+}
+
+export function useScheduleDropoff(orderId: string) {
+  return useFulfillmentWrite(orderId, (body: FulfillmentScheduleDropoffBody) =>
+    apiRequest<FulfillmentView>('POST', '/fulfillments/schedule_dropoff', body)
   )
 }

@@ -8,6 +8,7 @@ import {
   EmptyState,
   Input,
   Link,
+  Select,
   cn,
   type AutocompleteItem,
 } from '@dorado/components'
@@ -27,6 +28,11 @@ export type LotsCardProps = {
   onNew: () => void
   onDelete: (lot_ids: string[]) => void
   onBatch: (lot_ids: string[]) => void
+  refiners?: { id: string; name: string }[]
+  refinerId?: string | null
+  onRefinerChange?: (id: string) => void
+  onCreateSale?: () => void
+  createSaleDisabled?: boolean
   search?: {
     value: string
     onValueChange: (value: string) => void
@@ -55,6 +61,11 @@ export function LotsCard({
   onNew,
   onDelete,
   onBatch,
+  refiners,
+  refinerId = null,
+  onRefinerChange,
+  onCreateSale,
+  createSaleDisabled = false,
   search,
   pending = false,
 }: LotsCardProps) {
@@ -68,49 +79,76 @@ export function LotsCard({
   const toggleAll = () => setSelected(allSelected ? [] : lots.map((lot) => lot.id))
 
   const total = lots.reduce((sum, lot) => sum + (lot.line_total ?? 0), 0)
+  // Selection is by the LINK row - that is what Delete keys on - but a refiner
+  // order is assigned LOTS, so Batch hands over `lot_id`.
+  const selectedLotIds = () =>
+    selected.map((id) => lots.find((lot) => lot.id === id)?.lot_id).filter((id): id is string => !!id)
 
   return (
     <OrderCard
       title={search ? 'Lots' : kind === 'scrap' ? 'Lots' : 'Items'}
       summary={`${lots.length} · ${money(total)}`}
       right={
-        readOnly ? undefined : search ? (
-          <AddingLot search={search} />
-        ) : (
-          <>
-            <Button
-              variant="primary"
-              size="icon"
-              aria-label="New"
-              title="New"
-              icon={Plus}
-              disabled={pending}
-              onClick={onNew}
-            />
-            <Button
-              variant="secondary"
-              size="icon"
-              aria-label="Batch"
-              title="Batch"
-              icon={Package2}
-              disabled={nothingSelected || pending}
-              onClick={() => onBatch(selected)}
-            />
-            <Button
-              variant="secondary"
-              intent="danger"
-              size="icon"
-              aria-label="Delete"
-              title="Delete"
-              icon={Trash2}
-              disabled={nothingSelected || pending}
-              onClick={() => {
-                onDelete(selected)
-                setSelected([])
-              }}
-            />
-          </>
-        )
+        <>
+          {refiners && onRefinerChange && (
+            <div className="w-[220px]">
+              <Select
+                label="Refiner"
+                items={refiners.map((one) => ({ value: one.id, label: one.name }))}
+                value={refinerId ?? undefined}
+                onValueChange={onRefinerChange}
+                placeholder="Choose a refiner"
+              />
+            </div>
+          )}
+          {readOnly ? (
+            onCreateSale && (
+              <Button
+                variant="primary"
+                disabled={createSaleDisabled || pending || (!!refiners && !refinerId)}
+                onClick={onCreateSale}
+              >
+                Create Sale
+              </Button>
+            )
+          ) : search ? (
+            <AddingLot search={search} />
+          ) : (
+            <>
+              <Button
+                variant="primary"
+                size="icon"
+                aria-label="New"
+                title="New"
+                icon={Plus}
+                disabled={pending}
+                onClick={onNew}
+              />
+              <Button
+                variant="secondary"
+                size="icon"
+                aria-label="Batch"
+                title="Batch"
+                icon={Package2}
+                disabled={nothingSelected || pending || (!!refiners && !refinerId)}
+                onClick={() => onBatch(selectedLotIds())}
+              />
+              <Button
+                variant="secondary"
+                intent="danger"
+                size="icon"
+                aria-label="Delete"
+                title="Delete"
+                icon={Trash2}
+                disabled={nothingSelected || pending}
+                onClick={() => {
+                  onDelete(selected)
+                  setSelected([])
+                }}
+              />
+            </>
+          )}
+        </>
       }
     >
       {lots.length === 0 ? (

@@ -9,7 +9,7 @@ import { OrderCard } from './OrderCard'
 import { money } from './format'
 
 export type SpotsCardProps = {
-  spots: OrderSpot[]
+  spots: Pick<OrderSpot, 'metal_id' | 'bid'>[]
   live: SpotPrice[]
   locked: boolean
   canToggle: boolean

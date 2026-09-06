@@ -4,26 +4,48 @@ import * as React from 'react'
 import {
   useAdmins,
   useAssignRefiningLots,
+  useCancelRefiningOrder,
+  useCancelSchedule,
+  useCreateFulfillment,
   useDeleteRefiningLot,
+  useEmployees,
+  useImportRefiningDocument,
+  useLocations,
+  useLotSearch,
+  useOpenCharge,
+  useOpenPayout,
+  usePatchFulfillment,
   usePatchRefiningLot,
   usePatchRefiningOrder,
+  usePayTo,
   useRefiners,
+  useRefiningDocuments,
   useRefiningOrder,
+  useRefiningPayment,
+  useRefiningSpots,
+  useScheduleDropoff,
+  useSendPayout,
   useSendRefiningOrder,
+  useSetFulfillmentStatus,
 } from '@dorado/client'
 import { Skeleton } from '@dorado/components'
-import type { RefiningLotPatch } from '@dorado/contracts'
+import { Rail, type FulfillmentPatchBody, type RefiningLotPatch } from '@dorado/contracts'
 
 import {
   ChargesCard,
   DocumentsCard,
+  DropoffCard,
+  FulfillmentCard,
   LinkedFulfillmentCard,
   OrderHeaderCard,
+  PaymentCard,
   RefiningItemsCard,
   SettlementCard,
   SpotsCard,
   TotalsCard,
 } from '@/app/admin/_src_/orders'
+
+const RAILS = Rail.options
 
 // We SELL lots to a refiner (`direction: 'sell'`) or we BUY bullion from one
 // (`direction: 'buy'`). A draft is an order that has not been sent; sending it
@@ -32,29 +54,58 @@ export function AdminRefiningScreen({ id }: { id: string }) {
   const order = useRefiningOrder(id)
   const refiners = useRefiners()
   const admins = useAdmins()
+  const locations = useLocations()
+  const employees = useEmployees()
+  const spots = useRefiningSpots(id)
+  const payment = useRefiningPayment(id)
+  const documents = useRefiningDocuments(id)
 
   const patchOrder = usePatchRefiningOrder(id)
   const send = useSendRefiningOrder(id)
+  const cancel = useCancelRefiningOrder(id)
   const patchLot = usePatchRefiningLot()
   const deleteLot = useDeleteRefiningLot()
   const assign = useAssignRefiningLots(id)
+  const importDocument = useImportRefiningDocument(id)
+  const createFulfillment = useCreateFulfillment(id)
+  const patchFulfillment = usePatchFulfillment(id)
+  const scheduleDropoff = useScheduleDropoff(id)
+  const setStatus = useSetFulfillmentStatus(id)
+  const cancelSchedule = useCancelSchedule(id)
+  const openPayout = useOpenPayout(id)
+  const sendPayout = useSendPayout(id)
+  const openCharge = useOpenCharge(id)
 
   const [query, setQuery] = React.useState('')
+  const [rail, setRail] = React.useState<Rail | null>(null)
+  const [payToId, setPayToId] = React.useState<string | null>(null)
+  const found = useLotSearch(query, true)
+  const payTo = usePayTo(null)
 
   if (order.isPending || !order.data) return <ScreenSkeleton />
 
   const view = order.data
   const isSale = view.direction === 'sell'
   const draft = view.sent_at === null
-  const reference = `${isSale ? 'SO' : 'PO'}-${view.number}`
+  const cancelled = view.cancelled_at !== null
   const refinerName = view.refiner?.organization.name ?? 'Unknown refiner'
 
+  // A refiner order's handover has no read of its own: `POST /fulfillments`
+  // answers with the existing view when one is there, so the screen holds the
+  // newest view any of its writes answered until that read exists.
+  const fulfilment =
+    [createFulfillment, patchFulfillment, scheduleDropoff, setStatus, cancelSchedule]
+      .filter((one) => one.data != null)
+      .sort((a, b) => (b.submittedAt ?? 0) - (a.submittedAt ?? 0))[0]?.data ?? null
+  const scheduled = !!fulfilment?.scheduled_at
+  const chosenRail = rail ?? payment.data?.rail ?? null
 
   return (
     <div className="flex flex-col gap-lg p-xl">
       <OrderHeaderCard
         eyebrow={isSale ? 'SALES ORDER' : 'PURCHASE ORDER'}
-        reference={reference}
+        reference={`${isSale ? 'SO' : 'PO'}-${view.number}`}
+        cancelled={cancelled}
         party={
           draft
             ? {
@@ -67,23 +118,33 @@ export function AdminRefiningScreen({ id }: { id: string }) {
                 onRefinerChange: (refiner_id) => patchOrder.mutate({ refiner_id }),
                 locked: false,
                 place: '',
+                ordersToDate: view.orders_to_date,
               }
             : {
                 kind: 'customer',
                 name: refinerName,
                 place: '',
-                ordersToDate: null,
+                ordersToDate: view.orders_to_date,
               }
         }
+        office={{
+          locations: locations.data ?? [],
+          locationId: view.location_id,
+          onChange: (location_id) => patchOrder.mutate({ location_id }),
+          disabled: cancelled,
+        }}
         assignedToId={view.assigned_to_id}
         admins={admins.data ?? []}
         onAssign={(assigned_to_id) => patchOrder.mutate({ assigned_to_id })}
-        cancel={{
-          label: 'Cancel Order',
-          onClick: () => undefined,
-          disabled: true,
-          reason: 'A refiner order has no cancel route yet',
-        }}
+        cancel={
+          cancelled
+            ? undefined
+            : {
+                label: 'Cancel Order',
+                onClick: () => cancel.mutate(undefined),
+                disabled: cancel.isPending,
+              }
+        }
         primary={
           draft
             ? {
@@ -98,21 +159,65 @@ export function AdminRefiningScreen({ id }: { id: string }) {
 
       <div className="flex items-start gap-lg">
         <div className="flex min-w-0 flex-1 flex-col gap-lg">
-          {isSale ? (
-            <DropoffPlaceholder />
-          ) : (
+          {!isSale && fulfilment?.linked_order ? (
             <LinkedFulfillmentCard
               shipsFrom={refinerName}
               shipsTo={null}
-              linkedReference={view.lots[0]?.order_number ? `SO-${view.lots[0].order_number}` : null}
-              linkedHref={view.lots[0]?.order_id ? `/admin/orders/${view.lots[0].order_id}` : null}
+              linked={fulfilment.linked_order}
               linkedState={null}
+            />
+          ) : scheduled && fulfilment ? (
+            <DropoffCard
+              fulfillment={fulfilment}
+              locations={locations.data ?? []}
+              employees={employees.data ?? []}
+              refiners={refiners.data ?? []}
+              onCancel={() => cancelSchedule.mutate({ fulfillment_id: fulfilment.fulfillment.id })}
+              onReschedule={() => cancelSchedule.mutate({ fulfillment_id: fulfilment.fulfillment.id })}
+              onAdvance={(status) =>
+                setStatus.mutate({ fulfillment_id: fulfilment.fulfillment.id, status })
+              }
+              pending={setStatus.isPending}
+            />
+          ) : (
+            <FulfillmentCard
+              fulfillment={fulfilment}
+              methods={fulfilment ? [fulfilment.method] : []}
+              services={[]}
+              packages={[]}
+              handoffs={[]}
+              addresses={[]}
+              locations={locations.data ?? []}
+              employees={employees.data ?? []}
+              refiners={refiners.data ?? []}
+              onCreate={() => createFulfillment.mutate({ refining_order_id: id })}
+              createDisabled={createFulfillment.isPending}
+              createReason="A refiner order's handover is a drop-off."
+              onSetMethod={() => undefined}
+              onPatch={(choices: FulfillmentPatchBody) =>
+                fulfilment &&
+                patchFulfillment.mutate({ fulfillment_id: fulfilment.fulfillment.id, choices })
+              }
+              onSchedule={(dropoff) => {
+                if (!fulfilment) return
+                scheduleDropoff.mutate({
+                  fulfillment_id: fulfilment.fulfillment.id,
+                  dropoff: {
+                    refiner_id: fulfilment.dropoff?.refiner_id ?? view.refiner_id,
+                    location_id: fulfilment.dropoff?.location_id ?? null,
+                    driver_employee_id: fulfilment.dropoff?.driver_employee_id ?? null,
+                    start_time: fulfilment.dropoff?.start_time ?? null,
+                    ...dropoff,
+                  },
+                })
+              }}
+              pending={patchFulfillment.isPending || scheduleDropoff.isPending}
             />
           )}
 
           {!draft && (
             <SpotsCard
-              spots={[]}
+              spots={spots.data ?? []}
               live={[]}
               locked
               canToggle={false}
@@ -126,6 +231,7 @@ export function AdminRefiningScreen({ id }: { id: string }) {
             kindLabel={isSale ? 'Lots' : 'Items'}
             query={query}
             onQueryChange={setQuery}
+            found={found.data ?? []}
             onEdit={(lot_id, patch: RefiningLotPatch) => patchLot.mutate({ lot_id, patch })}
             onDelete={(lot_id) => deleteLot.mutate(lot_id)}
             onAdd={(lot_ids) => assign.mutate({ lot_ids })}
@@ -139,32 +245,48 @@ export function AdminRefiningScreen({ id }: { id: string }) {
               showPoolOz={isSale}
               chargeLabel="Payment Charge"
               poolOz={view.pool_oz}
-              refinerFee={view.fee}
+              refining={view.totals}
+            />
+          )}
+
+          {!draft && (
+            <PaymentCard
+              payment={payment.data ?? null}
+              payout={null}
+              payTo={payTo.data ?? []}
+              rails={RAILS}
+              rail={chosenRail}
+              onRailChange={setRail}
+              payToId={payToId ?? payment.data?.pay_to?.id ?? null}
+              onPayToChange={setPayToId}
+              candidates={[]}
+              matching={false}
+              onStartMatching={() => undefined}
+              onConfirmMatch={() => undefined}
+              onSend={() => {
+                if (!chosenRail) return
+                if (payment.data?.transfer_id) {
+                  sendPayout.mutate(payment.data.transfer_id)
+                  return
+                }
+                if (isSale) openCharge.mutate({ refining_order_id: id, rail: chosenRail })
+                else openPayout.mutate({ refining_order_id: id, rail: chosenRail })
+              }}
+              pending={openPayout.isPending || sendPayout.isPending || openCharge.isPending}
             />
           )}
         </div>
 
         <div className="flex w-[400px] shrink-0 flex-col gap-lg">
-          <TotalsCard totals={null} totalLabel="Total payment" />
+          <TotalsCard totals={null} totalLabel="Total payment" refining={view.totals} />
           {isSale && !draft && <SettlementCard order={view} />}
-          <DocumentsCard documents={[]} />
+          <DocumentsCard
+            documents={documents.data ?? []}
+            onImport={(kind, file) => importDocument.mutate({ kind, file })}
+          />
         </div>
       </div>
     </div>
-  )
-}
-
-// Drop-off is the refiner sales order's handover - we drive sealed lots to the
-// refinery. The table, the contract and the card exist; the read, the patch arm
-// and the schedule route do not, so nothing can be shown from the API yet.
-function DropoffPlaceholder() {
-  return (
-    <section className="rounded-lg border border-border bg-card p-md">
-      <p className="text-body font-medium text-foreground">Fulfillment · Drop-off</p>
-      <p className="pt-2xs text-small text-muted-foreground">
-        Drop-offs have no read on the API yet, so nothing about this handover can be shown here.
-      </p>
-    </section>
   )
 }
 

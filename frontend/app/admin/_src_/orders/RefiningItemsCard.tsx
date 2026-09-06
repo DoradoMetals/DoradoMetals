@@ -1,9 +1,9 @@
 'use client'
 
 import * as React from 'react'
-import { Autocomplete, Button, EmptyState, Input, Link, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@dorado/components'
+import { Autocomplete, Button, EmptyState, Input, Link, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, type AutocompleteItem } from '@dorado/components'
 import { Trash2 } from '@dorado/icons'
-import type { RefiningLotPatch, RefiningLotView } from '@dorado/contracts'
+import type { LotView, RefiningLotPatch, RefiningLotView } from '@dorado/contracts'
 
 import { OrderCard } from './OrderCard'
 import { DASH, money, ounces, percent, premium as asPremium } from './format'
@@ -13,6 +13,7 @@ export type RefiningItemsCardProps = {
   kindLabel: string
   query: string
   onQueryChange: (value: string) => void
+  found?: LotView[]
   onEdit: (lot_id: string, patch: RefiningLotPatch) => void
   onDelete: (lot_id: string) => void
   onAdd: (lot_ids: string[]) => void
@@ -27,12 +28,25 @@ export function RefiningItemsCard({
   kindLabel,
   query,
   onQueryChange,
+  found = [],
   onEdit,
   onDelete,
   onAdd,
   pending = false,
 }: RefiningItemsCardProps) {
   const total = lots.reduce((sum, lot) => sum + (lot.content ?? 0), 0)
+  const [chosen, setChosen] = React.useState<string | null>(null)
+
+  const items: AutocompleteItem[] = found.map((lot) => ({
+    id: lot.id,
+    textValue: lot.reference ?? lot.product_name ?? lot.metal_id,
+    label: (
+      <span className="flex w-full items-center justify-between gap-sm">
+        <span className="truncate">{lot.product_name ?? lot.metal_id}</span>
+        <span className="shrink-0 text-muted-foreground">{lot.reference ?? DASH}</span>
+      </span>
+    ),
+  }))
 
   return (
     <OrderCard
@@ -42,14 +56,29 @@ export function RefiningItemsCard({
         <div className="flex w-[420px] items-end gap-xs">
           <Autocomplete
             value={query}
-            onValueChange={onQueryChange}
-            items={[]}
-            onSelect={() => undefined}
+            onValueChange={(value) => {
+              onQueryChange(value)
+              setChosen(null)
+            }}
+            items={items}
+            onSelect={(item) => {
+              setChosen(item.id)
+              onQueryChange(item.textValue)
+            }}
             placeholder="Search lots…"
-            empty="Lot search has no route yet."
+            empty="No unassigned lot matches that."
             className="flex-1"
           />
-          <Button variant="secondary" disabled onClick={() => onAdd([])}>
+          <Button
+            variant={chosen ? 'primary' : 'secondary'}
+            disabled={!chosen || pending}
+            onClick={() => {
+              if (!chosen) return
+              onAdd([chosen])
+              setChosen(null)
+              onQueryChange('')
+            }}
+          >
             Add Lot
           </Button>
         </div>
@@ -78,11 +107,7 @@ export function RefiningItemsCard({
                 <TableCell>
                   <Link href={`/admin/lots/${lot.lot_id}`}>{lot.lot.reference ?? DASH}</Link>
                 </TableCell>
-                <TableCell>
-                  {lot.order_number
-                    ? `${lot.order_direction === 'sale' ? 'SO' : 'PO'}-${lot.order_number}`
-                    : DASH}
-                </TableCell>
+                <TableCell>{lot.order_reference ?? DASH}</TableCell>
                 <TableCell>
                   <NumberCell
                     value={lot.post_melt ?? lot.pre_melt}

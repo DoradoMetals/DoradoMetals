@@ -11,6 +11,7 @@ export type ShipmentCardProps = {
   shipment: ShipmentView
   title?: string
   onSaveTracking: (tracking_number: string) => void
+  onSetCarrier?: (carrier_service_id: string) => void
   onCancelLabel: () => void
   services?: { id: string; name: string }[]
   pending?: boolean
@@ -41,6 +42,7 @@ export function ShipmentCard({
   shipment,
   title,
   onSaveTracking,
+  onSetCarrier,
   onCancelLabel,
   services = [],
   pending = false,
@@ -84,7 +86,8 @@ export function ShipmentCard({
                 className="flex-1"
                 items={services.map((service) => ({ value: service.id, label: service.name }))}
                 value={shipment.shipment.carrier_service_id ?? undefined}
-                disabled
+                onValueChange={onSetCarrier}
+                disabled={!onSetCarrier || !shipment.actions.edit_tracking || pending}
                 placeholder="The refiner's carrier"
               />
             )}

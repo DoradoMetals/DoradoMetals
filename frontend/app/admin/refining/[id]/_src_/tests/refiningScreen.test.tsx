@@ -4,28 +4,65 @@
 import { describe, expect, test, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 
-import { aRefiner, aRefiningOrder, anAdmin } from '@/app/admin/_src_/orders/tests/fixtures'
+import {
+  aDocument,
+  aFulfillment,
+  aLocation,
+  aMethod,
+  aPaymentView,
+  aRefiner,
+  aRefiningOrder,
+  aRefiningSpot,
+  anAdmin,
+  anEmployee,
+} from '@/app/admin/_src_/orders/tests/fixtures'
 
 const query = <T,>(data: T) => ({ data, isPending: false, isError: false })
-const mutation = () => ({ mutate: vi.fn(), isPending: false })
+const mutation = () => ({ mutate: vi.fn(), isPending: false, data: undefined })
 
-const state = { order: aRefiningOrder() }
+const state = {
+  order: aRefiningOrder(),
+  fulfillment: null as ReturnType<typeof aFulfillment> | null,
+}
+
+// A refiner order's handover has no read of its own: the create route answers
+// with the existing view, so the screen holds it from that mutation.
+const handover = () => ({ mutate: vi.fn(), isPending: false, data: state.fulfillment })
 
 vi.mock('@dorado/client', () => ({
   useRefiningOrder: () => query(state.order),
   useRefiners: () => query([aRefiner()]),
   useAdmins: () => query([anAdmin()]),
+  useLocations: () => query([aLocation()]),
+  useEmployees: () => query([anEmployee()]),
+  useRefiningSpots: () => query([aRefiningSpot('Gold', 2411.2)]),
+  useRefiningPayment: () => query(aPaymentView({ order_id: null, refining_order_id: state.order.id })),
+  useRefiningDocuments: () =>
+    query([aDocument('invoice', 'Invoice', true), aDocument('settlement', 'Settlement', false)]),
+  useLotSearch: () => query([]),
+  usePayTo: () => query([]),
   usePatchRefiningOrder: mutation,
   useSendRefiningOrder: mutation,
+  useCancelRefiningOrder: mutation,
   usePatchRefiningLot: mutation,
   useDeleteRefiningLot: mutation,
   useAssignRefiningLots: mutation,
+  useImportRefiningDocument: mutation,
+  useCreateFulfillment: handover,
+  usePatchFulfillment: mutation,
+  useScheduleDropoff: mutation,
+  useSetFulfillmentStatus: mutation,
+  useCancelSchedule: mutation,
+  useOpenPayout: mutation,
+  useSendPayout: mutation,
+  useOpenCharge: mutation,
 }))
 
 const { AdminRefiningScreen } = await import('../AdminRefiningScreen')
 
 beforeEach(() => {
   state.order = aRefiningOrder()
+  state.fulfillment = null
 })
 
 describe('a refiner sales order (we sell lots)', () => {
@@ -35,7 +72,7 @@ describe('a refiner sales order (we sell lots)', () => {
     expect(screen.getByRole('heading', { name: 'Elemetal' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Lots' })).toBeTruthy()
     expect(screen.getByText('Pool Oz Remediated')).toBeTruthy()
-    expect(screen.getByRole('button', { name: /Settlement/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Settlement' })).toBeTruthy()
     expect(screen.queryByText('Profit Breakdown')).toBeNull()
     expect(screen.queryByText('Messages')).toBeNull()
   })
@@ -66,15 +103,19 @@ describe('a draft', () => {
 
   test('carries no spots, charges or settlement until it is sent', () => {
     render(<AdminRefiningScreen id={state.order.id} />)
-    expect(screen.queryByRole('button', { name: /Spots/ })).toBeNull()
-    expect(screen.queryByRole('button', { name: /Charges/ })).toBeNull()
-    expect(screen.queryByRole('button', { name: /Settlement/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Spots' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Charges' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Settlement' })).toBeNull()
   })
 })
 
 describe('a refiner purchase order (we buy bullion)', () => {
   beforeEach(() => {
     state.order = aRefiningOrder({ direction: 'buy' })
+    state.fulfillment = aFulfillment({
+      method: aMethod('DROPOFF', 'Drop-off'),
+      linked_order: { id: 'abc', number: 1112, direction: 'sale', reference: 'SO-1112' },
+    })
   })
 
   test('is a drop ship, so it carries the Linked Fulfillment card', () => {
@@ -86,6 +127,6 @@ describe('a refiner purchase order (we buy bullion)', () => {
 
   test('has no Settlement - that belongs to the sell side', () => {
     render(<AdminRefiningScreen id={state.order.id} />)
-    expect(screen.queryByRole('button', { name: /Settlement/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Settlement' })).toBeNull()
   })
 })

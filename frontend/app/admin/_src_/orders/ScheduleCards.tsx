@@ -1,45 +1,58 @@
 'use client'
 
 import { Badge, Button } from '@dorado/components'
-import type { FulfillmentView } from '@dorado/contracts'
+import type { EmployeeSummary, FulfillmentStatus, FulfillmentView, Location, RefinerView } from '@dorado/contracts'
 
 import { CardFact, OrderCard } from './OrderCard'
 import { DASH, when } from './format'
 
 export type ScheduleCardProps = {
   fulfillment: FulfillmentView
+  locations?: Location[]
+  employees?: EmployeeSummary[]
+  refiners?: RefinerView[]
   onCancel: () => void
   onReschedule: () => void
-  onAdvance: (status: string) => void
+  onAdvance: (status: FulfillmentStatus) => void
   pending?: boolean
 }
 
-// The three booked handovers. Each runs the same shape - a badge, four facts,
-// Cancel / Reschedule, and one button that moves it on - and each takes its
-// status straight off the fulfillment row, because the status vocabulary is the
-// fulfillment domain's and not this screen's.
-type Phase = { label: string; intent: 'warning' | 'info' | 'success'; next: string | null; nextLabel: string }
+// The three booked handovers. Each runs the same shape - a badge, the facts,
+// Cancel / Reschedule, and the moves the API says are open. The status is the
+// fulfillment domain's enum and the open moves are `actions.transitions`, so
+// no label and no transition is decided here.
+const STATUS_LABEL: Record<FulfillmentStatus, string> = {
+  PENDING: 'Pending',
+  SCHEDULED: 'Scheduled',
+  IN_TRANSIT: 'In Transit',
+  PICKED_UP: 'Picked Up',
+  IN_PROGRESS: 'In Progress',
+  COMPLETED: 'Completed',
+  DROPPED_OFF: 'Dropped Off',
+}
 
-function phasesFor(kind: 'pickup' | 'appointment' | 'dropoff'): Phase[] {
-  if (kind === 'pickup') {
-    return [
-      { label: 'Scheduled', intent: 'warning', next: 'In Transit', nextLabel: 'Headed to Pickup' },
-      { label: 'In Transit', intent: 'info', next: 'Picked Up', nextLabel: 'Mark Picked Up' },
-      { label: 'Picked Up', intent: 'success', next: null, nextLabel: 'Picked Up' },
-    ]
-  }
-  if (kind === 'appointment') {
-    return [
-      { label: 'Scheduled', intent: 'warning', next: 'In Progress', nextLabel: 'Check In' },
-      { label: 'In Progress', intent: 'info', next: 'Completed', nextLabel: 'Mark Complete' },
-      { label: 'Completed', intent: 'success', next: null, nextLabel: 'Completed' },
-    ]
-  }
-  return [
-    { label: 'Scheduled', intent: 'warning', next: 'In Transit', nextLabel: 'Headed to Refinery' },
-    { label: 'In Transit', intent: 'info', next: 'Dropped Off', nextLabel: 'Mark Dropped Off' },
-    { label: 'Dropped Off', intent: 'success', next: null, nextLabel: 'Dropped Off' },
-  ]
+const STATUS_INTENT: Record<FulfillmentStatus, 'warning' | 'info' | 'success'> = {
+  PENDING: 'warning',
+  SCHEDULED: 'warning',
+  IN_TRANSIT: 'info',
+  PICKED_UP: 'success',
+  IN_PROGRESS: 'info',
+  COMPLETED: 'success',
+  DROPPED_OFF: 'success',
+}
+
+type Kind = 'pickup' | 'appointment' | 'dropoff'
+
+const MOVE_LABEL: Record<Kind, Partial<Record<FulfillmentStatus, string>>> = {
+  pickup: { IN_TRANSIT: 'Headed to Pickup', PICKED_UP: 'Mark Picked Up' },
+  appointment: { IN_PROGRESS: 'Check In', COMPLETED: 'Mark Complete' },
+  dropoff: { IN_TRANSIT: 'Headed to Refinery', DROPPED_OFF: 'Mark Dropped Off' },
+}
+
+const CANCEL_LABEL: Record<Kind, string> = {
+  pickup: 'Cancel Pickup',
+  appointment: 'Cancel',
+  dropoff: 'Cancel Drop-off',
 }
 
 function ScheduleCard({
@@ -52,20 +65,20 @@ function ScheduleCard({
   onAdvance,
   pending,
 }: ScheduleCardProps & {
-  kind: 'pickup' | 'appointment' | 'dropoff'
+  kind: Kind
   title: string
   facts: { label: string; value: string }[]
 }) {
-  const phases = phasesFor(kind)
-  const phase = phases.find((one) => one.label === fulfillment.fulfillment.status) ?? phases[0]!
+  const status = fulfillment.fulfillment.status
+  const moves = fulfillment.actions.transitions.filter((one) => MOVE_LABEL[kind][one])
 
   return (
     <OrderCard
       title={title}
       summary={when(fulfillment.scheduled_at)}
       right={
-        <Badge intent={phase.intent} variant="soft">
-          {phase.label}
+        <Badge intent={STATUS_INTENT[status]} variant="soft">
+          {STATUS_LABEL[status]}
         </Badge>
       }
     >
@@ -82,23 +95,37 @@ function ScheduleCard({
       <div className="flex w-full justify-end gap-sm">
         {fulfillment.actions.cancel_schedule && (
           <Button variant="secondary" intent="danger" disabled={pending} onClick={onCancel}>
-            {kind === 'pickup' ? 'Cancel Pickup' : kind === 'appointment' ? 'Cancel' : 'Cancel Drop-off'}
+            {CANCEL_LABEL[kind]}
           </Button>
         )}
         <Button variant="secondary" disabled={pending} onClick={onReschedule}>
           Reschedule
         </Button>
-        <Button
-          variant="primary"
-          disabled={phase.next === null || pending}
-          onClick={() => phase.next && onAdvance(phase.next)}
-        >
-          {phase.nextLabel}
-        </Button>
+        {moves.length === 0 ? (
+          <Button variant="primary" disabled>
+            {STATUS_LABEL[status]}
+          </Button>
+        ) : (
+          moves.map((move) => (
+            <Button
+              key={move}
+              variant="primary"
+              disabled={pending}
+              onClick={() => onAdvance(move)}
+            >
+              {MOVE_LABEL[kind][move]}
+            </Button>
+          ))
+        )}
       </div>
     </OrderCard>
   )
 }
+
+const nameOf = (
+  id: string | null | undefined,
+  rows: { id: string; name?: string | null }[]
+): string => rows.find((one) => one.id === id)?.name ?? DASH
 
 export function PickupCard(props: ScheduleCardProps) {
   const pickup = props.fulfillment.pickup
@@ -109,8 +136,8 @@ export function PickupCard(props: ScheduleCardProps) {
       title="Pickup"
       facts={[
         { label: 'Window', value: when(pickup?.start_time) },
-        { label: 'Office', value: DASH },
-        { label: 'Driver', value: pickup?.assigned_employee_id ?? DASH },
+        { label: 'Office', value: nameOf(pickup?.location_id, props.locations ?? []) },
+        { label: 'Driver', value: nameOf(pickup?.assigned_employee_id, props.employees ?? []) },
         { label: 'Pickup address', value: pickup?.pickup_address_id ?? DASH },
       ]}
     />
@@ -126,8 +153,8 @@ export function AppointmentCard(props: ScheduleCardProps) {
       title="Appointment"
       facts={[
         { label: 'Date', value: when(direct?.start_time) },
-        { label: 'Office', value: direct?.location_id ?? DASH },
-        { label: 'With', value: direct?.assigned_employee_id ?? DASH },
+        { label: 'Office', value: nameOf(direct?.location_id, props.locations ?? []) },
+        { label: 'With', value: nameOf(direct?.assigned_employee_id, props.employees ?? []) },
         { label: 'Time', value: when(direct?.start_time) },
       ]}
     />
@@ -135,15 +162,18 @@ export function AppointmentCard(props: ScheduleCardProps) {
 }
 
 export function DropoffCard(props: ScheduleCardProps) {
+  const dropoff = props.fulfillment.dropoff
+  const refinery =
+    (props.refiners ?? []).find((one) => one.id === dropoff?.refiner_id)?.organization.name ?? DASH
   return (
     <ScheduleCard
       {...props}
       kind="dropoff"
       title="Drop-off"
       facts={[
-        { label: 'Driver', value: DASH },
-        { label: 'Refinery', value: DASH },
-        { label: 'Window', value: when(props.fulfillment.scheduled_at) },
+        { label: 'Driver', value: nameOf(dropoff?.driver_employee_id, props.employees ?? []) },
+        { label: 'Refinery', value: refinery },
+        { label: 'Window', value: when(dropoff?.start_time ?? props.fulfillment.scheduled_at) },
       ]}
     />
   )
