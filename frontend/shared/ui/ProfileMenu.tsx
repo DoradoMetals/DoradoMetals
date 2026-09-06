@@ -75,13 +75,13 @@ export default function AccountMenu() {
       ) : (
         <MenuContent align="end">
           <MenuItem asChild>
-            <Link href="/authentication?tab=sign-in">
+            <Link href="/auth/sign-in">
               <LogIn />
               Sign In
             </Link>
           </MenuItem>
           <MenuItem asChild>
-            <Link href="/authentication?tab=sign-up">
+            <Link href="/auth/sign-up">
               <UserPlus />
               Register
             </Link>

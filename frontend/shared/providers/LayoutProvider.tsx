@@ -13,6 +13,7 @@ import { useScrollLock } from '@/shared/hooks/useScrollock'
 import { useGetSession, useStopImpersonation } from '@/shared/hooks/auth/queries'
 import Shell from '@/shared/ui/Shell'
 import Footer from '@/shared/ui/Footer'
+import { VerificationProvider } from '@/shared/providers/VerificationProvider'
 
 export default function LayoutProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -44,76 +45,71 @@ export default function LayoutProvider({ children }: { children: React.ReactNode
   // what it stands in for now. Everything below renders immediately.
   const sessionPending = !session && isPending === true
 
+  // THE AUTH SURFACE IS ITS OWN PAGE. /auth and /settings are the Panel/Pitch
+  // screens: full-bleed, no site nav and no footer, because the Back control
+  // and the logo in the Panel are the only chrome the design gives them.
+  // THE HOMEPAGE GROUND IS `--background`, LIKE EVERY OTHER PAGE (ruling 19):
+  // the ground is the darkest thing on screen and panels separate by BORDER,
+  // not by fill. The `max-w-7xl` exception below stays - the homepage is
+  // deliberately full-bleed, and extent is layout.
+  const bare = pathname.startsWith('/auth') || pathname.startsWith('/settings')
+
   return (
-    <>
-      {/* THE HOMEPAGE GROUND IS `--background`, LIKE EVERY OTHER PAGE.
+    <VerificationProvider>
+      {bare ? (
+        children
+      ) : (
+        <div className="flex flex-col min-h-screen">
+          <AnimatePresence>
+            {isAnyDrawerOpen && (
+              <motion.div
+                initial={{ opacity: 0, backdropFilter: 'blur(0px)' }}
+                animate={{ opacity: 1, backdropFilter: 'blur(2px)' }}
+                exit={{ opacity: 0, backdropFilter: 'blur(0px)' }}
+                transition={{
+                  opacity: { duration: 0.3, ease: 'easeInOut' },
+                  backdropFilter: {
+                    type: 'spring',
+                    stiffness: 80,
+                    damping: 20,
+                  },
+                }}
+                className="z-10 fixed sm:inset-0 sm:z-65 sm:bg-black/15 sm:pointer-events-none sm:will-change-[opacity,backdrop-filter]"
+              />
+            )}
+          </AnimatePresence>
 
-          `bg-card` used to be applied HERE, keyed on `pathname === '/'`, AND
-          again on `app/page.tsx`'s own root - the same fill spelled twice, in
-          two files, one of which is a layout provider making a decision about
-          one specific route. The sweep removed the page's copy; this one goes
-          too, and the reason is not tidiness.
+          {sessionPending ? <NavSkeleton /> : <Shell />}
 
-          Ruling 19: the ground is the darkest thing on screen and panels
-          separate by BORDER, not by fill. The homepage's bands - SupportBanner,
-          the reviews strip - are `bg-card border-y border-border`, and a band
-          that is the same colour as the page it interrupts is not a band. The
-          two invisible white-on-white bands D95 found were on this page, and
-          painting the whole route `bg-card` would make their fixed versions
-          disappear a second way.
-
-          The `max-w-7xl` exception two elements down STAYS: the homepage is
-          deliberately full-bleed, and extent is layout. */}
-      <div className="flex flex-col min-h-screen">
-        <AnimatePresence>
-          {isAnyDrawerOpen && (
-            <motion.div
-              initial={{ opacity: 0, backdropFilter: 'blur(0px)' }}
-              animate={{ opacity: 1, backdropFilter: 'blur(2px)' }}
-              exit={{ opacity: 0, backdropFilter: 'blur(0px)' }}
-              transition={{
-                opacity: { duration: 0.3, ease: 'easeInOut' },
-                backdropFilter: {
-                  type: 'spring',
-                  stiffness: 80,
-                  damping: 20,
-                },
-              }}
-              className="z-10 fixed sm:inset-0 sm:z-65 sm:bg-black/15 sm:pointer-events-none sm:will-change-[opacity,backdrop-filter]"
-            />
-          )}
-        </AnimatePresence>
-
-        {sessionPending ? <NavSkeleton /> : <Shell />}
-
-        {session?.impersonatedBy && (
-          <div className="z-50 sticky top-24 bg-destructive w-full">
-            <div className="flex w-full items-center justify-between px-3 lg:px-20 py-1">
-              <div className="flex flex-col gap-1 items-start">
-                <strong className="lg:tracking-widest text-destructive-foreground">
-                  Impersonating {user?.name}
-                </strong>
-                <small className="hidden lg:block text-destructive-foreground">
-                  Please be very careful of any changes you make while impersonating a user.
-                </small>
+          {session?.impersonatedBy && (
+            <div className="z-50 sticky top-24 bg-destructive w-full">
+              <div className="flex w-full items-center justify-between px-3 lg:px-20 py-1">
+                <div className="flex flex-col gap-1 items-start">
+                  <strong className="lg:tracking-widest text-destructive-foreground">
+                    Impersonating {user?.name}
+                  </strong>
+                  <small className="hidden lg:block text-destructive-foreground">
+                    Please be very careful of any changes you make while impersonating a user.
+                  </small>
+                </div>
+                <Button variant="primary" size="sm" onClick={() => stopImpersonation.mutate()}>
+                  Stop Impersonating
+                </Button>
               </div>
-              <Button variant="primary" size="sm" onClick={() => stopImpersonation.mutate()}>
-                Stop Impersonating
-              </Button>
+            </div>
+          )}
+
+          <div className="flex justify-center relative flex-grow min-w-0">
+            <div className={cn('w-full', pathname === '/' ? '' : 'max-w-7xl')}>
+              {showMobileCarousel && <MobileProductCarousel />}
+              {children}
             </div>
           </div>
-        )}
 
-        <div className="flex justify-center relative flex-grow min-w-0">
-          <div className={cn('w-full', pathname === '/' ? '' : 'max-w-7xl')}>
-            {showMobileCarousel && <MobileProductCarousel />}
-            {children}
-          </div>
+          <div className="mt-auto">{<Footer />}</div>
         </div>
-
-        <div className="mt-auto">{<Footer />}</div>
-      </div>
-    </>
+      )}
+    </VerificationProvider>
   )
 }
 

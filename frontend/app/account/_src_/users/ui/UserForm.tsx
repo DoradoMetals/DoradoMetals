@@ -1,162 +1,67 @@
 'use client'
 
-import { useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { Amount, Button, Form, Skeleton, ValidatedField } from '@dorado/components'
-import { MailCheck, MailWarning, MailX, UserX2 } from '@dorado/icons'
-import { User, userSchema } from '@/shared/types/users'
-import {
-  useUpdateUser,
-  useChangeEmail,
-  useSendVerifyEmail,
-  useGetSession,
-} from '@/shared/hooks/auth/queries'
-import { AccountAction } from './AccountAction'
+import NextLink from 'next/link'
+import { useSession } from '@dorado/client'
+import { Amount, Button, Input, Skeleton } from '@dorado/components'
+
+import { useGetSession, useUpdateUser } from '@/shared/hooks/auth/queries'
 import { cn } from '@/shared/utils/cn'
 
+// THE FACTORS ARE READ-ONLY HERE (ruling 91). An email or a phone moves through
+// its own screen, verified by the other one - so this page states the value and
+// sends the customer there. A shown value that cannot be edited is a disabled
+// Input, never a box built to look like one.
 export default function UserForm() {
   const { user, isPending } = useGetSession()
-  const updateUserMutation = useUpdateUser()
-  const changeEmailMutation = useChangeEmail()
-  const sendEmailVerificationMutation = useSendVerifyEmail()
-  const [emailSent, setEmailSent] = useState(false)
-
-  const defaultValues: User = {
-    id: user?.id ?? '',
-    email: user?.email ?? '',
-    name: user?.name ?? '',
-    createdAt: user?.createdAt ?? new Date(),
-    updatedAt: user?.updatedAt ?? new Date(),
-    emailVerified: user?.emailVerified ?? false,
-    role: user?.role ?? '',
-    stripeCustomerId: user?.stripeCustomerId ?? '',
-    dorado_funds: user?.dorado_funds ?? 0,
-  }
-
-  const userForm = useForm<User>({
-    resolver: zodResolver(userSchema),
-    mode: 'onSubmit',
-    defaultValues,
-  })
-
-  const handleUserSubmit = async (values: User) => {
-    if (user?.email !== values.email) {
-      changeEmailMutation.mutate(values.email)
-    }
-
-    if (user?.name !== values.name) {
-      updateUserMutation.mutate({ name: values.name })
-    }
-  }
-
-  const handleEmailVerification = () => {
-    if (!user) return
-    sendEmailVerificationMutation.mutate(user.email, {
-      onSettled: () => {
-        setEmailSent(true)
-        setTimeout(() => setEmailSent(false), 20000)
-      },
-    })
-  }
+  const { data: session } = useSession({ enabled: !!user?.id })
+  const updateUser = useUpdateUser()
 
   if (isPending) {
     return (
-      <section className="w-full bg-card p-4 rounded-lg">
+      <section className="w-full rounded-lg bg-card p-4">
         <div className="space-y-4">
           <Skeleton className="h-4 w-32" />
-          <Skeleton className="h-8 w-40" />
-          <div className="h-px w-full bg-border my-4" />
           <Skeleton className="h-9 w-full" />
           <Skeleton className="h-9 w-full" />
-          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-9 w-full" />
         </div>
       </section>
     )
   }
 
-  const emailVerified = !!user?.emailVerified
-
-  let EmailIcon = MailX
-
-  if (emailVerified) {
-    EmailIcon = MailCheck
-  } else if (emailSent) {
-    EmailIcon = MailWarning
-  }
-
-  const emailDescription = emailVerified
-    ? 'Email verified.'
-    : emailSent
-      ? 'Check your email inbox for the verification link.'
-      : 'Verify your email to keep your account secure.'
-
-  const emailButtonLabel = emailVerified ? 'Verified' : emailSent ? 'Link Sent' : 'Verify'
-
-  const emailButtonDisabled = emailVerified || emailSent || sendEmailVerificationMutation.isPending
-
-  const emailButtonOnClick = !emailVerified && !emailSent ? handleEmailVerification : undefined
-
   return (
-    <section className="w-full bg-card p-4 rounded-lg">
-      <div className="border-b border-border pb-6 mb-6">
+    <section className="w-full rounded-lg bg-card p-4">
+      <div className="mb-6 border-b border-border pb-6">
         <p className="eyebrow mb-6">Details</p>
 
-        <Form {...userForm}>
-          <form onSubmit={userForm.handleSubmit(handleUserSubmit)} className="space-y-5">
-            <ValidatedField control={userForm.control} name="name" label="Name" type="text" />
+        <div className="space-y-5">
+          <Input
+            label="Name"
+            type="text"
+            autoComplete="name"
+            defaultValue={user?.name ?? ''}
+            onBlur={(event) => updateUser.mutate({ name: event.target.value })}
+          />
 
-            <div className="space-y-1">
-              <ValidatedField control={userForm.control} name="email" label="Email" type="email" />
-              {changeEmailMutation.isSuccess && user?.emailVerified === true && (
-                <p className="mt-1">
-                  An email has been sent to confirm the change. Follow that link before making
-                  further changes.
-                </p>
-              )}
-            </div>
-
-            <Button
-              type="submit"
-              variant="secondary"
-              className="w-full mb-8"
-              disabled={updateUserMutation.isPending || changeEmailMutation.isPending}
-            >
-              {updateUserMutation.isPending || changeEmailMutation.isPending
-                ? 'Saving...'
-                : 'Save Changes'}
+          <div className="flex items-end gap-2">
+            <Input label="Email" defaultValue={session?.email ?? ''} disabled readOnly />
+            <Button variant="secondary" asChild>
+              <NextLink href="/settings/email">Change</NextLink>
             </Button>
-          </form>
-        </Form>
-      </div>
+          </div>
 
-      <div className="border-b border-border pb-6 mb-6">
-        <p className="eyebrow mb-4">Verification</p>
-
-        <div className="space-y-4">
-          <AccountAction
-            icon={EmailIcon}
-            label="Email"
-            description={emailDescription}
-            buttonLabel={emailButtonLabel}
-            onClick={emailButtonOnClick}
-            disabled={emailButtonDisabled}
-            showCheckOnComplete={emailVerified}
-          />
-
-          <AccountAction
-            icon={UserX2}
-            label="Identity"
-            description="Coming soon"
-            buttonLabel="Verify"
-          />
+          <div className="flex items-end gap-2">
+            <Input label="Phone" defaultValue={session?.phone_number ?? ''} disabled readOnly />
+            <Button variant="secondary" asChild>
+              <NextLink href="/settings/phone">Change</NextLink>
+            </Button>
+          </div>
         </div>
       </div>
 
       <div>
         <p className="eyebrow mb-2">Dorado Credit</p>
-
-        <div className={cn('flex w-full items-center justify-between gap-2', 'items-baseline')}>
+        <div className={cn('flex w-full items-baseline justify-between gap-2')}>
           <small>Current balance</small>
           <strong>
             <Amount value={user?.dorado_funds ?? 0} />

@@ -47,7 +47,7 @@ export default function Page() {
             size="xl"
             className="w-full max-w-xl"
             onClick={() => {
-              router.push('/authentication')
+              router.push('/auth/sign-in')
             }}
           >
             Sign In

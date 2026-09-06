@@ -1,68 +1,37 @@
 'use client'
 
-import { Button } from '@dorado/components'
-import { Mail, MessageSquareText, MonitorSmartphone, Smartphone, LogOut } from '@dorado/icons'
-import { useGetSession, useRequestPasswordReset } from '@/shared/hooks/auth/queries'
-import { AccountAction } from './AccountAction'
+import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import ChangePasswordForm from '@/shared/ui/ChangePasswordForm'
+import { Button } from '@dorado/components'
+import { LogOut, Mail, MonitorSmartphone, Smartphone } from '@dorado/icons'
+
+import { AccountAction } from './AccountAction'
 import { ActiveDevices } from './ActiveDevices'
 
 export function PasswordAndSecurity() {
-  const { user } = useGetSession()
-  const requestPasswordReset = useRequestPasswordReset()
-
+  const router = useRouter()
   const [showDevices, setShowDevices] = useState(false)
 
-  const handlePasswordReset = () => {
-    if (!user?.email) return
-    requestPasswordReset.mutate(user.email)
-  }
-
   return (
-    <section className="w-full bg-card p-4 rounded-lg">
-      <div className="border-b border-border pb-6 mb-6">
-        <p className="eyebrow mb-6">Change Password</p>
-
-        <ChangePasswordForm showTitle={false} />
-      </div>
-
-      <div className="border-b border-border pb-6 mb-6">
-        <p className="eyebrow mb-6">Request Password Reset</p>
-
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={handlePasswordReset}
-          disabled={!user?.email || requestPasswordReset.isPending}
-          className="w-full mb-8"
-        >
-          {requestPasswordReset.isPending ? 'Sending...' : 'Request Password Reset'}
-        </Button>
-
-        {!user?.email && (
-          <p className="mt-2">Add an email to your account before requesting a reset link.</p>
-        )}
-      </div>
-
-      <div className="border-b border-border pb-6 mb-6">
-        <p className="eyebrow mb-4">Set Up Two-Factor Auth</p>
+    <section className="w-full rounded-lg bg-card p-4">
+      <div className="mb-6 border-b border-border pb-6">
+        <p className="eyebrow mb-4">Sign-in</p>
 
         <div className="space-y-3">
           <AccountAction
             icon={Smartphone}
-            label="Authenticator App"
-            description="Coming soon"
-            buttonLabel="Set Up"
+            label="Phone"
+            description="Your number is how you sign in. Every sign-in ends in a code."
+            buttonLabel="Change"
+            onClick={() => router.push('/settings/phone')}
           />
 
-          <AccountAction icon={Mail} label="Email" description="Coming soon" buttonLabel="Set Up" />
-
           <AccountAction
-            icon={MessageSquareText}
-            label="SMS Code"
-            description="Coming soon"
-            buttonLabel="Set Up"
+            icon={Mail}
+            label="Email"
+            description="Used when you ask for the code by email instead."
+            buttonLabel="Change"
+            onClick={() => router.push('/settings/email')}
           />
         </div>
       </div>
