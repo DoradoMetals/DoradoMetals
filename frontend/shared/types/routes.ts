@@ -10,7 +10,7 @@
 //   - `seoIndex`, by `app/robots.ts`, which disallows every path that is not
 //     indexable.
 //
-// EVERY SURVIVING ROUTE IS AN AUTH ROUTE, AND NONE OF THEM IS INDEXABLE. A
+// EVERY ROUTE HERE IS BEHIND A SIGN-IN, AND NONE OF THEM IS INDEXABLE. A
 // sign-in panel is not a landing page and a verification screen is a dead end
 // to a crawler, so `robots.ts` keeps the whole surface out of the index and
 // only `/` is left to allow. The labels and the display flags come back with
@@ -41,6 +41,8 @@ export const protectedRoutes: Record<string, RouteConfig> = {
     roles: ['user', 'admin'],
     seoIndex: false,
   },
+  adminOrder: { path: '/admin/orders', roles: ['admin'], seoIndex: false },
+  adminRefining: { path: '/admin/refining', roles: ['admin'], seoIndex: false },
 }
 
 type R = (typeof protectedRoutes)[keyof typeof protectedRoutes]

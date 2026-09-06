@@ -109,16 +109,23 @@ export default defineConfig({
     {
       name: 'public',
       use: { ...devices['Desktop Chrome'] },
-      testIgnore: [/\/authed\//, /auth\.setup\.ts$/],
+      testIgnore: [/\/authed\//, /auth\.setup\.ts$/, /app\/admin\//],
     },
 
-    // THE `customer` AND `admin` PROJECTS ARE GONE (ruling 99). They matched
-    // `**/authed/**`, one project per role, reusing the state `setup` writes -
-    // and every spec in that directory drove a deleted surface. A project whose
-    // testMatch names a directory that does not exist reports a clean run over
-    // nothing, which is the failure mode every floor in this repo exists to
-    // prevent. They come back, unchanged, with the first authed spec; the
-    // sessions they need are still written to playwright/.auth/*.json.
+    // THE `admin` PROJECT IS BACK, with the admin order screens (ruling 100).
+    // It was deleted with the nuke because every spec it matched drove a
+    // deleted surface, and a project whose testMatch names nothing reports a
+    // clean run over nothing. It now matches the specs under `app/admin/`,
+    // depends on `setup` for the session it reuses, and the sessions are still
+    // written to playwright/.auth/*.json.
+    //
+    // The `customer` project stays deleted until a customer surface is built.
+    {
+      name: 'admin',
+      use: { ...devices['Desktop Chrome'] },
+      dependencies: ['setup'],
+      testMatch: /app\/admin\/.*\.e2e\.ts$/,
+    },
   ],
 
   // Boots `next dev` unless something is already listening. Not `next build &&
