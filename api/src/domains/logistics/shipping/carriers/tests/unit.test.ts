@@ -13,8 +13,10 @@ const body = (name: string): string =>
     .filter((l) => !l.trim().startsWith('--'))
     .join('\n')
 
+// No `update`: the carrier's patch is built by `buildUpdate` now, so an omitted
+// logo is left alone instead of being bound as NULL (LD F18).
 test('every statement loads and is not empty', () => {
-  for (const n of ['get_all', 'get_one', 'create', 'update', 'delete']) {
+  for (const n of ['get_all', 'get_one', 'create', 'delete']) {
     assert.ok(sql(n).trim().length > 0, `${n} is empty`)
   }
 })
@@ -28,7 +30,7 @@ test('create writes its columns in the order repo.ts supplies them', () => {
 })
 
 test("the statements speak the table's own column names", () => {
-  for (const n of ['get_all', 'get_one', 'create', 'update']) {
+  for (const n of ['get_all', 'get_one', 'create']) {
     assert.doesNotMatch(body(n), /\bis_active\b/, `${n} uses exchange's column name`)
   }
 })
@@ -39,7 +41,7 @@ test('the view is the only statement that joins the organization', () => {
 })
 
 test('no statement but the view reaches into a second table', () => {
-  for (const n of ['get_all', 'get_one', 'create', 'update', 'delete']) {
+  for (const n of ['get_all', 'get_one', 'create', 'delete']) {
     assert.doesNotMatch(body(n), /organizations\.organizations/, `${n} joins organizations`)
     assert.doesNotMatch(body(n), /exchange\./, `${n} reaches into exchange`)
   }

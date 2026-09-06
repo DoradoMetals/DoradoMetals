@@ -40,12 +40,14 @@ export type OrderViewShipment = z.infer<typeof OrderViewShipment>
 export const ShipmentRead = OrderViewShipment.omit({ label: true })
 export type ShipmentRead = z.infer<typeof ShipmentRead>
 
+// No `carrier_id`. It was required to travel with `tracking_number` and then
+// discarded - the carrier a tracking number belongs to is whatever the
+// shipment's own `carrier_service_id` already says (LD F16).
 export const ShipmentPatch = Shipment.pick({ tracking_number: true })
   .extend({
     shipping_charge: z.number().optional(),
     shipping_actual: z.number().optional(),
     tracking_number: Shipment.shape.tracking_number.unwrap().optional(),
-    carrier_id: Carrier.shape.id.optional(),
   })
   .strict()
 export type ShipmentPatch = z.infer<typeof ShipmentPatch>

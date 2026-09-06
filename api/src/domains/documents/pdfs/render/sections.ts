@@ -231,6 +231,10 @@ export function renderPackingShippingSection(
 
   const shipment = isReturn ? returnShipment(order) : inboundShipment(order)
   const pickupType = shipment?.pickup_type || '-'
+  const pickupSlot =
+    shipment?.pickup_date && shipment?.pickup_time
+      ? `${shipment.pickup_time} ${shipment.pickup_date}`
+      : '-'
 
   return `
     <div class="shipping-info">
@@ -283,13 +287,7 @@ export function renderPackingShippingSection(
               : `
           <div class="detail-row">
             <span class="detail-label">Pickup Date:</span>
-            <span class="detail-value">
-              8:30AM ${new Date().toLocaleDateString('en-US', {
-                month: 'long',
-                day: 'numeric',
-                year: 'numeric',
-              })}
-            </span>
+            <span class="detail-value">${pickupSlot}</span>
           </div>`
           }
           <div class="detail-row">

@@ -14,6 +14,10 @@ import {
   scheduleFromPickup,
   scheduleOf,
   trackingStatus,
+  lowestCeiling,
+  ceilingFor,
+  returnDeclaredValue,
+  pickupDateFor,
 } from '#logistics/shipping/rules.ts'
 import { Invalid } from '#shared/errors.ts'
 import type {
@@ -228,4 +232,43 @@ test('assertOneShippableCarrier refuses ambiguity as loudly as absence', () => {
     () => assertOneShippableCarrier([{ name: 'FedEx' }, { name: 'UPS' }]),
     /More than one carrier.*FedEx, UPS/
   )
+})
+
+// LD F19. `Number(null)` is 0 and 0 is finite, so one service row with no
+// ceiling made Math.min answer 0, every label was bought with declaredValue 0
+// and the parcel of metal travelled uninsured.
+const ceilings = [
+  { id: 'a', name: 'Express Saver', max_insured_value: 10000 },
+  { id: 'b', name: 'Priority Overnight', max_insured_value: null },
+] as unknown as Parameters<typeof lowestCeiling>[0]
+
+test('a service row that names no insurance ceiling is not a ceiling of zero', () => {
+  assert.equal(lowestCeiling(ceilings), 10000, 'a NULL ceiling dropped the lowest to zero')
+})
+
+test("a service whose own ceiling is NULL falls back to the carrier's lowest, not to zero", () => {
+  assert.equal(ceilingFor(ceilings, 'Priority Overnight'), 10000)
+  assert.equal(ceilingFor(ceilings, 'Express Saver'), 10000)
+  assert.equal(ceilingFor(ceilings, 'Not A Service'), 10000)
+})
+
+test('with no ceilings at all there is still no insurance, which is the honest answer', () => {
+  assert.equal(lowestCeiling([]), 0)
+})
+
+// MP F5: a purchase cancelled before it is priced has no order total.
+test('a return leg is worth at least what the customer declared on the way in', () => {
+  assert.equal(returnDeclaredValue(8000, null), 8000)
+  assert.equal(returnDeclaredValue(8000, 0), 8000)
+  assert.equal(returnDeclaredValue(8000, 9500), 9500)
+  assert.equal(returnDeclaredValue(null, 9500), 9500)
+  assert.equal(returnDeclaredValue(null, null), 0)
+})
+
+// LD F15: the slot is the provider's own string; toISOString() answered UTC's day.
+test("the pickup date FedEx is told to cancel is the parcel's own string", () => {
+  assert.equal(pickupDateFor('2026-09-06', new Date('2026-09-07T00:00:00Z')), '2026-09-06')
+  assert.equal(pickupDateFor(null, '2026-09-06 19:00:00'), '2026-09-06')
+  assert.equal(pickupDateFor(null, null), null)
+  assert.equal(pickupDateFor(undefined, new Date('2026-09-07T00:00:00Z')), null)
 })

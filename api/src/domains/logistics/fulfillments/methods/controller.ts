@@ -2,6 +2,7 @@ import { Direction, FulfillmentMethodUpdateBody } from '@dorado/contracts'
 import { asyncHandler } from '#shared/middleware/asyncHandler.ts'
 import { parseStrict } from '#shared/http/validate.ts'
 import * as methodService from '#logistics/fulfillments/methods/service.ts'
+import withTransaction from '#shared/db/withTransaction.ts'
 
 export const getMethods = asyncHandler(async (req, res) => {
   const direction = parseStrict(Direction, req.query.direction, 'direction')
@@ -18,5 +19,7 @@ export const updateMethod = asyncHandler(async (req, res) => {
     req.body,
     'fulfillments/methods/update body'
   )
-  return res.status(200).json(await methodService.update(body.id, body.method))
+  return res
+    .status(200)
+    .json(await withTransaction((tx) => methodService.update(body.id, body.method, tx)))
 })

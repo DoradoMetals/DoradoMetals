@@ -59,7 +59,13 @@ export function missingFor(
   const { method, parcel, pickup, direct } = view
 
   if (method.category === 'SHIPMENT') {
-    if (parcel && parcel.direction !== 'Inbound') return missing
+    // A sale's leg goes out, not in: the customer picks the delivery service and
+    // nothing else. `return missing` with nothing in it let a sale be placed
+    // with no service at all, which prices its carriage at zero (LD F7).
+    if (parcel && parcel.direction !== 'Inbound') {
+      if (!parcel.carrier_service_id) missing.push('carrier_service_id')
+      return missing
+    }
     if (!parcel?.shipper_address_id) missing.push('shipper_address_id')
     if (!parcel?.package_id) missing.push('package_id')
     if (!parcel?.carrier_service_id) missing.push('carrier_service_id')
@@ -191,7 +197,23 @@ export function assertParcel<T>(parcel: T | null | undefined, id: string): asser
   }
 }
 
-export function assertOwnedDraft(owner: string | null, caller: string, id: string): void {
+// 123 made the address columns carry a composite key into places.user_addresses
+// - "this address is in THIS ROW'S OWNER'S book". 128 moved the columns onto
+// the fulfillment detail rows and the key did not follow, so a customer could
+// point their parcel at any address row in the database (LD F2). The rule is
+// here now; the FK cannot be, because no fulfillment detail row carries a user.
+export function assertAddressIsTheirs(theirs: boolean, address_id: string): void {
+  if (!theirs) throw new NotFound(`no address ${address_id}`)
+}
+
+export function assertFulfillmentOwner(
+  owner: string | null,
+  fulfillment_id: string
+): asserts owner is string {
+  if (!owner) throw new NotFound(`no such fulfillment: ${fulfillment_id}`)
+}
+
+export function assertOwnedDraft(owner: string | null, caller: string | null, id: string): void {
   if (owner !== caller) {
     throw new NotFound(`no such fulfillment: ${id}`)
   }

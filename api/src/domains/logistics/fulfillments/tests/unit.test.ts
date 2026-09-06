@@ -1,6 +1,7 @@
 import { test } from 'vitest'
 import assert from 'node:assert/strict'
 import { sqlFrom } from '#shared/db/sql.ts'
+import { missingFor } from '#logistics/fulfillments/rules.ts'
 import { buildUpdate } from '#shared/db/patch.ts'
 import { PATCHABLE } from '#db/fulfillments/repo.ts'
 import { PATCHABLE as METHOD_PATCHABLE } from '#db/fulfillments/methods/repo.ts'
@@ -98,16 +99,30 @@ test('no statement joins a second table', () => {
     ]),
     ['pickups/update', builtPickup()] as [string, string],
     ['directs/update', builtDirect()] as [string, string],
-    ...['get_for', 'get_by_shipment', 'exists_for', 'create', 'upsert'].map(
+    // `shipments/get_for` is deliberately absent: it joins shipping.shipments to
+    // put the HANDOVER leg first, because ordering the links by their own random
+    // uuid picked a return leg about half the time (LD F3).
+    ...['get_by_shipment', 'exists_for', 'create', 'upsert'].map(
       (n) => [`shipments/${n}`, linksSql(n)] as [string, string]
     ),
     ['shipments/update', builtLink()] as [string, string],
   ]
 
-  assert.ok(all.length >= 24, `only ${all.length} statements found - the walk broke`)
+  assert.ok(all.length >= 23, `only ${all.length} statements found - the walk broke`)
   for (const [name, text] of all) {
     assert.doesNotMatch(strip(text), /\bJOIN\b/i, `${name} joins a second table`)
   }
+})
+
+test('the links read orders the handover leg ahead of a return', () => {
+  const text = strip(linksSql('get_for'))
+  assert.match(text, /JOIN shipping\.shipments/, 'get_for does not reach the leg it orders by')
+  assert.match(text, /direction = 'Return'/, 'get_for does not sort a return leg last')
+  assert.doesNotMatch(
+    text,
+    /ORDER BY\s+(fs\.)?id ASC\s*$/,
+    'get_for is back to ordering by the link row id, which is a random uuid'
+  )
 })
 
 test('the direction cast is schema-qualified', () => {
@@ -199,4 +214,28 @@ test('the fulfillment view is one read that nests every child by its table', () 
   assert.match(view, /jsonb_agg/, 'the shipment links are not nested')
   assert.match(view, /shipping\.shipments/, 'the parcel is not read')
   assert.match(view, /ORDER BY COALESCE/, "the schedule order is not the view's")
+})
+
+// LD F7. A sale's parcel is created Outbound, so the first statement of the
+// SHIPMENT branch returned an empty `missing` the moment the draft existed and
+// `carrier_service_id` was never demanded - `sale_quote.sql` INNER JOINs
+// shipping.services, so a null service prices the customer's delivery at zero.
+const aSaleParcel = (carrier_service_id: string | null) =>
+  ({
+    method: { category: 'SHIPMENT', type: 'CARRIER DROPOFF' },
+    parcel: {
+      direction: 'Outbound',
+      shipper_address_id: null,
+      package_id: null,
+      carrier_service_id,
+      pickup_date: null,
+      pickup_time: null,
+    },
+    pickup: null,
+    direct: null,
+  }) as unknown as Parameters<typeof missingFor>[0]
+
+test("a sale's outbound parcel still owes its delivery service", () => {
+  assert.deepEqual(missingFor(aSaleParcel(null), []), ['carrier_service_id'])
+  assert.deepEqual(missingFor(aSaleParcel('0e4c8a12-0000-0000-0000-000000000001'), []), [])
 })

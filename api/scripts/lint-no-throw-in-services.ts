@@ -9,15 +9,10 @@ const API_ROOT = process.env.LINT_NO_THROW_ROOT
 const SRC_ROOT = sourceRoot(API_ROOT)
 const DOMAIN_ROOTS = domainDirs(API_ROOT).map((d) => path.join(SRC_ROOT, d))
 
-const ACCEPTED: Record<string, { count: number; why: string }> = {
-  'domains/logistics/fulfillments/owner.ts': {
-    count: 1,
-    why:
-      'a transport helper, not a domain file - it takes an express Request and ' +
-      'raises the 404 its controllers surface. Ruling 77 landed it beside the ' +
-      'service it guards; its role did not change.',
-  },
-}
+// Empty on purpose. `domains/logistics/fulfillments/owner.ts` was the one entry;
+// it raises its 404 through `rules.assertOwnedDraft` now, so there is nothing to
+// excuse (LD F2's pass).
+const ACCEPTED: Record<string, { count: number; why: string }> = {}
 
 function walk(dir: string, out: string[] = []): string[] {
   let entries: string[]

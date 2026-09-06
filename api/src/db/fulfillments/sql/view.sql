@@ -33,6 +33,11 @@ SELECT to_jsonb(f)
             FROM fulfillments.shipments fs
            WHERE fs.fulfillment_id = f.id),
          '[]'::jsonb) AS shipments,
+       -- THE PARCEL IS THE HANDOVER LEG, never a return. A cancel and a supplier
+       -- send both link a second shipment to the same fulfillment, and
+       -- `ORDER BY fs.id` is an ordering over random uuids - so which leg the
+       -- customer was shown was a coin flip per order (LD F3). A return leg is
+       -- its own kind of link; the handover is the earliest non-Return one.
        (SELECT jsonb_build_object(
                  'id', s.id,
                  'direction', s.direction::text,
@@ -46,7 +51,8 @@ SELECT to_jsonb(f)
           FROM fulfillments.shipments fs
           JOIN shipping.shipments s ON s.id = fs.shipment_id
          WHERE fs.fulfillment_id = f.id
-         ORDER BY fs.id ASC
+           AND s.direction <> 'Return'
+         ORDER BY s.created_at ASC NULLS FIRST, s.id ASC
          LIMIT 1) AS parcel,
        to_char(COALESCE(fp.start_time, fd.start_time) AT TIME ZONE 'UTC',
                'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS scheduled_at

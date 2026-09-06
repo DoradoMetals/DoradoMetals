@@ -69,6 +69,43 @@ export async function create(
   return await getById(id, tx)
 }
 
+// THE ONE CALL A CANCEL MAKES. A return leg is a leg of its own: it is never
+// the fulfillment's parcel (LD F3), and it exists only where the metal has to
+// travel back by post - a pickup or an appointment order is cancelled with no
+// return label at all, which is why this answers null rather than refusing
+// (LD F4). An unlabelled return leg already on the order is reused, so a
+// second cancel cannot orphan the first label (LD F5).
+export async function returnLeg(
+  order_id: string,
+  patch: ShipmentWrite,
+  tx: Executor
+): Promise<string | null> {
+  const category = await fulfillmentService.categoryOfOrder(order_id, tx)
+  if (category !== 'SHIPMENT') return null
+
+  const existing = await returnLegOf(order_id, tx)
+  rules.assertReturnNotBought(existing?.tracking_number, order_id)
+  const shipment_id = existing?.id ?? (await shipments.create({ direction: 'Return' }, tx))
+  if (!existing) await fulfillmentService.linkReturn(order_id, shipment_id, tx)
+
+  await shipments.update(shipment_id, patch, tx)
+  return shipment_id
+}
+
+export async function returnLegOf(
+  order_id: string,
+  executor?: Executor
+): Promise<OrderViewShipment | null> {
+  const fulfillment = await fulfillmentsRepo.getByOrder(order_id, executor)
+  if (!fulfillment) return null
+  const links = await fulfillmentLinks.getFor(fulfillment.id, executor)
+  const legs = await shipments.getMany(
+    links.map((l) => l.shipment_id),
+    executor
+  )
+  return legs.find((s) => s.direction === 'Return') ?? null
+}
+
 export async function update(
   id: string,
   patch: ShipmentWrite,

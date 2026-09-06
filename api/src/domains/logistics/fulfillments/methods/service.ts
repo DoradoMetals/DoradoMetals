@@ -46,9 +46,10 @@ export async function assertOffered(
 
 export async function update(
   id: string,
-  patch: FulfillmentMethodPatch
+  patch: FulfillmentMethodPatch,
+  tx: Executor
 ): Promise<FulfillmentMethodRead | null> {
-  const changed = await methods.update(id, patch)
+  const changed = await methods.update(id, patch, tx)
   if (!changed) return null
-  return (await methods.getOne(id)) ?? null
+  return (await methods.getOne(id, tx)) ?? null
 }

@@ -8,6 +8,7 @@ type Executor = PoolClient | undefined
 
 export type EmailKind =
   | 'purchase_order_created'
+  | 'sales_order_created'
   | 'purchase_order_priced'
   | 'sales_order_to_supplier'
   | 'auth_verification'
@@ -21,7 +22,7 @@ type EmailBase = {
   pdf_id?: string | null
 }
 
-type EmailOutcome =
+export type EmailOutcome =
   | { status: 'sent'; provider_message_id?: string | null }
   | { status: 'failed'; error?: string | null }
 
@@ -57,9 +58,4 @@ export async function linkableOrderId(
   if (!order_id) return null
   const { rows } = await query('SELECT 1 FROM orders.orders WHERE id = $1', [order_id], executor)
   return rows.length ? order_id : null
-}
-
-export const messageIdOf = (result: unknown): string | null => {
-  const id = (result as { messageId?: unknown } | null | undefined)?.messageId
-  return typeof id === 'string' ? id : null
 }

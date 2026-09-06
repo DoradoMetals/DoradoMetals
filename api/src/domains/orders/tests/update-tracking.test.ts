@@ -55,10 +55,7 @@ test('an admin can record a tracking number against a sales order', async () => 
     async (client: PoolClient) => {
       const { shipment } = await aSalesShipment(client)
       await asAdmin(admin, async () => {
-        const res = await request(app).patch(`/api/shipments/${shipment.id}`).send({
-          tracking_number: 'E2E-TRACK-000001',
-          carrier_id: shipment.carrier_id,
-        })
+        const res = await request(app).patch(`/api/shipments/${shipment.id}`).send({ tracking_number: 'E2E-TRACK-000001' })
 
         assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`)
         assert.ok(
@@ -76,10 +73,7 @@ test('the tracking number actually lands on the shipment', async () => {
     async (client: PoolClient) => {
       const { shipment } = await aSalesShipment(client)
       await asAdmin(admin, async () => {
-        await request(app).patch(`/api/shipments/${shipment.id}`).send({
-          tracking_number: 'E2E-TRACK-000002',
-          carrier_id: shipment.carrier_id,
-        })
+        await request(app).patch(`/api/shipments/${shipment.id}`).send({ tracking_number: 'E2E-TRACK-000002' })
 
         const { rows } = await client.query(
           `SELECT tracking_number FROM shipping.shipments WHERE id = $1`,
@@ -90,6 +84,21 @@ test('the tracking number actually lands on the shipment', async () => {
           'E2E-TRACK-000002',
           'the route answered but the shipment was not updated'
         )
+      })
+    },
+    { actor: TEST_ACTOR.id, lock: ORDER_LOCK }
+  )
+})
+
+test('the patch refuses a carrier_id - it decided nothing and is gone', async () => {
+  await inPinnedTransaction(
+    async (client: PoolClient) => {
+      const { shipment } = await aSalesShipment(client)
+      await asAdmin(admin, async () => {
+        const res = await request(app)
+          .patch(`/api/shipments/${shipment.id}`)
+          .send({ tracking_number: 'E2E-TRACK-000003', carrier_id: shipment.carrier_id })
+        assert.equal(res.status, 400, `answered ${res.status}: ${JSON.stringify(res.body)}`)
       })
     },
     { actor: TEST_ACTOR.id, lock: ORDER_LOCK }

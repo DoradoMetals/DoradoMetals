@@ -12,8 +12,9 @@ import {
   renderAccountCreatedEmail,
   renderVerifyEmail,
 } from '#documents/emails/utils/renderEmail.ts'
-import { sendEmail } from '#providers/emails/nodemailer.ts'
-import { recordEmail, messageIdOf } from '#documents/emails/record.ts'
+import { deliver } from '#providers/emails/nodemailer.ts'
+import * as rules from '#documents/emails/rules.ts'
+import { recordEmail } from '#documents/emails/record.ts'
 import { persistPdf } from '#documents/pdfs/store.ts'
 import { attempt } from '#shared/attempt.ts'
 import type { PoolClient } from 'pg'
@@ -22,6 +23,7 @@ import {
   formatPurchaseOrderNumber,
   formatSalesOrderNumber,
 } from '#shared/utils/formatOrderNumbers.ts'
+
 
 export async function sendOrderPlacedConfirmation(
   order_id: string,
@@ -42,16 +44,28 @@ export async function sendCreatedEmail(
   transport?: Transport,
   executor?: PoolClient
 ): Promise<void> {
-  const pdfBuffer = await pdfService.generatePackingList(input)
-  const order_id = input.order.order.id
-  const pdfId = await persistPdf('packing_list', order_id, pdfBuffer, executor)
-
+  // A buyer ships nothing. The packing list is purchase-shaped throughout - it
+  // says "put this in your package", prints Dorado as the recipient, formats a
+  // PO number and embeds an inbound label a sale does not have (LD F10) - so a
+  // sale's confirmation carries its own invoice, and files itself under its
+  // own kind.
   const isSale = input.order.order.direction === 'sale'
+  const pdfBuffer = isSale
+    ? await pdfService.generateSalesOrderInvoice(input)
+    : await pdfService.generatePackingList(input)
+  const order_id = input.order.order.id
+  const pdfId = await persistPdf(
+    isSale ? 'sales_order_invoice' : 'packing_list',
+    order_id,
+    pdfBuffer,
+    executor
+  )
+
   const renderPlaced = isSale ? renderSalesOrderPlacedEmail : renderPurchaseOrderPlacedEmail
   const formatOrderNumber = isSale ? formatSalesOrderNumber : formatPurchaseOrderNumber
 
   const subject = 'Your Order Has Been Placed!'
-  const result = await sendEmail(
+  const delivery = await deliver(
     {
       to,
       subject,
@@ -61,7 +75,9 @@ export async function sendCreatedEmail(
       }),
       attachments: [
         {
-          filename: `${formatOrderNumber(input.order.order.number)}_packing_list.pdf`,
+          filename: `${formatOrderNumber(input.order.order.number)}_${
+            isSale ? 'invoice' : 'packing_list'
+          }.pdf`,
           content: pdfBuffer,
           contentType: 'application/pdf',
         },
@@ -72,16 +88,17 @@ export async function sendCreatedEmail(
 
   await recordEmail(
     {
-      kind: 'purchase_order_created',
+      kind: isSale ? 'sales_order_created' : 'purchase_order_created',
       to,
       subject,
       order_id,
       pdf_id: pdfId,
       user_id: input.order.user?.id ?? null,
     },
-    { status: 'sent', provider_message_id: messageIdOf(result) },
+    rules.outcomeOf(delivery),
     executor
   )
+  rules.assertDelivered(delivery)
 }
 
 export async function sendPricedEmail(
@@ -95,7 +112,7 @@ export async function sendPricedEmail(
   const pdfId = await persistPdf('invoice', order_id, pdfBuffer, executor)
 
   const subject = `Your Order Has Been Priced - Order ${formatPurchaseOrderNumber(input.order.order.number)}`
-  const result = await sendEmail(
+  const delivery = await deliver(
     {
       to,
       subject,
@@ -123,9 +140,10 @@ export async function sendPricedEmail(
       pdf_id: pdfId,
       user_id: input.order.user?.id ?? null,
     },
-    { status: 'sent', provider_message_id: messageIdOf(result) },
+    rules.outcomeOf(delivery),
     executor
   )
+  rules.assertDelivered(delivery)
 }
 
 export async function sendSalesOrderToSupplier(
@@ -140,7 +158,7 @@ export async function sendSalesOrderToSupplier(
   const pdfId = await persistPdf('sales_order_invoice', order_id, pdfBuffer, executor)
 
   const subject = `Dorado Metals Exchange - New Order ${formatSalesOrderNumber(order.order.number)}`
-  const result = await sendEmail(
+  const delivery = await deliver(
     {
       to: email,
       subject,
@@ -163,9 +181,10 @@ export async function sendSalesOrderToSupplier(
 
   await recordEmail(
     { kind: 'sales_order_to_supplier', to: email, subject, order_id, pdf_id: pdfId },
-    { status: 'sent', provider_message_id: messageIdOf(result) },
+    rules.outcomeOf(delivery),
     executor
   )
+  rules.assertDelivered(delivery)
 }
 
 export async function sendAuthVerificationEmail(
@@ -177,7 +196,7 @@ export async function sendAuthVerificationEmail(
 ): Promise<void> {
   const subject = isSignUp ? 'Welcome to Dorado Metals Exchange' : 'Verify Your Email Address'
 
-  const result = await sendEmail(
+  const delivery = await deliver(
     {
       to: user.email,
       subject,
@@ -196,7 +215,8 @@ export async function sendAuthVerificationEmail(
       subject,
       user_id: typeof user.id === 'string' ? user.id : null,
     },
-    { status: 'sent', provider_message_id: messageIdOf(result) },
+    rules.outcomeOf(delivery),
     executor
   )
+  rules.assertDelivered(delivery)
 }

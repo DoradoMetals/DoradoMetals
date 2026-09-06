@@ -29,19 +29,29 @@ export const cancelSchedule = asyncHandler(async (req, res) => {
     req.body,
     'fulfillments/cancel_schedule body'
   )
-  return res.status(200).json(await fulfillmentService.cancelSchedule(body.fulfillment_id))
+  return res
+    .status(200)
+    .json(await withTransaction((tx) => fulfillmentService.cancelSchedule(body.fulfillment_id, tx)))
 })
 
 export const setMethod = asyncHandler(async (req, res) => {
   const body = parseStrict(FulfillmentSetMethodBody, req.body, 'fulfillments/set_method body')
   return res
     .status(200)
-    .json(await fulfillmentService.setMethod(body.fulfillment_id, body.method_id))
+    .json(
+      await withTransaction((tx) =>
+        fulfillmentService.setMethod(body.fulfillment_id, body.method_id, tx)
+      )
+    )
 })
 
 export const setStatus = asyncHandler(async (req, res) => {
   const body = parseStrict(FulfillmentSetStatusBody, req.body, 'fulfillments/set_status body')
-  return res.status(200).json(await fulfillmentService.setStatus(body.fulfillment_id, body.status))
+  return res
+    .status(200)
+    .json(
+      await withTransaction((tx) => fulfillmentService.setStatus(body.fulfillment_id, body.status, tx))
+    )
 })
 
 export const getFulfillmentByOrder = asyncHandler(async (req, res) => {
@@ -88,5 +98,7 @@ export const patchFulfillment = asyncHandler(async (req, res) => {
   const id = uuidParam(req, 'id')
   await requireFulfillmentOwner(req, id)
   const body = parseStrict(FulfillmentPatchBody, req.body, 'fulfillments PATCH body')
-  return res.status(200).json(await fulfillmentService.patchChoices(id, body))
+  return res
+    .status(200)
+    .json(await withTransaction((tx) => fulfillmentService.patchChoices(id, body, tx)))
 })

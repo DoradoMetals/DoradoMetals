@@ -7,8 +7,6 @@ import * as ordersRepo from '#db/orders/repo.ts'
 import * as orderTransactions from '#db/orders/transactions/repo.ts'
 import * as usersRepo from '#db/users/repo.ts'
 
-import * as servicesRepo from '#db/shipping/services/repo.ts'
-import * as fulfillmentService from '#logistics/fulfillments/service.ts'
 import * as shipmentService from '#logistics/shipping/shipments/service.ts'
 import * as pickupService from '#logistics/shipping/pickups/service.ts'
 import * as carrierServices from '#logistics/shipping/services/service.ts'
@@ -26,7 +24,6 @@ import type { Executor } from '#shared/db/executor.ts'
 import type {
   Address,
   CarrierPickupBooking,
-  CarrierServiceRead,
   Parcel,
   ParcelSchedule,
 } from '@dorado/contracts'
@@ -76,6 +73,7 @@ export async function buyLabel(shipment_id: string): Promise<void> {
   rules.assertShipment(shipment, shipment_id)
   rules.assertUnlabelled(shipment.tracking_number, shipment_id)
   rules.assertParcelChosen(shipment, shipment_id)
+  await claim(shipment_id)
 
   const link = await shipmentService.getOrderLink(shipment_id)
   rules.assertLabelledOrder(link, shipment_id)
@@ -143,7 +141,9 @@ export async function buyLabel(shipment_id: string): Promise<void> {
 export async function buyReturnLabel(shipment_id: string): Promise<void> {
   const shipment = await shipmentsRepo.getOne(shipment_id)
   rules.assertShipment(shipment, shipment_id)
+  rules.assertUnlabelled(shipment.tracking_number, shipment_id)
   rules.assertParcelChosen(shipment, shipment_id)
+  await claim(shipment_id)
 
   const link = await shipmentService.getOrderLink(shipment_id)
   rules.assertLabelledOrder(link, shipment_id)
@@ -181,6 +181,31 @@ export async function buyReturnLabel(shipment_id: string): Promise<void> {
       },
       tx
     )
+  )
+}
+
+// The purchase is CLAIMED before the carrier is called, and the claim is what a
+// second attempt loses. Nothing is bought twice, and a purchase whose recording
+// transaction fails leaves the shipment claimed rather than open for a second
+// buy (LD F5).
+async function claim(shipment_id: string): Promise<void> {
+  const claimed = await withTransaction((tx) => shipmentsRepo.claimForLabel(shipment_id, tx))
+  rules.assertClaimed(claimed, shipment_id)
+}
+
+// What a returning parcel is insured for. A purchase cancelled before it is
+// priced has no order total, so the value the customer declared on the way in
+// is the floor (MP F5). Exposed for the cancel use case in orders.
+export async function returnDeclaredValue(
+  order_id: string,
+  order_total: number | null,
+  service_code: string,
+  executor?: Executor
+): Promise<number> {
+  const inbound = await shipmentService.getByOrder(order_id, executor)
+  return await carrierServices.clampInsuredValue(
+    rules.returnDeclaredValue(inbound?.declared_value, order_total),
+    service_code
   )
 }
 
@@ -242,13 +267,3 @@ async function customerName(order_id: string): Promise<string> {
   return (await usersRepo.getOne(user_id))?.name ?? ''
 }
 
-export async function serviceForFulfillment(
-  fulfillment_id: string,
-  executor?: Executor
-): Promise<CarrierServiceRead | undefined> {
-  const shipment_id = await fulfillmentService.shipmentIdOf(fulfillment_id, executor)
-  if (!shipment_id) return undefined
-  const shipment = await shipmentsRepo.getOne(shipment_id, executor)
-  if (!shipment?.carrier_service_id) return undefined
-  return await servicesRepo.getOne(shipment.carrier_service_id, executor)
-}

@@ -198,27 +198,63 @@ test('stored bytes that no longer match their checksum are a miss, not a serve',
   })
 })
 
-test('a caller who does not own the order never touches the store and persists nothing', async () => {
+test('a caller who does not own the order is refused - nothing is rendered, read or stored', async () => {
   await inRollback(async (c: PoolClient) => {
     await insertRow(c, { path: 'pdfs/x/new.pdf', checksum: sha256(STORED), hoursAgo: 1 })
 
     const r = renderer()
     const storage = reader(STORED)
+    await assert.rejects(
+      () =>
+        serveOrderDocument(
+          {
+            kind: 'invoice',
+            order_id: order.id,
+            caller: { id: randomUUID(), role: 'user' },
+            render: r.render,
+          },
+          storage.read,
+          c
+        ),
+      (e: Error & { kind?: string }) => {
+        assert.equal(e.kind, 'not_found', 'a stranger must not learn the order exists')
+        return true
+      }
+    )
+
+    assert.deepEqual(storage.paths, [], 'the store answered a caller the order does not belong to')
+    assert.equal(r.calls.length, 0, "a stranger's document was rendered and handed back")
+    assert.equal(await pdfRowCount(c), 1, "a stranger's render must not enter the paper trail")
+  })
+})
+
+test('an anonymous caller is refused, and an admin is not', async () => {
+  await inRollback(async (c: PoolClient) => {
+    const anonymous = renderer()
+    await assert.rejects(
+      () =>
+        serveOrderDocument(
+          { kind: 'invoice', order_id: order.id, caller: null, render: anonymous.render },
+          reader(STORED).read,
+          c
+        ),
+      /no order/
+    )
+    assert.equal(anonymous.calls.length, 0)
+
+    const admin = renderer()
     const served = await serveOrderDocument(
       {
         kind: 'invoice',
         order_id: order.id,
-        caller: { id: randomUUID(), role: 'user' },
-        render: r.render,
+        caller: { id: randomUUID(), role: 'admin' },
+        render: admin.render,
       },
-      storage.read,
+      reader(STORED).read,
       c
     )
-
     assert.equal(served.source, 'rendered')
-    assert.deepEqual(storage.paths, [], 'the store answered a caller the order does not belong to')
-    assert.equal(r.calls.length, 1)
-    assert.equal(await pdfRowCount(c), 1, "a stranger's render must not enter the paper trail")
+    assert.equal(admin.calls.length, 1)
   })
 })
 
