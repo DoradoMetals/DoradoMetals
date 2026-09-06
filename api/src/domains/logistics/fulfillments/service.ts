@@ -7,6 +7,8 @@ import * as parcel from '#logistics/shipping/parcel.ts'
 import * as handoffsService from '#logistics/shipping/handoffs/service.ts'
 import * as orders from '#db/orders/repo.ts'
 import * as rules from '#logistics/fulfillments/rules.ts'
+import * as addressService from '#accounts/places/addresses/service.ts'
+import * as checkoutRows from '#db/checkout/checkouts/repo.ts'
 import { withDecisions } from '#shared/views.ts'
 import type { Executor } from '#shared/db/executor.ts'
 import type {
@@ -127,6 +129,34 @@ async function ensureDetail(
   await directs.create({ fulfillment_id }, executor)
 }
 
+// Whose fulfillment this is - the checkout that points at a draft, or the order
+// an attached one belongs to. Read from the rows rather than from the caller,
+// so an admin patching a customer's fulfillment is held to the CUSTOMER's book.
+export async function ownerOf(
+  fulfillment_id: string,
+  executor?: Executor
+): Promise<string | null> {
+  const checkout = await checkoutRows.findByFulfillment(fulfillment_id, executor)
+  return checkout?.user_id ?? (await orderOwnerOf(fulfillment_id, executor))
+}
+
+// An address a customer names must be one of their own. `requireFulfillmentOwner`
+// proves the FULFILLMENT is theirs; this proves the ADDRESS is (LD F2).
+async function assertAddressIsTheirs(
+  fulfillment_id: string,
+  address_id: string | null | undefined,
+  executor?: Executor
+): Promise<void> {
+  if (address_id == null) return
+  const owner = await ownerOf(fulfillment_id, executor)
+  rules.assertFulfillmentOwner(owner, fulfillment_id)
+  const book = await addressService.list(owner, executor)
+  rules.assertAddressIsTheirs(
+    book.some((entry) => entry.address.id === address_id),
+    address_id
+  )
+}
+
 export async function patchChoices(
   id: string,
   body: FulfillmentPatchBody,
@@ -139,11 +169,14 @@ export async function patchChoices(
 
   if ('shipment' in body) {
     rules.assertChoicesMatchCategory(method.category, 'SHIPMENT', id)
+    await assertAddressIsTheirs(id, body.shipment.shipper_address_id, executor)
+    await assertAddressIsTheirs(id, body.shipment.recipient_address_id, executor)
     const [link] = await shipmentLinks.getFor(id, executor)
     rules.assertParcel(link, id)
     await parcel.applyChoices(link.shipment_id, body.shipment, executor)
   } else if ('pickup' in body) {
     rules.assertChoicesMatchCategory(method.category, 'PICKUP', id)
+    await assertAddressIsTheirs(id, body.pickup.pickup_address_id, executor)
     rules.assertTimestamp(body.pickup.start_time)
     await pickups.update(id, body.pickup, executor)
   } else {
@@ -274,6 +307,29 @@ export async function setMethod(
   await ensureDetail(id, target.category, target.direction ?? 'purchase', executor)
 
   return await recompose(id, executor)
+}
+
+export async function categoryOfOrder(
+  order_id: string,
+  executor?: Executor
+): Promise<FulfillmentCategory | null> {
+  const row = await fulfillments.getByOrder(order_id, executor)
+  if (!row) return null
+  return (await methodService.getOne(row.method_id, executor))?.category ?? null
+}
+
+// The link a RETURN leg gets. A return is not the customer's handover, so the
+// fulfillment's category does not gate it and `assertCategory` is not called:
+// an order the customer brought in by pickup or appointment could not be
+// cancelled at all while it was (LD F4).
+export async function linkReturn(
+  order_id: string,
+  shipment_id: string,
+  tx: Executor
+): Promise<void> {
+  const row = await fulfillments.getByOrder(order_id, tx)
+  rules.assertFulfillment(row, order_id)
+  await shipmentLinks.upsert(row.id, shipment_id, {}, tx)
 }
 
 export async function assertCategory(

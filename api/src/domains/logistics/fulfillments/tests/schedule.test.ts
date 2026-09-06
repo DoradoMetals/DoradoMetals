@@ -257,3 +257,66 @@ test('set_method refuses to move a fulfillment that already has a shipment, and 
     { actor: TEST_ACTOR.id, lock: [LOCKS.ORDERS, LOCKS.FULFILLMENTS] }
   )
 })
+
+// LD F14. `withTransaction` is the only issuer of `set_config('app.actor_id')`,
+// and 116's audit_stamp writes updated_by only when the actor is set - so every
+// admin edit through these endpoints left the row naming whoever last touched
+// it inside a transaction. `setMethod` was four independent writes on four pool
+// checkouts besides, so a failure between them left a fulfillment whose method
+// says PICKUP with its pickup row deleted and no new detail.
+test('an admin status change stamps the admin who made it', async () => {
+  await inPinnedTransaction(
+    async (c: PoolClient) => {
+      const { id } = await aShipmentFulfilment(c)
+      await c.query(
+        `UPDATE fulfillments.fulfillments SET updated_by_id = NULL, updated_by = NULL WHERE id = $1`,
+        [id]
+      )
+
+      const res = await as({ ...admin, role: 'admin' }, () =>
+        request(app).post('/api/fulfillments/set_status').send({ fulfillment_id: id, status: 'COMPLETED' })
+      )
+      assert.equal(res.status, 200, res.text)
+
+      const { rows } = await c.query(
+        `SELECT status, updated_by_id FROM fulfillments.fulfillments WHERE id = $1`,
+        [id]
+      )
+      assert.equal(rows[0].status, 'COMPLETED')
+      assert.equal(rows[0].updated_by_id, admin.id, 'the audit trail missed an admin edit')
+    },
+    { actor: TEST_ACTOR.id, lock: [LOCKS.ORDERS, LOCKS.FULFILLMENTS] }
+  )
+})
+
+test('an admin method change stamps the admin, and its four writes land together', async () => {
+  await inPinnedTransaction(
+    async (c: PoolClient) => {
+      const { id } = await aDirectFulfilment(c)
+      await c.query(
+        `INSERT INTO fulfillments.directs (fulfillment_id, location_id) VALUES ($1, $2)`,
+        [id, await aLocationId(c)]
+      )
+      const method_id = await aPickupMethodId(c)
+      await c.query(`UPDATE fulfillments.fulfillments SET updated_by_id = NULL WHERE id = $1`, [id])
+
+      const res = await as({ ...admin, role: 'admin' }, () =>
+        request(app).post('/api/fulfillments/set_method').send({ fulfillment_id: id, method_id })
+      )
+      assert.equal(res.status, 200, res.text)
+
+      const { rows } = await c.query(
+        `SELECT f.method_id, f.updated_by_id,
+                (SELECT count(*)::int FROM fulfillments.pickups p WHERE p.fulfillment_id = f.id) AS pickups,
+                (SELECT count(*)::int FROM fulfillments.directs d WHERE d.fulfillment_id = f.id) AS directs
+           FROM fulfillments.fulfillments f WHERE f.id = $1`,
+        [id]
+      )
+      assert.equal(rows[0].method_id, method_id)
+      assert.equal(rows[0].updated_by_id, admin.id, 'the audit trail missed an admin method change')
+      assert.equal(rows[0].pickups, 1, 'the new detail row is missing')
+      assert.equal(rows[0].directs, 0, 'the detail row of the category being left survived')
+    },
+    { actor: TEST_ACTOR.id, lock: [LOCKS.ORDERS, LOCKS.FULFILLMENTS] }
+  )
+})

@@ -10,7 +10,6 @@ export async function patchShipment(
   body: ShipmentPatch
 ): Promise<{ success: true }> {
   rules.assertPatchNamesAField(body)
-  rules.assertTrackingPair(body.tracking_number, body.carrier_id)
 
   const shipment = await shipmentsService.getById(shipmentId)
   rules.assertShipment(shipment, shipmentId)

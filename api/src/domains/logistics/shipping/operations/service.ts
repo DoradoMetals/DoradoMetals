@@ -11,6 +11,7 @@ import * as pricing from '#pricing/index.ts'
 import * as fulfillmentService from '#logistics/fulfillments/service.ts'
 import * as carrierServices from '#logistics/shipping/services/service.ts'
 import * as shippingRules from '#logistics/shipping/rules.ts'
+import * as handoffsService from '#logistics/shipping/handoffs/service.ts'
 import * as shippingHandler from '#logistics/shipping/operations/handler.ts'
 import { carrierIdOr } from '#logistics/shipping/operations/resolver.ts'
 import { FEDEX_STORE_ADDRESS, DORADO_ADDRESS } from '#providers/shipments/constants.ts'
@@ -148,6 +149,14 @@ export async function getFulfillmentRates(fulfillment_id: string): Promise<Check
   const total = inbound && quote.direction === 'purchase' ? quote.total : 0
   const declaredValue = await carrierServices.clampInsuredValue(shippingRules.declaredValue(total))
 
+  // The same handoff the label will be bought with. Quoting with no pickupType
+  // and buying with `parcel.handoff.code` asked FedEx two different questions,
+  // and the second answer is what is deducted from the payout (LD F6).
+  const handoff = shippingRules.handoffFor(
+    await handoffsService.getHandoffs(),
+    view.method.type
+  )
+
   const quoted = await quoteRate(
     null,
     inbound ? 'Inbound' : 'Outbound',
@@ -161,7 +170,7 @@ export async function getFulfillmentRates(fulfillment_id: string): Promise<Check
         units: 'IN',
       },
     },
-    undefined,
+    handoff.code,
     declaredValue > 0 ? { amount: declaredValue, currency: 'USD' } : undefined
   )
 
@@ -211,8 +220,8 @@ export async function cancelPickup({
   shippingRules.assertPickup(pickup, pickup_id)
 
   const requestedAt = pickup.requested_at as Date | string | null
-  const pickupDate =
-    requestedAt instanceof Date ? requestedAt.toISOString().slice(0, 10) : (requestedAt ?? null)
+  const parcel = pickup.shipment_id ? await shipmentRepo.getById(pickup.shipment_id) : null
+  const pickupDate = shippingRules.pickupDateFor(parcel?.pickup_date, requestedAt)
 
   await shippingHandler.cancelPickup(await carrierIdOr(carrier_id), undefined, {
     confirmationCode:

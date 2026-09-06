@@ -90,20 +90,6 @@ async function primeCheckout(
   const draft = withFulfillment
     ? await fulfillmentService.createDraft(dropoffMethodId, 'purchase', c)
     : null
-  if (draft) {
-    await fulfillmentService.patchChoices(
-      draft.fulfillment.id,
-      {
-        shipment: {
-          shipper_address_id: addressId,
-          package_id: packageId,
-          carrier_service_id: labelServiceId,
-        },
-      },
-      c
-    )
-  }
-
   const {
     rows: [co],
   } = await c.query(
@@ -117,6 +103,23 @@ async function primeCheckout(
      WHERE id = $1`,
     [co.id, draft?.fulfillment.id ?? null, details.id]
   )
+
+  // The checkout is linked BEFORE the choices are patched, as `createForCheckout`
+  // does: an address a patch names must be in the fulfillment owner's book, and
+  // an unattached draft has no owner to check against (LD F2).
+  if (draft) {
+    await fulfillmentService.patchChoices(
+      draft.fulfillment.id,
+      {
+        shipment: {
+          shipper_address_id: addressId,
+          package_id: packageId,
+          carrier_service_id: labelServiceId,
+        },
+      },
+      c
+    )
+  }
 
   await c.query(`DELETE FROM checkout.items WHERE checkout_id = $1`, [co.id])
   for (const item of items) {

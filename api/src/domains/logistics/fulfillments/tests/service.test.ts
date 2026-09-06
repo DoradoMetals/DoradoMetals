@@ -314,6 +314,18 @@ test("another customer's fulfillment is not readable by asking for its order", a
 const anAddressId = async (c: PoolClient, user_id: string) =>
   (await anAddress(c, { id: user_id })).id
 
+// A draft belongs to the checkout that points at it, and that is where its owner
+// comes from. `createForCheckout` links the two before it patches anything; a
+// test that patches an unattached draft is testing a state HTTP cannot reach.
+const ownedBy = async (c: PoolClient, fulfillment_id: string, user_id: string) => {
+  await c.query(
+    `INSERT INTO checkout.checkouts (user_id, direction, fulfillment_id)
+     VALUES ($1, 'purchase', $2)
+     ON CONFLICT (user_id, direction) DO UPDATE SET fulfillment_id = EXCLUDED.fulfillment_id`,
+    [user_id, fulfillment_id]
+  )
+}
+
 const aLocation = async (c: PoolClient) =>
   (await c.query(`SELECT id FROM places.locations WHERE name = $1`, ['Dorado Return Address']))
     .rows[0].id
@@ -355,6 +367,7 @@ test('a PICKUP draft owes its address and a time, and a patch clears them', asyn
     )
     assert.ok(draft.pickup, 'a PICKUP draft has no collection row')
     assert.deepEqual(draft.missing, ['pickup_address_id', 'start_time'])
+    await ownedBy(c, draft.fulfillment.id, user.id)
 
     const patched = await service.patchChoices(
       draft.fulfillment.id,
@@ -448,5 +461,54 @@ test('orderOwnerOf answers nothing for a fulfillment attached to no order', asyn
 
     const owner = await service.orderOwnerOf(draft.fulfillment.id, c)
     assert.equal(owner, null)
+  })
+})
+
+test("a patch cannot point a parcel at an address that is not the fulfillment owner's", async () => {
+  await inRollback(async (c: PoolClient) => {
+    const owner = await aUser(c)
+    const stranger = await aUser(c)
+    const draft = await service.createDraft(
+      (await methodOf(c, 'CARRIER DROPOFF', 'purchase')).id,
+      'purchase',
+      c
+    )
+    await ownedBy(c, draft.fulfillment.id, owner.id)
+
+    const theirs = await anAddressId(c, stranger.id)
+    await assert.rejects(
+      () => service.patchChoices(draft.fulfillment.id, { shipment: { shipper_address_id: theirs } }, c),
+      /no address/,
+      "a customer pointed their parcel at somebody else's address"
+    )
+
+    const mine = await anAddressId(c, owner.id)
+    const patched = await service.patchChoices(
+      draft.fulfillment.id,
+      { shipment: { shipper_address_id: mine } },
+      c
+    )
+    assert.equal(patched.parcel?.shipper_address_id, mine, 'their own address was refused too')
+  })
+})
+
+test("a PICKUP patch cannot name an address that is not the fulfillment owner's", async () => {
+  await inRollback(async (c: PoolClient) => {
+    const owner = await aUser(c)
+    const stranger = await aUser(c)
+    const draft = await service.createDraft(
+      (await methodOf(c, 'PICKUP', 'purchase')).id,
+      'purchase',
+      c
+    )
+    await ownedBy(c, draft.fulfillment.id, owner.id)
+
+    const theirs = await anAddressId(c, stranger.id)
+    await assert.rejects(
+      () =>
+        service.patchChoices(draft.fulfillment.id, { pickup: { pickup_address_id: theirs } }, c),
+      /no address/,
+      "a customer sent the courier to somebody else's address"
+    )
   })
 })

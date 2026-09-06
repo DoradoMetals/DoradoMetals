@@ -1,4 +1,5 @@
 import query from '#shared/db/query.ts'
+import { buildUpdate } from '#shared/db/patch.ts'
 import { sqlFrom } from '#shared/db/sql.ts'
 import type { Carrier, ComposedCarrier } from '@dorado/contracts'
 import { ComposedCarrier as View } from '@dorado/contracts'
@@ -29,12 +30,22 @@ export async function create(
   return rows[0]
 }
 
+// Patch semantics, not a fixed SET: `sql/update.sql` wrote `logo = $1`, and an
+// omitted logo arrives as undefined, which the driver binds as NULL - so any
+// edit that did not re-send the logo deleted it (LD F18).
 export async function update(
   id: string,
-  patch: Pick<Carrier, 'logo'>,
+  patch: Partial<Pick<Carrier, 'logo'>>,
   executor?: Executor
 ): Promise<boolean> {
-  const { rowCount } = await query(sql('update'), [patch.logo, id], executor)
+  const built = buildUpdate({
+    table: 'shipping.carriers',
+    allowed: ['logo'],
+    patch,
+    where: { id },
+  })
+  if (!built) return true
+  const { rowCount } = await query(built.text, built.values, executor)
   return rowCount === 1
 }
 

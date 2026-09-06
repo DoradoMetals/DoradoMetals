@@ -48,30 +48,25 @@ export async function serveOrderDocument(
     !!caller?.id &&
     (caller.role === 'admin' || (await orderOwnedBy(orderId, caller.id, executor)))
 
-  if (entitled && orderId) {
-    const row = await latestPdf(kind, orderId, executor)
+  rules.assertEntitled(entitled, orderId)
 
-    if (row) {
-      const bytes = await attempt(
-        `read stored ${kind} ${row.id} for order ${orderId}`,
-        async () => {
-          const b = await storage(row.path)
-          if (row.checksum) rules.assertChecksum(sha256(b) === row.checksum, row.checksum)
-          return b
-        }
-      )
-      if (bytes) return { bytes, source: 'stored' }
-      return { bytes: await render(), source: 'rendered' }
-    }
+  const row = await latestPdf(kind, orderId, executor)
 
-    const bytes = await render()
-    if (await linkableOrderId(orderId, executor)) {
-      await persistPdf(kind, orderId, bytes, executor)
-    }
-    return { bytes, source: 'rendered' }
+  if (row) {
+    const bytes = await attempt(`read stored ${kind} ${row.id} for order ${orderId}`, async () => {
+      const b = await storage(row.path)
+      if (row.checksum) rules.assertChecksum(sha256(b) === row.checksum, row.checksum)
+      return b
+    })
+    if (bytes) return { bytes, source: 'stored' }
+    return { bytes: await render(), source: 'rendered' }
   }
 
-  return { bytes: await render(), source: 'rendered' }
+  const bytes = await render()
+  if (await linkableOrderId(orderId, executor)) {
+    await persistPdf(kind, orderId, bytes, executor)
+  }
+  return { bytes, source: 'rendered' }
 }
 
 const sha256 = (bytes: Uint8Array): string => createHash('sha256').update(bytes).digest('hex')

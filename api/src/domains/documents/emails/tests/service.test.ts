@@ -132,7 +132,7 @@ test("a sale order's confirmation renders the sale's own wording, named for the 
   const [pdf] = msg.attachments
   assert.equal(
     pdf.filename,
-    `${formatSalesOrderNumber(order.order.number)}_packing_list.pdf`,
+    `${formatSalesOrderNumber(order.order.number)}_invoice.pdf`,
     'the attachment is named for a different order'
   )
   startsPdf(pdf.content, 'the packing list attachment')

@@ -338,7 +338,10 @@ export function buildInvoiceHtml({ order, pricing }: PurchaseDocument): string {
       </div>`
     : ''
 
-  const shippingTotal = (inboundShipment(order)?.cost ?? 0) + (returnShipment(order)?.cost ?? 0)
+  // The deduction and the Total must be the same arithmetic. `pricing.total`
+  // subtracts `pricing.shipping_charge`; adding the return leg here made the
+  // printed lines miss the printed Total by exactly the return label (LD F8).
+  const shippingTotal = pricing.shipping_charge
 
   const totalsSection = `
     <div class="order-info">
@@ -575,6 +578,17 @@ export function buildSalesOrderInvoiceHtml({ order, pricing }: SalesDocument): s
           <tr>
             <td class="text-left">Payment Fee</td>
             <td class="text-right">${money(order.totals?.surcharge ?? 0)}</td>
+          </tr>
+          `
+              : ''
+          }
+
+          ${
+            (order.totals?.sales_tax ?? 0) > 0
+              ? `
+          <tr>
+            <td class="text-left">Sales Tax</td>
+            <td class="text-right">${money(order.totals?.sales_tax ?? 0)}</td>
           </tr>
           `
               : ''

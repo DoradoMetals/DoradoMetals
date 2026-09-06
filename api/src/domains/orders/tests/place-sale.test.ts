@@ -426,7 +426,7 @@ test('a sale paid entirely by credit sends its confirmation at placement', async
     assert.ok(msg.attachments, 'the confirmation carries no attachments at all')
     assert.equal(msg.attachments.length, 1)
     const [pdf] = msg.attachments
-    assert.equal(pdf.filename, `${formatSalesOrderNumber(placed.order.number)}_packing_list.pdf`)
+    assert.equal(pdf.filename, `${formatSalesOrderNumber(placed.order.number)}_invoice.pdf`)
   })
 })
 
@@ -472,6 +472,6 @@ test('a sale paid by card waits for the webhook before it confirms', async () =>
     assert.ok(msg.attachments, 'the confirmation carries no attachments at all')
     assert.equal(msg.attachments.length, 1)
     const [pdf] = msg.attachments
-    assert.equal(pdf.filename, `${formatSalesOrderNumber(placed.order.number)}_packing_list.pdf`)
+    assert.equal(pdf.filename, `${formatSalesOrderNumber(placed.order.number)}_invoice.pdf`)
   })
 })

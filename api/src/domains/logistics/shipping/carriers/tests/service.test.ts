@@ -87,8 +87,8 @@ test('update changes both the organization and the carrier row', async () => {
       const made = await service.createCarrier(draft())
       assert.ok(made, 'the service returned nothing')
       const updated = await service.updateCarrier({
-        ...made,
-        organization: { ...made.organization, name: 'renamed', enabled: false },
+        id: made.id,
+        organization: { name: 'renamed', enabled: false },
         logo: '/carriers/new.png',
       })
       assert.ok(updated, 'the update returned nothing')
@@ -144,6 +144,30 @@ test('an update with no id changes nothing', async () => {
       assert.equal(await service.updateCarrier({ organization: { name: 'nobody' } }), null)
       const { rows: after } = await c.query('SELECT count(*)::int n FROM shipping.carriers')
       assert.equal(after[0].n, before[0].n)
+    },
+    { actor: TEST_ACTOR.id }
+  )
+})
+
+test('an edit that names only the organization leaves the logo and the unnamed fields alone', async () => {
+  await inPinnedTransaction(
+    async () => {
+      const made = await service.createCarrier(draft())
+      assert.ok(made, 'the service returned nothing')
+      assert.ok(made.logo, 'the fixture carrier has no logo to lose')
+      const email = made.organization.email
+      const phone = made.organization.phone
+
+      const updated = await service.updateCarrier({
+        id: made.id,
+        organization: { name: 'renamed again' },
+      })
+
+      assert.ok(updated, 'the update returned nothing')
+      assert.equal(updated.logo, made.logo, 'editing the name deleted the logo')
+      assert.equal(updated.organization.email, email, 'an unnamed field was wiped')
+      assert.equal(updated.organization.phone, phone, 'an unnamed field was wiped')
+      assert.equal(updated.organization.name, 'renamed again')
     },
     { actor: TEST_ACTOR.id }
   )

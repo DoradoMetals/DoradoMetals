@@ -37,6 +37,17 @@ export function declaredValue(total: number): number {
   return Math.max(0, Number(total) || 0)
 }
 
+// What a returning parcel is worth. A purchase cancelled before it is finalized
+// has no order total yet, so pricing it from the total alone sent the customer's
+// metal back uninsured; the value the customer declared on the way IN is on the
+// inbound parcel and is the floor (MP F5).
+export function returnDeclaredValue(
+  inboundDeclared: number | null | undefined,
+  orderTotal: number | null | undefined
+): number {
+  return Math.max(declaredValue(Number(orderTotal ?? 0)), declaredValue(Number(inboundDeclared ?? 0)))
+}
+
 export function offeredRates(
   quoted: CarrierRateQuote[],
   offered: CarrierServiceOption[],
@@ -110,6 +121,19 @@ export function scheduleFromPickup(pickup: FulfillmentPickup | undefined): Parce
   }
 }
 
+// The date the carrier is told to cancel. `shipping.pickups.requested_at` is a
+// timestamptz written from a bare local string, so deriving the date through
+// toISOString() answers UTC's day, not the customer's (LD F15). The parcel's own
+// `pickup_date` is the provider's string and is what was asked for.
+export function pickupDateFor(
+  parcelDate: string | null | undefined,
+  requestedAt: Date | string | null
+): string | null {
+  if (parcelDate) return parcelDate
+  if (typeof requestedAt === 'string') return requestedAt.slice(0, 10)
+  return null
+}
+
 export function scheduleOf(
   date: string | null | undefined,
   time: string | null | undefined
@@ -141,6 +165,30 @@ export function assertUnlabelled(
   shipment_id: string
 ): void {
   if (tracking_number) throw new Conflict(`shipment ${shipment_id} already has a label`)
+}
+
+// A second cancel must not buy a second return label and orphan the first
+// (LD F5). The leg that already carries a tracking number IS the cancellation.
+export function assertReturnNotBought(
+  tracking_number: string | null | undefined,
+  order_id: string
+): void {
+  if (tracking_number) {
+    throw new Conflict(
+      `order ${order_id} has already been cancelled - its return label is ${tracking_number}`
+    )
+  }
+}
+
+// The claim a label purchase takes before it calls the carrier. One statement,
+// so two concurrent buys cannot both pass: the loser writes no row and is told
+// so here rather than paying for a second label (LD F5).
+export function assertClaimed(claimed: boolean, shipment_id: string): void {
+  if (!claimed) {
+    throw new Conflict(
+      `shipment ${shipment_id} is already having a label bought for it, or already has one`
+    )
+  }
 }
 
 export function assertParcelChosen(
@@ -387,17 +435,26 @@ export function assertLabelService<T extends { carrier_id: string | null; name: 
   }
 }
 
+// A row that names NO ceiling is not a ceiling of zero. `Number(null)` is 0 and
+// 0 is finite, so one NULL row made `Math.min` answer 0, every label was bought
+// with declaredValue 0 and `sealForPlacement` wrote `insured = false` on a
+// parcel of metal (LD F19).
 // The insurance ceiling a carrier service is offered at. A row of its own wins
 // when it names a finite one; otherwise the carrier's lowest active ceiling is
 // what the label may be insured for. The rows are the carrier's `shipping.services`
 // (`getInsuranceCeilings`) - read with `.find`, never indexed into a Map (ruling 78).
 export function lowestCeiling(rows: InsuranceCeiling[]): number {
-  const values = rows.map((r) => Number(r.max_insured_value)).filter((v) => Number.isFinite(v))
+  const values = rows
+    .filter((r) => r.max_insured_value != null)
+    .map((r) => Number(r.max_insured_value))
+    .filter((v) => Number.isFinite(v))
   return values.length ? Math.min(...values) : 0
 }
 
 export function ceilingFor(rows: InsuranceCeiling[], name: string): number {
-  const own = Number(rows.find((r) => r.name === name)?.max_insured_value)
+  const row = rows.find((r) => r.name === name)
+  if (row?.max_insured_value == null) return lowestCeiling(rows)
+  const own = Number(row.max_insured_value)
   return Number.isFinite(own) ? own : lowestCeiling(rows)
 }
 
@@ -415,12 +472,6 @@ export function assertServiceId(id: string | null | undefined): asserts id is st
 export function assertPatchNamesAField(patch: object): void {
   if (Object.keys(patch).length === 0) {
     throw new Invalid('the document names no field to write')
-  }
-}
-
-export function assertTrackingPair(tracking_number: unknown, carrier_id: unknown): void {
-  if ((tracking_number === undefined) !== (carrier_id === undefined)) {
-    throw new Invalid(`"tracking_number" and "carrier_id" travel together`)
   }
 }
 

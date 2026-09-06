@@ -90,7 +90,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
     WHERE t.typname = 'email_kind' AND n.nspname = 'media'
   ) THEN
-    CREATE TYPE media.email_kind AS ENUM ('purchase_order_created', 'purchase_order_priced', 'sales_order_to_supplier', 'auth_verification');
+    CREATE TYPE media.email_kind AS ENUM ('purchase_order_created', 'purchase_order_priced', 'sales_order_to_supplier', 'auth_verification', 'sales_order_created');
   END IF;
 END $$;
 
@@ -3633,6 +3633,7 @@ CREATE INDEX IF NOT EXISTS idx_shipping_shipments_recipient_address_id ON shippi
 CREATE INDEX IF NOT EXISTS idx_shipping_shipments_shipper_address_id ON shipping.shipments USING btree (shipper_address_id);
 CREATE INDEX IF NOT EXISTS shipments_service_idx ON shipping.shipments USING btree (carrier_service_id);
 CREATE INDEX IF NOT EXISTS shipments_tracking_idx ON shipping.shipments USING btree (tracking_number);
+CREATE UNIQUE INDEX IF NOT EXISTS shipments_tracking_number_unique ON shipping.shipments USING btree (tracking_number) WHERE (tracking_number IS NOT NULL);
 CREATE INDEX IF NOT EXISTS shipment_events_shipment_time_idx ON shipping.tracking USING btree (shipment_id, "time");
 CREATE INDEX IF NOT EXISTS idx_current_spots_metal ON spots.spots USING btree (metal_id);
 CREATE UNIQUE INDEX IF NOT EXISTS sales_tax_state_key ON tax.sales_tax USING btree (state);

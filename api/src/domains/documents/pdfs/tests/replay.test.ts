@@ -71,8 +71,8 @@ for (const [route, filename, direction] of RENDERS as Array<
   test(`${route} renders a real PDF`, async () => {
     await inPinnedTransaction(
       async (c: PoolClient) => {
-        const { order } = await anOrderToRender(c, direction)
-        await as({ ...customer, role: 'user' }, async () => {
+        const { order, owner } = await anOrderToRender(c, direction)
+        await as({ ...owner, role: 'user' }, async () => {
           const res = await request(app)
             .post(`/api/pdf/${route}`)
             .send({ order_id: order.id })
@@ -141,8 +141,8 @@ test('no PDF route launches a renderer for an anonymous caller', async () => {
 test('a signed-in caller gets a real PDF with the headers to download it', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
-      const { order } = await anOrderToRender(c, 'purchase')
-      await as({ ...customer, role: 'user' }, async () => {
+      const { order, owner } = await anOrderToRender(c, 'purchase')
+      await as({ ...owner, role: 'user' }, async () => {
         const res = await request(app)
           .post('/api/pdf/generate_packing_list')
           .send({ order_id: order.id })
@@ -203,6 +203,43 @@ test("an owner's download with a stored row still answers with a PDF when the st
         assert.equal(res.status, 200, 'a stored row the storage cannot honour broke the download')
         assert.equal(res.headers['content-type'], 'application/pdf')
         assert.equal(res.body.subarray(0, 5).toString(), '%PDF-', 'the fallback did not render')
+      })
+    },
+    { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] }
+  )
+})
+
+test('a signed-in stranger gets 404 on every document of an order that is not theirs', async () => {
+  await inPinnedTransaction(
+    async (c: PoolClient) => {
+      const { order } = await anOrderToRender(c, 'purchase')
+
+      await as({ ...customer, role: 'user' }, async () => {
+        for (const route of ROUTES) {
+          const res = await request(app).post(`/api/pdf/${route}`).send({ order_id: order.id })
+          assert.equal(res.status, 404, `${route} handed a stranger somebody else's document`)
+          assert.notEqual(
+            res.headers['content-type'],
+            'application/pdf',
+            `${route} rendered a document for a caller the order does not belong to`
+          )
+        }
+      })
+    },
+    { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] }
+  )
+})
+
+test("an admin may download any order's documents", async () => {
+  await inPinnedTransaction(
+    async (c: PoolClient) => {
+      const { order } = await anOrderToRender(c, 'purchase')
+
+      await as({ ...customer, role: 'admin' }, async () => {
+        const res = await request(app)
+          .post('/api/pdf/generate_invoice')
+          .send({ order_id: order.id })
+        assert.equal(res.status, 200, 'an admin was refused a document')
       })
     },
     { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] }

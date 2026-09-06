@@ -141,13 +141,14 @@ test('the public list carries no field the admin list lacks', async () => {
       const publicExtras = [...publicFields].filter((f) => !adminSet.has(f))
       assert.deepEqual(publicExtras, [], 'the public read returns fields the admin read does not')
 
-      for (const leaked of ['created_by', 'updated_by']) {
-        assert.ok(
-          publicFields?.has(leaked),
-          `${leaked} is no longer public. If that was deliberate, this assertion is ` +
-            `the one to delete - it records a known leak, it does not want one.`
-        )
+      // The leak this used to record is closed (LD F20): migration 116 fills
+      // created_by / updated_by with the ACTOR'S NAME, so the admin projection
+      // names the staff member who wrote or edited each testimonial, and
+      // /reviews/public is unauthenticated.
+      for (const secret of ['created_by', 'updated_by', 'created_by_id', 'updated_by_id']) {
+        assert.ok(!publicFields?.has(secret), `${secret} is on the unauthenticated wire`)
       }
+      assert.ok(!publicFields?.has('user_id'), 'user_id is on the unauthenticated wire')
     },
     { actor: TEST_ACTOR.id }
   )

@@ -1,7 +1,7 @@
 import withTransaction from '#shared/db/withTransaction.ts'
 import * as reviews from '#db/reviews/repo.ts'
 import * as rules from '#crm/reviews/rules.ts'
-import type { Review, ReviewPatch } from '@dorado/contracts'
+import type { PublicReview, Review, ReviewPatch } from '@dorado/contracts'
 
 export async function getOne(id: string): Promise<Review> {
   const row = await reviews.getOne(id)
@@ -13,7 +13,7 @@ export async function list(): Promise<Review[]> {
   return await reviews.list()
 }
 
-export async function getPublic(): Promise<Review[]> {
+export async function getPublic(): Promise<PublicReview[]> {
   return await reviews.getPublic()
 }
 

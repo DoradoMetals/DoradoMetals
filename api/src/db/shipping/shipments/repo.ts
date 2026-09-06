@@ -56,6 +56,11 @@ export async function getForOrder(
   return rows
 }
 
+export async function claimForLabel(id: string, executor?: Executor): Promise<boolean> {
+  const { rowCount } = await query(sql('claim_for_label'), [id], executor)
+  return rowCount === 1
+}
+
 export async function getMany(ids: string[], executor?: Executor): Promise<OrderViewShipment[]> {
   if (ids.length === 0) return []
   const { rows } = await query<OrderViewShipment>(sql('get_many'), [ids], executor)

@@ -29,3 +29,17 @@ export const ReviewPatch = Review.pick({
   hidden: true,
 }).partial()
 export type ReviewPatch = z.infer<typeof ReviewPatch>
+
+// What the unauthenticated /reviews/public answers. Migration 116 fills
+// `created_by` / `updated_by` with the ACTOR'S NAME, so the admin projection
+// names the staff member who wrote or edited each testimonial - which is not
+// the public's (LD F20).
+export const PublicReview = Review.omit({
+  user_id: true,
+  order_id: true,
+  created_by: true,
+  updated_by: true,
+  created_by_id: true,
+  updated_by_id: true,
+})
+export type PublicReview = z.infer<typeof PublicReview>

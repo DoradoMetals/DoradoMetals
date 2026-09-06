@@ -2,7 +2,7 @@ import query from '#shared/db/query.ts'
 import { buildUpdate } from '#shared/db/patch.ts'
 import { sqlFrom } from '#shared/db/sql.ts'
 import { columnsOf, returningOf, ACTOR_IDS } from '#shared/db/columns.ts'
-import { Review, ReviewPatch } from '@dorado/contracts'
+import { PublicReview, Review, ReviewPatch } from '@dorado/contracts'
 import type { Executor } from '#shared/db/executor.ts'
 
 const sql = sqlFrom(import.meta.dirname)
@@ -21,9 +21,9 @@ export async function list(executor?: Executor): Promise<Review[]> {
   return rows
 }
 
-export async function getPublic(executor?: Executor): Promise<Review[]> {
-  const { rows } = await query<Review>(sql('get_public'), [], executor)
-  return rows
+export async function getPublic(executor?: Executor): Promise<PublicReview[]> {
+  const { rows } = await query(sql('get_public'), [], executor)
+  return rows.map((row) => PublicReview.parse(row))
 }
 
 export async function create(row: ReviewPatch, executor?: Executor): Promise<Review> {

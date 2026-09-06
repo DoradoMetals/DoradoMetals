@@ -69,3 +69,16 @@ export async function sendEmail(
     attachments,
   })
 }
+
+// The send, with its failure turned into a value so a caller can file the
+// paper-trail row before the failure travels on. The try/catch lives here
+// because ruling 52 allows none under domains/.
+export type Delivery = { sent: true; result: unknown } | { sent: false; error: string }
+
+export async function deliver(message: Message, transport?: Transport): Promise<Delivery> {
+  try {
+    return { sent: true, result: await sendEmail(message, transport) }
+  } catch (err) {
+    return { sent: false, error: err instanceof Error ? err.message : String(err) }
+  }
+}

@@ -15,6 +15,8 @@ import {
 } from '#shared/testing/builders/index.ts'
 import * as shipmentService from '#logistics/shipping/shipments/service.ts'
 import * as packagesRepo from '#db/shipping/packages/repo.ts'
+import * as shipmentsRepo from '#db/shipping/shipments/repo.ts'
+import * as servicesService from '#logistics/shipping/services/service.ts'
 import * as itemsRepo from '#db/orders/items/repo.ts'
 import { parcelWeightLb } from '#logistics/shipping/rules.ts'
 
@@ -94,6 +96,89 @@ test('an unknown parcel is refused, not resolved off null', async () => {
         () => labels.buyLabel('00000000-0000-0000-0000-000000000000'),
         /no shipment/
       )
+    },
+    { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS }
+  )
+})
+
+test('a claimed parcel refuses a second buy - a label cannot be bought twice', async () => {
+  await inPinnedTransaction(
+    async (c: PoolClient) => {
+      const { shipment_id } = await anUnlabelledParcel(c)
+
+      const claimed = await shipmentsRepo.claimForLabel(shipment_id, c)
+      assert.equal(claimed, true, 'the first buy could not claim the parcel')
+
+      assert.equal(
+        await shipmentsRepo.claimForLabel(shipment_id, c),
+        false,
+        'a second buy claimed the same parcel and would have paid for a second label'
+      )
+      await assert.rejects(() => labels.buyLabel(shipment_id), /already having a label bought/)
+    },
+    { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS }
+  )
+})
+
+test('a shipment that already carries a tracking number cannot be claimed at all', async () => {
+  await inPinnedTransaction(
+    async (c: PoolClient) => {
+      const { shipment_id } = await anUnlabelledParcel(c)
+      await shipmentService.update(shipment_id, { tracking_number: '794000000011' }, c)
+
+      assert.equal(
+        await shipmentsRepo.claimForLabel(shipment_id, c),
+        false,
+        'a parcel with a label was claimed for another one'
+      )
+    },
+    { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS }
+  )
+})
+
+test('a return leg that already has a label is refused before the carrier is asked', async () => {
+  await inPinnedTransaction(
+    async (c: PoolClient) => {
+      const { shipment_id } = await anUnlabelledParcel(c)
+      await shipmentService.update(
+        shipment_id,
+        { direction: 'Return', tracking_number: '794000000012' },
+        c
+      )
+
+      await assert.rejects(() => labels.buyReturnLabel(shipment_id), /already has a label/)
+    },
+    { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS }
+  )
+})
+
+test('two shipments cannot hold one carrier tracking number', async () => {
+  await inPinnedTransaction(
+    async (c: PoolClient) => {
+      const one = await anUnlabelledParcel(c)
+      const two = await anUnlabelledParcel(c)
+      await shipmentService.update(one.shipment_id, { tracking_number: '794000000013' }, c)
+
+      await assert.rejects(
+        () => shipmentService.update(two.shipment_id, { tracking_number: '794000000013' }, c),
+        /shipments_tracking_number_unique/,
+        'a bought label was recorded on two shipment rows'
+      )
+    },
+    { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS }
+  )
+})
+
+test('the return leg is insured for what the customer declared, not for a total that is not priced yet', async () => {
+  await inPinnedTransaction(
+    async (c: PoolClient) => {
+      const { order_id, shipment_id } = await anUnlabelledParcel(c)
+      await shipmentService.update(shipment_id, { declared_value: 8000, insured: true }, c)
+
+      const service = await servicesService.labelServiceFor(await carrierServiceId(c), c)
+      const declared = await labels.returnDeclaredValue(order_id, null, service.code)
+
+      assert.equal(declared, 8000, 'a cancel before pricing returned the metal uninsured')
     },
     { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS }
   )
