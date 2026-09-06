@@ -190,3 +190,9 @@ lands in `shared/assets/fonts`. **NONE OF THESE HAS BEEN SEEN IN A REAL CLIENT**
 the design's own note says a dark mailer can come back partly inverted from
 Gmail's and Outlook's transforms, and no send has left the stub. Detail in
 `docs/waves/mailers.md`.
+
+## The last skipped test is closed (cassette lane)
+
+- `fulfillment-rates.test.ts`'s purchase-checkout rates test had no cassette because its request shape genuinely differs from `fedex/rate-quote.json`: the recipient is the Farmers Branch hold location (ruling 89), not a plain address, and `declaredValue` is populated. Recorded as `fedex/fulfillment-purchase-rates.json` against the real FedEx sandbox (`test:record`'s mechanism, run directly since `test:record`'s script names only the two provider files); the sandbox itself was intermittently returning 401/500/503 on unrelated known-good requests too, so recording took 8 attempts - not a request-shape defect.
+- Closing it exposed a real, pre-existing latent deadlock: `rates.rates` carries a GIST exclusion constraint on `(metal_id, unit, range)`, which `lint-test-locks`'s table map doesn't know about, and `pricing/rates/tests/repo.test.ts` + `service.test.ts` + `db/rates/tests/repo.test.ts` all insert overlapping `Gold`/`oz` ranges with no lock. Two overlapping inserts wait on each other instead of one raising 23505, and the extra runtime of the new test shifted vitest's scheduling enough to run two of them concurrently and deadlock (reproduced once in five full-suite runs). Added `LOCKS.RATES` and applied it to all three files' `inPinnedTransaction`/`inRollback` calls that call `rates.create`.
+- `pnpm --filter @dorado/api test`: 1485 passed, 0 skipped, across 5 consecutive full runs after the lock fix. `pnpm check:fast` green except the pre-existing `figma:inventory`.

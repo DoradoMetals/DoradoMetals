@@ -1,0 +1,1770 @@
+[
+    {
+        "scope": "https://apis-sandbox.fedex.com:443",
+        "method": "POST",
+        "path": "/oauth/token",
+        "body": "grant_type=client_credentials&client_id=SCRUBBED_CLIENT_ID&client_secret=SCRUBBED_CLIENT_SECRET",
+        "status": 200,
+        "response": {
+            "access_token": "SCRUBBED_ACCESS_TOKEN",
+            "token_type": "bearer",
+            "expires_in": 3599,
+            "scope": "CXS-TP"
+        },
+        "rawHeaders": {
+            "content-type": "application/json;charset=UTF-8"
+        }
+    },
+    {
+        "scope": "https://apis-sandbox.fedex.com:443",
+        "method": "POST",
+        "path": "/rate/v1/comprehensiverates/quotes",
+        "body": {
+            "accountNumber": {
+                "value": "SCRUBBED_ACCOUNT_NUMBER"
+            },
+            "rateRequestControlParameters": {
+                "returnTransitTimes": true
+            },
+            "requestedShipment": {
+                "shipDateStamp": "SCRUBBED_DATE",
+                "shipper": {
+                    "address": {
+                        "streetLines": [
+                            "6100 Main St"
+                        ],
+                        "city": "Houston",
+                        "stateOrProvinceCode": "TX",
+                        "postalCode": "77005",
+                        "countryCode": "US",
+                        "residential": false
+                    }
+                },
+                "recipient": {
+                    "address": {
+                        "streetLines": [
+                            "13605 Midway Rd"
+                        ],
+                        "city": "Farmers Branch",
+                        "stateOrProvinceCode": "TX",
+                        "postalCode": "75244",
+                        "countryCode": "US",
+                        "residential": false
+                    }
+                },
+                "pickupType": "DROPOFF_AT_FEDEX_LOCATION",
+                "packagingType": "YOUR_PACKAGING",
+                "preferredCurrency": "USD",
+                "rateRequestType": [
+                    "PREFERRED",
+                    "LIST"
+                ],
+                "requestedPackageLineItems": [
+                    {
+                        "weight": {
+                            "units": "LB",
+                            "value": 2
+                        },
+                        "dimensions": {
+                            "length": 9,
+                            "width": 6,
+                            "height": 2,
+                            "units": "IN"
+                        },
+                        "groupPackageCount": "1",
+                        "declaredValue": {
+                            "amount": 10000,
+                            "currency": "USD"
+                        }
+                    }
+                ],
+                "shippingChargesPayment": {
+                    "paymentType": "SENDER",
+                    "payor": {
+                        "responsibleParty": {
+                            "accountNumber": {
+                                "value": "SCRUBBED_ACCOUNT_NUMBER"
+                            }
+                        }
+                    }
+                }
+            },
+            "carrierCodes": [
+                "FDXE"
+            ]
+        },
+        "status": 200,
+        "response": {
+            "transactionId": "b2a4fdd1-4c15-412b-a8c8-8e0595938c79",
+            "output": {
+                "alerts": [
+                    {
+                        "code": "REQUESTEDSHIPMENT.PACKAGETYPE.CONVERTED",
+                        "message": "FEDEX_EXTRA_SMALL_BOX is identified as the appropriate packaging type based on the provided dimensions and weight.",
+                        "alertType": "WARNING"
+                    }
+                ],
+                "rateReplyDetails": [
+                    {
+                        "serviceType": "FIRST_OVERNIGHT",
+                        "serviceName": "FedEx First Overnight®",
+                        "packagingType": "YOUR_PACKAGING",
+                        "commit": {
+                            "dateDetail": {
+                                "dayOfWeek": "Wed",
+                                "dayFormat": "2026-09-09T09:30:00"
+                            },
+                            "derivedOriginDetail": {
+                                "countryCode": "US",
+                                "stateOrProvinceCode": "TX",
+                                "postalCode": "77005",
+                                "serviceArea": "A1",
+                                "locationId": "EIXA ",
+                                "locationNumber": 0
+                            },
+                            "derivedDestinationDetail": {
+                                "countryCode": "US",
+                                "stateOrProvinceCode": "TX",
+                                "postalCode": "75244",
+                                "serviceArea": "A1",
+                                "locationId": "SLRA ",
+                                "locationNumber": 0,
+                                "airportId": "DFW"
+                            },
+                            "saturdayDelivery": false
+                        },
+                        "ratedShipmentDetails": [
+                            {
+                                "rateType": "ACCOUNT",
+                                "ratedWeightMethod": "ACTUAL",
+                                "totalDiscounts": 0,
+                                "totalBaseCharge": 98.44,
+                                "totalNetCharge": 271.04,
+                                "totalNetFedExCharge": 271.04,
+                                "shipmentRateDetail": {
+                                    "rateZone": "03",
+                                    "dimDivisor": 139,
+                                    "fuelSurchargePercent": 5,
+                                    "totalSurcharges": 172.6,
+                                    "totalFreightDiscount": 0,
+                                    "surCharges": [
+                                        {
+                                            "type": "SIGNATURE_OPTION",
+                                            "description": "Direct signature required",
+                                            "amount": 0
+                                        },
+                                        {
+                                            "type": "FUEL",
+                                            "description": "Fuel Surcharge",
+                                            "amount": 5.05
+                                        },
+                                        {
+                                            "type": "INSURED_VALUE",
+                                            "description": "Declared Value",
+                                            "amount": 165
+                                        },
+                                        {
+                                            "type": "DEMAND",
+                                            "description": "Demand Surcharge",
+                                            "amount": 2.55
+                                        }
+                                    ],
+                                    "pricingCode": "PACKAGE",
+                                    "totalBillingWeight": {
+                                        "units": "LB",
+                                        "value": 2
+                                    },
+                                    "currency": "USD",
+                                    "rateScale": "8"
+                                },
+                                "ratedPackages": [
+                                    {
+                                        "groupNumber": 0,
+                                        "effectiveNetDiscount": 0,
+                                        "packageRateDetail": {
+                                            "rateType": "PAYOR_ACCOUNT_PACKAGE",
+                                            "ratedWeightMethod": "ACTUAL",
+                                            "baseCharge": 98.44,
+                                            "netFreight": 98.44,
+                                            "totalSurcharges": 172.6,
+                                            "netFedExCharge": 271.04,
+                                            "totalTaxes": 0,
+                                            "netCharge": 271.04,
+                                            "totalRebates": 0,
+                                            "billingWeight": {
+                                                "units": "LB",
+                                                "value": 2
+                                            },
+                                            "totalFreightDiscounts": 0,
+                                            "surcharges": [
+                                                {
+                                                    "type": "SIGNATURE_OPTION",
+                                                    "description": "Direct signature required",
+                                                    "amount": 0
+                                                },
+                                                {
+                                                    "type": "FUEL",
+                                                    "description": "Fuel Surcharge",
+                                                    "amount": 5.05
+                                                },
+                                                {
+                                                    "type": "INSURED_VALUE",
+                                                    "description": "Declared Value",
+                                                    "amount": 165
+                                                },
+                                                {
+                                                    "type": "DEMAND",
+                                                    "description": "Demand Surcharge",
+                                                    "amount": 2.55
+                                                }
+                                            ],
+                                            "currency": "USD"
+                                        },
+                                        "sequenceNumber": 1
+                                    }
+                                ],
+                                "currency": "USD"
+                            },
+                            {
+                                "rateType": "LIST",
+                                "ratedWeightMethod": "ACTUAL",
+                                "totalDiscounts": 0,
+                                "totalBaseCharge": 98.44,
+                                "totalNetCharge": 271.04,
+                                "totalNetFedExCharge": 271.04,
+                                "shipmentRateDetail": {
+                                    "rateZone": "03",
+                                    "dimDivisor": 139,
+                                    "fuelSurchargePercent": 5,
+                                    "totalSurcharges": 172.6,
+                                    "totalFreightDiscount": 0,
+                                    "surCharges": [
+                                        {
+                                            "type": "SIGNATURE_OPTION",
+                                            "description": "Direct signature required",
+                                            "amount": 0
+                                        },
+                                        {
+                                            "type": "FUEL",
+                                            "description": "Fuel Surcharge",
+                                            "amount": 5.05
+                                        },
+                                        {
+                                            "type": "INSURED_VALUE",
+                                            "description": "Declared Value",
+                                            "amount": 165
+                                        },
+                                        {
+                                            "type": "DEMAND",
+                                            "description": "Demand Surcharge",
+                                            "amount": 2.55
+                                        }
+                                    ],
+                                    "pricingCode": "PACKAGE",
+                                    "totalBillingWeight": {
+                                        "units": "LB",
+                                        "value": 2
+                                    },
+                                    "currency": "USD",
+                                    "rateScale": "8"
+                                },
+                                "ratedPackages": [
+                                    {
+                                        "groupNumber": 0,
+                                        "effectiveNetDiscount": 0,
+                                        "packageRateDetail": {
+                                            "rateType": "PAYOR_LIST_PACKAGE",
+                                            "ratedWeightMethod": "ACTUAL",
+                                            "baseCharge": 98.44,
+                                            "netFreight": 98.44,
+                                            "totalSurcharges": 172.6,
+                                            "netFedExCharge": 271.04,
+                                            "totalTaxes": 0,
+                                            "netCharge": 271.04,
+                                            "totalRebates": 0,
+                                            "billingWeight": {
+                                                "units": "LB",
+                                                "value": 2
+                                            },
+                                            "totalFreightDiscounts": 0,
+                                            "surcharges": [
+                                                {
+                                                    "type": "SIGNATURE_OPTION",
+                                                    "description": "Direct signature required",
+                                                    "amount": 0
+                                                },
+                                                {
+                                                    "type": "FUEL",
+                                                    "description": "Fuel Surcharge",
+                                                    "amount": 5.05
+                                                },
+                                                {
+                                                    "type": "INSURED_VALUE",
+                                                    "description": "Declared Value",
+                                                    "amount": 165
+                                                },
+                                                {
+                                                    "type": "DEMAND",
+                                                    "description": "Demand Surcharge",
+                                                    "amount": 2.55
+                                                }
+                                            ],
+                                            "currency": "USD"
+                                        },
+                                        "sequenceNumber": 1
+                                    }
+                                ],
+                                "currency": "USD"
+                            }
+                        ],
+                        "operationalDetail": {
+                            "originLocationIds": [
+                                "EIXA "
+                            ],
+                            "originLocationNumbers": [
+                                0
+                            ],
+                            "originServiceAreas": [
+                                "A1"
+                            ],
+                            "destinationLocationIds": [
+                                "SLRA "
+                            ],
+                            "destinationLocationNumbers": [
+                                0
+                            ],
+                            "destinationServiceAreas": [
+                                "A1"
+                            ],
+                            "destinationLocationStateOrProvinceCodes": [
+                                "TX"
+                            ],
+                            "deliveryDate": "2026-09-09T09:30:00",
+                            "deliveryDay": "WED",
+                            "commitDate": "2026-09-09T09:30:00",
+                            "commitDays": [
+                                "WED"
+                            ],
+                            "ineligibleForMoneyBackGuarantee": false,
+                            "astraDescription": "1ST OVR",
+                            "originPostalCodes": [
+                                "77005"
+                            ],
+                            "stateOrProvinceCodes": [
+                                "TX"
+                            ],
+                            "countryCodes": [
+                                "US"
+                            ],
+                            "airportId": "DFW",
+                            "serviceCode": "06",
+                            "destinationPostalCode": "75244"
+                        },
+                        "signatureOptionType": "DIRECT",
+                        "serviceDescription": {
+                            "serviceId": "EP1000000006",
+                            "serviceType": "FIRST_OVERNIGHT",
+                            "code": "06",
+                            "names": [
+                                {
+                                    "type": "long",
+                                    "encoding": "utf-8",
+                                    "value": "FedEx First Overnight®"
+                                },
+                                {
+                                    "type": "long",
+                                    "encoding": "ascii",
+                                    "value": "FedEx First Overnight"
+                                },
+                                {
+                                    "type": "medium",
+                                    "encoding": "utf-8",
+                                    "value": "FedEx First Overnight®"
+                                },
+                                {
+                                    "type": "medium",
+                                    "encoding": "ascii",
+                                    "value": "FedEx First Overnight"
+                                },
+                                {
+                                    "type": "short",
+                                    "encoding": "utf-8",
+                                    "value": "FO"
+                                },
+                                {
+                                    "type": "short",
+                                    "encoding": "ascii",
+                                    "value": "FO"
+                                },
+                                {
+                                    "type": "abbrv",
+                                    "encoding": "ascii",
+                                    "value": "FO"
+                                }
+                            ],
+                            "serviceCategory": "parcel",
+                            "description": "First Overnight",
+                            "astraDescription": "1ST OVR"
+                        },
+                        "deliveryStation": "SLRA "
+                    },
+                    {
+                        "serviceType": "PRIORITY_OVERNIGHT",
+                        "serviceName": "FedEx Priority Overnight®",
+                        "packagingType": "YOUR_PACKAGING",
+                        "commit": {
+                            "dateDetail": {
+                                "dayOfWeek": "Wed",
+                                "dayFormat": "2026-09-09T12:00:00"
+                            },
+                            "derivedOriginDetail": {
+                                "countryCode": "US",
+                                "stateOrProvinceCode": "TX",
+                                "postalCode": "77005",
+                                "serviceArea": "A1",
+                                "locationId": "EIXA ",
+                                "locationNumber": 0
+                            },
+                            "derivedDestinationDetail": {
+                                "countryCode": "US",
+                                "stateOrProvinceCode": "TX",
+                                "postalCode": "75244",
+                                "serviceArea": "A1",
+                                "locationId": "SLRA ",
+                                "locationNumber": 0,
+                                "airportId": "DFW"
+                            },
+                            "saturdayDelivery": false
+                        },
+                        "ratedShipmentDetails": [
+                            {
+                                "rateType": "ACCOUNT",
+                                "ratedWeightMethod": "ACTUAL",
+                                "totalDiscounts": 0,
+                                "totalBaseCharge": 67.44,
+                                "totalNetCharge": 238.49,
+                                "totalNetFedExCharge": 238.49,
+                                "shipmentRateDetail": {
+                                    "rateZone": "03",
+                                    "dimDivisor": 139,
+                                    "fuelSurchargePercent": 5,
+                                    "totalSurcharges": 171.05,
+                                    "totalFreightDiscount": 0,
+                                    "surCharges": [
+                                        {
+                                            "type": "SIGNATURE_OPTION",
+                                            "description": "Direct signature required",
+                                            "amount": 0
+                                        },
+                                        {
+                                            "type": "FUEL",
+                                            "description": "Fuel Surcharge",
+                                            "amount": 3.5
+                                        },
+                                        {
+                                            "type": "INSURED_VALUE",
+                                            "description": "Declared Value",
+                                            "amount": 165
+                                        },
+                                        {
+                                            "type": "DEMAND",
+                                            "description": "Demand Surcharge",
+                                            "amount": 2.55
+                                        }
+                                    ],
+                                    "pricingCode": "PACKAGE",
+                                    "totalBillingWeight": {
+                                        "units": "LB",
+                                        "value": 2
+                                    },
+                                    "currency": "USD",
+                                    "rateScale": "1508"
+                                },
+                                "ratedPackages": [
+                                    {
+                                        "groupNumber": 0,
+                                        "effectiveNetDiscount": 0,
+                                        "packageRateDetail": {
+                                            "rateType": "PAYOR_ACCOUNT_PACKAGE",
+                                            "ratedWeightMethod": "ACTUAL",
+                                            "baseCharge": 67.44,
+                                            "netFreight": 67.44,
+                                            "totalSurcharges": 171.05,
+                                            "netFedExCharge": 238.49,
+                                            "totalTaxes": 0,
+                                            "netCharge": 238.49,
+                                            "totalRebates": 0,
+                                            "billingWeight": {
+                                                "units": "LB",
+                                                "value": 2
+                                            },
+                                            "totalFreightDiscounts": 0,
+                                            "surcharges": [
+                                                {
+                                                    "type": "SIGNATURE_OPTION",
+                                                    "description": "Direct signature required",
+                                                    "amount": 0
+                                                },
+                                                {
+                                                    "type": "FUEL",
+                                                    "description": "Fuel Surcharge",
+                                                    "amount": 3.5
+                                                },
+                                                {
+                                                    "type": "INSURED_VALUE",
+                                                    "description": "Declared Value",
+                                                    "amount": 165
+                                                },
+                                                {
+                                                    "type": "DEMAND",
+                                                    "description": "Demand Surcharge",
+                                                    "amount": 2.55
+                                                }
+                                            ],
+                                            "currency": "USD"
+                                        },
+                                        "sequenceNumber": 1
+                                    }
+                                ],
+                                "currency": "USD"
+                            },
+                            {
+                                "rateType": "LIST",
+                                "ratedWeightMethod": "ACTUAL",
+                                "totalDiscounts": 0,
+                                "totalBaseCharge": 67.44,
+                                "totalNetCharge": 238.49,
+                                "totalNetFedExCharge": 238.49,
+                                "shipmentRateDetail": {
+                                    "rateZone": "03",
+                                    "dimDivisor": 139,
+                                    "fuelSurchargePercent": 5,
+                                    "totalSurcharges": 171.05,
+                                    "totalFreightDiscount": 0,
+                                    "surCharges": [
+                                        {
+                                            "type": "SIGNATURE_OPTION",
+                                            "description": "Direct signature required",
+                                            "amount": 0
+                                        },
+                                        {
+                                            "type": "FUEL",
+                                            "description": "Fuel Surcharge",
+                                            "amount": 3.5
+                                        },
+                                        {
+                                            "type": "INSURED_VALUE",
+                                            "description": "Declared Value",
+                                            "amount": 165
+                                        },
+                                        {
+                                            "type": "DEMAND",
+                                            "description": "Demand Surcharge",
+                                            "amount": 2.55
+                                        }
+                                    ],
+                                    "pricingCode": "PACKAGE",
+                                    "totalBillingWeight": {
+                                        "units": "LB",
+                                        "value": 2
+                                    },
+                                    "currency": "USD",
+                                    "rateScale": "1508"
+                                },
+                                "ratedPackages": [
+                                    {
+                                        "groupNumber": 0,
+                                        "effectiveNetDiscount": 0,
+                                        "packageRateDetail": {
+                                            "rateType": "PAYOR_LIST_PACKAGE",
+                                            "ratedWeightMethod": "ACTUAL",
+                                            "baseCharge": 67.44,
+                                            "netFreight": 67.44,
+                                            "totalSurcharges": 171.05,
+                                            "netFedExCharge": 238.49,
+                                            "totalTaxes": 0,
+                                            "netCharge": 238.49,
+                                            "totalRebates": 0,
+                                            "billingWeight": {
+                                                "units": "LB",
+                                                "value": 2
+                                            },
+                                            "totalFreightDiscounts": 0,
+                                            "surcharges": [
+                                                {
+                                                    "type": "SIGNATURE_OPTION",
+                                                    "description": "Direct signature required",
+                                                    "amount": 0
+                                                },
+                                                {
+                                                    "type": "FUEL",
+                                                    "description": "Fuel Surcharge",
+                                                    "amount": 3.5
+                                                },
+                                                {
+                                                    "type": "INSURED_VALUE",
+                                                    "description": "Declared Value",
+                                                    "amount": 165
+                                                },
+                                                {
+                                                    "type": "DEMAND",
+                                                    "description": "Demand Surcharge",
+                                                    "amount": 2.55
+                                                }
+                                            ],
+                                            "currency": "USD"
+                                        },
+                                        "sequenceNumber": 1
+                                    }
+                                ],
+                                "currency": "USD"
+                            }
+                        ],
+                        "operationalDetail": {
+                            "originLocationIds": [
+                                "EIXA "
+                            ],
+                            "originLocationNumbers": [
+                                0
+                            ],
+                            "originServiceAreas": [
+                                "A1"
+                            ],
+                            "destinationLocationIds": [
+                                "SLRA "
+                            ],
+                            "destinationLocationNumbers": [
+                                0
+                            ],
+                            "destinationServiceAreas": [
+                                "A1"
+                            ],
+                            "destinationLocationStateOrProvinceCodes": [
+                                "TX"
+                            ],
+                            "deliveryDate": "2026-09-09T12:00:00",
+                            "deliveryDay": "WED",
+                            "commitDate": "2026-09-09T12:00:00",
+                            "commitDays": [
+                                "WED"
+                            ],
+                            "ineligibleForMoneyBackGuarantee": false,
+                            "astraDescription": "P1",
+                            "originPostalCodes": [
+                                "77005"
+                            ],
+                            "stateOrProvinceCodes": [
+                                "TX"
+                            ],
+                            "countryCodes": [
+                                "US"
+                            ],
+                            "airportId": "DFW",
+                            "serviceCode": "01",
+                            "destinationPostalCode": "75244"
+                        },
+                        "signatureOptionType": "DIRECT",
+                        "serviceDescription": {
+                            "serviceId": "EP1000000002",
+                            "serviceType": "PRIORITY_OVERNIGHT",
+                            "code": "01",
+                            "names": [
+                                {
+                                    "type": "long",
+                                    "encoding": "utf-8",
+                                    "value": "FedEx Priority Overnight®"
+                                },
+                                {
+                                    "type": "long",
+                                    "encoding": "ascii",
+                                    "value": "FedEx Priority Overnight"
+                                },
+                                {
+                                    "type": "medium",
+                                    "encoding": "utf-8",
+                                    "value": "FedEx Priority Overnight®"
+                                },
+                                {
+                                    "type": "medium",
+                                    "encoding": "ascii",
+                                    "value": "FedEx Priority Overnight"
+                                },
+                                {
+                                    "type": "short",
+                                    "encoding": "utf-8",
+                                    "value": "P-1"
+                                },
+                                {
+                                    "type": "short",
+                                    "encoding": "ascii",
+                                    "value": "P-1"
+                                },
+                                {
+                                    "type": "abbrv",
+                                    "encoding": "ascii",
+                                    "value": "PO"
+                                }
+                            ],
+                            "serviceCategory": "parcel",
+                            "description": "Priority Overnight",
+                            "astraDescription": "P1"
+                        },
+                        "deliveryStation": "SLRA "
+                    },
+                    {
+                        "serviceType": "STANDARD_OVERNIGHT",
+                        "serviceName": "FedEx Standard Overnight®",
+                        "packagingType": "FEDEX_EXTRA_SMALL_BOX",
+                        "commit": {
+                            "dateDetail": {
+                                "dayOfWeek": "Wed",
+                                "dayFormat": "2026-09-09T17:00:00"
+                            },
+                            "derivedOriginDetail": {
+                                "countryCode": "US",
+                                "stateOrProvinceCode": "TX",
+                                "postalCode": "77005",
+                                "serviceArea": "A1",
+                                "locationId": "EIXA ",
+                                "locationNumber": 0
+                            },
+                            "derivedDestinationDetail": {
+                                "countryCode": "US",
+                                "stateOrProvinceCode": "TX",
+                                "postalCode": "75244",
+                                "serviceArea": "A1",
+                                "locationId": "SLRA ",
+                                "locationNumber": 0,
+                                "airportId": "DFW"
+                            },
+                            "saturdayDelivery": false
+                        },
+                        "ratedShipmentDetails": [
+                            {
+                                "rateType": "ACCOUNT",
+                                "ratedWeightMethod": "ACTUAL",
+                                "totalDiscounts": 0,
+                                "totalBaseCharge": 50.3,
+                                "totalNetCharge": 215.3,
+                                "totalNetFedExCharge": 215.3,
+                                "shipmentRateDetail": {
+                                    "rateZone": "03",
+                                    "dimDivisor": 0,
+                                    "fuelSurchargePercent": 0,
+                                    "totalSurcharges": 165,
+                                    "totalFreightDiscount": 0,
+                                    "surCharges": [
+                                        {
+                                            "type": "SIGNATURE_OPTION",
+                                            "description": "Direct signature required",
+                                            "amount": 0
+                                        },
+                                        {
+                                            "type": "INSURED_VALUE",
+                                            "description": "Declared Value",
+                                            "amount": 165
+                                        }
+                                    ],
+                                    "pricingCode": "PACKAGE",
+                                    "specialRatingApplied": [
+                                        "FEDEX_ONE_RATE"
+                                    ],
+                                    "currency": "USD",
+                                    "rateScale": "194417"
+                                },
+                                "ratedPackages": [
+                                    {
+                                        "groupNumber": 0,
+                                        "effectiveNetDiscount": 0,
+                                        "packageRateDetail": {
+                                            "rateType": "PAYOR_ACCOUNT_PACKAGE",
+                                            "ratedWeightMethod": "ACTUAL",
+                                            "baseCharge": 50.3,
+                                            "netFreight": 50.3,
+                                            "totalSurcharges": 165,
+                                            "netFedExCharge": 215.3,
+                                            "totalTaxes": 0,
+                                            "netCharge": 215.3,
+                                            "totalRebates": 0,
+                                            "totalFreightDiscounts": 0,
+                                            "surcharges": [
+                                                {
+                                                    "type": "SIGNATURE_OPTION",
+                                                    "description": "Direct signature required",
+                                                    "amount": 0
+                                                },
+                                                {
+                                                    "type": "INSURED_VALUE",
+                                                    "description": "Declared Value",
+                                                    "amount": 165
+                                                }
+                                            ],
+                                            "currency": "USD"
+                                        },
+                                        "sequenceNumber": 1
+                                    }
+                                ],
+                                "currency": "USD"
+                            },
+                            {
+                                "rateType": "LIST",
+                                "ratedWeightMethod": "ACTUAL",
+                                "totalDiscounts": 0,
+                                "totalBaseCharge": 50.3,
+                                "totalNetCharge": 215.3,
+                                "totalNetFedExCharge": 215.3,
+                                "shipmentRateDetail": {
+                                    "rateZone": "03",
+                                    "dimDivisor": 0,
+                                    "fuelSurchargePercent": 0,
+                                    "totalSurcharges": 165,
+                                    "totalFreightDiscount": 0,
+                                    "surCharges": [
+                                        {
+                                            "type": "SIGNATURE_OPTION",
+                                            "description": "Direct signature required",
+                                            "amount": 0
+                                        },
+                                        {
+                                            "type": "INSURED_VALUE",
+                                            "description": "Declared Value",
+                                            "amount": 165
+                                        }
+                                    ],
+                                    "pricingCode": "PACKAGE",
+                                    "specialRatingApplied": [
+                                        "FEDEX_ONE_RATE"
+                                    ],
+                                    "currency": "USD",
+                                    "rateScale": "194417"
+                                },
+                                "ratedPackages": [
+                                    {
+                                        "groupNumber": 0,
+                                        "effectiveNetDiscount": 0,
+                                        "packageRateDetail": {
+                                            "rateType": "PAYOR_LIST_PACKAGE",
+                                            "ratedWeightMethod": "ACTUAL",
+                                            "baseCharge": 50.3,
+                                            "netFreight": 50.3,
+                                            "totalSurcharges": 165,
+                                            "netFedExCharge": 215.3,
+                                            "totalTaxes": 0,
+                                            "netCharge": 215.3,
+                                            "totalRebates": 0,
+                                            "totalFreightDiscounts": 0,
+                                            "surcharges": [
+                                                {
+                                                    "type": "SIGNATURE_OPTION",
+                                                    "description": "Direct signature required",
+                                                    "amount": 0
+                                                },
+                                                {
+                                                    "type": "INSURED_VALUE",
+                                                    "description": "Declared Value",
+                                                    "amount": 165
+                                                }
+                                            ],
+                                            "currency": "USD"
+                                        },
+                                        "sequenceNumber": 1
+                                    }
+                                ],
+                                "currency": "USD"
+                            }
+                        ],
+                        "operationalDetail": {
+                            "originLocationIds": [
+                                "EIXA "
+                            ],
+                            "originLocationNumbers": [
+                                0
+                            ],
+                            "originServiceAreas": [
+                                "A1"
+                            ],
+                            "destinationLocationIds": [
+                                "SLRA "
+                            ],
+                            "destinationLocationNumbers": [
+                                0
+                            ],
+                            "destinationServiceAreas": [
+                                "A1"
+                            ],
+                            "destinationLocationStateOrProvinceCodes": [
+                                "TX"
+                            ],
+                            "deliveryDate": "2026-09-09T17:00:00",
+                            "deliveryDay": "WED",
+                            "commitDate": "2026-09-09T17:00:00",
+                            "commitDays": [
+                                "WED"
+                            ],
+                            "ineligibleForMoneyBackGuarantee": false,
+                            "astraDescription": "STD OVR",
+                            "originPostalCodes": [
+                                "77005"
+                            ],
+                            "stateOrProvinceCodes": [
+                                "TX"
+                            ],
+                            "countryCodes": [
+                                "US"
+                            ],
+                            "airportId": "DFW",
+                            "serviceCode": "05",
+                            "destinationPostalCode": "75244"
+                        },
+                        "signatureOptionType": "DIRECT",
+                        "serviceDescription": {
+                            "serviceId": "EP1000000005",
+                            "serviceType": "STANDARD_OVERNIGHT",
+                            "code": "05",
+                            "names": [
+                                {
+                                    "type": "long",
+                                    "encoding": "utf-8",
+                                    "value": "FedEx Standard Overnight®"
+                                },
+                                {
+                                    "type": "long",
+                                    "encoding": "ascii",
+                                    "value": "FedEx Standard Overnight"
+                                },
+                                {
+                                    "type": "medium",
+                                    "encoding": "utf-8",
+                                    "value": "FedEx Standard Overnight®"
+                                },
+                                {
+                                    "type": "medium",
+                                    "encoding": "ascii",
+                                    "value": "FedEx Standard Overnight"
+                                },
+                                {
+                                    "type": "short",
+                                    "encoding": "utf-8",
+                                    "value": "SOS"
+                                },
+                                {
+                                    "type": "short",
+                                    "encoding": "ascii",
+                                    "value": "SOS"
+                                },
+                                {
+                                    "type": "abbrv",
+                                    "encoding": "ascii",
+                                    "value": "SO"
+                                }
+                            ],
+                            "serviceCategory": "parcel",
+                            "description": "Standard Overnight",
+                            "astraDescription": "STD OVR"
+                        },
+                        "deliveryStation": "SLRA "
+                    },
+                    {
+                        "serviceType": "FEDEX_2_DAY_AM",
+                        "serviceName": "FedEx 2Day® AM",
+                        "packagingType": "YOUR_PACKAGING",
+                        "commit": {
+                            "dateDetail": {
+                                "dayOfWeek": "Thu",
+                                "dayFormat": "2026-09-10T12:00:00"
+                            },
+                            "derivedOriginDetail": {
+                                "countryCode": "US",
+                                "stateOrProvinceCode": "TX",
+                                "postalCode": "77005",
+                                "serviceArea": "A1",
+                                "locationId": "EIXA ",
+                                "locationNumber": 0
+                            },
+                            "derivedDestinationDetail": {
+                                "countryCode": "US",
+                                "stateOrProvinceCode": "TX",
+                                "postalCode": "75244",
+                                "serviceArea": "A1",
+                                "locationId": "SLRA ",
+                                "locationNumber": 0,
+                                "airportId": "DFW"
+                            },
+                            "saturdayDelivery": false
+                        },
+                        "ratedShipmentDetails": [
+                            {
+                                "rateType": "ACCOUNT",
+                                "ratedWeightMethod": "ACTUAL",
+                                "totalDiscounts": 0,
+                                "totalBaseCharge": 33.83,
+                                "totalNetCharge": 202.99,
+                                "totalNetFedExCharge": 202.99,
+                                "shipmentRateDetail": {
+                                    "rateZone": "03",
+                                    "dimDivisor": 139,
+                                    "fuelSurchargePercent": 5,
+                                    "totalSurcharges": 169.16,
+                                    "totalFreightDiscount": 0,
+                                    "surCharges": [
+                                        {
+                                            "type": "SIGNATURE_OPTION",
+                                            "description": "Direct signature required",
+                                            "amount": 0
+                                        },
+                                        {
+                                            "type": "FUEL",
+                                            "description": "Fuel Surcharge",
+                                            "amount": 1.81
+                                        },
+                                        {
+                                            "type": "INSURED_VALUE",
+                                            "description": "Declared Value",
+                                            "amount": 165
+                                        },
+                                        {
+                                            "type": "DEMAND",
+                                            "description": "Demand Surcharge",
+                                            "amount": 2.35
+                                        }
+                                    ],
+                                    "pricingCode": "PACKAGE",
+                                    "totalBillingWeight": {
+                                        "units": "LB",
+                                        "value": 2
+                                    },
+                                    "currency": "USD",
+                                    "rateScale": "6"
+                                },
+                                "ratedPackages": [
+                                    {
+                                        "groupNumber": 0,
+                                        "effectiveNetDiscount": 0,
+                                        "packageRateDetail": {
+                                            "rateType": "PAYOR_ACCOUNT_PACKAGE",
+                                            "ratedWeightMethod": "ACTUAL",
+                                            "baseCharge": 33.83,
+                                            "netFreight": 33.83,
+                                            "totalSurcharges": 169.16,
+                                            "netFedExCharge": 202.99,
+                                            "totalTaxes": 0,
+                                            "netCharge": 202.99,
+                                            "totalRebates": 0,
+                                            "billingWeight": {
+                                                "units": "LB",
+                                                "value": 2
+                                            },
+                                            "totalFreightDiscounts": 0,
+                                            "surcharges": [
+                                                {
+                                                    "type": "SIGNATURE_OPTION",
+                                                    "description": "Direct signature required",
+                                                    "amount": 0
+                                                },
+                                                {
+                                                    "type": "FUEL",
+                                                    "description": "Fuel Surcharge",
+                                                    "amount": 1.81
+                                                },
+                                                {
+                                                    "type": "INSURED_VALUE",
+                                                    "description": "Declared Value",
+                                                    "amount": 165
+                                                },
+                                                {
+                                                    "type": "DEMAND",
+                                                    "description": "Demand Surcharge",
+                                                    "amount": 2.35
+                                                }
+                                            ],
+                                            "currency": "USD"
+                                        },
+                                        "sequenceNumber": 1
+                                    }
+                                ],
+                                "currency": "USD"
+                            },
+                            {
+                                "rateType": "LIST",
+                                "ratedWeightMethod": "ACTUAL",
+                                "totalDiscounts": 0,
+                                "totalBaseCharge": 33.83,
+                                "totalNetCharge": 202.99,
+                                "totalNetFedExCharge": 202.99,
+                                "shipmentRateDetail": {
+                                    "rateZone": "03",
+                                    "dimDivisor": 139,
+                                    "fuelSurchargePercent": 5,
+                                    "totalSurcharges": 169.16,
+                                    "totalFreightDiscount": 0,
+                                    "surCharges": [
+                                        {
+                                            "type": "SIGNATURE_OPTION",
+                                            "description": "Direct signature required",
+                                            "amount": 0
+                                        },
+                                        {
+                                            "type": "FUEL",
+                                            "description": "Fuel Surcharge",
+                                            "amount": 1.81
+                                        },
+                                        {
+                                            "type": "INSURED_VALUE",
+                                            "description": "Declared Value",
+                                            "amount": 165
+                                        },
+                                        {
+                                            "type": "DEMAND",
+                                            "description": "Demand Surcharge",
+                                            "amount": 2.35
+                                        }
+                                    ],
+                                    "pricingCode": "PACKAGE",
+                                    "totalBillingWeight": {
+                                        "units": "LB",
+                                        "value": 2
+                                    },
+                                    "currency": "USD",
+                                    "rateScale": "6"
+                                },
+                                "ratedPackages": [
+                                    {
+                                        "groupNumber": 0,
+                                        "effectiveNetDiscount": 0,
+                                        "packageRateDetail": {
+                                            "rateType": "PAYOR_LIST_PACKAGE",
+                                            "ratedWeightMethod": "ACTUAL",
+                                            "baseCharge": 33.83,
+                                            "netFreight": 33.83,
+                                            "totalSurcharges": 169.16,
+                                            "netFedExCharge": 202.99,
+                                            "totalTaxes": 0,
+                                            "netCharge": 202.99,
+                                            "totalRebates": 0,
+                                            "billingWeight": {
+                                                "units": "LB",
+                                                "value": 2
+                                            },
+                                            "totalFreightDiscounts": 0,
+                                            "surcharges": [
+                                                {
+                                                    "type": "SIGNATURE_OPTION",
+                                                    "description": "Direct signature required",
+                                                    "amount": 0
+                                                },
+                                                {
+                                                    "type": "FUEL",
+                                                    "description": "Fuel Surcharge",
+                                                    "amount": 1.81
+                                                },
+                                                {
+                                                    "type": "INSURED_VALUE",
+                                                    "description": "Declared Value",
+                                                    "amount": 165
+                                                },
+                                                {
+                                                    "type": "DEMAND",
+                                                    "description": "Demand Surcharge",
+                                                    "amount": 2.35
+                                                }
+                                            ],
+                                            "currency": "USD"
+                                        },
+                                        "sequenceNumber": 1
+                                    }
+                                ],
+                                "currency": "USD"
+                            }
+                        ],
+                        "operationalDetail": {
+                            "originLocationIds": [
+                                "EIXA "
+                            ],
+                            "originLocationNumbers": [
+                                0
+                            ],
+                            "originServiceAreas": [
+                                "A1"
+                            ],
+                            "destinationLocationIds": [
+                                "SLRA "
+                            ],
+                            "destinationLocationNumbers": [
+                                0
+                            ],
+                            "destinationServiceAreas": [
+                                "A1"
+                            ],
+                            "destinationLocationStateOrProvinceCodes": [
+                                "TX"
+                            ],
+                            "deliveryDate": "2026-09-10T12:00:00",
+                            "deliveryDay": "THU",
+                            "commitDate": "2026-09-10T12:00:00",
+                            "commitDays": [
+                                "THU"
+                            ],
+                            "ineligibleForMoneyBackGuarantee": false,
+                            "astraDescription": "2DAY AM",
+                            "originPostalCodes": [
+                                "77005"
+                            ],
+                            "stateOrProvinceCodes": [
+                                "TX"
+                            ],
+                            "countryCodes": [
+                                "US"
+                            ],
+                            "airportId": "DFW",
+                            "serviceCode": "49",
+                            "destinationPostalCode": "75244"
+                        },
+                        "signatureOptionType": "DIRECT",
+                        "serviceDescription": {
+                            "serviceId": "EP1000000023",
+                            "serviceType": "FEDEX_2_DAY_AM",
+                            "code": "49",
+                            "names": [
+                                {
+                                    "type": "long",
+                                    "encoding": "utf-8",
+                                    "value": "FedEx 2Day® AM"
+                                },
+                                {
+                                    "type": "long",
+                                    "encoding": "ascii",
+                                    "value": "FedEx 2Day AM"
+                                },
+                                {
+                                    "type": "medium",
+                                    "encoding": "utf-8",
+                                    "value": "FedEx 2Day® AM"
+                                },
+                                {
+                                    "type": "medium",
+                                    "encoding": "ascii",
+                                    "value": "FedEx 2Day AM"
+                                },
+                                {
+                                    "type": "short",
+                                    "encoding": "utf-8",
+                                    "value": "E2AM"
+                                },
+                                {
+                                    "type": "short",
+                                    "encoding": "ascii",
+                                    "value": "E2AM"
+                                },
+                                {
+                                    "type": "abbrv",
+                                    "encoding": "ascii",
+                                    "value": "TA"
+                                }
+                            ],
+                            "serviceCategory": "parcel",
+                            "description": "2DAY AM",
+                            "astraDescription": "2DAY AM"
+                        },
+                        "deliveryStation": "SLRA "
+                    },
+                    {
+                        "serviceType": "FEDEX_2_DAY",
+                        "serviceName": "FedEx 2Day®",
+                        "packagingType": "FEDEX_EXTRA_SMALL_BOX",
+                        "commit": {
+                            "dateDetail": {
+                                "dayOfWeek": "Thu",
+                                "dayFormat": "2026-09-10T17:00:00"
+                            },
+                            "derivedOriginDetail": {
+                                "countryCode": "US",
+                                "stateOrProvinceCode": "TX",
+                                "postalCode": "77005",
+                                "serviceArea": "A1",
+                                "locationId": "EIXA ",
+                                "locationNumber": 0
+                            },
+                            "derivedDestinationDetail": {
+                                "countryCode": "US",
+                                "stateOrProvinceCode": "TX",
+                                "postalCode": "75244",
+                                "serviceArea": "A1",
+                                "locationId": "SLRA ",
+                                "locationNumber": 0,
+                                "airportId": "DFW"
+                            },
+                            "saturdayDelivery": false
+                        },
+                        "ratedShipmentDetails": [
+                            {
+                                "rateType": "ACCOUNT",
+                                "ratedWeightMethod": "ACTUAL",
+                                "totalDiscounts": 0,
+                                "totalBaseCharge": 13.4,
+                                "totalNetCharge": 178.4,
+                                "totalNetFedExCharge": 178.4,
+                                "shipmentRateDetail": {
+                                    "rateZone": "03",
+                                    "dimDivisor": 0,
+                                    "fuelSurchargePercent": 0,
+                                    "totalSurcharges": 165,
+                                    "totalFreightDiscount": 0,
+                                    "surCharges": [
+                                        {
+                                            "type": "SIGNATURE_OPTION",
+                                            "description": "Direct signature required",
+                                            "amount": 0
+                                        },
+                                        {
+                                            "type": "INSURED_VALUE",
+                                            "description": "Declared Value",
+                                            "amount": 165
+                                        }
+                                    ],
+                                    "pricingCode": "PACKAGE",
+                                    "specialRatingApplied": [
+                                        "FEDEX_ONE_RATE"
+                                    ],
+                                    "currency": "USD",
+                                    "rateScale": "376479"
+                                },
+                                "ratedPackages": [
+                                    {
+                                        "groupNumber": 0,
+                                        "effectiveNetDiscount": 0,
+                                        "packageRateDetail": {
+                                            "rateType": "PAYOR_ACCOUNT_PACKAGE",
+                                            "ratedWeightMethod": "ACTUAL",
+                                            "baseCharge": 13.4,
+                                            "netFreight": 13.4,
+                                            "totalSurcharges": 165,
+                                            "netFedExCharge": 178.4,
+                                            "totalTaxes": 0,
+                                            "netCharge": 178.4,
+                                            "totalRebates": 0,
+                                            "totalFreightDiscounts": 0,
+                                            "surcharges": [
+                                                {
+                                                    "type": "SIGNATURE_OPTION",
+                                                    "description": "Direct signature required",
+                                                    "amount": 0
+                                                },
+                                                {
+                                                    "type": "INSURED_VALUE",
+                                                    "description": "Declared Value",
+                                                    "amount": 165
+                                                }
+                                            ],
+                                            "currency": "USD"
+                                        },
+                                        "sequenceNumber": 1
+                                    }
+                                ],
+                                "currency": "USD"
+                            },
+                            {
+                                "rateType": "LIST",
+                                "ratedWeightMethod": "ACTUAL",
+                                "totalDiscounts": 0,
+                                "totalBaseCharge": 13.4,
+                                "totalNetCharge": 178.4,
+                                "totalNetFedExCharge": 178.4,
+                                "shipmentRateDetail": {
+                                    "rateZone": "03",
+                                    "dimDivisor": 0,
+                                    "fuelSurchargePercent": 0,
+                                    "totalSurcharges": 165,
+                                    "totalFreightDiscount": 0,
+                                    "surCharges": [
+                                        {
+                                            "type": "SIGNATURE_OPTION",
+                                            "description": "Direct signature required",
+                                            "amount": 0
+                                        },
+                                        {
+                                            "type": "INSURED_VALUE",
+                                            "description": "Declared Value",
+                                            "amount": 165
+                                        }
+                                    ],
+                                    "pricingCode": "PACKAGE",
+                                    "specialRatingApplied": [
+                                        "FEDEX_ONE_RATE"
+                                    ],
+                                    "currency": "USD",
+                                    "rateScale": "376479"
+                                },
+                                "ratedPackages": [
+                                    {
+                                        "groupNumber": 0,
+                                        "effectiveNetDiscount": 0,
+                                        "packageRateDetail": {
+                                            "rateType": "PAYOR_LIST_PACKAGE",
+                                            "ratedWeightMethod": "ACTUAL",
+                                            "baseCharge": 13.4,
+                                            "netFreight": 13.4,
+                                            "totalSurcharges": 165,
+                                            "netFedExCharge": 178.4,
+                                            "totalTaxes": 0,
+                                            "netCharge": 178.4,
+                                            "totalRebates": 0,
+                                            "totalFreightDiscounts": 0,
+                                            "surcharges": [
+                                                {
+                                                    "type": "SIGNATURE_OPTION",
+                                                    "description": "Direct signature required",
+                                                    "amount": 0
+                                                },
+                                                {
+                                                    "type": "INSURED_VALUE",
+                                                    "description": "Declared Value",
+                                                    "amount": 165
+                                                }
+                                            ],
+                                            "currency": "USD"
+                                        },
+                                        "sequenceNumber": 1
+                                    }
+                                ],
+                                "currency": "USD"
+                            }
+                        ],
+                        "operationalDetail": {
+                            "originLocationIds": [
+                                "EIXA "
+                            ],
+                            "originLocationNumbers": [
+                                0
+                            ],
+                            "originServiceAreas": [
+                                "A1"
+                            ],
+                            "destinationLocationIds": [
+                                "SLRA "
+                            ],
+                            "destinationLocationNumbers": [
+                                0
+                            ],
+                            "destinationServiceAreas": [
+                                "A1"
+                            ],
+                            "destinationLocationStateOrProvinceCodes": [
+                                "TX"
+                            ],
+                            "deliveryDate": "2026-09-10T17:00:00",
+                            "deliveryDay": "THU",
+                            "commitDate": "2026-09-10T17:00:00",
+                            "commitDays": [
+                                "THU"
+                            ],
+                            "ineligibleForMoneyBackGuarantee": false,
+                            "astraDescription": "E2",
+                            "originPostalCodes": [
+                                "77005"
+                            ],
+                            "stateOrProvinceCodes": [
+                                "TX"
+                            ],
+                            "countryCodes": [
+                                "US"
+                            ],
+                            "airportId": "DFW",
+                            "serviceCode": "03",
+                            "destinationPostalCode": "75244"
+                        },
+                        "signatureOptionType": "DIRECT",
+                        "serviceDescription": {
+                            "serviceId": "EP1000000003",
+                            "serviceType": "FEDEX_2_DAY",
+                            "code": "03",
+                            "names": [
+                                {
+                                    "type": "long",
+                                    "encoding": "utf-8",
+                                    "value": "FedEx 2Day®"
+                                },
+                                {
+                                    "type": "long",
+                                    "encoding": "ascii",
+                                    "value": "FedEx 2Day"
+                                },
+                                {
+                                    "type": "medium",
+                                    "encoding": "utf-8",
+                                    "value": "FedEx 2Day®"
+                                },
+                                {
+                                    "type": "medium",
+                                    "encoding": "ascii",
+                                    "value": "FedEx 2Day"
+                                },
+                                {
+                                    "type": "short",
+                                    "encoding": "utf-8",
+                                    "value": "P-2"
+                                },
+                                {
+                                    "type": "short",
+                                    "encoding": "ascii",
+                                    "value": "P-2"
+                                },
+                                {
+                                    "type": "abbrv",
+                                    "encoding": "ascii",
+                                    "value": "ES"
+                                }
+                            ],
+                            "serviceCategory": "parcel",
+                            "description": "2Day",
+                            "astraDescription": "E2"
+                        },
+                        "deliveryStation": "SLRA "
+                    },
+                    {
+                        "serviceType": "FEDEX_EXPRESS_SAVER",
+                        "serviceName": "FedEx Express Saver®",
+                        "packagingType": "FEDEX_EXTRA_SMALL_BOX",
+                        "commit": {
+                            "dateDetail": {
+                                "dayOfWeek": "Fri",
+                                "dayFormat": "2026-09-11T17:00:00"
+                            },
+                            "derivedOriginDetail": {
+                                "countryCode": "US",
+                                "stateOrProvinceCode": "TX",
+                                "postalCode": "77005",
+                                "serviceArea": "A1",
+                                "locationId": "EIXA ",
+                                "locationNumber": 0
+                            },
+                            "derivedDestinationDetail": {
+                                "countryCode": "US",
+                                "stateOrProvinceCode": "TX",
+                                "postalCode": "75244",
+                                "serviceArea": "A1",
+                                "locationId": "SLRA ",
+                                "locationNumber": 0,
+                                "airportId": "DFW"
+                            },
+                            "saturdayDelivery": false
+                        },
+                        "ratedShipmentDetails": [
+                            {
+                                "rateType": "ACCOUNT",
+                                "ratedWeightMethod": "ACTUAL",
+                                "totalDiscounts": 0,
+                                "totalBaseCharge": 13.4,
+                                "totalNetCharge": 178.4,
+                                "totalNetFedExCharge": 178.4,
+                                "shipmentRateDetail": {
+                                    "rateZone": "03",
+                                    "dimDivisor": 0,
+                                    "fuelSurchargePercent": 0,
+                                    "totalSurcharges": 165,
+                                    "totalFreightDiscount": 0,
+                                    "surCharges": [
+                                        {
+                                            "type": "SIGNATURE_OPTION",
+                                            "description": "Direct signature required",
+                                            "amount": 0
+                                        },
+                                        {
+                                            "type": "INSURED_VALUE",
+                                            "description": "Declared Value",
+                                            "amount": 165
+                                        }
+                                    ],
+                                    "pricingCode": "PACKAGE",
+                                    "specialRatingApplied": [
+                                        "FEDEX_ONE_RATE"
+                                    ],
+                                    "currency": "USD",
+                                    "rateScale": "192088"
+                                },
+                                "ratedPackages": [
+                                    {
+                                        "groupNumber": 0,
+                                        "effectiveNetDiscount": 0,
+                                        "packageRateDetail": {
+                                            "rateType": "PAYOR_ACCOUNT_PACKAGE",
+                                            "ratedWeightMethod": "ACTUAL",
+                                            "baseCharge": 13.4,
+                                            "netFreight": 13.4,
+                                            "totalSurcharges": 165,
+                                            "netFedExCharge": 178.4,
+                                            "totalTaxes": 0,
+                                            "netCharge": 178.4,
+                                            "totalRebates": 0,
+                                            "totalFreightDiscounts": 0,
+                                            "surcharges": [
+                                                {
+                                                    "type": "SIGNATURE_OPTION",
+                                                    "description": "Direct signature required",
+                                                    "amount": 0
+                                                },
+                                                {
+                                                    "type": "INSURED_VALUE",
+                                                    "description": "Declared Value",
+                                                    "amount": 165
+                                                }
+                                            ],
+                                            "currency": "USD"
+                                        },
+                                        "sequenceNumber": 1
+                                    }
+                                ],
+                                "currency": "USD"
+                            },
+                            {
+                                "rateType": "LIST",
+                                "ratedWeightMethod": "ACTUAL",
+                                "totalDiscounts": 0,
+                                "totalBaseCharge": 13.4,
+                                "totalNetCharge": 178.4,
+                                "totalNetFedExCharge": 178.4,
+                                "shipmentRateDetail": {
+                                    "rateZone": "03",
+                                    "dimDivisor": 0,
+                                    "fuelSurchargePercent": 0,
+                                    "totalSurcharges": 165,
+                                    "totalFreightDiscount": 0,
+                                    "surCharges": [
+                                        {
+                                            "type": "SIGNATURE_OPTION",
+                                            "description": "Direct signature required",
+                                            "amount": 0
+                                        },
+                                        {
+                                            "type": "INSURED_VALUE",
+                                            "description": "Declared Value",
+                                            "amount": 165
+                                        }
+                                    ],
+                                    "pricingCode": "PACKAGE",
+                                    "specialRatingApplied": [
+                                        "FEDEX_ONE_RATE"
+                                    ],
+                                    "currency": "USD",
+                                    "rateScale": "192088"
+                                },
+                                "ratedPackages": [
+                                    {
+                                        "groupNumber": 0,
+                                        "effectiveNetDiscount": 0,
+                                        "packageRateDetail": {
+                                            "rateType": "PAYOR_LIST_PACKAGE",
+                                            "ratedWeightMethod": "ACTUAL",
+                                            "baseCharge": 13.4,
+                                            "netFreight": 13.4,
+                                            "totalSurcharges": 165,
+                                            "netFedExCharge": 178.4,
+                                            "totalTaxes": 0,
+                                            "netCharge": 178.4,
+                                            "totalRebates": 0,
+                                            "totalFreightDiscounts": 0,
+                                            "surcharges": [
+                                                {
+                                                    "type": "SIGNATURE_OPTION",
+                                                    "description": "Direct signature required",
+                                                    "amount": 0
+                                                },
+                                                {
+                                                    "type": "INSURED_VALUE",
+                                                    "description": "Declared Value",
+                                                    "amount": 165
+                                                }
+                                            ],
+                                            "currency": "USD"
+                                        },
+                                        "sequenceNumber": 1
+                                    }
+                                ],
+                                "currency": "USD"
+                            }
+                        ],
+                        "operationalDetail": {
+                            "originLocationIds": [
+                                "EIXA "
+                            ],
+                            "originLocationNumbers": [
+                                0
+                            ],
+                            "originServiceAreas": [
+                                "A1"
+                            ],
+                            "destinationLocationIds": [
+                                "SLRA "
+                            ],
+                            "destinationLocationNumbers": [
+                                0
+                            ],
+                            "destinationServiceAreas": [
+                                "A1"
+                            ],
+                            "destinationLocationStateOrProvinceCodes": [
+                                "TX"
+                            ],
+                            "deliveryDate": "2026-09-11T17:00:00",
+                            "deliveryDay": "FRI",
+                            "commitDate": "2026-09-11T17:00:00",
+                            "commitDays": [
+                                "FRI"
+                            ],
+                            "ineligibleForMoneyBackGuarantee": false,
+                            "astraDescription": "XS",
+                            "originPostalCodes": [
+                                "77005"
+                            ],
+                            "stateOrProvinceCodes": [
+                                "TX"
+                            ],
+                            "countryCodes": [
+                                "US"
+                            ],
+                            "airportId": "DFW",
+                            "serviceCode": "20",
+                            "destinationPostalCode": "75244"
+                        },
+                        "signatureOptionType": "DIRECT",
+                        "serviceDescription": {
+                            "serviceId": "EP1000000013",
+                            "serviceType": "FEDEX_EXPRESS_SAVER",
+                            "code": "20",
+                            "names": [
+                                {
+                                    "type": "long",
+                                    "encoding": "utf-8",
+                                    "value": "FedEx Express Saver®"
+                                },
+                                {
+                                    "type": "long",
+                                    "encoding": "ascii",
+                                    "value": "FedEx Express Saver"
+                                },
+                                {
+                                    "type": "medium",
+                                    "encoding": "utf-8",
+                                    "value": "FedEx Express Saver®"
+                                },
+                                {
+                                    "type": "medium",
+                                    "encoding": "ascii",
+                                    "value": "FedEx Express Saver"
+                                }
+                            ],
+                            "serviceCategory": "parcel",
+                            "description": "Express Saver",
+                            "astraDescription": "XS"
+                        },
+                        "deliveryStation": "SLRA "
+                    }
+                ],
+                "quoteDate": "2026-09-05",
+                "encoded": false
+            }
+        },
+        "rawHeaders": {
+            "content-type": "application/json"
+        }
+    }
+]

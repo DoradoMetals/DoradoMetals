@@ -4,6 +4,15 @@ export const LOCKS = {
   ORDERS: 4213,
   ADDRESSES: 4214,
   USERS: 4215,
+  // rates.rates carries a GIST exclusion constraint on (metal_id, unit, range)
+  // - not a plain unique index, so `lint-test-locks`'s table map doesn't know
+  // it. Two overlapping inserts from separate transactions don't raise 23505;
+  // each waits on the other's uncommitted tuple to resolve, and two waiting on
+  // each other is a real Postgres deadlock. repo.test.ts and service.test.ts
+  // both insert `Gold`/`oz`/`[0,)` with no lock, and adding an unrelated slow
+  // test elsewhere shifted vitest's scheduling enough to run them at the same
+  // moment and reproduce it (found closing the fulfillment-rates skip).
+  RATES: 4216,
 }
 
 import { appendFileSync } from 'node:fs'
