@@ -16319,3 +16319,25 @@ population and floor is unchanged (measured against a `git archive HEAD` copy),
 every ACCEPTED key renamed rather than dropped, all 35 `--self-test`s green,
 coverage keys re-pointed at the SAME numbers and proved to bind. 237 test files,
 1359 tests green. Detail in `docs/waves/domains.md`.
+
+## The e2e suite runs green against the rebuilt frontend (2026-09-07)
+
+71 non-`@maps` specs, 69 passing before and every one passing after: seven fixes,
+none of them an API change. The order seed was dead first (its `world` stub still
+named `buyPostage`, and its address step read frozen `exchange.addresses` and
+called `addressService.create` with one object where three arguments go), so the
+admin drawer-work specs had nothing to drive. Two real frontend defects: `app/
+sitemap.ts` shipped **no product URLs** because `fetchProducts` lived in a
+`'use client'` module and its failure is swallowed by a `try/catch` (split into a
+server-safe `packages/client/src/products/fetch.ts`), and the design-system
+`Select` gave its trigger an accessible name only when passed a `label`, so every
+unlabelled one was an anonymous combobox (`aria-label` from the placeholder now).
+Four spec updates for API changes the specs had not caught up with - `GET
+/addresses/get` is `GET /addresses` (REST transport), the address wire is a book
+entry (`user_address.label`, `address.id`) not a flat row, `SHIPMENT` is a
+fulfillment method's `category` not its `type` - plus a click that raced a
+filtered re-render and a `beforeAll` whose 30s budget was wrong for building a
+whole sale. **Zero (c) API bugs**: nothing the API answered was wrong to answer.
+Three full runs each ended green with one or two TIMEOUT-shaped flakes on a
+different spec each time - contention from parallel workers on one dev API, not a
+defect, and left alone. Detail in `docs/waves/e2e-2026-09-07.md`.

@@ -88,7 +88,16 @@ test.describe('the admin purchase order drawer', () => {
 
   test('the item controls an admin needs are all there', async ({ page }) => {
     const drawer = page.getByRole('dialog', { name: /Purchase order/i }).first()
-    for (const control of [/Add Scrap to Order/i, /Edit/i, /Remove/i, /Add New/i]) {
+    // The two ADD controls are design-system Selects, which Radix gives
+    // role=combobox; Edit and Remove are buttons. Asserting all four as
+    // buttons passed only while the Select trigger was one.
+    for (const control of [/Add Scrap to Order/i, /Add New/i]) {
+      await expect(
+        drawer.getByRole('combobox', { name: control }).first(),
+        `the drawer is missing the ${control} control`
+      ).toBeVisible()
+    }
+    for (const control of [/Edit/i, /Remove/i]) {
       await expect(
         drawer.getByRole('button', { name: control }).first(),
         `the drawer is missing the ${control} control`

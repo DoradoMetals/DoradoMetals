@@ -9,15 +9,11 @@ import * as fulfillmentService from '#logistics/fulfillments/service.ts'
 import * as addressService from '#accounts/places/addresses/service.ts'
 import { place } from '#orders/place.ts'
 
+// The seed exists so a disposable order can be minted without buying a real
+// FedEx label or sending mail: every outside-world call in `place`'s LIVE
+// contract is stubbed here.
 const world = {
-  async buyPostage() {
-    return {
-      netCharge: 0,
-      tracking_number: null,
-      label: null,
-      pickup: { confirmationNumber: null, location: 'FRONT' },
-    }
-  },
+  async buyLabel() {},
   async authorize() {},
   async confirm() {},
 }
@@ -64,27 +60,32 @@ if (!methods.length) {
   process.exit(1)
 }
 
+// The address book is places.user_addresses now, keyed by `label` - the
+// frozen exchange.addresses row this used to look for is not what the API
+// reads, and addressService.create takes three positional arguments.
 const { rows: existingAddr } = await query(
-  `SELECT id FROM exchange.addresses
-   WHERE user_id = $1 AND name = 'e2e-order-seed' LIMIT 1`,
+  `SELECT address_id AS id FROM places.user_addresses
+    WHERE user_id = $1 AND label = 'e2e-order-seed' LIMIT 1`,
   [user_id]
 )
 
 const address = existingAddr.length
   ? { id: existingAddr[0].id }
-  : await addressService.create({
-      userId: user_id,
-      address: {
-        line_1: '6100 E2E Seed St',
-        city: 'Houston',
-        state: 'TX',
-        country: 'United States',
-        zip: '77005',
-        country_code: 'US',
-        phone_number: '7135551234',
-      },
-      user_address: { label: 'e2e-order-seed' },
-    })
+  : (
+      await addressService.create(
+        user_id,
+        {
+          line_1: '6100 E2E Seed St',
+          city: 'Houston',
+          state: 'TX',
+          country: 'United States',
+          zip: '77005',
+          country_code: 'US',
+          phone_number: '7135551234',
+        },
+        { label: 'e2e-order-seed', recipient_name: E2E_CUSTOMER.name }
+      )
+    ).address
 
 const { id: checkout_row_id } = await checkoutService.getRowFor(user_id, 'purchase')
 const draft = await fulfillmentDrafts.createForCheckout(

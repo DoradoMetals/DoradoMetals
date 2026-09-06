@@ -50,6 +50,7 @@ export function Select({
       >
         <SelectPrimitive.Trigger
           id={id}
+          aria-label={label == null ? placeholder : undefined}
           aria-invalid={invalid || undefined}
           className={cn(fieldTrigger(), 'justify-between [&>span]:truncate')}
         >
