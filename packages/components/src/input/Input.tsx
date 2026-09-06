@@ -31,6 +31,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
       inputClassName,
       id,
       disabled,
+      readOnly,
       type,
       inputMode,
       ...props
@@ -59,6 +60,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         <div
           data-invalid={invalid || undefined}
           data-disabled={disabled || undefined}
+          data-readonly={readOnly || undefined}
           className={cn(fieldTrigger(), success && 'border-success')}
         >
           {leading != null && <span className="shrink-0 text-muted-foreground">{leading}</span>}
@@ -66,12 +68,15 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             id={inputId}
             disabled={disabled}
+            readOnly={readOnly}
             aria-invalid={invalid || undefined}
             aria-describedby={message != null ? messageId : undefined}
             type={type}
             inputMode={inputMode ?? (isNumber ? 'decimal' : undefined)}
             className={cn(
-              'min-w-0 flex-1 bg-transparent text-h5 text-foreground outline-none placeholder:text-placeholder disabled:cursor-not-allowed disabled:text-foreground-disabled',
+              'min-w-0 flex-1 bg-transparent text-h5 font-normal text-foreground outline-none placeholder:text-placeholder',
+              'disabled:cursor-not-allowed disabled:text-foreground-disabled',
+              'read-only:cursor-default',
               isNumber && NUMBER_FIELD,
               inputClassName
             )}

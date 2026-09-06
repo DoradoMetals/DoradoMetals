@@ -53,6 +53,17 @@ Re-capture whenever the Figma file changes. It is two tool calls.
 one-switch-per-call rule does not apply and a whole-file sweep is one call
 instead of fifty.
 
+**PART_1 captures alpha and rounds** (2026-09-06). Two things the first version
+did not, and both showed up the moment the soft status tokens landed:
+
+- A colour variable's alpha is captured as its own `opacity` field. The soft
+  tints are the SAME hex as their solid siblings and differ only in alpha, so
+  hex alone reported four duplicate colours and could never have caught a 16%
+  that drifted.
+- Floats are rounded to 4 places. Figma stores them as float32, so `0.045`
+  reads back as `0.04500000178813934` and a re-capture diffs against itself on
+  eighteen typography variables that nobody changed.
+
 ## The map is the point
 
 `map.mjs` holds the correspondence, and it exists because the two sides share

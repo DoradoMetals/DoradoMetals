@@ -31,11 +31,12 @@ describe('Checkbox', () => {
     expect(box.className).not.toMatch(/border-input/)
   })
 
-  it('disabled unchecked is a flat muted fill, not a translucent one', () => {
+  it('disabled unchecked keeps its own surface and fades to 50% (15:16, 2026-09-05)', () => {
     const { getByRole } = render(<Checkbox aria-label="x" disabled />)
     const box = getByRole('checkbox')
-    expect(box.className).toMatch(/disabled:data-\[state=unchecked\]:bg-muted/)
-    expect(box.className).not.toMatch(/disabled:opacity-50/)
+    expect(box.className).toContain('bg-card')
+    expect(box.className).toMatch(/disabled:opacity-50/)
+    expect(box.className).not.toMatch(/disabled:data-\[state=unchecked\]:bg-muted/)
   })
 
   it('disabled checked is a flat border-strong fill with a legible glyph', () => {

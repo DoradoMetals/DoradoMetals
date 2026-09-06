@@ -94,7 +94,7 @@ export function OTPInput({
                 className={cn(
                   'flex h-14 min-w-0 flex-1 items-center justify-center rounded-lg text-h3 font-semibold',
                   disabled
-                    ? 'bg-muted border border-border text-foreground-disabled'
+                    ? 'bg-muted border border-border text-foreground-disabled opacity-50'
                     : cn(
                         'bg-card text-foreground',
                         invalid

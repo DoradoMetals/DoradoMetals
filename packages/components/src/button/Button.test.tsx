@@ -71,11 +71,11 @@ describe('rendered Button', () => {
     expect((getByRole('button') as HTMLButtonElement).disabled).toBe(true)
   })
 
-  it('type, icon and gap all tier with the size', () => {
+  it('type and icon tier with the size; the gap does not (25:510, 2026-09-05)', () => {
     const tier = {
-      sm: { text: 'text-micro', icon: '[&_svg]:size-3.5', gap: 'gap-1' },
-      default: { text: 'text-small', icon: '[&_svg]:size-4', gap: 'gap-1.5' },
-      lg: { text: 'sm:text-body', icon: '[&_svg]:size-5', gap: 'gap-2' },
+      sm: { text: 'text-micro', icon: '[&_svg]:size-3.5', gap: 'gap-xs' },
+      default: { text: 'text-small', icon: '[&_svg]:size-4', gap: 'gap-xs' },
+      lg: { text: 'sm:text-body', icon: '[&_svg]:size-5', gap: 'gap-xs' },
     } as const
     for (const [size, want] of Object.entries(tier)) {
       const c = rendered({ size: size as keyof typeof tier })
@@ -85,18 +85,18 @@ describe('rendered Button', () => {
     }
   })
 
-  it('no flat gap or icon size survives in the base', () => {
+  it('no flat icon size survives in the base', () => {
     const sm = rendered({ size: 'sm' })
-    expect(sm).not.toContain('gap-2')
     expect(sm).not.toContain('[&_svg]:size-4')
   })
 
-  it('tertiary tightens the gap to 4/5/6 against the boxed 4/6/8', () => {
-    expect(rendered({ variant: 'tertiary', size: 'sm' })).toContain('gap-1')
-    expect(rendered({ variant: 'tertiary', size: 'default' })).toContain('gap-[5px]')
-    expect(rendered({ variant: 'tertiary', size: 'lg' })).toContain('gap-1.5')
-    expect(rendered({ variant: 'secondary', size: 'default' })).toContain('gap-1.5')
-    expect(rendered({ variant: 'secondary', size: 'lg' })).toContain('gap-2')
+  it('the icon gap is spacing/xs on every variant and size - tertiary no longer tightens (2026-09-05)', () => {
+    for (const variant of ['primary', 'secondary', 'tertiary'] as const) {
+      for (const size of ['sm', 'default', 'lg'] as const) {
+        expect(rendered({ variant, size })).toContain('gap-xs')
+      }
+    }
+    expect(rendered({ variant: 'tertiary', size: 'default' })).not.toContain('gap-[5px]')
   })
 
   it('tertiary neutral is the one place the library uses subtle', () => {

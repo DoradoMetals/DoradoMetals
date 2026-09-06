@@ -40,7 +40,7 @@ describe('OTPInput', () => {
     expect(onValueChange).toHaveBeenCalledWith('12')
   })
 
-  it('disabled reads as a muted fill, not an opacity fade', () => {
+  it('disabled keeps the drawn muted cell AND fades to 50% (96:18, 2026-09-05)', () => {
     const { container } = render(
       <OTPInput value="" onValueChange={() => {}} label="Code" disabled />
     )
@@ -49,7 +49,7 @@ describe('OTPInput', () => {
     cells.forEach((cell) => {
       expect(cell.className).toContain('bg-muted')
       expect(cell.className).toContain('text-foreground-disabled')
-      expect(cell.className).not.toContain('opacity-50')
+      expect(cell.className).toContain('opacity-50')
     })
   })
 })

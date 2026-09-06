@@ -35,4 +35,59 @@ describe('DatePicker', () => {
     fireEvent.click(getByRole('radio', { name: /9:00 AM/ }))
     expect(onTimeChange).toHaveBeenCalledWith('09:00')
   })
+
+  it('Layout=Slim swaps the slot grid for a single Time select (104:438, 2026-09-04)', () => {
+    const { container, getByRole } = render(
+      <DatePicker
+        layout="slim"
+        mode="single"
+        defaultMonth={new Date(2026, 7, 1)}
+        timeGroups={groups}
+        timeValue={null}
+        timeHeading="Time"
+      />
+    )
+    expect(container.querySelector('[role="grid"]')).toBeTruthy()
+    expect(container.querySelector('[role="radiogroup"]')).toBe(null)
+    expect(getByRole('combobox')).toBeTruthy()
+    expect((container.firstElementChild as HTMLElement).getAttribute('data-layout')).toBe('slim')
+  })
+
+  it('Slim with no time groups is the calendar alone - Show time picker off', () => {
+    const { container, queryByRole } = render(
+      <DatePicker layout="slim" mode="single" defaultMonth={new Date(2026, 7, 1)} />
+    )
+    expect(container.querySelector('[role="grid"]')).toBeTruthy()
+    expect(queryByRole('combobox')).toBe(null)
+  })
+
+  it('Stacked is the mobile shape: the times sit under the calendar, 3 across', () => {
+    const { container } = render(
+      <DatePicker
+        layout="stacked"
+        mode="single"
+        defaultMonth={new Date(2026, 7, 1)}
+        timeGroups={groups}
+        timeValue={null}
+      />
+    )
+    const card = container.firstElementChild as HTMLElement
+    expect(card.className).not.toContain('sm:flex-row')
+    expect(container.querySelector('.grid-cols-3')).toBeTruthy()
+  })
+
+  it('Side by side stays the default and keeps the two-column slot grid', () => {
+    const { container } = render(
+      <DatePicker
+        mode="single"
+        defaultMonth={new Date(2026, 7, 1)}
+        timeGroups={groups}
+        timeValue={null}
+      />
+    )
+    const card = container.firstElementChild as HTMLElement
+    expect(card.getAttribute('data-layout')).toBe('sideBySide')
+    expect(card.className).toContain('sm:flex-row')
+    expect(container.querySelector('.grid-cols-2')).toBeTruthy()
+  })
 })

@@ -27,7 +27,7 @@ used to hold lives here instead.
 
 ## Figma node ids
 
-Audited 2026-09-03 against file `8A73quhBLBqotJlX95jN9j`.
+Audited 2026-09-03 against file `8A73quhBLBqotJlX95jN9j`; refreshed 2026-09-06.
 
 | Component | Node | Component | Node |
 |---|---|---|---|
@@ -52,10 +52,12 @@ Audited 2026-09-03 against file `8A73quhBLBqotJlX95jN9j`.
 | Input | 26:391 | Textarea | 37:63 |
 | Link | 26:513 | Tooltip | 32:177 |
 | List | 97:35 | Upload | 349:340 |
-| Paperwork | 549:63 | Tracker | 597:108 |
+| Documents | 549:63 | Tracker | 597:108 |
 | Footer | 76:177 | Header | 51:58 |
 | Radio | 15:27, Tile 31:59, Chip 31:78, Card 99:119 | | |
 | Amount | 612:12 | Banner | 125:4 |
+| Chat | 649:101 | Message | 619:19 |
+| CallEvent | 624:64 | Thumbnail | 698:29 |
 | Divider | 431:15 | Drawer | 127:32 |
 | Pagination | 132:966, Page Item 132:965 | | |
 
@@ -81,8 +83,8 @@ Datepicker on 2026-09-02, so the code follows: the file stays as an internal of
 DatePicker, and only the `TimeGroup` and `TimeSlotShape` types are still exported,
 because DatePicker's own props take them.
 
-Tracker composes Tracker Step (542:1417) and Tracker Node (541:14); Paperwork
-composes Paperwork Row (548:41). Both keep their row components internal.
+Tracker composes Tracker Step (542:1417) and Tracker Node (541:14); Documents
+composes Paperwork Row (548:41) - the ROW keeps its old name in Figma. Both keep their row components internal.
 ScrollArea composes Scrollbar (320:16) the same way.
 
 **Tracker was recorded at 546:10, which is now the Orientation=Vertical variant
@@ -172,11 +174,13 @@ ones and mostly could not. Five agents reported the same handful of gaps, so
 these are the specification for the next round of library work rather than one
 agent's opinion.
 
-- **`Input` sets `text-body`, which is 15px, and iOS Safari zooms the viewport
-  when a focused input is under 16px.** The app's local input uses 16px on
-  purpose and says so in its own comment. This is a platform behaviour, not a
-  look, and it blocks every Input and Textarea swap in the app. It needs a
-  decision: hold 16px on touch devices, or accept the zoom.
+- **`Input` at 15px was the iOS-zoom blocker and it is FIXED.** Jacob bound the
+  field value to size/h5 on 2026-09-04 and the code follows: Input, Textarea,
+  Select and the `fieldTrigger` chassis are all `text-h5` now. Note the
+  companion trap - Tailwind v4's `text-h5` also applies
+  `--text-h5--font-weight: 600`, and Figma draws the value **Regular**, so each
+  of those four pins `font-normal` beside it. Drop the pin and every field
+  value silently goes semibold.
 - **`Input` and `Textarea` own their wrapper.** The library renders a bordered
   box plus an optional label, so a call site's `className` lands on the wrapper
   rather than the control. The app has many dense inline fields that put sizing
@@ -184,18 +188,45 @@ agent's opinion.
 - **`EmptyState` has no `badge`, `description` or `iconSize`.** Every call site
   in the app uses at least one.
 - **`Badge` has no size axis and is `rounded-md`.** The app's status labels are
-  pills with a size axis, deliberately, under an existing ruling.
+  pills with a size axis, deliberately, under an existing ruling. (Badge's
+  SOFT treatment is no longer a `/15` opacity guess: `status/*-soft` and
+  `surface/soft` are real tokens as of 2026-09-04 and the cva uses them.)
 - **`Table` always draws its own card and border**, and has none of the app's
   `surface`, `borderless`, `interactive`, `intent` or `disabled` row props.
 - **`DataTable` is far thinner than the app's**, which carries filter cards,
   search, row click and column visibility.
-- **Nothing exists for** drawer, form, separator, popover, rating, command,
-  lens, radio group, pagination or breadcrumb. Figma has pages for Divider,
-  Drawer, Radio, Pagination and Breadcrumb, plus Banner, Icon Button and
-  Loader, none of which is built.
+- **Nothing exists for** popover or breadcrumb, and those are the only two
+  entries `figma:inventory` still carries as PENDING. Divider, Drawer, Radio,
+  Pagination and Banner were all built between this note and 2026-09-06; the
+  five stale PENDING entries went with them.
 
 Two smaller ones found the same day: `FloatingLabelInput` and
 `FloatingLabelTextarea` in the app reference `text-error` and `border-error`,
 which are not tokens and never have been, so their error state has always
 rendered as nothing. And the app's mobile nav scrim uses raw `black/15` because
 the theme has no overlay or scrim token.
+
+
+## Refreshed 2026-09-06 (Figma capture, `docs/waves/library-refresh.md`)
+
+- **`Paperwork` is `Documents`.** The Figma PAGE is still called Paperwork; the
+  component set on it was renamed on 2026-09-05 and the header label says
+  Documents, so the code followed the component. `DOCUMENT_NAMES` is the ten
+  canonical names as a typed union, and rows carry `showSend` / `showDelete`
+  (both on) and `showImport` / `showGenerate` (both off), matching the drawing's
+  own booleans.
+- **`Chat`, `Message`, `CallEvent` and `Thumbnail` are new.** All four are built
+  from `get_design_context` on the Chat (619:2) and Thumbnail (698:2) pages.
+- **The disabled convention is normal chrome at 50%.** Input, Textarea, Select,
+  the `fieldTrigger` chassis, Checkbox and Radio no longer swap to `bg-muted`
+  when disabled; they keep `bg-card` and fade. OTP keeps its drawn muted cell
+  AND fades, because that is what its own variant does.
+- **Button's icon gap is `spacing/xs` on every variant.** Tertiary's 4/5/6
+  tightening is gone - Jacob raised it to 8 across all 135 variants on
+  2026-09-05.
+- **`Hero` bakes in no routes.** `primaryAction` and `secondaryAction` are
+  `{ href, label }` props; the secondary is optional. The old `/sell` and `/buy`
+  hrefs died with the frontend nuke.
+- **`MaskedField` is deprecated, not deleted**, on both sides. Figma keeps the
+  page because deleting a published component detaches every instance of it;
+  the code keeps the directory so `figma:inventory` still maps the page.

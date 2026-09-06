@@ -18,13 +18,20 @@ describe('Field chassis', () => {
     expect(fieldOption()).toContain('text-h5')
   })
 
-  it('disabled reads as a muted fill, not an opacity fade', () => {
+  it('disabled is the normal chrome at 50%, not a muted fill (2026-09-05 convention)', () => {
     const c = fieldTrigger()
-    expect(c).toContain('disabled:bg-muted')
+    expect(c).toContain('bg-card')
+    expect(c).toContain('disabled:opacity-50')
+    expect(c).toContain('data-[disabled]:opacity-50')
     expect(c).toContain('disabled:text-foreground-disabled')
-    expect(c).toContain('data-[disabled]:bg-muted')
     expect(c).toContain('data-[disabled]:text-foreground-disabled')
-    expect(c).not.toContain('opacity-50')
+    expect(c).not.toContain('disabled:bg-muted')
+    expect(c).not.toContain('data-[disabled]:bg-muted')
+  })
+
+  it('the field value is 16px at Regular - text-h5 alone would carry weight 600', () => {
+    expect(fieldTrigger()).toContain('text-h5')
+    expect(fieldTrigger()).toContain('font-normal')
   })
 
   it('panel is the popover surface, option highlights with accent', () => {

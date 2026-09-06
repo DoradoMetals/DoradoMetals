@@ -17,8 +17,7 @@ export function Checkbox({ className, ...props }: CheckboxProps) {
         'data-[state=checked]:hover:opacity-85',
         'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background',
         'aria-invalid:border-destructive',
-        'disabled:cursor-not-allowed',
-        'disabled:data-[state=unchecked]:bg-muted',
+        'disabled:cursor-not-allowed disabled:opacity-50',
         'disabled:data-[state=checked]:border-border-strong disabled:data-[state=checked]:bg-border-strong disabled:data-[state=checked]:text-muted-foreground',
         className
       )}

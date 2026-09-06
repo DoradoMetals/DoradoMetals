@@ -32,13 +32,14 @@ describe('Select', () => {
     expect(getByText('Method').className).toContain('text-destructive')
   })
 
-  it('disabled reads as a muted fill, not an opacity fade', () => {
+  it('disabled is the normal chrome at 50% (2026-09-05 convention)', () => {
     const { getByRole } = render(<Select label="Method" items={items} disabled />)
     const trigger = getByRole('combobox') as HTMLButtonElement
     expect(trigger.disabled).toBe(true)
-    expect(trigger.className).toContain('disabled:bg-muted')
+    expect(trigger.className).toContain('bg-card')
+    expect(trigger.className).toContain('disabled:opacity-50')
     expect(trigger.className).toContain('disabled:text-foreground-disabled')
-    expect(trigger.className).not.toContain('opacity-50')
+    expect(trigger.className).not.toContain('disabled:bg-muted')
   })
 
   it('the trigger binds to size/h5, not size/body (38:75, 2026-09-04)', () => {

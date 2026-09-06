@@ -22,14 +22,13 @@ export function Radio({ className, ...props }: RadioProps) {
         'data-[state=checked]:border-primary data-[state=checked]:hover:bg-accent',
         'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background',
         'aria-invalid:border-destructive',
-        'disabled:cursor-not-allowed',
-        'disabled:data-[state=unchecked]:bg-muted',
-        'disabled:data-[state=checked]:border-border-strong',
+        'disabled:cursor-not-allowed disabled:opacity-50',
+        'disabled:data-[state=checked]:border-border-strong disabled:data-[state=checked]:bg-border-strong',
         className
       )}
       {...props}
     >
-      <RadioGroupPrimitive.Indicator className="size-2 rounded-full bg-primary group-disabled:bg-muted-foreground" />
+      <RadioGroupPrimitive.Indicator className="size-2 rounded-full bg-primary group-disabled:bg-background" />
     </RadioGroupPrimitive.Item>
   )
 }
@@ -96,12 +95,11 @@ export function RadioOption({
             'flex size-4 shrink-0 items-center justify-center rounded-full border border-border bg-card transition-colors',
             'group-hover:border-border-strong group-hover:bg-accent',
             'group-data-[state=checked]:border-primary group-data-[state=checked]:group-hover:bg-accent',
-            'group-disabled:group-data-[state=unchecked]:bg-muted',
-            'group-disabled:group-data-[state=checked]:border-border-strong',
+            'group-disabled:group-data-[state=checked]:border-border-strong group-disabled:group-data-[state=checked]:bg-border-strong',
             indicatorPosition[resolvedVariant]
           )}
         >
-          <RadioGroupPrimitive.Indicator className="size-2 rounded-full bg-primary group-disabled:bg-muted-foreground" />
+          <RadioGroupPrimitive.Indicator className="size-2 rounded-full bg-primary group-disabled:bg-background" />
         </span>
       )}
     </RadioGroupPrimitive.Item>

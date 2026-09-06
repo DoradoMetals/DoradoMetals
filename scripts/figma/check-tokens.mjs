@@ -16,7 +16,7 @@
 
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
-import { readSnapshot, loadTheme, toHex, toPx, evalRadius, num, report, THEME_DIR } from './lib.mjs'
+import { readSnapshot, loadTheme, toColor, toHex, toPx, evalRadius, num, report, THEME_DIR } from './lib.mjs'
 import * as M from './map.mjs'
 
 const snap = readSnapshot()
@@ -51,13 +51,18 @@ let total = 0
       findings.push(`${name} -> ${cssName}, which theme.css does not declare`)
       continue
     }
-    const actual = toHex(declared)
+    const actual = toColor(declared)
     if (actual === null) {
       findings.push(`${name} -> ${cssName} = "${declared}", which is not a literal colour`)
       continue
     }
-    if (actual !== v.value)
-      findings.push(`${name}: Figma ${v.value}, ${cssName} ${actual} (${declared})`)
+    if (actual.hex !== v.value)
+      findings.push(`${name}: Figma ${v.value}, ${cssName} ${actual.hex} (${declared})`)
+    const wantAlpha = v.opacity ?? 1
+    if (Math.abs(actual.alpha - wantAlpha) > 0.005)
+      findings.push(
+        `${name} alpha: Figma ${num(wantAlpha)}, ${cssName} ${num(actual.alpha)} (${declared})`
+      )
   }
   // The other direction: a literal colour in the CSS that Figma has no variable for.
   const mapped = new Set(Object.values(M.COLOR))
@@ -100,10 +105,13 @@ let total = 0
       findings.push(`${name} -> ${cssName} = "${declared}", which this check cannot resolve to px`)
       continue
     }
-    if (!close(actual, v.value))
-      findings.push(`${name}: Figma ${num(v.value)}px, ${cssName} ${num(actual)}px (${declared})`)
+    const want = M.SCALE_PERCENT[name] ? v.value / 100 : v.value
+    if (!close(actual, want))
+      findings.push(`${name}: Figma ${num(want)}, ${cssName} ${num(actual)} (${declared})`)
   }
-  total += report(`Scale  (${scale.size} Figma variables)`, findings)
+  total += report(`Scale  (${scale.size} Figma variables)`, findings, {
+    notes: Object.entries(M.SCALE_PERCENT).map(([k, why]) => `percent-scaled: ${k} - ${why}`),
+  })
 }
 
 // --- the type ramp --------------------------------------------------------

@@ -9,18 +9,18 @@ const badgeVariants = cva(
       variant: { solid: '', soft: '', outline: 'border' },
       intent: { neutral: '', success: '', danger: '', warning: '', info: '' },
       size: {
-        sm: 'gap-1 px-1.5 py-0.5 text-micro [&_svg]:size-2.5',
-        default: 'gap-1 px-2 py-0.5 text-micro [&_svg]:size-3',
-        lg: 'gap-1.5 px-2.5 py-1 text-small [&_svg]:size-3.5',
+        sm: 'gap-2xs px-1.5 py-3xs text-micro [&_svg]:size-2.5',
+        default: 'gap-2xs px-xs py-3xs text-micro [&_svg]:size-3',
+        lg: 'gap-2xs px-2.5 py-1 text-small [&_svg]:size-3.5',
       },
     },
     compoundVariants: [
       { variant: 'solid', intent: 'neutral', className: 'bg-secondary text-foreground' },
-      { variant: 'soft', intent: 'neutral', className: 'bg-border text-foreground' },
+      { variant: 'soft', intent: 'neutral', className: 'bg-surface-soft text-foreground' },
       { variant: 'outline', intent: 'neutral', className: 'border-border text-foreground' },
 
       { variant: 'solid', intent: 'success', className: 'bg-success text-success-foreground' },
-      { variant: 'soft', intent: 'success', className: 'bg-success/15 text-success' },
+      { variant: 'soft', intent: 'success', className: 'bg-success-soft text-success' },
       { variant: 'outline', intent: 'success', className: 'border-success text-success' },
 
       {
@@ -28,15 +28,15 @@ const badgeVariants = cva(
         intent: 'danger',
         className: 'bg-destructive text-destructive-foreground',
       },
-      { variant: 'soft', intent: 'danger', className: 'bg-destructive/15 text-destructive' },
+      { variant: 'soft', intent: 'danger', className: 'bg-destructive-soft text-destructive' },
       { variant: 'outline', intent: 'danger', className: 'border-destructive text-destructive' },
 
       { variant: 'solid', intent: 'warning', className: 'bg-warning text-warning-foreground' },
-      { variant: 'soft', intent: 'warning', className: 'bg-warning/15 text-warning' },
+      { variant: 'soft', intent: 'warning', className: 'bg-warning-soft text-warning' },
       { variant: 'outline', intent: 'warning', className: 'border-warning text-warning' },
 
       { variant: 'solid', intent: 'info', className: 'bg-info text-info-foreground' },
-      { variant: 'soft', intent: 'info', className: 'bg-info/15 text-info' },
+      { variant: 'soft', intent: 'info', className: 'bg-info-soft text-info' },
       { variant: 'outline', intent: 'info', className: 'border-info text-info' },
     ],
     defaultVariants: { variant: 'soft', intent: 'neutral', size: 'default' },
