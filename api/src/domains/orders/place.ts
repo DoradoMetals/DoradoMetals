@@ -18,7 +18,6 @@ import * as emailService from '#documents/emails/service.ts'
 import * as taxService from '#pricing/sales-tax/service.ts'
 import * as paymentsService from '#transactions/service.ts'
 import * as credit from '#transactions/credit/service.ts'
-import * as transactionsService from '#transactions/ledger/service.ts'
 import * as refinerService from '#orders/refiners/service.ts'
 import * as sweeps from '#transactions/sweeps.ts'
 import * as stripeProvider from '#providers/payment/stripe.ts'
@@ -242,23 +241,24 @@ async function placeSale(
       // The quote read the balance outside this transaction. Re-read it under
       // FOR UPDATE before spending it, so a concurrent placement or admin edit
       // cannot leave the balance negative (MP F7 / MI F3). The schema half is
-      // 134's CHECK (dorado_funds >= 0).
+      // 134's CHECK (dorado_funds >= 0), and `removeFunds` refuses on its own
+      // read too - this is the refusal a customer should see, and it names what
+      // happened instead of surfacing a constraint.
       rules.assertCreditCovers(
         await usersRepo.balanceForUpdate(checkout.user_id, tx),
         quote.pre_charges_amount
       )
-      await credit.removeFunds(checkout.user_id, quote.pre_charges_amount, tx)
-      await transactionsService.addTransactionLog(
-        {
-          user_id: checkout.user_id,
-          type: 'Debit',
-          order_id: id,
-          amount: quote.pre_charges_amount,
-        },
-        tx
-      )
+      await credit.reserve(checkout.user_id, quote.pre_charges_amount, id, tx)
+      if (rules.settlesAtPlacement(cents, intent?.settled === true)) {
+        await credit.settleReservation(id, tx)
+      }
     }
-    await taxService.updateStateSalesTax(quote.sales_tax, address.state, tx)
+    await taxService.updateStateSalesTax(
+      quote.sales_tax,
+      quote.item_total,
+      address.state,
+      tx
+    )
     if (intent) await paymentsService.attachOrder(intent.payment_intent_id, id, tx)
     await clearChoices(checkout, tx)
     return id

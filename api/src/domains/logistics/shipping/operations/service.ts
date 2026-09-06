@@ -14,7 +14,8 @@ import * as shippingRules from '#logistics/shipping/rules.ts'
 import * as handoffsService from '#logistics/shipping/handoffs/service.ts'
 import * as shippingHandler from '#logistics/shipping/operations/handler.ts'
 import { carrierIdOr } from '#logistics/shipping/operations/resolver.ts'
-import { FEDEX_STORE_ADDRESS, DORADO_ADDRESS } from '#providers/shipments/constants.ts'
+import * as locationsRepo from '#db/places/locations/repo.ts'
+import { DORADO_ADDRESS } from '#providers/shipments/constants.ts'
 import { attempt } from '#shared/attempt.ts'
 import type { OrderViewShipment as ShipmentRow } from '@dorado/contracts'
 import type { ParsedTracking } from '#providers/shipments/utils/parsing.ts'
@@ -61,31 +62,34 @@ export async function getTracking(
   isAdmin: boolean,
   fetchTracking?: (shipment: ShipmentRow, client?: Executor) => Promise<ParsedTracking>
 ): Promise<ShipmentView | null> {
-  return withTransaction(async (client) => {
-    const shipment = await shipmentRepo.getById(shipment_id, client)
-    shippingRules.assertShipment(shipment, shipment_id)
+  const shipment = await shipmentRepo.getById(shipment_id)
+  shippingRules.assertShipment(shipment, shipment_id)
 
-    const service = shipment.carrier_service_id
-      ? await servicesRepo.getOne(shipment.carrier_service_id, client)
-      : undefined
+  const service = shipment.carrier_service_id
+    ? await servicesRepo.getOne(shipment.carrier_service_id)
+    : undefined
 
-    const carrier_id = service?.carrier_id ?? null
-    let trackingInfo: ParsedTracking
-    if (fetchTracking) {
-      trackingInfo = await fetchTracking(shipment, client)
-    } else {
-      shippingRules.assertCarrier(carrier_id, shipment_id)
-      trackingInfo = await shippingHandler.getTracking(carrier_id, client, {
-        tracking_number: shipment.tracking_number,
-      })
-    }
+  const carrier_id = service?.carrier_id ?? null
+  let trackingInfo: ParsedTracking
+  if (fetchTracking) {
+    trackingInfo = await fetchTracking(shipment)
+  } else {
+    shippingRules.assertCarrier(carrier_id, shipment_id)
+    trackingInfo = await shippingHandler.getTracking(carrier_id, undefined, {
+      tracking_number: shipment.tracking_number,
+    })
+  }
 
-    if (!trackingInfo.scanEvents?.length) {
-      return await shipmentView.getById(shipment_id, isAdmin, client)
-    }
+  if (!trackingInfo.scanEvents?.length) {
+    return await shipmentView.getById(shipment_id, isAdmin)
+  }
 
-    await trackingRepo.removeEvents(shipment_id, client)
-    await trackingRepo.insertEvents(trackingInfo, shipment_id, client)
+  // The carrier is asked BEFORE the transaction opens. The replace of the scan
+  // history stays atomic; what left is a network round trip holding an open
+  // transaction, which is what the side-effect gate forbids (LD F13).
+  return await withTransaction(async (tx) => {
+    await trackingRepo.removeEvents(shipment_id, tx)
+    await trackingRepo.insertEvents(trackingInfo, shipment_id, tx)
 
     await shipmentRepo.update(
       shipment_id,
@@ -95,10 +99,10 @@ export async function getTracking(
           trackingInfo.estimatedDeliveryTime === 'TBD' ? null : trackingInfo.estimatedDeliveryTime,
         delivered_at: trackingInfo.deliveredAt,
       },
-      client
+      tx
     )
 
-    return await shipmentView.getById(shipment_id, isAdmin, client)
+    return await shipmentView.getById(shipment_id, isAdmin, tx)
   })
 }
 
@@ -112,8 +116,12 @@ export async function quoteRate(
 ): Promise<ReturnType<typeof shippingHandler.getRates>> {
   shippingRules.assertShippingType(shippingType)
   const inbound = shippingType === 'Inbound'
+  // The inbound parcel travels to the same place a label is held at, and that
+  // place is a row now (ruling 89).
+  const hold = await locationsRepo.defaultReturn()
+  shippingRules.assertReturnLocation(hold)
   const shipperAddress: RatesInput['shipperAddress'] = inbound ? address : DORADO_ADDRESS
-  const recipientAddress: RatesInput['recipientAddress'] = inbound ? FEDEX_STORE_ADDRESS : address
+  const recipientAddress: RatesInput['recipientAddress'] = inbound ? hold.address : address
 
   return shippingHandler.getRates(await carrierIdOr(carrier_id), undefined, {
     shipperAddress,

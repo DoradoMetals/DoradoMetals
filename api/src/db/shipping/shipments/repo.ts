@@ -56,6 +56,33 @@ export async function getForOrder(
   return rows
 }
 
+export async function claimOwner(
+  id: string,
+  user_id: string,
+  executor?: Executor
+): Promise<boolean> {
+  const { rowCount } = await query(sql('claim_owner'), [id, user_id], executor)
+  return rowCount === 1
+}
+
+export async function deferAddressOwnership(executor?: Executor): Promise<void> {
+  await query(
+    `SET CONSTRAINTS shipping.shipments_shipper_address_theirs_fk,
+                     shipping.shipments_recipient_address_theirs_fk DEFERRED`,
+    [],
+    executor
+  )
+}
+
+export async function reassignOwner(
+  from_user_id: string,
+  to_user_id: string,
+  executor?: Executor
+): Promise<number> {
+  const { rowCount } = await query(sql('reassign_owner'), [from_user_id, to_user_id], executor)
+  return rowCount ?? 0
+}
+
 export async function claimForLabel(id: string, executor?: Executor): Promise<boolean> {
   const { rowCount } = await query(sql('claim_for_label'), [id], executor)
   return rowCount === 1

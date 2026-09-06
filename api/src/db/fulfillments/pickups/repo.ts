@@ -59,6 +59,32 @@ export async function update(
   return rowCount === 1
 }
 
+export async function deferAddressOwnership(executor?: Executor): Promise<void> {
+  await query(
+    `SET CONSTRAINTS fulfillments.pickups_pickup_address_theirs_fk DEFERRED`,
+    [],
+    executor
+  )
+}
+
+export async function reassignOwner(
+  from_user_id: string,
+  to_user_id: string,
+  executor?: Executor
+): Promise<number> {
+  const { rowCount } = await query(sql('reassign_owner'), [from_user_id, to_user_id], executor)
+  return rowCount ?? 0
+}
+
+export async function claimOwner(
+  fulfillment_id: string,
+  user_id: string,
+  executor?: Executor
+): Promise<boolean> {
+  const { rowCount } = await query(sql('claim_owner'), [fulfillment_id, user_id], executor)
+  return rowCount === 1
+}
+
 export async function remove(fulfillment_id: string, executor?: Executor): Promise<boolean> {
   const { rowCount } = await query(sql('delete'), [fulfillment_id], executor)
   return rowCount === 1

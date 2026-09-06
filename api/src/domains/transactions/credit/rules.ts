@@ -23,6 +23,19 @@ export function movementBetween(
   return delta > 0 ? { type: 'Credit', amount: delta } : { type: 'Debit', amount: -delta }
 }
 
+export function assertReservationOwner(
+  user_id: string | null | undefined,
+  order_id: string
+): string {
+  if (!user_id) {
+    throw new Invalid(
+      `the credit reserved against order ${order_id} belongs to nobody, so it ` +
+        `cannot be returned`
+    )
+  }
+  return user_id
+}
+
 export function assertCreditSubject<T>(user_id: string, row: T | undefined): T {
   if (row === undefined) {
     throw new NotFound(`no user ${user_id} - the credit adjustment was not applied to anybody`)

@@ -13,6 +13,9 @@ import { aHandover } from '#shared/testing/builders/index.ts'
 import { mockSessions, restoreSessions, as } from '#shared/testing/session.ts'
 import * as ordersRepo from '#db/orders/repo.ts'
 import * as place from '#orders/place.ts'
+import * as orderRules from '#orders/rules.ts'
+import * as usersRepo from '#db/users/repo.ts'
+import * as creditService from '#transactions/credit/service.ts'
 import * as paymentsWebhook from '#transactions/webhook.ts'
 import * as sweeps from '#transactions/sweeps.ts'
 import * as pricing from '#pricing/index.ts'
@@ -473,5 +476,66 @@ test('a sale paid by card waits for the webhook before it confirms', async () =>
     assert.equal(msg.attachments.length, 1)
     const [pdf] = msg.attachments
     assert.equal(pdf.filename, `${formatSalesOrderNumber(placed.order.number)}_invoice.pdf`)
+  })
+})
+
+// RULING 88 and the lane-B hand-off. `credit.removeFunds` now refuses below
+// zero, and `placeSale` must answer a customer-shaped refusal rather than a
+// 500. The two guards are assembled here in the order the placement runs them,
+// with the real quote and the real locked read, because placeSale re-prices
+// from the balance it locks: the window between the two is a genuine race and
+// there is no seam that opens it deterministically.
+test('a balance spent between pricing and placement is refused, not charged twice', async () => {
+  await inPinned(async (c: PoolClient) => {
+    const f = await fixtures(c)
+    assert.ok(f, 'no fixtures')
+    const checkout_id = await primeSaleCheckout(c, f)
+    await query(`UPDATE auth.users SET dorado_funds = 10000000 WHERE id = $1`, [f.user_id], c)
+
+    const quote = await pricing.priceCheckout(checkout_id, c)
+    assert.equal(quote.direction, 'sale')
+    assert.ok(quote.pre_charges_amount > 0, 'the quote applied no credit, so this proves nothing')
+
+    await query(`UPDATE auth.users SET dorado_funds = 0 WHERE id = $1`, [f.user_id], c)
+
+    const locked = await usersRepo.balanceForUpdate(f.user_id, c)
+    assert.throws(
+      () => orderRules.assertCreditCovers(locked, quote.pre_charges_amount),
+      (err: unknown) => kindOf(err) === 'conflict' && /no longer covers/.test(String(err)),
+      'the placement would have charged a balance that is no longer there'
+    )
+
+    await assert.rejects(
+      () => creditService.removeFunds(f.user_id, quote.pre_charges_amount, c),
+      /cannot go below zero/,
+      'the second guard would have let the balance go negative'
+    )
+    const after = await usersRepo.balanceForUpdate(f.user_id, c)
+    assert.equal(Number(after ?? 0), 0, 'the refused placement still moved the balance')
+  })
+})
+
+test('the credit a sale applies is held against the order, not spent into thin air', async () => {
+  await inPinned(async (c: PoolClient) => {
+    const f = await fixtures(c)
+    assert.ok(f, 'no fixtures')
+    const checkout_id = await primeSaleCheckout(c, f)
+    await query(`UPDATE auth.users SET dorado_funds = 10000000 WHERE id = $1`, [f.user_id], c)
+
+    const order = await place.place(checkout_id, NO_SIDE_EFFECTS)
+    assert.ok(order, 'no order came back')
+
+    const { rows } = await query<{ type: string; amount: number }>(
+      `SELECT type, amount FROM payments.ledger WHERE order_id = $1`,
+      [order.order.id],
+      c
+    )
+    assert.equal(rows.length, 1, 'the credit moved with nothing recording why (finding 28)')
+    assert.equal(
+      rows[0]!.type,
+      'Debit',
+      'an order that settled at placement still holds its credit in reserve'
+    )
+    assert.equal(Number(rows[0]!.amount), Number(order.totals?.funds))
   })
 })

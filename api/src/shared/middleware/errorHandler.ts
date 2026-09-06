@@ -285,16 +285,18 @@ export default function errorHandler(
 
   const domainStatus = statusOfDomainError(err)
 
+  const upstream = safe.kind === 'axios'
+  const raisedStatus = Number(raised.statusCode ?? raised.status)
   const status =
     domainStatus ||
-    (safe.kind === 'axios' && safe.status) ||
-    raised.statusCode ||
-    raised.status ||
-    500
+    (upstream ? 502 : 0) ||
+    (Number.isInteger(raisedStatus) && raisedStatus >= 400 && raisedStatus <= 599
+      ? raisedStatus
+      : 500)
 
   const deliberate =
     domainStatus !== null ||
-    (Number.isInteger(raised.statusCode ?? raised.status) && status >= 400 && status < 500)
+    (Number.isInteger(raisedStatus) && raisedStatus >= 400 && raisedStatus < 500)
 
   res.status(status).json({
     success: false,

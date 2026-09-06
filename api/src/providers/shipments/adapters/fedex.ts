@@ -1,3 +1,4 @@
+import type { HoldAtLocation } from '@dorado/contracts'
 import { formatAddressForFedEx } from '#providers/shipments/utils/formatting.ts'
 
 type AddressLike = {
@@ -75,10 +76,28 @@ type LabelInput = {
   insurance?: { declaredValue?: unknown } | null
   options?: unknown
   label?: { imageType?: string; labelStockType?: string }
+  hold?: HoldAtLocation | null
+}
+
+// HOLD_AT_LOCATION, in FedEx's own shape. Every value comes from the row the
+// caller read (ruling 89); nothing about the business is written here.
+function toHoldAtLocation(hold?: HoldAtLocation | null) {
+  if (!hold) return null
+  return {
+    specialServiceTypes: ['HOLD_AT_LOCATION'],
+    holdAtLocationDetail: {
+      locationId: hold.code,
+      locationContactAndAddress: {
+        address: toFedexAddress(hold.address),
+        contact: { phoneNumber: hold.phone_number, companyName: hold.company_name },
+      },
+      locationType: hold.type,
+    },
+  }
 }
 
 export function createLabelInput(input?: LabelInput | null) {
-  const { shipper, recipient, serviceType, pickupType, pkg, insurance, options, label } =
+  const { shipper, recipient, serviceType, pickupType, pkg, insurance, options, label, hold } =
     input ?? {}
 
   const totalDeclaredValue = insurance?.declaredValue ?? null
@@ -100,6 +119,7 @@ export function createLabelInput(input?: LabelInput | null) {
     },
     totalDeclaredValue,
     label: label ?? { imageType: 'PNG', labelStockType: 'PAPER_4X6' },
+    specialServices: toHoldAtLocation(hold),
     options,
   }
 }

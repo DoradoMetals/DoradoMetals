@@ -1,7 +1,4 @@
-import {
-  DEFAULT_EMAIL_NOTIFICATION_DETAIL,
-  DEFAULT_HOLD_AT_LOCATION_DETAIL,
-} from '#providers/shipments/constants.ts'
+import { DEFAULT_EMAIL_NOTIFICATION_DETAIL } from '#providers/shipments/constants.ts'
 import { accountNumber } from '#providers/shipments/endpoints.ts'
 import {
   formatFedexTime,
@@ -32,7 +29,7 @@ type CreateShipmentInput = {
   label?: Record<string, unknown>
   specialServices?: Record<string, unknown> | null
   emailNotificationDetail?: Record<string, unknown> | null
-  options?: { holdAtLocation?: boolean; emailNotifications?: boolean }
+  options?: { emailNotifications?: boolean }
 }
 
 type PickupAvailabilityInput = {
@@ -115,16 +112,7 @@ export function createShipmentPayload({
   emailNotificationDetail,
   options,
 }: CreateShipmentInput) {
-  const wantsHoldAtLocation = options?.holdAtLocation !== false
   const wantsEmailNotifications = options?.emailNotifications !== false
-
-  const resolvedSpecialServices =
-    wantsHoldAtLocation && !specialServices
-      ? {
-          specialServiceTypes: ['HOLD_AT_LOCATION'],
-          holdAtLocationDetail: DEFAULT_HOLD_AT_LOCATION_DETAIL,
-        }
-      : specialServices
 
   const resolvedEmailNotificationDetail =
     wantsEmailNotifications && !emailNotificationDetail
@@ -155,7 +143,7 @@ export function createShipmentPayload({
           },
         },
       },
-      shipmentSpecialServices: resolvedSpecialServices ?? undefined,
+      shipmentSpecialServices: specialServices ?? undefined,
       emailNotificationDetail: resolvedEmailNotificationDetail ?? undefined,
     },
   }

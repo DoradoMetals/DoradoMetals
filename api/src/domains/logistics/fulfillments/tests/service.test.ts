@@ -512,3 +512,75 @@ test("a PICKUP patch cannot name an address that is not the fulfillment owner's"
     )
   })
 })
+
+test('the parcel is stamped with its owner, and the DATABASE then refuses a stranger', async () => {
+  await inRollback(async (c: PoolClient) => {
+    const owner = await aUser(c)
+    const stranger = await aUser(c)
+    const draft = await service.createDraft(
+      (await methodOf(c, 'CARRIER DROPOFF', 'purchase')).id,
+      'purchase',
+      c
+    )
+    await ownedBy(c, draft.fulfillment.id, owner.id)
+    await service.patchChoices(
+      draft.fulfillment.id,
+      { shipment: { shipper_address_id: await anAddressId(c, owner.id) } },
+      c
+    )
+
+    const { rows } = await c.query(
+      `SELECT s.id, s.user_id FROM shipping.shipments s
+         JOIN fulfillments.shipments fs ON fs.shipment_id = s.id
+        WHERE fs.fulfillment_id = $1`,
+      [draft.fulfillment.id]
+    )
+    assert.equal(rows[0].user_id, owner.id, 'the parcel carries no owner, so 137 guards nothing')
+
+    const theirs = await anAddressId(c, stranger.id)
+    await assert.rejects(
+      () =>
+        c.query(`UPDATE shipping.shipments SET shipper_address_id = $2 WHERE id = $1`, [
+          rows[0].id,
+          theirs,
+        ]),
+      /shipments_shipper_address_theirs_fk/,
+      'a statement that bypasses the service put a stranger address on the parcel'
+    )
+  })
+})
+
+test('the collection is stamped with its owner, and the DATABASE then refuses a stranger', async () => {
+  await inRollback(async (c: PoolClient) => {
+    const owner = await aUser(c)
+    const stranger = await aUser(c)
+    const draft = await service.createDraft(
+      (await methodOf(c, 'PICKUP', 'purchase')).id,
+      'purchase',
+      c
+    )
+    await ownedBy(c, draft.fulfillment.id, owner.id)
+    await service.patchChoices(
+      draft.fulfillment.id,
+      { pickup: { pickup_address_id: await anAddressId(c, owner.id) } },
+      c
+    )
+
+    const { rows } = await c.query(
+      `SELECT id, user_id FROM fulfillments.pickups WHERE fulfillment_id = $1`,
+      [draft.fulfillment.id]
+    )
+    assert.equal(rows[0].user_id, owner.id, 'the collection carries no owner')
+
+    const theirs = await anAddressId(c, stranger.id)
+    await assert.rejects(
+      () =>
+        c.query(`UPDATE fulfillments.pickups SET pickup_address_id = $2 WHERE id = $1`, [
+          rows[0].id,
+          theirs,
+        ]),
+      /pickups_pickup_address_theirs_fk/,
+      'a statement that bypasses the service sent the courier to a stranger address'
+    )
+  })
+})

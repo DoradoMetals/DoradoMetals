@@ -11,6 +11,8 @@ export const SalesTax = z.object({
   'reached_nexus': z.boolean(),
   'amount_owed': z.number(),
   'last_remitted': z.string().nullable(),
+  'sales_volume': z.number(),
+  'sales_count': z.number().int(),
 })
 export type SalesTax = z.infer<typeof SalesTax>
 // generated:end

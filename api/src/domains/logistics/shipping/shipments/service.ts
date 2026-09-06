@@ -81,6 +81,7 @@ export async function returnLeg(
   tx: Executor
 ): Promise<string | null> {
   const category = await fulfillmentService.categoryOfOrder(order_id, tx)
+  rules.assertHandoverKnown(category, order_id)
   if (category !== 'SHIPMENT') return null
 
   const existing = await returnLegOf(order_id, tx)

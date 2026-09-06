@@ -1,5 +1,4 @@
 import type { PoolClient } from 'pg'
-import { aTag } from '#shared/testing/builders/ids.ts'
 import * as shipments from '#db/shipping/shipments/repo.ts'
 import * as fulfillments from '#db/fulfillments/repo.ts'
 import * as fulfillmentShipments from '#db/fulfillments/shipments/repo.ts'
@@ -40,12 +39,9 @@ export async function aShipment(
 ): Promise<BuiltShipment> {
   const carrier_service_id = await carrierServiceId(c)
   const package_id = await packageId(c)
-  const tracking_number = options.tracking_number ?? `7941${aTag()}`.slice(0, 12)
-
   const id = await shipments.create(
     {
       direction: shipmentDirection(order.direction),
-      tracking_number,
       shipping_status: options.shipping_status ?? 'Label Created',
       label: options.label ?? null,
       label_type: options.label_type ?? null,
@@ -58,6 +54,12 @@ export async function aShipment(
     },
     c
   )
+
+  // The number comes from the id the DATABASE minted, so two shipments built in
+  // one test can never collide on 136's unique index. `aTag()` was truncated to
+  // fit twelve characters and dropped the digit that made it unique.
+  const tracking_number = options.tracking_number ?? `7941${id.replace(/-/g, '').slice(0, 8)}`
+  await shipments.update(id, { tracking_number }, c)
 
   const method_id = await fulfillmentMethodId(
     c,

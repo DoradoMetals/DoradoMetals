@@ -82,7 +82,7 @@ export type CheckoutAdoption = z.infer<typeof CheckoutAdoption>
 
 export const CheckoutAdoptionResult = z
   .object({ adopted: z.array(CheckoutAdoption) })
-  .extend({ addresses: z.number().int() })
+  .extend({ addresses: z.number().int(), parcels: z.number().int() })
 export type CheckoutAdoptionResult = z.infer<typeof CheckoutAdoptionResult>
 
 export const VisitorSweepResult = z

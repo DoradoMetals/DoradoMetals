@@ -46,14 +46,9 @@ export async function purchaseQuote(
 
 export async function saleQuote(
   checkout_id: string,
-  collecting_nexus_taxes: boolean,
   executor?: Executor
 ): Promise<CheckoutQuote | undefined> {
-  const { rows } = await query<{ quote: unknown }>(
-    sql('sale_quote'),
-    [checkout_id, collecting_nexus_taxes],
-    executor
-  )
+  const { rows } = await query<{ quote: unknown }>(sql('sale_quote'), [checkout_id], executor)
   return rows[0] ? SaleQuote.parse(rows[0].quote) : undefined
 }
 

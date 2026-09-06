@@ -58,6 +58,80 @@ production copy). Full detail per area: `money-path.md` (MP),
 | 41 | `ShipmentPatch.carrier_id` required then discarded; `MediaUploadBody.mime_type` optional on a NOT NULL column | LD F16, MI F13 |
 | 42 | `metals.convert_to_troy_oz` has no caller and its test certifies a divergence | MA F13 |
 
+## The ledger: where every finding ended up
+
+All four fix lanes are merged. `fixes-money-path.md` (lane A),
+`fixes-money-and-identity.md` (lane B), `fixes-logistics-and-documents.md`
+(lane C) and `fixes-closing.md` (lane D - the cross-lane hand-offs and rulings
+87-90) say what changed and which test pins it. Nothing below is outstanding
+work unless it says LEFT.
+
+| # | status | where |
+|---|---|---|
+| 1 | FIXED | B - the guard checks every shipment a request names |
+| 2 | FIXED | C - `assertEntitled` gates the whole of `serve.ts`, and answers 404 |
+| 3 | FIXED | C (the rule) + D (the composite key, 137 + 140) |
+| 4 | FIXED | A - fine content has one owner per kind of line, derived in SQL |
+| 5 | FIXED | A (locked re-read + Conflict) + B (the floor) + 134/135 (the CHECK) |
+| 6 | FIXED | A - `assertNotAlreadyCredited` on the transaction that writes the row |
+| 7 | FIXED | A - `assertSettlementMethod`, and both quotes read only a valid method |
+| 8 | FIXED | D - ruling 87: collect where nexus is reached, count volume everywhere (138) |
+| 9 | FIXED | A - `metals.fine_content`, 31.1034768 g and 175/12 t oz |
+| 10 | FIXED | A - an unknown unit raises, and refuses at the domain edge as a 422 |
+| 11 | FIXED | B - `settlementCovers` in the webhook and the settled sweep |
+| 12 | FIXED | C (the claim, the index, the second-cancel refusal) + D (cancel calls it) |
+| 13 | FIXED | C (`returnLeg`, the parcel is never the return leg) + D (cancel calls it) |
+| 14 | FIXED | B - session freshness, then `revokeOtherSessions` |
+| 15 | FIXED | B - `assertSafeDatabase`, and env.ts stops filling DATABASE_URL in |
+| 16 | FIXED | B - a blocked visitor is skipped, not a full stop |
+| 17 | MOSTLY FIXED | B - no boot runs, the refund half is scheduled, the advance is guarded and locked. **LEFT**: a multi-instance advisory lock (out of proportion; the guarded advance is safe to run twice), and MI F15's status filter, deliberately not added - it contradicts D211. **Jacob's**: `PAYMENT_RECONCILE_SCHEDULE` is still absent from `api/.env`, so the job does not run |
+| 18 | FIXED | A - one transaction around each refiner money edit |
+| 19 | FIXED | C - every admin fulfillment write is in a transaction and stamped |
+| 20 | FIXED | C - `buildUpdate` on both, and `carriers/sql/update.sql` is deleted |
+| 21 | FIXED | B - the key carries an ordinal from a database fact; `type` is required |
+| 22 | FIXED | B - the instrument links back to its intent in the same transaction |
+| 23 | FIXED | B (the send is driven by `emails.hasSent`) + C (a failed send is a row) |
+| 24 | FIXED | C (the NULL ceiling, `returnDeclaredValue`) + D (cancel calls it) |
+| 25 | FIXED | C - the quote asks FedEx the fulfillment's own handoff; an Outbound leg owes its service |
+| 26 | FIXED | C - the invoice deducts `pricing.shipping_charge`; the sales invoice prints its tax |
+| 27 | FIXED | C - a sale is emailed its own invoice; the packing list prints the real slot |
+| 28 | FIXED | D - ruling 88: credit is reserved at placement, released by cancel and by the sweep, converted to a debit when it settles |
+| 29 | FIXED | A - `unpriceable` on the purchase quote; a metal with no bid is a 422 |
+| 30 | FIXED | A - `ask` moves with `bid` on lock, and one `applyLock` does both |
+| 31 | FIXED | A - `assertAllLinesConfirmed` gates `finalizePricing` |
+| 32 | FIXED | D - ruling 89: HOLD_AT_LOCATION stays, the destination is a `places.locations` row (139) |
+| 33 | FIXED | D - the rule sees `shippingOps`/`shippingHandler`, has a self-test, and immediately caught a real carrier call inside a transaction (`getTracking`), now moved out |
+| 34 | FIXED | C - the pickup's own date string is what is cancelled |
+| 35 | FIXED | D - ruling 90: the cache stays; one freshness read makes a ban, a revocation and a demotion bite at once |
+| 36 | FIXED | C - the public list drops the author columns and parses through `PublicReview` |
+| 37 | PINNED BY RULING | ruling 49 - the sell side has no gate, on purpose. Both halves pinned in `catalog/products/tests/service.test.ts` |
+| 38 | FIXED | D - an upstream failure answers 502, and `raised.status` is coerced |
+| 39 | FIXED | B - every `LIMIT 1` orders on a tie-breaker; the address book is ordered |
+| 40 | FIXED | B - a failing ROLLBACK no longer replaces the real error |
+| 41 | FIXED | C (`carrier_id` dropped) + B (`mime_type` required) |
+| 42 | FIXED | A - `metals.convert_to_troy_oz` is dropped, with the test that certified its divergence |
+
+### What is LEFT, in one place
+
+- **Finding 17**: a multi-instance advisory lock on the writing sweeps, and
+  `PAYMENT_RECONCILE_SCHEDULE` in `api/.env` (Jacob's - the reconcile job does
+  not run at all without it). `STALE_OFFERS_UPDATE_SCHEDULE` is still there
+  reading into nothing.
+- **Finding 12's last gap**: if `record()`'s transaction fails the label is
+  bought and only the log knows the number. Voiding it needs a
+  catch-compensate-rethrow in the cancel/place use cases.
+- **Finding 23's residue**: two webhook deliveries arriving concurrently can
+  both read "no confirmation yet" and both send.
+- **`orders/place.ts`'s bare `await world.buyLabel(...)`** after the commit
+  still throws out of `place()` on a carrier outage (lane C's note 2 to lane A).
+- **CLAUDE.md's `audit:enum-domains` entry** calls the two corrupt-`type`
+  products "not reachable today". They are reachable on the bid storefront.
+  One sentence to correct, and the `btrim` itself is D39 - an UPDATE against
+  production, which is Jacob's.
+- **The orphan `exchange.schema_migrations` row** named
+  `134_a_balance_cannot_go_below_zero.sql` on dev. Inert, and deliberately not
+  deleted.
+
 ## Decisions that are Jacob's before the fix
 
 - 8: charge tax only where `reached_nexus` (what accrual already assumes), or accrue everywhere. Recommendation: only where nexus is reached.

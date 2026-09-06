@@ -37,6 +37,7 @@ const anOpenPurchaseOrder = async (c: PoolClient) => {
     .withLots(1, { metal_id: 'Gold' })
     .withSpots()
     .withAddress(address)
+    .withFulfillment()
     .withTotals({ total: 1000, payout_fee: 0 })
   await aRefinerEngagement(c, built)
   await aPayout(c, owner, { order: built })

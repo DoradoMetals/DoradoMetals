@@ -171,11 +171,33 @@ test("a domain error's kind outranks a statusCode also present on the error", ()
   assert.equal(status, 404)
 })
 
-test('a non-integer statusCode in the 4xx range is not treated as deliberate', () => {
+test('a non-integer statusCode falls back to a plain 500', () => {
   const err: Error & { statusCode?: number } = new Error('Bad Request, sort of')
   err.statusCode = 400.5
   const { status, body } = respond(err)
-  assert.equal(status, 400.5)
+  assert.equal(status, 500)
+  assert.equal(body.error.message, 'Server error')
+})
+
+test('a plain Error with no status information answers 500', () => {
+  const { status, body } = respond(new Error('boom'))
+  assert.equal(status, 500)
+  assert.equal(body.error.message, 'Server error')
+})
+
+test('a status that is not a number does not crash the response and answers 500', () => {
+  const err: Error & { status?: unknown } = new Error('weird carrier client')
+  err.status = 'nope'
+  const { status, body } = respond(err)
+  assert.equal(status, 500)
+  assert.equal(body.error.message, 'Server error')
+})
+
+test('a status that is an object does not crash the response and answers 500', () => {
+  const err: Error & { status?: unknown } = new Error('weird carrier client')
+  err.status = {}
+  const { status, body } = respond(err)
+  assert.equal(status, 500)
   assert.equal(body.error.message, 'Server error')
 })
 
@@ -213,8 +235,22 @@ test("an axios error never returns the upstream's own message to the caller", ()
   )
 })
 
-test('an axios error with no response (network failure) still answers 500 with the generic message', () => {
+test('an axios error with no response (network failure) still answers 502 with the generic message', () => {
   const { status, body } = respond(axiosError())
-  assert.equal(status, 500)
+  assert.equal(status, 502)
   assert.equal(body.error.message, 'Upstream carrier request failed')
+})
+
+test("a carrier 401 does not become this API's own 401", () => {
+  const { status, body } = respond(axiosError({ status: 401 }))
+  assert.equal(status, 502)
+  assert.equal(body.error.message, 'Upstream carrier request failed')
+  assert.equal((body.error as any).carrier_status, 401)
+})
+
+test("a carrier 403 does not become this API's own 403", () => {
+  const { status, body } = respond(axiosError({ status: 403 }))
+  assert.equal(status, 502)
+  assert.equal(body.error.message, 'Upstream carrier request failed')
+  assert.equal((body.error as any).carrier_status, 403)
 })

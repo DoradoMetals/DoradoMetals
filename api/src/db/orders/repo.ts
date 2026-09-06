@@ -9,7 +9,6 @@ import type {
   OrderRead,
   OrderViewFacts,
   OrderWrite,
-  ReservedFunds,
   SettledAwaiting,
 } from '@dorado/contracts'
 import type { Executor } from '#shared/db/executor.ts'
@@ -97,14 +96,6 @@ export async function findAbandonedSales(
 ): Promise<AbandonedSale[]> {
   const { rows } = await query<AbandonedSale>(sql('find_abandoned_sales'), [ttl_hours], executor)
   return rows
-}
-
-export async function findReservedFunds(
-  order_id: string,
-  executor?: Executor
-): Promise<ReservedFunds | undefined> {
-  const { rows } = await query<ReservedFunds>(sql('find_reserved_funds'), [order_id], executor)
-  return rows[0]
 }
 
 export async function createForCheckout(
