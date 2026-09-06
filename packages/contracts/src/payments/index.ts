@@ -2,10 +2,16 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Every entity of the `payments` schema, one namespace each.
+export * from './enums.js'
 export * from './attempts.js'
+export * from './bank_links.js'
 export * from './details.js'
+export * from './feed_cursors.js'
+export * from './inbound_transactions.js'
 export * from './intents.js'
 export * from './ledger.js'
 export * from './methods.js'
 export * from './settlements.js'
 export * from './stripe_charges.js'
+export * from './transfer_events.js'
+export * from './transfers.js'

@@ -30,6 +30,9 @@ const COMPUTED: Record<string, string> = {
   'computed/places.ts':
     'what may be done to an address book entry, and the ' +
     "places provider's suggestions - no table holds either",
+  'computed/payments.ts':
+    'what a payment rail hands back and what a caller sends it - a Plaid Link ' +
+    'token, a micro-deposit pair, a rail choice; no table holds one',
   'computed/documents.ts':
     'what one mailer prints - a label/value row, a summary ' +
     'card and the copy slots the Figma mailers expose; no table holds a rendered line',

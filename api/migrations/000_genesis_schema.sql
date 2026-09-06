@@ -124,6 +124,69 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE t.typname = 'inbound_source' AND n.nspname = 'payments'
+  ) THEN
+    CREATE TYPE payments.inbound_source AS ENUM ('moov', 'plaid', 'manual');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE t.typname = 'link_method' AND n.nspname = 'payments'
+  ) THEN
+    CREATE TYPE payments.link_method AS ENUM ('plaid', 'micro_deposits', 'vendor_form');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE t.typname = 'link_status' AND n.nspname = 'payments'
+  ) THEN
+    CREATE TYPE payments.link_status AS ENUM ('pending', 'verified', 'errored');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE t.typname = 'match_state' AND n.nspname = 'payments'
+  ) THEN
+    CREATE TYPE payments.match_state AS ENUM ('Unmatched', 'Matched', 'Ignored');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE t.typname = 'rail' AND n.nspname = 'payments'
+  ) THEN
+    CREATE TYPE payments.rail AS ENUM ('ACH', 'ACH_SAME_DAY', 'RTP', 'FEDNOW', 'CARD', 'WIRE');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE t.typname = 'transfer_kind' AND n.nspname = 'payments'
+  ) THEN
+    CREATE TYPE payments.transfer_kind AS ENUM ('payout', 'charge');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE t.typname = 'transfer_state' AND n.nspname = 'payments'
+  ) THEN
+    CREATE TYPE payments.transfer_state AS ENUM ('Not sent', 'Due', 'Processing', 'Sent', 'Received', 'Failed');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
     WHERE t.typname = 'direction' AND n.nspname = 'shipping'
   ) THEN
     CREATE TYPE shipping.direction AS ENUM ('Inbound', 'Outbound', 'Return');
@@ -747,6 +810,43 @@ ALTER TABLE payments.attempts ADD COLUMN IF NOT EXISTS error_code text;
 ALTER TABLE payments.attempts ADD COLUMN IF NOT EXISTS error_message text;
 ALTER TABLE payments.attempts ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
 
+CREATE TABLE IF NOT EXISTS payments.bank_links (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  user_id uuid NOT NULL,
+  provider text DEFAULT 'moov'::text NOT NULL,
+  moov_account_id text NOT NULL,
+  moov_bank_account_id text,
+  payment_method_id text,
+  rail payments.rail,
+  holder_name text,
+  bank_name text,
+  last_four text,
+  status payments.link_status DEFAULT 'pending'::payments.link_status NOT NULL,
+  linked_by payments.link_method NOT NULL,
+  failure_reason text,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  created_by_id uuid,
+  updated_by_id uuid
+);
+ALTER TABLE payments.bank_links ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE payments.bank_links ADD COLUMN IF NOT EXISTS user_id uuid;
+ALTER TABLE payments.bank_links ADD COLUMN IF NOT EXISTS provider text DEFAULT 'moov'::text;
+ALTER TABLE payments.bank_links ADD COLUMN IF NOT EXISTS moov_account_id text;
+ALTER TABLE payments.bank_links ADD COLUMN IF NOT EXISTS moov_bank_account_id text;
+ALTER TABLE payments.bank_links ADD COLUMN IF NOT EXISTS payment_method_id text;
+ALTER TABLE payments.bank_links ADD COLUMN IF NOT EXISTS rail payments.rail;
+ALTER TABLE payments.bank_links ADD COLUMN IF NOT EXISTS holder_name text;
+ALTER TABLE payments.bank_links ADD COLUMN IF NOT EXISTS bank_name text;
+ALTER TABLE payments.bank_links ADD COLUMN IF NOT EXISTS last_four text;
+ALTER TABLE payments.bank_links ADD COLUMN IF NOT EXISTS status payments.link_status DEFAULT 'pending'::payments.link_status;
+ALTER TABLE payments.bank_links ADD COLUMN IF NOT EXISTS linked_by payments.link_method;
+ALTER TABLE payments.bank_links ADD COLUMN IF NOT EXISTS failure_reason text;
+ALTER TABLE payments.bank_links ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE payments.bank_links ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE payments.bank_links ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE payments.bank_links ADD COLUMN IF NOT EXISTS updated_by_id uuid;
+
 CREATE TABLE IF NOT EXISTS payments.details (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
   user_id uuid NOT NULL,
@@ -795,6 +895,60 @@ ALTER TABLE payments.details ADD COLUMN IF NOT EXISTS routing_number_encrypted t
 ALTER TABLE payments.details ADD COLUMN IF NOT EXISTS account_number_encrypted text;
 ALTER TABLE payments.details ADD COLUMN IF NOT EXISTS encryption_key_id text;
 ALTER TABLE payments.details ADD COLUMN IF NOT EXISTS routing_last_four text;
+
+CREATE TABLE IF NOT EXISTS payments.feed_cursors (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  source text NOT NULL,
+  cursor text,
+  synced_at timestamp with time zone,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+ALTER TABLE payments.feed_cursors ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE payments.feed_cursors ADD COLUMN IF NOT EXISTS source text;
+ALTER TABLE payments.feed_cursors ADD COLUMN IF NOT EXISTS cursor text;
+ALTER TABLE payments.feed_cursors ADD COLUMN IF NOT EXISTS synced_at timestamp with time zone;
+ALTER TABLE payments.feed_cursors ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE payments.feed_cursors ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+
+CREATE TABLE IF NOT EXISTS payments.inbound_transactions (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  source payments.inbound_source NOT NULL,
+  external_id text,
+  amount numeric(16,2) NOT NULL,
+  currency text DEFAULT 'USD'::text NOT NULL,
+  occurred_at timestamp with time zone NOT NULL,
+  counterparty_name text,
+  memo text,
+  account_ref text,
+  state payments.match_state DEFAULT 'Unmatched'::payments.match_state NOT NULL,
+  order_id uuid,
+  transfer_id uuid,
+  matched_at timestamp with time zone,
+  matched_by_id uuid,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  created_by_id uuid,
+  updated_by_id uuid
+);
+ALTER TABLE payments.inbound_transactions ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE payments.inbound_transactions ADD COLUMN IF NOT EXISTS source payments.inbound_source;
+ALTER TABLE payments.inbound_transactions ADD COLUMN IF NOT EXISTS external_id text;
+ALTER TABLE payments.inbound_transactions ADD COLUMN IF NOT EXISTS amount numeric(16,2);
+ALTER TABLE payments.inbound_transactions ADD COLUMN IF NOT EXISTS currency text DEFAULT 'USD'::text;
+ALTER TABLE payments.inbound_transactions ADD COLUMN IF NOT EXISTS occurred_at timestamp with time zone;
+ALTER TABLE payments.inbound_transactions ADD COLUMN IF NOT EXISTS counterparty_name text;
+ALTER TABLE payments.inbound_transactions ADD COLUMN IF NOT EXISTS memo text;
+ALTER TABLE payments.inbound_transactions ADD COLUMN IF NOT EXISTS account_ref text;
+ALTER TABLE payments.inbound_transactions ADD COLUMN IF NOT EXISTS state payments.match_state DEFAULT 'Unmatched'::payments.match_state;
+ALTER TABLE payments.inbound_transactions ADD COLUMN IF NOT EXISTS order_id uuid;
+ALTER TABLE payments.inbound_transactions ADD COLUMN IF NOT EXISTS transfer_id uuid;
+ALTER TABLE payments.inbound_transactions ADD COLUMN IF NOT EXISTS matched_at timestamp with time zone;
+ALTER TABLE payments.inbound_transactions ADD COLUMN IF NOT EXISTS matched_by_id uuid;
+ALTER TABLE payments.inbound_transactions ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE payments.inbound_transactions ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE payments.inbound_transactions ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE payments.inbound_transactions ADD COLUMN IF NOT EXISTS updated_by_id uuid;
 
 CREATE TABLE IF NOT EXISTS payments.intents (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -960,6 +1114,76 @@ ALTER TABLE payments.stripe_charges ADD COLUMN IF NOT EXISTS payment_source_type
 ALTER TABLE payments.stripe_charges ADD COLUMN IF NOT EXISTS stripe_customer_id text;
 ALTER TABLE payments.stripe_charges ADD COLUMN IF NOT EXISTS livemode boolean;
 ALTER TABLE payments.stripe_charges ADD COLUMN IF NOT EXISTS imported_at timestamp with time zone DEFAULT now();
+
+CREATE TABLE IF NOT EXISTS payments.transfer_events (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  transfer_id uuid,
+  provider text NOT NULL,
+  event_id text NOT NULL,
+  event_type text NOT NULL,
+  provider_ref text,
+  reported_state payments.transfer_state,
+  failure_reason text,
+  occurred_at timestamp with time zone DEFAULT now() NOT NULL,
+  applied boolean DEFAULT false NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+ALTER TABLE payments.transfer_events ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE payments.transfer_events ADD COLUMN IF NOT EXISTS transfer_id uuid;
+ALTER TABLE payments.transfer_events ADD COLUMN IF NOT EXISTS provider text;
+ALTER TABLE payments.transfer_events ADD COLUMN IF NOT EXISTS event_id text;
+ALTER TABLE payments.transfer_events ADD COLUMN IF NOT EXISTS event_type text;
+ALTER TABLE payments.transfer_events ADD COLUMN IF NOT EXISTS provider_ref text;
+ALTER TABLE payments.transfer_events ADD COLUMN IF NOT EXISTS reported_state payments.transfer_state;
+ALTER TABLE payments.transfer_events ADD COLUMN IF NOT EXISTS failure_reason text;
+ALTER TABLE payments.transfer_events ADD COLUMN IF NOT EXISTS occurred_at timestamp with time zone DEFAULT now();
+ALTER TABLE payments.transfer_events ADD COLUMN IF NOT EXISTS applied boolean DEFAULT false;
+ALTER TABLE payments.transfer_events ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+
+CREATE TABLE IF NOT EXISTS payments.transfers (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  order_id uuid NOT NULL,
+  kind payments.transfer_kind NOT NULL,
+  rail payments.rail NOT NULL,
+  state payments.transfer_state NOT NULL,
+  amount numeric(16,2) NOT NULL,
+  currency text DEFAULT 'USD'::text NOT NULL,
+  counterparty_user_id uuid,
+  details_id uuid,
+  bank_link_id uuid,
+  provider text,
+  provider_ref text,
+  reference text,
+  failure_reason text,
+  idempotency_key text,
+  sent_at timestamp with time zone,
+  completed_at timestamp with time zone,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  created_by_id uuid,
+  updated_by_id uuid
+);
+ALTER TABLE payments.transfers ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE payments.transfers ADD COLUMN IF NOT EXISTS order_id uuid;
+ALTER TABLE payments.transfers ADD COLUMN IF NOT EXISTS kind payments.transfer_kind;
+ALTER TABLE payments.transfers ADD COLUMN IF NOT EXISTS rail payments.rail;
+ALTER TABLE payments.transfers ADD COLUMN IF NOT EXISTS state payments.transfer_state;
+ALTER TABLE payments.transfers ADD COLUMN IF NOT EXISTS amount numeric(16,2);
+ALTER TABLE payments.transfers ADD COLUMN IF NOT EXISTS currency text DEFAULT 'USD'::text;
+ALTER TABLE payments.transfers ADD COLUMN IF NOT EXISTS counterparty_user_id uuid;
+ALTER TABLE payments.transfers ADD COLUMN IF NOT EXISTS details_id uuid;
+ALTER TABLE payments.transfers ADD COLUMN IF NOT EXISTS bank_link_id uuid;
+ALTER TABLE payments.transfers ADD COLUMN IF NOT EXISTS provider text;
+ALTER TABLE payments.transfers ADD COLUMN IF NOT EXISTS provider_ref text;
+ALTER TABLE payments.transfers ADD COLUMN IF NOT EXISTS reference text;
+ALTER TABLE payments.transfers ADD COLUMN IF NOT EXISTS failure_reason text;
+ALTER TABLE payments.transfers ADD COLUMN IF NOT EXISTS idempotency_key text;
+ALTER TABLE payments.transfers ADD COLUMN IF NOT EXISTS sent_at timestamp with time zone;
+ALTER TABLE payments.transfers ADD COLUMN IF NOT EXISTS completed_at timestamp with time zone;
+ALTER TABLE payments.transfers ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE payments.transfers ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE payments.transfers ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE payments.transfers ADD COLUMN IF NOT EXISTS updated_by_id uuid;
 
 CREATE TABLE IF NOT EXISTS places.addresses (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -1881,9 +2105,39 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'bank_links_pkey' AND c.relname = 'bank_links' AND n.nspname = 'payments'
+  ) THEN
+    ALTER TABLE payments.bank_links ADD CONSTRAINT bank_links_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'details_pkey' AND c.relname = 'details' AND n.nspname = 'payments'
   ) THEN
     ALTER TABLE payments.details ADD CONSTRAINT details_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'feed_cursors_pkey' AND c.relname = 'feed_cursors' AND n.nspname = 'payments'
+  ) THEN
+    ALTER TABLE payments.feed_cursors ADD CONSTRAINT feed_cursors_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'inbound_transactions_pkey' AND c.relname = 'inbound_transactions' AND n.nspname = 'payments'
+  ) THEN
+    ALTER TABLE payments.inbound_transactions ADD CONSTRAINT inbound_transactions_pkey PRIMARY KEY (id);
   END IF;
 END $$;
 DO $$ BEGIN
@@ -1974,6 +2228,26 @@ DO $$ BEGIN
     WHERE con.conname = 'stripe_charges_pkey' AND c.relname = 'stripe_charges' AND n.nspname = 'payments'
   ) THEN
     ALTER TABLE payments.stripe_charges ADD CONSTRAINT stripe_charges_pkey PRIMARY KEY (payment_intent_id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'transfer_events_pkey' AND c.relname = 'transfer_events' AND n.nspname = 'payments'
+  ) THEN
+    ALTER TABLE payments.transfer_events ADD CONSTRAINT transfer_events_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'transfers_pkey' AND c.relname = 'transfers' AND n.nspname = 'payments'
+  ) THEN
+    ALTER TABLE payments.transfers ADD CONSTRAINT transfers_pkey PRIMARY KEY (id);
   END IF;
 END $$;
 DO $$ BEGIN
@@ -2891,6 +3165,36 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'bank_links_created_by_id_fkey' AND c.relname = 'bank_links' AND n.nspname = 'payments'
+  ) THEN
+    ALTER TABLE payments.bank_links ADD CONSTRAINT bank_links_created_by_id_fkey FOREIGN KEY (created_by_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'bank_links_updated_by_id_fkey' AND c.relname = 'bank_links' AND n.nspname = 'payments'
+  ) THEN
+    ALTER TABLE payments.bank_links ADD CONSTRAINT bank_links_updated_by_id_fkey FOREIGN KEY (updated_by_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'bank_links_user_fk' AND c.relname = 'bank_links' AND n.nspname = 'payments'
+  ) THEN
+    ALTER TABLE payments.bank_links ADD CONSTRAINT bank_links_user_fk FOREIGN KEY (user_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'details_created_by_id_fkey' AND c.relname = 'details' AND n.nspname = 'payments'
   ) THEN
     ALTER TABLE payments.details ADD CONSTRAINT details_created_by_id_fkey FOREIGN KEY (created_by_id) REFERENCES auth.users(id);
@@ -2924,6 +3228,56 @@ DO $$ BEGIN
     WHERE con.conname = 'details_user_fk' AND c.relname = 'details' AND n.nspname = 'payments'
   ) THEN
     ALTER TABLE payments.details ADD CONSTRAINT details_user_fk FOREIGN KEY (user_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'inbound_transactions_created_by_id_fkey' AND c.relname = 'inbound_transactions' AND n.nspname = 'payments'
+  ) THEN
+    ALTER TABLE payments.inbound_transactions ADD CONSTRAINT inbound_transactions_created_by_id_fkey FOREIGN KEY (created_by_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'inbound_transactions_matched_by_fkey' AND c.relname = 'inbound_transactions' AND n.nspname = 'payments'
+  ) THEN
+    ALTER TABLE payments.inbound_transactions ADD CONSTRAINT inbound_transactions_matched_by_fkey FOREIGN KEY (matched_by_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'inbound_transactions_order_fk' AND c.relname = 'inbound_transactions' AND n.nspname = 'payments'
+  ) THEN
+    ALTER TABLE payments.inbound_transactions ADD CONSTRAINT inbound_transactions_order_fk FOREIGN KEY (order_id) REFERENCES orders.orders(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'inbound_transactions_transfer_fk' AND c.relname = 'inbound_transactions' AND n.nspname = 'payments'
+  ) THEN
+    ALTER TABLE payments.inbound_transactions ADD CONSTRAINT inbound_transactions_transfer_fk FOREIGN KEY (transfer_id) REFERENCES payments.transfers(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'inbound_transactions_updated_by_id_fkey' AND c.relname = 'inbound_transactions' AND n.nspname = 'payments'
+  ) THEN
+    ALTER TABLE payments.inbound_transactions ADD CONSTRAINT inbound_transactions_updated_by_id_fkey FOREIGN KEY (updated_by_id) REFERENCES auth.users(id);
   END IF;
 END $$;
 DO $$ BEGIN
@@ -3044,6 +3398,76 @@ DO $$ BEGIN
     WHERE con.conname = 'settlements_attempt_fk' AND c.relname = 'settlements' AND n.nspname = 'payments'
   ) THEN
     ALTER TABLE payments.settlements ADD CONSTRAINT settlements_attempt_fk FOREIGN KEY (attempt_id) REFERENCES payments.attempts(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'transfer_events_transfer_fk' AND c.relname = 'transfer_events' AND n.nspname = 'payments'
+  ) THEN
+    ALTER TABLE payments.transfer_events ADD CONSTRAINT transfer_events_transfer_fk FOREIGN KEY (transfer_id) REFERENCES payments.transfers(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'transfers_bank_link_fk' AND c.relname = 'transfers' AND n.nspname = 'payments'
+  ) THEN
+    ALTER TABLE payments.transfers ADD CONSTRAINT transfers_bank_link_fk FOREIGN KEY (bank_link_id) REFERENCES payments.bank_links(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'transfers_counterparty_fk' AND c.relname = 'transfers' AND n.nspname = 'payments'
+  ) THEN
+    ALTER TABLE payments.transfers ADD CONSTRAINT transfers_counterparty_fk FOREIGN KEY (counterparty_user_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'transfers_created_by_id_fkey' AND c.relname = 'transfers' AND n.nspname = 'payments'
+  ) THEN
+    ALTER TABLE payments.transfers ADD CONSTRAINT transfers_created_by_id_fkey FOREIGN KEY (created_by_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'transfers_details_fk' AND c.relname = 'transfers' AND n.nspname = 'payments'
+  ) THEN
+    ALTER TABLE payments.transfers ADD CONSTRAINT transfers_details_fk FOREIGN KEY (details_id) REFERENCES payments.details(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'transfers_order_fk' AND c.relname = 'transfers' AND n.nspname = 'payments'
+  ) THEN
+    ALTER TABLE payments.transfers ADD CONSTRAINT transfers_order_fk FOREIGN KEY (order_id) REFERENCES orders.orders(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'transfers_updated_by_id_fkey' AND c.relname = 'transfers' AND n.nspname = 'payments'
+  ) THEN
+    ALTER TABLE payments.transfers ADD CONSTRAINT transfers_updated_by_id_fkey FOREIGN KEY (updated_by_id) REFERENCES auth.users(id);
   END IF;
 END $$;
 DO $$ BEGIN
@@ -3603,6 +4027,9 @@ CREATE INDEX IF NOT EXISTS attempts_provider_idx ON payments.attempts USING btre
 CREATE INDEX IF NOT EXISTS attempts_provider_ref_idx ON payments.attempts USING btree (provider_ref);
 CREATE UNIQUE INDEX IF NOT EXISTS attempts_provider_ref_key ON payments.attempts USING btree (provider_ref);
 CREATE INDEX IF NOT EXISTS attempts_status_idx ON payments.attempts USING btree (status);
+CREATE INDEX IF NOT EXISTS bank_links_moov_account_idx ON payments.bank_links USING btree (moov_account_id);
+CREATE UNIQUE INDEX IF NOT EXISTS bank_links_payment_method_key ON payments.bank_links USING btree (provider, payment_method_id) WHERE (payment_method_id IS NOT NULL);
+CREATE INDEX IF NOT EXISTS bank_links_user_idx ON payments.bank_links USING btree (user_id, status);
 CREATE INDEX IF NOT EXISTS details_encryption_key_id_idx ON payments.details USING btree (encryption_key_id);
 CREATE INDEX IF NOT EXISTS details_method_idx ON payments.details USING btree (method_id);
 CREATE UNIQUE INDEX IF NOT EXISTS details_provider_ref_key ON payments.details USING btree (provider, provider_ref) WHERE (provider_ref IS NOT NULL);
@@ -3610,6 +4037,11 @@ CREATE INDEX IF NOT EXISTS details_user_idx ON payments.details USING btree (use
 CREATE INDEX IF NOT EXISTS details_user_method_idx ON payments.details USING btree (user_id, method_id);
 CREATE INDEX IF NOT EXISTS idx_payments_details_created_by_id ON payments.details USING btree (created_by_id);
 CREATE INDEX IF NOT EXISTS idx_payments_details_updated_by_id ON payments.details USING btree (updated_by_id);
+CREATE UNIQUE INDEX IF NOT EXISTS feed_cursors_source_key ON payments.feed_cursors USING btree (source);
+CREATE INDEX IF NOT EXISTS inbound_transactions_order_idx ON payments.inbound_transactions USING btree (order_id);
+CREATE UNIQUE INDEX IF NOT EXISTS inbound_transactions_source_external_key ON payments.inbound_transactions USING btree (source, external_id) WHERE (external_id IS NOT NULL);
+CREATE INDEX IF NOT EXISTS inbound_transactions_state_idx ON payments.inbound_transactions USING btree (state, occurred_at DESC);
+CREATE INDEX IF NOT EXISTS inbound_transactions_transfer_idx ON payments.inbound_transactions USING btree (transfer_id);
 CREATE INDEX IF NOT EXISTS idx_intents_session_user_type ON payments.intents USING btree (session_id, user_id, type);
 CREATE INDEX IF NOT EXISTS idx_payments_intents_created_by_id ON payments.intents USING btree (created_by_id);
 CREATE INDEX IF NOT EXISTS idx_payments_intents_details_id ON payments.intents USING btree (details_id);
@@ -3631,6 +4063,14 @@ CREATE INDEX IF NOT EXISTS settlements_attempt_idx ON payments.settlements USING
 CREATE INDEX IF NOT EXISTS settlements_provider_idx ON payments.settlements USING btree (provider, provider_ref);
 CREATE INDEX IF NOT EXISTS stripe_charges_customer_idx ON payments.stripe_charges USING btree (stripe_customer_id);
 CREATE INDEX IF NOT EXISTS stripe_charges_settled_idx ON payments.stripe_charges USING btree (status) WHERE (charge_id IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS transfer_events_provider_event_key ON payments.transfer_events USING btree (provider, event_id);
+CREATE INDEX IF NOT EXISTS transfer_events_provider_ref_idx ON payments.transfer_events USING btree (provider_ref);
+CREATE INDEX IF NOT EXISTS transfer_events_transfer_idx ON payments.transfer_events USING btree (transfer_id, occurred_at DESC);
+CREATE INDEX IF NOT EXISTS transfers_counterparty_idx ON payments.transfers USING btree (counterparty_user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS transfers_one_live_per_order_kind ON payments.transfers USING btree (order_id, kind) WHERE (state <> 'Failed'::payments.transfer_state);
+CREATE INDEX IF NOT EXISTS transfers_order_idx ON payments.transfers USING btree (order_id);
+CREATE UNIQUE INDEX IF NOT EXISTS transfers_provider_ref_key ON payments.transfers USING btree (provider, provider_ref) WHERE (provider_ref IS NOT NULL);
+CREATE INDEX IF NOT EXISTS transfers_state_idx ON payments.transfers USING btree (state, created_at DESC);
 CREATE INDEX IF NOT EXISTS location_hours_lookup_idx ON places.location_hours USING btree (location_id, weekday);
 CREATE UNIQUE INDEX IF NOT EXISTS location_hours_slot_uniq ON places.location_hours USING btree (location_id, weekday, sort_order);
 CREATE INDEX IF NOT EXISTS idx_places_locations_image_id ON places.locations USING btree (image_id);
