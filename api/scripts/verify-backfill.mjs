@@ -506,6 +506,40 @@ const NOT_REBUILT = {
     '094 used to RAISE while any row existed; that refusal is removed and the ' +
     'count is no longer pinned, because the decision is not about how many ' +
     'there are. See docs/waves/production-day-fixes.md.',
+
+  'auth.otp_throttles':
+    'passwordless auth state (lockout fact and send limits, keyed by subject), ' +
+    'created after the pivot by docs/waves/auth-passwordless.md; nothing in exchange',
+  'auth.pending_changes':
+    'passwordless auth state (an unconfirmed email/phone change), created after ' +
+    'the pivot by docs/waves/auth-passwordless.md; nothing in exchange',
+  'auth.pending_signups':
+    'passwordless auth state (an unconfirmed signup), created after the pivot ' +
+    'by docs/waves/auth-passwordless.md; nothing in exchange',
+
+  'crm.sms_messages': 'provider (Twilio) webhook rows, no exchange source',
+  'crm.calls': 'provider webhook rows, no exchange source',
+
+  'payments.transfers':
+    'Moov/Plaid payout and charge state machine rows, built fresh by ' +
+    'docs/waves/payment-rails.md; no vendor was ever called against exchange, ' +
+    'so there is no exchange source',
+  'payments.transfer_events':
+    'append-only provider event log (Moov/Plaid), unique on (provider, event_id); ' +
+    'docs/waves/payment-rails.md builds it fresh, no exchange source',
+  'payments.inbound_transactions':
+    'inbound money movements learned from Moov/Plaid/manual entry, matched ' +
+    'against transfers; docs/waves/payment-rails.md builds it fresh, no exchange source',
+  'payments.feed_cursors':
+    "the one row Plaid's Transactions sync needs to resume; " +
+    'docs/waves/payment-rails.md builds it fresh, no exchange source',
+  'payments.bank_links':
+    'a reference to a Moov-vaulted bank account (ids and last four only, no ' +
+    'routing/account numbers); docs/waves/payment-rails.md builds it fresh, no exchange source',
+
+  'fulfillments.dropoffs':
+    'the Drop-off handover category added by migration 166/167 ' +
+    '(docs/waves/lots-build.md): no exchange source, exchange never recorded a drop-off',
 }
 
 // ---------------------------------------------------------------------------
