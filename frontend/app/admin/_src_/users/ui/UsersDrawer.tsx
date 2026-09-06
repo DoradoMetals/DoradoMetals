@@ -6,12 +6,7 @@ import { useDrawerRecord } from '../../hooks/useDrawerRecord'
 import { useState } from 'react'
 
 import { formatFullDate } from '@/shared/utils/formatDates'
-import {
-  useChangeEmail,
-  useImpersonateUser,
-  useRequestPasswordReset,
-  useUpdateUser,
-} from '@/shared/hooks/auth/queries'
+import { useImpersonateUser, useUpdateUser } from '@/shared/hooks/auth/queries'
 import { Amount, Button, Divider, Drawer, Input, RadioGroup, RadioOption } from '@dorado/components'
 import { Minus, Pen, Plus } from '@dorado/icons'
 import { cn } from '@/shared/utils/cn'
@@ -51,7 +46,6 @@ export default function AdminUsersDrawer({
 }
 
 function UserInfo({ user }: { user: AdminUser }) {
-  const changeEmail = useChangeEmail()
   const updateName = useUpdateUser()
 
   return (
@@ -64,13 +58,7 @@ function UserInfo({ user }: { user: AdminUser }) {
         defaultValue={user.name ?? ''}
         onBlur={(e) => updateName.mutate({ name: e.target.value })}
       />
-      <Input
-        label="Email"
-        type="email"
-        autoComplete="email"
-        defaultValue={user.email}
-        onBlur={(e) => changeEmail.mutate(e.target.value)}
-      />
+      <Input label="Email" type="email" defaultValue={user.email} disabled readOnly />
       <Button variant="secondary" className="w-full" disabled={true}>
         Upload Identity Images
       </Button>
@@ -181,7 +169,6 @@ function DoradoCredit({ user }: { user: AdminUser }) {
 }
 
 function UserActions({ user }: { user: AdminUser }) {
-  const requestPasswordReset = useRequestPasswordReset()
   const impersonateUser = useImpersonateUser()
   const { closeDrawer } = useDrawerStore()
   return (
@@ -196,13 +183,6 @@ function UserActions({ user }: { user: AdminUser }) {
         }}
       >
         Impersonate User
-      </Button>
-      <Button
-        variant="secondary"
-        className="w-full"
-        onClick={() => requestPasswordReset.mutate(user?.email ?? '')}
-      >
-        {requestPasswordReset.isPending ? 'Sending...' : 'Send Password Reset'}
       </Button>
     </div>
   )

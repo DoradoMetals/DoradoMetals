@@ -82,6 +82,7 @@ export {
   Pen,
   Pencil,
   Percent,
+  Phone,
   PiggyBank,
   Plane,
   Plus,

@@ -6,49 +6,64 @@ import path from 'node:path'
 // of the suite runs. Playwright reuses the saved state per role, so no other
 // spec pays the cost of logging in.
 //
-// AUTHENTICATED THROUGH THE API, NOT THE FORM, and the reason is worth stating
-// because it looks like a shortcut and is not.
+// THROUGH OTP, THROUGH THE API (ruling 91). There are no passwords any more:
+// a sign-in is send-a-code, read-the-code, verify. The code is read back from
+// the recording SMS fake through `GET /api/account/last_code`, a route that
+// only exists while that fake is the selected provider and NODE_ENV is not
+// production - so nothing here is a bypass that could ship.
 //
-// The sign-in form runs reCAPTCHA before it submits. Driven headlessly the
-// submit never fires at all - no sign-in request is made, so it is not a
-// credentials problem, it is the anti-bot check refusing a bot, which is
-// exactly its job. Defeating it would mean either disabling it for tests, which
-// puts a bypass in the app, or fighting it, which makes every authed test flaky
-// for reasons unrelated to this codebase.
+// WHY NOT THE FORM: `POST /api/account/send_code` runs the captcha, and driven
+// headlessly it refuses - which is its job. The code is asked for through
+// better-auth's own phone-number plugin endpoint instead, which is the same
+// sender the app's own send_code reaches, minus the anti-bot step. The session
+// is then minted by the real `/api/account/verify_code`.
 //
-// So this posts to better-auth's own sign-in endpoint with the real password
-// and keeps the real session cookie it returns. That is a genuine session
-// issued by the real auth system - nothing is faked and no bypass exists in the
-// application. What it skips is the anti-bot step, which protects against
-// automation rather than authorising anybody.
-//
-// WHAT THIS COSTS, so it is not discovered later: the login FORM itself is now
-// untested. That needs its own spec, tolerant of reCAPTCHA being unpredictable,
-// and it should be the only place that pays that price.
+// WHAT THIS COSTS, so it is not discovered later: the sign-in FORM is not
+// exercised here. It needs its own spec, tolerant of the captcha being
+// unpredictable, and that should be the only place that pays the price.
 const API = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api').replace(/\/$/, '')
 
 export const ROLES = {
-  admin: { email: 'e2e-admin@example.invalid', password: 'e2e-Admin-Password-1' },
-  customer: { email: 'e2e-customer@example.invalid', password: 'e2e-Customer-Password-1' },
+  admin: { email: 'e2e-admin@example.invalid', phone_number: '+15555550100' },
+  customer: { email: 'e2e-customer@example.invalid', phone_number: '+15555550101' },
 } as const
 
 export const statePath = (role: keyof typeof ROLES) =>
   path.join(process.cwd(), 'playwright', '.auth', `${role}.json`)
 
-for (const [role, creds] of Object.entries(ROLES)) {
+for (const [role, account] of Object.entries(ROLES)) {
   setup(`authenticate as ${role}`, async ({ playwright, baseURL }) => {
     const api = await playwright.request.newContext({ baseURL })
 
-    const res = await api.post(`${API}/auth/sign-in/email`, {
-      data: { email: creds.email, password: creds.password },
+    const sent = await api.post(`${API}/auth/phone-number/send-otp`, {
+      data: { phoneNumber: account.phone_number },
       headers: { 'Content-Type': 'application/json' },
     })
-
     expect(
-      res.ok(),
-      `sign-in failed for ${creds.email} (${res.status()}). Has the seed been run?\n` +
-        `  pnpm --filter @dorado/api seed:e2e`
+      sent.ok(),
+      `could not send a code to ${account.phone_number} (${sent.status()}). ` +
+        `Has the seed been run?\n  pnpm --filter @dorado/api seed:e2e`
     ).toBeTruthy()
+
+    const read = await api.get(`${API}/account/last_code`, {
+      params: { number: account.phone_number },
+    })
+    expect(
+      read.ok(),
+      `/account/last_code answered ${read.status()} - is SMS_PROVIDER the recording fake?`
+    ).toBeTruthy()
+    const { code } = (await read.json()) as { code: string | null }
+    expect(code, `no code was recorded for ${account.phone_number}`).toBeTruthy()
+
+    const verified = await api.post(`${API}/account/verify_code`, {
+      data: { channel: 'sms', phone_number: account.phone_number, code },
+      headers: { 'Content-Type': 'application/json' },
+    })
+    expect(
+      verified.ok(),
+      `verify_code failed for ${account.email} (${verified.status()})`
+    ).toBeTruthy()
+    expect((await verified.json()).status, 'the seeded code was not accepted').toBe('verified')
 
     const state = await api.storageState()
     expect(

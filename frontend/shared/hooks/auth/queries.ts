@@ -8,25 +8,14 @@ import { useAsyncAction } from '@/shared/hooks/useAsyncAction'
 import {
   admin,
   auth,
-  changeEmail,
-  changePassword,
   listSessions,
-  requestPasswordReset,
-  resetPassword,
   revokeSession,
-  sendVerificationEmail,
   signIn,
   signOut,
-  signUp,
   updateUser,
   useUser,
-  verifyEmail,
 } from '@/shared/hooks/auth/authClient'
-import {
-  forgetSession,
-  useSetPassword as useSetPasswordHook,
-  useVerifyRecaptcha as useVerifyRecaptchaHook,
-} from '@dorado/client'
+import { forgetSession, useVerifyRecaptcha as useVerifyRecaptchaHook } from '@dorado/client'
 
 // WHAT IS LEFT TO CLEAR IS UI STATE (ruling 63: "Frontend stores should be for
 // UI elements, not data"). The basket is not here any more - it is server rows
@@ -43,8 +32,7 @@ const clearClientState = () => {
 
 // better-auth's own `useSession()` (via `useUser`) is REACTIVE - a nanostore
 // atom, not a react-query cache - so this is a name, not a network call any
-// more (ruling 62: no useQuery/useMutation left outside @dorado/client). No
-// consumer here ever reads `.refetch`.
+// more (ruling 62: no useQuery/useMutation left outside @dorado/client).
 export const useGetSession = () => {
   const { user, session, error, isPending } = useUser()
   return { user, session, error, isPending }
@@ -53,53 +41,16 @@ export const useGetSession = () => {
 export const useUpdateUser = () =>
   useAsyncAction((userData: { name?: string; image?: string }) => updateUser(userData))
 
-export const useChangeEmail = () =>
-  useAsyncAction((newEmail: string) =>
-    changeEmail({ newEmail, callbackURL: `${process.env.NEXT_PUBLIC_FRONTEND_URL}/change-email` })
-  )
-
-export const useSignUp = () =>
-  useAsyncAction((userData: { email: string; password: string; name: string }) =>
-    signUp.email(
-      {
-        email: userData.email,
-        password: userData.password,
-        name: userData.name,
-        callbackURL: `${process.env.NEXT_PUBLIC_FRONTEND_URL}/verify-email`,
-        role: 'user',
-      },
-      {
-        onError(ctx) {
-          throw ctx.error
-        },
-      }
-    )
-  )
-
-export const useSignIn = () => {
-  const router = useRouter()
+// EVERY SIGN-IN ENDS IN A CODE (ruling 91), so what used to be `useSignIn` is
+// the verify step in `@dorado/client`. What is left here is the housekeeping a
+// new identity forces: forget who the client thought was signed in, and drop
+// every cached read taken as somebody else.
+export const useAdoptSession = () => {
   const { clear } = useQueryCache()
-
-  return useAsyncAction(
-    async (vars: { email: string; password: string; rememberMe: boolean }) => {
-      try {
-        return await signIn.email(vars, {
-          onError(ctx) {
-            throw ctx.error
-          },
-        })
-      } finally {
-        // NOTHING MERGES HERE ANY MORE. The visitor's basket is moved onto the
-        // real account by the SERVER, in better-auth's onLinkAccount hook
-        // (api domain/checkout/adopt.ts), before this response is written - so
-        // signing in only has to forget who it used to be and drop every
-        // other cached read.
-        forgetSession()
-        clear()
-      }
-    },
-    { onSuccess: () => router.replace('/') }
-  )
+  return useCallback(() => {
+    forgetSession()
+    clear()
+  }, [clear])
 }
 
 export const useSignOut = () => {
@@ -107,10 +58,6 @@ export const useSignOut = () => {
   const { removeAll } = useQueryCache()
 
   return useAsyncAction(
-    // THE TWO PRE-LOGOUT SYNCS ARE GONE. They existed to push the browser's
-    // basket to the server before the session went; the browser has no basket,
-    // and the rows are already the server's. Signing out leaves them on the
-    // account they belong to.
     async () => {
       await signOut()
     },
@@ -144,50 +91,17 @@ export const useGoogleSignIn = () => {
   )
 }
 
-export const useRequestPasswordReset = () =>
-  useAsyncAction((email: string) => requestPasswordReset({ email, redirectTo: '/reset-password' }))
-
-export const useResetPassword = () =>
-  useAsyncAction(({ newPassword, token }: { newPassword: string; token: string }) =>
-    resetPassword({ newPassword, token })
-  )
-
-export const useChangePassword = () =>
-  useAsyncAction(
-    ({ newPassword, currentPassword }: { newPassword: string; currentPassword: string }) =>
-      changePassword({ newPassword, currentPassword, revokeOtherSessions: true })
-  )
-
-export const useVerifyEmail = () =>
-  useAsyncAction((token: string) => verifyEmail({ query: { token } }))
-
-export const useSendVerifyEmail = () =>
-  useAsyncAction((email: string) => sendVerificationEmail({ email }))
-
+// The account is created and the customer signs in with a code like anybody
+// else - there is no invitation link to send any more.
 export const useCreateUser = () =>
-  useAsyncAction(async ({ email, name }: { email: string; name: string }) => {
-    // Create the account passwordless (omit password) so the user can set
-    // their own password after signing in via the magic link on
-    // /verify-login. better-auth's setPassword rejects accounts that already
-    // have a password, so giving one here would block that flow.
-    const newUser = await admin.createUser({ email, name, role: 'user' })
-    await signIn.magicLink({
-      email,
-      callbackURL: `${process.env.NEXT_PUBLIC_FRONTEND_URL}/verify-login`,
-    })
-    return newUser
-  })
-
-// OUR TWO ENDPOINTS ARE @dorado/client'S NOW (ruling 62). They were the last
-// two `apiRequest` calls under frontend/ outside the legacy transport, which
-// is what kept this surface on lint:client-boundary's PENDING list. Re-exported
-// under their old names because the auth UI imports them from here.
-export const useSetPassword = useSetPasswordHook
+  useAsyncAction(({ email, name }: { email: string; name: string }) =>
+    admin.createUser({ email, name, role: 'user' })
+  )
 
 // admin.* has no atomListener of its own (unlike sign-in/sign-out/
 // update-user), so nothing refreshes the reactive session for an impersonated
 // identity without asking - `auth.$store.notify` is better-auth's own,
-// documented way to do that (the same signal signIn/signOut trigger for you).
+// documented way to do that.
 export const useImpersonateUser = () => {
   const router = useRouter()
   const { removeAll } = useQueryCache()
@@ -263,11 +177,6 @@ export const useListSessions = () => {
   return { data, error, isPending, refetch }
 }
 
-// Revoking a session does not refresh `useListSessions` itself - two
-// independent calls to that hook do not share state. The caller passes its
-// own `refetch` in as a per-call option (`revokeSession.mutate(token, {
-// onSuccess: refetch })`), same as any other write settling a read it does
-// not own outright.
 export const useRevokeSession = () => useAsyncAction((token: string) => revokeSession({ token }))
 
 export const useVerifyRecaptcha = useVerifyRecaptchaHook

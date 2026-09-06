@@ -91,7 +91,7 @@ export default function Sidebar() {
                 variant="tertiary"
                 className="h-18 w-20 flex-col gap-1"
                 onClick={() => {
-                  router.push('/authentication?tab=sign-in')
+                  router.push('/auth/sign-in')
                   closeDrawer()
                 }}
               >

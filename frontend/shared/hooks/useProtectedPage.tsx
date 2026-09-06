@@ -20,7 +20,7 @@ export default function ProtectedPage({ children, requiredRoles }: ProtectedPage
   useEffect(() => {
     if (!isPending) {
       if (!authorized) {
-        router.replace('/authentication')
+        router.replace('/auth/sign-in')
       }
       setChecked(true)
     }

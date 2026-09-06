@@ -19,7 +19,7 @@ const PAGES = [
   { path: '/sales-tax', what: 'the sales tax page' },
   { path: '/privacy-policy', what: 'the privacy policy' },
   { path: '/terms-and-conditions', what: 'the terms' },
-  { path: '/authentication', what: 'the sign-in page' },
+  { path: '/auth/sign-in', what: 'the sign-in page' },
 ] as const
 
 for (const { path, what } of PAGES) {

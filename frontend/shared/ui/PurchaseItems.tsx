@@ -151,7 +151,7 @@ export default function PurchaseItems() {
       </div>
       <Button
         className="w-full"
-        onClick={() => router.push(user ? '/checkout' : '/authentication')}
+        onClick={() => router.push(user ? '/checkout' : '/auth/sign-in')}
       >
         {user ? 'Sell Your Items' : 'Sign In to Sell Your Items'}
       </Button>
