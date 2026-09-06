@@ -80,7 +80,10 @@ export default defineConfig({
         // 34/34, and deleting a block that far ABOVE the population's own
         // average drags the average down - 812/901 = 90.12% before,
         // 778/868 = 89.63% after. Measured, floored, never rounded up.
-        [DOMAIN_GLOB]: { statements: 86, branches: 73, functions: 89, lines: 88 },
+        // Raised by the payment-rails lane (ruling 97): the new domain code
+        // arrived with tests for every transition, every ladder rung and every
+        // route, so the measured floor moved 86/73/89/88 -> 88/77/92/91.
+        [DOMAIN_GLOB]: { statements: 88, branches: 77, functions: 92, lines: 91 },
         'src/shared/**': { statements: 80, branches: 74, functions: 86, lines: 83 },
       },
     },

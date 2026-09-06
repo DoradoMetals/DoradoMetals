@@ -16,6 +16,7 @@ import {
 import { findIntentByRef, updateFromProvider } from '#transactions/service.ts'
 import * as emailService from '#documents/emails/service.ts'
 import * as credit from '#transactions/credit/service.ts'
+import * as rails from '#transactions/rails/service.ts'
 import withTransaction from '#shared/db/withTransaction.ts'
 import { reportError } from '#shared/observability/report.ts'
 import type { Executor } from '#shared/db/executor.ts'
@@ -48,6 +49,7 @@ export async function applyIntentEvent(
     const owed = (await ordersRepo.getOne(order_id))?.totals?.post_charges_amount
     if (settlementCovers(toDollars(paymentIntent.amount_received), owed)) {
       await withTransaction(async (tx) => {
+        await rails.settleCardCharge(order_id, paymentIntent.id, tx)
         if (await ordersRepo.update(order_id, { status: 'Preparing' }, { status: 'Pending' }, tx)) {
           // The payment settled, so the credit the customer reserved is spent
           // rather than held (ruling 88).

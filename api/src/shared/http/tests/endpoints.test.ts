@@ -193,6 +193,10 @@ const UNROUTED = {
   'domains/transactions/controller.ts': {
     handleStripeWebhook: 'mounted directly on the app in app.ts, before express.json',
   },
+  'domains/transactions/rails/controller.ts': {
+    handleMoovWebhook: 'mounted directly on the app in app.ts, before express.json',
+    handlePlaidWebhook: 'mounted directly on the app in app.ts, before express.json',
+  },
   'domains/documents/emails/controller.ts': {},
 } satisfies Record<string, Record<string, string>> as Record<
   string,

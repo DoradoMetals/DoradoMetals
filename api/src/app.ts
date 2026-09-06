@@ -17,6 +17,11 @@ import transactionRoutes from '#transactions/ledger/routes.ts'
 import ordersRoutes from '#orders/routes.ts'
 import shipmentRoutes from '#logistics/shipping/shipments/routes.ts'
 import paymentDetailsRoutes from '#transactions/details/routes.ts'
+import payoutRoutes from '#transactions/payouts/routes.ts'
+import chargeRoutes from '#transactions/charges/routes.ts'
+import inboundRoutes from '#transactions/inbound/routes.ts'
+import bankLinkRoutes from '#transactions/banks/routes.ts'
+import paymentViewRoutes from '#transactions/rails/routes.ts'
 import refinerRoutes from '#orders/refiners/routes.ts'
 import refinerItemRoutes from '#orders/refiners/items/routes.ts'
 import refinerOrderRoutes from '#orders/refiners/orders/routes.ts'
@@ -35,6 +40,7 @@ import fulfillmentRoutes from '#logistics/fulfillments/routes.ts'
 import { toNodeHandler } from 'better-auth/node'
 import { auth } from '#accounts/auth/client.ts'
 import { handleStripeWebhook } from '#transactions/controller.ts'
+import { handleMoovWebhook, handlePlaidWebhook } from '#transactions/rails/controller.ts'
 import errorHandler from '#shared/middleware/errorHandler.ts'
 import { httpLogger } from '#shared/logging/http.ts'
 
@@ -51,6 +57,10 @@ app.use(
 )
 
 app.post('/api/auth/stripe/webhook', express.raw({ type: 'application/json' }), handleStripeWebhook)
+
+app.post('/api/webhooks/moov', express.raw({ type: 'application/json' }), handleMoovWebhook)
+
+app.post('/api/webhooks/plaid', express.raw({ type: 'application/json' }), handlePlaidWebhook)
 
 app.all('/api/auth/*splat', toNodeHandler(auth))
 
@@ -76,6 +86,11 @@ app.use('/api/transactions', transactionRoutes)
 app.use('/api/orders', ordersRoutes)
 app.use('/api/shipments', shipmentRoutes)
 app.use('/api/payments/details', paymentDetailsRoutes)
+app.use('/api/payments/payouts', payoutRoutes)
+app.use('/api/payments/charges', chargeRoutes)
+app.use('/api/payments/inbound', inboundRoutes)
+app.use('/api/payments/banks', bankLinkRoutes)
+app.use('/api/payments/view', paymentViewRoutes)
 app.use('/api/suppliers', refinerRoutes)
 app.use('/api/refiners', refinerItemRoutes)
 app.use('/api/refiners', refinerOrderRoutes)

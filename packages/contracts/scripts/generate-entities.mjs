@@ -220,11 +220,16 @@ const ENTITY = {
   'organizations.organizations': 'Organization',
 
   'payments.attempts': 'PaymentAttempt',
+  'payments.bank_links': 'BankLink',
+  'payments.feed_cursors': 'FeedCursor',
+  'payments.inbound_transactions': 'InboundTransaction',
   'payments.details': 'PaymentDetails',
   'payments.intents': 'PaymentIntent',
   'payments.ledger': 'LedgerEntry',
   'payments.methods': 'PaymentMethod',
   'payments.settlements': 'PaymentSettlement',
+  'payments.transfer_events': 'TransferEvent',
+  'payments.transfers': 'Transfer',
   'payments.stripe_charges': 'StripeCharge',
 
   'places.addresses': 'Address',
