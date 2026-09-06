@@ -2,7 +2,13 @@ import query from '#shared/db/query.ts'
 import { buildUpdate } from '#shared/db/patch.ts'
 import { sqlFrom } from '#shared/db/sql.ts'
 import { columnsOf, returningOf } from '#shared/db/columns.ts'
-import { RefiningOrder, RefiningOrderCreate, RefiningOrderPatch, RefiningOrderView } from '@dorado/contracts'
+import {
+  RefiningOrder,
+  RefiningOrderCreate,
+  RefiningOrderPatch,
+  RefiningOrderView,
+  RefiningSpot,
+} from '@dorado/contracts'
 import type { RefiningDirection } from '@dorado/contracts'
 import type { Executor } from '#shared/db/executor.ts'
 
@@ -92,6 +98,16 @@ export async function settle(
     executor
   )
   return rows[0]
+}
+
+export async function cancel(id: string, executor?: Executor): Promise<RefiningOrder | undefined> {
+  const { rows } = await query<RefiningOrder>(sql('cancel'), [id], executor)
+  return rows[0]
+}
+
+export async function spots(id: string, executor?: Executor): Promise<RefiningSpot[]> {
+  const { rows } = await query(sql('spots'), [id], executor)
+  return rows.map((row) => RefiningSpot.parse(row))
 }
 
 export async function remove(id: string, executor?: Executor): Promise<boolean> {

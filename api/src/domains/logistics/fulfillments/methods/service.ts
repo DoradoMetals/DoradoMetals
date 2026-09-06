@@ -36,6 +36,12 @@ export async function getDefault(
   return method
 }
 
+export async function dropoffMethodId(executor?: Executor): Promise<string> {
+  const method = await methods.getDropoff(executor)
+  rules.assertDefault(method, 'refiner', 'DROPOFF')
+  return method.id
+}
+
 export async function assertOffered(
   method_id: string,
   direction: Direction,

@@ -50,7 +50,7 @@ export const setMethod = asyncHandler(async (req, res) => {
 export const setStatus = asyncHandler(async (req, res) => {
   const body = parseStrict(FulfillmentSetStatusBody, req.body, 'fulfillments/set_status body')
   const view = await withTransaction((tx) =>
-    fulfillmentService.setStatus(body.fulfillment_id, body.status, tx)
+    fulfillmentService.moveStatus(body.fulfillment_id, body.status, tx)
   )
   // A PICKUP that has just been marked collected is the customer's "we have
   // your metals" moment. After the commit, and once per order - the trail says
@@ -81,10 +81,32 @@ export const getFulfillmentByOrder = asyncHandler(async (req, res) => {
   return res.json(view)
 })
 
+// Three keys, one endpoint: a basket makes a DRAFT the order later adopts, an
+// order that reached the database without one gets its handover made against
+// itself, and a refiner order gets its drop-off (GAP 14/20).
 export const createFulfillment = asyncHandler(async (req, res) => {
   const body = parseStrict(FulfillmentCreateBody, req.body, 'fulfillments body')
+  rules.assertOneSubject(body)
   const caller = callerId(req)
   const is_admin = req.user?.role === 'admin'
+  if (body.order_id) {
+    rules.assertAdminCreate(is_admin)
+    const order_id = body.order_id
+    return res.status(200).json(
+      await withTransaction((tx) =>
+        fulfillmentService.createForOrder(order_id, body.method_id ?? null, tx)
+      )
+    )
+  }
+  if (body.refining_order_id) {
+    rules.assertAdminCreate(is_admin)
+    const refining_order_id = body.refining_order_id
+    return res.status(200).json(
+      await withTransaction((tx) =>
+        fulfillmentService.createForRefiningOrder(refining_order_id, body.method_id ?? null, tx)
+      )
+    )
+  }
   return res
     .status(200)
     .json(

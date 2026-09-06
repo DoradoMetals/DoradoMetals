@@ -25,6 +25,13 @@ export async function getOne(
   return rows[0]
 }
 
+export async function defaultReturn(
+  executor?: Executor
+): Promise<CarrierServiceRead | undefined> {
+  const { rows } = await query<CarrierServiceRead>(sql('default_return'), [], executor)
+  return rows[0]
+}
+
 export async function getInsuranceCeilings(
   carrier_id: string,
   executor?: Executor

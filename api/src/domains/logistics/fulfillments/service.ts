@@ -2,6 +2,7 @@ import * as fulfillments from '#db/fulfillments/repo.ts'
 import * as methodService from '#logistics/fulfillments/methods/service.ts'
 import * as pickups from '#db/fulfillments/pickups/repo.ts'
 import * as directs from '#db/fulfillments/directs/repo.ts'
+import * as dropoffs from '#db/fulfillments/dropoffs/repo.ts'
 import * as shipmentLinks from '#db/fulfillments/shipments/repo.ts'
 import * as shipments from '#db/shipping/shipments/repo.ts'
 import * as parcel from '#logistics/shipping/parcel.ts'
@@ -16,6 +17,7 @@ import type {
   Direction,
   FulfillmentCategory,
   FulfillmentPatchBody,
+  FulfillmentStatus,
   FulfillmentStep,
   FulfillmentView,
   FulfillmentViewFacts,
@@ -126,6 +128,11 @@ async function ensureDetail(
     await pickups.create({ fulfillment_id }, executor)
     return
   }
+  if (category === 'DROPOFF') {
+    if (await dropoffs.getFor(fulfillment_id, executor)) return
+    await dropoffs.create({ fulfillment_id }, executor)
+    return
+  }
   if (await directs.getFor(fulfillment_id, executor)) return
   await directs.create({ fulfillment_id }, executor)
 }
@@ -201,6 +208,10 @@ export async function patchChoices(
     }
     rules.assertTimestamp(body.pickup.start_time)
     await pickups.update(id, body.pickup, executor)
+  } else if ('dropoff' in body) {
+    rules.assertChoicesMatchCategory(method.category, 'DROPOFF', id)
+    rules.assertTimestamp(body.dropoff.start_time)
+    await dropoffs.update(id, body.dropoff, executor)
   } else {
     rules.assertChoicesMatchCategory(method.category, 'DIRECT', id)
     rules.assertTimestamp(body.direct.start_time)
@@ -290,14 +301,43 @@ export async function chooseDefault(
   return await createFulfillment(order_id, method.id, executor)
 }
 
+// The six operator transitions. The status column moves and, for a drop-off,
+// the two timestamps that ARE its states move with it - the design gives
+// Drop-off no status of its own (GAP 19/20).
 export async function setStatus(
   id: string,
-  status: string,
+  status: FulfillmentStatus,
   executor?: Executor
 ): Promise<FulfillmentView | null> {
   const changed = await fulfillments.update(id, { status }, executor)
   if (!changed) return null
+  if (status === 'IN_TRANSIT' || status === 'DROPPED_OFF') {
+    const held = await dropoffs.getFor(id, executor)
+    if (held) {
+      await dropoffs.update(
+        id,
+        status === 'IN_TRANSIT'
+          ? { departed_at: new Date().toISOString() }
+          : {
+              departed_at: held.departed_at ?? new Date().toISOString(),
+              dropped_off_at: new Date().toISOString(),
+            },
+        executor
+      )
+    }
+  }
   return await getById(id, executor)
+}
+
+export async function moveStatus(
+  id: string,
+  status: FulfillmentStatus,
+  executor?: Executor
+): Promise<FulfillmentView | null> {
+  const current = await getById(id, executor)
+  rules.assertFulfillment(current, id)
+  rules.assertTransition(current.actions.transitions, status, id)
+  return await setStatus(id, status, executor)
 }
 
 export async function setMethod(
@@ -326,6 +366,7 @@ export async function setMethod(
 
   if (target.category !== 'PICKUP') await pickups.remove(id, executor)
   if (target.category !== 'DIRECT') await directs.remove(id, executor)
+  if (target.category !== 'DROPOFF') await dropoffs.remove(id, executor)
   await ensureDetail(id, target.category, target.direction ?? 'purchase', executor)
 
   return await recompose(id, executor)
@@ -372,5 +413,43 @@ export async function cancelSchedule(
 ): Promise<FulfillmentView | null> {
   await pickups.remove(fulfillment_id, executor)
   await directs.remove(fulfillment_id, executor)
+  await dropoffs.remove(fulfillment_id, executor)
   return await getById(fulfillment_id, executor)
+}
+
+// A handover for an order that reached the database without one - an admin
+// order, or a refiner order taking a drop-off. The draft path is the customer's
+// (a basket makes one and the order adopts it); this is the other key (GAP 14).
+export async function createForOrder(
+  order_id: string,
+  method_id: string | null,
+  executor?: Executor
+): Promise<FulfillmentView> {
+  const existing = await fulfillments.getByOrder(order_id, executor)
+  if (existing) return await recompose(existing.id, executor)
+  const direction = (await orders.directionOf(order_id, executor)) ?? 'purchase'
+  const chosen = method_id ?? (await methodService.getDefault(direction, 'SHIPMENT', executor)).id
+  const method = await methodService.getOne(chosen, executor)
+  rules.assertMethod(method, chosen)
+  const view = await createFulfillment(order_id, chosen, executor)
+  await ensureDetail(view.fulfillment.id, method.category, direction, executor)
+  return await recompose(view.fulfillment.id, executor)
+}
+
+// A refiner order's handover: the drop-off. The order key is the other one, and
+// the direction a detail row is built for is the business's own leg out.
+export async function createForRefiningOrder(
+  refining_order_id: string,
+  method_id: string | null,
+  executor?: Executor
+): Promise<FulfillmentView> {
+  const existing = await fulfillments.getByRefiningOrder(refining_order_id, executor)
+  if (existing) return await recompose(existing.id, executor)
+  const chosen = method_id ?? (await methodService.dropoffMethodId(executor))
+  const method = await methodService.getOne(chosen, executor)
+  rules.assertMethod(method, chosen)
+  const made = await fulfillments.createForRefining(refining_order_id, chosen, 'PENDING', executor)
+  rules.assertComposed(made, refining_order_id)
+  await ensureDetail(made.id, method.category, 'purchase', executor)
+  return await recompose(made.id, executor)
 }

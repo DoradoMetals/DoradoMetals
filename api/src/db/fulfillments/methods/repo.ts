@@ -20,6 +20,13 @@ export async function getAll(executor?: Executor): Promise<FulfillmentMethodRead
   return rows
 }
 
+export async function getDropoff(
+  executor?: Executor
+): Promise<FulfillmentMethodRead | undefined> {
+  const { rows } = await query<FulfillmentMethodRead>(sql('get_dropoff'), [], executor)
+  return rows[0]
+}
+
 export async function getOne(
   id: string,
   executor?: Executor

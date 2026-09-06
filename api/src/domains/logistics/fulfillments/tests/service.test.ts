@@ -445,7 +445,7 @@ test("orderOwnerOf resolves through the fulfillment to the order's own owner", a
     async (c: PoolClient) => {
       const { id: order_id, user_id } = await freeOrder(c, 'purchase')
       const method_id = (await methodOf(c, 'CARRIER DROPOFF', 'purchase')).id
-      const fulfillment = await fulfillments.create(order_id, method_id, 'Pending', c)
+      const fulfillment = await fulfillments.create(order_id, method_id, 'PENDING', c)
 
       const owner = await service.orderOwnerOf(fulfillment!.id, c)
       assert.equal(owner, user_id)

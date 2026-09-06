@@ -20,6 +20,18 @@ export async function getByOrder(
   return rows[0]
 }
 
+export async function getByRefiningOrder(
+  refining_order_id: string,
+  executor?: Executor
+): Promise<Fulfillment | undefined> {
+  const { rows } = await query<Fulfillment>(
+    sql('get_by_refining_order'),
+    [refining_order_id],
+    executor
+  )
+  return rows[0]
+}
+
 export async function view(
   ids: string[] | null,
   order_id: string | null,
@@ -50,6 +62,20 @@ export async function create(
   executor?: Executor
 ): Promise<Fulfillment | undefined> {
   const { rows } = await query<Fulfillment>(sql('create'), [order_id, method_id, status], executor)
+  return rows[0]
+}
+
+export async function createForRefining(
+  refining_order_id: string,
+  method_id: string,
+  status: string,
+  executor?: Executor
+): Promise<Fulfillment | undefined> {
+  const { rows } = await query<Fulfillment>(
+    sql('create_for_refining'),
+    [refining_order_id, method_id, status],
+    executor
+  )
   return rows[0]
 }
 

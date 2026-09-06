@@ -6,3 +6,14 @@ import { z } from 'zod/v4'
 
 export const FulfillmentCategory = z.enum(['SHIPMENT', 'PICKUP', 'DIRECT', 'DROPOFF'])
 export type FulfillmentCategory = z.infer<typeof FulfillmentCategory>
+
+export const FulfillmentStatus = z.enum([
+  'PENDING',
+  'SCHEDULED',
+  'IN_TRANSIT',
+  'PICKED_UP',
+  'IN_PROGRESS',
+  'COMPLETED',
+  'DROPPED_OFF',
+])
+export type FulfillmentStatus = z.infer<typeof FulfillmentStatus>

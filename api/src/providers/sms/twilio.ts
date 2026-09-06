@@ -33,12 +33,17 @@ export function credentials(): TwilioCredentials {
   }
 }
 
-export async function send(to: string, body: string): Promise<SmsSendResult> {
+export async function send(
+  to: string,
+  body: string,
+  media: SmsMedia[] = []
+): Promise<SmsSendResult> {
   const { account_sid, auth_token, from_number } = credentials()
   const form = new URLSearchParams()
   form.append('To', to)
   form.append('From', from_number)
   form.append('Body', body)
+  for (const attachment of media) form.append('MediaUrl', attachment.url)
 
   const response = await axios.post(
     `https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(account_sid)}/Messages.json`,

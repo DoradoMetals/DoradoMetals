@@ -45,7 +45,7 @@ const LANES: { dir: string; forbidden: string[]; why: string }[] = [
 
 const ACCEPTED: Record<string, { count: number; why: string }> = {
   'domains/orders/service.ts': {
-    count: 9,
+    count: 15,
     why:
       'the ADMIN cancel and the hand-entered tracking number. `cancel` takes ' +
       "OrderCancelBody's carrier_service_id + package_id - an admin choosing the " +
@@ -56,13 +56,15 @@ const ACCEPTED: Record<string, { count: number; why: string }> = {
       "shipping's to write - what is named here is the admin's INPUT.",
   },
   'domains/orders/rules.ts': {
-    count: 1,
+    count: 3,
     why:
       '`OrderActions.buy_label` and `update_tracking` are answered from the ' +
       "parcel's own state (ruling 67: 'the parcel exists and carries no label, " +
       "so POST /api/shipments/:id/label will accept'). Reading tracking_number " +
       "to decide whether a BUTTON is offered is the admin drawer's question, " +
-      'not a customer handover decision.',
+      'not a customer handover decision. `assertReturnService` joins them: it ' +
+      'refuses a cancel when no active carrier service supports returns, which ' +
+      'is a refusal about the admin input, not about the parcel.',
   },
 }
 

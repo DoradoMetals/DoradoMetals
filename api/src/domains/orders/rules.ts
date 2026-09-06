@@ -15,6 +15,8 @@ import type {
   OrderSpotsPutBody,
   OrderView,
   OrderViewFacts,
+  PdfKind,
+  StoredDocument,
   PaymentIntentFacts,
   PaymentMethod,
 } from '@dorado/contracts'
@@ -203,6 +205,14 @@ export function statusesFor(view: OrderViewFacts): string[] {
   })
 }
 
+// Three spot states, not two: unlocked, locked-and-still-editable, and
+// finalized. Finalize locks the spots AND writes the total, so the total is
+// what tells the last two apart - without it `unlock_spots` would be false the
+// moment a lock was taken (GAP 6).
+export function isFinalized(view: OrderViewFacts): boolean {
+  return view.order.spots_locked && view.totals?.total != null
+}
+
 export function actionsFor(view: OrderViewFacts): OrderActions {
   const purchase = view.order.direction === 'purchase'
   const sale = view.order.direction === 'sale'
@@ -224,15 +234,20 @@ export function actionsFor(view: OrderViewFacts): OrderActions {
     update_tracking: view.shipments.length > 0,
     edit_lots: purchase && !view.order.spots_locked,
     assign_lots: purchase && allLotsConfirmed(view.lots),
+    lock_spots: !view.order.spots_locked,
+    unlock_spots: view.order.spots_locked && !isFinalized(view),
     statuses: statusesFor(view),
   }
 }
 
 // The Documents card, by handover method. An Invoice is Unavailable until the
-// order is finalized; every other row is available once the method that prints
-// it has been chosen. Rendering the new five is a later pass - this read is
-// what says which of them the order HAS.
-const BY_CATEGORY: Record<string, { kind: string; name: string }[]> = {
+// order is finalized. Six of the ten have no renderer and no Figma design to
+// build one from, so they are available only once a file has been IMPORTED
+// against the order - which is exactly what the card's Send/Import split means
+// (GAP 23/25).
+const RENDERED: PdfKind[] = ['invoice', 'packing_list', 'return_packing_list', 'sales_order_invoice']
+
+const BY_CATEGORY: Record<string, { kind: PdfKind; name: string }[]> = {
   SHIPMENT: [
     { kind: 'invoice', name: 'Invoice' },
     { kind: 'packing_list', name: 'Packing List' },
@@ -256,12 +271,24 @@ const BY_CATEGORY: Record<string, { kind: string; name: string }[]> = {
   ],
 }
 
-export function documentsFor(category: string | null, finalized: boolean): OrderDocument[] {
-  return (BY_CATEGORY[category ?? 'SHIPMENT'] ?? BY_CATEGORY.SHIPMENT!).map((row) => ({
-    kind: row.kind,
-    name: row.name,
-    available: row.kind === 'invoice' ? finalized : true,
-  }))
+export function documentsFor(
+  category: string | null,
+  finalized: boolean,
+  stored: StoredDocument[]
+): OrderDocument[] {
+  return (BY_CATEGORY[category ?? 'SHIPMENT'] ?? BY_CATEGORY.SHIPMENT!).map((row) => {
+    const held = stored.find((file) => file.kind === row.kind) ?? null
+    return {
+      kind: row.kind,
+      name: row.name,
+      pdf_id: held?.id ?? null,
+      available: RENDERED.includes(row.kind)
+        ? row.kind === 'invoice'
+          ? finalized
+          : true
+        : held !== null,
+    }
+  })
 }
 
 export function assertNamesAField(patch: object): void {
@@ -314,6 +341,18 @@ export function assertReturnable(order: OrderView): void {
   if (!order.address) {
     throw new Invalid(
       `order ${order.order.number} has no address snapshot, so its metal cannot be returned`
+    )
+  }
+}
+
+// No active carrier service supports returns, so there is nothing to buy a
+// label on and the caller named none either. Refusing here says that, rather
+// than passing null into the carrier adapter.
+export function assertReturnService(carrier_service_id: string | null): void {
+  if (!carrier_service_id) {
+    throw new Invalid(
+      'no carrier service is set up for returns, so this order cannot be cancelled ' +
+        'with a return label - name one explicitly'
     )
   }
 }

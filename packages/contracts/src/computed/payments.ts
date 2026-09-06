@@ -7,13 +7,17 @@ import { InboundTransaction } from '../payments/inbound_transactions.js'
 import { BankLink } from '../payments/bank_links.js'
 import { User } from '../auth/users.js'
 
+// One order key or the other, never both and never neither - the same CHECK the
+// table carries. A refiner is paid the way a customer is (GAP 12).
 export const OpenPayoutBody = z
   .object({
     order_id: Transfer.shape.order_id,
+    refining_order_id: Transfer.shape.refining_order_id,
     rail: Transfer.shape.rail,
     bank_link_id: Transfer.shape.bank_link_id.optional(),
     details_id: Transfer.shape.details_id.optional(),
   })
+  .partial({ order_id: true, refining_order_id: true })
   .strict()
 export type OpenPayoutBody = z.infer<typeof OpenPayoutBody>
 
@@ -30,8 +34,10 @@ export type FailTransferBody = z.infer<typeof FailTransferBody>
 export const OpenChargeBody = z
   .object({
     order_id: Transfer.shape.order_id,
+    refining_order_id: Transfer.shape.refining_order_id,
     rail: Transfer.shape.rail,
   })
+  .partial({ order_id: true, refining_order_id: true })
   .strict()
 export type OpenChargeBody = z.infer<typeof OpenChargeBody>
 
@@ -52,7 +58,7 @@ export const RecordWireBody = z
 export type RecordWireBody = z.infer<typeof RecordWireBody>
 
 export const ConfirmMatchBody = z
-  .object({ order_id: Transfer.shape.order_id })
+  .object({ order_id: Transfer.shape.order_id.unwrap() })
   .strict()
 export type ConfirmMatchBody = z.infer<typeof ConfirmMatchBody>
 

@@ -1,32 +1,60 @@
-import { Conflict, Invalid, NotFound } from '#shared/errors.ts'
+import { Conflict, Forbidden, Invalid, NotFound } from '#shared/errors.ts'
 import type {
   CarrierHandoff,
   FulfillmentActions,
   FulfillmentCategory,
+  FulfillmentCreateBody,
   FulfillmentDecisions,
   FulfillmentMethodRead,
+  FulfillmentStatus,
   FulfillmentStep,
   FulfillmentViewFacts,
 } from '@dorado/contracts'
 
-// A handover that is DONE. The status column is free text an admin sets, so the
-// decision about which words mean "the driver has left with the metal" lives
-// here rather than being spelled at the one call site that asks.
-export function isCollected(status: string | null | undefined): boolean {
-  const word = (status ?? '').trim().toUpperCase()
-  return word === 'COMPLETE' || word === 'COMPLETED' || word === 'COLLECTED'
+// A handover that is DONE. The status is an enum now (168), so this is the one
+// place that says which of its labels mean "we have the metal".
+const DONE: FulfillmentStatus[] = ['PICKED_UP', 'COMPLETED', 'DROPPED_OFF']
+
+export function isCollected(status: FulfillmentStatus | null | undefined): boolean {
+  return status != null && DONE.includes(status)
+}
+
+// The six operator transitions the design notes name, as statuses rather than
+// button labels, so nothing is decided in the browser (GAP 19). A handover that
+// has not been scheduled offers none: there is nothing to be headed to.
+export function transitionsFor(view: FulfillmentViewFacts): FulfillmentStatus[] {
+  const status = view.fulfillment.status
+  if (isCollected(status)) return []
+  const category = view.method.category
+  if (category === 'PICKUP') {
+    if (view.pickup?.start_time == null) return []
+    return status === 'IN_TRANSIT' ? ['PICKED_UP'] : ['IN_TRANSIT', 'PICKED_UP']
+  }
+  if (category === 'DIRECT') {
+    if (view.direct?.start_time == null) return []
+    return status === 'IN_PROGRESS' ? ['COMPLETED'] : ['IN_PROGRESS', 'COMPLETED']
+  }
+  if (category === 'DROPOFF') {
+    if (view.dropoff?.start_time == null) return []
+    return status === 'IN_TRANSIT' ? ['DROPPED_OFF'] : ['IN_TRANSIT', 'DROPPED_OFF']
+  }
+  return []
 }
 
 export function requiresSchedule(category: FulfillmentCategory): boolean {
-  return category === 'PICKUP' || category === 'DIRECT'
+  return category === 'PICKUP' || category === 'DIRECT' || category === 'DROPOFF'
 }
 
 const ALL_CATEGORIES: FulfillmentCategory[] = ['SHIPMENT', 'PICKUP', 'DIRECT']
 
+// DROPOFF is not offered as a move: it is the business driving sealed lots to a
+// refinery, chosen on a refiner order, and its method row is hidden for that
+// reason. A fulfillment already on it stays on it.
 export function categoriesFor(
   category: FulfillmentCategory,
   hasShipment: boolean
 ): FulfillmentCategory[] {
+  if (category === 'DROPOFF') return ['DROPOFF']
   if (category === 'SHIPMENT' && hasShipment) return ['SHIPMENT']
   return ALL_CATEGORIES
 }
@@ -39,6 +67,7 @@ export function actionsFor(view: FulfillmentViewFacts): FulfillmentActions {
     schedule: requiresSchedule(category),
     cancel_schedule: requiresSchedule(category) && view.scheduled_at !== null,
     categories,
+    transitions: transitionsFor(view),
   }
 }
 
@@ -64,7 +93,7 @@ export function missingFor(
   handoffs: CarrierHandoff[]
 ): FulfillmentStep[] {
   const missing: FulfillmentStep[] = []
-  const { method, parcel, pickup, direct } = view
+  const { method, parcel, pickup, direct, dropoff } = view
 
   if (method.category === 'SHIPMENT') {
     // A sale's leg goes out, not in: the customer picks the delivery service and
@@ -90,6 +119,12 @@ export function missingFor(
     return missing
   }
 
+  if (method.category === 'DROPOFF') {
+    if (!dropoff?.refiner_id) missing.push('refiner_id')
+    if (!dropoff?.start_time) missing.push('start_time')
+    return missing
+  }
+
   if (!direct?.location_id) missing.push('location_id')
   if (!direct?.start_time) missing.push('start_time')
   return missing
@@ -100,6 +135,25 @@ export function decisionsFor(
   handoffs: CarrierHandoff[]
 ): FulfillmentDecisions {
   return { missing: missingFor(view, handoffs), actions: actionsFor(view) }
+}
+
+export function assertOneSubject(body: FulfillmentCreateBody): void {
+  const named = [body.checkout_id, body.order_id, body.refining_order_id].filter(Boolean)
+  if (named.length !== 1) {
+    throw new Invalid('name exactly one of checkout_id, order_id or refining_order_id')
+  }
+}
+
+export function assertCheckoutSubject(
+  checkout_id: string | undefined
+): asserts checkout_id is string {
+  if (!checkout_id) throw new Invalid('name exactly one of checkout_id, order_id or refining_order_id')
+}
+
+// A customer makes a handover for their own basket. Making one for an ORDER is
+// an admin act - the customer has no options after placing (ruling 3).
+export function assertAdminCreate(is_admin: boolean): void {
+  if (!is_admin) throw new Forbidden('only an admin can create a fulfillment for an order')
 }
 
 export function assertFulfillable(exists: boolean, order_id: string): void {
@@ -147,6 +201,28 @@ export function assertDefault<T>(
   category: FulfillmentCategory
 ): asserts row is T {
   if (!row) throw new NotFound(`no default ${category} method for a ${direction}`)
+}
+
+// A transition the card is not offering. The status column is an enum, so a
+// wrong word is already a 400; this is about the ORDER of the six moves, and it
+// only bites where there IS an order: a SHIPMENT's progress comes off the
+// parcel's own scans, so nothing here constrains it.
+export function assertTransition(
+  offered: FulfillmentStatus[],
+  wanted: FulfillmentStatus,
+  id: string
+): void {
+  if (offered.length > 0 && !offered.includes(wanted)) {
+    throw new Conflict(
+      `fulfillment ${id} cannot move to ${wanted} - open moves are ${offered.join(', ')}`
+    )
+  }
+}
+
+export function assertDropoff<T>(row: T | null | undefined, id: string): asserts row is T {
+  if (!row) {
+    throw new Conflict(`fulfillment ${id} is a DROPOFF with no drop-off row to schedule`)
+  }
 }
 
 export function assertMovable(

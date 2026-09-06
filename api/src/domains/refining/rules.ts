@@ -3,10 +3,14 @@ import { WeightUnit } from '@dorado/contracts'
 import type {
   Direction,
   Lot,
+  OrderDocument,
+  OrderRead,
+  PdfKind,
   RefiningLot,
   RefiningLotPatch,
   RefiningOrder,
   RefiningSettlementLot,
+  StoredDocument,
 } from '@dorado/contracts'
 
 export function assertNamesAField(patch: object): void {
@@ -54,6 +58,39 @@ export function assertSaleOrder(direction: Direction | null, order_id: string): 
     throw new Invalid(
       `ordering from a supplier is a sale-direction operation and this is a ${direction} order`
     )
+  }
+}
+
+// The Create Sale action runs the other way from `supply`: a customer PURCHASE
+// order's lots are wrapped into a refiner SELL order, and only once the order
+// is finalized, because an unfinalized lot has no price the sale can be built
+// against.
+export function assertPurchaseOrder(direction: Direction | null, order_id: string): void {
+  if (direction === null) throw new NotFound(`no order ${order_id}`)
+  if (direction !== 'purchase') {
+    throw new Invalid(
+      `selling lots to a refiner is a purchase-direction operation and this is a ${direction} order`
+    )
+  }
+}
+
+export function assertFinalizedOrder(order: OrderRead | undefined, order_id: string): void {
+  if (!order) throw new NotFound(`no order ${order_id}`)
+  if (!order.spots_locked) {
+    throw new Invalid(
+      `order ${order.number} is not finalized, so its lots have no settled price to sell on`
+    )
+  }
+}
+
+export function assertCancellable(order: RefiningOrder): void {
+  if (order.settled_at !== null) {
+    throw new Conflict(
+      `refiner order ${order.number} is settled - a correction is a new pool entry, not a cancel`
+    )
+  }
+  if (order.cancelled_at !== null) {
+    throw new Conflict(`refiner order ${order.number} is already cancelled`)
   }
 }
 
@@ -172,4 +209,26 @@ export function assertLockable(balance: number, troy_oz: number): void {
   if (balance <= 0) {
     throw new Invalid(`there is no metal in that pool to lock - the balance is ${balance}`)
   }
+}
+
+// A refiner order has no handover category, so its documents are named here
+// rather than looked up by one. Only the Invoice has a renderer; the Settlement
+// statement and the Lot Manifest are available once a file is imported for them
+// (GAP 23/26).
+const REFINING_DOCUMENTS: { kind: PdfKind; name: string }[] = [
+  { kind: 'invoice', name: 'Invoice' },
+  { kind: 'settlement', name: 'Settlement' },
+  { kind: 'lot_manifest', name: 'Lot Manifest' },
+]
+
+export function documentsFor(sent: boolean, stored: StoredDocument[]): OrderDocument[] {
+  return REFINING_DOCUMENTS.map((row) => {
+    const held = stored.find((file) => file.kind === row.kind) ?? null
+    return {
+      kind: row.kind,
+      name: row.name,
+      pdf_id: held?.id ?? null,
+      available: row.kind === 'invoice' ? sent || held !== null : held !== null,
+    }
+  })
 }

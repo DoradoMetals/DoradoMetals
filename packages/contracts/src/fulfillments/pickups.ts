@@ -13,6 +13,7 @@ export const FulfillmentPickup = z.object({
   'start_time': z.string().nullable(),
   'end_time': z.string().nullable(),
   'user_id': z.string().uuid().nullable(),
+  'location_id': z.string().uuid().nullable(),
 })
 export type FulfillmentPickup = z.infer<typeof FulfillmentPickup>
 // generated:end

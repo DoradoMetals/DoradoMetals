@@ -5,6 +5,8 @@ import * as orderSpots from '#db/orders/spots/repo.ts'
 import * as orderTransactions from '#db/orders/transactions/repo.ts'
 import * as orderTransactionsService from '#orders/transactions/service.ts'
 import * as packagesRepo from '#db/shipping/packages/repo.ts'
+import * as carrierServicesRepo from '#db/shipping/services/repo.ts'
+import * as pdfs from '#db/media/pdfs/repo.ts'
 
 import * as fulfillmentService from '#logistics/fulfillments/service.ts'
 import * as shipmentService from '#logistics/shipping/shipments/service.ts'
@@ -28,6 +30,7 @@ import type {
   OrderLotView,
   OrderPatch,
   OrderView,
+  LotView,
 } from '@dorado/contracts'
 
 export async function patch(order_id: string, changes: OrderPatch): Promise<OrderView> {
@@ -57,6 +60,10 @@ export async function retierPremiums(order_id: string, executor?: Executor): Pro
 
 export async function lotsFor(order_id: string): Promise<OrderLotView[]> {
   return await orderLots.viewFor(order_id)
+}
+
+export async function searchLots(q: string | null, unassigned: boolean): Promise<LotView[]> {
+  return await lotsRepo.search(q, unassigned)
 }
 
 // A lot is minted, then linked. The id the mint returns is the id the refiner
@@ -176,7 +183,8 @@ export async function documentsFor(order_id: string): Promise<OrderDocument[]> {
   const order = await viewOf(order_id)
   return rules.documentsFor(
     await fulfillmentService.categoryOfOrder(order_id),
-    order.order.spots_locked
+    rules.isFinalized(order),
+    await pdfs.storedKinds(order_id, null)
   )
 }
 
@@ -207,17 +215,28 @@ export async function addFunds(order_id: string): Promise<OrderView> {
   return await viewOf(order_id)
 }
 
+// The Figma header's Cancel is a bare button, so every field of the body is
+// optional and the server picks the default return service and box when the
+// caller names neither (ruling 76, GAP 3).
 export async function cancel(
   order_id: string,
-  { carrier_service_id, package_id }: OrderCancelBody,
+  choices: OrderCancelBody,
   buy: (shipment_id: string) => Promise<void> = shippingLabels.buyReturnLabel
 ): Promise<OrderView> {
   const order = await viewOf(order_id)
   rules.assertDirection(order.order.direction, 'purchase', 'cancelling')
   rules.assertReturnable(order)
 
-  const box = await packagesRepo.getOne(package_id)
+  const box = choices.package_id
+    ? await packagesRepo.getOne(choices.package_id)
+    : await packagesRepo.defaultReturn()
   shippingRules.assertParcelPackage(box)
+  const chosenService = choices.carrier_service_id
+    ? null
+    : await carrierServicesRepo.defaultReturn()
+  rules.assertReturnService(choices.carrier_service_id ?? chosenService?.id ?? null)
+  const carrier_service_id = (choices.carrier_service_id ?? chosenService?.id) as string
+  const package_id = box.id
   const service = await carrierServices.labelServiceFor(carrier_service_id)
   // The floor is what the customer declared on the way in, so metal cancelled
   // before it was priced does not travel back uninsured (MP F5).
@@ -237,6 +256,7 @@ export async function cancel(
         carrier_service_id,
         insured,
         declared_value: insured ? declaredValue : null,
+        bill_return_to_customer: choices.bill_return_to_customer,
       },
       tx
     )

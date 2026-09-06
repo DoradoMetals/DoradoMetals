@@ -30,10 +30,10 @@ export type Order = z.infer<typeof Order>
 import { OrderTotals } from './transactions.js'
 import { OrderLotView } from './lots.js'
 import { Address } from '../places/addresses.js'
-import { OrderViewShipment } from '../shipping/shipments.js'
+import { OrderViewShipment, Shipment } from '../shipping/shipments.js'
 import { ShipmentPickup } from '../shipping/pickups.js'
 import { OrderViewPayout } from '../payments/details.js'
-import { User, UserSummary } from '../auth/users.js'
+import { User } from '../auth/users.js'
 import { Checkout, CheckoutPayoutForm } from '../checkout/checkouts.js'
 import { CheckoutLotPatch } from '../checkout/lots.js'
 import { FulfillmentMethod } from '../fulfillments/methods.js'
@@ -41,7 +41,7 @@ import { FulfillmentPatchBody } from '../fulfillments/fulfillments.js'
 import { CarrierService } from '../shipping/services.js'
 import { Package } from '../shipping/packages.js'
 import { Refiner } from '../refiners/refiners.js'
-import { OrderActions } from '../computed/orders.js'
+import { OrderActions, OrderViewUser } from '../computed/orders.js'
 
 export const OrderRead = Order.extend({ totals: OrderTotals.nullable() })
 export type OrderRead = z.infer<typeof OrderRead>
@@ -64,13 +64,16 @@ export const OrderViewFacts = z
     shipments: z.array(OrderViewShipmentDetail),
     pickup: ShipmentPickup.nullable(),
     payout: OrderViewPayout.nullable(),
-    user: UserSummary.nullable(),
+    user: OrderViewUser.nullable(),
   })
   .extend({
     // No column holds this: it is EXISTS over the order's payments.ledger rows,
     // read in db/orders/sql/view.sql. `actions.add_funds` turns itself off from
     // it, and `addFunds` refuses on it (MP F4).
     credited: z.boolean(),
+    // "PO-2481" / "SO-2481", built in db/orders/sql/view.sql. The prefix is a
+    // label and no browser decides it (ruling 83).
+    reference: z.string(),
   })
 export type OrderViewFacts = z.infer<typeof OrderViewFacts>
 
@@ -126,11 +129,16 @@ export const AdminOrderCreate = z.discriminatedUnion('direction', [
 ])
 export type AdminOrderCreate = z.infer<typeof AdminOrderCreate>
 
+// Every field is optional: the Figma header's Cancel is a bare button, so the
+// server chooses the default return service and package when the caller names
+// neither (ruling 76).
 export const OrderCancelBody = z
   .object({
     carrier_service_id: CarrierService.shape.id,
     package_id: Package.shape.id,
   })
+  .extend({ bill_return_to_customer: Shipment.shape.bill_return_to_customer })
+  .partial()
   .strict()
 export type OrderCancelBody = z.infer<typeof OrderCancelBody>
 

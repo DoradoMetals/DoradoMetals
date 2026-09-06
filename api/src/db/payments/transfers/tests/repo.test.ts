@@ -33,6 +33,7 @@ async function anOrder(c: PoolClient, user_id: string, total: number): Promise<s
 
 const payout = (order_id: string, user_id: string) => ({
   order_id,
+  refining_order_id: null,
   kind: 'payout' as const,
   rail: 'ACH' as const,
   state: 'Not sent' as const,

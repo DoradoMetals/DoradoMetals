@@ -14,7 +14,7 @@ import {
 } from '@dorado/contracts'
 import type { Request } from 'express'
 
-const STATES = ['Pending assay', 'Settled', 'Disputed']
+const STATES = ['Pending assay', 'Settled', 'Disputed', 'Cancelled']
 
 const named = (req: Request, key: string): string | null =>
   typeof req.query[key] === 'string' ? (req.query[key] as string) : null
@@ -53,6 +53,23 @@ export const sendRefiningOrder = asyncHandler(async (req, res) => {
 export const settleRefiningOrder = asyncHandler(async (req, res) => {
   const body = strictBody(RefiningSettlement, req.body)
   return res.json(await refining.settle(uuidParam(req, 'id'), body))
+})
+
+export const cancelRefiningOrder = asyncHandler(async (req, res) => {
+  return res.json(await refining.cancel(uuidParam(req, 'id')))
+})
+
+export const getRefiningSpots = asyncHandler(async (req, res) => {
+  return res.json(await refining.spotsFor(uuidParam(req, 'id')))
+})
+
+export const getRefiningDocuments = asyncHandler(async (req, res) => {
+  return res.json(await refining.documentsFor(uuidParam(req, 'id')))
+})
+
+export const sellToRefiner = asyncHandler(async (req, res) => {
+  const { refiner_id } = strictBody(RefiningSupply, req.body)
+  return res.status(201).json(await refining.sellToRefiner(uuidParam(req, 'id'), refiner_id))
 })
 
 export const getRefiningLots = asyncHandler(async (req, res) => {

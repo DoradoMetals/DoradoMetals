@@ -1,11 +1,19 @@
 import type { SmsDeliveryStatus, SmsMessage } from '@dorado/contracts'
-import { Conflict, NotFound } from '#shared/errors.ts'
+import { Conflict, Invalid, NotFound } from '#shared/errors.ts'
 
 export function assertMessage(
   row: SmsMessage | null | undefined,
   id: string
 ): asserts row is SmsMessage {
   if (!row) throw new NotFound(`no sms message ${id}`)
+}
+
+// A message needs somewhere to go. A customer with no number on file is not an
+// error in the request - it is a fact about the account - so the refusal says so.
+export function assertTextable(phone_number: string | null, user_id: string): void {
+  if (!phone_number) {
+    throw new Invalid(`customer ${user_id} has no phone number on file, so nothing can be sent`)
+  }
 }
 
 // A delivered arriving after a sent wins; a sent arriving after a delivered is

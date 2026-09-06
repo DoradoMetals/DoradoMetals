@@ -82,6 +82,14 @@ export async function settle(
   return rows
 }
 
+export async function removeFor(
+  refining_order_id: string,
+  executor?: Executor
+): Promise<number> {
+  const { rowCount } = await query(sql('delete_for_order'), [refining_order_id], executor)
+  return rowCount ?? 0
+}
+
 export async function remove(id: string, executor?: Executor): Promise<boolean> {
   const { rowCount } = await query(sql('delete'), [id], executor)
   return rowCount === 1

@@ -282,7 +282,12 @@ if (!FAIL_ON_FINDINGS && statements.size === 0) {
 }
 if (FAIL_ON_FINDINGS && (discarded || unobservable)) process.exit(1)
 
-const CEILING = 14
+// 16 since the gaps lane. The two added are both "delete the detail row if
+// there is one": cancelSchedule now clears a DROPOFF beside the pickup and the
+// direct, and cancelling a refiner order releases its lots. Zero rows is the
+// correct outcome for each - a fulfillment has one detail row of one kind, and
+// a refiner order may hold no lots at all.
+const CEILING = 16
 if (!FAIL_ON_FINDINGS) {
   const total = discarded + unobservable
   if (total > CEILING) {

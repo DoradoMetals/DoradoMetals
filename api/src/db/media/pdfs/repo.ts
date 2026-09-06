@@ -1,6 +1,6 @@
 import query from '#shared/db/query.ts'
 import { sqlFrom } from '#shared/db/sql.ts'
-import type { Pdf } from '@dorado/contracts'
+import type { Pdf, StoredDocument } from '@dorado/contracts'
 import type { Executor } from '#shared/db/executor.ts'
 
 const sql = sqlFrom(import.meta.dirname)
@@ -10,6 +10,7 @@ export type PdfRow = Pick<Pdf, 'id' | 'path' | 'size_bytes' | 'checksum' | 'crea
 export type NewPdf = {
   kind: Pdf['kind']
   order_id: string | null
+  refining_order_id: string | null
   path: string
   size_bytes: number
   checksum: string
@@ -24,10 +25,32 @@ export async function latestOfKind(
   return rows[0] ?? null
 }
 
+export async function latestForRefining(
+  kind: Pdf['kind'],
+  refining_order_id: string,
+  executor?: Executor
+): Promise<PdfRow | null> {
+  const { rows } = await query<PdfRow>(sql('latest_for_refining'), [refining_order_id, kind], executor)
+  return rows[0] ?? null
+}
+
+export async function storedKinds(
+  order_id: string | null,
+  refining_order_id: string | null,
+  executor?: Executor
+): Promise<StoredDocument[]> {
+  const { rows } = await query<StoredDocument>(
+    sql('stored_kinds'),
+    [order_id, refining_order_id],
+    executor
+  )
+  return rows
+}
+
 export async function create(row: NewPdf, executor?: Executor): Promise<{ id: string }> {
   const { rows } = await query<{ id: string }>(
     sql('create'),
-    [row.kind, row.order_id, row.path, row.size_bytes, row.checksum],
+    [row.kind, row.order_id, row.refining_order_id, row.path, row.size_bytes, row.checksum],
     executor
   )
   return rows[0]

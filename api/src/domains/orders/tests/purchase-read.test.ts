@@ -52,6 +52,7 @@ const VIEW_MEMBERS = [
   'payout',
   'user',
   'credited',
+  'reference',
   'actions',
 ]
 
