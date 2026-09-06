@@ -22,7 +22,17 @@ settlement AS (
   SELECT COALESCE(pm.surcharge_percent, 0.029) AS surcharge_percent,
          COALESCE(u.dorado_funds, 0) AS balance
     FROM checkout
+    -- Only a method that can actually TAKE the charge sets its surcharge
+    -- (MP F2). The customer names this column, and the surcharge was read off
+    -- whatever they named: CREDIT settles from the balance the quote has
+    -- already applied as pre_charges_amount and carries surcharge 0, so naming
+    -- it took $254 off an $8,762 basket while payment_surface stayed 'card' and
+    -- Stripe still charged the card. A row that is not an enabled sale method
+    -- of an external provider falls through to the COALESCE default.
     LEFT JOIN payments.methods pm ON pm.id = checkout.payment_method_id
+                                 AND pm.enabled
+                                 AND pm.direction = 'sale'
+                                 AND pm.provider IS DISTINCT FROM 'internal'
     LEFT JOIN auth.users u ON u.id = checkout.user_id
 ),
 lines AS (

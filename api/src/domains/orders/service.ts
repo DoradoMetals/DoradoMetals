@@ -15,10 +15,10 @@ import * as documentInputs from '#documents/pdfs/order-inputs.ts'
 import * as credit from '#transactions/credit/service.ts'
 import * as ledger from '#transactions/ledger/service.ts'
 import * as orderRead from '#orders/read.ts'
+import * as orderSpotsService from '#orders/spots/service.ts'
 import * as rules from '#orders/rules.ts'
 import * as shippingRules from '#logistics/shipping/rules.ts'
 import * as pricing from '#pricing/index.ts'
-import { fineContent } from '#shared/utils/convertWeights.ts'
 
 import withTransaction from '#shared/db/withTransaction.ts'
 import type { Transport } from '#providers/emails/nodemailer.ts'
@@ -84,26 +84,21 @@ export async function editLine(line_id: string, changes: OrderItemPatch): Promis
   const line = await itemsRepo.getOne(line_id)
   rules.assertLine(line, line_id)
 
-  const weight = changes.post_melt !== undefined ? changes.post_melt : line.post_melt
-  const preMelt = changes.pre_melt !== undefined ? changes.pre_melt : line.pre_melt
-  const unit = changes.unit !== undefined ? changes.unit : line.unit
-  const purity = changes.purity !== undefined ? changes.purity : line.purity
-
   return await withTransaction(async (tx) => {
-    // Two named patches rather than one spread of `changes` into a literal
-    // (ruling 78). The declared content is a fact of the row that results, so
-    // it is derived from the written row and not from a merge guessed here.
-    rules.assertLine(
-      await itemsRepo.update(line_id, changes, { order_id: line.order_id }, tx),
-      line_id
+    // The content is a fact of the row that RESULTS, so it is derived from that
+    // row by one SQL statement rather than from a merge guessed here - and only
+    // for a scrap lot. A catalogue line's content is the product's own fine
+    // content, and re-deriving it as post_melt x purity applied the purity a
+    // second time on every patch, confirming a line included (MP F1).
+    const patched = await itemsRepo.update(line_id, changes, { order_id: line.order_id }, tx)
+    rules.assertLine(patched, line_id)
+    rules.assertWeighable(
+      patched.bullion_id,
+      patched.unit,
+      patched.post_melt ?? patched.pre_melt,
+      patched.purity
     )
-    const written = await itemsRepo.update(
-      line_id,
-      { content: fineContent(weight ?? preMelt, unit, purity) },
-      { order_id: line.order_id },
-      tx
-    )
-    rules.assertLine(written, line_id)
+    const written = (await itemsRepo.deriveContent(line_id, tx)) ?? patched
     if (!rules.retiersAfterEdit(changes)) return written
     await retierPremiums(line.order_id, tx)
     return (await itemsRepo.getOne(line_id, tx)) ?? written
@@ -126,9 +121,10 @@ export async function removeLine(line_id: string): Promise<{ success: true }> {
 export async function finalizePricing(order_id: string): Promise<OrderView> {
   const order = await viewOf(order_id)
   rules.assertDirection(order.order.direction, 'purchase', 'finalizing pricing')
+  rules.assertAllLinesConfirmed(order.items, order.order.number)
 
   await withTransaction(async (tx) => {
-    if (!order.order.spots_locked) await orderSpots.setBidsFromFeed(order_id, true, tx)
+    if (!order.order.spots_locked) await orderSpotsService.applyLock(order_id, true, tx)
     for (const spot of await orderSpots.getRowsFor(order_id, tx)) {
       await refinerSpots.update(order_id, spot.metal_id, { bid: spot.bid }, tx)
     }
@@ -150,8 +146,13 @@ export async function addFunds(order_id: string): Promise<OrderView> {
 
   const amount = order.totals?.total ?? null
   rules.assertCreditable(amount, order.order.number)
+  rules.assertPayableToAccount(order.payout?.method ?? null, order.order.number)
 
   await withTransaction(async (tx) => {
+    // Read the ledger INSIDE the transaction that writes it: the view's
+    // `credited` turns the button off, and this is what makes a second POST -
+    // or two at once - refuse rather than credit the customer twice (MP F4).
+    rules.assertNotAlreadyCredited(await ledger.hasCreditFor(order_id, tx), order.order.number)
     await credit.addFunds(order.order.user_id, amount, tx)
     await ledger.addTransactionLog(
       { user_id: order.order.user_id, type: 'Credit', order_id, amount },
@@ -183,11 +184,7 @@ export async function cancel(
   const existing = order.shipments.find((s) => s.direction === 'Return' && !s.tracking_number)
 
   const shipment_id = await withTransaction(async (tx) => {
-    await ordersRepo.update(order_id, { spots_locked: false }, {}, tx)
-
-    for (const spot of await orderSpots.getRowsFor(order_id, tx)) {
-      await orderSpots.update(order_id, spot.metal_id, { bid: null }, tx)
-    }
+    await orderSpotsService.applyLock(order_id, false, tx)
 
     let id = existing?.id
     if (!id) {

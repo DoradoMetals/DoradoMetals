@@ -50,6 +50,11 @@ export async function create(row: NewRefinerItem, executor?: Executor): Promise<
   return rows[0]
 }
 
+export async function deriveContent(order_item_id: string, executor?: Executor): Promise<boolean> {
+  const { rowCount } = await query(sql('derive_content'), [order_item_id], executor)
+  return rowCount === 1
+}
+
 export async function mirrorForOrder(
   order_id: string,
   refiner_order_id: string,

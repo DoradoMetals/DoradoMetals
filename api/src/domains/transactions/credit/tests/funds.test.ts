@@ -73,12 +73,21 @@ test('adding then removing the same amount is a round trip', async () => {
   })
 })
 
-test('removing more than the balance goes negative rather than refusing', async () => {
+// MP F7 / MI F3. `removeFunds` still has no floor of its own - the guard that
+// stops a placement spending a balance it no longer has lives in `placeSale`,
+// under FOR UPDATE - but migration 134's CHECK is what makes the remaining race
+// a rollback instead of a negative balance.
+test('removing more than the balance is refused by the database, not recorded', async () => {
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c)
     const before = await balance(c, user.id)
-    await creditService.removeFunds(user.id, before + 1000, c)
-    assert.ok((await balance(c, user.id)) < 0)
+    await c.query('SAVEPOINT before_overspend')
+    await assert.rejects(
+      () => creditService.removeFunds(user.id, before + 1000, c),
+      /users_dorado_funds_non_negative/
+    )
+    await c.query('ROLLBACK TO SAVEPOINT before_overspend')
+    assert.equal(await balance(c, user.id), before)
   })
 })
 

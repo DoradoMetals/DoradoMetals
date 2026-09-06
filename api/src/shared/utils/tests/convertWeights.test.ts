@@ -2,7 +2,7 @@ import { test, afterAll, beforeAll } from 'vitest'
 import assert from 'node:assert/strict'
 import pool from '#pool'
 import type { PoolClient } from 'pg'
-import { convertTroyOz } from '#shared/utils/convertWeights.ts'
+import { convertToPounds, convertTroyOz } from '#shared/utils/convertWeights.ts'
 
 let client: PoolClient
 beforeAll(async () => {
@@ -12,18 +12,32 @@ afterAll(async () => {
   client?.release()
 })
 
-const sql = async (val: number | null, unit: string): Promise<number | null> => {
-  const { rows } = await client.query('select metals.convert_to_troy_oz($1, $2) as oz', [val, unit])
-  return rows[0].oz
+const fine = async (
+  weight: number | null,
+  unit: string | null,
+  purity: number | null
+): Promise<number | null> => {
+  const { rows } = await client.query('SELECT metals.fine_content($1, $2, $3) AS content', [
+    weight,
+    unit,
+    purity,
+  ])
+  return rows[0].content === null ? null : Number(rows[0].content)
 }
 
-const UNITS = ['t oz', 'g', 'dwt', 'lb']
+// MA F10. A troy ounce is 31.1034768 g and an avoirdupois pound is 453.59237 g,
+// so a pound is exactly 175/12 troy ounces. The old 31.1035 / 453.592 pair
+// returned LESS fine metal than the weight really is, and both the JavaScript
+// and the SQL carried it, so the tests certified the loss.
+test('a pound is exactly 175/12 troy ounces, not the old 14.5833105', () => {
+  assert.ok(Math.abs(convertTroyOz(1, 'lb') - 175 / 12) < 1e-12)
+  assert.ok(Math.abs(convertTroyOz(1, 'lb') - 14.5833105) > 1e-6)
+})
 
 test('converts each unit the business actually quotes in', () => {
   assert.equal(convertTroyOz(1, 't oz'), 1)
-  assert.ok(Math.abs(convertTroyOz(31.1035, 'g') - 1) < 1e-10)
+  assert.ok(Math.abs(convertTroyOz(31.1034768, 'g') - 1) < 1e-12)
   assert.equal(convertTroyOz(20, 'dwt'), 1)
-  assert.ok(Math.abs(convertTroyOz(1, 'lb') - 14.5833105) < 1e-6)
 })
 
 test('matches the unit case-insensitively', () => {
@@ -31,41 +45,34 @@ test('matches the unit case-insensitively', () => {
   assert.equal(convertTroyOz(20, 'DWT'), 1)
 })
 
-test('NaN and an unknown unit are both worth zero rather than throwing', () => {
-  assert.equal(convertTroyOz(NaN, 'g'), 0)
-  assert.equal(convertTroyOz(100, 'kg'), 0)
-  assert.equal(convertTroyOz(100, ''), 0)
+test('a pound of anything weighs a pound', () => {
+  assert.ok(Math.abs(convertToPounds(453.59237, 'g') - 1) < 1e-12)
+  assert.ok(Math.abs(convertToPounds(175 / 12, 't oz') - 1) < 1e-12)
 })
 
-test('the SQL function agrees with this one on every unit anyone uses', async () => {
-  for (const unit of UNITS) {
-    for (const val of [0, 1, 7.25, 453.592, 1000]) {
-      const js = convertTroyOz(val, unit)
-      const db = Number(await sql(val, unit))
-      assert.ok(
-        Math.abs(js - db) < 1e-9,
-        `${val} ${unit}: javascript says ${js}, the database says ${db}`
-      )
-    }
+// MA F4 / MP F1. The money conversion lives in `metals.fine_content` now, and
+// it is the only one: a weight in a unit it does not know used to be worth
+// ZERO fine ounces, persisted, on a parcel of real metal.
+test('the SQL definition values every unit the business quotes in', async () => {
+  assert.equal(await fine(1, 't oz', 1), 1)
+  assert.equal(Number((await fine(31.1034768, 'g', 1))!.toFixed(12)), 1)
+  assert.equal(await fine(20, 'dwt', 1), 1)
+  assert.equal(Number((await fine(1, 'lb', 1))!.toFixed(10)), Number((175 / 12).toFixed(10)))
+  assert.equal(await fine(10, 'T OZ', 0.5), 5)
+})
+
+test('an unrecognised or missing unit is refused, never valued at zero', async () => {
+  for (const unit of ['kg', 'ozt', 'oz t', 'troy_oz', ' g ', '', null]) {
+    await assert.rejects(
+      () => fine(10, unit, 0.9),
+      /is not a weight this business quotes in/,
+      `"${unit}" was valued rather than refused`
+    )
   }
 })
 
-test('and agrees case-insensitively too', async () => {
-  for (const unit of ['T OZ', 'G', 'DWT', 'LB']) {
-    const js = convertTroyOz(10, unit)
-    const db = Number(await sql(10, unit))
-    assert.ok(Math.abs(js - db) < 1e-9, `10 ${unit}: ${js} vs ${db}`)
-  }
-})
-
-test('they part company on a unit nobody uses - zero here, NULL in the database', async () => {
-  for (const unit of ['kg', 'oz', 'stone', '']) {
-    assert.equal(convertTroyOz(100, unit), 0, `javascript should zero "${unit}"`)
-    assert.equal(await sql(100, unit), null, `the database should NULL "${unit}"`)
-  }
-})
-
-test('a null weight is null in the database, where javascript would give zero', async () => {
-  assert.equal(await sql(null, 'g'), null)
-  assert.equal(convertTroyOz(NaN, 'g'), 0)
+test('a lot with no weight or no purity has no content, and that is not an error', async () => {
+  assert.equal(await fine(null, 'g', 0.9), null)
+  assert.equal(await fine(10, 'g', null), null)
+  assert.equal(await fine(null, null, null), null)
 })

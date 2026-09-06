@@ -56,6 +56,9 @@ export const PurchaseQuote = z.object({
   checkout_id: Checkout.shape.id,
   spots_at: z.string(),
   items: z.array(PurchaseQuoteLine),
+  // The lines no live bid can price. Both quotes carry it now: quoting a metal
+  // with no bid at $0 is a payout figure a customer ships metal on (MP F9).
+  unpriceable: z.array(CheckoutItem.shape.id),
   // The same split `OrderPricing` carries, from the same CASE over
   // `bullion_id IS NULL`: a sell basket's review step shows what the scrap is
   // worth beside what the bullion is worth, and `total` is their sum.

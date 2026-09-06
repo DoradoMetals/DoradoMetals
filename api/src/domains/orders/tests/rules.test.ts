@@ -99,7 +99,7 @@ test('a repair is honoured only at the price that was actually taken', () => {
   assert.equal(rules.repairAmountMatches(null, 12649), false)
 })
 
-test('a declared lot derives its content from the weight, the unit and the purity', () => {
+test('a declared lot names its weights and leaves the content to the database', () => {
   assert.deepEqual(
     rules.declaredLot({ metal_id: 'gold', pre_melt: 160, purity: 0.5, unit: 'dwt' }),
     {
@@ -107,10 +107,26 @@ test('a declared lot derives its content from the weight, the unit and the purit
       pre_melt: 160,
       purity: 0.5,
       unit: 'dwt',
-      content: 4,
       quantity: 1,
       confirmed: false,
     }
+  )
+})
+
+test('a declared lot weighed in a unit nobody quotes in is refused, not valued at zero', () => {
+  for (const unit of ['kg', 'ozt', 'oz t', ' g ', ''] as const) {
+    assert.throws(
+      () => rules.declaredLot({ metal_id: 'gold', pre_melt: 10, purity: 0.9, unit }),
+      (err: unknown) => err instanceof Invalid && /cannot be valued/.test((err as Error).message),
+      `"${unit}" was accepted`
+    )
+  }
+  assert.throws(
+    () => rules.declaredLot({ metal_id: 'gold', pre_melt: 10, purity: 0.9, unit: null }),
+    (err: unknown) => err instanceof Invalid && /no unit/.test((err as Error).message)
+  )
+  assert.doesNotThrow(() =>
+    rules.declaredLot({ metal_id: 'gold', pre_melt: 10, purity: 0.9, unit: 'T OZ' })
   )
 })
 
@@ -220,6 +236,7 @@ const facts = (over: Partial<Facts> = {}): Facts => ({
   pickup: null,
   payout: null,
   user: null,
+  credited: false,
   ...over,
 })
 
@@ -301,4 +318,42 @@ test("payable and line_total are the view's SQL, not a rule", () => {
   assert.match(view, /ELSE i\.content \* i\.premium END/)
   assert.match(view, /WHEN i\.bullion_id IS NULL THEN i\.price/)
   assert.match(view, /ELSE i\.price \* COALESCE\(i\.quantity, 1\) END/)
+})
+
+// MP F7 / MI F3. The quote reads the balance outside the placement
+// transaction; `placeSale` re-reads it FOR UPDATE and compares before spending.
+test('a balance that no longer covers what the quote applied is refused', () => {
+  assert.doesNotThrow(() => rules.assertCreditCovers(100, 100))
+  assert.doesNotThrow(() => rules.assertCreditCovers(100.01, 100))
+  assert.throws(
+    () => rules.assertCreditCovers(99.99, 100),
+    (err: unknown) => err instanceof Conflict && /no longer covers/.test((err as Error).message)
+  )
+  assert.throws(() => rules.assertCreditCovers(null, 1), Conflict)
+  assert.throws(() => rules.assertCreditCovers(undefined, 1), Conflict)
+})
+
+// MP F4 / MI F2. `actionsFor` advertised these three tests and the service
+// enforced none of them.
+test('add_funds is offered only for a DORADO_ACCOUNT payout that has not been credited', () => {
+  const payable = { payout: { method: 'DORADO_ACCOUNT' } as Facts['payout'] }
+  assert.equal(rules.actionsFor(facts(payable)).add_funds, true)
+  assert.equal(rules.actionsFor(facts({ ...payable, credited: true })).add_funds, false)
+  assert.equal(
+    rules.actionsFor(facts({ payout: { method: 'WIRE' } as Facts['payout'] })).add_funds,
+    false
+  )
+
+  assert.throws(() => rules.assertPayableToAccount('WIRE', 1), Invalid)
+  assert.throws(() => rules.assertPayableToAccount(null, 1), Invalid)
+  assert.doesNotThrow(() => rules.assertPayableToAccount('DORADO_ACCOUNT', 1))
+  assert.throws(() => rules.assertNotAlreadyCredited(true, 1), Conflict)
+  assert.doesNotThrow(() => rules.assertNotAlreadyCredited(false, 1))
+})
+
+// MP F12.
+test('finalizing is refused while any line is unconfirmed, exactly as the action says', () => {
+  assert.throws(() => rules.assertAllLinesConfirmed([{ confirmed: false }], 1), Invalid)
+  assert.throws(() => rules.assertAllLinesConfirmed([], 1), Invalid)
+  assert.doesNotThrow(() => rules.assertAllLinesConfirmed([{ confirmed: true }], 1))
 })

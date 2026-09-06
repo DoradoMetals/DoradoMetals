@@ -44,7 +44,6 @@ export async function create(
       row.pre_melt ?? null,
       row.post_melt ?? null,
       row.purity ?? null,
-      row.content ?? null,
       row.premium ?? null,
       row.quantity ?? 1,
       row.confirmed ?? false,
@@ -85,6 +84,14 @@ export async function createSold(
     executor
   )
   return rows
+}
+
+export async function deriveContent(
+  id: string,
+  executor?: Executor
+): Promise<OrderItem | undefined> {
+  const { rows } = await query<OrderItem>(sql('derive_content'), [id], executor)
+  return rows[0]
 }
 
 export async function createFromProduct(

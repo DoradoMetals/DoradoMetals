@@ -1,7 +1,8 @@
+-- The snapshot of a catalogue product (MP F1 - see orders/items/sql/create_from_product.sql).
 INSERT INTO checkout.items
        (checkout_id, bullion_id, metal_id, pre_melt, post_melt, purity,
         content, unit, premium, quantity)
-SELECT c.id, b.id, b.metal_id, b.gross, b.content, b.purity,
+SELECT c.id, b.id, b.metal_id, b.gross, NULL, b.purity,
        b.content, 't oz',
        CASE WHEN c.direction = 'sale' THEN b.ask_premium END,
        $3

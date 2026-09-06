@@ -7,7 +7,7 @@ import { mockSessions, restoreSessions, asAdmin } from '#shared/testing/session.
 import { TEST_ACTOR } from '#shared/testing/actor.ts'
 import { inPinnedTransaction } from '#shared/testing/pinned-pool.ts'
 import { LOCKS } from '#shared/testing/locks.ts'
-import { aUser, anAdmin, anOrder } from '#shared/testing/builders/index.ts'
+import { aUser, anAdmin, anOrder, aPayout } from '#shared/testing/builders/index.ts'
 import * as orders from '#orders/service.ts'
 
 await mockSessions()
@@ -27,6 +27,7 @@ test('a purchase order walks pricing, funds and status, and the money facts agre
         .withLots(2, { metal_id: 'Gold', pre_melt: 10, purity: 0.925 })
         .withSpots({ bid: 2400, ask: 2450 })
         .withTotals({})
+      await aPayout(c, seller, { method: 'DORADO_ACCOUNT', order })
       await c.query(`UPDATE orders.orders SET spots_locked = true WHERE id = $1`, [order.id])
       await orders.retierPremiums(order.id, c)
 
@@ -56,13 +57,18 @@ test('a purchase order walks pricing, funds and status, and the money facts agre
       assert.equal(actions.finalize_pricing, true)
       assert.equal(actions.edit_lines, true)
       assert.equal(actions.send_to_refiner, false)
-      assert.equal(actions.add_funds, false)
+      assert.equal(actions.add_funds, true, 'a DORADO_ACCOUNT payout with a total is creditable')
       assert.deepEqual(actions.statuses, ['Received', 'Cancelled'])
 
       const funded = await asAdmin(admin, () =>
         request(app).post(`/api/orders/${order.id}/add_funds`)
       )
       assert.equal(funded.status, 200, funded.text)
+      assert.equal(
+        funded.body.actions.add_funds,
+        false,
+        'the credit was paid and the action is still offered (MP F4)'
+      )
 
       const {
         rows: [balance],

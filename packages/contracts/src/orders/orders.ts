@@ -54,16 +54,23 @@ export const OrderViewShipmentDetail = OrderViewShipment.extend({
 })
 export type OrderViewShipmentDetail = z.infer<typeof OrderViewShipmentDetail>
 
-export const OrderViewFacts = z.object({
-  order: Order,
-  totals: OrderTotals.nullable(),
-  items: z.array(OrderViewItem),
-  address: Address.nullable(),
-  shipments: z.array(OrderViewShipmentDetail),
-  pickup: ShipmentPickup.nullable(),
-  payout: OrderViewPayout.nullable(),
-  user: UserSummary.nullable(),
-})
+export const OrderViewFacts = z
+  .object({
+    order: Order,
+    totals: OrderTotals.nullable(),
+    items: z.array(OrderViewItem),
+    address: Address.nullable(),
+    shipments: z.array(OrderViewShipmentDetail),
+    pickup: ShipmentPickup.nullable(),
+    payout: OrderViewPayout.nullable(),
+    user: UserSummary.nullable(),
+  })
+  .extend({
+    // No column holds this: it is EXISTS over the order's payments.ledger rows,
+    // read in db/orders/sql/view.sql. `actions.add_funds` turns itself off from
+    // it, and `addFunds` refuses on it (MP F4).
+    credited: z.boolean(),
+  })
 export type OrderViewFacts = z.infer<typeof OrderViewFacts>
 
 export const OrderView = OrderViewFacts.extend({ actions: OrderActions })

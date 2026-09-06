@@ -113,6 +113,11 @@ SELECT to_jsonb(o)
          WHERE t.order_id = o.id) AS payout,
        (SELECT jsonb_build_object('id', u.id, 'name', u.name, 'email', u.email)
           FROM auth.users u
-         WHERE u.id = o.user_id) AS "user"
+         WHERE u.id = o.user_id) AS "user",
+       -- Whether this order's payout has already been credited to the
+       -- customer's balance. The add_funds action turns itself off from it, and
+       -- the endpoint refuses on it (MP F4).
+       EXISTS (SELECT 1 FROM payments.ledger l
+                WHERE l.order_id = o.id AND l.type = 'Credit') AS credited
   FROM orders.orders o
  WHERE o.id = $1

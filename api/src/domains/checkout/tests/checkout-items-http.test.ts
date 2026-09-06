@@ -168,7 +168,7 @@ test("a bullion line inherits the product's metal, weights, purity and content",
         const [row] = await rowsOf(c, customer.id, 'sale')
         assert.equal(row.metal_id, product.metal_id, 'the line did not inherit the metal')
         assert.equal(Number(row.pre_melt), Number(product.gross))
-        assert.equal(Number(row.post_melt), Number(product.content))
+        assert.equal(row.post_melt, null, 'a coin is not melted (MP F1)')
         assert.equal(Number(row.purity), Number(product.purity))
         assert.equal(Number(row.content), Number(product.content))
         assert.equal(row.unit, 't oz')

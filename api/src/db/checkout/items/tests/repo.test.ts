@@ -77,9 +77,18 @@ test('create_from_product snapshots the catalogue row onto the line', async () =
     assert.equal(written.bullion_id, product.id)
     assert.equal(written.metal_id, product.metal_id, 'the line did not inherit the metal')
     assert.equal(Number(written.pre_melt), Number(product.gross))
-    assert.equal(Number(written.post_melt), Number(product.content))
+    assert.equal(
+      written.post_melt,
+      null,
+      "a coin is not melted, and a FINE weight in the gross column is what MP F1's " +
+        'double purity came out of'
+    )
     assert.equal(Number(written.purity), Number(product.purity))
-    assert.equal(Number(written.content), Number(product.content))
+    assert.equal(
+      Number(written.content),
+      Number(product.content),
+      "the line's content is the product's own fine content, snapshotted"
+    )
     assert.equal(written.unit, 't oz')
     assert.equal(Number(written.premium), Number(product.ask_premium))
     assert.equal(Number(written.quantity), 3)
@@ -100,6 +109,7 @@ test('update writes the named column and answers true; a missing id answers fals
         metal_id: aMetal(),
         pre_melt: 2.5,
         purity: 0.75,
+        unit: 't oz',
         quantity: 1,
       },
       c

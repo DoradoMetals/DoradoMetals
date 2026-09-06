@@ -317,3 +317,98 @@ test('an empty patch is refused, and a line that does not exist is a 404', async
     await cleanup(client, fixture)
   }
 })
+
+// MP F1. The catalogue snapshot writes the product's FINE content, and the
+// admin lifecycle for a bullion line is add -> confirm -> finalize: `confirmed`
+// is what `actionsFor` requires before finalize_pricing is offered. `editLine`
+// used to re-derive content as post_melt x purity on EVERY patch, and
+// create_from_product had put the fine content in post_melt, so the confirm
+// multiplied the purity in a second time and 8-10% of the customer's metal
+// disappeared from the payout, the invoice and add_funds.
+const aProductWhosePurityWouldBite = async (c: PoolClient) => {
+  const { rows } = await c.query(
+    `SELECT id, name, gross, content, purity
+       FROM products.bullion
+      WHERE metal_id = 'Gold' AND content IS NOT NULL AND purity IS NOT NULL
+        AND purity < 1 AND gross IS DISTINCT FROM content
+      ORDER BY id
+      LIMIT 1`
+  )
+  assert.ok(
+    rows[0],
+    'no gold product has a purity below 1 with a gross that differs from its ' +
+      'content - this check would be vacuous'
+  )
+  return rows[0]
+}
+
+test('confirming a catalogue line leaves its content alone - the purity is applied once', async () => {
+  const fixture = await anEmptyGoldOrder(client)
+  try {
+    const product = await aProductWhosePurityWouldBite(client)
+    const created = await orders.createLine(fixture.orderId, { bullion_id: product.id })
+    assert.equal(
+      Number(created.content),
+      Number(product.content),
+      "the snapshot did not take the product's own fine content"
+    )
+
+    const confirmed = await orders.editLine(created.id, { confirmed: true })
+    assert.equal(
+      Number(confirmed.content),
+      Number(product.content),
+      `confirming ${product.name} moved its fine content from ${product.content} ` +
+        `to ${confirmed.content} - the purity was applied twice`
+    )
+
+    for (const patch of [{ premium: 1.02 }, { quantity: 2 }, { confirmed: false }]) {
+      const again = await orders.editLine(created.id, patch)
+      assert.equal(
+        Number(again.content),
+        Number(product.content),
+        `${JSON.stringify(patch)} re-derived a catalogue line's content`
+      )
+    }
+
+    const {
+      rows: [stored],
+    } = await client.query('SELECT content, post_melt FROM orders.items WHERE id = $1', [
+      created.id,
+    ])
+    assert.equal(Number(stored.content), Number(product.content))
+    assert.equal(stored.post_melt, null, 'a fine weight is sitting in the gross-weight column')
+  } finally {
+    await cleanup(client, fixture)
+  }
+})
+
+test('a scrap line still derives its content, from the weights the row ends up with', async () => {
+  const fixture = await anOrderWithScrap(client)
+  try {
+    const confirmed = await orders.editLine(fixture.itemId, { confirmed: true })
+    assert.equal(Number(confirmed.content), 9, 'confirming a scrap line moved its content')
+
+    const edited = await orders.editLine(fixture.itemId, { post_melt: 8, purity: 0.5 })
+    assert.equal(Number(edited.content), 4, '8 post-melt at 0.5 purity')
+  } finally {
+    await cleanup(client, fixture)
+  }
+})
+
+test('a scrap line cannot be edited into a unit nobody quotes in', async () => {
+  const fixture = await anOrderWithScrap(client)
+  try {
+    await assert.rejects(
+      () => orders.editLine(fixture.itemId, { unit: 'kg' }),
+      /cannot be valued/,
+      'kg was accepted, and the line would have been worth zero fine ounces'
+    )
+    const {
+      rows: [after],
+    } = await client.query('SELECT unit, content FROM orders.items WHERE id = $1', [fixture.itemId])
+    assert.equal(after.unit, 't oz', 'the refused edit still wrote the unit')
+    assert.equal(Number(after.content), 9, 'the refused edit still moved the content')
+  } finally {
+    await cleanup(client, fixture)
+  }
+})

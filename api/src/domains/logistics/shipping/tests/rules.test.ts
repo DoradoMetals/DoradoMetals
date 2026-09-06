@@ -31,7 +31,7 @@ import type {
 } from '@dorado/contracts'
 
 test('the parcel weighs what its items weigh, converted to pounds', () => {
-  const weight = parcelWeightLb([{ pre_melt: 453.592, unit: 'g', quantity: 1 }], {
+  const weight = parcelWeightLb([{ pre_melt: 453.59237, unit: 'g', quantity: 1 }], {
     min_weight_lb: 0.5,
   })
   assert.ok(Math.abs(weight - 1) < 1e-9, `expected ~1 lb, got ${weight}`)

@@ -1,9 +1,9 @@
 import withTransaction from '#shared/db/withTransaction.ts'
-import { anonymousUsers, checkouts, checkoutItems } from '#db'
+import { anonymousUsers, checkouts, checkoutItems, paymentDetails, paymentMethods } from '#db'
 import {
   addresses as addressService,
   fulfillments as fulfillmentService,
-  paymentDetails,
+  paymentDetails as paymentDetailsService,
   users as usersService,
 } from '#domains'
 import * as rules from '#checkout/rules.ts'
@@ -105,6 +105,14 @@ export async function patchCheckout(
   tx: Executor
 ): Promise<CheckoutView> {
   const row = await ensure(user_id, direction, tx)
+  if (patch.payment_method_id) {
+    rules.assertSettlementMethod(
+      await paymentMethods.getOne(patch.payment_method_id, tx),
+      patch.payment_method_id,
+      direction,
+      row.payment_details_id ? await paymentDetails.getOne(row.payment_details_id, tx) : undefined
+    )
+  }
   rules.assertSession(await checkouts.update(row.id, patch, tx))
   return await viewOf(row.id, tx)
 }
@@ -118,7 +126,12 @@ export async function saveCheckoutPayout(
   rules.assertPayoutDirection(direction)
   await assertRealAccount(user_id, 'save a payout account')
   const row = await ensure(user_id, direction, tx)
-  const saved = await paymentDetails.saveCheckoutPayout(user_id, row.payment_details_id, form, tx)
+  const saved = await paymentDetailsService.saveCheckoutPayout(
+    user_id,
+    row.payment_details_id,
+    form,
+    tx
+  )
   rules.assertSession(
     await checkouts.update(
       row.id,
