@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { inPinnedTransaction } from '#shared/testing/pinned-pool.ts'
 import { TEST_ACTOR } from '#shared/testing/actor.ts'
+import { LOCKS } from '#shared/testing/locks.ts'
 import * as rates from '#db/rates/repo.ts'
 import * as metals from '#db/metals/repo.ts'
 
@@ -40,6 +41,9 @@ test('update returns true for a real id, and the row actually changed', async ()
       const row = await rates.getOne(id, client)
       assert.equal(Number(row?.scrap_pct), 0.5)
     },
-    { actor: TEST_ACTOR.id }
+    // rates.rates' GIST exclusion constraint makes two overlapping inserts
+    // wait on each other rather than one raising 23505 - a real deadlock
+    // hazard `lint-test-locks` doesn't know this table needs (D... see locks.ts).
+    { actor: TEST_ACTOR.id, lock: LOCKS.RATES }
   )
 })

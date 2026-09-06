@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto'
 import type { PoolClient } from 'pg'
 import pool from '#pool'
 import { inRollback } from '#shared/testing/rollback.ts'
+import { LOCKS } from '#shared/testing/locks.ts'
 import * as rates from '#db/rates/repo.ts'
 
 beforeAll(async () => {
@@ -32,6 +33,9 @@ const aRateRow = async (c: PoolClient) =>
   )
 
 test('update writes a real rate band and answers true', async () => {
+  // Gold/oz/[0,10) overlaps the [0,) band service.test.ts and repo.test.ts
+  // insert - rates.rates' GIST exclusion constraint makes concurrent
+  // overlapping inserts wait on each other rather than one raising 23505.
   await inRollback(async (c: PoolClient) => {
     const id = await aRateRow(c)
 
@@ -41,7 +45,7 @@ test('update writes a real rate band and answers true', async () => {
     const after = await rates.getOne(id, c)
     assert.equal(Number(after?.scrap_pct), 0.88)
     assert.equal(after?.max_qty, null, 'max_qty was not cleared to open-ended')
-  })
+  }, { lock: LOCKS.RATES })
 })
 
 test('update answers false for an id with no rate row', async () => {
@@ -61,5 +65,5 @@ test('remove deletes a real rate band and answers false the second time', async 
 
     const removedAgain = await rates.remove(id, c)
     assert.equal(removedAgain, false, 'remove reported a change for a rate already gone')
-  })
+  }, { lock: LOCKS.RATES })
 })

@@ -1,4 +1,4 @@
-import { test, afterAll } from 'vitest'
+import { test, beforeAll, afterAll } from 'vitest'
 import assert from 'node:assert/strict'
 import type { PoolClient } from 'pg'
 import request from 'supertest'
@@ -7,6 +7,11 @@ import { mockSessions, restoreSessions, as } from '#shared/testing/session.ts'
 import { TEST_ACTOR } from '#shared/testing/actor.ts'
 import { inPinnedTransaction } from '#shared/testing/pinned-pool.ts'
 import { LOCKS } from '#shared/testing/locks.ts'
+import { withCassette } from '#shared/testing/cassettes.ts'
+import * as pricing from '#pricing/index.ts'
+import * as carrierServices from '#logistics/shipping/services/service.ts'
+import * as shippingRules from '#logistics/shipping/rules.ts'
+import type { PurchaseQuote } from '@dorado/contracts'
 import {
   aUser,
   aProduct,
@@ -20,7 +25,16 @@ await mockSessions()
 const { default: app } = await import('#app')
 const checkoutService = await import('#checkout/service.ts')
 
+let previousFedexEnv: string | undefined
+
+beforeAll(() => {
+  previousFedexEnv = process.env.FEDEX_ENV
+  process.env.FEDEX_ENV = 'sandbox'
+})
+
 afterAll(async () => {
+  if (previousFedexEnv === undefined) delete process.env.FEDEX_ENV
+  else process.env.FEDEX_ENV = previousFedexEnv
   restoreSessions()
   await pool.end()
 })
@@ -153,4 +167,97 @@ test("a stranger cannot read somebody else's draft or its rates", async () => {
   )
 })
 
-test.skip('a complete purchase checkout gets back priced services (NO CASSETTE for this request shape)', () => {})
+test('a complete purchase checkout gets back priced services', async () => {
+  await inPinnedTransaction(
+    async (c: PoolClient) => {
+      const customer = await aUser(c)
+      // A fixed, real street address - not the random-tag default `anAddress`
+      // otherwise mints - because the request this scenario sends to FedEx
+      // must come out byte-identical on every offline replay for nock.back to
+      // match it against the recorded cassette. `default_shipping` (the
+      // builder's default) is what makes the draft below pick it up on its
+      // own (`fulfillments/drafts.ts` `withDefaultAddress`).
+      await anAddress(c, customer, {
+        line_1: '6100 Main St',
+        city: 'Houston',
+        state: 'TX',
+        zip: '77005',
+        country_code: 'US',
+      })
+      const product = await aProduct(c)
+      const put = await as(customer, () =>
+        request(app)
+          .put('/api/checkout/items')
+          .query({ direction: 'purchase' })
+          .send({ items: [{ bullion_id: product.id, quantity: 1 }] })
+      )
+      assert.equal(put.status, 200, put.text)
+
+      // Pin the checkout's total comfortably above every FedEx service's
+      // insurance ceiling ($10,000 - migration 047's shipping.services seed)
+      // so getFulfillmentRates is forced to CLAMP declaredValue rather than
+      // merely echo it - proving the insurance ceiling rule, not just its
+      // presence on the response.
+      const { rows: bandRows } = await c.query<{ bullion_pct: string }>(
+        `SELECT bullion_pct FROM rates.rates WHERE metal_id = 'Gold' ORDER BY min_qty ASC LIMIT 1`
+      )
+      assert.ok(bandRows.length > 0, 'dev has no Gold bullion rate band - the fixture needs one')
+      const pct = Number(bandRows[0]!.bullion_pct)
+      const bid = Math.ceil(20000 / pct)
+      await c.query(`UPDATE spots.spots SET bid = $1, ask = $1 WHERE metal_id = 'Gold'`, [bid])
+
+      const draft = await aDraft(customer)
+      const box = await packageId(c, 'Small Box')
+      const service = await carrierServiceId(c, 'Express Saver')
+      const patched = await as(customer, () =>
+        request(app)
+          .patch(`/api/fulfillments/${draft}`)
+          .send({ shipment: { package_id: box, carrier_service_id: service } })
+      )
+      assert.equal(patched.status, 200, patched.text)
+
+      const checkout = await checkoutService.getRowFor(customer.id, 'purchase')
+      const quote = (await pricing.priceCheckout(checkout.id)) as PurchaseQuote
+      assert.equal(quote.direction, 'purchase')
+      assert.ok(
+        quote.total > 10000,
+        `fixture needs a total above the insurance ceiling to prove clamping; got ${quote.total}`
+      )
+      const clamped = await carrierServices.clampInsuredValue(
+        shippingRules.declaredValue(quote.total)
+      )
+      assert.equal(clamped, 10000, 'the ceiling did not clamp a total that exceeds it')
+
+      const res = await withCassette('fedex/fulfillment-purchase-rates.json', () =>
+        rates(customer, draft)
+      )
+      assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`)
+
+      const offered = res.body as Array<{
+        serviceType: string | null
+        name: string
+        netCharge: number | null
+        max_insured_value: number | null
+        selected: boolean
+      }>
+      assert.equal(offered.length, 2, 'the FedEx catalogue offers two label services')
+      for (const svc of offered) {
+        assert.ok(svc.serviceType, `${svc.name || 'a service'} carries no code`)
+        assert.ok(svc.name, 'a service carries no name')
+        assert.equal(typeof svc.netCharge, 'number', `${svc.name} carries no price`)
+        assert.equal(
+          svc.max_insured_value,
+          10000,
+          `${svc.name} did not carry the seeded insurance ceiling`
+        )
+      }
+      const chosen = offered.find((s) => s.name === 'Express Saver')
+      assert.equal(
+        chosen?.selected,
+        true,
+        'the service chosen on the parcel is not marked selected'
+      )
+    },
+    { actor: TEST_ACTOR.id, lock: [LOCKS.ORDERS, LOCKS.FULFILLMENTS] }
+  )
+})
