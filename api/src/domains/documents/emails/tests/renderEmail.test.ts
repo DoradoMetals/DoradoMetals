@@ -1,9 +1,6 @@
 import { test } from 'vitest'
 import assert from 'node:assert/strict'
-import {
-  renderSalesOrderToSupplierEmail,
-  renderOrderPricedEmail,
-} from '#documents/emails/utils/renderEmail.ts'
+import { renderSalesOrderToSupplierEmail } from '#documents/emails/utils/renderEmail.ts'
 import type { OrderPricing, OrderView } from '@dorado/contracts'
 
 const GOLD = 'Gold'
@@ -114,13 +111,4 @@ test('a spot with no ask renders rather than throwing', () => {
   assert.ok(!html.includes('$null'), 'a null ask rendered as a price')
   assert.ok(!html.includes('$0.00'), 'a missing ask rendered as a spot of zero')
   assert.ok(html.includes('&mdash;'), 'a missing ask rendered as nothing at all')
-})
-
-test('a template with no url falls back rather than emitting an empty href', () => {
-  const html = renderOrderPricedEmail({ firstName: 'Jacob' })
-  assert.ok(html.includes('Jacob'), 'the name was not substituted')
-  assert.ok(html.includes('doradometals.com'), 'no url was substituted')
-  assert.ok(!html.includes('[First Name]'), 'a placeholder survived')
-  assert.ok(!html.includes('[URL]'), 'a placeholder survived')
-  assert.ok(!/offer/i.test(html), 'offer language survived in customer mail')
 })

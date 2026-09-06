@@ -40,7 +40,11 @@ export async function aShipment(
 ): Promise<BuiltShipment> {
   const carrier_service_id = await carrierServiceId(c)
   const package_id = await packageId(c)
-  const tracking_number = options.tracking_number ?? `7941${aTag()}`.slice(0, 12)
+  // The counter has to survive the 12-character trim a tracking number is:
+  // `7941` + a 9-character tag sliced to 12 dropped the last counter digit, so
+  // the second and third shipment of a file both minted the same number - which
+  // 136's UNIQUE index turned from an invisible collision into a failing test.
+  const tracking_number = options.tracking_number ?? `${aTag()}794`.slice(0, 12)
 
   const id = await shipments.create(
     {

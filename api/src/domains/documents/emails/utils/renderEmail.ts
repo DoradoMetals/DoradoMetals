@@ -1,3 +1,8 @@
+// What is left of the old string-substitution templates: the refiner's copy of
+// a sales order, and the three auth mails the passwordless-auth lane will
+// delete with the templates behind them. Every CUSTOMER mailer is built from
+// the Figma page now - see templates/*.ts - and renders through
+// render/base.ts rather than through [BODY] and [First Name].
 import fs from 'fs'
 import path from 'path'
 import { formatSalesOrderNumber } from '#shared/utils/formatOrderNumbers.ts'
@@ -29,10 +34,6 @@ function renderTemplate(contentFile: string, { firstName = 'there', url }: Templ
     .replace(/\[URL\]/g, safeUrl)
 }
 
-export function renderAccountCreatedEmail({ firstName, url }: TemplateVars): string {
-  return renderTemplate('accountCreated.raw.html', { firstName, url })
-}
-
 export function renderResetPasswordEmail({ firstName, url }: TemplateVars): string {
   return renderTemplate('resetPassword.raw.html', { firstName, url })
 }
@@ -43,22 +44,6 @@ export function renderVerifyEmail({ firstName, url }: TemplateVars): string {
 
 export function renderChangeEmail({ firstName, url }: TemplateVars): string {
   return renderTemplate('changeEmail.raw.html', { firstName, url })
-}
-
-export function renderCreateAccountEmail({ firstName, url }: TemplateVars): string {
-  return renderTemplate('createAccount.raw.html', { firstName, url })
-}
-
-export function renderPurchaseOrderPlacedEmail({ firstName, url }: TemplateVars): string {
-  return renderTemplate('purchaseOrderPlaced.raw.html', { firstName, url })
-}
-
-export function renderSalesOrderPlacedEmail({ firstName, url }: TemplateVars): string {
-  return renderTemplate('salesOrderPlaced.raw.html', { firstName, url })
-}
-
-export function renderOrderPricedEmail({ firstName, url }: TemplateVars): string {
-  return renderTemplate('orderPriced.raw.html', { firstName, url })
 }
 
 type RefinerEmailInput = {

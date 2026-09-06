@@ -5,7 +5,7 @@ export type Transport = {
   sendMail: (message: Message) => Promise<unknown>
 }
 
-type Attachment = {
+export type Attachment = {
   filename: string
   content: Buffer | Uint8Array | string
   contentType?: string

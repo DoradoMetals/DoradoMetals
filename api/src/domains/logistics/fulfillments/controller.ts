@@ -12,6 +12,8 @@ import { asyncHandler } from '#shared/middleware/asyncHandler.ts'
 import { requireFulfillmentOwner } from '#logistics/fulfillments/owner.ts'
 import * as fulfillmentDrafts from '#logistics/fulfillments/drafts.ts'
 import * as fulfillmentService from '#logistics/fulfillments/service.ts'
+import * as rules from '#logistics/fulfillments/rules.ts'
+import * as emails from '#documents/emails/service.ts'
 import withTransaction from '#shared/db/withTransaction.ts'
 
 export const getSchedule = asyncHandler(async (req, res) => {
@@ -47,11 +49,20 @@ export const setMethod = asyncHandler(async (req, res) => {
 
 export const setStatus = asyncHandler(async (req, res) => {
   const body = parseStrict(FulfillmentSetStatusBody, req.body, 'fulfillments/set_status body')
-  return res
-    .status(200)
-    .json(
-      await withTransaction((tx) => fulfillmentService.setStatus(body.fulfillment_id, body.status, tx))
-    )
+  const view = await withTransaction((tx) =>
+    fulfillmentService.setStatus(body.fulfillment_id, body.status, tx)
+  )
+  // A PICKUP that has just been marked collected is the customer's "we have
+  // your metals" moment. After the commit, and once per order - the trail says
+  // which orders have already had it.
+  if (
+    view?.fulfillment.order_id &&
+    view.method.category === 'PICKUP' &&
+    rules.isCollected(view.fulfillment.status)
+  ) {
+    await emails.sendPickupComplete(view.fulfillment.order_id)
+  }
+  return res.status(200).json(view)
 })
 
 export const getFulfillmentByOrder = asyncHandler(async (req, res) => {

@@ -34,7 +34,12 @@ const withEnv = <T>(values: Record<string, string | undefined>, fn: () => T): T 
 
 test('the jobs are declared, and not invoked by reading them', () => {
   const names = jobs().map((j) => j.name)
-  assert.deepEqual(names, ['spot prices', 'anonymous visitors', 'reconcile payments'])
+  assert.deepEqual(names, [
+    'spot prices',
+    'anonymous visitors',
+    'appointment reminders',
+    'reconcile payments',
+  ])
   for (const job of jobs()) {
     assert.equal(typeof job.run, 'function', `${job.name} has something to run`)
   }

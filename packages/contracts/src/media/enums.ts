@@ -10,6 +10,18 @@ export const EmailKind = z.enum([
   'sales_order_to_supplier',
   'auth_verification',
   'sales_order_created',
+  'sign_in_code',
+  'account_created',
+  'details_changed',
+  'payout_sent',
+  'shipment_sent',
+  'shipment_received',
+  'pickup_booked',
+  'pickup_complete',
+  'appointment_booked',
+  'appointment_tomorrow',
+  'document_sent',
+  'promo',
 ])
 export type EmailKind = z.infer<typeof EmailKind>
 

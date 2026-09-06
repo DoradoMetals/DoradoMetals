@@ -91,12 +91,12 @@ test('the order confirmation goes to the customer with its packing list attached
   const { order, email } = anOrderWithAUser()
   const t = recorder()
 
-  await emails.sendCreatedEmail(await inputs.packingListInputs(order.order.id), email, t)
+  await emails.sendOrderReceived(order.order.id, t)
 
   assert.equal(t.sent.length, 1, 'expected exactly one message')
   const [msg] = t.sent
   assert.equal(msg.to, email, 'sent to the wrong address')
-  assert.match(String(msg.subject), /Order Has Been Placed/)
+  assert.match(String(msg.subject), /We've got your order/)
   assert.ok((msg.html?.length ?? 0) > 0, 'no body')
 
   assert.ok(msg.attachments, 'the message carries no attachments at all')
@@ -115,15 +115,18 @@ test("a sale order's confirmation renders the sale's own wording, named for the 
   const { order, email } = aSaleOrderWithAUser()
   const t = recorder()
 
-  await emails.sendCreatedEmail(await inputs.packingListInputs(order.order.id), email, t)
+  await emails.sendOrderReceived(order.order.id, t)
 
   assert.equal(t.sent.length, 1, 'expected exactly one message')
   const [msg] = t.sent
   assert.equal(msg.to, email, 'sent to the wrong address')
-  assert.match(String(msg.subject), /Order Has Been Placed/)
-  assert.ok((msg.html ?? '').includes('prepared for shipment'), 'the sale wording did not render')
+  assert.match(String(msg.subject), /We've got your order/)
   assert.ok(
-    !(msg.html ?? '').includes('Please print out your packing list'),
+    (msg.html ?? '').includes('preparing your order for shipment'),
+    'the sale wording did not render'
+  )
+  assert.ok(
+    !(msg.html ?? '').includes('prepaid label and a packing list'),
     'the purchase-order shipping instructions rendered for a sale'
   )
 
@@ -142,16 +145,13 @@ test('the pricing notice carries the invoice, named for the same order', async (
   const { order, email } = anOrderWithAUser()
   const t = recorder()
 
-  await emails.sendPricedEmail(await inputs.invoiceInputs(order.order.id), email, t)
+  await emails.sendPricedEmail(await inputs.invoiceInputs(order.order.id), t)
 
   const [msg] = t.sent
   assert.equal(msg.to, email)
   assert.match(String(msg.subject), new RegExp(formatPurchaseOrderNumber(order.order.number)))
   assert.ok(msg.attachments, 'the message carries no attachments at all')
-  assert.equal(
-    msg.attachments[0].filename,
-    `${formatPurchaseOrderNumber(order.order.number)}_invoice.pdf`
-  )
+  assert.equal(msg.attachments[0].filename, 'invoice.pdf')
   startsPdf(msg.attachments[0].content, 'the invoice attachment')
 })
 
@@ -180,9 +180,9 @@ test("the refiner's copy goes to the address it was given, not the customer's", 
 test('a transport failure propagates rather than being swallowed', async () => {
   const { order, email } = anOrderWithAUser()
 
+  assert.ok(email.length > 0, 'the order has no address to fail against')
   await assert.rejects(
-    async () =>
-      emails.sendCreatedEmail(await inputs.packingListInputs(order.order.id), email, failing()),
+    async () => emails.sendOrderReceived(order.order.id, failing()),
     /Authentication failed/,
     'a failed send was reported as success'
   )

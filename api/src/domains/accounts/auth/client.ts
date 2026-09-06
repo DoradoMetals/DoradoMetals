@@ -10,11 +10,12 @@ import { fillMissingRole, withoutAnonymousCustomers } from '#accounts/auth/anony
 import { adoptAnonymousCheckoutQuietly } from '#checkout/adopt.ts'
 import { sendEmail } from '#providers/emails/nodemailer.ts'
 import { sendAuthVerificationEmail } from '#documents/emails/service.ts'
-import {
-  renderChangeEmail,
-  renderResetPasswordEmail,
-  renderCreateAccountEmail,
-} from '#documents/emails/utils/renderEmail.ts'
+import { renderChangeEmail, renderResetPasswordEmail } from '#documents/emails/utils/renderEmail.ts'
+// The magic link IS the "account created" moment, and ruling 95 gave that
+// moment a mailer. Only the RENDERER moved here; the passwordless-auth lane
+// owns what this callback does next, and `emails.sendAccountCreated` is the
+// version that also files a paper-trail row.
+import * as accountCreatedMail from '#documents/emails/templates/account-created.ts'
 
 export const auth = betterAuth({
   database: new Pool({
@@ -88,8 +89,14 @@ export const auth = betterAuth({
         const emailUrl = `${requiredEnv('FRONTEND_URL')}/verify-login?token=${token}`
         await sendEmail({
           to: email,
-          subject: 'Your Dorado account is ready',
-          html: renderCreateAccountEmail({ firstName: '', url: emailUrl }),
+          subject: accountCreatedMail.subject(),
+          html: accountCreatedMail.render({
+            order_id: null,
+            user_id: null,
+            email,
+            name: null,
+            url: emailUrl,
+          }),
         })
       },
     }),

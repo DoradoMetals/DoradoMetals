@@ -1,5 +1,6 @@
 import { reportError } from '#shared/observability/report.ts'
 import * as transactionsRepo from '#db/orders/transactions/repo.ts'
+import * as emails from '#documents/emails/service.ts'
 import type { Executor } from '#shared/db/executor.ts'
 import type { OrderTotalsGuard, OrderTotalsWrite } from '@dorado/contracts'
 
@@ -23,4 +24,13 @@ export async function update(
     })
   }
   return written
+}
+
+// A payout has been recorded against this order. CALL IT AFTER THE TRANSACTION
+// THAT WROTE IT COMMITS - an email cannot be rolled back, and a customer told
+// they have been paid by a transaction that then fails is the one outcome the
+// side-effects rule exists to prevent. The mailer is once per order and the
+// email trail is what remembers, so a second call is a no-op.
+export async function payoutRecorded(order_id: string): Promise<void> {
+  await emails.sendPayoutSent(order_id)
 }

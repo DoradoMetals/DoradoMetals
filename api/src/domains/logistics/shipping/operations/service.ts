@@ -13,6 +13,7 @@ import * as carrierServices from '#logistics/shipping/services/service.ts'
 import * as shippingRules from '#logistics/shipping/rules.ts'
 import * as handoffsService from '#logistics/shipping/handoffs/service.ts'
 import * as shippingHandler from '#logistics/shipping/operations/handler.ts'
+import * as emails from '#documents/emails/service.ts'
 import { carrierIdOr } from '#logistics/shipping/operations/resolver.ts'
 import { FEDEX_STORE_ADDRESS, DORADO_ADDRESS } from '#providers/shipments/constants.ts'
 import { attempt } from '#shared/attempt.ts'
@@ -57,6 +58,27 @@ export async function cancelLabel({
 }
 
 export async function getTracking(
+  shipment_id: string,
+  isAdmin: boolean,
+  fetchTracking?: (shipment: ShipmentRow, client?: Executor) => Promise<ParsedTracking>
+): Promise<ShipmentView | null> {
+  const view = await refreshTracking(shipment_id, isAdmin, fetchTracking)
+  // The mailers go out AFTER the scan rows are committed. An email cannot be
+  // rolled back, and both of these are gated by their own SQL read - one waits
+  // for a scan that is not 'Label Created', the other for a delivered parcel -
+  // so calling them on every refresh is correct and the trail makes each once.
+  await notifyOnScan(shipment_id)
+  return view
+}
+
+async function notifyOnScan(shipment_id: string): Promise<void> {
+  const link = await shipmentRepo.getOrderLink(shipment_id)
+  if (!link?.order_id) return
+  await emails.sendShipmentSent(link.order_id)
+  await emails.sendShipmentReceived(link.order_id)
+}
+
+async function refreshTracking(
   shipment_id: string,
   isAdmin: boolean,
   fetchTracking?: (shipment: ShipmentRow, client?: Executor) => Promise<ParsedTracking>
@@ -152,10 +174,7 @@ export async function getFulfillmentRates(fulfillment_id: string): Promise<Check
   // The same handoff the label will be bought with. Quoting with no pickupType
   // and buying with `parcel.handoff.code` asked FedEx two different questions,
   // and the second answer is what is deducted from the payout (LD F6).
-  const handoff = shippingRules.handoffFor(
-    await handoffsService.getHandoffs(),
-    view.method.type
-  )
+  const handoff = shippingRules.handoffFor(await handoffsService.getHandoffs(), view.method.type)
 
   const quoted = await quoteRate(
     null,

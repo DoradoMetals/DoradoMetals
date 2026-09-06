@@ -193,9 +193,7 @@ const UNROUTED = {
   'domains/transactions/controller.ts': {
     handleStripeWebhook: 'mounted directly on the app in app.ts, before express.json',
   },
-  'domains/documents/emails/controller.ts': {
-    sendCreatedEmail: 'only caller is the API itself, not an HTTP route',
-  },
+  'domains/documents/emails/controller.ts': {},
 } satisfies Record<string, Record<string, string>> as Record<
   string,
   Record<string, string> | undefined

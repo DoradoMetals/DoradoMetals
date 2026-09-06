@@ -1,17 +1,16 @@
 import query from '#shared/db/query.ts'
 import { isTestRun } from '#shared/testing/is-test-run.ts'
 import * as emails from '#db/media/emails/repo.ts'
+import type { Email } from '@dorado/contracts'
 import type { PoolClient } from 'pg'
 import { attempt } from '#shared/attempt.ts'
 
 type Executor = PoolClient | undefined
 
-export type EmailKind =
-  | 'purchase_order_created'
-  | 'sales_order_created'
-  | 'purchase_order_priced'
-  | 'sales_order_to_supplier'
-  | 'auth_verification'
+// The labels of media.email_kind, as the database declares them. A hand-kept
+// union drifted from the enum the moment a migration added one (ruling 95 added
+// twelve at once in 141), and every mailer files under one of these.
+export type EmailKind = Email['kind']
 
 type EmailBase = {
   kind: EmailKind

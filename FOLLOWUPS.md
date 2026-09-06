@@ -16341,3 +16341,28 @@ whole sale. **Zero (c) API bugs**: nothing the API answered was wrong to answer.
 Three full runs each ended green with one or two TIMEOUT-shaped flakes on a
 different spec each time - contention from parallel workers on one dev API, not a
 defect, and left alone. Detail in `docs/waves/e2e-2026-09-07.md`.
+
+## D218 - the mailers are the Figma design, and the PDFs wear its system (ruling 95)
+
+Jacob, 2026-09-07: *"add a lane for updating our pdfs/mailers too."* Thirteen
+mailers rebuilt from the Media page: one 600px table-based base layout, the five
+symbols as partials, one template per mailer holding the design's copy, and every
+dynamic value from ONE SQL read parsed by its own contract - a card row is a row
+of the read, never a dictionary. Ten new triggers (payout, both shipment scans,
+both pickups, both appointments, document sent), each firing AFTER its commit and
+made once-per-order by the email trail rather than by a flag column. The
+appointment reminder is a daily cron whose SQL excludes what the trail says was
+sent, so a second run the same day sends nothing. Masking is the auth design's:
+`j•••@domain`, `(•••) •••-0134`, applied where the rows are built so a caller
+cannot forget. `sendSignInCode` / `sendAccountCreated` / `sendDetailsChanged` are
+exported for the passwordless-auth lane and take contracts, not argument bags.
+Migration **141** adds twelve `media.email_kind` labels (dev only); five dead raw
+templates and `sendCreatedEmail` are gone. The PDFs took the same ramp, spacing,
+row and card - **the gold `#debb59` is retired** - with not one class, cell or
+number changed, so their content tests stand untouched. **THE PDFs STILL HAVE NO
+FIGMA PAGE**: the paper palette is derived from the mailer tokens and the page
+furniture is the renderer's judgement, and Poppins stays until a Geist woff2 pair
+lands in `shared/assets/fonts`. **NONE OF THESE HAS BEEN SEEN IN A REAL CLIENT** -
+the design's own note says a dark mailer can come back partly inverted from
+Gmail's and Outlook's transforms, and no send has left the stub. Detail in
+`docs/waves/mailers.md`.
