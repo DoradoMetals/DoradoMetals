@@ -1,6 +1,7 @@
 SELECT o.id, o.user_id, o.direction, o.status, o.number, o.notes, o.review_created,
        o.created_by, o.updated_by, o.created_at, o.updated_at,
        o.created_by_id, o.updated_by_id, o.order_sent, o.tracking_updated, o.spots_locked,
+       o.assigned_to_id,
        (SELECT to_jsonb(t)
                || jsonb_build_object(
                     'created_at', to_char(t.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),

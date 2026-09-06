@@ -29,11 +29,11 @@ test('the checkout view parses through CheckoutViewFacts with its basket nested'
 
     assert.equal(view.id, cart.id)
     assert.equal(view.direction, 'purchase')
-    assert.equal(view.items.length, 2, 'the basket did not nest by table')
+    assert.equal(view.lots.length, 2, 'the basket did not nest by table')
     assert.deepEqual(
-      [...view.items].map((i) => i.checkout_id),
-      [cart.id, cart.id],
-      'a line from another basket came back'
+      [...view.lots].map((i) => i.id).sort(),
+      [...cart.lot_ids].sort(),
+      'a lot from another basket came back'
     )
   })
 })
@@ -45,7 +45,7 @@ test('an empty basket is an empty array, not a null', async () => {
 
     const view = await checkouts.view(cart.id, c)
     assert.ok(view)
-    assert.deepEqual(view.items, [])
+    assert.deepEqual(view.lots, [])
   })
 })
 

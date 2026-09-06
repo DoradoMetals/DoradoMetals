@@ -9,10 +9,11 @@ WITH ord AS (
 ),
 scrap AS (
   SELECT i.metal_id AS label,
-         trim(to_char(SUM(i.pre_melt), 'FM999,999,990.0')) || ' ' || COALESCE(i.unit, 'g') AS value,
+         trim(to_char(SUM(i.pre_melt), 'FM999,999,990.0')) || ' ' || i.unit AS value,
          SUM(i.pre_melt) AS weight
-    FROM orders.items i
-    JOIN ord ON ord.id = i.order_id
+    FROM orders.lots ol
+    JOIN lots.items i ON i.id = ol.lot_id
+    JOIN ord ON ord.id = ol.order_id
    WHERE i.bullion_id IS NULL
      AND i.pre_melt IS NOT NULL
      AND ord.direction = 'purchase'
@@ -20,11 +21,12 @@ scrap AS (
 ),
 bought AS (
   SELECT COALESCE(b.name, i.metal_id) AS label,
-         COALESCE(i.quantity, 1)::bigint::text
-           || CASE WHEN COALESCE(i.quantity, 1) = 1 THEN ' unit' ELSE ' units' END AS value,
-         COALESCE(i.price, 0) * COALESCE(i.quantity, 1) AS weight
-    FROM orders.items i
-    JOIN ord ON ord.id = i.order_id
+         i.quantity::bigint::text
+           || CASE WHEN i.quantity = 1 THEN ' unit' ELSE ' units' END AS value,
+         COALESCE(ol.price, 0) * i.quantity AS weight
+    FROM orders.lots ol
+    JOIN lots.items i ON i.id = ol.lot_id
+    JOIN ord ON ord.id = ol.order_id
     LEFT JOIN products.bullion b ON b.id = i.bullion_id
    WHERE i.bullion_id IS NOT NULL
 ),

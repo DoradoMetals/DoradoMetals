@@ -15,7 +15,7 @@ import {
   paymentMethodId,
 } from '#shared/testing/builders/index.ts'
 import * as checkouts from '#db/checkout/checkouts/repo.ts'
-import * as checkoutItems from '#db/checkout/items/repo.ts'
+import * as checkoutLots from '#db/checkout/lots/repo.ts'
 import * as userAddresses from '#db/places/user-addresses/repo.ts'
 import { adoptAnonymousCheckout, adoptAnonymousCheckoutQuietly } from '#checkout/adopt.ts'
 import { CHOICE_COLUMNS } from '#checkout/rules.ts'
@@ -47,7 +47,7 @@ test("a visitor's only checkout changes hands, id and lines and all", async () =
       const mine = await checkouts.findFor(customer.id, 'purchase', c)
       assert.equal(mine?.id, cart.id)
       assert.equal(await checkouts.findFor(visitor.id, 'purchase', c), undefined)
-      const lines = await checkoutItems.listFor(cart.id, c)
+      const lines = await checkoutLots.listFor(cart.id, c)
       assert.equal(lines.length, 1)
       assert.equal(Number(lines[0].quantity), 3)
     },
@@ -101,7 +101,7 @@ test("when the customer already has a row, theirs survives and takes the visitor
       assert.equal(survivor?.recipient_address_id, address.id)
       assert.equal(survivor?.payment_method_id, payout)
 
-      const lines = await checkoutItems.listFor(mine.id, c)
+      const lines = await checkoutLots.listFor(mine.id, c)
       assert.equal(lines.length, 1)
       assert.equal(lines[0].bullion_id, product.id)
 

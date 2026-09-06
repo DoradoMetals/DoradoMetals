@@ -16,6 +16,7 @@ export const Fulfillment = z.object({
   'updated_at': z.string(),
   'created_by_id': z.string().uuid().nullable(),
   'updated_by_id': z.string().uuid().nullable(),
+  'refining_order_id': z.string().uuid().nullable(),
 })
 export type Fulfillment = z.infer<typeof Fulfillment>
 // generated:end

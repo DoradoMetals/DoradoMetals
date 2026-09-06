@@ -10,12 +10,10 @@ test('sales tax is charged, never paid', () => {
   assert.equal(rules.chargesSalesTax('purchase'), false)
 })
 
-const line = (metal_id: string) => ({ metal_id })
-
 test('every metal the order holds must have been quoted', () => {
   assert.doesNotThrow(() =>
     rules.assertEveryMetalQuoted(
-      [line('gold'), line('gold'), line('silver')],
+      ['gold', 'gold', 'silver'],
       [{ metal_id: 'gold' }, { metal_id: 'silver' }]
     )
   )
@@ -24,7 +22,7 @@ test('every metal the order holds must have been quoted', () => {
 
 test('a metal the feed has not quoted refuses the placement', () => {
   assert.throws(
-    () => rules.assertEveryMetalQuoted([line('platinum')], [{ metal_id: 'gold' }]),
+    () => rules.assertEveryMetalQuoted(['platinum'], [{ metal_id: 'gold' }]),
     (err: unknown) =>
       err instanceof Invalid && /no live quote for metal platinum/.test((err as Error).message)
   )
@@ -107,8 +105,8 @@ test('a declared lot names its weights and leaves the content to the database', 
       pre_melt: 160,
       purity: 0.5,
       unit: 'dwt',
-      quantity: 1,
-      confirmed: false,
+      post_melt: undefined,
+      quantity: undefined,
     }
   )
 })
@@ -122,7 +120,7 @@ test('a declared lot weighed in a unit nobody quotes in is refused, not valued a
     )
   }
   assert.throws(
-    () => rules.declaredLot({ metal_id: 'gold', pre_melt: 10, purity: 0.9, unit: null }),
+    () => rules.declaredLot({ metal_id: 'gold', pre_melt: 10, purity: 0.9, unit: undefined }),
     (err: unknown) => err instanceof Invalid && /no unit/.test((err as Error).message)
   )
   assert.doesNotThrow(() =>
@@ -148,8 +146,8 @@ test('a complete checkout places, and a short one names every step it owes', () 
       /missing package_id, payment_details_id/.test((err as Error).message)
   )
   assert.throws(
-    () => rules.assertPlaceable(['items']),
-    (err: unknown) => err instanceof Invalid && /missing items/.test((err as Error).message)
+    () => rules.assertPlaceable(['lots']),
+    (err: unknown) => err instanceof Invalid && /missing lots/.test((err as Error).message)
   )
 })
 
@@ -181,44 +179,9 @@ test('an operation of the wrong direction is refused, naming both', () => {
   assert.throws(() => rules.assertDirection(null, 'purchase', 'cancelling'), Invalid)
 })
 
-const sendable = {
-  order: { number: 42, order_sent: false },
-  address: { line_1: '1 Main St', phone_number: '555' },
-  user: { name: 'Ada' },
-} as unknown as Parameters<typeof rules.assertSendable>[0]
-
-test('an order reaches a refiner only with an address, an email and no other refiner', () => {
-  assert.doesNotThrow(() => rules.assertSendable(sendable, 'r1', null, 'r@example.com'))
-
-  assert.throws(
-    () =>
-      rules.assertSendable(
-        Object.assign({}, sendable, { address: null }),
-        'r1',
-        null,
-        'r@example.com'
-      ),
-    (err: unknown) => err instanceof Invalid && /has no address/.test((err as Error).message)
-  )
-
-  assert.throws(
-    () => rules.assertSendable(sendable, 'r1', null, null),
-    (err: unknown) => err instanceof Invalid && /has no email address/.test((err as Error).message)
-  )
-
-  const sent = {
-    order: { number: 42, order_sent: true },
-    address: sendable.address,
-    user: sendable.user,
-  } as unknown as Parameters<typeof rules.assertSendable>[0]
-
-  assert.doesNotThrow(() => rules.assertSendable(sent, 'r1', 'r1', 'r@example.com'))
-  assert.throws(() => rules.assertSendable(sent, 'r2', 'r1', 'r@example.com'), Conflict)
-})
-
 type Facts = Parameters<typeof rules.actionsFor>[0]
 
-const aLine = (confirmed: boolean) => ({ confirmed }) as Facts['items'][number]
+const aLot = (confirmed: boolean) => ({ confirmed, lot: { content: 1 } }) as Facts['lots'][number]
 const parcel = (direction: string, tracking_number: string | null) =>
   ({ direction, tracking_number }) as Facts['shipments'][number]
 
@@ -230,7 +193,7 @@ const facts = (over: Partial<Facts> = {}): Facts => ({
     tracking_updated: null,
   } as Facts['order'],
   totals: { total: 1000 } as Facts['totals'],
-  items: [aLine(true)],
+  lots: [aLot(true)],
   address: {} as Facts['address'],
   shipments: [],
   pickup: null,
@@ -249,14 +212,14 @@ const paidBy = (method: string | null): Partial<Facts> => ({
 })
 
 test("an order with no lines is not confirmed, which the drawer's every() called true", () => {
-  assert.equal(rules.allLinesConfirmed([]), false)
-  assert.equal(rules.allLinesConfirmed([{ confirmed: true }, { confirmed: false }]), false)
-  assert.equal(rules.allLinesConfirmed([{ confirmed: true }]), true)
+  assert.equal(rules.allLotsConfirmed([]), false)
+  assert.equal(rules.allLotsConfirmed([{ confirmed: true }, { confirmed: false }]), false)
+  assert.equal(rules.allLotsConfirmed([{ confirmed: true }]), true)
 })
 
 test('a purchase reaches Payment Processing only once every line is confirmed', () => {
   assert.deepEqual(rules.statusesFor(facts()), ['Payment Processing', 'In Transit', 'Cancelled'])
-  assert.deepEqual(rules.statusesFor(facts({ items: [aLine(false)] })), ['In Transit', 'Cancelled'])
+  assert.deepEqual(rules.statusesFor(facts({ lots: [aLot(false)] })), ['In Transit', 'Cancelled'])
 })
 
 test('a sale reaches In Transit only once the refiner has it and it is tracked', () => {
@@ -283,14 +246,14 @@ test('crediting an account is a payout fact, not a status', () => {
 
 test('the direction decides which half of the action surface exists', () => {
   const bought = rules.actionsFor(facts())
-  assert.equal(bought.finalize_pricing, true)
-  assert.equal(bought.edit_lines, true)
-  assert.equal(bought.send_to_refiner, false)
+  assert.equal(bought.finalize, true)
+  assert.equal(bought.edit_lots, true)
+  assert.equal(bought.supply, false)
 
   const sold = rules.actionsFor(facts(order({ direction: 'sale', status: 'Preparing' })))
-  assert.equal(sold.send_to_refiner, true)
-  assert.equal(sold.finalize_pricing, false)
-  assert.equal(sold.edit_lines, false)
+  assert.equal(sold.supply, true)
+  assert.equal(sold.finalize, false)
+  assert.equal(sold.edit_lots, false)
   assert.equal(sold.cancel, false)
 })
 
@@ -306,18 +269,21 @@ test('a label is offered only while the inbound parcel has none', () => {
 test('cancelling needs somewhere to send the metal back to', () => {
   assert.equal(rules.actionsFor(facts()).cancel, true)
   assert.equal(rules.actionsFor(facts({ address: null })).cancel, false)
+  // Supplying no longer waits on an address: the parcel is the refiner's to
+  // send, and what the action needs is lots to order.
+  assert.equal(rules.actionsFor(facts(order({ direction: 'sale' }))).supply, true)
   assert.equal(
-    rules.actionsFor(facts({ ...order({ direction: 'sale' }), address: null })).send_to_refiner,
+    rules.actionsFor({ ...facts(order({ direction: 'sale' })), lots: [] }).supply,
     false
   )
 })
 
 test("payable and line_total are the view's SQL, not a rule", () => {
   const view = readFileSync(new URL('../../../db/orders/sql/view.sql', import.meta.url), 'utf8')
-  assert.match(view, /'payable',\s*\n?\s*CASE WHEN i\.content IS NULL OR i\.premium IS NULL/)
-  assert.match(view, /ELSE i\.content \* i\.premium END/)
-  assert.match(view, /WHEN i\.bullion_id IS NULL THEN i\.price/)
-  assert.match(view, /ELSE i\.price \* COALESCE\(i\.quantity, 1\) END/)
+  assert.match(view, /'payable',\s*\n?\s*CASE WHEN li\.content IS NULL OR ol\.premium IS NULL/)
+  assert.match(view, /ELSE li\.content \* ol\.premium END/)
+  assert.match(view, /WHEN li\.bullion_id IS NULL THEN ol\.price/)
+  assert.match(view, /ELSE ol\.price \* li\.quantity END/)
 })
 
 // MP F7 / MI F3. The quote reads the balance outside the placement
@@ -351,9 +317,53 @@ test('add_funds is offered only for a DORADO_ACCOUNT payout that has not been cr
   assert.doesNotThrow(() => rules.assertNotAlreadyCredited(false, 1))
 })
 
-// MP F12.
-test('finalizing is refused while any line is unconfirmed, exactly as the action says', () => {
-  assert.throws(() => rules.assertAllLinesConfirmed([{ confirmed: false }], 1), Invalid)
-  assert.throws(() => rules.assertAllLinesConfirmed([], 1), Invalid)
-  assert.doesNotThrow(() => rules.assertAllLinesConfirmed([{ confirmed: true }], 1))
+// MP F12, and the Finalize gate Jacob's Sep 4-5 notes asked to be written down:
+// every lot confirmed, every lot priceable, and the metal actually received.
+test('the finalize gate names what it is waiting on, and refuses on the same list', () => {
+  assert.deepEqual(rules.finalizeBlockedBy(facts()), [])
+  assert.doesNotThrow(() => rules.assertFinalizable(facts()))
+
+  assert.deepEqual(rules.finalizeBlockedBy(facts({ lots: [aLot(false)] })), [
+    'every lot has to be confirmed',
+  ])
+  assert.deepEqual(rules.finalizeBlockedBy(facts({ lots: [] })), ['the order holds no lots'])
+  assert.deepEqual(rules.finalizeBlockedBy(facts(order({ direction: 'sale' }))), [
+    'this is not a purchase order',
+  ])
+  assert.deepEqual(
+    rules.finalizeBlockedBy(
+      facts({ lots: [{ confirmed: true, lot: { content: null } } as Facts['lots'][number]] })
+    ),
+    ['a lot has no fine weight, so it cannot be priced']
+  )
+  assert.throws(() => rules.assertFinalizable(facts({ lots: [aLot(false)] })), Invalid)
+})
+
+test('a cancelled order can be reopened, and only a cancelled one', () => {
+  assert.equal(rules.actionsFor(facts(order({ status: 'Cancelled' }))).reopen, true)
+  assert.equal(rules.actionsFor(facts()).reopen, false)
+  assert.doesNotThrow(() => rules.assertReopenable(facts(order({ status: 'Cancelled' }))))
+  assert.throws(() => rules.assertReopenable(facts()), Conflict)
+})
+
+test('the documents a method prints, and the one that waits for finalization', () => {
+  const shipment = rules.documentsFor('SHIPMENT', false)
+  assert.deepEqual(
+    shipment.map((d) => d.name),
+    ['Invoice', 'Packing List', 'Return Packing List', 'Shipping Instructions']
+  )
+  assert.equal(shipment[0]!.available, false, 'an invoice was offered before finalization')
+  assert.equal(rules.documentsFor('SHIPMENT', true)[0]!.available, true)
+  assert.deepEqual(
+    rules.documentsFor('PICKUP', true).map((d) => d.name),
+    ['Invoice', 'Pickup Manifest', 'Pickup Instructions']
+  )
+  assert.deepEqual(
+    rules.documentsFor('DIRECT', true).map((d) => d.name),
+    ['Invoice', 'Intake Receipt', 'Appointment Instructions']
+  )
+  assert.deepEqual(
+    rules.documentsFor('DROPOFF', true).map((d) => d.name),
+    ['Invoice', 'Settlement', 'Lot Manifest']
+  )
 })

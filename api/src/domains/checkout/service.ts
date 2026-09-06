@@ -1,5 +1,5 @@
 import withTransaction from '#shared/db/withTransaction.ts'
-import { anonymousUsers, checkouts, checkoutItems, paymentDetails, paymentMethods } from '#db'
+import { anonymousUsers, checkouts, checkoutLots, lots, paymentDetails, paymentMethods } from '#db'
 import {
   addresses as addressService,
   fulfillments as fulfillmentService,
@@ -11,13 +11,12 @@ import * as pricing from '#pricing/index.ts'
 import { withDecisions } from '#shared/views.ts'
 import type {
   Checkout,
-  CheckoutItem,
-  CheckoutItemPatch,
+  CheckoutLotPatch,
   CheckoutPayoutForm,
   CheckoutView,
   CheckoutWrite,
   Direction,
-  OrderLine,
+  Lot,
 } from '@dorado/contracts'
 import type { Executor } from '#shared/db/executor.ts'
 
@@ -142,46 +141,49 @@ export async function saveCheckoutPayout(
   return await viewOf(row.id, tx)
 }
 
-export async function listItems(
+export async function listLots(
   user_id: string,
   direction: Direction,
   client?: Executor
-): Promise<CheckoutItem[]> {
+): Promise<Lot[]> {
   const session = await checkouts.findFor(user_id, direction, client)
   if (!session) return []
-  return await checkoutItems.listFor(session.id, client)
+  return await checkoutLots.listFor(session.id, client)
 }
 
-export async function replaceItems(
+// The basket is replaced whole, and each line MINTS its lot: the id written
+// here is the id the order carries and the refiner settles. A basket carries no
+// premium - at checkout the premium is a live quote, and storing it was the
+// quote quoting itself.
+export async function replaceLots(
   user_id: string,
   direction: Direction,
-  lines: CheckoutItemPatch[],
+  lines: CheckoutLotPatch[],
   tx: Executor
-): Promise<CheckoutItem[]> {
+): Promise<Lot[]> {
   const session = await ensure(user_id, direction, tx)
-  await checkoutItems.removeFor(session.id, tx)
+  await checkoutLots.removeFor(session.id, tx)
 
   for (const line of lines) {
     if ('bullion_id' in line) {
-      rules.assertProductAvailable(
-        await checkoutItems.createFromProduct(session.id, line, tx),
-        line.bullion_id
+      const lot = await lots.createFromProduct(
+        line.bullion_id,
+        line.quantity ?? null,
+        direction === 'sale',
+        tx
       )
+      rules.assertProductAvailable(lot, line.bullion_id, direction)
+      await checkoutLots.link(session.id, lot.id, tx)
     } else {
       rules.assertCatalogueLine(direction)
-      await checkoutItems.create(rules.scrapLine(session.id, line), tx)
+      const lot = await lots.create(rules.scrapLot(line), tx)
+      await checkoutLots.link(session.id, lot.id, tx)
     }
   }
-  if (direction === 'purchase') {
-    const quote = await pricing.priceCheckout(session.id, tx)
-    for (const line of quote.direction === 'purchase' ? quote.items : []) {
-      await checkoutItems.update(line.id, { premium: line.premium }, tx)
-    }
-  }
-  return await checkoutItems.listFor(session.id, tx)
+  return await checkoutLots.listFor(session.id, tx)
 }
 
-export async function clearItems(
+export async function clearLots(
   user_id: string,
   direction: Direction,
   client?: Executor
@@ -189,7 +191,7 @@ export async function clearItems(
   const write = async (c: Executor) => {
     const session = await checkouts.findFor(user_id, direction, c)
     if (!session) return 0
-    return await checkoutItems.removeFor(session.id, c)
+    return await checkoutLots.removeFor(session.id, c)
   }
   return client ? await write(client) : await withTransaction(write)
 }
@@ -198,8 +200,8 @@ export async function getRowById(checkout_id: string, client?: Executor) {
   return await checkouts.getOne(checkout_id, client)
 }
 
-export async function getItemsForOrder(checkout_id: string, client?: Executor) {
-  return await checkoutItems.listForOrder(checkout_id, client)
+export async function lotsFor(checkout_id: string, client?: Executor): Promise<Lot[]> {
+  return await checkoutLots.listFor(checkout_id, client)
 }
 
 export async function getRowFor(user_id: string, direction: Direction, client?: Executor) {

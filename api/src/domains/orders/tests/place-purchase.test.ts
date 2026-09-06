@@ -144,9 +144,9 @@ async function primeCheckout(
 
   const cart = await as(customer, () =>
     request(app)
-      .put('/api/checkout/items')
+      .put('/api/checkout/lots')
       .query({ direction: 'purchase' })
-      .send({ items: [{ bullion_id: productId, quantity: 2 }] })
+      .send({ lots: [{ bullion_id: productId, quantity: 2 }] })
   )
   assert.equal(cart.status, 200, cart.text)
 

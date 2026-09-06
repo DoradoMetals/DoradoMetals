@@ -97,6 +97,7 @@ const formatFile = async (text) =>
 // only made the flat namespace collide with itself.
 const DEFAULT_SCHEMAS = [
   'leads',
+  'lots',
   'reviews',
   'rates',
   'spots',
@@ -114,6 +115,7 @@ const DEFAULT_SCHEMAS = [
   'checkout',
   'crm',
   'refiners',
+  'refining',
 ].join(',')
 
 const SCHEMAS = (process.env.CONTRACT_SCHEMAS ?? DEFAULT_SCHEMAS)
@@ -200,17 +202,21 @@ const ENTITY = {
 
   'checkout.checkouts': 'Checkout',
   'checkout.items': 'CheckoutItem',
+  'checkout.lots': 'CheckoutLot',
 
   'crm.calls': 'Call',
   'crm.sms_messages': 'SmsMessage',
 
   'fulfillments.directs': 'FulfillmentDirect',
+  'fulfillments.dropoffs': 'FulfillmentDropoff',
   'fulfillments.fulfillments': 'Fulfillment',
   'fulfillments.methods': 'FulfillmentMethod',
   'fulfillments.pickups': 'FulfillmentPickup',
   'fulfillments.shipments': 'FulfillmentShipment',
 
   'leads.leads': 'Lead',
+
+  'lots.items': 'Lot',
 
   'media.emails': 'Email',
   'media.images': 'Image',
@@ -220,6 +226,7 @@ const ENTITY = {
 
   'orders.addresses': 'OrderAddressLink',
   'orders.items': 'OrderItem',
+  'orders.lots': 'OrderLot',
   'orders.orders': 'Order',
   'orders.spots': 'OrderSpot',
   'orders.transactions': 'OrderTotals',
@@ -254,6 +261,10 @@ const ENTITY = {
   'refiners.refiners': 'Refiner',
   'refiners.spots': 'RefinerSpot',
 
+  'refining.orders': 'RefiningOrder',
+  'refining.lots': 'RefiningLot',
+  'refining.pool': 'PoolEntry',
+
   'reviews.reviews': 'Review',
 
   'shipping.carriers': 'Carrier',
@@ -282,6 +293,8 @@ const ENUM_NAME = {
   'fulfillments.category': 'FulfillmentCategory',
   'crm.sms_status': 'SmsDeliveryStatus',
   'crm.call_status': 'CallState',
+  'refining.direction': 'RefiningDirection',
+  'refining.pool_entry': 'PoolEntryKind',
 }
 
 const entityName = (schema, table) => {

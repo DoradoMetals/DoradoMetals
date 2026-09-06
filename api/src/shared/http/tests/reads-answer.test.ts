@@ -33,7 +33,7 @@ const READS = [
   ['admin', '/api/metals'],
   ['admin', '/api/mints'],
   ['admin', '/api/products/types'],
-  ['user', '/api/checkout/items?direction=sale'],
+  ['user', '/api/checkout/lots?direction=sale'],
   ['admin', '/api/fulfillments/methods/all'],
   ['admin', '/api/fulfillments/schedule'],
   ['user', '/api/orders'],

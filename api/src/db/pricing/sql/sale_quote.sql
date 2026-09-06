@@ -36,23 +36,24 @@ settlement AS (
     LEFT JOIN auth.users u ON u.id = checkout.user_id
 ),
 lines AS (
-  SELECT ci.id,
-         ci.bullion_id,
-         ci.metal_id,
-         COALESCE(ci.quantity, 1) AS quantity,
-         ci.content,
-         ci.purity,
-         ci.pre_melt,
+  SELECT li.id,
+         li.bullion_id,
+         li.metal_id,
+         li.quantity,
+         li.content,
+         li.purity,
+         li.pre_melt,
          b.id AS product_id,
          b.type AS product_type,
          b.ask_premium,
          b.legal_tender,
          b.domestic_tender,
-         COALESCE(ci.content, 0) * (COALESCE(s.ask, 0) * COALESCE(b.ask_premium, 0)) AS unit_ask
-    FROM checkout.items ci
-    JOIN checkout ON checkout.id = ci.checkout_id
-    LEFT JOIN products.bullion b ON b.id = ci.bullion_id
-    LEFT JOIN spots.spots s ON s.metal_id = ci.metal_id
+         COALESCE(li.content, 0) * (COALESCE(s.ask, 0) * COALESCE(b.ask_premium, 0)) AS unit_ask
+    FROM checkout.lots cl
+    JOIN lots.items li ON li.id = cl.lot_id
+    JOIN checkout ON checkout.id = cl.checkout_id
+    LEFT JOIN products.bullion b ON b.id = li.bullion_id
+    LEFT JOIN spots.spots s ON s.metal_id = li.metal_id
 ),
 aggregate AS (
   SELECT COALESCE(sum(l.unit_ask * l.quantity), 0) AS item_total FROM lines l

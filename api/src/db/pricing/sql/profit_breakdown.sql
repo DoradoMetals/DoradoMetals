@@ -2,8 +2,9 @@
 --
 -- Three parties own the fine metal in a purchase order, and TWO spot feeds
 -- price it: the customer was paid at the order's own frozen bid
--- (orders.spots), while Dorado and the refiner settle against the refiner's
--- (refiners.spots). The gap between those two feeds, over the ounces the
+-- (orders.spots), while Dorado and the refiner settle against the price the
+-- metal actually changed hands at - the refiner pool's last lock, falling back
+-- to the live bid. The gap between those two feeds, over the ounces the
 -- customer was paid for, is Dorado's spot_net.
 --
 -- The split itself is two premiums:
@@ -18,7 +19,7 @@
 -- r < d, and this is its closed form.
 --
 -- Dorado's and the refiner's ounces come off the refiner's ASSAY where there
--- is one (refiners.items), because that is the metal that actually arrived;
+-- is one (refining.lots), because that is the metal that actually arrived;
 -- the customer was paid on the declared weight either way.
 WITH ord AS (
   SELECT o.id FROM orders.orders o WHERE o.id = $1::uuid
@@ -29,37 +30,49 @@ order_spot AS (
    WHERE s.order_id = $1::uuid
    ORDER BY s.metal_id, s.id
 ),
-refiner_spot AS (
-  SELECT DISTINCT ON (s.metal_id) s.metal_id, s.bid
-    FROM refiners.spots s
-   WHERE s.order_id = $1::uuid
-   ORDER BY s.metal_id, s.id
-),
+-- The refiner's assay, joined by the LOT. No foreign key ties a refining order
+-- to a customer order; the lot is the join and it is one hop.
 assay AS (
-  SELECT DISTINCT ON (ri.order_item_id)
-         ri.order_item_id, ri.content, ri.post_melt, ri.purity, ri.premium
-    FROM refiners.items ri
-    JOIN orders.items oi ON oi.id = ri.order_item_id
-   WHERE oi.order_id = $1::uuid
-   ORDER BY ri.order_item_id, ri.id
+  SELECT rl.lot_id, rl.content, rl.premium, rl.refining_order_id
+    FROM refining.lots rl
+    JOIN orders.lots ol ON ol.lot_id = rl.lot_id
+   WHERE ol.order_id = $1::uuid
+),
+-- The refiner's feed: the most recent lock for that refiner and metal at or before the
+-- settlement - the price the metal actually changed hands at - falling back to
+-- the live bid when there has been no lock.
+refiner_spot AS (
+  SELECT DISTINCT ON (li.metal_id)
+         li.metal_id,
+         COALESCE(p.lock_price, s.bid) AS bid
+    FROM assay a
+    JOIN lots.items li ON li.id = a.lot_id
+    JOIN refining.orders ro ON ro.id = a.refining_order_id
+    LEFT JOIN refining.pool p
+           ON p.refiner_id = ro.refiner_id
+          AND p.metal_id = li.metal_id
+          AND p.entry = 'lock'
+          AND p.occurred_at <= COALESCE(ro.settled_at, now())
+    LEFT JOIN spots.spots s ON s.metal_id = li.metal_id
+   ORDER BY li.metal_id, p.occurred_at DESC NULLS LAST, p.id DESC
 ),
 -- A line's declared content: scrap is weighed once, a product is per-unit.
 -- The join to metals.metals is what used to be a hardcoded four-name list.
 lines AS (
-  SELECT oi.id,
-         oi.metal_id,
-         (oi.bullion_id IS NULL) AS is_scrap,
-         CASE WHEN oi.bullion_id IS NULL THEN COALESCE(oi.content, 0)
-              ELSE COALESCE(oi.content, 0) * COALESCE(oi.quantity, 1) END
+  SELECT ol.id,
+         li.metal_id,
+         (li.bullion_id IS NULL) AS is_scrap,
+         CASE WHEN li.bullion_id IS NULL THEN COALESCE(li.content, 0)
+              ELSE COALESCE(li.content, 0) * li.quantity END
            AS base_content,
-         oi.premium AS dorado_premium,
+         ol.premium AS dorado_premium,
          a.premium  AS refiner_premium,
-         CASE WHEN oi.bullion_id IS NULL
-              THEN COALESCE(a.content, a.post_melt * a.purity) END AS assayed_content
-    FROM orders.items oi
-    JOIN ord ON ord.id = oi.order_id
-    JOIN metals.metals m ON m.id = oi.metal_id
-    LEFT JOIN assay a ON a.order_item_id = oi.id
+         CASE WHEN li.bullion_id IS NULL THEN a.content END AS assayed_content
+    FROM orders.lots ol
+    JOIN lots.items li ON li.id = ol.lot_id
+    JOIN ord ON ord.id = ol.order_id
+    JOIN metals.metals m ON m.id = li.metal_id
+    LEFT JOIN assay a ON a.lot_id = ol.lot_id
 ),
 -- The rate band is earned by the WHOLE order's scrap ounces in that metal,
 -- counted before the empty lines are dropped.
@@ -159,8 +172,9 @@ fees AS (
                     ORDER BY sh.created_at ASC, sh.id ASC
                     LIMIT 1), 0)
            AS customer_shipping,
-         COALESCE((SELECT COALESCE(t.refiner_fee, 0)
-                     FROM orders.transactions t WHERE t.order_id = $1::uuid), 0)
+         COALESCE((SELECT sum(COALESCE(ro.fee, 0))
+                     FROM (SELECT DISTINCT a.refining_order_id FROM assay a) used
+                     JOIN refining.orders ro ON ro.id = used.refining_order_id), 0)
            AS refiner_fee,
          COALESCE((SELECT CASE WHEN t.waive_payout_fee = true THEN 0
                                ELSE COALESCE(t.payout_fee, 0) END

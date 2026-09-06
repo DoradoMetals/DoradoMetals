@@ -1,7 +1,8 @@
 import type { PoolClient } from 'pg'
 import { aTag } from '#shared/testing/builders/ids.ts'
 import * as ordersRepo from '#db/orders/repo.ts'
-import * as itemsRepo from '#db/orders/items/repo.ts'
+import * as lotsRepo from '#db/lots/items/repo.ts'
+import * as orderLots from '#db/orders/lots/repo.ts'
 import * as totalsRepo from '#db/orders/transactions/repo.ts'
 import * as orderAddresses from '#db/orders/addresses/repo.ts'
 import * as checkoutsRepo from '#db/checkout/checkouts/repo.ts'
@@ -11,7 +12,7 @@ import { metalIds, type MetalName } from '#shared/testing/builders/reference.ts'
 import type { BuiltUser } from '#shared/testing/builders/users.ts'
 import type { BuiltProduct } from '#shared/testing/builders/products.ts'
 
-import type { Direction, OrderItem, OrderTotalsPatch } from '@dorado/contracts'
+import type { Direction, Lot, OrderLot, OrderTotalsPatch } from '@dorado/contracts'
 
 export type BuiltOrder = {
   id: string
@@ -20,7 +21,7 @@ export type BuiltOrder = {
   direction: Direction
   status: string
   checkout_id: string
-  items: { id: string; bullion_id: string | null; metal_id: string }[]
+  lots: { id: string; lot_id: string; bullion_id: string | null; metal_id: string }[]
 }
 
 export type OrderOptions = {
@@ -47,8 +48,14 @@ type BullionOptions = {
   unit?: string
 }
 
-type LineSpec = Partial<Omit<OrderItem, 'id' | 'order_id' | 'metal_id'>> &
-  Pick<OrderItem, 'metal_id'>
+// `content` is what the lot's FINE weight should come out at. It is generated
+// now, so a spec that names it declares a troy-ounce lot of that weight at
+// full fineness unless it also names a weight of its own.
+type LineSpec = Partial<Omit<Lot, 'id' | 'metal_id' | 'content'>> &
+  Pick<Lot, 'metal_id'> &
+  Partial<Pick<OrderLot, 'premium' | 'price' | 'confirmed' | 'sales_tax_charged'>> & {
+    content?: number | null
+  }
 
 type Totals = Omit<OrderTotalsPatch, 'order_id'>
 
@@ -69,21 +76,24 @@ class OrderPlan implements PromiseLike<BuiltOrder> {
       for (let i = 0; i < n; i += 1) {
         const pre_melt = options.pre_melt ?? 10 + i
         const purity = options.purity ?? 0.925
-        const row = await itemsRepo.create(
-          order.id,
+        const lot = await lotsRepo.create(
           {
             metal_id,
             pre_melt,
             post_melt: options.post_melt ?? null,
             purity,
             quantity: 1,
-            confirmed: options.confirmed ?? false,
             unit: options.unit ?? 'g',
-            price: options.price ?? null,
           },
           c
         )
-        order.items.push({ id: row.id, bullion_id: null, metal_id })
+        const link = await orderLots.link(order.id, lot.id, c)
+        await orderLots.update(
+          link.id,
+          { confirmed: options.confirmed ?? false, price: options.price ?? null },
+          c
+        )
+        order.lots.push({ id: link.id, lot_id: lot.id, bullion_id: null, metal_id })
       }
     })
     return this
@@ -91,24 +101,26 @@ class OrderPlan implements PromiseLike<BuiltOrder> {
 
   withBullion(product: BuiltProduct, quantity = 1, options: BullionOptions = {}): this {
     this.steps.push(async (c, order) => {
-      const created = await itemsRepo.createFromProduct(order.id, product.id, c)
-      if (!created) throw new Error(`products.bullion has no row ${product.id} to copy`)
-      await itemsRepo.update(
-        created.id,
+      const lot = await lotsRepo.createFromProduct(product.id, quantity, false, c)
+      if (!lot) throw new Error(`products.bullion has no row ${product.id} to copy`)
+      if (options.unit) await lotsRepo.update(lot.id, { unit: options.unit }, c)
+      const link = await orderLots.link(order.id, lot.id, c)
+      await orderLots.update(
+        link.id,
         {
-          quantity,
-          content: product.content,
-          purity: product.purity,
           premium: options.premium ?? product.bid_premium,
           confirmed: options.confirmed ?? false,
           sales_tax_charged: options.sales_tax_charged ?? 0,
           price: options.price ?? null,
-          unit: options.unit ?? 't oz',
         },
-        { order_id: order.id },
         c
       )
-      order.items.push({ id: created.id, bullion_id: product.id, metal_id: product.metal_id })
+      order.lots.push({
+        id: link.id,
+        lot_id: lot.id,
+        bullion_id: product.id,
+        metal_id: product.metal_id,
+      })
     })
     return this
   }
@@ -117,29 +129,40 @@ class OrderPlan implements PromiseLike<BuiltOrder> {
     this.steps.push(async (c, order) => {
       for (const line of lines) {
         const { rows } = await c.query<{ id: string; bullion_id: string | null; metal_id: string }>(
-          `INSERT INTO orders.items
-             (order_id, bullion_id, metal_id, pre_melt, post_melt, purity, content,
-              premium, quantity, confirmed, sales_tax_charged, unit, price)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+          `INSERT INTO lots.items
+             (bullion_id, metal_id, pre_melt, post_melt, purity, content_snapshot,
+              quantity, unit)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, COALESCE($8, 't oz'))
            RETURNING id, bullion_id, metal_id`,
           [
-            order.id,
             line.bullion_id ?? null,
             line.metal_id,
-            line.pre_melt ?? null,
-            line.post_melt ?? null,
-            line.purity ?? null,
-            line.content ?? null,
-            line.premium ?? null,
+            line.pre_melt ?? (line.bullion_id ? null : (line.content ?? null)),
+            line.bullion_id ? null : (line.post_melt ?? null),
+            line.purity ?? (line.bullion_id ? null : line.content != null ? 1 : null),
+            line.bullion_id ? (line.content_snapshot ?? line.content ?? null) : null,
             line.quantity ?? 1,
-            line.confirmed ?? false,
-            line.sales_tax_charged ?? 0,
-            line.unit ?? null,
-            line.price ?? null,
+            line.unit ?? (line.content != null && !line.pre_melt ? 't oz' : null),
           ]
         )
         const row = rows[0]!
-        order.items.push({ id: row.id, bullion_id: row.bullion_id, metal_id: row.metal_id })
+        const link = await orderLots.link(order.id, row.id, c)
+        await orderLots.update(
+          link.id,
+          {
+            premium: line.premium ?? null,
+            confirmed: line.confirmed ?? false,
+            sales_tax_charged: line.sales_tax_charged ?? 0,
+            price: line.price ?? null,
+          },
+          c
+        )
+        order.lots.push({
+          id: link.id,
+          lot_id: row.id,
+          bullion_id: row.bullion_id,
+          metal_id: row.metal_id,
+        })
       }
     })
     return this
@@ -234,7 +257,7 @@ class OrderPlan implements PromiseLike<BuiltOrder> {
       direction,
       status,
       checkout_id: checkout.id,
-      items: [],
+      lots: [],
     }
     for (const step of this.steps) await step(this.c, order)
     return order

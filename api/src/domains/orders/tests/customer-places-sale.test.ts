@@ -41,10 +41,9 @@ async function aReadySaleCheckout(
 
   const basket = await as(buyer, () =>
     request(app)
-      .put('/api/checkout/items')
+      .put('/api/checkout/lots')
       .query({ direction: 'sale' })
-      .send({
-        items: [{ bullion_id: product.id, quantity: 1 }],
+      .send({ lots: [{ bullion_id: product.id, quantity: 1 }],
       })
   )
   assert.equal(basket.status, 200, basket.text)
@@ -78,7 +77,7 @@ test('a signed-in customer places their own sale order', async () => {
       assert.equal(placed.status, 201, placed.text)
       assert.equal(placed.body.order.direction, 'sale')
       assert.equal(placed.body.order.user_id, buyer.id, 'the order belongs to somebody else')
-      assert.equal(placed.body.items.length, 1)
+      assert.equal(placed.body.lots.length, 1)
     },
     { actor: TEST_ACTOR.id, lock: [LOCKS.ORDERS, LOCKS.ADDRESSES, LOCKS.USERS] }
   )

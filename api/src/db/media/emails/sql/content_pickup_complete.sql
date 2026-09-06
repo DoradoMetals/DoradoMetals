@@ -13,7 +13,7 @@ booking AS (
    LIMIT 1
 ),
 lots AS (
-  SELECT COUNT(*) AS n FROM orders.items i JOIN ord ON ord.id = i.order_id
+  SELECT COUNT(*) AS n FROM orders.lots ol JOIN ord ON ord.id = ol.order_id
 )
 SELECT jsonb_build_object(
          'order_id', ord.id,

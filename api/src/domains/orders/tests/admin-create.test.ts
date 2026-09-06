@@ -55,7 +55,7 @@ test("an admin places a customer's SALE end to end, paid by the non-card CREDIT 
           .send({
             direction: 'sale',
             user_id: customer.id,
-            items: [{ bullion_id: product.id, quantity: 2 }],
+            lots: [{ bullion_id: product.id, quantity: 2 }],
             fulfillment: { method_id, choices: { shipment: { carrier_service_id } } },
             payment_method_id: credit,
             recipient_address_id: address.id,
@@ -66,8 +66,8 @@ test("an admin places a customer's SALE end to end, paid by the non-card CREDIT 
       assert.equal(placed.body.order.direction, 'sale')
       assert.equal(placed.body.order.user_id, customer.id, 'the order belongs to somebody else')
       assert.equal(placed.body.order.status, 'Preparing', 'a credit-paid sale was born Pending')
-      assert.equal(placed.body.items.length, 1)
-      assert.equal(Number(placed.body.items[0].quantity), 2)
+      assert.equal(placed.body.lots.length, 1)
+      assert.equal(Number(placed.body.lots[0].lot.quantity), 2)
       assert.ok(placed.body.address, 'the sale kept no address snapshot')
       assert.equal(placed.body.totals.used_funds, true, "the customer's credit was not applied")
 
@@ -96,7 +96,7 @@ test("an admin places a customer's PURCHASE end to end, payout account and all",
           .send({
             direction: 'purchase',
             user_id: customer.id,
-            items: [{ bullion_id: product.id, quantity: 1 }],
+            lots: [{ bullion_id: product.id, quantity: 1 }],
             fulfillment: {
               method_id,
               choices: {
@@ -114,7 +114,7 @@ test("an admin places a customer's PURCHASE end to end, payout account and all",
       assert.equal(placed.body.order.direction, 'purchase')
       assert.equal(placed.body.order.user_id, customer.id)
       assert.equal(placed.body.order.status, 'In Transit')
-      assert.equal(placed.body.items.length, 1)
+      assert.equal(placed.body.lots.length, 1)
       assert.equal(placed.body.payout?.account_last4, '6789', 'the payout account was not attached')
       assert.equal(placed.body.payout?.method, 'ACH')
       assert.ok(placed.body.totals, 'the purchase wrote no totals row')
@@ -146,7 +146,7 @@ test('the admin body must carry every fact placement needs, and says which is mi
           .send({
             direction: 'purchase',
             user_id: customer.id,
-            items: [{ bullion_id: product.id, quantity: 1 }],
+            lots: [{ bullion_id: product.id, quantity: 1 }],
             fulfillment: {
               method_id,
               choices: { pickup: { pickup_address_id: address.id } },
@@ -163,7 +163,7 @@ test('the admin body must carry every fact placement needs, and says which is mi
           .send({
             direction: 'purchase',
             user_id: customer.id,
-            items: [],
+            lots: [],
             fulfillment: { method_id, choices: { pickup: {} } },
             payout,
             recipient_address_id: address.id,

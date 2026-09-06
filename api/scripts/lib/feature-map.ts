@@ -23,9 +23,9 @@ export const FEATURES: FeatureMap = {
   orders: {
     'exchange.purchase_orders': ['orders.orders', 'orders.transactions'],
     'exchange.sales_orders': ['orders.orders', 'orders.transactions', 'refiners.orders'],
-    'exchange.purchase_order_items': ['orders.items', 'refiners.items'],
-    'exchange.sales_order_items': ['orders.items'],
-    'exchange.scrap': ['orders.items', 'refiners.items'],
+    'exchange.purchase_order_items': ['orders.items', 'refiners.items', 'lots.items', 'orders.lots', 'refining.lots'],
+    'exchange.sales_order_items': ['orders.items', 'lots.items', 'orders.lots'],
+    'exchange.scrap': ['orders.items', 'refiners.items', 'lots.items', 'orders.lots', 'refining.lots'],
     'exchange.order_metals': ['orders.spots'],
     'exchange.addresses': ['places.addresses', 'orders.addresses'],
   },
@@ -45,16 +45,16 @@ export const FEATURES: FeatureMap = {
     ],
   },
   refiners: {
-    'exchange.refiner_metals': ['refiners.spots', 'refiners.items'],
+    'exchange.refiner_metals': ['refiners.spots', 'refiners.items', 'refining.lots', 'refining.pool'],
     'exchange.purchase_orders': ['refiners.orders'],
   },
   users: { 'exchange.users': ['auth.users'], 'exchange.session': ['auth.sessions'] },
   transactions: { 'exchange.account_transactions': ['payments.ledger'] },
   checkout: {
     'exchange.carts': ['checkout.checkouts'],
-    'exchange.cart_items': ['checkout.items'],
+    'exchange.cart_items': ['checkout.items', 'lots.items', 'checkout.lots'],
     'exchange.sell_carts': ['checkout.checkouts'],
-    'exchange.sell_cart_items': ['checkout.items'],
+    'exchange.sell_cart_items': ['checkout.items', 'lots.items', 'checkout.lots'],
   },
 }
 
@@ -214,6 +214,15 @@ export const FLOWS: FlowMap = {
       'orders.items': {
         gross: 'pre_melt',
         content: ['post_melt', 'content'],
+        purity: 'purity',
+      },
+      // A lot's `content` is GENERATED, so nothing flows into it. A catalogue
+      // lot's fine content is snapshotted once, into a column of its own, and
+      // `post_melt` stays null: a fine weight in a gross-weight column is what
+      // made a derived content apply purity twice.
+      'lots.items': {
+        gross: 'pre_melt',
+        content: 'content_snapshot',
         purity: 'purity',
       },
     },

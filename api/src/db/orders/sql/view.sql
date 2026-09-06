@@ -11,33 +11,51 @@ SELECT to_jsonb(o)
          WHERE t.order_id = o.id) AS totals,
        COALESCE(
          (SELECT jsonb_agg(
-                   to_jsonb(i)
+                   to_jsonb(ol)
                    || jsonb_build_object(
-                        'product_name',
-                        (SELECT b.name FROM products.bullion b WHERE b.id = i.bullion_id),
+                        'created_at', to_char(ol.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+                        'updated_at', to_char(ol.updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+                        'lot', to_jsonb(li)
+                               || jsonb_build_object(
+                                    'created_at', to_char(li.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+                                    'updated_at', to_char(li.updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+                                    'product_name', b.name,
+                                    -- What a lot is CALLED and what shape it is
+                                    -- in. 'Scrap' for a declared lot, the
+                                    -- product's own type for a catalogue one.
+                                    'form', COALESCE(b.type, 'Scrap'),
+                                    -- "Lot 2481-A": the order's number and a
+                                    -- letter per lot, in placement order. It is
+                                    -- what the admin screens and the refiner's
+                                    -- paperwork quote, and it survives the move
+                                    -- to a refiner order because it is derived
+                                    -- from where the lot CAME FROM.
+                                    'reference', 'Lot ' || o.number || '-' || chr(64 + ol.seat::int)),
                         'payable',
-                        CASE WHEN i.content IS NULL OR i.premium IS NULL THEN NULL
-                             ELSE i.content * i.premium END,
+                          CASE WHEN li.content IS NULL OR ol.premium IS NULL THEN NULL
+                               ELSE li.content * ol.premium END,
                         'line_total',
-                        CASE WHEN i.price IS NULL THEN NULL
-                             WHEN i.bullion_id IS NULL THEN i.price
-                             ELSE i.price * COALESCE(i.quantity, 1) END)
-                   ORDER BY i.id ASC)
-            FROM (SELECT it.*,
-                         -- What a scrap lot is called on a document: numbered
-                         -- per metal across the order's scrap lines, in id
-                         -- order. A product line is named by its product, so it
-                         -- has no item_name. This is the numbering the packing
-                         -- list and the invoice used to stitch into a Map.
-                         CASE WHEN it.bullion_id IS NULL
-                              THEN it.metal_id || ' Item '
-                                   || row_number() OVER (
-                                        PARTITION BY (it.bullion_id IS NULL), it.metal_id
-                                            ORDER BY it.id ASC)
-                              END AS item_name
-                    FROM orders.items it
-                   WHERE it.order_id = o.id) i),
-         '[]'::jsonb) AS items,
+                          CASE WHEN ol.price IS NULL THEN NULL
+                               WHEN li.bullion_id IS NULL THEN ol.price
+                               ELSE ol.price * li.quantity END,
+                        'settled',
+                          CASE WHEN li.bullion_id IS NOT NULL THEN ol.confirmed
+                               ELSE EXISTS (SELECT 1 FROM refining.lots rl
+                                             WHERE rl.lot_id = ol.lot_id
+                                               AND rl.settled_at IS NOT NULL) END,
+                        'refining_order_number',
+                          (SELECT ro.number FROM refining.lots rl
+                             JOIN refining.orders ro ON ro.id = rl.refining_order_id
+                            WHERE rl.lot_id = ol.lot_id))
+                   ORDER BY ol.seat ASC)
+            FROM (SELECT l.*,
+                         row_number() OVER (PARTITION BY l.order_id
+                                                ORDER BY l.created_at ASC, l.id ASC) AS seat
+                    FROM orders.lots l
+                   WHERE l.order_id = o.id) ol
+            JOIN lots.items li ON li.id = ol.lot_id
+            LEFT JOIN products.bullion b ON b.id = li.bullion_id),
+         '[]'::jsonb) AS lots,
        (SELECT to_jsonb(a)
                || jsonb_build_object(
                     'created_at', to_char(a.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),

@@ -16,7 +16,7 @@ import {
   aShipment,
   aPayout,
   aPaymentIntent,
-  aRefinerEngagement,
+  aRefiningOrder,
   aLead,
   aReview,
   anUnknownId,
@@ -106,11 +106,13 @@ test('an order builds with its lines, its money row and its address snapshot', a
         .withAddress(address)
 
       assert.ok(order.number > 0, 'the order got no number from its sequence')
-      assert.equal(order.items.length, 3)
+      assert.equal(order.lots.length, 3)
 
       const { rows: lines } = await c.query(
-        `SELECT bullion_id, quantity, pre_melt FROM orders.items WHERE order_id = $1
-        ORDER BY bullion_id NULLS FIRST`,
+        `SELECT li.bullion_id, li.quantity, li.pre_melt
+           FROM orders.lots ol JOIN lots.items li ON li.id = ol.lot_id
+          WHERE ol.order_id = $1
+          ORDER BY li.bullion_id NULLS FIRST`,
         [order.id]
       )
       assert.equal(lines.length, 3)
@@ -141,12 +143,12 @@ test('a cart holds its basket, and building a second one replaces it', async () 
       const user = await aUser(c)
       const product = await aProduct(c)
       const first = await aCart(c, user, { direction: 'purchase' }).withLots(3)
-      assert.equal(first.item_ids.length, 3)
+      assert.equal(first.lot_ids.length, 3)
 
       const again = await aCart(c, user, { direction: 'purchase' }).withBullion(product, 2)
       assert.equal(again.id, first.id, 'a second session was minted for one direction')
       const { rows } = await c.query(
-        `SELECT count(*)::int n FROM checkout.items WHERE checkout_id = $1`,
+        `SELECT count(*)::int n FROM checkout.lots WHERE checkout_id = $1`,
         [again.id]
       )
       assert.equal(rows[0].n, 1, 'the basket was merged rather than replaced')
@@ -220,13 +222,14 @@ test('an intent, an engagement, a lead and a review all land', async () => {
       assert.equal(intent.order_id, order.id)
       assert.equal(Number(intent.amount_expected), 4200)
 
-      const engagement = await aRefinerEngagement(c, order)
-      assert.equal(engagement.item_ids.length, 2, 'the mirror does not match the lines')
-      const { rows: spots } = await c.query(
-        `SELECT count(*)::int n FROM refiners.spots WHERE refiner_order_id = $1`,
+      const engagement = await aRefiningOrder(c, order)
+      assert.equal(engagement.lot_ids.length, 2, 'the refiner order does not hold both lots')
+      assert.equal(engagement.direction, 'sell', 'our scrap goes OUT to be refined')
+      const { rows: assigned } = await c.query(
+        `SELECT count(*)::int n FROM refining.lots WHERE refining_order_id = $1`,
         [engagement.id]
       )
-      assert.equal(spots[0].n, 1, 'one metal, one locked spot')
+      assert.equal(assigned[0].n, 2, 'the lots did not reach the refiner order')
 
       const lead = await aLead(c, { priority: 'High' })
       assert.equal(lead.priority, 'High')

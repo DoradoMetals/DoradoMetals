@@ -237,12 +237,21 @@ async function primeSaleCheckout(c: PoolClient, f: Fixtures): Promise<string> {
     choices: { shipment: { carrier_service_id: svc!.id } },
   })
   await query(`UPDATE auth.users SET dorado_funds = 0 WHERE id = $1`, [f.user_id], c)
-  await query(`DELETE FROM checkout.items WHERE checkout_id = $1`, [co!.id], c)
   await query(
-    `INSERT INTO checkout.items
-       (checkout_id, bullion_id, metal_id, pre_melt, post_melt, purity, content, unit, quantity)
-     SELECT $1, b.id, b.metal_id, b.gross, b.content, b.purity, b.content, 't oz', 1
-       FROM products.bullion b WHERE b.id = $2`,
+    `DELETE FROM lots.items li USING checkout.lots cl
+      WHERE cl.lot_id = li.id AND cl.checkout_id = $1`,
+    [co!.id],
+    c
+  )
+  await query(
+    `WITH lot AS (
+       INSERT INTO lots.items
+              (bullion_id, metal_id, pre_melt, post_melt, purity, content_snapshot, unit, quantity)
+       SELECT b.id, b.metal_id, b.gross, NULL, b.purity, b.content, 't oz', 1
+         FROM products.bullion b WHERE b.id = $2
+       RETURNING id
+     )
+     INSERT INTO checkout.lots (checkout_id, lot_id) SELECT $1, lot.id FROM lot`,
     [co!.id, f.product_id],
     c
   )

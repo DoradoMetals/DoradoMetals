@@ -4,6 +4,7 @@
 // Every entity of the `fulfillments` schema, one namespace each.
 export * from './enums.js'
 export * from './directs.js'
+export * from './dropoffs.js'
 export * from './fulfillments.js'
 export * from './methods.js'
 export * from './pickups.js'

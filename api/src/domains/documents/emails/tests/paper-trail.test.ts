@@ -53,7 +53,7 @@ const failing = () => ({
 })
 
 const anOrderWithAUser = () => {
-  const order = orders.find((o) => o.user?.email && o.items.length > 0) ?? orders[0]
+  const order = orders.find((o) => o.user?.email && o.lots.length > 0) ?? orders[0]
   assert.ok(order, 'dev has no purchase order to email')
   assert.ok(order.user?.email, `order ${order.order.id} has no email address to send to`)
   return { order, email: order.user!.email, user: order.user! }

@@ -39,7 +39,7 @@ test('a stale visitor goes, and takes their checkout, basket and address book', 
         false
       )
       assert.equal(
-        await exists(c, `SELECT 1 FROM checkout.items WHERE checkout_id = $1`, cart.id),
+        await exists(c, `SELECT 1 FROM checkout.lots WHERE checkout_id = $1`, cart.id),
         false,
         'the lines went with the session, by cascade'
       )

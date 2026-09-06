@@ -20,21 +20,21 @@ function answers(status: number, body: string | null, contentType = 'application
 describe('apiRequest', () => {
   test('puts params in the query string and drops absent ones', async () => {
     answers(200, '[]')
-    await apiRequest('GET', '/checkout/items', undefined, {
+    await apiRequest('GET', '/checkout/lots', undefined, {
       direction: 'sale',
       user_id: undefined,
     })
-    expect(lastUrl?.endsWith('/checkout/items?direction=sale')).toBe(true)
+    expect(lastUrl?.endsWith('/checkout/lots?direction=sale')).toBe(true)
   })
 
   test('an empty body is null rather than a JSON parse error', async () => {
     answers(204, null)
-    await expect(apiRequest('DELETE', '/checkout/items')).resolves.toBeNull()
+    await expect(apiRequest('DELETE', '/checkout/lots')).resolves.toBeNull()
   })
 
   test("a refusal throws ApiError carrying the server's message and status", async () => {
     answers(422, JSON.stringify({ message: 'a line with no product needs purity' }))
-    await expect(apiRequest('PUT', '/checkout/items')).rejects.toMatchObject({
+    await expect(apiRequest('PUT', '/checkout/lots')).rejects.toMatchObject({
       name: 'ApiError',
       status: 422,
       message: 'a line with no product needs purity',
@@ -53,7 +53,7 @@ describe('apiRequest', () => {
 describe('keys', () => {
   test('the two directions never share an entry', () => {
     expect(keys.checkout.row('sale')).not.toEqual(keys.checkout.row('purchase'))
-    expect(keys.checkout.items('sale')).not.toEqual(keys.checkout.items('purchase'))
+    expect(keys.checkout.lots('sale')).not.toEqual(keys.checkout.lots('purchase'))
   })
 
   test("a rates key carries the parcel's facts, so a new box is a new question", () => {

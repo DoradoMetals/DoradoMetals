@@ -22,9 +22,8 @@ import chargeRoutes from '#transactions/charges/routes.ts'
 import inboundRoutes from '#transactions/inbound/routes.ts'
 import bankLinkRoutes from '#transactions/banks/routes.ts'
 import paymentViewRoutes from '#transactions/rails/routes.ts'
-import refinerRoutes from '#orders/refiners/routes.ts'
-import refinerItemRoutes from '#orders/refiners/items/routes.ts'
-import refinerOrderRoutes from '#orders/refiners/orders/routes.ts'
+import supplierRoutes from '#refining/refiners/routes.ts'
+import refiningRoutes from '#refining/routes.ts'
 import carriersRoutes from '#logistics/shipping/carriers/routes.ts'
 import recaptchaRoutes from '#accounts/recaptcha/routes.ts'
 import userRoutes from '#accounts/users/routes.ts'
@@ -104,9 +103,8 @@ app.use('/api/payments/charges', chargeRoutes)
 app.use('/api/payments/inbound', inboundRoutes)
 app.use('/api/payments/banks', bankLinkRoutes)
 app.use('/api/payments/view', paymentViewRoutes)
-app.use('/api/suppliers', refinerRoutes)
-app.use('/api/refiners', refinerItemRoutes)
-app.use('/api/refiners', refinerOrderRoutes)
+app.use('/api/suppliers', supplierRoutes)
+app.use('/api/refining', refiningRoutes)
 app.use('/api/recaptcha', recaptchaRoutes)
 app.use('/api/users', userRoutes)
 app.use('/api/account', accountRoutes)

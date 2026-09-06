@@ -31,9 +31,9 @@ test('a visitor builds a basket, is refused the two things that need an account,
 
       const put = await as(visitor, () =>
         request(app)
-          .put('/api/checkout/items')
+          .put('/api/checkout/lots')
           .query({ direction: 'purchase' })
-          .send({ items: [{ bullion_id: product.id, quantity: 2 }] })
+          .send({ lots: [{ bullion_id: product.id, quantity: 2 }] })
       )
       assert.equal(put.status, 200, put.text)
       assert.equal(put.body.length, 1)
@@ -42,7 +42,7 @@ test('a visitor builds a basket, is refused the two things that need an account,
         request(app).get('/api/checkout').query({ direction: 'purchase' })
       )
       assert.equal(row.status, 200, row.text)
-      assert.ok(!row.body.missing.includes('items'), 'a basket with lines still owes items')
+      assert.ok(!row.body.missing.includes('lots'), 'a basket with lines still owes items')
       assert.ok(row.body.missing.length > 0, 'an unfinished checkout claims to be placeable')
 
       const draft = await as(visitor, () =>
@@ -95,7 +95,7 @@ test('a visitor builds a basket, is refused the two things that need an account,
       await adoptAnonymousCheckout(visitor.id, customer.id, c)
 
       const mine = await as(customer, () =>
-        request(app).get('/api/checkout/items').query({ direction: 'purchase' })
+        request(app).get('/api/checkout/lots').query({ direction: 'purchase' })
       )
       assert.equal(mine.status, 200, mine.text)
       assert.equal(mine.body.length, 1)
@@ -134,22 +134,23 @@ test("a visitor's writes are attributed to nobody", async () => {
       const product = await aProduct(c)
       const put = await as(visitor, () =>
         request(app)
-          .put('/api/checkout/items')
+          .put('/api/checkout/lots')
           .query({ direction: 'purchase' })
-          .send({ items: [{ bullion_id: product.id, quantity: 1 }] })
+          .send({ lots: [{ bullion_id: product.id, quantity: 1 }] })
       )
       assert.equal(put.status, 200, put.text)
 
       const { rows } = await c.query(
-        `SELECT i.created_by, i.updated_by
-         FROM checkout.items i
-         JOIN checkout.checkouts ch ON ch.id = i.checkout_id
+        `SELECT li.created_by_id, li.updated_by_id
+         FROM checkout.lots cl
+         JOIN lots.items li ON li.id = cl.lot_id
+         JOIN checkout.checkouts ch ON ch.id = cl.checkout_id
         WHERE ch.user_id = $1`,
         [visitor.id]
       )
       assert.equal(rows.length, 1)
-      assert.equal(rows[0].created_by, null)
-      assert.equal(rows[0].updated_by, null)
+      assert.equal(rows[0].created_by_id, null)
+      assert.equal(rows[0].updated_by_id, null)
     },
     { actor: TEST_ACTOR.id, lock: HERE }
   )
@@ -162,16 +163,18 @@ test('a real customer is still stamped', async () => {
       const product = await aProduct(c)
       const put = await as(customer, () =>
         request(app)
-          .put('/api/checkout/items')
+          .put('/api/checkout/lots')
           .query({ direction: 'purchase' })
-          .send({ items: [{ bullion_id: product.id, quantity: 1 }] })
+          .send({ lots: [{ bullion_id: product.id, quantity: 1 }] })
       )
       assert.equal(put.status, 200, put.text)
 
       const { rows } = await c.query(
-        `SELECT i.created_by
-         FROM checkout.items i
-         JOIN checkout.checkouts ch ON ch.id = i.checkout_id
+        `SELECT u.name AS created_by
+         FROM checkout.lots cl
+         JOIN lots.items li ON li.id = cl.lot_id
+         JOIN checkout.checkouts ch ON ch.id = cl.checkout_id
+         LEFT JOIN auth.users u ON u.id = li.created_by_id
         WHERE ch.user_id = $1`,
         [customer.id]
       )

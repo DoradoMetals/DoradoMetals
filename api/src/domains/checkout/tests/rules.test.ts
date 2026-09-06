@@ -16,7 +16,7 @@ const row = (over: Partial<Checkout> = {}): Checkout => ({
 
 const view = (over: Partial<Checkout>, items: number): CheckoutViewFacts => ({
   ...row(over),
-  items: Array.from({ length: items }, () => ({}) as CheckoutViewFacts['items'][number]),
+  lots: Array.from({ length: items }, () => ({}) as CheckoutViewFacts['lots'][number]),
 })
 
 const purchase = (
@@ -29,7 +29,7 @@ const purchase = (
 
 test('with no draft fulfillment, nobody can say how the order is handed over', () => {
   assert.deepEqual(purchase({}, { item_count: 0 }).missing, [
-    'items',
+    'lots',
     'fulfillment_id',
     'payment_details_id',
   ])
@@ -59,7 +59,7 @@ test('no draft means no handover steps, whatever is passed', () => {
 
 test('a sale asks for its items, a draft and a recipient address', () => {
   const empty = checkoutState(view({ direction: 'sale' }, 0), [])
-  assert.deepEqual(empty.missing, ['items', 'fulfillment_id', 'recipient_address_id'])
+  assert.deepEqual(empty.missing, ['lots', 'fulfillment_id', 'recipient_address_id'])
 
   const ready = checkoutState(
     view({ direction: 'sale', recipient_address_id: 'a', fulfillment_id: 'f' }, 1),

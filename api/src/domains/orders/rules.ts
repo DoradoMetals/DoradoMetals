@@ -6,10 +6,11 @@ import type {
   CheckoutQuote,
   Direction,
   SaleQuote,
+  LotPatch,
   OrderActions,
-  OrderItem,
-  OrderItemPatch,
-  OrderItemWrite,
+  OrderDocument,
+  OrderLotPatch,
+  OrderLotView,
   OrderSpot,
   OrderSpotsPutBody,
   OrderView,
@@ -33,12 +34,9 @@ export function assertSaleQuote(
   }
 }
 
-// A declared lot names its metal and its weights; its fine content is derived
-// from them by `metals.fine_content` when the row is written, and is not part
-// of what the caller declares (MP F1).
-export function declaredLot(
-  declared: OrderItemPatch
-): OrderItemWrite & Pick<OrderItem, 'metal_id'> {
+// A declared lot names its metal and its weights; its fine content is generated
+// from them by the database and is not part of what the caller declares.
+export function declaredLot(declared: OrderLotPatch): LotPatch {
   assertDeclaredMetal(declared.metal_id)
   assertWeighable(
     declared.bullion_id ?? null,
@@ -47,11 +45,29 @@ export function declaredLot(
     declared.purity
   )
   return {
-    ...declared,
     metal_id: declared.metal_id,
-    quantity: 1,
-    confirmed: false,
+    unit: declared.unit,
+    pre_melt: declared.pre_melt,
+    post_melt: declared.post_melt,
+    purity: declared.purity,
+    quantity: declared.quantity,
   }
+}
+
+// The money half of a lot patch and the physical half go to different tables,
+// so the boundary splits them once rather than each caller re-spelling them.
+export function lotMoney(changes: OrderLotPatch): OrderLotPatch {
+  const { premium, price, sales_tax_charged, confirmed } = changes
+  return { premium, price, sales_tax_charged, confirmed }
+}
+
+export function lotFacts(changes: OrderLotPatch): LotPatch {
+  const { bullion_id, metal_id, pre_melt, post_melt, purity, unit, quantity } = changes
+  return { bullion_id, metal_id, pre_melt, post_melt, purity, unit, quantity }
+}
+
+export function namesAnyOf(patch: object): boolean {
+  return Object.values(patch).some((value) => value !== undefined)
 }
 
 // A weight the conversion does not recognise used to be worth ZERO fine ounces
@@ -75,7 +91,7 @@ export function assertWeighable(
   }
 }
 
-export function retiersAfterEdit(changes: OrderItemPatch): boolean {
+export function retiersAfterEdit(changes: OrderLotPatch): boolean {
   if (changes.premium !== undefined) return false
   return (
     changes.pre_melt !== undefined ||
@@ -149,8 +165,24 @@ const SALE_LADDER: Record<string, string[]> = {
   Completed: ['In Transit'],
 }
 
-export function allLinesConfirmed(items: Pick<OrderItem, 'confirmed'>[]): boolean {
-  return items.length > 0 && items.every((item) => item.confirmed === true)
+export function allLotsConfirmed(lots: Pick<OrderLotView, 'confirmed'>[]): boolean {
+  return lots.length > 0 && lots.every((lot) => lot.confirmed === true)
+}
+
+// What Finalize is waiting on, in the operator's words, and the same list the
+// endpoint refuses on (Jacob's Sep 4-5 notes, section 7). Confirming a lot is
+// the admin saying the metal arrived and the declared weights hold, so the
+// handover condition is read off the lots rather than off a status - a status
+// is a pure label and drives nothing (ruling 2).
+export function finalizeBlockedBy(view: OrderViewFacts): string[] {
+  const blocked: string[] = []
+  if (view.order.direction !== 'purchase') blocked.push('this is not a purchase order')
+  if (view.lots.length === 0) blocked.push('the order holds no lots')
+  else if (!allLotsConfirmed(view.lots)) blocked.push('every lot has to be confirmed')
+  if (view.lots.some((lot) => lot.lot.content === null)) {
+    blocked.push('a lot has no fine weight, so it cannot be priced')
+  }
+  return blocked
 }
 
 export function creditsToAccount(payoutMethod: string | null): boolean {
@@ -162,7 +194,7 @@ export function statusesFor(view: OrderViewFacts): string[] {
   const offered = ladder[view.order.status ?? ''] ?? []
   return offered.filter((next) => {
     if (next === 'Payment Processing' && view.order.direction === 'purchase') {
-      return allLinesConfirmed(view.items)
+      return allLotsConfirmed(view.lots)
     }
     if (next === 'In Transit' && view.order.direction === 'sale') {
       return view.order.order_sent === true && view.order.tracking_updated === true
@@ -174,21 +206,62 @@ export function statusesFor(view: OrderViewFacts): string[] {
 export function actionsFor(view: OrderViewFacts): OrderActions {
   const purchase = view.order.direction === 'purchase'
   const sale = view.order.direction === 'sale'
+  const cancelled = view.order.status === 'Cancelled'
   const inbound = view.shipments.find((s) => s.direction === 'Inbound')
+  const blocked = finalizeBlockedBy(view)
   return {
-    cancel: purchase && view.address !== null,
-    finalize_pricing: purchase && allLinesConfirmed(view.items),
+    cancel: purchase && !cancelled && view.address !== null,
+    reopen: cancelled,
+    finalize: blocked.length === 0 && !view.order.spots_locked,
+    finalize_blocked_by: blocked,
     add_funds:
       purchase &&
       view.totals?.total != null &&
       creditsToAccount(view.payout?.method ?? null) &&
       !view.credited,
-    send_to_refiner: sale && view.address !== null,
+    supply: sale && view.lots.length > 0,
     buy_label: purchase && !!inbound && !inbound.tracking_number,
     update_tracking: view.shipments.length > 0,
-    edit_lines: purchase,
+    edit_lots: purchase && !view.order.spots_locked,
+    assign_lots: purchase && allLotsConfirmed(view.lots),
     statuses: statusesFor(view),
   }
+}
+
+// The Documents card, by handover method. An Invoice is Unavailable until the
+// order is finalized; every other row is available once the method that prints
+// it has been chosen. Rendering the new five is a later pass - this read is
+// what says which of them the order HAS.
+const BY_CATEGORY: Record<string, { kind: string; name: string }[]> = {
+  SHIPMENT: [
+    { kind: 'invoice', name: 'Invoice' },
+    { kind: 'packing_list', name: 'Packing List' },
+    { kind: 'return_packing_list', name: 'Return Packing List' },
+    { kind: 'shipping_instructions', name: 'Shipping Instructions' },
+  ],
+  PICKUP: [
+    { kind: 'invoice', name: 'Invoice' },
+    { kind: 'pickup_manifest', name: 'Pickup Manifest' },
+    { kind: 'pickup_instructions', name: 'Pickup Instructions' },
+  ],
+  DIRECT: [
+    { kind: 'invoice', name: 'Invoice' },
+    { kind: 'intake_receipt', name: 'Intake Receipt' },
+    { kind: 'appointment_instructions', name: 'Appointment Instructions' },
+  ],
+  DROPOFF: [
+    { kind: 'invoice', name: 'Invoice' },
+    { kind: 'settlement', name: 'Settlement' },
+    { kind: 'lot_manifest', name: 'Lot Manifest' },
+  ],
+}
+
+export function documentsFor(category: string | null, finalized: boolean): OrderDocument[] {
+  return (BY_CATEGORY[category ?? 'SHIPMENT'] ?? BY_CATEGORY.SHIPMENT!).map((row) => ({
+    kind: row.kind,
+    name: row.name,
+    available: row.kind === 'invoice' ? finalized : true,
+  }))
 }
 
 export function assertNamesAField(patch: object): void {
@@ -207,8 +280,8 @@ export function assertNamesASpotField(body: OrderSpotsPutBody): void {
   }
 }
 
-export function assertLine<T>(row: T | null | undefined, line_id: string): asserts row is T {
-  if (!row) throw new NotFound(`no order item ${line_id}`)
+export function assertLot<T>(row: T | null | undefined, lot_id: string): asserts row is T {
+  if (!row) throw new NotFound(`no order lot ${lot_id}`)
 }
 
 export function assertCatalogueProduct<T>(
@@ -233,31 +306,6 @@ export function assertDirection(
   if (direction !== wanted) {
     throw new Invalid(
       `${operation} is a ${wanted}-direction operation and this is a ${direction} order`
-    )
-  }
-}
-
-export function assertSendable(
-  order: OrderView,
-  refiner_id: string,
-  attachedRefinerId: string | null,
-  refinerEmail: string | null | undefined
-): void {
-  if (!order.address) {
-    throw new Invalid(
-      `sales order ${order.order.number} has no address, so it cannot be sent to a refiner`
-    )
-  }
-  if (order.order.order_sent === true && attachedRefinerId !== refiner_id) {
-    throw new Conflict(
-      `sales order ${order.order.number} has already been sent to a refiner. ` +
-        `Sending it to a different one would leave two refiners holding it.`
-    )
-  }
-  if (!refinerEmail) {
-    throw new Invalid(
-      `refiner ${refiner_id} has no email address, so sales order ` +
-        `${order.order.number} cannot be sent to them`
     )
   }
 }
@@ -318,17 +366,21 @@ export function assertNotAlreadyCredited(credited: boolean, number: string | num
   }
 }
 
-// MP F12: `actionsFor` offers finalize_pricing only when every line is
-// confirmed, and the endpoint asked nothing at all - so an order could be
+// The Finalize gate, enforced where it matters rather than only offered as a
+// button. MP F12: the endpoint used to ask nothing at all, so an order could be
 // priced, and its total written, from declared weights nobody had verified.
-export function assertAllLinesConfirmed(
-  items: Pick<OrderItem, 'confirmed'>[],
-  number: string | number | null
-): void {
-  if (!allLinesConfirmed(items)) {
+export function assertFinalizable(view: OrderViewFacts): void {
+  const blocked = finalizeBlockedBy(view)
+  if (blocked.length > 0) {
     throw new Invalid(
-      `order ${number} still has unconfirmed lines, so its pricing cannot be finalised`
+      `order ${view.order.number} cannot be finalized yet: ${blocked.join('; ')}`
     )
+  }
+}
+
+export function assertReopenable(view: OrderViewFacts): void {
+  if (view.order.status !== 'Cancelled') {
+    throw new Conflict(`order ${view.order.number} is not cancelled, so there is nothing to reopen`)
   }
 }
 
@@ -342,15 +394,6 @@ export function assertCreditCovers(balance: number | null | undefined, spending:
     throw new Conflict(
       `your Dorado balance changed while this order was being placed - ` +
         `it no longer covers the ${spending.toFixed(2)} this basket applies. Start again.`
-    )
-  }
-}
-
-export function assertRefinerAttached(attached: boolean, order_id: string): void {
-  if (!attached) {
-    throw new Error(
-      `sales order ${order_id}: the refiner was not attached - this ` +
-        `transaction must not commit`
     )
   }
 }
@@ -400,11 +443,11 @@ export function assertPlacedOrder<T>(
 }
 
 export function assertEveryMetalQuoted(
-  lines: Pick<OrderItem, 'metal_id'>[],
+  metals: string[],
   frozen: Pick<OrderSpot, 'metal_id'>[]
 ): void {
   const quoted = new Set(frozen.map((row) => row.metal_id))
-  for (const metal_id of new Set(lines.map((line) => line.metal_id))) {
+  for (const metal_id of new Set(metals)) {
     if (!quoted.has(metal_id)) {
       throw new Invalid(
         `there is no live quote for metal ${metal_id}, so this order cannot be priced`

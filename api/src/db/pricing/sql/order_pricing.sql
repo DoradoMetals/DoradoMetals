@@ -4,37 +4,39 @@ WITH ord AS (
    WHERE o.id = $1::uuid
 ),
 lines AS (
-  SELECT oi.id,
-         oi.bullion_id,
-         oi.metal_id,
-         COALESCE(oi.content, 0) AS content,
-         COALESCE(oi.quantity, 1) AS quantity,
-         oi.premium AS stored_premium,
-         oi.price AS stored_price,
+  SELECT ol.id,
+         li.bullion_id,
+         li.metal_id,
+         COALESCE(li.content, 0) AS content,
+         li.quantity,
+         ol.premium AS stored_premium,
+         ol.price AS stored_price,
          CASE WHEN ord.spots_locked THEN os.bid ELSE s.bid END AS bid,
-         CASE WHEN oi.bullion_id IS NULL
-              THEN COALESCE(oi.content, 0)
-              ELSE COALESCE(oi.content, 0) * COALESCE(oi.quantity, 1) END AS weighed
-    FROM orders.items oi
-    JOIN ord ON ord.id = oi.order_id
-    LEFT JOIN orders.spots os ON os.order_id = oi.order_id AND os.metal_id = oi.metal_id
-    LEFT JOIN spots.spots s ON s.metal_id = oi.metal_id
+         CASE WHEN li.bullion_id IS NULL
+              THEN COALESCE(li.content, 0)
+              ELSE COALESCE(li.content, 0) * li.quantity END AS weighed
+    FROM orders.lots ol
+    JOIN lots.items li ON li.id = ol.lot_id
+    JOIN ord ON ord.id = ol.order_id
+    LEFT JOIN orders.spots os ON os.order_id = ol.order_id AND os.metal_id = li.metal_id
+    LEFT JOIN spots.spots s ON s.metal_id = li.metal_id
 ),
 -- The bid and ask each of the order's metals is priced at, resolved exactly as
 -- `lines` resolves a line's bid: the frozen orders.spots row when the order is
 -- locked, the live feed when it is not. A metal appears only when the order has
--- a line in it, so a document prints the order's metals and no others.
+-- a lot in it, so a document prints the order's metals and no others.
 metal_spots AS (
-  SELECT DISTINCT ON (oi.metal_id)
-         oi.metal_id,
+  SELECT DISTINCT ON (li.metal_id)
+         li.metal_id,
          CASE WHEN ord.spots_locked THEN os.bid ELSE s.bid END AS bid,
          CASE WHEN ord.spots_locked THEN os.ask ELSE s.ask END AS ask
-    FROM orders.items oi
+    FROM orders.lots ol
+    JOIN lots.items li ON li.id = ol.lot_id
    CROSS JOIN ord
-    LEFT JOIN orders.spots os ON os.order_id = oi.order_id AND os.metal_id = oi.metal_id
-    LEFT JOIN spots.spots s ON s.metal_id = oi.metal_id
-   WHERE oi.order_id = ord.id
-   ORDER BY oi.metal_id, oi.id
+    LEFT JOIN orders.spots os ON os.order_id = ol.order_id AND os.metal_id = li.metal_id
+    LEFT JOIN spots.spots s ON s.metal_id = li.metal_id
+   WHERE ol.order_id = ord.id
+   ORDER BY li.metal_id, ol.id
 ),
 by_metal AS (
   SELECT metal_id, sum(weighed) AS total FROM lines GROUP BY metal_id

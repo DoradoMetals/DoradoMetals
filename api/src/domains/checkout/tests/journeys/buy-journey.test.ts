@@ -60,10 +60,9 @@ test('basket, row, a real intent and placement agree on one sales order', async 
 
       const basket = await as(customer, () =>
         request(app)
-          .put('/api/checkout/items')
+          .put('/api/checkout/lots')
           .query({ direction: 'sale' })
-          .send({
-            items: [{ bullion_id: product.id, quantity: 1 }],
+          .send({ lots: [{ bullion_id: product.id, quantity: 1 }],
           })
       )
       assert.equal(basket.status, 200, basket.text)
@@ -97,8 +96,8 @@ test('basket, row, a real intent and placement agree on one sales order', async 
 
       const placed = await place.place(checkout_id, stubWorld())
       assert.equal(placed.order.direction, 'sale')
-      assert.equal(placed.items.length, 1)
-      assert.equal(placed.items[0]!.bullion_id, product.id)
+      assert.equal(placed.lots.length, 1)
+      assert.equal(placed.lots[0]!.lot.bullion_id, product.id)
 
       const {
         rows: [attached],

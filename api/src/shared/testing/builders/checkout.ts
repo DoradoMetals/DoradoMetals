@@ -1,7 +1,8 @@
 import type { PoolClient } from 'pg'
 import { anUnknownId } from '#shared/testing/builders/ids.ts'
 import * as checkouts from '#db/checkout/checkouts/repo.ts'
-import * as items from '#db/checkout/items/repo.ts'
+import * as lots from '#db/lots/items/repo.ts'
+import * as checkoutLots from '#db/checkout/lots/repo.ts'
 import type { MetalName } from '#shared/testing/builders/reference.ts'
 import type { BuiltUser } from '#shared/testing/builders/users.ts'
 import type { BuiltProduct } from '#shared/testing/builders/products.ts'
@@ -12,7 +13,7 @@ export type BuiltCart = {
   id: string
   user_id: string
   direction: Direction
-  item_ids: string[]
+  lot_ids: string[]
 }
 
 export type CartOptions = { direction?: Direction }
@@ -41,10 +42,8 @@ class CartPlan implements PromiseLike<BuiltCart> {
       for (let i = 0; i < n; i += 1) {
         const pre_melt = options.pre_melt ?? 10 + i
         const purity = options.purity ?? 0.925
-        const row = await items.create(
+        const lot = await lots.create(
           {
-            checkout_id: cart.id,
-            bullion_id: null,
             metal_id,
             pre_melt,
             post_melt: null,
@@ -54,7 +53,8 @@ class CartPlan implements PromiseLike<BuiltCart> {
           },
           c
         )
-        cart.item_ids.push(row.id)
+        await checkoutLots.link(cart.id, lot.id, c)
+        cart.lot_ids.push(lot.id)
       }
     })
     return this
@@ -62,21 +62,10 @@ class CartPlan implements PromiseLike<BuiltCart> {
 
   withBullion(product: BuiltProduct, quantity = 1): this {
     this.steps.push(async (c, cart) => {
-      const row = await items.create(
-        {
-          checkout_id: cart.id,
-          bullion_id: product.id,
-          metal_id: product.metal_id,
-          pre_melt: product.gross,
-          post_melt: null,
-          purity: product.purity,
-          unit: 't oz',
-          premium: product.bid_premium,
-          quantity,
-        },
-        c
-      )
-      cart.item_ids.push(row.id)
+      const lot = await lots.createFromProduct(product.id, quantity, false, c)
+      if (!lot) throw new Error(`products.bullion has no row ${product.id} to copy`)
+      await checkoutLots.link(cart.id, lot.id, c)
+      cart.lot_ids.push(lot.id)
     })
     return this
   }
@@ -93,14 +82,14 @@ class CartPlan implements PromiseLike<BuiltCart> {
     const existing = await checkouts.findFor(this.user.id, direction, this.c)
     let id: string
     if (existing) {
-      await items.removeFor(existing.id, this.c)
+      await checkoutLots.removeFor(existing.id, this.c)
       id = existing.id
     } else {
       const created = await checkouts.create({ user_id: this.user.id, direction }, this.c)
       if (!created) throw new Error('checkout.checkouts refused a new session')
       id = created.id
     }
-    const cart: BuiltCart = { id, user_id: this.user.id, direction, item_ids: [] }
+    const cart: BuiltCart = { id, user_id: this.user.id, direction, lot_ids: [] }
     for (const step of this.steps) await step(this.c, cart)
     return cart
   }

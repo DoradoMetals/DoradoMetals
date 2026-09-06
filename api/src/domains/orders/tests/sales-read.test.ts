@@ -104,11 +104,11 @@ test('every line names a product and carries its own metal', async () => {
   assert.ok(all.length, 'no sales orders, so this test asserts nothing')
   let lines = 0
   for (const o of all) {
-    for (const item of o.items) {
+    for (const item of o.lots) {
       lines += 1
-      assert.ok(item.bullion_id, `line ${item.id} of a sale is not a bullion line`)
+      assert.ok(item.lot.bullion_id, `lot ${item.id} of a sale is not a bullion lot`)
       assert.ok(!('product' in item), `line ${item.id} still embeds the catalogue row`)
-      assert.ok(item.metal_id, `line ${item.id} carries no metal of its own`)
+      assert.ok(item.lot.metal_id, `lot ${item.id} carries no metal of its own`)
     }
   }
   assert.ok(lines, 'no sales order had a single line, so this test asserts nothing')

@@ -14,7 +14,6 @@ import {
   OrderCancelBody,
   OrderCreateBody,
   OrderPatch,
-  OrderSendToRefinerBody,
 } from '@dorado/contracts'
 
 export const listOrders = asyncHandler(async (req, res) => {
@@ -74,8 +73,16 @@ export const addFundsToOrder = asyncHandler(async (req, res) => {
   return res.status(200).json(await orders.addFunds(uuidParam(req, 'id')))
 })
 
-export const finalizeOrderPricing = asyncHandler(async (req, res) => {
-  return res.status(200).json(await orders.finalizePricing(uuidParam(req, 'id')))
+export const finalizeOrder = asyncHandler(async (req, res) => {
+  return res.status(200).json(await orders.finalize(uuidParam(req, 'id')))
+})
+
+export const reopenOrder = asyncHandler(async (req, res) => {
+  return res.status(200).json(await orders.reopen(uuidParam(req, 'id')))
+})
+
+export const getOrderDocuments = asyncHandler(async (req, res) => {
+  return res.json(await orders.documentsFor(uuidParam(req, 'id')))
 })
 
 export const cancelOrder = asyncHandler(async (req, res) => {
@@ -83,7 +90,3 @@ export const cancelOrder = asyncHandler(async (req, res) => {
   return res.status(200).json(await orders.cancel(uuidParam(req, 'id'), input))
 })
 
-export const sendOrderToRefiner = asyncHandler(async (req, res) => {
-  const { refiner_id } = strictBody(OrderSendToRefinerBody, req.body)
-  return res.status(200).json(await orders.sendToRefiner(uuidParam(req, 'id'), refiner_id))
-})

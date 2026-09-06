@@ -106,7 +106,7 @@ async function aQuotableOrder(c: PoolClient) {
     const unit_price = stored ? s.price! : s.content * (gold.bid * s.premium)
     const line_total = kind === 'product' ? unit_price * s.quantity : unit_price
     return {
-      id: order.items[i]!.id,
+      id: order.lots[i]!.id,
       kind,
       source: stored ? 'stored' : 'quoted',
       unit_price,
@@ -232,7 +232,7 @@ test('a locked order prices at its locked spots, an unlocked one at live', async
       const order = await anOrder(c, owner, { direction: 'purchase', status: 'Pending' })
         .withLines({ metal_id: gold.metal_id, content: 3, premium: 1, price: null })
         .withSpots({ bid: null })
-      const target = order.items[0]!
+      const target = order.lots[0]!
 
       await as({ ...owner, role: 'user' }, async () => {
         await c.query(`UPDATE orders.spots SET bid = $1 WHERE order_id = $2 AND metal_id = $3`, [

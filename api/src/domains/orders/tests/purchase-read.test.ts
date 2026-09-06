@@ -45,7 +45,7 @@ const viewsOf = async (ids: string[]) => {
 const VIEW_MEMBERS = [
   'order',
   'totals',
-  'items',
+  'lots',
   'address',
   'shipments',
   'pickup',
@@ -97,21 +97,21 @@ test('the address is the snapshot the order took, not the book entry', async () 
 test('a line is a product line or a scrap line, and never both', async () => {
   await inRollback(async (c: PoolClient) => {
     const views = await viewsOf(await purchaseIds(c))
-    const items = views.flatMap((v) => v.items)
+    const items = views.flatMap((v) => v.lots)
     assert.ok(items.length, 'no lines at all - this proves nothing')
 
-    const bullion = items.filter((i) => i.bullion_id !== null)
-    const scrap = items.filter((i) => i.bullion_id === null)
+    const bullion = items.filter((i) => i.lot.bullion_id !== null)
+    const scrap = items.filter((i) => i.lot.bullion_id === null)
     assert.ok(bullion.length, 'no bullion lines, so half of this proves nothing')
     assert.ok(scrap.length, 'no scrap lines, so half of this proves nothing')
 
     for (const line of bullion) {
       assert.ok(!('product' in line), 'a bullion line still embeds the catalogue row')
-      assert.ok(line.metal_id, 'orders.items.metal_id is NOT NULL')
+      assert.ok(line.lot.metal_id, 'lots.items.metal_id is NOT NULL')
     }
     for (const line of scrap) {
       assert.ok(!('product' in line), 'a scrap line still embeds the catalogue row')
-      assert.ok(line.metal_id, 'orders.items.metal_id is NOT NULL')
+      assert.ok(line.lot.metal_id, 'lots.items.metal_id is NOT NULL')
     }
   })
 })
@@ -119,7 +119,7 @@ test('a line is a product line or a scrap line, and never both', async () => {
 test("the refiner's assay figures are not members of an order line", async () => {
   await inRollback(async (c: PoolClient) => {
     const views = await viewsOf(await purchaseIds(c))
-    const items = views.flatMap((v) => v.items)
+    const items = views.flatMap((v) => v.lots)
     assert.ok(items.length, 'no lines at all - this proves nothing')
     for (const line of items) {
       for (const leaked of [

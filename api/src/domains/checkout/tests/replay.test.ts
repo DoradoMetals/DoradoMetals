@@ -32,10 +32,9 @@ async function seedOwnerCart(client: PoolClient, owner: Caller): Promise<number>
   const metal_id = 'Gold'
   const res = await as(owner, () =>
     request(app)
-      .put('/api/checkout/items')
+      .put('/api/checkout/lots')
       .query({ direction: 'purchase' })
-      .send({
-        items: [
+      .send({ lots: [
           { metal_id, pre_melt: 2.5, post_melt: 2.4, purity: 0.75, unit: 't oz', quantity: 1 },
         ],
       })
@@ -46,8 +45,8 @@ async function seedOwnerCart(client: PoolClient, owner: Caller): Promise<number>
 
 async function ownerCartCount(client: PoolClient, owner: Caller): Promise<number> {
   const { rows } = await client.query(
-    `SELECT count(*)::int AS n FROM checkout.items ci
-       JOIN checkout.checkouts c ON c.id = ci.checkout_id
+    `SELECT count(*)::int AS n FROM checkout.lots cl
+       JOIN checkout.checkouts c ON c.id = cl.checkout_id
       WHERE c.user_id = $1 AND c.direction = 'purchase'`,
     [owner.id]
   )
@@ -60,7 +59,7 @@ test('an anonymous caller cannot read a cart, whoever they name', async () => {
       await anonymous(async () => {
         for (const direction of ['purchase', 'sale']) {
           const res = await request(app)
-            .get('/api/checkout/items')
+            .get('/api/checkout/lots')
             .query({ direction, user_id: anUnknownId() })
           assert.ok(
             [401, 403].includes(res.status),
@@ -79,15 +78,15 @@ test('an anonymous caller cannot replace or empty a cart', async () => {
       await anonymous(async () => {
         for (const direction of ['purchase', 'sale']) {
           const put = await request(app)
-            .put('/api/checkout/items')
+            .put('/api/checkout/lots')
             .query({ direction, user_id: anUnknownId() })
-            .send({ items: [] })
+            .send({ lots: [] })
           assert.ok(
             [401, 403].includes(put.status),
             `PUT ${direction} answered ${put.status} to a request with no session`
           )
           const del = await request(app)
-            .delete('/api/checkout/items')
+            .delete('/api/checkout/lots')
             .query({ direction, user_id: anUnknownId() })
           assert.ok(
             [401, 403].includes(del.status),
@@ -110,7 +109,7 @@ test('a signed-in caller naming somebody else is refused, and still gets their o
 
       await as(stranger, async () => {
         const res = await request(app)
-          .get('/api/checkout/items')
+          .get('/api/checkout/lots')
           .query({ direction: 'purchase', user_id: owner.id })
         assert.equal(
           res.status,
@@ -121,13 +120,13 @@ test('a signed-in caller naming somebody else is refused, and still gets their o
 
       await as(owner, async () => {
         const own = await request(app)
-          .get('/api/checkout/items')
+          .get('/api/checkout/lots')
           .query({ direction: 'purchase', user_id: owner.id })
         assert.equal(own.status, 200, 'the owner was refused their own basket by naming themselves')
         assert.equal(own.body.length, seeded)
 
         const res = await request(app)
-          .get('/api/checkout/items')
+          .get('/api/checkout/lots')
           .query({ direction: 'purchase', user_id: stranger.id })
         assert.equal(res.status, 403, "the owner reached somebody else's basket by naming them")
       })
@@ -145,9 +144,9 @@ test("a stranger cannot replace somebody else's cart by naming them", async () =
 
       await as(stranger, async () => {
         const res = await request(app)
-          .put('/api/checkout/items')
+          .put('/api/checkout/lots')
           .query({ direction: 'purchase', user_id: owner.id })
-          .send({ items: [] })
+          .send({ lots: [] })
         assert.equal(res.status, 403, "a non-admin naming somebody else's basket was not refused")
       })
 
@@ -168,14 +167,14 @@ test('the owner can still read and sync their own cart', async () => {
       const seeded = await seedOwnerCart(client, owner)
 
       await as(owner, async () => {
-        const read = await request(app).get('/api/checkout/items').query({ direction: 'purchase' })
+        const read = await request(app).get('/api/checkout/lots').query({ direction: 'purchase' })
         assert.equal(read.status, 200, 'the owner was refused their own basket')
         assert.ok(Array.isArray(read.body) && read.body.length === seeded)
 
         const synced = await request(app)
-          .put('/api/checkout/items')
+          .put('/api/checkout/lots')
           .query({ direction: 'purchase' })
-          .send({ items: [] })
+          .send({ lots: [] })
         assert.equal(synced.status, 200, JSON.stringify(synced.body))
       })
     },
