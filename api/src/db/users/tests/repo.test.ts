@@ -89,12 +89,17 @@ test('an unrecognised mode is refused rather than blanking the balance', async (
   })
 })
 
-test('subtracting more than the balance goes negative', async () => {
+test('subtracting more than the balance is refused by the check constraint', async () => {
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c)
     await repo.adjustCredit(user, 'edit', 10, c)
-    await repo.adjustCredit(user, 'subtract', 100, c)
-    assert.equal(await balance(c, user), -90)
+    await c.query('SAVEPOINT before_overspend')
+    await assert.rejects(
+      () => repo.adjustCredit(user, 'subtract', 100, c),
+      /users_dorado_funds_non_negative/
+    )
+    await c.query('ROLLBACK TO SAVEPOINT before_overspend')
+    assert.equal(await balance(c, user), 10)
   })
 })
 

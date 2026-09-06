@@ -366,6 +366,7 @@ test('finalizing prices the order and pins its spots; the label that follows mov
     async (client: PoolClient) => {
       const { order } = await anOpenPurchaseOrder(client)
       await pinMetals(client)
+      await client.query(`UPDATE orders.items SET confirmed = true WHERE order_id = $1`, [order.id])
       await asAdmin(admin, async () => {
         const finalize = await request(app)
           .post(`/api/orders/${order.id}/finalize_pricing`)

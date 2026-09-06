@@ -440,6 +440,11 @@ const NOT_REBUILT = {
   'shipping.packages': 'seed data from 047, no exchange source',
 
   'media.emails': 'the mail log was created by 090, after the pivot; exchange never had one',
+  'media.pdfs':
+    'the document log was created by 090 alongside media.emails, after the ' +
+    'pivot; exchange never held a generated PDF, so there is no source to ' +
+    'rebuild one from. It only surfaced here when dev rendered its first ' +
+    'document.',
   'shipping.pickups':
     'NOT CARRIED, by ruling (Jacob, 2026-09-06): production holds no ' +
     "exchange.carrier_pickups rows at all and dev's are sandbox test rows, so " +

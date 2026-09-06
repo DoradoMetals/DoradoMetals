@@ -51,6 +51,7 @@ const VIEW_MEMBERS = [
   'pickup',
   'payout',
   'user',
+  'credited',
   'actions',
 ]
 

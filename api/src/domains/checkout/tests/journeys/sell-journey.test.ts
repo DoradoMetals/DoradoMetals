@@ -154,6 +154,9 @@ test("basket, row, fulfillment, payout and placement agree on one order's money"
       )
 
       await c.query(`UPDATE orders.orders SET spots_locked = true WHERE id = $1`, [placed.order.id])
+      await c.query(`UPDATE orders.items SET confirmed = true WHERE order_id = $1`, [
+        placed.order.id,
+      ])
       const priced = await asAdmin(admin, () =>
         request(app).post(`/api/orders/${placed.order.id}/finalize_pricing`)
       )
@@ -161,21 +164,22 @@ test("basket, row, fulfillment, payout and placement agree on one order's money"
       const total = Number(priced.body.totals?.total)
       assert.ok(Number.isFinite(total), 'finalize_pricing wrote no readable total')
 
+      // This order is paid out by ACH, so a Dorado balance is not where its
+      // money goes (MP F4). The action says so and the endpoint agrees; the
+      // DORADO_ACCOUNT path is pinned in orders/tests/add-funds.test.ts.
+      assert.equal(priced.body.actions.add_funds, false)
       const funded = await asAdmin(admin, () =>
         request(app).post(`/api/orders/${placed.order.id}/add_funds`)
       )
-      assert.equal(funded.status, 200, funded.text)
+      assert.equal(funded.status, 422, funded.text)
       const {
-        rows: [ledgerRow],
+        rows: [credits],
       } = await c.query(
-        `SELECT amount FROM payments.ledger WHERE order_id = $1 AND type = 'Credit'`,
+        `SELECT count(*)::int AS n FROM payments.ledger WHERE order_id = $1 AND type = 'Credit'`,
         [placed.order.id]
       )
-      assert.equal(
-        Number(ledgerRow.amount),
-        total,
-        'the ledger credit does not agree with the priced total'
-      )
+      assert.equal(credits.n, 0, 'an ACH payout still credited a Dorado balance')
+      assert.ok(total > 0, 'finalize_pricing wrote no positive total')
 
       for (const status of ['Received', 'Cancelled']) {
         const moved = await asAdmin(admin, () =>

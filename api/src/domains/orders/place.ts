@@ -8,6 +8,7 @@ import * as orderTransactions from '#db/orders/transactions/repo.ts'
 import * as paymentMethods from '#db/payments/methods/repo.ts'
 import * as intentsRepo from '#db/payments/intents/repo.ts'
 import * as placeAddresses from '#db/places/addresses/repo.ts'
+import * as usersRepo from '#db/users/repo.ts'
 
 import * as addressService from '#accounts/places/addresses/service.ts'
 import * as fulfillmentService from '#logistics/fulfillments/service.ts'
@@ -238,6 +239,14 @@ async function placeSale(
     )
 
     if (quote.pre_charges_amount > 0) {
+      // The quote read the balance outside this transaction. Re-read it under
+      // FOR UPDATE before spending it, so a concurrent placement or admin edit
+      // cannot leave the balance negative (MP F7 / MI F3). The schema half is
+      // 134's CHECK (dorado_funds >= 0).
+      rules.assertCreditCovers(
+        await usersRepo.balanceForUpdate(checkout.user_id, tx),
+        quote.pre_charges_amount
+      )
       await credit.removeFunds(checkout.user_id, quote.pre_charges_amount, tx)
       await transactionsService.addTransactionLog(
         {

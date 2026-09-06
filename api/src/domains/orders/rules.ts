@@ -1,5 +1,5 @@
-import { fineContent } from '#shared/utils/convertWeights.ts'
 import { Conflict, Invalid, NotFound } from '#shared/errors.ts'
+import { WeightUnit } from '@dorado/contracts'
 
 import type {
   CheckoutMissing,
@@ -33,16 +33,45 @@ export function assertSaleQuote(
   }
 }
 
+// A declared lot names its metal and its weights; its fine content is derived
+// from them by `metals.fine_content` when the row is written, and is not part
+// of what the caller declares (MP F1).
 export function declaredLot(
   declared: OrderItemPatch
 ): OrderItemWrite & Pick<OrderItem, 'metal_id'> {
   assertDeclaredMetal(declared.metal_id)
+  assertWeighable(
+    declared.bullion_id ?? null,
+    declared.unit,
+    declared.post_melt ?? declared.pre_melt,
+    declared.purity
+  )
   return {
     ...declared,
     metal_id: declared.metal_id,
     quantity: 1,
     confirmed: false,
-    content: fineContent(declared.pre_melt, declared.unit, declared.purity),
+  }
+}
+
+// A weight the conversion does not recognise used to be worth ZERO fine ounces
+// and a missing one threw a TypeError (MA F4). Both are defects in the row, so
+// the lot is refused here, before anything is written. A catalogue line carries
+// the product's own fine content and derives nothing, so its unit is not read.
+export function assertWeighable(
+  bullion_id: string | null | undefined,
+  unit: string | null | undefined,
+  weight: number | null | undefined,
+  purity: number | null | undefined
+): void {
+  if (bullion_id) return
+  if (weight === null || weight === undefined) return
+  if (purity === null || purity === undefined) return
+  if (!WeightUnit.safeParse(typeof unit === 'string' ? unit.toLowerCase() : unit).success) {
+    throw new Invalid(
+      `a lot weighed in ${unit === null || unit === undefined ? 'no unit' : `"${unit}"`} ` +
+        `cannot be valued - the business quotes in ${WeightUnit.options.join(', ')}`
+    )
   }
 }
 
@@ -143,7 +172,10 @@ export function actionsFor(view: OrderViewFacts): OrderActions {
     cancel: purchase && view.address !== null,
     finalize_pricing: purchase && allLinesConfirmed(view.items),
     add_funds:
-      purchase && view.totals?.total != null && creditsToAccount(view.payout?.method ?? null),
+      purchase &&
+      view.totals?.total != null &&
+      creditsToAccount(view.payout?.method ?? null) &&
+      !view.credited,
     send_to_refiner: sale && view.address !== null,
     buy_label: purchase && !!inbound && !inbound.tracking_number,
     update_tracking: view.shipments.length > 0,
@@ -254,6 +286,56 @@ export function assertCreditable(
 ): asserts amount is number {
   if (amount === null) {
     throw new Invalid(`order ${number} has no total, so there is nothing to credit`)
+  }
+}
+
+// The three tests `actionsFor.add_funds` already advertises, enforced where the
+// money moves (MP F4 / MI F2). Without them a second POST - an admin refresh is
+// enough - credited the customer the order total again, and an order being
+// WIRED was credited to a Dorado balance as well.
+export function assertPayableToAccount(
+  payoutMethod: string | null,
+  number: string | number | null
+): void {
+  if (!creditsToAccount(payoutMethod)) {
+    throw new Invalid(
+      `order ${number} is paid out by ${payoutMethod ?? 'no chosen method'}, ` +
+        `not into a Dorado balance`
+    )
+  }
+}
+
+export function assertNotAlreadyCredited(credited: boolean, number: string | number | null): void {
+  if (credited) {
+    throw new Conflict(`order ${number} has already been credited to the customer's balance`)
+  }
+}
+
+// MP F12: `actionsFor` offers finalize_pricing only when every line is
+// confirmed, and the endpoint asked nothing at all - so an order could be
+// priced, and its total written, from declared weights nobody had verified.
+export function assertAllLinesConfirmed(
+  items: Pick<OrderItem, 'confirmed'>[],
+  number: string | number | null
+): void {
+  if (!allLinesConfirmed(items)) {
+    throw new Invalid(
+      `order ${number} still has unconfirmed lines, so its pricing cannot be finalised`
+    )
+  }
+}
+
+// MP F7 / MI F3: the quote reads the balance outside the placement
+// transaction, so by the time the debit runs it can be stale. The balance is
+// re-read FOR UPDATE inside the transaction and compared against what the
+// quote promised to spend; a disagreement is the customer's to resolve, not
+// something to silently re-clamp under a total already quoted.
+export function assertCreditCovers(balance: number | null | undefined, spending: number): void {
+  if (Number(balance ?? 0) < spending) {
+    throw new Conflict(
+      `your Dorado balance changed while this order was being placed - ` +
+        `it no longer covers the ${spending.toFixed(2)} this basket applies. Start again.`
+    )
   }
 }
 

@@ -325,3 +325,68 @@ test("an anonymous caller cannot read a payout's bank details", async () => {
     { actor: TEST_ACTOR.id, lock: ORDER_LOCK }
   )
 })
+
+// MP F6. Every write in the engagement PATCH is money, and the fee, the pool
+// ounces and the pool remediation are each stored twice - on the engagement the
+// admin reads and on orders.transactions the margin report reads. They ran as
+// up to seven separate autocommitted statements, so a failure part-way left the
+// two copies disagreeing with nothing to reconcile them.
+test('an engagement PATCH that fails part-way writes none of the money', async () => {
+  await inPinnedTransaction(
+    async (client: PoolClient) => {
+      const { refinerMetal } = await world(client)
+      const engagementId = await withEngagement(client, refinerMetal.order_id)
+      await asAdmin(admin, async () => {
+        const res = await request(app)
+          .patch(`/api/refiners/orders/${engagementId}`)
+          .send({ fee: 23.45, refiner_id: '00000000-0000-4000-8000-000000000000' })
+
+        assert.ok(res.status >= 400, `a refiner nothing names was accepted (${res.status})`)
+
+        const engagement = (
+          await client.query(`SELECT fee FROM refiners.orders WHERE id = $1`, [engagementId])
+        ).rows[0]
+        assert.equal(engagement.fee, null, 'the fee survived a PATCH that could not finish')
+
+        const money = (
+          await client.query(`SELECT refiner_fee FROM orders.transactions WHERE order_id = $1`, [
+            refinerMetal.order_id,
+          ])
+        ).rows[0]
+        assert.equal(
+          money.refiner_fee,
+          null,
+          'the money row took a fee the engagement never kept - the two copies disagree'
+        )
+      })
+    },
+    { actor: TEST_ACTOR.id, lock: ORDER_LOCK }
+  )
+})
+
+// MA F4: refiners.items already holds rows with a NULL unit, and the JavaScript
+// that derived their content threw a TypeError on one and valued every
+// unrecognised unit at ZERO fine ounces - persisted, on a parcel of real metal.
+test('an assay in a unit nobody quotes in is refused, not valued at zero', async () => {
+  await inPinnedTransaction(
+    async (client: PoolClient) => {
+      const { scrapItem } = await world(client)
+      await asAdmin(admin, async () => {
+        for (const unit of ['kg', 'ozt', 'troy_oz']) {
+          const res = await request(app)
+            .patch(`/api/refiners/items/by-order-item/${scrapItem.id}`)
+            .send({ purity: 0.9, post_melt: 3.0, unit })
+          assert.equal(res.status, 422, `"${unit}" answered ${res.status}: ${res.text}`)
+        }
+
+        const { rows } = await client.query(
+          `SELECT content, unit FROM refiners.items WHERE order_item_id = $1`,
+          [scrapItem.id]
+        )
+        assert.equal(rows[0].content, null, 'a refused assay still wrote a content')
+        assert.equal(rows[0].unit, null, 'a refused assay still wrote its unit')
+      })
+    },
+    { actor: TEST_ACTOR.id, lock: ORDER_LOCK }
+  )
+})

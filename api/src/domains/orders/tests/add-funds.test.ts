@@ -6,7 +6,7 @@ import pool from '#pool'
 import { mockSessions, restoreSessions, as, asAdmin } from '#shared/testing/session.ts'
 import { TEST_ACTOR } from '#shared/testing/actor.ts'
 import { inPinnedTransaction } from '#shared/testing/pinned-pool.ts'
-import { aUser, anOrder } from '#shared/testing/builders/index.ts'
+import { aUser, anOrder, aPayout } from '#shared/testing/builders/index.ts'
 import { LOCKS } from '#shared/testing/locks.ts'
 
 const FUNDS_LOCKS = [LOCKS.USERS, LOCKS.ORDERS]
@@ -21,12 +21,18 @@ const admin: UserFixture = TEST_ACTOR
 
 const TOTAL = 1234.56
 
-const anOrderWorthSomething = async (c: PoolClient): Promise<OrderFixture> => {
+// A DORADO_ACCOUNT payout, because that is the only payout a Dorado balance
+// credits (MP F4): the rule was in `actionsFor` and nowhere near the money.
+const anOrderWorthSomething = async (
+  c: PoolClient,
+  method = 'DORADO_ACCOUNT'
+): Promise<OrderFixture> => {
   const customer = await aUser(c, { funds: 0 })
   const order = await anOrder(c, customer, { direction: 'purchase', status: 'Pending' })
     .withLots(1)
     .withSpots()
     .withTotals({ total: TOTAL })
+  await aPayout(c, customer, { method, order })
   return { id: order.id, user_id: customer.id, total_price: String(TOTAL) }
 }
 
@@ -115,6 +121,60 @@ test('a spot write just before the credit does not reach the ledger', async () =
           Number(order.total_price).toFixed(2),
           'the ledger amount followed the spot write that ran before it'
         )
+      })
+    },
+    { actor: TEST_ACTOR.id, lock: FUNDS_LOCKS }
+  )
+})
+
+test('a second add_funds is refused, and the action turns itself off', async () => {
+  await inPinnedTransaction(
+    async (client: PoolClient) => {
+      const order = await anOrderWorthSomething(client)
+      await asAdmin(admin, async () => {
+        const first = await request(app).post(`/api/orders/${order.id}/add_funds`).send({})
+        assert.equal(first.status, 200, first.text)
+        assert.equal(
+          first.body.actions.add_funds,
+          false,
+          'the drawer would still offer the button after the credit was paid'
+        )
+
+        const again = await request(app).post(`/api/orders/${order.id}/add_funds`).send({})
+        assert.equal(again.status, 409, `a second credit answered ${again.status}: ${again.text}`)
+
+        const { rows } = await client.query(
+          `SELECT count(*)::int AS n, coalesce(sum(amount), 0) AS total
+             FROM payments.ledger WHERE order_id = $1 AND type = 'Credit'`,
+          [order.id]
+        )
+        assert.equal(rows[0].n, 1, 'the customer was credited twice')
+        assert.equal(Number(rows[0].total).toFixed(2), TOTAL.toFixed(2))
+
+        const balance = await client.query(
+          `SELECT coalesce(dorado_funds, 0) AS funds FROM auth.users WHERE id = $1`,
+          [order.user_id]
+        )
+        assert.equal(Number(balance.rows[0].funds).toFixed(2), TOTAL.toFixed(2))
+      })
+    },
+    { actor: TEST_ACTOR.id, lock: FUNDS_LOCKS }
+  )
+})
+
+test('an order being paid out by wire is not credited to a Dorado balance', async () => {
+  await inPinnedTransaction(
+    async (client: PoolClient) => {
+      const order = await anOrderWorthSomething(client, 'WIRE')
+      await asAdmin(admin, async () => {
+        const res = await request(app).post(`/api/orders/${order.id}/add_funds`).send({})
+        assert.equal(res.status, 422, `answered ${res.status}: ${res.text}`)
+
+        const { rows } = await client.query(
+          `SELECT count(*)::int AS n FROM payments.ledger WHERE order_id = $1`,
+          [order.id]
+        )
+        assert.equal(rows[0].n, 0, 'the wired order still moved a Dorado balance')
       })
     },
     { actor: TEST_ACTOR.id, lock: FUNDS_LOCKS }

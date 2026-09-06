@@ -405,3 +405,75 @@ test('an admin naming a user_id nothing owns gets 404, not a minted row', async 
     { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] }
   )
 })
+
+// MP F2. `PATCH /api/checkout` took any payment_method_id at all, and both
+// quotes read the card surcharge and the payout fee straight off whatever row
+// the customer named.
+test('a payment method of the wrong direction, or a disabled one, is refused', async () => {
+  await inPinnedTransaction(
+    async (c: PoolClient) => {
+      const saleAch = await paymentMethodId(c, 'ACH', 'sale')
+      const disabled = await paymentMethodId(c, 'WIRE', 'sale')
+
+      const wrongWay = await as(customer, () =>
+        request(app)
+          .patch('/api/checkout')
+          .send({ direction: 'purchase', payment_method_id: saleAch })
+      )
+      assert.equal(wrongWay.status, 422, `a sale method landed on a purchase: ${wrongWay.text}`)
+
+      const off = await as(customer, () =>
+        request(app).patch('/api/checkout').send({ direction: 'sale', payment_method_id: disabled })
+      )
+      assert.equal(off.status, 422, `a disabled method was accepted: ${off.text}`)
+
+      const unknown = await as(customer, () =>
+        request(app)
+          .patch('/api/checkout')
+          .send({ direction: 'purchase', payment_method_id: anUnknownId() })
+      )
+      assert.equal(unknown.status, 404, unknown.text)
+
+      const row = await as(customer, () => request(app).get('/api/checkout?direction=purchase'))
+      assert.equal(row.body.payment_method_id, null, 'a refused method still landed on the row')
+    },
+    { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] }
+  )
+})
+
+test('a payment method that disagrees with the saved payout account is refused', async () => {
+  await inPinnedTransaction(
+    async (c: PoolClient) => {
+      const saved = await as(customer, () =>
+        request(app).post('/api/checkout/payout').send({
+          direction: 'purchase',
+          method: 'WIRE',
+          account_holder_name: 'Method Test',
+          bank_name: 'Test Bank',
+          account_type: 'Checking',
+          routing_number: '021000021',
+          account_number: '000123456789',
+        })
+      )
+      assert.equal(saved.status, 200, saved.text)
+      const wire = await paymentMethodId(c, 'WIRE', 'purchase')
+      assert.equal(saved.body.payment_method_id, wire, 'saving the payout did not set the method')
+
+      const account = await paymentMethodId(c, 'DORADO_ACCOUNT', 'purchase')
+      const swapped = await as(customer, () =>
+        request(app)
+          .patch('/api/checkout')
+          .send({ direction: 'purchase', payment_method_id: account })
+      )
+      assert.equal(
+        swapped.status,
+        422,
+        `the payout fee was the customer's to waive: ${swapped.text}`
+      )
+
+      const row = await as(customer, () => request(app).get('/api/checkout?direction=purchase'))
+      assert.equal(row.body.payment_method_id, wire, 'the swap landed anyway')
+    },
+    { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.USERS] }
+  )
+})

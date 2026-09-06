@@ -1,9 +1,10 @@
 import { Forbidden, Invalid, NotFound } from '#shared/errors.ts'
 import { columnsOf } from '#shared/db/columns.ts'
-import { CheckoutWrite } from '@dorado/contracts'
-import { fineContent } from '#shared/utils/convertWeights.ts'
+import { CheckoutWrite, WeightUnit } from '@dorado/contracts'
 import type {
   Checkout,
+  PaymentDetailsView,
+  PaymentMethod,
   CheckoutDecisions,
   CheckoutItem,
   CheckoutItemWrite,
@@ -27,7 +28,11 @@ export function assertProductAvailable(
   if (!written) throw new Invalid(`product ${bullion_id} is not available`)
 }
 
+// The line's fine content is derived by `metals.fine_content` when the row is
+// written - one definition, in SQL, shared with the order the basket becomes
+// (MP F1, MA F4, MA F10).
 export function scrapLine(checkout_id: string, line: CheckoutScrapLine): CheckoutItemWrite {
+  assertWeighable(line.unit, line.post_melt ?? line.pre_melt, line.purity)
   return {
     checkout_id,
     bullion_id: null,
@@ -35,10 +40,54 @@ export function scrapLine(checkout_id: string, line: CheckoutScrapLine): Checkou
     pre_melt: line.pre_melt,
     post_melt: line.post_melt ?? null,
     purity: line.purity,
-    content: fineContent(line.pre_melt, line.unit, line.purity),
     unit: line.unit,
     premium: null,
     quantity: line.quantity ?? null,
+  }
+}
+
+export function assertWeighable(
+  unit: string | null | undefined,
+  weight: number | null | undefined,
+  purity: number | null | undefined
+): void {
+  if (weight === null || weight === undefined) return
+  if (purity === null || purity === undefined) return
+  if (!WeightUnit.safeParse(typeof unit === 'string' ? unit.toLowerCase() : unit).success) {
+    throw new Invalid(
+      `a lot weighed in ${unit === null || unit === undefined ? 'no unit' : `"${unit}"`} ` +
+        `cannot be valued - the business quotes in ${WeightUnit.options.join(', ')}`
+    )
+  }
+}
+
+// MP F2: `PATCH /api/checkout` took any payment_method_id at all, and both
+// quotes read the card surcharge and the payout fee straight off whatever row
+// the customer named. A CREDIT method on a card checkout waived the surcharge
+// while Stripe still charged the card; DORADO_ACCOUNT on a WIRE payout made
+// the business pay the wire fee. The method has to be a real, enabled method of
+// this checkout's own direction, and it has to be the method of the payout
+// account the checkout already holds.
+export function assertSettlementMethod(
+  method: PaymentMethod | undefined,
+  method_id: string,
+  direction: Direction,
+  details: Pick<PaymentDetailsView, 'method_id'> | undefined
+): void {
+  if (!method) throw new NotFound(`no payment method ${method_id}`)
+  if (method.direction !== direction) {
+    throw new Invalid(
+      `payment method ${method.type} settles a ${method.direction} and this is a ${direction}`
+    )
+  }
+  if (!method.enabled) {
+    throw new Invalid(`payment method ${method.type} is not accepted`)
+  }
+  if (details && details.method_id !== null && details.method_id !== method_id) {
+    throw new Invalid(
+      `payment method ${method.type} is not the method of the payout account this ` +
+        `checkout holds`
+    )
   }
 }
 

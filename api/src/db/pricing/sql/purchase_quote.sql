@@ -56,6 +56,7 @@ priced AS (
          t.quantity,
          COALESCE(t.band_pct, t.stored_premium, 0) AS premium,
          t.content * (COALESCE(t.bid, 0) * COALESCE(t.band_pct, t.stored_premium, 0)) AS unit_price,
+         t.bid,
          t.bullion_id
     FROM tiered t
 ),
@@ -70,7 +71,10 @@ totals AS (
 charge AS (
   SELECT COALESCE(pm.flat_fee, 0) AS payout_charge
     FROM checkout
+    -- Only a real, enabled purchase method charges a payout fee (MP F2).
     LEFT JOIN payments.methods pm ON pm.id = checkout.payment_method_id
+                                 AND pm.enabled
+                                 AND pm.direction = 'purchase'
 ),
 ceiling AS (
   SELECT COALESCE(min(sv.max_insured_value), 0) AS insured
@@ -96,6 +100,15 @@ SELECT jsonb_build_object(
                                           ELSE p.unit_price * p.quantity END)
                      ORDER BY p.id ASC)
               FROM priced p),
+           '[]'::jsonb),
+         -- A metal with no live bid quotes ZERO here, and the customer decides
+         -- to ship metal on that number (MP F9). `order_pricing.sql` has always
+         -- had this array; the sell-side quote did not, so only the sale side
+         -- was ever refused.
+         'unpriceable', COALESCE(
+           (SELECT jsonb_agg(p.id ORDER BY p.id ASC)
+              FROM priced p
+             WHERE p.bid IS NULL),
            '[]'::jsonb),
          'scrap_total', totals.scrap_total,
          'bullion_total', totals.bullion_total,

@@ -31,7 +31,6 @@ type LotOptions = {
   pre_melt?: number
   post_melt?: number | null
   purity?: number
-  content?: number | null
   price?: number | null
   confirmed?: boolean
   unit?: string
@@ -74,7 +73,6 @@ class OrderPlan implements PromiseLike<BuiltOrder> {
             pre_melt,
             post_melt: options.post_melt ?? null,
             purity,
-            content: options.content ?? Number((pre_melt * purity).toFixed(4)),
             quantity: 1,
             confirmed: options.confirmed ?? false,
             unit: options.unit ?? 'g',

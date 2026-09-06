@@ -189,3 +189,59 @@ test("shipping is free over $1000 and the service row's price under it", async (
     { actor: TEST_ACTOR.id, lock: SALE_LOCKS }
   )
 })
+
+// MP F2. The customer names payment_method_id, and the quote read the surcharge
+// off whatever they named. CREDIT settles from the balance the quote has
+// already applied, carries surcharge 0, and leaves `payment_surface` at 'card',
+// so naming it took the whole surcharge off a card charge that still happened -
+// $254 on the $8,762 basket the review measured.
+test('a method that cannot take the charge does not set its surcharge', async () => {
+  await inPinnedTransaction(
+    async (c: PoolClient) => {
+      const credit = await aBasket(c, 0, 'CREDIT')
+      const card = await aBasket(c, 0, 'CARD')
+
+      assert.equal(credit.payment_surface, 'card', 'this basket is charged either way')
+      assert.ok(credit.charges_amount > 0, 'naming CREDIT waived the surcharge on a card charge')
+      assert.equal(
+        Number(credit.charges_amount.toFixed(6)),
+        Number((credit.subject_to_charges_amount * 0.029).toFixed(6)),
+        'the surcharge is not the card default'
+      )
+      assert.equal(
+        Number(credit.order_total.toFixed(2)),
+        Number(card.order_total.toFixed(2)),
+        'the customer picked their own total'
+      )
+    },
+    { actor: TEST_ACTOR.id, lock: SALE_LOCKS }
+  )
+})
+
+// MP F9. `spots.spots.bid` is nullable, and purchase_quote swallowed a null one
+// as COALESCE(bid, 0): a sell basket quoted $0.00 for those lines, with a 200
+// and no warning, and the customer decides to ship metal on that number.
+test('a sell basket whose metal has no live bid is refused, not quoted at zero', async () => {
+  await inPinnedTransaction(
+    async (c: PoolClient) => {
+      const cart = await aCart(c, await aUser(c), { direction: 'purchase' }).withLots(1, {
+        metal_id: 'Platinum',
+        pre_melt: 1,
+        purity: 1,
+        unit: 't oz',
+      })
+      const priced = await pricing.priceCheckout(cart.id)
+      assert.equal(priced.direction, 'purchase')
+      assert.ok(priced.direction === 'purchase' && priced.total > 0, 'the fixture priced at all')
+
+      await c.query(`UPDATE spots.spots SET bid = NULL WHERE metal_id = 'Platinum'`)
+
+      await assert.rejects(
+        () => pricing.priceCheckout(cart.id),
+        /cannot be priced/,
+        'a metal with no bid still quoted a payout'
+      )
+    },
+    { actor: TEST_ACTOR.id, lock: [...SALE_LOCKS, LOCKS.USERS] }
+  )
+})

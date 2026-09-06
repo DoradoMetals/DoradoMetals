@@ -10,3 +10,10 @@ export const Metal = z.object({
 })
 export type Metal = z.infer<typeof Metal>
 // generated:end
+
+// The weight vocabulary the business quotes in. `metals.fine_content` in SQL
+// is the one definition of what each label converts to; these are the labels
+// it knows, and a lot carrying anything else is refused before it is written
+// rather than valued at nothing (MA F4).
+export const WeightUnit = z.enum(['t oz', 'g', 'dwt', 'lb'])
+export type WeightUnit = z.infer<typeof WeightUnit>

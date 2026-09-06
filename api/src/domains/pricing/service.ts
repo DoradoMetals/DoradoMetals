@@ -42,9 +42,7 @@ export async function priceCheckout(
         )
       : await pricing.purchaseQuote(checkout_id, executor)
   rules.assertPriced(quote, `checkout ${checkout_id}`)
-  if (quote.direction === 'sale') {
-    rules.assertPriceable(quote.unpriceable, `checkout ${checkout_id}`)
-  }
+  rules.assertPriceable(quote.unpriceable, `checkout ${checkout_id}`)
   return quote
 }
 

@@ -15,20 +15,7 @@ export async function setSpots(orderId: string, body: OrderSpotsPutBody): Promis
   rules.assertNamesASpotField(body)
 
   await withTransaction(async (tx) => {
-    if (body.lock !== undefined) {
-      await ordersRepo.update(orderId, { spots_locked: body.lock }, {}, tx)
-      const repriced = await spotsRepo.setBidsFromFeed(orderId, body.lock, tx)
-      if (repriced === 0) {
-        reportError({
-          at: 'orders.spots.setSpots',
-          message:
-            `order ${orderId} has no orders.spots rows, so the ` +
-            `${body.lock ? 'lock' : 'unlock'} repriced nothing and the caller was ` +
-            `told it succeeded`,
-          extra: { order_id: orderId, lock: body.lock },
-        })
-      }
-    }
+    if (body.lock !== undefined) await applyLock(orderId, body.lock, tx)
 
     for (const edit of body.set ?? []) {
       await spotsRepo.update(orderId, edit.metal_id, { bid: edit.bid }, tx)
@@ -36,4 +23,21 @@ export async function setSpots(orderId: string, body: OrderSpotsPutBody): Promis
   })
 
   return await rowsFor(orderId)
+}
+
+// Locking takes today's bid AND ask onto every frozen row; unlocking clears
+// both (MP F10). One statement, and its row count is looked at: an order with
+// no orders.spots rows repriced nothing and the caller was told it succeeded.
+export async function applyLock(orderId: string, locked: boolean, tx: Executor): Promise<void> {
+  await ordersRepo.update(orderId, { spots_locked: locked }, {}, tx)
+  if ((await spotsRepo.setBidsFromFeed(orderId, locked, tx)) === 0) {
+    reportError({
+      at: 'orders.spots.applyLock',
+      message:
+        `order ${orderId} has no orders.spots rows, so the ` +
+        `${locked ? 'lock' : 'unlock'} repriced nothing and the caller was ` +
+        `told it succeeded`,
+      extra: { order_id: orderId, lock: locked },
+    })
+  }
 }

@@ -35,7 +35,6 @@ export async function create(row: CheckoutItemWrite, executor?: Executor): Promi
       row.pre_melt,
       row.post_melt,
       row.purity,
-      row.content,
       row.unit,
       row.premium,
       row.quantity,
