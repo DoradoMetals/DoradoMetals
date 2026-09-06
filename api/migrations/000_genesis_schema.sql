@@ -90,7 +90,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
     WHERE t.typname = 'email_kind' AND n.nspname = 'media'
   ) THEN
-    CREATE TYPE media.email_kind AS ENUM ('purchase_order_created', 'purchase_order_priced', 'sales_order_to_supplier', 'auth_verification');
+    CREATE TYPE media.email_kind AS ENUM ('purchase_order_created', 'purchase_order_priced', 'sales_order_to_supplier', 'auth_verification', 'sales_order_created');
   END IF;
 END $$;
 
@@ -1562,6 +1562,16 @@ DO $$ BEGIN
     WHERE con.conname = 'session_token_key' AND c.relname = 'sessions' AND n.nspname = 'auth'
   ) THEN
     ALTER TABLE auth.sessions ADD CONSTRAINT session_token_key UNIQUE (token);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'users_dorado_funds_non_negative' AND c.relname = 'users' AND n.nspname = 'auth'
+  ) THEN
+    ALTER TABLE auth.users ADD CONSTRAINT users_dorado_funds_non_negative CHECK ((dorado_funds >= (0)::numeric)) NOT VALID;
   END IF;
 END $$;
 DO $$ BEGIN
@@ -3633,6 +3643,7 @@ CREATE INDEX IF NOT EXISTS idx_shipping_shipments_recipient_address_id ON shippi
 CREATE INDEX IF NOT EXISTS idx_shipping_shipments_shipper_address_id ON shipping.shipments USING btree (shipper_address_id);
 CREATE INDEX IF NOT EXISTS shipments_service_idx ON shipping.shipments USING btree (carrier_service_id);
 CREATE INDEX IF NOT EXISTS shipments_tracking_idx ON shipping.shipments USING btree (tracking_number);
+CREATE UNIQUE INDEX IF NOT EXISTS shipments_tracking_number_unique ON shipping.shipments USING btree (tracking_number) WHERE (tracking_number IS NOT NULL);
 CREATE INDEX IF NOT EXISTS shipment_events_shipment_time_idx ON shipping.tracking USING btree (shipment_id, "time");
 CREATE INDEX IF NOT EXISTS idx_current_spots_metal ON spots.spots USING btree (metal_id);
 CREATE UNIQUE INDEX IF NOT EXISTS sales_tax_state_key ON tax.sales_tax USING btree (state);
@@ -3640,18 +3651,33 @@ CREATE INDEX IF NOT EXISTS sales_tax_rules_lookup_idx ON tax.sales_tax_rules USI
 
 -- Functions ----------------------------------------------------------
 
-CREATE OR REPLACE FUNCTION metals.convert_to_troy_oz(val numeric, unit text)
+CREATE OR REPLACE FUNCTION metals.fine_content(weight numeric, unit text, purity numeric)
  RETURNS numeric
- LANGUAGE sql
+ LANGUAGE plpgsql
  IMMUTABLE
 AS $function$
-  SELECT CASE lower(coalesce(unit, ''))
-    WHEN 't oz' THEN val
-    WHEN 'g'    THEN val / 31.1035
-    WHEN 'dwt'  THEN val / 20
-    WHEN 'lb'   THEN val * (453.592 / 31.1035)
-    ELSE NULL
+DECLARE
+  troy_oz numeric;
+BEGIN
+  IF weight IS NULL OR purity IS NULL THEN
+    RETURN NULL;
+  END IF;
+
+  troy_oz := CASE lower(coalesce(unit, ''))
+    WHEN 't oz' THEN weight
+    WHEN 'g'    THEN weight / 31.1034768
+    WHEN 'dwt'  THEN weight / 20
+    WHEN 'lb'   THEN weight * (175.0 / 12.0)
   END;
+
+  IF troy_oz IS NULL THEN
+    RAISE EXCEPTION USING
+      ERRCODE = 'invalid_parameter_value',
+      MESSAGE = format('%L is not a weight this business quotes in', unit);
+  END IF;
+
+  RETURN purity * troy_oz;
+END;
 $function$;
 
 -- Views --------------------------------------------------------------

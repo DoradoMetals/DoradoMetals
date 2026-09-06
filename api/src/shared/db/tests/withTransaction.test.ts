@@ -2,6 +2,7 @@ import { test } from 'vitest'
 import assert from 'node:assert/strict'
 import type { PoolClient } from 'pg'
 import withTransaction from '#shared/db/withTransaction.ts'
+import pool from '#pool'
 import { inPinnedTransaction } from '#shared/testing/pinned-pool.ts'
 import { runWithActor } from '#shared/http/actor.ts'
 
@@ -104,4 +105,42 @@ test('actor: null does not override an ambient actor already in scope', async ()
       assert.equal(seen, AMBIENT)
     })
   })
+})
+
+test('a ROLLBACK that itself fails does not replace the failure that caused it', async () => {
+  const real = pool.connect.bind(pool)
+  let released = false
+
+  pool.connect = (async () => {
+    const client = (await real()) as PoolClient
+    const query = client.query.bind(client)
+    const release = client.release.bind(client)
+    return {
+      query: (text: unknown, values?: unknown) => {
+        if (text === 'ROLLBACK') {
+          return Promise.reject(new Error('connection terminated unexpectedly'))
+        }
+        return query(text as string, values as unknown[])
+      },
+      release: () => {
+        released = true
+        return release()
+      },
+    }
+  }) as typeof pool.connect
+
+  try {
+    await assert.rejects(
+      () =>
+        withTransaction(async () => {
+          throw new Error('the real failure')
+        }),
+      /the real failure/,
+      'the rollback threw over the original error, so the failure that mattered was lost'
+    )
+  } finally {
+    pool.connect = real
+  }
+
+  assert.equal(released, true, 'the client was not returned to the pool')
 })

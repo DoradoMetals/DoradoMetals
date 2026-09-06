@@ -97,3 +97,23 @@ test("remove answers false for an address in someone else's book", async () => {
     )
   })
 })
+
+test('the address book comes back in a stated order, not the heap order', async () => {
+  await inRollback(async (c: PoolClient) => {
+    const user = await aUser(c)
+    await anAddress(c, user, { label: 'Work', default_shipping: false })
+    await anAddress(c, user, { label: 'Alpha', default_shipping: false })
+    const home = await anAddress(c, user, { label: 'Home', default_shipping: true })
+
+    const first = (await userAddresses.listFor(user.id, c)).map((a) => a.label)
+    assert.deepEqual(first, ['Home', 'Alpha', 'Work'], 'the book is not ordered')
+
+    await userAddresses.update(home.id, user.id, { label: 'Home' }, c)
+    assert.deepEqual(
+      (await userAddresses.listFor(user.id, c)).map((a) => a.label),
+      first,
+      'editing one address reshuffled the list - postgres moves an updated row ' +
+        'within its heap, and the SQL had no ORDER BY'
+    )
+  })
+})

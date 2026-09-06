@@ -3,12 +3,19 @@ import type { PoolClient } from 'pg'
 import query from '#shared/db/query.ts'
 
 type OrderBody = {
-  order?: { id?: string | null } | null
   order_id?: string | null
 }
 
 function orderIdFrom(body: OrderBody = {}): string | null {
-  return body.order?.id ?? body.order_id ?? null
+  return body.order_id ?? null
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+function oneId(raw: unknown): string | null {
+  if (typeof raw === 'string') return raw
+  if (Array.isArray(raw) && typeof raw[0] === 'string') return raw[0]
+  return null
 }
 
 export async function orderOwnedBy(
@@ -85,30 +92,36 @@ export function requireOwnShipment(req: Request, res: Response, next: NextFuncti
   }
   if (req.user.role === 'admin') return next()
 
-  const rawParam = req.params?.id
-  const shipmentId =
-    req.body?.shipment_id ??
-    req.query?.shipment_id ??
-    (Array.isArray(rawParam) ? rawParam[0] : rawParam) ??
-    null
-  if (!shipmentId) {
+  const named = [
+    oneId(req.params?.id),
+    oneId((req.body as { shipment_id?: unknown } | undefined)?.shipment_id),
+    oneId(req.query?.shipment_id),
+  ].filter((id): id is string => id !== null)
+
+  const subjects = [...new Set(named)]
+  if (subjects.length === 0) {
     return res.status(400).json({
       error: 'Bad Request',
       message: 'no shipment was named',
     })
   }
+  if (!subjects.every((id) => UUID.test(id))) {
+    return res.status(403).json({
+      error: 'Forbidden',
+      message: 'That shipment is not yours',
+    })
+  }
 
   query(
-    `SELECT 1
+    `SELECT count(DISTINCT fs.shipment_id)::int AS owned
        FROM fulfillments.shipments fs
        JOIN fulfillments.fulfillments f ON f.id = fs.fulfillment_id
        JOIN orders.orders o ON o.id = f.order_id
-      WHERE fs.shipment_id = $1 AND o.user_id = $2
-      LIMIT 1`,
-    [shipmentId, req.user.id]
+      WHERE fs.shipment_id = ANY($1::uuid[]) AND o.user_id = $2`,
+    [subjects, req.user.id]
   )
     .then(({ rows }) => {
-      if (!rows.length) {
+      if ((rows[0] as { owned?: number } | undefined)?.owned !== subjects.length) {
         return res.status(403).json({
           error: 'Forbidden',
           message: 'That shipment is not yours',

@@ -13,5 +13,5 @@ SELECT a.provider_ref AS payment_intent_id,
   LEFT JOIN orders.orders o ON o.id = i.order_id
  WHERE i.user_id = $1
    AND i.status <> 'canceled'
- ORDER BY (i.order_id IS NULL) DESC, i.created_at DESC, i.id
+ ORDER BY (i.order_id IS NULL) DESC, i.created_at DESC, i.id, a.created_at DESC, a.id
  LIMIT 1

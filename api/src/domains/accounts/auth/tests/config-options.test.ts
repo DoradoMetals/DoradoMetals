@@ -101,3 +101,25 @@ test('every option this codebase sets is one better-auth has heard of', () => {
   )
   console.log(`      ${checked} configured option(s) checked against better-auth's build`)
 })
+
+test('UNDECIDED, pinned as it stands: a ban bites only after the cookie cache expires', () => {
+  const cookieCache = options.session.cookieCache
+
+  assert.equal(
+    cookieCache.enabled,
+    true,
+    'this is finding 35 and it is a decision Jacob has not made. With cookieCache ' +
+      'on, better-auth answers the session route from the SIGNED COOKIE with no ' +
+      'database read, and the admin plugin only checks `banned` at sign-in - so a ' +
+      'ban, a revoked session and a demotion from admin all keep working until the ' +
+      'cached payload expires. Changing this without a ruling is not the fix.'
+  )
+  assert.equal(cookieCache.maxAge, 5 * 60, 'the window a stale session survives, in seconds')
+
+  const source = fs.readFileSync(new URL('../../../../shared/middleware/authMiddleware.ts', import.meta.url), 'utf8')
+  assert.ok(
+    !/\bbanned\b/.test(source),
+    'requireAuth still never looks at `banned`; if that changed, the decision was ' +
+      'taken and this pin should move with it'
+  )
+})

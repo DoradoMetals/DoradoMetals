@@ -9,7 +9,7 @@ export const uploadImage = asyncHandler(async (req, res) => {
   const result = await mediaService.uploadImage(
     callerId(req),
     body.filename,
-    body.mime_type ?? null,
+    body.mime_type,
     body.size_bytes ?? null
   )
   return res.status(201).json(result)

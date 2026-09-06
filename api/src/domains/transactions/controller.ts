@@ -1,4 +1,8 @@
-import { CancelPaymentIntentBody, UpdatePaymentIntentBody } from '@dorado/contracts'
+import {
+  CancelPaymentIntentBody,
+  PaymentIntentType,
+  UpdatePaymentIntentBody,
+} from '@dorado/contracts'
 import { asyncHandler } from '#shared/middleware/asyncHandler.ts'
 import { oneString } from '#shared/http/query.ts'
 import { parseStrict, uuidLike } from '#shared/http/validate.ts'
@@ -62,9 +66,10 @@ export const retrievePaymentIntent = asyncHandler(async (req, res) => {
   if (req.query.type === 'admin' && req.user?.role !== 'admin') {
     return res.status(403).json({ error: 'Forbidden' })
   }
+  const type = parseStrict(PaymentIntentType, oneString(req.query.type), 'type')
   const paymentIntent = await stripeService.retrievePaymentIntent(
     callerOf(req),
-    oneString(req.query.type),
+    type,
     oneString(req.query.user_id)
   )
   res.json(paymentIntent.client_secret)

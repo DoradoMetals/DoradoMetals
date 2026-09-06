@@ -3,7 +3,7 @@
         "scope": "https://api.stripe.com:443",
         "method": "POST",
         "path": "/v1/payment_intents",
-        "body": "amount=5000&currency=usd&capture_method=automatic&automatic_payment_methods%5Benabled%5D=true&metadata%5Btype%5D=customer&metadata%5Buser_id%5D=SCRUBBED_USER_ID&metadata%5Bsession_id%5D=SCRUBBED_SESSION_ID",
+        "body": "amount=5000&currency=usd&capture_method=automatic&automatic_payment_methods%5Benabled%5D=true&metadata%5Btype%5D=SCRUBBED_INTENT_TYPE&metadata%5Buser_id%5D=SCRUBBED_USER_ID&metadata%5Bsession_id%5D=SCRUBBED_SESSION_ID",
         "status": 200,
         "response": {
             "id": "pi_3UCFfyCaZvyVaDJO0taXNeX7",
@@ -95,7 +95,7 @@
         "scope": "https://api.stripe.com:443",
         "method": "POST",
         "path": "/v1/payment_intents",
-        "body": "amount=5000&currency=usd&capture_method=automatic&automatic_payment_methods%5Benabled%5D=true&metadata%5Btype%5D=customer&metadata%5Buser_id%5D=SCRUBBED_USER_ID&metadata%5Bsession_id%5D=SCRUBBED_SESSION_ID",
+        "body": "amount=5000&currency=usd&capture_method=automatic&automatic_payment_methods%5Benabled%5D=true&metadata%5Btype%5D=SCRUBBED_INTENT_TYPE&metadata%5Buser_id%5D=SCRUBBED_USER_ID&metadata%5Bsession_id%5D=SCRUBBED_SESSION_ID",
         "status": 200,
         "response": {
             "id": "pi_3UCFfyCaZvyVaDJO0taXNeX7",

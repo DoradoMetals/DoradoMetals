@@ -1,7 +1,16 @@
 WITH victims AS (
-  SELECT id FROM auth.users
-   WHERE id = ANY($1::uuid[])
-     AND "isAnonymous"
+  SELECT id FROM auth.users u
+   WHERE u.id = ANY($1::uuid[])
+     AND u."isAnonymous"
+     AND NOT EXISTS (SELECT 1 FROM auth.employees      e  WHERE e.user_id = u.id)
+     AND NOT EXISTS (SELECT 1 FROM auth.sessions       si WHERE si."impersonatedBy" = u.id)
+     AND NOT EXISTS (SELECT 1 FROM orders.orders       o  WHERE o.user_id = u.id)
+     AND NOT EXISTS (SELECT 1 FROM payments.intents    pi WHERE pi.user_id = u.id)
+     AND NOT EXISTS (SELECT 1 FROM payments.details    pd WHERE pd.user_id = u.id)
+     AND NOT EXISTS (SELECT 1 FROM payments.ledger     pl WHERE pl.user_id = u.id)
+     AND NOT EXISTS (SELECT 1 FROM media.images        mi WHERE mi.user_id = u.id)
+     AND NOT EXISTS (SELECT 1 FROM media.emails        me WHERE me.user_id = u.id)
+     AND NOT EXISTS (SELECT 1 FROM reviews.reviews     r  WHERE r.user_id = u.id)
 ),
 dead_checkouts AS (
   DELETE FROM checkout.checkouts

@@ -8,6 +8,7 @@ import { aUser, anOrder } from '#shared/testing/builders/index.ts'
 import * as intents from '#db/payments/intents/repo.ts'
 import type { PaymentIntentPatch } from '@dorado/contracts'
 import * as attempts from '#db/payments/attempts/repo.ts'
+import query from '#shared/db/query.ts'
 
 let client: PoolClient
 
@@ -204,4 +205,36 @@ test('a payment write on a client is invisible on another connection', async () 
     await client.query('ROLLBACK')
     other.release()
   }
+})
+
+test('a fan-out of attempts under one intent resolves to the newest, not to chance', async () => {
+  await inRollback(async (c: PoolClient) => {
+    const user = await aUser(c)
+    const session_id = randomUUID()
+    const { rows } = await query<{ id: string }>(
+      `INSERT INTO payments.intents (session_id, user_id, type, status, amount_expected)
+       VALUES ($1, $2, 'sales_order_checkout', 'requires_payment_method', 10) RETURNING id`,
+      [session_id, user.id],
+      c
+    )
+    const intent_id = rows[0]!.id
+    const older = `pi_fanout_older_${Date.now()}`
+    const newer = `pi_fanout_newer_${Date.now()}`
+    await query(
+      `INSERT INTO payments.attempts (intent_id, provider, provider_ref, amount, status, created_at)
+       VALUES ($1, 'stripe', $2, 10, 'requires_payment_method', now() - interval '1 hour'),
+              ($1, 'stripe', $3, 10, 'requires_payment_method', now())`,
+      [intent_id, older, newer],
+      c
+    )
+
+    const found = await intents.findReusable(session_id, user.id, 'sales_order_checkout', c)
+    assert.equal(
+      found?.attempt?.provider_ref,
+      newer,
+      'the ORDER BY names intent columns only, and every row of the fan-out has ' +
+        'the same values in them, so which attempt survived LIMIT 1 was the ' +
+        "planner's choice - and it is handed straight to stripe.retrieveIntent"
+    )
+  })
 })

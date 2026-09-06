@@ -31,5 +31,5 @@ SELECT i.id,
   LEFT JOIN payments.methods     pm ON pm.id = d.method_id
   LEFT JOIN orders.orders        o  ON o.id = i.order_id
  WHERE i.order_id = $1
- ORDER BY i.created_at DESC, i.id
+ ORDER BY i.created_at DESC, i.id, a.created_at DESC, a.id, st.created_at DESC, st.id
  LIMIT 1

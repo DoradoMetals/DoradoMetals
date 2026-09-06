@@ -1,24 +1,43 @@
 import * as orders from '#db/orders/repo.ts'
+import { paymentIntents as intents } from '#db'
 import * as credit from '#transactions/credit/service.ts'
 import * as transactionsService from '#transactions/ledger/service.ts'
 import withTransaction from '#shared/db/withTransaction.ts'
 import * as paymentsService from '#transactions/service.ts'
+import { settlementCovers } from '#transactions/rules.ts'
 import { attempt } from '#shared/attempt.ts'
 import type { Executor } from '#shared/db/executor.ts'
 import type { PoolClient } from 'pg'
 import type { PaymentIntent } from '@dorado/contracts'
 
-type SettledSweepResult = { order_id: NonNullable<PaymentIntent['order_id']>; outcome: 'advanced' }
+type SettledSweepResult = {
+  order_id: NonNullable<PaymentIntent['order_id']>
+  outcome: 'advanced' | 'held'
+}
 
-export async function sweepSettledIntents(executor?: Executor): Promise<SettledSweepResult[]> {
-  const candidates = await orders.findSalesAwaitingSettledIntent(executor)
+export async function sweepSettledIntents(tx: Executor): Promise<SettledSweepResult[]> {
+  const candidates = await orders.findSalesAwaitingSettledIntent(tx)
   const out: SettledSweepResult[] = []
   for (const c of candidates) {
-    await orders.update(c.order_id, { status: 'Preparing' }, {}, executor)
-    out.push({ order_id: c.order_id, outcome: 'advanced' })
+    const totals = (await orders.getOne(c.order_id, tx))?.totals
+    const intent = await intents.findForOrder(c.order_id, tx)
+    if (!settlementCovers(intent?.amount_received, totals?.post_charges_amount)) {
+      out.push({ order_id: c.order_id, outcome: 'held' })
+      continue
+    }
+    const advanced = await orders.update(
+      c.order_id,
+      { status: 'Preparing' },
+      { status: 'Pending' },
+      tx
+    )
+    out.push({ order_id: c.order_id, outcome: advanced ? 'advanced' : 'held' })
   }
   return out
 }
+
+export const sweepSettledIntentsNow = (): Promise<SettledSweepResult[]> =>
+  withTransaction((tx) => sweepSettledIntents(tx))
 
 type AbandonedSweepResult = {
   order_id: NonNullable<PaymentIntent['order_id']>

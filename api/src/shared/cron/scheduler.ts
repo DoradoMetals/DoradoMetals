@@ -1,10 +1,12 @@
-import { sweepSettledIntents } from '#transactions/sweeps.ts'
+import { sweepAbandoned, sweepSettledIntentsNow } from '#transactions/sweeps.ts'
 import { sweepAnonymousVisitorsNow } from '#checkout/sweep.ts'
 import { reportError } from '#shared/observability/report.ts'
 import cron from 'node-cron'
 import { logger } from '#shared/logging/logger.ts'
 
 import { updateSpotPrices } from '#pricing/spots/service.ts'
+
+export const ABANDONED_AFTER_HOURS = 24
 
 type Job = {
   name: string
@@ -26,10 +28,11 @@ export const jobs = (): Job[] => [
     },
   },
   {
-    name: 'settle paid orders',
+    name: 'reconcile payments',
     schedule: process.env.PAYMENT_RECONCILE_SCHEDULE,
     run: async () => {
-      await sweepSettledIntents()
+      await sweepSettledIntentsNow()
+      await sweepAbandoned(ABANDONED_AFTER_HOURS)
     },
   },
 ]
@@ -51,8 +54,6 @@ async function runJob({ name, run }: Job): Promise<void> {
 
 export function setupScheduler(): void {
   for (const job of jobs()) {
-    runJob(job)
-
     if (!job.schedule) {
       logger.warn(`[CRON] no schedule configured for ${job.name}, skipping`)
       continue

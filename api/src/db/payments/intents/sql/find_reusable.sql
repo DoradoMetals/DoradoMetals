@@ -32,7 +32,7 @@ SELECT i.id,
   LEFT JOIN orders.orders        o  ON o.id = i.order_id
  WHERE i.session_id = $1
    AND i.user_id = $2
-   AND i.type = $3
+   AND i.type IS NOT DISTINCT FROM $3
    AND i.status NOT IN ('succeeded', 'processing', 'canceled')
- ORDER BY i.created_at DESC, i.id
+ ORDER BY i.created_at DESC, i.id, a.created_at DESC, a.id, st.created_at DESC, st.id
  LIMIT 1

@@ -1,7 +1,7 @@
 import '#env'
 import pool from '#pool'
 import * as orders from '#db/orders/repo.ts'
-import { sweepSettledIntents, sweepAbandoned } from '#transactions/sweeps.ts'
+import { sweepSettledIntentsNow, sweepAbandoned } from '#transactions/sweeps.ts'
 
 const COMMIT = process.argv.includes('--commit')
 const ttlFlag = process.argv.indexOf('--ttl-hours')
@@ -40,7 +40,7 @@ try {
   if (!COMMIT) {
     console.log('\nreport only - re-run with --commit to advance and cancel.')
   } else {
-    const advanced = await sweepSettledIntents()
+    const advanced = await sweepSettledIntentsNow()
     console.log(`\nadvanced ${advanced.filter((r) => r.outcome === 'advanced').length} order(s)`)
     const cancelled = await sweepAbandoned(TTL_HOURS)
     const refunded = cancelled.reduce((acc, r) => acc + r.refunded, 0)

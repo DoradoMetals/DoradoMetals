@@ -136,3 +136,36 @@ test('a payment_method event updates an instrument already on file', async () =>
     { actor: TEST_ACTOR.id, lock: [LOCKS.ORDERS, LOCKS.USERS] }
   )
 })
+
+test('the intent gets the instrument it was paid with, so the admin panel is not empty', async () => {
+  await inPinnedTransaction(
+    async (c: PoolClient) => {
+      const customer = await aUser(c)
+      const pi = `pi_link_${Date.now()}`
+      const pm = { id: `pm_link_${Date.now()}` }
+      const intent_id = await anIntentFor(c, customer.id, pi)
+
+      await webhook.applyIntentEvent({ id: pi, status: 'requires_confirmation' }, pm.id, {
+        retrieve: async () => aCard(pm.id),
+        confirm: async () => {},
+      })
+
+      const written = await instrumentRow(c, pm.id)
+      assert.ok(written, 'the instrument was not recorded at all')
+
+      const { rows } = await query<{ details_id: string | null; method_id: string | null }>(
+        `SELECT details_id, method_id FROM payments.intents WHERE id = $1`,
+        [intent_id],
+        c
+      )
+      assert.equal(
+        rows[0]?.details_id,
+        written.id,
+        'nothing ever wrote payments.intents.details_id, so PaymentIntentView.details ' +
+          'was always null and "what did they pay with" answered nothing'
+      )
+      assert.ok('method_id' in (rows[0] ?? {}), 'method_id was not projected')
+    },
+    { actor: TEST_ACTOR.id, lock: [LOCKS.USERS, LOCKS.ORDERS] }
+  )
+})

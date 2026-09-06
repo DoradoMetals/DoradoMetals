@@ -34,6 +34,7 @@ export const SCRUBBED = {
   customer: 'cus_SCRUBBED',
   userId: 'SCRUBBED_USER_ID',
   sessionId: 'SCRUBBED_SESSION_ID',
+  intentType: 'SCRUBBED_INTENT_TYPE',
 } as const
 
 const FEDEX_ACCOUNT_KEYS = new Set(['accountNumber', 'associatedAccountNumber'])
@@ -80,6 +81,7 @@ export function normaliseFedexBody(body: unknown, path?: string): unknown {
 
 const STRIPE_VOLATILE: Record<string, string> = {
   customer: SCRUBBED.customer,
+  'metadata[type]': SCRUBBED.intentType,
   'metadata[user_id]': SCRUBBED.userId,
   'metadata[session_id]': SCRUBBED.sessionId,
 }
