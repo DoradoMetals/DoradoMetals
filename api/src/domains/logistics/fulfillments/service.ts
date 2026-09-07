@@ -66,6 +66,15 @@ export async function getById(id: string, executor?: Executor): Promise<Fulfillm
   return await viewOne(id, null, executor)
 }
 
+export async function getForRefiningOrder(
+  refining_order_id: string,
+  executor?: Executor
+): Promise<FulfillmentView | null> {
+  const row = await fulfillments.getByRefiningOrder(refining_order_id, executor)
+  if (!row) return null
+  return await viewOne(row.id, null, executor)
+}
+
 export async function getSchedule(
   from: string | null,
   to: string | null,
@@ -211,7 +220,14 @@ export async function patchChoices(
   } else if ('dropoff' in body) {
     rules.assertChoicesMatchCategory(method.category, 'DROPOFF', id)
     rules.assertTimestamp(body.dropoff.start_time)
-    await dropoffs.update(id, body.dropoff, executor)
+    if (await dropoffs.getFor(id, executor)) {
+      rules.assertApplied(
+        await dropoffs.update(id, body.dropoff, executor),
+        `fulfillment ${id} drop-off`
+      )
+    } else {
+      await dropoffs.create({ fulfillment_id: id, ...body.dropoff }, executor)
+    }
   } else {
     rules.assertChoicesMatchCategory(method.category, 'DIRECT', id)
     rules.assertTimestamp(body.direct.start_time)

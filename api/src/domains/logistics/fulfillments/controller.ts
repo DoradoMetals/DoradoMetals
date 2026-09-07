@@ -81,6 +81,20 @@ export const getFulfillmentByOrder = asyncHandler(async (req, res) => {
   return res.json(view)
 })
 
+// The URL is the refiner order's, because that is the id the caller holds;
+// the handler stays here because fulfillments owns the table (ruling 13).
+export const getFulfillmentByRefiningOrder = asyncHandler(async (req, res) => {
+  const refining_order_id = uuidParam(req, 'id')
+  const view = await fulfillmentService.getForRefiningOrder(refining_order_id)
+  if (!view) {
+    return res.status(404).json({
+      error: 'Not Found',
+      message: `refining order ${refining_order_id} has no fulfillment`,
+    })
+  }
+  return res.json(view)
+})
+
 // Three keys, one endpoint: a basket makes a DRAFT the order later adopts, an
 // order that reached the database without one gets its handover made against
 // itself, and a refiner order gets its drop-off (GAP 14/20).

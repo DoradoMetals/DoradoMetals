@@ -39,6 +39,7 @@
   "GET /api/refining/orders",
   "GET /api/refining/orders/:id",
   "GET /api/refining/orders/:id/documents",
+  "GET /api/refining/orders/:id/fulfillment",
   "GET /api/refining/orders/:id/lots",
   "GET /api/refining/orders/:id/payment",
   "GET /api/refining/orders/:id/spots",

@@ -38,8 +38,10 @@ export const FulfillmentParcel = OrderViewShipment.pick({
 })
 export type FulfillmentParcel = z.infer<typeof FulfillmentParcel>
 
-// The customer order a drop-shipped refiner parcel is filling. No foreign key
-// joins the two orders (ruling 42) - the lot is the join, one hop.
+// The customer order a drop-shipped refiner BUY order's parcel is filling. No
+// foreign key joins the two orders (ruling 42) - the lot is the join, one hop.
+// Null for a SELL order: its lot joins the same way to the customer PURCHASE
+// that fed it, which is the source, not something this parcel supplies.
 export const LinkedOrder = Order.pick({ id: true, number: true, direction: true }).extend({
   reference: z.string(),
 })

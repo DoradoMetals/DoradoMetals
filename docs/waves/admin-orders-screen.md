@@ -108,6 +108,30 @@ browser must set its own boundary and `Content-Type` must not be named.
    draws Linked Fulfillment on the refiner PURCHASE order only, which is what
    section 4 of the notes says.
 
+### Findings closed (fixe lane)
+
+All three are closed, each with a test that failed before the fix and passes
+after it (`logistics/fulfillments/tests/dropoff.test.ts`).
+
+1. **`GET /api/refining/orders/:id/fulfillment`** answers the same
+   `FulfillmentView` `POST /api/fulfillments` does — one SQL read, handled in
+   `logistics/fulfillments/controller.ts` and mounted from
+   `domains/refining/routes.ts` (ruling 13: the refiner order's id is the URL,
+   fulfillments owns the handler), the same shape `GET .../payment` already
+   uses. Listed in `admin-routes.json`.
+2. **The `dropoff` arm of `patchChoices` is create-or-update now**, and asserts
+   the write applied (`rules.assertApplied`, the `crm/sms`/`accounts/auth`
+   pattern) rather than trusting a bare `buildUpdate` call. `cancel_schedule`
+   deletes the detail row for all three categories, so a PATCH landing after a
+   cancel was the reachable zero-row case, not the original creation path
+   (which `ensureDetail` already covers) — the closing test reproduces it via
+   schedule → cancel → patch.
+3. **`linked_order` now requires `refining.orders.direction = 'buy'`** in
+   `db/fulfillments/sql/view.sql`. A sell order's lot still joins to the
+   customer purchase that fed it, but that is the source, not a drop ship, so
+   it reads `null` there — matching what the card already only draws for a
+   refiner purchase order.
+
 ### One deviation from Figma, on purpose
 
 **The Lots title row gains a refiner Select.** Figma's `Selection=Some` variant

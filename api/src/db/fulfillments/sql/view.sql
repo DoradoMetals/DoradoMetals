@@ -66,17 +66,21 @@ SELECT to_jsonb(f)
          LIMIT 1) AS parcel,
        to_char(COALESCE(fp.start_time, fd.start_time, fo.start_time) AT TIME ZONE 'UTC',
                'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS scheduled_at,
-       -- THE DROP SHIP LINK. A refiner purchase order's parcel is posted
-       -- straight to the customer whose sales order it fills. No foreign key
-       -- joins the two orders (ruling 42); the lot does, in one hop.
+       -- THE DROP SHIP LINK. A refiner BUY order's parcel is posted straight
+       -- to the customer whose sales order it fills. No foreign key joins the
+       -- two orders (ruling 42); the lot does, in one hop. A SELL order's lot
+       -- joins the same way to the PURCHASE order that fed it, but that is the
+       -- source, not a drop ship, so it is deliberately excluded here.
        (SELECT jsonb_build_object(
                  'id', od.id, 'number', od.number, 'direction', od.direction,
                  'reference', (CASE WHEN od.direction = 'sale' THEN 'SO-'
                                     ELSE 'PO-' END) || od.number)
           FROM refining.lots rl
+          JOIN refining.orders ro ON ro.id = rl.refining_order_id
           JOIN orders.lots ol ON ol.lot_id = rl.lot_id
           JOIN orders.orders od ON od.id = ol.order_id
          WHERE rl.refining_order_id = f.refining_order_id
+           AND ro.direction = 'buy'
          ORDER BY od.number ASC
          LIMIT 1) AS linked_order
   FROM fulfillments.fulfillments f
