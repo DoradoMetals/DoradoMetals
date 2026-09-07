@@ -225,6 +225,15 @@ export function assertDropoff<T>(row: T | null | undefined, id: string): asserts
   }
 }
 
+// Postgres does not raise on a zero-row UPDATE, so a WHERE that has quietly
+// stopped resolving succeeds forever and the only symptom is data that never
+// changes - cancel_schedule deletes the detail row, and a PATCH that reaches
+// `dropoffs.update` after that would otherwise answer 200 having written
+// nothing.
+export function assertApplied(changed: unknown, what: string): void {
+  if (!changed) throw new Conflict(`${what} changed nothing`)
+}
+
 export function assertMovable(
   from: FulfillmentCategory,
   to: FulfillmentCategory,

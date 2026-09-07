@@ -251,3 +251,108 @@ test('a drop-shipped refiner parcel names the customer order it fills', async ()
     })
   })
 })
+
+test('a drop-off PATCHed after cancel_schedule creates its row instead of silently doing nothing', async () => {
+  await inLogistics(async (c) => {
+    await asAdmin(TEST_ACTOR, async () => {
+      const refiner_id = await refinerId(c)
+      const refining = await request(app)
+        .post('/api/refining/orders')
+        .send({ refiner_id, direction: 'sell' })
+      const made = await request(app)
+        .post('/api/fulfillments')
+        .send({ refining_order_id: refining.body.id })
+
+      const employees = await request(app).get('/api/employees')
+      const offices = await request(app).get('/api/locations')
+      await request(app)
+        .post('/api/fulfillments/schedule_dropoff')
+        .send({
+          fulfillment_id: made.body.fulfillment.id,
+          dropoff: {
+            refiner_id,
+            location_id: offices.body[0].id,
+            driver_employee_id: employees.body[0].id,
+            start_time: '2026-10-01T15:00:00.000Z',
+          },
+        })
+      await request(app)
+        .post('/api/fulfillments/cancel_schedule')
+        .send({ fulfillment_id: made.body.fulfillment.id })
+
+      const { rows: gone } = await c.query(
+        'SELECT id FROM fulfillments.dropoffs WHERE fulfillment_id = $1',
+        [made.body.fulfillment.id]
+      )
+      assert.equal(gone.length, 0, 'cancel_schedule left a drop-off row behind')
+
+      const patched = await request(app)
+        .patch(`/api/fulfillments/${made.body.fulfillment.id}`)
+        .send({ dropoff: { refiner_id } })
+      assert.equal(patched.status, 200, patched.text)
+      assert.equal(patched.body.dropoff.refiner_id, refiner_id)
+      assert.deepEqual(patched.body.missing, ['start_time'])
+
+      const { rows } = await c.query(
+        'SELECT refiner_id FROM fulfillments.dropoffs WHERE fulfillment_id = $1',
+        [made.body.fulfillment.id]
+      )
+      assert.equal(rows[0]?.refiner_id, refiner_id)
+    })
+  })
+})
+
+test('a refiner order reads back the fulfillment its writes answered', async () => {
+  await inLogistics(async (c) => {
+    await asAdmin(TEST_ACTOR, async () => {
+      const refiner_id = await refinerId(c)
+      const refining = await request(app)
+        .post('/api/refining/orders')
+        .send({ refiner_id, direction: 'sell' })
+
+      const missing = await request(app).get(`/api/refining/orders/${refining.body.id}/fulfillment`)
+      assert.equal(missing.status, 404, missing.text)
+
+      const made = await request(app)
+        .post('/api/fulfillments')
+        .send({ refining_order_id: refining.body.id })
+      assert.equal(made.status, 200, made.text)
+
+      const reloaded = await request(app).get(
+        `/api/refining/orders/${refining.body.id}/fulfillment`
+      )
+      assert.equal(reloaded.status, 200, reloaded.text)
+      assert.equal(reloaded.body.fulfillment.id, made.body.fulfillment.id)
+      assert.equal(reloaded.body.method.category, 'DROPOFF')
+    })
+  })
+})
+
+test('a refiner SELL order names no linked order - it is fed by the purchase, not filling a sale', async () => {
+  await inLogistics(async (c) => {
+    const seller = await aUser(c)
+    const order = await anOrder(c, seller, { direction: 'purchase' })
+      .withLots(1, { confirmed: true })
+      .withSpots()
+      .withTotals({ total: 900 })
+    await c.query(`UPDATE orders.orders SET spots_locked = true WHERE id = $1`, [order.id])
+
+    await asAdmin(TEST_ACTOR, async () => {
+      const refiner_id = await refinerId(c)
+      const refining = await request(app)
+        .post('/api/refining/orders')
+        .send({ refiner_id, direction: 'sell', lot_ids: order.lots.map((lot) => lot.lot_id) })
+      assert.equal(refining.status, 201, refining.text)
+
+      const made = await request(app)
+        .post('/api/fulfillments')
+        .send({ refining_order_id: refining.body.id })
+      assert.equal(made.status, 200, made.text)
+      assert.equal(
+        made.body.linked_order,
+        null,
+        'a sell order named the purchase it was fed by as if it were a drop ship'
+      )
+    })
+  })
+})

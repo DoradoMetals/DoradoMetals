@@ -20,6 +20,7 @@ import {
 } from '#refining/controller.ts'
 
 import { getRefiningPayment } from '#transactions/rails/controller.ts'
+import { getFulfillmentByRefiningOrder } from '#logistics/fulfillments/controller.ts'
 import { importRefiningDocument } from '#documents/pdfs/controller.ts'
 import { requireAdmin } from '#shared/middleware/authMiddleware.ts'
 
@@ -43,6 +44,7 @@ router.get('/orders/:id/spots', requireAdmin, getRefiningSpots)
 // handlers live with the domains that own payments.transfers and media.pdfs
 // (ruling 13).
 router.get('/orders/:id/payment', requireAdmin, getRefiningPayment)
+router.get('/orders/:id/fulfillment', requireAdmin, getFulfillmentByRefiningOrder)
 router.get('/orders/:id/documents', requireAdmin, getRefiningDocuments)
 router.post(
   '/orders/:id/documents/:kind',
