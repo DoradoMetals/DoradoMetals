@@ -18,7 +18,7 @@ export type HeroProps = {
 
 export function Hero({ sellerCount, primaryAction, secondaryAction }: HeroProps) {
   return (
-    <section className="flex flex-col items-center gap-md bg-background px-6 py-16 text-center sm:p-3xl">
+    <section className="flex flex-col items-center gap-md bg-background px-lg py-3xl text-center sm:p-3xl">
       <Badge>Live spot pricing, locked at checkout</Badge>
 
       <h1 className="max-w-2xl text-balance">Sell your precious metals without the guesswork</h1>
@@ -27,7 +27,7 @@ export function Hero({ sellerCount, primaryAction, secondaryAction }: HeroProps)
         Insured shipping, transparent assay, and payout the day your metal arrives.
       </p>
 
-      <div className="flex w-full flex-col items-stretch gap-2.5 pt-2 sm:w-auto sm:flex-row sm:items-start">
+      <div className="flex w-full flex-col items-stretch gap-xs pt-xs sm:w-auto sm:flex-row sm:items-start">
         <Button asChild size="lg" variant="primary" className="w-full sm:w-auto">
           <a href={primaryAction.href}>{primaryAction.label}</a>
         </Button>

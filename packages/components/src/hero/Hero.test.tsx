@@ -64,4 +64,24 @@ describe('Hero', () => {
     expect(section.className).not.toContain('gap-5')
     expect(section.className).not.toContain('sm:p-24')
   })
+
+  it('the mobile padding and the CTA row are Scale tokens too (163:35)', () => {
+    const { container, getByRole } = render(<Hero sellerCount={2400} {...actions} />)
+    const section = container.querySelector('section')!
+    expect(section.className).toContain('px-lg')
+    expect(section.className).toContain('py-3xl')
+
+    const ctas = getByRole('link', { name: 'Get a Quote' }).parentElement!
+    expect(ctas.className).toContain('gap-xs')
+    expect(ctas.className).toContain('pt-xs')
+    expect(ctas.className).not.toMatch(/gap-2\.5|pt-2\b/)
+  })
+
+  it('the CTAs stack full-width below sm and sit in a row from sm (163:35 mobile note)', () => {
+    const { getByRole } = render(<Hero sellerCount={2400} {...actions} />)
+    const ctas = getByRole('link', { name: 'Get a Quote' }).parentElement!
+    expect(ctas.className).toContain('flex-col')
+    expect(ctas.className).toContain('sm:flex-row')
+    expect(ctas.className).toContain('items-stretch')
+  })
 })

@@ -1,7 +1,8 @@
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import './styles/globals.css'
-import LayoutProvider from '@/shared/providers/LayoutProvider' // ✅ Import the Client Component
+import LayoutProvider from '@/shared/providers/LayoutProvider'
+import { AppShell } from '@/shared/ui/AppShell'
 import { ThemeProvider } from '@/shared/providers/ThemeProvider'
 import QueryProvider from '@/shared/providers/QueryProvider'
 import GoogleMapsProvider from '@/shared/providers/GoogleMapsProvider'
@@ -44,7 +45,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           <GoogleRecaptchaProvider>
             <QueryProvider>
               <GoogleMapsProvider>
-                <LayoutProvider>{children}</LayoutProvider>
+                <LayoutProvider>
+                  <AppShell>{children}</AppShell>
+                </LayoutProvider>
               </GoogleMapsProvider>
             </QueryProvider>
           </GoogleRecaptchaProvider>

@@ -52,6 +52,23 @@ describe('Header', () => {
     expect(toggle.getAttribute('aria-expanded')).toBe('true')
   })
 
+  it('the mobile bar is brand and toggle ONLY - trailing is desktop-only (Figma 51:57)', () => {
+    const { container } = renderHeader({ drawerOpen: false, onDrawerToggle: vi.fn() })
+    const mobileGroup = container.querySelector('.lg\\:hidden') as HTMLElement
+    expect(within(mobileGroup).queryByText('Sign in')).toBeNull()
+    expect(within(mobileGroup).getAllByRole('button')).toHaveLength(1)
+  })
+
+  it('the desktop group keeps nav, the 20px divider and trailing (Figma 51:46)', () => {
+    const { container, getByRole } = renderHeader()
+    const desktop = container.querySelector('.lg\\:flex') as HTMLElement
+    expect(within(desktop).getByRole('navigation', { name: 'Primary' })).toBeTruthy()
+    expect(within(desktop).getByText('Sign in')).toBeTruthy()
+    expect(desktop.querySelector('span.h-5.w-px')).toBeTruthy()
+    expect(getByRole('banner').className).toMatch(/h-18/)
+    expect(getByRole('banner').className).toMatch(/lg:h-16/)
+  })
+
   it('drawerOpen replaces the desktop nav and trailing group with a single close button', async () => {
     const { container, getByRole, queryByRole } = renderHeader({ drawerOpen: true })
     expect(queryByRole('navigation', { name: 'Primary' })).toBeNull()

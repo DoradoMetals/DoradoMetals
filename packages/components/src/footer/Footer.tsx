@@ -49,9 +49,9 @@ export function Footer({
           {cta}
         </div>
 
-        <div className="flex w-full flex-wrap justify-center gap-6 py-4 lg:w-auto lg:flex-1 lg:flex-nowrap lg:justify-between lg:gap-0 lg:py-0">
+        <div className="grid w-full grid-cols-2 gap-x-lg gap-y-xl py-md lg:flex lg:w-auto lg:flex-1 lg:flex-nowrap lg:justify-between lg:gap-0 lg:py-0">
           {columns.map((column) => (
-            <div key={column.heading} className="flex w-[150px] flex-col gap-3 lg:w-auto">
+            <div key={column.heading} className="flex flex-col gap-sm lg:w-auto">
               <h6 data-emphasis="subtlest">{column.heading}</h6>
               {column.links.map((link, index) => (
                 <React.Fragment key={index}>{link}</React.Fragment>
@@ -59,7 +59,7 @@ export function Footer({
             </div>
           ))}
           {legalLinks && legalLinks.length > 0 && (
-            <div className="flex w-[150px] flex-col gap-3 lg:hidden">
+            <div className="flex flex-col gap-sm lg:hidden">
               <h6 data-emphasis="subtlest">{legalHeading}</h6>
               {legalLinks.map((link, index) => (
                 <React.Fragment key={index}>{link}</React.Fragment>

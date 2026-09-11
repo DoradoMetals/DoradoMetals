@@ -237,7 +237,8 @@ export const DIR_TO_PAGE = {
 // stale entry the next time it ran.
 export const DIR_NOT_DRAWN = {
   form: 'a react-hook-form binding, not a drawing - Field and Input are what it renders',
-  hooks: 'useFocusTrap and useDebounce; behaviour, nothing to draw',
+  hooks: 'useFocusTrap, useDebounce and useBreakpoint; behaviour, nothing to draw',
+  text: 'the ramp is Foundations - Text renders the 16 text styles and adds no drawing of its own',
   rating: 'star rating lifted from the app 2026-09; no page has been drawn for it yet',
 }
 

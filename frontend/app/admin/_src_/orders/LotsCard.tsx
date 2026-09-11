@@ -91,7 +91,7 @@ export function LotsCard({
       right={
         <>
           {refiners && onRefinerChange && (
-            <div className="w-[220px]">
+            <div className="w-full lg:w-[220px]">
               <Select
                 label="Refiner"
                 items={refiners.map((one) => ({ value: one.id, label: one.name }))}
@@ -202,7 +202,7 @@ export function LotsCard({
 
 function AddingLot({ search }: { search: NonNullable<LotsCardProps['search']> }) {
   return (
-    <div className="flex w-[420px] items-end gap-xs">
+    <div className="flex w-full items-end gap-xs lg:w-[420px]">
       <Autocomplete
         value={search.value}
         onValueChange={search.onValueChange}

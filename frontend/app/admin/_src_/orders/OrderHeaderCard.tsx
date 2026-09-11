@@ -1,6 +1,6 @@
 'use client'
 
-import { Badge, Button, Select } from '@dorado/components'
+import { Badge, Button, Select, Text } from '@dorado/components'
 import type { AdminUser, Location } from '@dorado/contracts'
 
 export type OrderHeaderParty =
@@ -69,12 +69,12 @@ export function OrderHeaderCard({
   const blocked = shown.filter((a) => a.disabled && a.reason).map((a) => a.reason!)
 
   return (
-    <section className="flex items-start justify-between gap-lg overflow-clip rounded-lg border border-border bg-card p-md">
+    <section className="flex flex-col gap-lg overflow-clip rounded-lg border border-border bg-card p-md lg:flex-row lg:items-start lg:justify-between">
       <div className="flex min-w-0 flex-col gap-xs">
         <div className="flex items-center gap-xs">
-          <p className="font-mono text-micro uppercase tracking-[0.1em] text-muted-foreground">
+          <Text variant="eyebrow" emphasis="subtlest">
             {eyebrow}
-          </p>
+          </Text>
           {cancelled && (
             <Badge intent="danger" variant="soft">
               Cancelled
@@ -85,7 +85,7 @@ export function OrderHeaderCard({
         {party.kind === 'customer' ? (
           <h2 className="truncate">{party.name}</h2>
         ) : (
-          <div className="w-[320px]">
+          <div className="w-full lg:w-[320px]">
             <Select
               label="Refiner"
               items={party.refiners.map((r) => ({ value: r.id, label: r.name }))}
@@ -106,7 +106,7 @@ export function OrderHeaderCard({
           </p>
         )}
         {office && (
-          <div className="w-[320px] pt-2xs">
+          <div className="w-full pt-2xs lg:w-[320px]">
             <Select
               label="Office"
               items={office.locations.map((one) => ({
@@ -122,7 +122,7 @@ export function OrderHeaderCard({
         )}
       </div>
 
-      <div className="flex w-[240px] shrink-0 flex-col items-end gap-xs">
+      <div className="flex w-full flex-col gap-xs lg:w-[240px] lg:shrink-0 lg:items-end">
         <Select
           label="Assigned to"
           items={admins.map((a) => ({ value: a.id, label: a.name ?? a.email }))}
@@ -147,7 +147,7 @@ export function OrderHeaderCard({
           ))}
         </div>
         {blocked.length > 0 && (
-          <p className="text-right text-micro text-muted-foreground">
+          <p className="text-micro text-muted-foreground lg:text-right">
             {blocked.join(' · ')}
           </p>
         )}

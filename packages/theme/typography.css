@@ -274,8 +274,7 @@
   .nav-link {
     font-size: var(--text-small);
     line-height: var(--text-small--line-height);
+    letter-spacing: var(--text-small--letter-spacing);
     font-weight: 500;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
   }
 }

@@ -94,6 +94,7 @@ export {
   type DataTableColumnMeta,
 } from './data-table/DataTable'
 export { EmptyState, type EmptyStateProps } from './empty-state/EmptyState'
+export { Text, textVariants, type TextProps, type TextVariant, type TextEmphasis } from './text/Text'
 export { Hero, type HeroProps } from './hero/Hero'
 export { Header, type HeaderProps } from './header/Header'
 export { Footer, type FooterProps, type FooterColumn } from './footer/Footer'
@@ -151,6 +152,13 @@ export { useFocusTrap } from './hooks/useFocusTrap'
 export { Amount, type AmountProps } from './amount/Amount'
 export { Carousel, type CarouselProps } from './carousel/Carousel'
 export { useDebounce } from './hooks/useDebounce'
+export {
+  useBreakpoint,
+  useMediaUp,
+  useMounted,
+  type BreakpointState,
+} from './hooks/useBreakpoint'
+export { BREAKPOINTS, BREAKPOINT_ORDER, type Breakpoint } from './hooks/breakpoints'
 export {
   Form,
   FormControl,
