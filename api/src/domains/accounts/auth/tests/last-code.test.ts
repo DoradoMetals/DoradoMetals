@@ -3,13 +3,17 @@ import assert from 'node:assert/strict'
 import request from 'supertest'
 import pool from '#pool'
 import { isFake } from '#providers/sms/index.ts'
+import { isFake as emailIsFake } from '#providers/emails/index.ts'
 import * as fakeSms from '#providers/sms/fake.ts'
+import * as fakeEmail from '#providers/emails/fake.ts'
+import { sendSignInCode } from '#documents/emails/service.ts'
 import { readsBackCodes } from '#accounts/auth/routes.ts'
 
 const { default: app } = await import('#app')
 
 afterAll(async () => {
   fakeSms.reset()
+  fakeEmail.reset()
   await pool.end()
 })
 
@@ -18,7 +22,7 @@ const pathsOf = (router: unknown): string[] =>
     .map((layer) => layer.route?.path ?? '')
     .filter(Boolean)
 
-test('the read-back is mounted while the recording fake is the adapter in use', async () => {
+test('the read-back is mounted while the recording SMS fake is the adapter in use', async () => {
   assert.equal(isFake(), true, 'the suite must not be running against a real carrier')
   assert.equal(readsBackCodes, true)
 
@@ -35,9 +39,61 @@ test('the read-back is mounted while the recording fake is the adapter in use', 
   assert.equal(noQuery.status, 400)
 })
 
-test('the read-back route does not exist at all once a real carrier is selected', async () => {
+test('a sign-in code by email lands in the fake and is readable the same way', async () => {
+  assert.equal(emailIsFake(), true, 'the suite must not be running against a real mail server')
+  assert.equal(readsBackCodes, true)
+
+  await sendSignInCode({
+    order_id: null,
+    user_id: null,
+    email: 'someone@example.com',
+    name: 'Someone',
+    code: '512340',
+    expires_in_minutes: 10,
+  })
+
+  const res = await request(app).get('/api/account/last_code').query({ email: 'someone@example.com' })
+  assert.equal(res.status, 200)
+  assert.equal(res.body.code, '512340')
+
+  const missing = await request(app)
+    .get('/api/account/last_code')
+    .query({ email: 'nobody@example.com' })
+  assert.equal(missing.status, 200)
+  assert.equal(missing.body.code, null, 'an address nothing was sent to is null, not an error')
+})
+
+test('neither number nor email answers 400, not a silent null', async () => {
+  const res = await request(app).get('/api/account/last_code')
+  assert.equal(res.status, 400)
+})
+
+test('the read-back route stays mounted when only one channel loses its fake', async () => {
   const saved = process.env.SMS_PROVIDER
   process.env.SMS_PROVIDER = 'twilio'
+  vi.resetModules()
+  try {
+    const fresh = await import('#accounts/auth/routes.ts')
+    assert.equal(
+      fresh.readsBackCodes,
+      true,
+      'the email fake is still active, so the route has a reason to exist'
+    )
+    assert.ok(pathsOf(fresh.default).includes('/last_code'))
+  } finally {
+    if (saved === undefined) delete process.env.SMS_PROVIDER
+    else process.env.SMS_PROVIDER = saved
+    vi.resetModules()
+  }
+})
+
+test('the read-back route does not exist at all once both channels use a real provider', async () => {
+  const savedSms = process.env.SMS_PROVIDER
+  const savedEmailHost = process.env.EMAIL_HOST
+  const savedNodeEnv = process.env.NODE_ENV
+  process.env.SMS_PROVIDER = 'twilio'
+  process.env.EMAIL_HOST = 'smtp.example.test'
+  process.env.NODE_ENV = 'development'
   vi.resetModules()
   try {
     const fresh = await import('#accounts/auth/routes.ts')
@@ -51,8 +107,11 @@ test('the read-back route does not exist at all once a real carrier is selected'
       'there is no route to reach in a real deployment, so there is no guard to get past'
     )
   } finally {
-    if (saved === undefined) delete process.env.SMS_PROVIDER
-    else process.env.SMS_PROVIDER = saved
+    if (savedSms === undefined) delete process.env.SMS_PROVIDER
+    else process.env.SMS_PROVIDER = savedSms
+    if (savedEmailHost === undefined) delete process.env.EMAIL_HOST
+    else process.env.EMAIL_HOST = savedEmailHost
+    process.env.NODE_ENV = savedNodeEnv
     vi.resetModules()
   }
 })

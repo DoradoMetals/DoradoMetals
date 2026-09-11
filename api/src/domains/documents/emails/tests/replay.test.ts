@@ -118,11 +118,10 @@ test('an unknown or missing order id is refused before anything is built', async
   )
 })
 
-test('the real mail transport refuses to exist during this run', async () => {
-  const { sendEmail } = await import('#providers/emails/nodemailer.ts')
-  await assert.rejects(
-    () => sendEmail({ to: ATTACKER_ADDRESS, subject: 'x', html: 'x' }),
-    /refusing to build the real mail transport/,
-    'the suite could have sent real mail'
-  )
+test('no real mail transport is reachable during this run', async () => {
+  const { sendEmail } = await import('#providers/emails/index.ts')
+  const result = (await sendEmail({ to: ATTACKER_ADDRESS, subject: 'x', html: 'x' })) as {
+    messageId: string
+  }
+  assert.match(result.messageId, /^fake-/, 'the suite could have sent real mail')
 })

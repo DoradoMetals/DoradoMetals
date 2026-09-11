@@ -1,7 +1,7 @@
 import * as pdfService from '#documents/pdfs/service.ts'
 import * as inputs from '#documents/pdfs/order-inputs.ts'
 import type { PurchaseDocument, SalesDocument } from '#documents/pdfs/service.ts'
-import type { Attachment, Transport } from '#providers/emails/nodemailer.ts'
+import type { Attachment, Transport } from '#providers/emails/index.ts'
 
 import * as mailers from '#db/media/emails/repo.ts'
 import * as orderReceived from '#documents/emails/templates/order-received.ts'
@@ -20,7 +20,7 @@ import * as voicemailReceived from '#documents/emails/templates/voicemail-receiv
 import { renderSalesOrderToSupplierEmail } from '#documents/emails/utils/renderEmail.ts'
 import { requiredEnv } from '#shared/env/required.ts'
 
-import { deliver } from '#providers/emails/nodemailer.ts'
+import { deliver } from '#providers/emails/index.ts'
 import * as rules from '#documents/emails/rules.ts'
 import { recordEmail } from '#documents/emails/record.ts'
 import type { EmailKind } from '#documents/emails/record.ts'

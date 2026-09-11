@@ -6,7 +6,7 @@ import { closeBrowser } from '#providers/pdfs/puppeteer.ts'
 import * as orderRead from '#orders/read.ts'
 import * as inputs from '#documents/pdfs/order-inputs.ts'
 import * as pricing from '#pricing/index.ts'
-import type { Transport } from '#providers/emails/nodemailer.ts'
+import type { Transport } from '#providers/emails/index.ts'
 import {
   formatPurchaseOrderNumber,
   formatSalesOrderNumber,

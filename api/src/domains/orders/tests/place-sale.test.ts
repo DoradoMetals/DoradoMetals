@@ -22,7 +22,7 @@ import * as pricing from '#pricing/index.ts'
 import * as emailService from '#documents/emails/service.ts'
 import { closeBrowser } from '#providers/pdfs/puppeteer.ts'
 import { formatSalesOrderNumber } from '#shared/utils/formatOrderNumbers.ts'
-import type { Transport } from '#providers/emails/nodemailer.ts'
+import type { Transport } from '#providers/emails/index.ts'
 
 type Message = Parameters<Transport['sendMail']>[0]
 
