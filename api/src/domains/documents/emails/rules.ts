@@ -1,6 +1,6 @@
-import type { Delivery } from '#providers/emails/index.ts'
+import type { Delivery, ResendEventOutcome } from '#providers/emails/index.ts'
 import type { EmailOutcome } from '#documents/emails/record.ts'
-import type { Direction, MailerRow } from '@dorado/contracts'
+import type { Direction, EmailKind, MailerRow } from '@dorado/contracts'
 import { maskEmail, maskPhone } from '#shared/text/mask.ts'
 import {
   formatPurchaseOrderNumber,
@@ -69,4 +69,21 @@ export function detailsChangedRows(
   if (previous) rows.push({ label: 'Previous', value: mask(previous) })
   if (next) rows.push({ label: 'New', value: mask(next) })
   return rows
+}
+
+// Which of Resend's events the trail has a column for. A delivery_delayed or an
+// open is accepted and recorded nowhere: there is no column, and refusing it
+// would make Resend retry a delivery we are happy with.
+export function deliveryOutcomeOf(type: string): ResendEventOutcome | null {
+  if (type === 'email.delivered') return 'delivered'
+  if (type === 'email.bounced') return 'bounced'
+  if (type === 'email.complained') return 'complained'
+  return null
+}
+
+// Marketing only. A code and an order mailer keep going to a bounced address:
+// the customer is waiting on both, and a bounced code is a sign-in failure they
+// can see and report.
+export function suppressible(kind: EmailKind): boolean {
+  return kind === 'promo'
 }

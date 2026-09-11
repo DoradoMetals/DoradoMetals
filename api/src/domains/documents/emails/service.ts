@@ -17,10 +17,13 @@ import * as signInCode from '#documents/emails/templates/sign-in-code.ts'
 import * as accountCreated from '#documents/emails/templates/account-created.ts'
 import * as detailsChanged from '#documents/emails/templates/details-changed.ts'
 import * as voicemailReceived from '#documents/emails/templates/voicemail-received.ts'
+import * as promo from '#documents/emails/templates/promo.ts'
 import { renderSalesOrderToSupplierEmail } from '#documents/emails/utils/renderEmail.ts'
 import { requiredEnv } from '#shared/env/required.ts'
 
 import { deliver } from '#providers/emails/index.ts'
+import type { ResendEvent } from '#providers/emails/index.ts'
+import withTransaction from '#shared/db/withTransaction.ts'
 import * as rules from '#documents/emails/rules.ts'
 import { recordEmail } from '#documents/emails/record.ts'
 import type { EmailKind } from '#documents/emails/record.ts'
@@ -31,6 +34,7 @@ import type {
   AccountCreatedMail,
   DetailsChangedMail,
   MailerAddressee,
+  PromoMail,
   SignInCodeMail,
   VoicemailReceivedMail,
 } from '@dorado/contracts'
@@ -52,7 +56,11 @@ async function post(
   transport?: Transport,
   executor?: PoolClient
 ): Promise<void> {
-  const delivery = await deliver({ to: to.email, subject, html, attachments }, transport)
+  if (rules.suppressible(kind) && (await mailers.isSuppressed(to.email, executor))) return
+  const delivery = await deliver(
+    { to: to.email, subject, html, attachments, tags: [{ name: 'kind', value: kind }] },
+    transport
+  )
   await recordEmail(
     { kind, to: to.email, subject, order_id: to.order_id, pdf_id, user_id: to.user_id },
     rules.outcomeOf(delivery),
@@ -437,6 +445,30 @@ export async function sendDetailsChanged(
     transport,
     executor
   )
+}
+
+// A marketing send. Nothing schedules one; it is here so the suppression rule
+// has a path, and it is the ONLY kind that rule applies to.
+export async function sendPromo(
+  mail: PromoMail,
+  transport?: Transport,
+  executor?: PoolClient
+): Promise<void> {
+  await post('promo', mail, promo.subject(mail), promo.render(mail), [], null, transport, executor)
+}
+
+// What Resend's webhook does to the row it names. The lock is taken first, so
+// two callbacks for the same message cannot both read the pre-update state.
+export async function applyDeliveryEvent(event: ResendEvent, tx: PoolClient): Promise<void> {
+  const outcome = rules.deliveryOutcomeOf(event.type)
+  if (!outcome) return
+  const row = await mailers.getByProviderMessageId(event.email_id, tx)
+  if (!row) return
+  await mailers.applyDelivery(row.id, outcome, event.occurred_at, event.bounce_reason, tx)
+}
+
+export async function recordDelivery(event: ResendEvent): Promise<void> {
+  await withTransaction((tx) => applyDeliveryEvent(event, tx))
 }
 
 // ---------------------------------------------------------------------------

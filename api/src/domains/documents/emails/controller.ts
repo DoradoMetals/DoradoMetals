@@ -3,6 +3,9 @@ import { SendOrderEmailBody } from '@dorado/contracts'
 import { asyncHandler } from '#shared/middleware/asyncHandler.ts'
 import { strictBody } from '#shared/http/validate.ts'
 import * as emailService from '#documents/emails/service.ts'
+import * as email from '#providers/emails/index.ts'
+import { oneString } from '#shared/http/query.ts'
+import { refuseWith } from '#shared/http/refuse.ts'
 import * as inputs from '#documents/pdfs/order-inputs.ts'
 import * as orderRead from '#orders/read.ts'
 import { Forbidden, NotFound } from '#shared/errors.ts'
@@ -23,4 +26,22 @@ export const sendPricedEmail = asyncHandler(async (req, res) => {
   await assertTheirs(order_id, req.user)
   await emailService.sendPricedEmail(await inputs.invoiceInputs(order_id))
   return res.status(200).json({ success: true })
+})
+
+// Resend's status callbacks. An unsigned delivery is an unauthenticated caller
+// and is answered as one; an event naming a message the trail does not hold is
+// accepted, because refusing it would only make Resend retry it for ever.
+export const handleResendWebhook = asyncHandler(async (req, res) => {
+  const raw = Buffer.isBuffer(req.body) ? req.body.toString('utf8') : ''
+  const id = oneString(req.headers[email.ID_HEADER])
+  const timestamp = oneString(req.headers[email.TIMESTAMP_HEADER])
+  const signature = oneString(req.headers[email.SIGNATURE_HEADER])
+
+  if (!email.verifyWebhook(raw, id, timestamp, signature)) {
+    return refuseWith(401, 'resend webhook signature did not verify')
+  }
+
+  const event = email.eventFrom(id as string, raw)
+  if (event) await emailService.recordDelivery(event)
+  return res.json({ received: true })
 })
