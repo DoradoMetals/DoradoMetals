@@ -18,6 +18,10 @@ export const Email = z.object({
   'provider_message_id': z.string().nullable(),
   'error': z.string().nullable(),
   'sent_at': z.string(),
+  'delivered_at': z.string().nullable(),
+  'bounced_at': z.string().nullable(),
+  'bounce_reason': z.string().nullable(),
+  'complained_at': z.string().nullable(),
 })
 export type Email = z.infer<typeof Email>
 // generated:end

@@ -925,7 +925,11 @@ CREATE TABLE IF NOT EXISTS media.emails (
   pdf_id uuid,
   provider_message_id text,
   error text,
-  sent_at timestamp with time zone DEFAULT now() NOT NULL
+  sent_at timestamp with time zone DEFAULT now() NOT NULL,
+  delivered_at timestamp with time zone,
+  bounced_at timestamp with time zone,
+  bounce_reason text,
+  complained_at timestamp with time zone
 );
 ALTER TABLE media.emails ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE media.emails ADD COLUMN IF NOT EXISTS kind media.email_kind;
@@ -938,6 +942,10 @@ ALTER TABLE media.emails ADD COLUMN IF NOT EXISTS pdf_id uuid;
 ALTER TABLE media.emails ADD COLUMN IF NOT EXISTS provider_message_id text;
 ALTER TABLE media.emails ADD COLUMN IF NOT EXISTS error text;
 ALTER TABLE media.emails ADD COLUMN IF NOT EXISTS sent_at timestamp with time zone DEFAULT now();
+ALTER TABLE media.emails ADD COLUMN IF NOT EXISTS delivered_at timestamp with time zone;
+ALTER TABLE media.emails ADD COLUMN IF NOT EXISTS bounced_at timestamp with time zone;
+ALTER TABLE media.emails ADD COLUMN IF NOT EXISTS bounce_reason text;
+ALTER TABLE media.emails ADD COLUMN IF NOT EXISTS complained_at timestamp with time zone;
 
 CREATE TABLE IF NOT EXISTS media.images (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -5263,7 +5271,9 @@ CREATE INDEX IF NOT EXISTS migration_leads_status_idx ON leads.leads USING btree
 CREATE INDEX IF NOT EXISTS lots_items_bullion ON lots.items USING btree (bullion_id);
 CREATE INDEX IF NOT EXISTS lots_items_metal ON lots.items USING btree (metal_id);
 CREATE INDEX IF NOT EXISTS lots_items_split ON lots.items USING btree (split_from_id);
+CREATE INDEX IF NOT EXISTS emails_address_idx ON media.emails USING btree (to_address);
 CREATE INDEX IF NOT EXISTS emails_order_idx ON media.emails USING btree (order_id, sent_at DESC);
+CREATE INDEX IF NOT EXISTS emails_provider_message_idx ON media.emails USING btree (provider_message_id);
 CREATE INDEX IF NOT EXISTS emails_user_idx ON media.emails USING btree (user_id, sent_at DESC);
 CREATE INDEX IF NOT EXISTS idx_media_emails_pdf_id ON media.emails USING btree (pdf_id);
 CREATE INDEX IF NOT EXISTS idx_images_user_created ON media.images USING btree (user_id, created_at);

@@ -4,6 +4,11 @@ export type Attachment = {
   contentType?: string
 }
 
+export type MessageTag = {
+  name: string
+  value: string
+}
+
 export type Message = {
   from?: string
   to?: string | null
@@ -11,6 +16,7 @@ export type Message = {
   text?: string
   html?: string
   attachments?: Attachment[]
+  tags?: MessageTag[]
 }
 
 export type Transport = {

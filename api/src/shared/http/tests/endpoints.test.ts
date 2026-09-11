@@ -217,7 +217,9 @@ const UNROUTED = {
     handleMoovWebhook: 'mounted directly on the app in app.ts, before express.json',
     handlePlaidWebhook: 'mounted directly on the app in app.ts, before express.json',
   },
-  'domains/documents/emails/controller.ts': {},
+  'domains/documents/emails/controller.ts': {
+    handleResendWebhook: 'mounted directly on the app in app.ts, before express.json',
+  },
 } satisfies Record<string, Record<string, string>> as Record<
   string,
   Record<string, string> | undefined

@@ -16,6 +16,7 @@ import {
   ShipmentMail as ShipmentContent,
 } from '@dorado/contracts'
 import type { Executor } from '#shared/db/executor.ts'
+import type { PoolClient } from 'pg'
 
 const sql = sqlFrom(import.meta.dirname)
 
@@ -57,6 +58,37 @@ export async function create(row: NewEmail, executor?: Executor): Promise<{ id: 
     executor
   )
   return rows[0]
+}
+
+export async function isSuppressed(to_address: string, executor?: Executor): Promise<boolean> {
+  const { rows } = await query<{ present: boolean }>(sql('is_suppressed'), [to_address], executor)
+  return rows[0]?.present === true
+}
+
+export async function getByProviderMessageId(
+  provider_message_id: string,
+  tx: PoolClient
+): Promise<Email | undefined> {
+  const { rows } = await query<Email>(sql('get_by_provider_message_id'), [provider_message_id], tx)
+  return rows[0]
+}
+
+const DELIVERY_SQL = {
+  delivered: 'apply_delivered',
+  bounced: 'apply_bounced',
+  complained: 'apply_complained',
+} as const
+
+export async function applyDelivery(
+  id: string,
+  outcome: keyof typeof DELIVERY_SQL,
+  at: string,
+  reason: string | null,
+  tx: PoolClient
+): Promise<boolean> {
+  const params = outcome === 'bounced' ? [id, at, reason] : [id, at]
+  const { rows } = await query<{ id: string }>(sql(DELIVERY_SQL[outcome]), params, tx)
+  return rows.length > 0
 }
 
 // One read per mailer. Each returns a single jsonb object - the addressee, the

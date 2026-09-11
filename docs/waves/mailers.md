@@ -71,7 +71,7 @@ template stitches a dictionary (ruling 78).
 | `auth_verification` (sign-up half) | **Account created** (154:954) | better-auth's verification callback, and the magic link | none - the caller supplies the contract |
 | — (new `sign_in_code`) | **Sign-in code** (6:107) | THE AUTH LANE'S | none |
 | — (new `details_changed`) | **Details changed** (154:1010) | THE AUTH LANE'S | none |
-| — (new `promo`) | **Promo** (154:1083) | **none, deliberately** - marketing is later | none |
+| — (new `promo`) | **Promo** (154:1083) | `sendPromo`, which nothing schedules - marketing is later. The one kind bounce suppression applies to (`docs/waves/resend.md`) | none |
 
 `sales_order_to_supplier` is NOT in the design and did not move: it goes to a
 refiner, not a customer, and keeps `salesOrderToSupplier.raw.html`.

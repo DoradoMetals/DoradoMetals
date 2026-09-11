@@ -13,7 +13,7 @@ export function transport(): Transport {
   })
 
   return {
-    sendMail: (message: Message) =>
+    sendMail: ({ tags: _tags, ...message }: Message) =>
       transporter.sendMail({
         ...message,
         to: message.to ?? undefined,
