@@ -4,6 +4,7 @@ import { padTo } from '#shared/time/floor.ts'
 import * as captcha from '#providers/captcha/index.ts'
 import * as sms from '#providers/sms/index.ts'
 import * as fakeSms from '#providers/sms/fake.ts'
+import * as fakeEmail from '#providers/emails/fake.ts'
 import * as throttles from '#db/auth/throttles/repo.ts'
 import * as pendingChanges from '#db/auth/pending-changes/repo.ts'
 import * as pendingSignups from '#db/auth/pending-signups/repo.ts'
@@ -529,8 +530,10 @@ export async function sessionOf(user_id: string, session_id: string): Promise<Se
   return rules.sessionView(user, session, Date.now())
 }
 
-// The recording fake's last code, for the e2e harness. The route that reads it
-// is mounted only while the fake adapter is the one in use.
-export function lastCode(number: string): string | null {
-  return fakeSms.lastCodeTo(number)
+// The recording fakes' last code, for the e2e harness. The route that reads it
+// is mounted only while a fake adapter is the one in use.
+export function lastCode(number: string | undefined, email: string | undefined): string | null {
+  if (number) return fakeSms.lastCodeTo(number)
+  if (email) return fakeEmail.lastCodeTo(email)
+  return null
 }

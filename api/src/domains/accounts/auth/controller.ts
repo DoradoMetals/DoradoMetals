@@ -17,7 +17,9 @@ import { clientIp } from '#shared/net/client-ip.ts'
 import { sessions } from '#accounts/auth/session.ts'
 import * as service from '#accounts/auth/service.ts'
 
-const LastCodeQuery = z.object({ number: z.string() })
+const LastCodeQuery = z
+  .object({ number: z.string().optional(), email: z.string().optional() })
+  .refine((v) => Boolean(v.number || v.email), 'number or email is required')
 
 const sessionOf = (req: Request): string => requiredParam(req.sessionId, 'session')
 
@@ -74,5 +76,5 @@ export const session = asyncHandler(async (req, res) => {
 
 export const lastCode = asyncHandler(async (req, res) => {
   const query = parseStrict(LastCodeQuery, req.query, 'account/last_code query')
-  return res.status(200).json({ code: service.lastCode(query.number) })
+  return res.status(200).json({ code: service.lastCode(query.number, query.email) })
 })

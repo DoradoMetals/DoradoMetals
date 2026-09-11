@@ -197,10 +197,20 @@ what the frontend calls. The eight the screens use:
 | POST | `/api/account/confirm_change` | user | `ConfirmChangeBody` -> `ChangeConfirmedView` |
 | GET | `/api/account/session` | user | -> `SessionView` |
 
-`GET /api/account/last_code?number=` exists ONLY when the recording SMS fake is
-the selected provider AND `NODE_ENV !== 'production'`. The decision is made once,
-at mount time, so a real deployment has no route to reach rather than a guard
-that could be got past. It is what the e2e harness will read.
+`GET /api/account/last_code?number=` (SMS) or `?email=` (email) exists ONLY
+when at least one of the recording fakes - SMS or email - is the selected
+provider AND `NODE_ENV !== 'production'`. The decision is made once, at mount
+time, so a real deployment has no route to reach rather than a guard that
+could be got past. It is what the e2e harness will read.
+
+### Local development
+
+No keys are needed to sign in locally. With no `TWILIO_*` keys, phone codes go
+to the recording SMS fake; with no `EMAIL_HOST` (or under any test run, even
+if `EMAIL_HOST` happens to be set), email codes go to its recording twin,
+`providers/emails/fake.ts`. Both read back through the one route,
+`GET /api/account/last_code?number=` or `?email=`. Neither fake will boot with
+`NODE_ENV=production` - that refuses loudly instead of silently dropping mail.
 
 crm: `POST /api/sms/inbound`, `POST /api/sms/status`, `POST /api/calls/twiml`,
 `POST /api/calls/status` (all four form-encoded, mounted before

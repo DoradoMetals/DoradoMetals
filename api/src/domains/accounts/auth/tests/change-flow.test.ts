@@ -10,6 +10,7 @@ import { TEST_ACTOR } from '#shared/testing/actor.ts'
 import { LOCKS } from '#shared/testing/locks.ts'
 import { aUser } from '#shared/testing/builders/index.ts'
 import * as fakeSms from '#providers/sms/fake.ts'
+import * as fakeEmail from '#providers/emails/fake.ts'
 import * as users from '#db/auth/users/repo.ts'
 import * as pendingChanges from '#db/auth/pending-changes/repo.ts'
 import * as authSessions from '#db/auth/sessions/repo.ts'
@@ -24,10 +25,14 @@ beforeAll(() => {
   process.env.RECAPTCHA_SECRET_KEY = 'test-secret'
   vi.mocked(axios.post).mockResolvedValue({ data: { success: true, score: 1 } } as never)
 })
-beforeEach(() => fakeSms.reset())
+beforeEach(() => {
+  fakeSms.reset()
+  fakeEmail.reset()
+})
 afterAll(() => {
   restoreAuthApi()
   fakeSms.reset()
+  fakeEmail.reset()
 })
 
 // A customer with both factors proved, and a session minted `agoSeconds` ago.
@@ -38,9 +43,7 @@ const aCustomer = async (c: PoolClient, phone_number: string, agoSeconds = 0) =>
 }
 
 // Where a change's code was actually minted. The identifier IS the value the
-// code was sent to, so this is the cross-factor rule made observable: a test
-// run may not reach a mail transport, and the paper trail a real send would
-// leave is deliberately not written without a transaction.
+// code was sent to, so this is the cross-factor rule made observable.
 const codeMintedFor = async (value: string): Promise<boolean> =>
   Boolean(await verifications.byIdentifier(rules.identifierFor(rules.CHANGE_OTP_TYPE, value)))
 
@@ -193,9 +196,9 @@ test('confirming a phone change applies it, texts the OLD number, and answers in
   )
 })
 
-// RULE 4, and the proof that the notice is AFTER the commit: the notice fails
-// here (no mail transport may exist in a test run) and the change still stands.
-test('an email change survives a notice that could not be delivered', async () => {
+// RULE 4, and the proof that the notice runs AFTER the commit: it goes out
+// through the recording email fake, and the change stands regardless.
+test('an email change notifies the old address through the recording fake', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
       stubAuthApi(c)
@@ -206,16 +209,17 @@ test('an email change survives a notice that could not be delivered', async () =
       const confirmed = await service.confirmChange(user.id, session_id, { code: CODE })
 
       assert.equal(confirmed.next_value, 'now-mine@dorado.test')
-      assert.equal(
-        confirmed.previous_notified,
-        false,
-        'the notice failed - and the caller is told so rather than the change being lost'
-      )
+      assert.equal(confirmed.previous_notified, true, 'the notice delivered through the fake')
       assert.equal(
         (await users.getOne(user.id))?.email,
         'now-mine@dorado.test',
-        'a failed notice inside the transaction would have rolled the change back'
+        'the change did not stand'
       )
+
+      const alarm = fakeEmail.lastMessageTo(previous)
+      assert.ok(alarm, 'the takeover alarm never reached the address being replaced')
+      assert.match(alarm.html, /email address changed/i)
+
       // The alarm goes to the value being REPLACED, which here is an address -
       // so the phone saw the change CODE and nothing else.
       const texts = fakeSms.sent().filter((m) => m.to === '+15125553008')

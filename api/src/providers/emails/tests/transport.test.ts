@@ -1,7 +1,7 @@
 import { test } from 'vitest'
 import assert from 'node:assert/strict'
 import nodemailer from 'nodemailer'
-import { sendEmail } from '#providers/emails/nodemailer.ts'
+import { sendEmail } from '#providers/emails/index.ts'
 
 const PDF_BYTES = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x34])
 

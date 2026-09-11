@@ -9,7 +9,7 @@ import { closeBrowser } from '#providers/pdfs/puppeteer.ts'
 import * as orderRead from '#orders/read.ts'
 import { LOCKS } from '#shared/testing/locks.ts'
 import { inRollback } from '#shared/testing/rollback.ts'
-import type { Transport } from '#providers/emails/nodemailer.ts'
+import type { Transport } from '#providers/emails/index.ts'
 import type { OrderView } from '@dorado/contracts'
 
 let client: PoolClient
