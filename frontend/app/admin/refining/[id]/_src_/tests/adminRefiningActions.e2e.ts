@@ -101,8 +101,30 @@ test('Create fulfillment gives a refiner order its drop-off, and Schedule books 
   await expect(page.getByRole('button', { name: 'Cancel Drop-off' })).toBeVisible()
 })
 
-test('the refiner Settlement statement is imported as multipart, never sent', async ({ page }) => {
-  await page.goto(`/admin/refining/${refiningOrderId}`)
+test('the refiner Settlement statement is imported as multipart, never sent', async ({
+  page,
+  playwright,
+}) => {
+  // Its own order, not the shared one above: importing a document has no
+  // Delete wired to a real call and no API route to undo it, so reusing the
+  // shared order would find Settlement already `available` on a second run
+  // and never show an Import button again. `buy` rather than `sell` because
+  // the shared order above already holds the one open sell order a refiner
+  // may have (`assertNoOpenSellOrder`); a fresh buy order never conflicts
+  // with it and documents don't vary by direction.
+  const api = await playwright.request.newContext({ storageState: statePath('admin') })
+  const refiners = await api.get(`${API}/suppliers/get_all`)
+  const list = (await refiners.json()) as { id: string }[]
+  test.skip(list.length === 0, 'no refiner in the database to open an order with')
+  const created = await api.post(`${API}/refining/orders`, {
+    data: { refiner_id: list[0]!.id, direction: 'buy' },
+    headers: { 'Content-Type': 'application/json' },
+  })
+  expect(created.ok(), `POST /refining/orders answered ${created.status()}`).toBeTruthy()
+  const documentsOrderId = ((await created.json()) as { id: string }).id
+  await api.dispose()
+
+  await page.goto(`/admin/refining/${documentsOrderId}`)
 
   await expect(page.getByRole('button', { name: /^Send [A-Z]/ })).toHaveCount(0)
 
