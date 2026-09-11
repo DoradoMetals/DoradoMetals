@@ -101,7 +101,7 @@ export function AdminRefiningScreen({ id }: { id: string }) {
   const chosenRail = rail ?? payment.data?.rail ?? null
 
   return (
-    <div className="flex flex-col gap-lg p-xl">
+    <div className="flex flex-col gap-lg p-md lg:p-xl">
       <OrderHeaderCard
         eyebrow={isSale ? 'SALES ORDER' : 'PURCHASE ORDER'}
         reference={`${isSale ? 'SO' : 'PO'}-${view.number}`}
@@ -157,7 +157,7 @@ export function AdminRefiningScreen({ id }: { id: string }) {
         }
       />
 
-      <div className="flex items-start gap-lg">
+      <div className="flex flex-col gap-lg lg:flex-row lg:items-start">
         <div className="flex min-w-0 flex-1 flex-col gap-lg">
           {!isSale && fulfilment?.linked_order ? (
             <LinkedFulfillmentCard
@@ -277,7 +277,7 @@ export function AdminRefiningScreen({ id }: { id: string }) {
           )}
         </div>
 
-        <div className="flex w-[400px] shrink-0 flex-col gap-lg">
+        <div className="flex w-full flex-col gap-lg lg:w-[400px] lg:shrink-0">
           <TotalsCard totals={null} totalLabel="Total payment" refining={view.totals} />
           {isSale && !draft && <SettlementCard order={view} />}
           <DocumentsCard
@@ -292,14 +292,14 @@ export function AdminRefiningScreen({ id }: { id: string }) {
 
 function ScreenSkeleton() {
   return (
-    <div className="flex flex-col gap-lg p-xl">
+    <div className="flex flex-col gap-lg p-md lg:p-xl">
       <Skeleton className="h-[152px] w-full" />
-      <div className="flex gap-lg">
-        <div className="flex flex-1 flex-col gap-lg">
+      <div className="flex flex-col gap-lg lg:flex-row">
+        <div className="flex min-w-0 flex-1 flex-col gap-lg">
           <Skeleton className="h-[166px] w-full" />
           <Skeleton className="h-[338px] w-full" />
         </div>
-        <div className="flex w-[400px] shrink-0 flex-col gap-lg">
+        <div className="flex w-full flex-col gap-lg lg:w-[400px] lg:shrink-0">
           <Skeleton className="h-[264px] w-full" />
           <Skeleton className="h-[113px] w-full" />
         </div>

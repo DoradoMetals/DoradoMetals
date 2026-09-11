@@ -182,7 +182,7 @@ export function PaymentCard({
           <Button
             variant="primary"
             size="lg"
-            className="w-[280px]"
+            className="w-full lg:w-[280px]"
             disabled={sendDisabled || settled || state === 'Processing' || pending}
             onClick={isCharge && state !== 'Due' ? onStartMatching : onSend}
           >

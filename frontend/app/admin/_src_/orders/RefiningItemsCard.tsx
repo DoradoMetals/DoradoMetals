@@ -53,7 +53,7 @@ export function RefiningItemsCard({
       title={kindLabel}
       summary={ounces(total)}
       right={
-        <div className="flex w-[420px] items-end gap-xs">
+        <div className="flex w-full items-end gap-xs lg:w-[420px]">
           <Autocomplete
             value={query}
             onValueChange={(value) => {

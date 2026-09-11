@@ -56,8 +56,7 @@ export function Header({
         )}
       </div>
 
-      <div className="flex items-center gap-2 lg:hidden">
-        {trailing}
+      <div className="flex items-center lg:hidden">
         {onDrawerToggle && (
           <Button
             variant="tertiary"

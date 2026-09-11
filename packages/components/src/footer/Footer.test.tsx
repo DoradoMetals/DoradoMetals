@@ -58,6 +58,14 @@ describe('Footer', () => {
     expect(getByText('© Dorado Metals Exchange LLC 2026')).toBeTruthy()
   })
 
+  it('the columns are a two-up grid on mobile and a row from lg (Figma 76:176 / 51:191)', () => {
+    const { getByText } = renderFooter()
+    const columns = getByText('Resources').parentElement!.parentElement!
+    expect(columns.className).toContain('grid-cols-2')
+    expect(columns.className).toContain('lg:flex')
+    expect(columns.className).not.toContain('w-[150px]')
+  })
+
   it('legalLinks are desktop-only and social is mobile-only, by class', () => {
     const { getByText, getAllByText } = renderFooter()
     const wraps = getAllByText('Terms').map((el) => el.parentElement!.className)
