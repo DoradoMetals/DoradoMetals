@@ -212,6 +212,12 @@ A reported gap is often a rename rather than a loss. Declare the mapping in
 
 ## Tests
 
+`pnpm dev` builds `@dorado/contracts` once, then runs the API and frontend dev
+servers together via `concurrently` (one log prefix each, on their own ports).
+Each workspace's own `predev`/`prestart`/`prebuild` hook rebuilds contracts too
+— `tsc -b`, incremental, well under 3s warm — so `pnpm --filter @dorado/api dev`
+alone stays safe after a pull that changed `packages/contracts`.
+
 `pnpm --filter @dorado/api test` — vitest 4, real Postgres, every test inside a
 transaction that is rolled back, `TZ=UTC`. The suite is split by what a file
 imports, not by directory (`scripts/lib/test-layers.ts`): `test:unit` (no

@@ -21,7 +21,7 @@
   },
   "scripts": {
     "prepare": "husky",
-    "dev": "pnpm --parallel --filter \"./{api,frontend}\" dev",
+    "dev": "pnpm --filter @dorado/contracts build && concurrently -n api,frontend -c blue,magenta \"pnpm --filter @dorado/api dev\" \"pnpm --filter @dorado/frontend dev\"",
     "build": "pnpm --filter \"./packages/*\" build && pnpm --filter \"./{api,frontend}\" build",
     "start:api": "pnpm --filter @dorado/api start",
     "start:frontend": "pnpm --filter @dorado/frontend start",
@@ -39,6 +39,7 @@
     "*.{ts,tsx,js,mjs,cjs,json,css,yaml,yml}": "prettier --write"
   },
   "devDependencies": {
+    "concurrently": "10.0.5",
     "husky": "9.1.7",
     "lint-staged": "17.4.1",
     "prettier": "3.9.6"
