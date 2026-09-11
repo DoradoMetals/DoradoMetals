@@ -16,11 +16,21 @@
 
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
-import { readSnapshot, loadTheme, toColor, toHex, toPx, evalRadius, num, report, THEME_DIR } from './lib.mjs'
+import {
+  readSnapshot,
+  loadTheme,
+  toColor,
+  toHex,
+  toPx,
+  evalRadius,
+  num,
+  report,
+  THEME_DIR,
+} from './lib.mjs'
 import * as M from './map.mjs'
 
 const snap = readSnapshot()
-const { vars, radiusPx } = loadTheme()
+const { vars, radiusPx, mobile, extraMedia } = loadTheme()
 const byName = (coll) => new Map(snap.collections[coll].variables.map((v) => [v.name, v]))
 
 const EPS = 0.01
@@ -162,6 +172,99 @@ let total = 0
     }
   }
   total += report(`Type ramp  (${M.TYPE_STEPS.length} steps)`, findings)
+}
+
+// --- the type ramp, Mobile mode -------------------------------------------
+//
+// The Typography collection grew a second MODE on 2026-09-11. Its code half is
+// the `@media (width < 48rem)` block in theme.css, and nothing compared the two
+// until this section: the block had existed since the shell lane with every
+// value repeating the Default, so it could have said anything.
+//
+// The comparison is per STEP and runs on the resolved value - the media block
+// carries only what it overrides, so anything it is silent about falls back to
+// the base ramp on both sides. line-height is a unitless ratio in the CSS and
+// letter-spacing is em, so both are multiplied by the MOBILE size, which is
+// the whole reason the Figma mode needed its own px values for them.
+{
+  const findings = []
+  const type = byName('Typography')
+  const modes = snap.collections.Typography.modes
+  const hasMobile = modes.includes(M.TYPE_MODES.mobile)
+
+  if (extraMedia > 0)
+    findings.push(
+      `theme.css carries ${extraMedia} @media block(s) that are not a (width < Nrem) ramp switch; this check reads only the narrow-width one`
+    )
+
+  if (!hasMobile && mobile) {
+    findings.push(
+      `theme.css has a ${mobile.condition} ramp block but Figma's Typography collection has no "${M.TYPE_MODES.mobile}" mode - the code invented a ramp the library does not draw`
+    )
+  } else if (hasMobile && !mobile) {
+    findings.push(
+      `Figma has a "${M.TYPE_MODES.mobile}" typography mode and theme.css has no (width < Nrem) ramp block to carry it`
+    )
+  } else if (hasMobile && mobile) {
+    // The media query's literal against the breakpoint token it stands for.
+    const bp = toPx(vars.get(M.MOBILE_RAMP_BREAKPOINT) ?? '')
+    if (bp === null) findings.push(`${M.MOBILE_RAMP_BREAKPOINT} is not declared in theme.css`)
+    else if (!close(bp, mobile.widthPx))
+      findings.push(
+        `the ramp switches at ${num(mobile.widthPx)}px but ${M.MOBILE_RAMP_BREAKPOINT} is ${num(bp)}px - a media query cannot read a custom property, so the literal has to be kept honest here`
+      )
+
+    const resolve = (prop) => mobile.vars.get(prop) ?? vars.get(prop)
+
+    for (const step of M.TYPE_STEPS) {
+      const size = resolve(`--text-${step}`)
+      const sizePx = toPx(size ?? '')
+      const want = type.get(`size/${step}`)
+      if (sizePx === null || !want) continue // the Default section already reported it
+      const wantSize = want.modeValues?.[M.TYPE_MODES.mobile]
+      if (wantSize === undefined) {
+        findings.push(`size/${step} carries no ${M.TYPE_MODES.mobile} value in the snapshot`)
+        continue
+      }
+      if (!close(sizePx, wantSize))
+        findings.push(
+          `size/${step} @mobile: Figma ${num(wantSize)}px, --text-${step} ${num(sizePx)}px (${size})`
+        )
+
+      const lh = toPx(resolve(`--text-${step}--line-height`) ?? '')
+      const wantLh = type.get(`line-height/${step}`)?.modeValues?.[M.TYPE_MODES.mobile]
+      if (lh !== null && wantLh !== undefined && !close(lh * sizePx, wantLh))
+        findings.push(
+          `line-height/${step} @mobile: Figma ${num(wantLh)}px, CSS ${num(lh)} x ${num(sizePx)} = ${num(lh * sizePx)}px`
+        )
+
+      const lsRaw = resolve(`--text-${step}--letter-spacing`)
+      const wantLs = type.get(`letter-spacing/${step}`)?.modeValues?.[M.TYPE_MODES.mobile]
+      if (lsRaw !== undefined && wantLs !== undefined) {
+        const em = Number(/^(-?[\d.]+)em$/.exec(lsRaw.trim())?.[1] ?? NaN)
+        if (!Number.isNaN(em) && !close(em * sizePx, wantLs))
+          findings.push(
+            `letter-spacing/${step} @mobile: Figma ${num(wantLs)}px, CSS ${num(em)}em x ${num(sizePx)} = ${num(em * sizePx)}px`
+          )
+      }
+    }
+  }
+
+  const moved = hasMobile
+    ? snap.collections.Typography.variables.filter(
+        (v) =>
+          v.modeValues && v.modeValues[M.TYPE_MODES.default] !== v.modeValues[M.TYPE_MODES.mobile]
+      ).length
+    : 0
+  total += report(
+    `Type ramp, ${modes.join(' + ')} mode${modes.length === 1 ? '' : 's'}  (${moved} variable${moved === 1 ? '' : 's'} move below ${mobile ? mobile.condition : 'nothing'})`,
+    findings,
+    {
+      notes: Object.entries(M.MOBILE_UNCHANGED).map(
+        ([k, why]) => `unchanged on mobile: ${k} - ${why}`
+      ),
+    }
+  )
 }
 
 // --- text styles ----------------------------------------------------------

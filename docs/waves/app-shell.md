@@ -147,6 +147,13 @@ what the app uses for prose from here.
 
 ## Breakpoints, and the five Figma is missing
 
+> **SUPERSEDED 2026-09-11 by `docs/waves/responsive-type.md` (ruling 103).**
+> Figma's Scale collection carries all six breakpoints now, and its Typography
+> collection has a second mode, `Mobile`. This section is kept as the record of
+> what was true when the shell lane ran; the ramp block is at 48rem rather than
+> 64rem, it carries real values, and `figma:tokens` checks all six breakpoints
+> and both modes.
+
 `useBreakpoint` lives in `packages/components/src/hooks/`. It is SSR-safe by
 construction: `useSyncExternalStore`'s server snapshot is always `false`, so the
 first client render matches the HTML and `matchMedia` is only read after mount.

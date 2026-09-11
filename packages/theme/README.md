@@ -564,3 +564,55 @@ Disabled variants ("someone entered 0.5 meaning 50%"); nobody went back for
 hover. The CSS carries the intended ratios, and `map.mjs`'s `SCALE_PERCENT`
 declares which Figma variables are percent-scaled so `figma:tokens` compares
 like with like instead of reporting a 100x drift.
+
+## The breakpoints, and the responsive type ramp (2026-09-11, ruling 103)
+
+**The six `--breakpoint-*` live in the PLAIN `@theme` block, not `@theme
+inline`, and moving them was the point rather than tidying.** A variable
+declared inline is never emitted, so `getComputedStyle(document.documentElement)
+.getPropertyValue('--breakpoint-md')` read EMPTY. `useBreakpoint`'s
+`breakpointPx()` reads them off the root element now, falling back to the
+compiled `BREAKPOINTS` per step, so the hook and this stylesheet cannot
+disagree. Tailwind inlines the value into its own `@media` conditions either
+way, because **a media query cannot read a custom property** — which is also
+why the `48rem` in the ramp block below is a literal, and why
+`frontend/shared/tests/theme-breakpoints.test.ts` pins that literal to
+`--breakpoint-md`.
+
+Figma carries all six as `breakpoint/*` since 2026-09-11; before that it had
+only `breakpoint/xs` (304) and the other five were checked from the code side
+alone.
+
+**The `@media (width < 48rem)` block is the code half of the Figma Typography
+collection's second MODE, `Mobile`.** Ruling 96 decides the direction: the
+values went into the library first. The shell lane left this block with every
+value repeating the Default, because Figma had one mode and nothing had been
+decided; it has real values now.
+
+| step | Default | below `md` |
+|---|---|---|
+| `display` | 64 / 67.2 | **32 / 38** |
+| `h1` | 36 / 41.4 | **32 / 38** |
+| `h2` | 28 / 34.16 | **22 / 26.84** |
+| `stat` | 36 / 39.6 | **30 / 33** |
+| `stat-sm` | 30 / 34.5 | **28 / 32.2** |
+
+The block carries **only the five steps that change**; the other seven resolve
+to the base ramp, which is also how `scripts/figma/check-tokens.mjs` reads it,
+so a step cannot be listed in one place and forgotten in the other. The rule
+behind the values is one rule: a Mobile step takes the next smaller SIZE in the
+ramp and keeps its own line-height and letter-spacing RATIOS — which the CSS
+does for free, since line-height is unitless and letter-spacing is em. Display
+and `h1` are the exception and are not invented: the Hero's own Figma
+description asks for "Mobile: 32/38", and 38 / 32 = 1.1875.
+
+`h2` and `h3` both render at 22px below `md`. Deliberate: they stay apart by
+line-height (26.84 against 28.6), and a 24px step to separate them is a ramp
+value the library does not draw.
+
+**Responsive type is CSS and never a hook.** The ramp lives in a plain `@theme`
+block, so Tailwind's `text-h1` references `var(--text-h1)` rather than inlining
+`2.25rem`, and redefining the variable in a media query is the whole mechanism
+— `Text`, the `h1` element rule in `typography.css` and `.display`/`.stat` all
+follow with no hydration cost. `docs/waves/responsive-type.md` carries the
+measurements.
