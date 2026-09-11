@@ -348,6 +348,12 @@ Detail in `docs/waves/auth-passwordless.md`.
 
 - **`GoogleLogo`'s `d="Frame"` bug (flagged in the shell lane above) is fixed.** It now draws the real four-colour Google mark, sourced from the Figma "Themes and Components"/Icons libraries' `logo/google`; `packages/icons/src/icons.test.ts` regexes every icon's `d` attribute against real path-data grammar so a frame/layer name can't ship as one again.
 - **`adminRefiningActions.e2e.ts`'s Settlement-import test now opens its own `direction: 'buy'` refiner order** instead of reusing the shared open sell order, since a document import has no Delete wired to a real call and no API route to undo it; verified green twice in a row against a local API + frontend from this worktree.
+
+## `pnpm dev` no longer breaks on a stale contracts dist (dx lane)
+
+- **`packages/contracts` ships `dist`, not source — `api` and `frontend` import it, nothing rebuilt it, so any pull touching contracts broke `dev`/`start`/`seed:e2e(:order)`/`build` with a missing-export `SyntaxError`.** Fixed with `predev`/`prestart`/`prebuild` hooks in both workspaces plus an incremental `tsc -b` contracts build (composite, <0.3s warm) and one root `pnpm dev` (`concurrently`, prefixed logs) that builds once then runs both.
+- Verified from a clean `dist`: `seed:e2e` and `pnpm dev` both succeed, each server answers on a non-3000 port, and `pnpm check:fast` stays green with contracts built exactly once (0.26s).
+
 ## Resend is the email provider (ruling 104, resend lane)
 
 - **The adapter is written and has never sent anything.** `providers/emails/resend.ts` POSTs one message to Resend's Email API, tags it with the mailer KIND, returns the `id` as `provider_message_id`, and turns every refusal into a `failed` paper-trail row rather than a throw that escapes un-recorded. Selection is `test run -> fake`, then `RESEND_API_KEY -> resend`, then `EMAIL_HOST -> smtp`, then fake — so **with no key set nothing about today's behaviour changes**. In production `assertSendable()` refuses unless `RESEND_FROM_DOMAIN` is set and `EMAIL_FROM` is an address on it, because Resend rejects an unverified From per send and that would arrive as a pile of failed rows and no mail. `docs/waves/resend.md` lists what Jacob configures: the API key, the domain's DKIM/MX/return-path DNS, the webhook URL and its `whsec_` secret.
