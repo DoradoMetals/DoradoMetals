@@ -2,9 +2,19 @@
 
 import * as React from 'react'
 
-import { BREAKPOINTS, BREAKPOINT_ORDER, type Breakpoint } from './breakpoints'
+import {
+  BREAKPOINTS,
+  BREAKPOINT_ORDER,
+  breakpointPx,
+  resetBreakpointCache,
+  type Breakpoint,
+} from './breakpoints'
 
-const query = (bp: Breakpoint) => `(min-width: ${BREAKPOINTS[bp]}px)`
+// The threshold comes from the theme's own --breakpoint-* property, so the
+// hook cannot drift from the stylesheet; breakpointPx falls back to the
+// compiled scale where there is no document to read, which is every server
+// render.
+const query = (bp: Breakpoint) => `(min-width: ${breakpointPx(bp)}px)`
 
 const noopSubscribe = () => () => {}
 
@@ -64,4 +74,4 @@ export function useBreakpoint(): BreakpointState {
   }
 }
 
-export { BREAKPOINTS, BREAKPOINT_ORDER, type Breakpoint }
+export { BREAKPOINTS, BREAKPOINT_ORDER, breakpointPx, resetBreakpointCache, type Breakpoint }

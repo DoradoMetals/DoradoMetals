@@ -9,13 +9,6 @@
     var(--font-mono-loaded), ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
     'Liberation Mono', monospace;
 
-  --breakpoint-xs: 19rem;
-  --breakpoint-sm: 40rem;
-  --breakpoint-md: 48rem;
-  --breakpoint-lg: 64rem;
-  --breakpoint-xl: 80rem;
-  --breakpoint-2xl: 96rem;
-
   --color-highest: var(--highest);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -75,6 +68,14 @@
 }
 
 @theme {
+  /* Plain @theme, not inline: these must be EMITTED. See README. */
+  --breakpoint-xs: 19rem;
+  --breakpoint-sm: 40rem;
+  --breakpoint-md: 48rem;
+  --breakpoint-lg: 64rem;
+  --breakpoint-xl: 80rem;
+  --breakpoint-2xl: 96rem;
+
   --spacing-3xs: 0.125rem;
   --spacing-2xs: 0.25rem;
   --spacing-xs: 0.5rem;
@@ -156,27 +157,20 @@
   --text-micro--font-weight: 400;
 }
 
-/* The type ramp's Mobile mode. Figma's Typography collection has ONE mode
-   ("Default"), so every value below is the Default value repeated: the ramp
-   does not change with width today. docs/waves/app-shell.md lists the styles
-   that need a Mobile value decided in Figma. Responsive type is CSS - never a
-   hook - so the ramp switches here and `text-h1` follows on its own. */
-@media (width < 64rem) {
+/* The type ramp's Mobile mode, at --breakpoint-md. See README. */
+@media (width < 48rem) {
   :root {
-    --text-display: 4rem;
-    --text-display--line-height: 1.05;
-    --text-stat: 2.25rem;
-    --text-stat-sm: 1.875rem;
-    --text-h1: 2.25rem;
-    --text-h1--line-height: 1.15;
-    --text-h2: 1.75rem;
-    --text-h3: 1.375rem;
-    --text-h4: 1.125rem;
-    --text-h5: 1rem;
-    --text-h6: 0.875rem;
-    --text-body: 0.9375rem;
-    --text-small: 0.8125rem;
-    --text-micro: 0.75rem;
+    --text-display: 2rem;
+    --text-display--line-height: 1.1875;
+
+    --text-stat: 1.875rem;
+
+    --text-stat-sm: 1.75rem;
+
+    --text-h1: 2rem;
+    --text-h1--line-height: 1.1875;
+
+    --text-h2: 1.375rem;
   }
 }
 

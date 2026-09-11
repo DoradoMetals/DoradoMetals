@@ -109,7 +109,16 @@ export const SCALE = {
   'opacity/hover': '--opacity-hover',
   'opacity/scrim': '--opacity-scrim',
   'opacity/soft': '--opacity-soft',
+  // All six since 2026-09-11. Figma carried only breakpoint/xs before, so the
+  // other five were checked from the code side alone by
+  // frontend/shared/tests/theme-breakpoints.test.ts; they are Figma's now and
+  // figma:tokens owns them.
   'breakpoint/xs': '--breakpoint-xs',
+  'breakpoint/sm': '--breakpoint-sm',
+  'breakpoint/md': '--breakpoint-md',
+  'breakpoint/lg': '--breakpoint-lg',
+  'breakpoint/xl': '--breakpoint-xl',
+  'breakpoint/2xl': '--breakpoint-2xl',
 }
 
 export const SCALE_ALIASES = { 'radius/lg': 'radius/base' }
@@ -177,6 +186,35 @@ export const TEXT_STYLES = {
 }
 
 export const FONT_WEIGHT = { Regular: 400, Medium: 500, SemiBold: 600, Bold: 700 }
+
+// The Typography collection's SECOND MODE, added 2026-09-11 (ruling 103 -
+// Jacob delegated the decision, and ruling 96 put the values into Figma
+// first). The code half is the `@media (width < 48rem)` block in theme.css.
+//
+// check-tokens compares the two mode by mode: Figma keeps size, line-height
+// and letter-spacing as three px variables per step, the CSS keeps a rem size
+// with a unitless ratio and an em tracking, and both must land on the same
+// pixel at the mobile size as well as the default one.
+export const TYPE_MODES = { default: 'Default', mobile: 'Mobile' }
+
+// The breakpoint the mobile ramp switches at. A media query cannot read a
+// custom property, so theme.css writes the literal; this is what pins the
+// literal to the token.
+export const MOBILE_RAMP_BREAKPOINT = '--breakpoint-md'
+
+// Steps whose Mobile value deliberately equals their Default, with the reason.
+// A step missing from BOTH this list and the media block is not a finding -
+// the ramp simply does not move it - but recording the five that were
+// considered and declined keeps the next session from re-deriving them.
+export const MOBILE_UNCHANGED = {
+  h3: 'already 22px; below H2 there is no fit problem at 390',
+  h4: 'already 18px',
+  h5: 'already 16px, and it is the field-value size',
+  h6: 'already 14px',
+  body: '15px is the reading size at every width',
+  small: 'already 13px',
+  micro: 'already 12px, the floor of the ramp',
+}
 
 // ---------------------------------------------------------------------------
 // Pages. A component page in Figma should have a directory in

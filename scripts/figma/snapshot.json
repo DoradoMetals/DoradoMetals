@@ -1,7 +1,7 @@
 {
   "fileKey": "8A73quhBLBqotJlX95jN9j",
   "fileName": "Themes and Components",
-  "capturedAt": "2026-09-06",
+  "capturedAt": "2026-09-11",
   "collections": {
     "Color": {
       "modes": [
@@ -338,6 +338,36 @@
       ],
       "variables": [
         {
+          "name": "breakpoint/2xl",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 1536
+        },
+        {
+          "name": "breakpoint/lg",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 1024
+        },
+        {
+          "name": "breakpoint/md",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 768
+        },
+        {
+          "name": "breakpoint/sm",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 640
+        },
+        {
+          "name": "breakpoint/xl",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 1280
+        },
+        {
           "name": "breakpoint/xs",
           "type": "FLOAT",
           "alias": null,
@@ -485,242 +515,399 @@
     },
     "Typography": {
       "modes": [
-        "Default"
+        "Default",
+        "Mobile"
       ],
       "variables": [
         {
           "name": "letter-spacing/body",
           "type": "FLOAT",
           "alias": null,
-          "value": -0.045
+          "value": -0.045,
+          "modeValues": {
+            "Default": -0.045,
+            "Mobile": -0.045
+          }
         },
         {
           "name": "letter-spacing/display",
           "type": "FLOAT",
           "alias": null,
-          "value": -2.048
+          "value": -2.048,
+          "modeValues": {
+            "Default": -2.048,
+            "Mobile": -1.024
+          }
         },
         {
           "name": "letter-spacing/h1",
           "type": "FLOAT",
           "alias": null,
-          "value": -0.864
+          "value": -0.864,
+          "modeValues": {
+            "Default": -0.864,
+            "Mobile": -0.768
+          }
         },
         {
           "name": "letter-spacing/h2",
           "type": "FLOAT",
           "alias": null,
-          "value": -0.56
+          "value": -0.56,
+          "modeValues": {
+            "Default": -0.56,
+            "Mobile": -0.44
+          }
         },
         {
           "name": "letter-spacing/h3",
           "type": "FLOAT",
           "alias": null,
-          "value": -0.33
+          "value": -0.33,
+          "modeValues": {
+            "Default": -0.33,
+            "Mobile": -0.33
+          }
         },
         {
           "name": "letter-spacing/h4",
           "type": "FLOAT",
           "alias": null,
-          "value": -0.198
+          "value": -0.198,
+          "modeValues": {
+            "Default": -0.198,
+            "Mobile": -0.198
+          }
         },
         {
           "name": "letter-spacing/h5",
           "type": "FLOAT",
           "alias": null,
-          "value": -0.096
+          "value": -0.096,
+          "modeValues": {
+            "Default": -0.096,
+            "Mobile": -0.096
+          }
         },
         {
           "name": "letter-spacing/h6",
           "type": "FLOAT",
           "alias": null,
-          "value": 0
+          "value": 0,
+          "modeValues": {
+            "Default": 0,
+            "Mobile": 0
+          }
         },
         {
           "name": "letter-spacing/micro",
           "type": "FLOAT",
           "alias": null,
-          "value": 0.048
+          "value": 0.048,
+          "modeValues": {
+            "Default": 0.048,
+            "Mobile": 0.048
+          }
         },
         {
           "name": "letter-spacing/small",
           "type": "FLOAT",
           "alias": null,
-          "value": 0
+          "value": 0,
+          "modeValues": {
+            "Default": 0,
+            "Mobile": 0
+          }
         },
         {
           "name": "letter-spacing/stat",
           "type": "FLOAT",
           "alias": null,
-          "value": -0.864
+          "value": -0.864,
+          "modeValues": {
+            "Default": -0.864,
+            "Mobile": -0.72
+          }
         },
         {
           "name": "letter-spacing/stat-sm",
           "type": "FLOAT",
           "alias": null,
-          "value": -0.6
+          "value": -0.6,
+          "modeValues": {
+            "Default": -0.6,
+            "Mobile": -0.56
+          }
         },
         {
           "name": "line-height/body",
           "type": "FLOAT",
           "alias": null,
-          "value": 24
+          "value": 24,
+          "modeValues": {
+            "Default": 24,
+            "Mobile": 24
+          }
         },
         {
           "name": "line-height/display",
           "type": "FLOAT",
           "alias": null,
-          "value": 67.2
+          "value": 67.2,
+          "modeValues": {
+            "Default": 67.2,
+            "Mobile": 38
+          }
         },
         {
           "name": "line-height/h1",
           "type": "FLOAT",
           "alias": null,
-          "value": 41.4
+          "value": 41.4,
+          "modeValues": {
+            "Default": 41.4,
+            "Mobile": 38
+          }
         },
         {
           "name": "line-height/h2",
           "type": "FLOAT",
           "alias": null,
-          "value": 34.16
+          "value": 34.16,
+          "modeValues": {
+            "Default": 34.16,
+            "Mobile": 26.84
+          }
         },
         {
           "name": "line-height/h3",
           "type": "FLOAT",
           "alias": null,
-          "value": 28.6
+          "value": 28.6,
+          "modeValues": {
+            "Default": 28.6,
+            "Mobile": 28.6
+          }
         },
         {
           "name": "line-height/h4",
           "type": "FLOAT",
           "alias": null,
-          "value": 25.2
+          "value": 25.2,
+          "modeValues": {
+            "Default": 25.2,
+            "Mobile": 25.2
+          }
         },
         {
           "name": "line-height/h5",
           "type": "FLOAT",
           "alias": null,
-          "value": 23.2
+          "value": 23.2,
+          "modeValues": {
+            "Default": 23.2,
+            "Mobile": 23.2
+          }
         },
         {
           "name": "line-height/h6",
           "type": "FLOAT",
           "alias": null,
-          "value": 21
+          "value": 21,
+          "modeValues": {
+            "Default": 21,
+            "Mobile": 21
+          }
         },
         {
           "name": "line-height/micro",
           "type": "FLOAT",
           "alias": null,
-          "value": 17.4
+          "value": 17.4,
+          "modeValues": {
+            "Default": 17.4,
+            "Mobile": 17.4
+          }
         },
         {
           "name": "line-height/small",
           "type": "FLOAT",
           "alias": null,
-          "value": 19.5
+          "value": 19.5,
+          "modeValues": {
+            "Default": 19.5,
+            "Mobile": 19.5
+          }
         },
         {
           "name": "line-height/stat",
           "type": "FLOAT",
           "alias": null,
-          "value": 39.6
+          "value": 39.6,
+          "modeValues": {
+            "Default": 39.6,
+            "Mobile": 33
+          }
         },
         {
           "name": "line-height/stat-sm",
           "type": "FLOAT",
           "alias": null,
-          "value": 34.5
+          "value": 34.5,
+          "modeValues": {
+            "Default": 34.5,
+            "Mobile": 32.2
+          }
         },
         {
           "name": "size/body",
           "type": "FLOAT",
           "alias": null,
-          "value": 15
+          "value": 15,
+          "modeValues": {
+            "Default": 15,
+            "Mobile": 15
+          }
         },
         {
           "name": "size/display",
           "type": "FLOAT",
           "alias": null,
-          "value": 64
+          "value": 64,
+          "modeValues": {
+            "Default": 64,
+            "Mobile": 32
+          }
         },
         {
           "name": "size/h1",
           "type": "FLOAT",
           "alias": null,
-          "value": 36
+          "value": 36,
+          "modeValues": {
+            "Default": 36,
+            "Mobile": 32
+          }
         },
         {
           "name": "size/h2",
           "type": "FLOAT",
           "alias": null,
-          "value": 28
+          "value": 28,
+          "modeValues": {
+            "Default": 28,
+            "Mobile": 22
+          }
         },
         {
           "name": "size/h3",
           "type": "FLOAT",
           "alias": null,
-          "value": 22
+          "value": 22,
+          "modeValues": {
+            "Default": 22,
+            "Mobile": 22
+          }
         },
         {
           "name": "size/h4",
           "type": "FLOAT",
           "alias": null,
-          "value": 18
+          "value": 18,
+          "modeValues": {
+            "Default": 18,
+            "Mobile": 18
+          }
         },
         {
           "name": "size/h5",
           "type": "FLOAT",
           "alias": null,
-          "value": 16
+          "value": 16,
+          "modeValues": {
+            "Default": 16,
+            "Mobile": 16
+          }
         },
         {
           "name": "size/h6",
           "type": "FLOAT",
           "alias": null,
-          "value": 14
+          "value": 14,
+          "modeValues": {
+            "Default": 14,
+            "Mobile": 14
+          }
         },
         {
           "name": "size/micro",
           "type": "FLOAT",
           "alias": null,
-          "value": 12
+          "value": 12,
+          "modeValues": {
+            "Default": 12,
+            "Mobile": 12
+          }
         },
         {
           "name": "size/small",
           "type": "FLOAT",
           "alias": null,
-          "value": 13
+          "value": 13,
+          "modeValues": {
+            "Default": 13,
+            "Mobile": 13
+          }
         },
         {
           "name": "size/stat",
           "type": "FLOAT",
           "alias": null,
-          "value": 36
+          "value": 36,
+          "modeValues": {
+            "Default": 36,
+            "Mobile": 30
+          }
         },
         {
           "name": "size/stat-sm",
           "type": "FLOAT",
           "alias": null,
-          "value": 30
+          "value": 30,
+          "modeValues": {
+            "Default": 30,
+            "Mobile": 28
+          }
         },
         {
           "name": "weight/medium",
           "type": "FLOAT",
           "alias": null,
-          "value": 500
+          "value": 500,
+          "modeValues": {
+            "Default": 500,
+            "Mobile": 500
+          }
         },
         {
           "name": "weight/regular",
           "type": "FLOAT",
           "alias": null,
-          "value": 400
+          "value": 400,
+          "modeValues": {
+            "Default": 400,
+            "Mobile": 400
+          }
         },
         {
           "name": "weight/semibold",
           "type": "FLOAT",
           "alias": null,
-          "value": 600
+          "value": 600,
+          "modeValues": {
+            "Default": 600,
+            "Mobile": 600
+          }
         }
       ]
     }

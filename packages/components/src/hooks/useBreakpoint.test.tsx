@@ -3,7 +3,7 @@ import { act, render } from '@testing-library/react'
 import { renderToString } from 'react-dom/server'
 import * as React from 'react'
 import { useBreakpoint, useMediaUp, useMounted } from './useBreakpoint'
-import { BREAKPOINTS, BREAKPOINT_ORDER } from './breakpoints'
+import { BREAKPOINTS, BREAKPOINT_ORDER, breakpointPx, resetBreakpointCache } from './breakpoints'
 
 type Listener = () => void
 const listeners = new Map<string, Set<Listener>>()
@@ -39,9 +39,7 @@ function resize(next: number) {
 
 function Probe() {
   const { breakpoint, mounted, isAbove, isBelow } = useBreakpoint()
-  return (
-    <output>{`${breakpoint}|${mounted}|${isAbove('lg')}|${isBelow('md')}`}</output>
-  )
+  return <output>{`${breakpoint}|${mounted}|${isAbove('lg')}|${isBelow('md')}`}</output>
 }
 
 describe('useBreakpoint', () => {
@@ -49,8 +47,14 @@ describe('useBreakpoint', () => {
     listeners.clear()
     width = 1440
     install()
+    document.documentElement.removeAttribute('style')
+    resetBreakpointCache()
   })
-  afterEach(() => vi.restoreAllMocks())
+  afterEach(() => {
+    vi.restoreAllMocks()
+    document.documentElement.removeAttribute('style')
+    resetBreakpointCache()
+  })
 
   it('every step is a whole number of rem', () => {
     for (const px of Object.values(BREAKPOINTS)) expect(px % 16).toBe(0)
@@ -103,6 +107,43 @@ describe('useBreakpoint', () => {
     expect(renderToString(<M />)).toContain('false')
     const { container } = render(<M />)
     expect(container.textContent).toBe('true')
+  })
+
+  // The thresholds are the THEME's, not this file's. packages/theme declares
+  // --breakpoint-* in a plain @theme block precisely so they are emitted and
+  // can be read here; the constants are only what answers on the server.
+  describe('the threshold comes from the theme token', () => {
+    it('falls back to the compiled scale when the stylesheet declares nothing', () => {
+      // jsdom applies no stylesheet, so every property reads empty.
+      expect(breakpointPx('md')).toBe(BREAKPOINTS.md)
+    })
+
+    it('does not cache a read that resolved nothing', () => {
+      expect(breakpointPx('lg')).toBe(BREAKPOINTS.lg)
+      document.documentElement.style.setProperty('--breakpoint-lg', '50rem')
+      expect(breakpointPx('lg')).toBe(800)
+    })
+
+    it('reads rem and px, and falls back per step', () => {
+      document.documentElement.style.setProperty('--breakpoint-md', '50rem')
+      document.documentElement.style.setProperty('--breakpoint-lg', '900px')
+      expect(breakpointPx('md')).toBe(800)
+      expect(breakpointPx('lg')).toBe(900)
+      expect(breakpointPx('xl')).toBe(BREAKPOINTS.xl)
+    })
+
+    it('the hook queries the theme value, not the constant', () => {
+      document.documentElement.style.setProperty('--breakpoint-lg', '1200px')
+      function One() {
+        return <output>{String(useMediaUp('lg'))}</output>
+      }
+      const { container } = render(<One />)
+      // 1440 is above 1200 ...
+      expect(container.textContent).toBe('true')
+      resize(1100)
+      // ... and 1100 is below it, where the compiled 1024 would have said true.
+      expect(container.textContent).toBe('false')
+    })
   })
 
   it('unsubscribes on unmount', () => {

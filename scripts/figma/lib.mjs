@@ -66,7 +66,8 @@ export function toColor(value) {
     )
   if (hsl) {
     const raw = hsl[4]
-    const alpha = raw === undefined ? 1 : raw.endsWith('%') ? Number(raw.slice(0, -1)) / 100 : Number(raw)
+    const alpha =
+      raw === undefined ? 1 : raw.endsWith('%') ? Number(raw.slice(0, -1)) / 100 : Number(raw)
     return { hex: hslToHex(Number(hsl[1]), Number(hsl[2]), Number(hsl[3])), alpha }
   }
   const short = /^#([0-9a-f])([0-9a-f])([0-9a-f])$/i.exec(v)
@@ -115,24 +116,100 @@ export function evalRadius(expr, radiusPx) {
   return m[1] === '-' ? radiusPx - Number(m[2]) : radiusPx + Number(m[2])
 }
 
-/**
- * Pulls `--name: value;` declarations out of a CSS file. Comments are stripped
- * first so a commented-out token is not read as live - theme.css carries long
- * rationale comments between declarations, and several of them contain values.
- */
-export function readCssVars(file) {
-  const raw = readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+/** Pulls `--name: value;` declarations out of a block of CSS text. */
+function declarations(text) {
   const out = new Map()
-  for (const m of raw.matchAll(/(--[a-z0-9-]+)\s*:\s*([^;]+);/gi)) {
+  for (const m of text.matchAll(/(--[a-z0-9-]+)\s*:\s*([^;]+);/gi)) {
     out.set(m[1], m[2].trim())
   }
   return out
 }
 
+/**
+ * Cuts every `@media` block out of `raw` and returns them separately.
+ *
+ * THIS IS NOT TIDINESS. `declarations()` is a flat scan, so a later
+ * declaration overwrites an earlier one - which means the Mobile ramp block,
+ * sitting between @theme and :root in theme.css, would be read AS the theme.
+ * It was harmless only while every value in it repeated the Default; the
+ * moment `--text-h1` became 2rem below md, every Default-mode check would have
+ * compared Figma's 36px against the MOBILE 32px and reported the ramp broken.
+ */
+function splitMedia(raw) {
+  const blocks = []
+  let base = ''
+  let i = 0
+  while (i < raw.length) {
+    const at = raw.indexOf('@media', i)
+    if (at === -1) {
+      base += raw.slice(i)
+      break
+    }
+    const open = raw.indexOf('{', at)
+    if (open === -1) {
+      base += raw.slice(i)
+      break
+    }
+    let depth = 0
+    let end = open
+    for (; end < raw.length; end++) {
+      if (raw[end] === '{') depth++
+      else if (raw[end] === '}' && --depth === 0) break
+    }
+    base += raw.slice(i, at)
+    blocks.push({
+      condition: raw.slice(at + 6, open).trim(),
+      body: raw.slice(open + 1, end),
+    })
+    i = end + 1
+  }
+  return { base, blocks }
+}
+
+/**
+ * Pulls `--name: value;` declarations out of a CSS file. Comments are stripped
+ * first so a commented-out token is not read as live - theme.css carries long
+ * rationale comments between declarations, and several of them contain values.
+ * Declarations inside a `@media` block are NOT included; see splitMedia.
+ */
+export function readCssVars(file) {
+  const raw = readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+  return declarations(splitMedia(raw).base)
+}
+
+/**
+ * theme.css, read as two layers: the base ramp, and the narrow-width block
+ * that redefines part of it. `mobile` is the `@media (width < Xrem)` block -
+ * the code half of the Figma Typography collection's Mobile mode - carrying
+ * only the properties it actually overrides, plus the width it switches at.
+ * Null when there is no such block; `extraMedia` counts any OTHER @media
+ * block, because a second one redefining the ramp would be read by nothing.
+ */
 export function loadTheme() {
-  const vars = readCssVars(path.join(THEME_DIR, 'theme.css'))
+  const raw = readFileSync(path.join(THEME_DIR, 'theme.css'), 'utf8').replace(
+    /\/\*[\s\S]*?\*\//g,
+    ''
+  )
+  const { base, blocks } = splitMedia(raw)
+  const vars = declarations(base)
   const radiusPx = toPx(vars.get('--radius') ?? '0.5rem')
-  return { vars, radiusPx }
+
+  const narrow = blocks.filter((b) => /^\(\s*width\s*<\s*[\d.]+rem\s*\)$/.test(b.condition))
+  const mobile = narrow.length
+    ? {
+        condition: narrow[0].condition,
+        widthPx: toPx(/([\d.]+rem)/.exec(narrow[0].condition)[1]),
+        vars: declarations(narrow[0].body),
+      }
+    : null
+
+  return {
+    vars,
+    radiusPx,
+    mobile,
+    extraMedia: blocks.length - narrow.length,
+    narrowCount: narrow.length,
+  }
 }
 
 /** Formats a number for a report without trailing float noise. */

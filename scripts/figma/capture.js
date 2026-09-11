@@ -24,7 +24,13 @@ const round = (n) => (typeof n === 'number' ? Math.round(n * 10000) / 10000 : n)
 
 const collections = {};
 for (const c of colls) {
-  const modeId = c.modes[0].modeId;
+  const modeId = c.defaultModeId;
+  // A collection can carry more than one MODE, and the Typography collection
+  // does since 2026-09-11: Default and Mobile. Capturing only modes[0] would
+  // read the whole responsive ramp as absent, so every mode is captured into
+  // modeValues and "value" stays the DEFAULT mode - which keeps every check
+  // that was written against one mode reading exactly what it read before.
+  const extraModes = c.modes.filter((m) => m.modeId !== modeId);
   const vars = [];
   for (const id of c.variableIds) {
     const v = await figma.variables.getVariableByIdAsync(id);
@@ -46,11 +52,23 @@ for (const c of colls) {
     // surface/soft) are the SAME hex as their solid sibling at 16% - so hex
     // alone reports four duplicate colours and the CSS side cannot be checked.
     const isColor = v.resolvedType === 'COLOR' && resolved && typeof resolved === 'object';
-    vars.push({
+    const entry = {
       name: v.name, type: v.resolvedType, alias,
       value: isColor ? hex(resolved) : round(resolved),
       opacity: isColor ? round(resolved.a === undefined ? 1 : resolved.a) : undefined,
-    });
+    };
+    if (extraModes.length) {
+      // Only aliases need resolving per mode, and no multi-mode collection in
+      // this file uses one; a raw number or colour is read straight off.
+      const byMode = {};
+      for (const m of c.modes) {
+        const val = v.valuesByMode[m.modeId];
+        const col = v.resolvedType === 'COLOR' && val && typeof val === 'object' && val.r !== undefined;
+        byMode[m.name] = col ? hex(val) : round(val);
+      }
+      entry.modeValues = byMode;
+    }
+    vars.push(entry);
   }
   collections[c.name] = { modes: c.modes.map((m) => m.name), variables: vars.sort((a, b) => a.name < b.name ? -1 : 1) };
 }
