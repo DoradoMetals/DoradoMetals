@@ -1,7 +1,7 @@
 import * as spots from '#db/spots/repo.ts'
 import * as metals from '#db/metals/repo.ts'
 import * as rules from '#pricing/spots/rules.ts'
-import { fetchQuotes } from '#providers/spots/feed.ts'
+import { fetchQuotes } from '#providers/market/nfusion/feed.ts'
 import withTransaction from '#shared/db/withTransaction.ts'
 import type { Executor } from '#shared/db/executor.ts'
 import type { SpotPrice, SpotTicker } from '@dorado/contracts'

@@ -9,10 +9,23 @@ const API_ROOT = process.env.LINT_NO_THROW_ROOT
 const SRC_ROOT = sourceRoot(API_ROOT)
 const DOMAIN_ROOTS = domainDirs(API_ROOT).map((d) => path.join(SRC_ROOT, d))
 
-// Empty on purpose. `domains/logistics/fulfillments/owner.ts` was the one entry;
-// it raises its 404 through `rules.assertOwnedDraft` now, so there is nothing to
-// excuse (LD F2's pass).
-const ACCEPTED: Record<string, { count: number; why: string }> = {}
+// `domains/logistics/fulfillments/owner.ts` was the one entry; it raises its
+// 404 through `rules.assertOwnedDraft` now, so it needed no excuse (LD F2's
+// pass). `puppeteer.ts` is a new one: moved from `providers/pdfs/puppeteer.ts`
+// by the provider-categorization pass (ruling 106) because the PDF renderer is
+// not a third party. Its one `throw err` re-raises a browser launch failure so
+// the next caller retries - infrastructure control flow, not a business
+// refusal - and the move was a pure rename with no behaviour change. Routing
+// it through a feature rules.ts is separate follow-up work.
+const ACCEPTED: Record<string, { count: number; why: string }> = {
+  'domains/documents/pdfs/render/puppeteer.ts': {
+    count: 1,
+    why:
+      'moved from providers/pdfs/puppeteer.ts (ruling 106) - the throw re-raises a ' +
+      'browser launch failure for the next caller to retry, infrastructure control ' +
+      'flow rather than a business refusal; the move was a pure rename',
+  },
+}
 
 function walk(dir: string, out: string[] = []): string[] {
   let entries: string[]

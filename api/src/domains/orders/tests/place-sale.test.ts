@@ -20,9 +20,9 @@ import * as paymentsWebhook from '#transactions/webhook.ts'
 import * as sweeps from '#transactions/sweeps.ts'
 import * as pricing from '#pricing/index.ts'
 import * as emailService from '#documents/emails/service.ts'
-import { closeBrowser } from '#providers/pdfs/puppeteer.ts'
+import { closeBrowser } from '#documents/pdfs/render/puppeteer.ts'
 import { formatSalesOrderNumber } from '#shared/utils/formatOrderNumbers.ts'
-import type { Transport } from '#providers/emails/index.ts'
+import type { Transport } from '#providers/communications/email/index.ts'
 
 type Message = Parameters<Transport['sendMail']>[0]
 

@@ -9,7 +9,7 @@ import { LOCKS } from '#shared/testing/locks.ts'
 import { withCassette } from '#shared/testing/cassettes.ts'
 import { aUser, aCart, aProduct } from '#shared/testing/builders/index.ts'
 import { anUnknownId } from '#shared/testing/builders/ids.ts'
-import * as stripe from '#providers/payment/stripe.ts'
+import * as stripe from '#providers/payments/stripe/stripe.ts'
 import * as service from '#transactions/service.ts'
 
 afterAll(async () => {

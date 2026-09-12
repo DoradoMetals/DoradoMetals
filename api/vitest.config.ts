@@ -83,7 +83,15 @@ export default defineConfig({
         // Raised by the payment-rails lane (ruling 97): the new domain code
         // arrived with tests for every transition, every ladder rung and every
         // route, so the measured floor moved 86/73/89/88 -> 88/77/92/91.
-        [DOMAIN_GLOB]: { statements: 88, branches: 77, functions: 92, lines: 91 },
+        // functions 92 -> 91 when providers/pdfs/puppeteer.ts joined the glob
+        // (ruling 106 - it is not a third party, so it moved into
+        // domains/documents/pdfs/render/ instead of a business-named provider
+        // folder). Nothing lost coverage: puppeteer.ts itself is 55.55%
+        // functions, structurally - the launch-failure catch needs a real
+        // launch to fail, and the function passed to `page.evaluate()` runs
+        // inside the browser's own JS context, invisible to Node's coverage
+        // instrumentation. Measured 91.93%, floored, never rounded up.
+        [DOMAIN_GLOB]: { statements: 88, branches: 77, functions: 91, lines: 91 },
         'src/shared/**': { statements: 80, branches: 74, functions: 86, lines: 83 },
       },
     },

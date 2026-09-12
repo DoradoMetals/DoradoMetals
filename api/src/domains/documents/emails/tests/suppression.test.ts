@@ -6,8 +6,8 @@ import pool from '#pool'
 import { inRollback } from '#shared/testing/rollback.ts'
 import * as mailers from '#db/media/emails/repo.ts'
 import * as emails from '#documents/emails/service.ts'
-import type { Transport } from '#providers/emails/index.ts'
-import type { ResendEvent } from '#providers/emails/index.ts'
+import type { Transport } from '#providers/communications/email/index.ts'
+import type { ResendEvent } from '#providers/communications/email/index.ts'
 
 afterAll(async () => {
   await pool.end()

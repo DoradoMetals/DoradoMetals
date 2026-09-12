@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import type { PoolClient } from 'pg'
 
-import minio from '#providers/s3/minio.ts'
+import minio from '#providers/storage/s3/minio.ts'
 import { isTestRun } from '#shared/testing/is-test-run.ts'
 import { orderOwnedBy } from '#shared/middleware/ownership.ts'
 import { linkableOrderId } from '#documents/emails/record.ts'

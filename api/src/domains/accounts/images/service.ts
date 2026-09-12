@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto'
-import minio from '#providers/s3/minio.ts'
+import minio from '#providers/storage/s3/minio.ts'
 import withTransaction from '#shared/db/withTransaction.ts'
 import * as images from '#db/media/images/repo.ts'
 import type { NewImage } from '#db/media/images/repo.ts'

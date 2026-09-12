@@ -1,7 +1,7 @@
 import withTransaction from '#shared/db/withTransaction.ts'
 import { bankLinks, users } from '#db'
-import * as moov from '#providers/moov/index.ts'
-import * as plaid from '#providers/plaid/index.ts'
+import * as moov from '#providers/payments/moov/index.ts'
+import * as plaid from '#providers/payments/plaid/index.ts'
 import {
   assertLink,
   assertMoovAccount,

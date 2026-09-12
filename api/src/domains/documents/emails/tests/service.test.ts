@@ -2,11 +2,11 @@ import { test, afterAll, beforeAll } from 'vitest'
 import assert from 'node:assert/strict'
 import pool from '#pool'
 import * as emails from '#documents/emails/service.ts'
-import { closeBrowser } from '#providers/pdfs/puppeteer.ts'
+import { closeBrowser } from '#documents/pdfs/render/puppeteer.ts'
 import * as orderRead from '#orders/read.ts'
 import * as inputs from '#documents/pdfs/order-inputs.ts'
 import * as pricing from '#pricing/index.ts'
-import type { Transport } from '#providers/emails/index.ts'
+import type { Transport } from '#providers/communications/email/index.ts'
 import {
   formatPurchaseOrderNumber,
   formatSalesOrderNumber,

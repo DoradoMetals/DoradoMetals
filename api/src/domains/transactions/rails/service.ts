@@ -8,7 +8,7 @@ import {
   settledState,
   stateFromMoov,
 } from '#transactions/rails/rules.ts'
-import type { MoovEvent } from '#providers/moov/types.ts'
+import type { MoovEvent } from '#providers/payments/moov/types.ts'
 import type { Executor } from '#shared/db/executor.ts'
 import { reportError } from '#shared/observability/report.ts'
 import type { PaymentView, Transfer, TransferState } from '@dorado/contracts'

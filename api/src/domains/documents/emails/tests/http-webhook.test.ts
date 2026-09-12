@@ -2,7 +2,7 @@ import { test, afterAll } from 'vitest'
 import assert from 'node:assert/strict'
 import request from 'supertest'
 import pool from '#pool'
-import { header, sign } from '#providers/emails/resend-webhook.ts'
+import { header, sign } from '#providers/communications/email/resend-webhook.ts'
 
 process.env.RESEND_WEBHOOK_SECRET = 'whsec_cmVzZW5kLWh0dHAtdGVzdC1zZWNyZXQ='
 const { default: app } = await import('#app')

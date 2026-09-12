@@ -1,5 +1,5 @@
 import * as tracking from '#db/shipping/tracking/repo.ts'
-import type { ParsedTracking, TrackingEvent } from '#providers/shipments/utils/parsing.ts'
+import type { ParsedTracking, TrackingEvent } from '#providers/carriers/fedex/utils/parsing.ts'
 import type { Executor } from '#shared/db/executor.ts'
 
 export async function removeEvents(shipment_id: string, tx: Executor): Promise<boolean> {

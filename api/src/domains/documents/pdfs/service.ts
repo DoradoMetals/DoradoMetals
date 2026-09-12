@@ -1,5 +1,5 @@
 import { generateBoxSVG } from '#documents/pdfs/utils/generateBoxSVG.ts'
-import { renderPdf } from '#providers/pdfs/puppeteer.ts'
+import { renderPdf } from '#documents/pdfs/render/puppeteer.ts'
 import { renderShell } from '#documents/pdfs/render/layout.ts'
 import { formatCurrency } from '#documents/pdfs/render/format.ts'
 import {

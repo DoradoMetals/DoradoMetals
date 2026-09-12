@@ -2,7 +2,7 @@ import query from '#shared/db/query.ts'
 import { sqlFrom } from '#shared/db/sql.ts'
 import type { Executor } from '#shared/db/executor.ts'
 import type { TrackingScan } from '@dorado/contracts'
-import type { ParsedTracking, TrackingEvent } from '#providers/shipments/utils/parsing.ts'
+import type { ParsedTracking, TrackingEvent } from '#providers/carriers/fedex/utils/parsing.ts'
 
 const sql = sqlFrom(import.meta.dirname)
 

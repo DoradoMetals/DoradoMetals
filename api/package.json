@@ -15,7 +15,7 @@
     "test:db": "TZ=UTC NODE_ENV=test USE_TEST_DB=1 node scripts/preflight-test-db.ts && TZ=UTC NODE_ENV=test USE_TEST_DB=1 node node_modules/vitest/vitest.mjs run --project db",
     "test:http": "TZ=UTC NODE_ENV=test USE_TEST_DB=1 node scripts/preflight-test-db.ts && TZ=UTC NODE_ENV=test USE_TEST_DB=1 node node_modules/vitest/vitest.mjs run --project http",
     "test:external": "cd tests/external && TZ=UTC NODE_ENV=test FEDEX_ENV=sandbox node --test",
-    "test:record": "TZ=UTC NODE_ENV=test USE_TEST_DB=1 RECORD_CASSETTES=1 FEDEX_ENV=sandbox node node_modules/vitest/vitest.mjs run --no-file-parallelism src/providers/payment/tests/stripe-cassettes.test.ts src/providers/shipments/tests/fedex-cassettes.test.ts",
+    "test:record": "TZ=UTC NODE_ENV=test USE_TEST_DB=1 RECORD_CASSETTES=1 FEDEX_ENV=sandbox node node_modules/vitest/vitest.mjs run --no-file-parallelism src/providers/payments/stripe/tests/stripe-cassettes.test.ts src/providers/carriers/fedex/tests/fedex-cassettes.test.ts",
     "lint:db": "node scripts/lint-db-calls.ts",
     "lint:imports": "node scripts/lint-imports.mjs",
     "lint:namespace-calls": "node scripts/lint-namespace-calls.mjs",

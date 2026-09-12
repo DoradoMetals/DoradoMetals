@@ -5,11 +5,11 @@ import { randomUUID } from 'node:crypto'
 import pool from '#pool'
 import * as emails from '#documents/emails/service.ts'
 import { recordEmail } from '#documents/emails/record.ts'
-import { closeBrowser } from '#providers/pdfs/puppeteer.ts'
+import { closeBrowser } from '#documents/pdfs/render/puppeteer.ts'
 import * as orderRead from '#orders/read.ts'
 import { LOCKS } from '#shared/testing/locks.ts'
 import { inRollback } from '#shared/testing/rollback.ts'
-import type { Transport } from '#providers/emails/index.ts'
+import type { Transport } from '#providers/communications/email/index.ts'
 import type { OrderView } from '@dorado/contracts'
 
 let client: PoolClient

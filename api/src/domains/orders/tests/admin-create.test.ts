@@ -16,7 +16,7 @@ import {
   paymentMethodId,
   saleServiceId,
 } from '#shared/testing/builders/index.ts'
-import { closeBrowser } from '#providers/pdfs/puppeteer.ts'
+import { closeBrowser } from '#documents/pdfs/render/puppeteer.ts'
 
 await mockSessions()
 const { default: app } = await import('#app')

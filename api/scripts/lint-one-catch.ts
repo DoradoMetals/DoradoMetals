@@ -253,6 +253,27 @@ function functionBlocks(src: string): { signature: string; body: string; startLi
 
 const OPTIONAL_TX_PARAM = /\b(?:executor|tx)\s*\?\s*:/
 
+// Every entry carries the one line that justifies it, same shape as the other
+// domain lints' ACCEPTED tables. The count is pinned both ways: a new finding
+// in an accepted file fails, and a fixed one forces the entry out.
+// `puppeteer.ts` moved from `providers/pdfs/puppeteer.ts` by the
+// provider-categorization pass (ruling 106) because the PDF renderer is not a
+// third party - it landed in the documents domain instead of a business-named
+// provider folder. Its try/finally releases the page handle and its two
+// `.catch(` calls manage a singleton browser process's lifecycle; none of it
+// is a domain refusal or a transaction, and the move was a pure rename with no
+// behaviour change. Rewriting it clean is separate follow-up work.
+const SYNTHETIC = Boolean(process.env.LINT_ONE_CATCH_ROOT)
+const ACCEPTED: Record<string, { count: number; why: string }> = {
+  'domains/documents/pdfs/render/puppeteer.ts': {
+    count: 3,
+    why:
+      'moved from providers/pdfs/puppeteer.ts (ruling 106) - a try/finally releasing ' +
+      "the page handle and two .catch( calls managing the singleton browser's " +
+      'lifecycle, not a domain refusal or a transaction; the move was a pure rename',
+  },
+}
+
 const exists = WALK_ROOTS.some((r) => fs.existsSync(r))
 const files = exists ? WALK_ROOTS.flatMap((r) => walk(r)) : []
 
@@ -274,28 +295,61 @@ if (files.length < FLOOR) {
 }
 
 const rel = (f: string) => path.relative(SRC_ROOT, f)
-const problems: string[] = []
+const foundByFile = new Map<string, string[]>()
 
 for (const file of files) {
   const src = fs.readFileSync(file, 'utf8')
   const lines = src.split('\n')
+  const name = rel(file)
+  const own: string[] = []
 
   for (const [pattern, label] of [...CATCH_ALL_PATTERNS, ...TERNARY_PATTERNS]) {
     lines.forEach((line, i) => {
       if (pattern.test(line)) {
-        problems.push(`${rel(file)}:${i + 1}  ${label}\n      ${line.trim()}`)
+        own.push(`${name}:${i + 1}  ${label}\n      ${line.trim()}`)
       }
     })
   }
 
   for (const fn of functionBlocks(src)) {
     if (OPTIONAL_TX_PARAM.test(fn.signature) && /\bwithTransaction\s*\(/.test(fn.body)) {
-      problems.push(
-        `${rel(file)}:${fn.startLine}  withTransaction( with an optional executor?/tx? ` +
+      own.push(
+        `${name}:${fn.startLine}  withTransaction( with an optional executor?/tx? ` +
           `parameter on the same function - only a use case opens a transaction`
       )
     }
   }
+
+  if (own.length) foundByFile.set(name, own)
+}
+
+const problems: string[] = []
+const acceptedHit = new Set<string>()
+
+for (const [name, own] of [...foundByFile].sort(([a], [b]) => a.localeCompare(b))) {
+  const entry = SYNTHETIC ? undefined : ACCEPTED[name]
+  if (!entry) {
+    problems.push(...own)
+    continue
+  }
+  acceptedHit.add(name)
+  if (entry.count !== own.length) {
+    problems.push(
+      `${name}  ACCEPTED says ${entry.count} finding(s), the file has ${own.length}. ` +
+        (own.length < entry.count
+          ? `Good - lower the ACCEPTED count to ${own.length} in the same diff, so the ` +
+            `gain cannot be given back silently.`
+          : `A NEW finding was added to an accepted file.`)
+    )
+  }
+}
+
+const stale = SYNTHETIC ? [] : Object.keys(ACCEPTED).filter((f) => !acceptedHit.has(f))
+if (stale.length) {
+  problems.push(
+    `${stale.length} ACCEPTED entr(y/ies) matched nothing: ${stale.join(', ')} - ` +
+      `remove them, the file is gone, renamed, or already clean`
+  )
 }
 
 if (problems.length) {
@@ -312,6 +366,12 @@ if (problems.length) {
   process.exit(1)
 }
 
+if (acceptedHit.size) {
+  for (const [name, entry] of Object.entries(ACCEPTED)) {
+    console.log(`  accepted  ${name}  ${entry.count} finding(s) - ${entry.why}`)
+  }
+}
 console.log(
-  `one-catch check passed (${files.length} file${files.length === 1 ? '' : 's'} scanned, 0 findings)`
+  `one-catch check passed (${files.length} file${files.length === 1 ? '' : 's'} scanned, ` +
+    `0 finding(s) unaccepted, ${acceptedHit.size} accepted file(s))`
 )
