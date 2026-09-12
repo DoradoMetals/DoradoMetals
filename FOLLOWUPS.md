@@ -425,3 +425,15 @@ Detail in `docs/waves/auth-passwordless.md`.
 - **`@dorado/components` itself could not be used in either renderer, for two reasons worth not reopening**: the library ships `.tsx` and Node runs no JSX (the API is `.ts` type-stripped, `packages/components` has no build by design), and its components are Tailwind-utility-classed, so rendering one server-side would drag Tailwind, Radix, lucide and a browser Web Component (`@number-flow/react`) onto the PDF path to reach pixels the tokens give directly. The sharing therefore happens at the tokens, and the two print/email subsets live in the components package as plain `createElement` `.ts` — recorded in `map.mjs` `DIR_NOT_DRAWN` because they are drawn in the **Media** file, which `figma:check` does not read.
 - **"Closest standard purity label" needed a BOUND and the first cut had none** — an unbounded nearest-neighbour labelled 0.059 silver `.800` and 0.011 platinum `.900`. Migration **176** adds a `tolerance` column to `metals.purity_labels` (half the distance to that metal's next standard, capped at 0.02 — so 0.02 everywhere except Silver's `.925`/`.900`, which sit 0.025 apart and reach 0.0125 each), and the read filters on it: 14K covers 0.5633-0.6033, and outside every band there is NO label and the percentage stands alone. The tolerance is a seeded COLUMN, not a ladder of ifs in code.
 - **Settlement and Lot Manifest are gone from the business's list but NOT from `media.pdf_kind`** — dev holds 2 `media.pdfs` rows using those labels, and dropping an enum label means rewriting every row that carries one. Three things stay outstanding and none is a blocker: the PDF face is still Poppins because no Geist woff2 is in this repo; `GET /api/rates/sheet.pdf` is UNGUARDED, exposing only what `GET /api/rates` already serves unguarded; and **no mailer has been looked at in a real client**, which the design's own note says must happen before any of them ships.
+
+- **Leads first contact (2026-09-12, deferred until the leads feature).** The
+  "median hours to first contact" figure cannot be derived from legacy data:
+  `leads.leads.created_at` is unreliable (many created by hand after the
+  fact) and no contact history exists before `crm.sms_messages`/`crm.calls`.
+  Plan when the feature is built: Jacob exports Google Voice via Takeout to a
+  folder outside the repo; a read-only match by phone number reports counts
+  first; first outbound call or text after the lead exists is first contact;
+  where the lead was created later, the earliest evidence becomes creation.
+  Never commit the export. The figure is honest going forward from the crm
+  tables.
+
