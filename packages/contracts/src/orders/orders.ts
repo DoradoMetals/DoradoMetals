@@ -81,7 +81,12 @@ export type OrderViewFacts = z.infer<typeof OrderViewFacts>
 export const OrderView = OrderViewFacts.extend({ actions: OrderActions })
 export type OrderView = z.infer<typeof OrderView>
 
-export const OrderPatch = Order.pick({ notes: true, assigned_to_id: true })
+export const OrderPatch = Order.pick({
+  notes: true,
+  assigned_to_id: true,
+  cancelled_at: true,
+  review_created: true,
+})
   .partial()
   .strict()
 export type OrderPatch = z.infer<typeof OrderPatch>

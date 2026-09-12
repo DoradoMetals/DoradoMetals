@@ -403,6 +403,14 @@ export function assertReopenable(view: OrderViewFacts): void {
   }
 }
 
+export function assertClearsCancellation(next: string | null): void {
+  if (next !== null) {
+    throw new Invalid(
+      'a PATCH may only clear cancelled_at - cancel an order with POST /api/orders/:id/cancel'
+    )
+  }
+}
+
 export function assertCreditCovers(balance: number | null | undefined, spending: number): void {
   if (Number(balance ?? 0) < spending) {
     throw new Conflict(

@@ -3,6 +3,7 @@ import { attempt } from '#shared/attempt.ts'
 import { orders, paymentTransfers as transfers, bankLinks, refiningOrders } from '#db'
 import * as moov from '#providers/moov/index.ts'
 import * as rails from '#transactions/rails/service.ts'
+import * as rules from '#transactions/payouts/rules.ts'
 import {
   assertKind,
   assertOpenable,
@@ -23,7 +24,14 @@ import {
 } from '#transactions/rails/rules.ts'
 import * as accounts from '#accounts/auth/step-up.ts'
 import { PayTo as PayToShape } from '@dorado/contracts'
-import type { BankLink, OpenPayoutBody, PayTo, SendPayoutBody, Transfer } from '@dorado/contracts'
+import type {
+  BankLink,
+  OpenPayoutBody,
+  PayoutPatch,
+  PayTo,
+  SendPayoutBody,
+  Transfer,
+} from '@dorado/contracts'
 
 const MOOV = 'moov'
 const MANUAL = 'manual'
@@ -206,6 +214,12 @@ export async function markSent(transfer_id: string, reference: string): Promise<
 export async function failPayout(transfer_id: string, reason: string): Promise<Transfer> {
   await rails.markFailed(transfer_id, reason)
   return await rails.getTransfer(transfer_id)
+}
+
+export async function patchPayout(transfer_id: string, changes: PayoutPatch): Promise<Transfer> {
+  rules.assertNamesExactlyOneField(changes)
+  if (changes.reference !== undefined) return await markSent(transfer_id, changes.reference)
+  return await failPayout(transfer_id, changes.failure_reason as string)
 }
 
 export async function payTo(user_id: string): Promise<PayTo[]> {

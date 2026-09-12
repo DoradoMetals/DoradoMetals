@@ -7,8 +7,8 @@ import {
   getByCarrier,
   getOffered,
   getSaleOptions,
+  patchService,
   remove,
-  update,
 } from '#logistics/shipping/services/controller.ts'
 
 import { requireAdmin, requireUser } from '#shared/middleware/authMiddleware.ts'
@@ -23,7 +23,7 @@ router.get('/offered', requireUser, getOffered)
 
 router.get('/get_one', requireAdmin, getOne)
 router.post('/create', requireAdmin, create)
-router.post('/update', requireAdmin, update)
+router.patch('/:id', requireAdmin, patchService)
 router.delete('/delete', requireAdmin, remove)
 
 export default router

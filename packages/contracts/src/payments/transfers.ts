@@ -83,6 +83,20 @@ export type TransferPatch = z.infer<typeof TransferPatch>
 export const TransferGuard = Transfer.pick({ state: true, kind: true }).partial()
 export type TransferGuard = z.infer<typeof TransferGuard>
 
+export const ChargePatch = z
+  .object({ failure_reason: Transfer.shape.failure_reason.unwrap().min(1).max(400) })
+  .strict()
+export type ChargePatch = z.infer<typeof ChargePatch>
+
+export const PayoutPatch = z
+  .object({
+    reference: Transfer.shape.reference.unwrap().min(1).max(120),
+    failure_reason: Transfer.shape.failure_reason.unwrap().min(1).max(400),
+  })
+  .partial()
+  .strict()
+export type PayoutPatch = z.infer<typeof PayoutPatch>
+
 export const PayTo = BankLink.pick({
   id: true,
   rail: true,

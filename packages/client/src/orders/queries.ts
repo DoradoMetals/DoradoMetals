@@ -109,10 +109,6 @@ export function useFinalizeOrder(id: string) {
   return useOrderWrite(id, () => apiRequest<OrderView>('POST', `/orders/${id}/finalize`, {}))
 }
 
-export function useReopenOrder(id: string) {
-  return useOrderWrite(id, () => apiRequest<OrderView>('POST', `/orders/${id}/reopen`, {}))
-}
-
 export function useCancelOrder(id: string) {
   return useOrderWrite(id, (body: OrderCancelBody) =>
     apiRequest<OrderView>('POST', `/orders/${id}/cancel`, body)

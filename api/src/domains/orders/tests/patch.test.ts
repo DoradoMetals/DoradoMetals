@@ -434,6 +434,80 @@ test('notes is written and an explicit null clears it', async () => {
   )
 })
 
+test('review_created is written by a PATCH', async () => {
+  await inPinnedTransaction(
+    async (client: PoolClient) => {
+      const { order } = await anOpenPurchaseOrder(client)
+      await asAdmin(admin, async () => {
+        const res = await request(app)
+          .patch(`/api/orders/${order.id}`)
+          .send({ review_created: true })
+        assert.equal(res.status, 200, res.text)
+        assert.equal(res.body.order.review_created, true)
+
+        const { rows } = await client.query(
+          `SELECT review_created FROM orders.orders WHERE id = $1`,
+          [order.id]
+        )
+        assert.equal(rows[0]?.review_created, true)
+      })
+    },
+    { actor: TEST_ACTOR.id, lock: ORDER_LOCK }
+  )
+})
+
+test('a PATCH clears cancelled_at and reopens a cancelled order, and only a cancelled one', async () => {
+  await inPinnedTransaction(
+    async (client: PoolClient) => {
+      const cancelled = await anOrder(client, await aUser(client), {
+        direction: 'purchase',
+        cancelled_at: new Date().toISOString(),
+      }).withLots(1)
+      await asAdmin(admin, async () => {
+        const notCancelled = await anOpenPurchaseOrder(client)
+        const refused = await request(app)
+          .patch(`/api/orders/${notCancelled.order.id}`)
+          .send({ cancelled_at: null })
+        assert.equal(refused.status, 409, refused.text)
+
+        const reopened = await request(app)
+          .patch(`/api/orders/${cancelled.id}`)
+          .send({ cancelled_at: null })
+        assert.equal(reopened.status, 200, reopened.text)
+        assert.equal(reopened.body.order.cancelled_at, null)
+
+        const { rows } = await client.query(
+          `SELECT cancelled_at FROM orders.orders WHERE id = $1`,
+          [cancelled.id]
+        )
+        assert.equal(rows[0]?.cancelled_at, null)
+      })
+    },
+    { actor: TEST_ACTOR.id, lock: ORDER_LOCK }
+  )
+})
+
+test('a PATCH refuses to set cancelled_at to anything but null', async () => {
+  await inPinnedTransaction(
+    async (client: PoolClient) => {
+      const { order } = await anOpenPurchaseOrder(client)
+      await asAdmin(admin, async () => {
+        const res = await request(app)
+          .patch(`/api/orders/${order.id}`)
+          .send({ cancelled_at: new Date().toISOString() })
+        assert.equal(res.status, 422, res.text)
+
+        const { rows } = await client.query(
+          `SELECT cancelled_at FROM orders.orders WHERE id = $1`,
+          [order.id]
+        )
+        assert.equal(rows[0]?.cancelled_at, null, 'a refused PATCH still wrote cancelled_at')
+      })
+    },
+    { actor: TEST_ACTOR.id, lock: ORDER_LOCK }
+  )
+})
+
 test('nothing this file did survived the transactions', async () => {
   const metalsNow = await outside<{ name: string; bid: string }>(
     `SELECT sp.metal_id, sp.bid FROM spots.spots sp ORDER BY sp.metal_id`

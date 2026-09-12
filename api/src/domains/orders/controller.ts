@@ -6,8 +6,6 @@ import * as orders from '#orders/service.ts'
 import * as orderRead from '#orders/read.ts'
 import * as place from '#orders/place.ts'
 import * as checkoutService from '#checkout/service.ts'
-import * as ordersRepo from '#db/orders/repo.ts'
-import withTransaction from '#shared/db/withTransaction.ts'
 import { Forbidden, NotFound } from '#shared/errors.ts'
 import {
   AdminOrderCreate,
@@ -59,17 +57,6 @@ export const adminCreateOrder = asyncHandler(async (req, res) => {
   return res.status(201).json(await place.placeForAdmin(body))
 })
 
-export const createOrderReview = asyncHandler(async (req, res) => {
-  const order_id = uuidParam(req, 'id')
-  const written = await withTransaction((tx) =>
-    ordersRepo.update(order_id, { review_created: true }, {}, tx)
-  )
-  if (!written) throw new NotFound(`no order ${order_id}`)
-  const view = await orderRead.view(order_id)
-  if (!view) throw new NotFound(`no order ${order_id}`)
-  return res.status(200).json(view)
-})
-
 export const addFundsToOrder = asyncHandler(async (req, res) => {
   const body = strictBody(OverrideBody, req.body ?? {})
   return res.status(200).json(await orders.addFunds(uuidParam(req, 'id'), body, req.sessionId ?? null))
@@ -77,10 +64,6 @@ export const addFundsToOrder = asyncHandler(async (req, res) => {
 
 export const finalizeOrder = asyncHandler(async (req, res) => {
   return res.status(200).json(await orders.finalize(uuidParam(req, 'id')))
-})
-
-export const reopenOrder = asyncHandler(async (req, res) => {
-  return res.status(200).json(await orders.reopen(uuidParam(req, 'id')))
 })
 
 export const getOrderDocuments = asyncHandler(async (req, res) => {

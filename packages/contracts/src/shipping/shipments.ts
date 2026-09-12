@@ -36,6 +36,7 @@ export type Shipment = z.infer<typeof Shipment>
 // generated:end
 import { Carrier } from './carriers.js'
 import { Address } from '../places/addresses.js'
+import { OrderTotals } from '../orders/transactions.js'
 
 export const OrderViewShipment = Shipment.omit({ user_id: true }).extend({
   direction: z.string(),
@@ -45,15 +46,26 @@ export type OrderViewShipment = z.infer<typeof OrderViewShipment>
 export const ShipmentRead = OrderViewShipment.omit({ label: true })
 export type ShipmentRead = z.infer<typeof ShipmentRead>
 
-export const ShipmentPatch = Shipment.pick({ tracking_number: true })
-  .extend({
-    shipping_charge: z.number().optional(),
-    shipping_actual: z.number().optional(),
-    tracking_number: Shipment.shape.tracking_number.unwrap().optional(),
-    carrier_service_id: Shipment.shape.carrier_service_id.unwrap().optional(),
-  })
+export const ShipmentPatch = z
+  .object({ carrier_service_id: Shipment.shape.carrier_service_id.unwrap() })
+  .partial()
   .strict()
 export type ShipmentPatch = z.infer<typeof ShipmentPatch>
+
+export const ShipmentChargeBody = z
+  .object({ shipping_charge: Shipment.shape.cost.unwrap() })
+  .strict()
+export type ShipmentChargeBody = z.infer<typeof ShipmentChargeBody>
+
+export const ShipmentActualCostBody = z
+  .object({ shipping_actual: OrderTotals.shape.shipping_fee_actual.unwrap() })
+  .strict()
+export type ShipmentActualCostBody = z.infer<typeof ShipmentActualCostBody>
+
+export const ShipmentTrackingBody = z
+  .object({ tracking_number: Shipment.shape.tracking_number.unwrap() })
+  .strict()
+export type ShipmentTrackingBody = z.infer<typeof ShipmentTrackingBody>
 
 export const ShipmentPatchColumns = Shipment.omit({
   id: true,
