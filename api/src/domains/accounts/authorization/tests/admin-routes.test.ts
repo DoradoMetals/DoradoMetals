@@ -14,7 +14,6 @@ import path from 'node:path'
 const API_ROOT = path.resolve(import.meta.dirname, '..', '..', '..', '..', '..')
 const SRC = sourceRoot(API_ROOT)
 const ALIAS = wildcardRoots(API_ROOT)
-// '#transactions/methods/controller.ts' names a directory the manifest owns.
 const aliasPath = (spec: string): string => {
   const [head, ...rest] = spec.split('/')
   return [ALIAS[head!] ?? head!, ...rest].join('/')

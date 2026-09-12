@@ -48,9 +48,6 @@ type BullionOptions = {
   unit?: string
 }
 
-// `content` is what the lot's FINE weight should come out at. It is generated
-// now, so a spec that names it declares a troy-ounce lot of that weight at
-// full fineness unless it also names a weight of its own.
 type LineSpec = Partial<Omit<Lot, 'id' | 'metal_id' | 'content'>> &
   Pick<Lot, 'metal_id'> &
   Partial<Pick<OrderLot, 'premium' | 'price' | 'confirmed' | 'sales_tax_charged'>> & {
@@ -189,10 +186,6 @@ class OrderPlan implements PromiseLike<BuiltOrder> {
     return this
   }
 
-  // A real order always reaches the database with a fulfillment, because the
-  // checkout makes one. Tests that cancel, label or schedule need it too: the
-  // return leg is linked to the fulfillment, and an order with none has no
-  // handover to describe.
   withFulfillment(method = 'CARRIER DROPOFF'): this {
     this.steps.push(async (c, order) => {
       const draft = await aHandover(c, order.checkout_id, {

@@ -4,9 +4,6 @@ import { calendarUrl } from '#documents/emails/links.ts'
 import { orderLabel } from '#documents/emails/rules.ts'
 import type { ScheduleMail } from '@dorado/contracts'
 
-// Figma "Mailer · Appointment booked" (211:747). "Add to calendar" has to add
-// to a calendar, so the button is a Google Calendar template URL built from the
-// booking's own start - a plain link, nothing for a client to strip.
 export function subject(mail: ScheduleMail): string {
   return `You're booked - ${orderLabel(mail.direction, mail.order_number)}`
 }

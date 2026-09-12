@@ -1,6 +1,3 @@
-// Fixture views, typed by the contracts. A fixture that does not typecheck is a
-// fixture that describes a shape the API cannot send, so every one of these is
-// annotated with the contract type rather than inferred.
 import type {
   AdminUser,
   RefinerView,
@@ -330,7 +327,10 @@ export const aFulfillment = (over: Partial<FulfillmentView> = {}): FulfillmentVi
     ...over,
   }) satisfies FulfillmentView
 
-export const aShipment = (over: Partial<ShipmentView['shipment']> = {}, rest: Partial<ShipmentView> = {}): ShipmentView =>
+export const aShipment = (
+  over: Partial<ShipmentView['shipment']> = {},
+  rest: Partial<ShipmentView> = {}
+): ShipmentView =>
   ({
     shipment: {
       id: ID(60),
@@ -379,7 +379,14 @@ export const aProfitBreakdown = (): ProfitBreakdown => ({
   order_id: ID(1),
   spots_at: '2026-09-01T12:00:00.000Z',
   shares: [
-    { party: 'dorado', category: 'total', metal_id: 'Gold', content: 0.31, percentage: 0.4, profit: 742.18 },
+    {
+      party: 'dorado',
+      category: 'total',
+      metal_id: 'Gold',
+      content: 0.31,
+      percentage: 0.4,
+      profit: 742.18,
+    },
   ],
   parties: [
     {

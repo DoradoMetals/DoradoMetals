@@ -32,9 +32,6 @@ export const PoolLockCreate = PoolEntry.pick({
   .strict()
 export type PoolLockCreate = z.infer<typeof PoolLockCreate>
 
-// The balance is sum(troy_oz), never a column somebody keeps correct. It may be
-// negative - metal taken before it settled is a real business state - and the
-// view reports the sign rather than the write refusing.
 export const PoolBalance = PoolEntry.pick({ refiner_id: true, metal_id: true }).extend({
   troy_oz: PoolEntry.shape.troy_oz,
   last_lock_price: PoolEntry.shape.lock_price,

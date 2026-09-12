@@ -1,6 +1,3 @@
-// Presentation only. Every number, state and label these touch has already
-// been decided by an API view; what is left is how it is spelled on screen.
-
 const MONEY = new Intl.NumberFormat('en-US', {
   style: 'currency',
   currency: 'USD',
@@ -29,16 +26,13 @@ export const ounces = (value: number | null | undefined): string =>
 export const plain = (value: number | null | undefined): string =>
   value === null || value === undefined ? DASH : PLAIN.format(value)
 
-// A purity is stored as a fraction and read as a percentage.
 export const percent = (value: number | null | undefined): string =>
   value === null || value === undefined ? DASH : `${PLAIN.format(value * 100)}%`
 
-// A premium is already a percentage of spot on the wire.
 export const premium = (value: number | null | undefined): string =>
   value === null || value === undefined ? DASH : PLAIN.format(value)
 
-export const last4 = (value: string | null | undefined): string =>
-  value ? `•••• ${value}` : DASH
+export const last4 = (value: string | null | undefined): string => (value ? `•••• ${value}` : DASH)
 
 export const when = (value: string | null | undefined): string => {
   if (!value) return DASH

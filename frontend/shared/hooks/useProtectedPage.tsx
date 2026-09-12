@@ -22,7 +22,6 @@ export default function ProtectedPage({ children, requiredRoles }: ProtectedPage
   useEffect(() => {
     if (!isPending) {
       if (!authorized) {
-        // The page they wanted travels to the sign-in screen and back.
         router.replace(signInHref(pathname))
       }
       setChecked(true)

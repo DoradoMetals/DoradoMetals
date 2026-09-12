@@ -51,8 +51,6 @@ export async function applyIntentEvent(
       await withTransaction(async (tx) => {
         await rails.settleCardCharge(order_id, paymentIntent.id, tx)
         if (await ordersRepo.update(order_id, { status: 'Preparing' }, { status: 'Pending' }, tx)) {
-          // The payment settled, so the credit the customer reserved is spent
-          // rather than held (ruling 88).
           await credit.settleReservation(order_id, tx)
         }
       })

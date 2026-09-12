@@ -4,8 +4,6 @@ import { directionsUrl } from '#documents/emails/links.ts'
 import { orderLabel } from '#documents/emails/rules.ts'
 import type { ScheduleMail } from '@dorado/contracts'
 
-// Figma "Mailer · Appointment tomorrow" (211:790). The one SCHEDULED mailer -
-// a daily job sends it, and the paper trail is what stops it being sent twice.
 export function subject(mail: ScheduleMail): string {
   return `See you tomorrow - ${orderLabel(mail.direction, mail.order_number)}`
 }

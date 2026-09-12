@@ -22,8 +22,6 @@ export const TransferEvent = z.object({
 export type TransferEvent = z.infer<typeof TransferEvent>
 // generated:end
 
-// Hand-written derivations go here: New, Patch, named reads.
-
 export const TransferEventWrite = TransferEvent.pick({
   transfer_id: true,
   provider: true,

@@ -6,7 +6,6 @@ import type { AdminUser } from '@dorado/contracts'
 import { apiRequest } from '../fetch'
 import { keys } from '../keys'
 
-// Who an order can be assigned to.
 export function useAdmins(options: { enabled?: boolean } = {}) {
   return useQuery<AdminUser[]>({
     queryKey: keys.users.admins(),

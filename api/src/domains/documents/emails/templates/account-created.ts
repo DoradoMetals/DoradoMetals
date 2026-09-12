@@ -2,8 +2,6 @@ import { createElement as h } from 'react'
 import { renderMailer, Text, Button } from '@dorado/components/email'
 import type { AccountCreatedMail } from '@dorado/contracts'
 
-// Figma "Mailer · Account created" (154:954). Copy verbatim from the design.
-
 export function subject(): string {
   return 'Welcome to Dorado Metals Exchange'
 }

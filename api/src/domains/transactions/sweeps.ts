@@ -44,9 +44,6 @@ type AbandonedSweepResult = {
   refunded: number
 }
 
-// RULING 88. The reservation IS the record, so returning it is one statement
-// that can only match once - the `hasCreditFor` guard that used to stop a
-// double refund is no longer what stands between the customer and two of them.
 export async function cancelPendingSale(
   order_id: string,
   client: Executor

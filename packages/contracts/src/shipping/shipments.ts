@@ -37,9 +37,6 @@ export type Shipment = z.infer<typeof Shipment>
 import { Carrier } from './carriers.js'
 import { Address } from '../places/addresses.js'
 
-// Without user_id: 137 stamps the parcel's owner so the composite key can check
-// its addresses, and no read projects it - the owner of a parcel is the order's
-// owner, which every one of these views already carries.
 export const OrderViewShipment = Shipment.omit({ user_id: true }).extend({
   direction: z.string(),
 })
@@ -48,12 +45,6 @@ export type OrderViewShipment = z.infer<typeof OrderViewShipment>
 export const ShipmentRead = OrderViewShipment.omit({ label: true })
 export type ShipmentRead = z.infer<typeof ShipmentRead>
 
-// No `carrier_id`. It was required to travel with `tracking_number` and then
-// discarded - the carrier a tracking number belongs to is whatever the
-// shipment's own `carrier_service_id` already says (LD F16).
-// `carrier_service_id` is here for ONE case: a drop-shipped parcel the refiner
-// posted, where the tracking number and the carrier both arrive after the fact.
-// A parcel that already has a tracking number or a label refuses it.
 export const ShipmentPatch = Shipment.pick({ tracking_number: true })
   .extend({
     shipping_charge: z.number().optional(),
@@ -64,9 +55,6 @@ export const ShipmentPatch = Shipment.pick({ tracking_number: true })
   .strict()
 export type ShipmentPatch = z.infer<typeof ShipmentPatch>
 
-// `user_id` is the parcel owner 137's composite key checks the address against.
-// It is claimed by its own statement (`claimOwner`), never through a patch, so
-// no caller can move a parcel into somebody else's book by sending a field.
 export const ShipmentPatchColumns = Shipment.omit({
   id: true,
   created_at: true,

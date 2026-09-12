@@ -62,9 +62,6 @@ export async function persistPdf(
   return id ?? null
 }
 
-// An IMPORTED file: the refiner's settlement statement, a scanned instruction
-// sheet. It is stored the way a rendered one is, so Send finds it afterwards
-// and the Documents card flips the row to available (GAP 25).
 export async function storeUpload(
   kind: PdfKind,
   order_id: string | null,
@@ -74,8 +71,6 @@ export async function storeUpload(
   const buffer = Buffer.from(bytes)
   const checksum = createHash('sha256').update(buffer).digest('hex')
   const path = `pdfs/${order_id ?? refining_order_id ?? 'unattached'}/${kind}-${checksum}.pdf`
-  // Object storage first, the row after: a put cannot be rolled back, so it
-  // never goes inside the transaction that records it.
   if (!isTestRun()) {
     await minio.putObject(process.env.MINIO_BUCKET as string, path, buffer)
   }

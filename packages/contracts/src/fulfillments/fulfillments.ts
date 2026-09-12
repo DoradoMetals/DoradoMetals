@@ -57,9 +57,6 @@ export const FulfillmentCancelScheduleBody = z
   .strict()
 export type FulfillmentCancelScheduleBody = z.infer<typeof FulfillmentCancelScheduleBody>
 
-// `declared_value` is not here and never will be: the server computes the
-// parcel at label time (ruling 58). What the operator chooses is whether it is
-// covered, how much cover to buy on top, and - on a return - who pays.
 export const FulfillmentShipmentChoices = Shipment.pick({
   shipper_address_id: true,
   recipient_address_id: true,

@@ -10,18 +10,10 @@ import {
   type Breakpoint,
 } from './breakpoints'
 
-// The threshold comes from the theme's own --breakpoint-* property, so the
-// hook cannot drift from the stylesheet; breakpointPx falls back to the
-// compiled scale where there is no document to read, which is every server
-// render.
 const query = (bp: Breakpoint) => `(min-width: ${breakpointPx(bp)}px)`
 
 const noopSubscribe = () => () => {}
 
-// SSR-safe by construction: the server snapshot is always false, so the first
-// client render matches the HTML and hydration never mismatches. matchMedia is
-// only read after mount, when useSyncExternalStore swaps to the client
-// snapshot.
 export function useMediaUp(bp: Breakpoint): boolean {
   const subscribe = React.useCallback(
     (onChange: () => void) => {
@@ -50,8 +42,6 @@ export type BreakpointState = {
   isBelow: (bp: Breakpoint) => boolean
 }
 
-// LAYOUT ONLY. Type is responsive through the theme's media queries, never
-// through this hook - a hook cannot size text before hydration.
 export function useBreakpoint(): BreakpointState {
   const matches: Record<Breakpoint, boolean> = {
     xs: useMediaUp('xs'),

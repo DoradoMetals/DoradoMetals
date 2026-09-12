@@ -70,11 +70,6 @@ export async function markFailed(transfer_id: string, reason: string): Promise<v
   })
 }
 
-// Every provider event lands here. The event row is written FIRST and is
-// unique on (provider, event_id), so a replay writes nothing and applies
-// nothing; an event about a transfer we have not heard of is kept unapplied
-// rather than dropped; and an event that would move the state backwards is
-// kept unapplied too (out-of-order delivery).
 export async function applyMoovEvent(event: MoovEvent): Promise<boolean> {
   return await withTransaction(async (tx) => {
     const recorded = await events.record(
@@ -108,8 +103,6 @@ export async function applyMoovEvent(event: MoovEvent): Promise<boolean> {
   })
 }
 
-// The card rail keeps the Stripe path and joins the same machine at the end:
-// `payment_intent.succeeded` is what makes a card charge Received.
 export async function settleCardCharge(
   order_id: string,
   provider_ref: string,
@@ -138,14 +131,10 @@ export async function getTransfer(id: string): Promise<Transfer> {
   return assertTransfer(id, await transfers.getOne(id))
 }
 
-// One SQL read, parsed by its contract (ruling 71). The Payment card renders
-// what comes back and computes nothing.
 export async function paymentView(order_id: string): Promise<PaymentView> {
   return assertViewable(order_id, await transfers.view(order_id))
 }
 
-// A refiner order answers the same shape. Its `amount_due` is the Totals card's
-// total, which `refining.order_money` defines once for every read of it.
 export async function refiningPaymentView(refining_order_id: string): Promise<PaymentView> {
   return assertViewable(refining_order_id, await transfers.viewRefining(refining_order_id))
 }

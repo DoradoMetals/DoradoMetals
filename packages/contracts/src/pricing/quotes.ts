@@ -56,12 +56,7 @@ export const PurchaseQuote = z.object({
   checkout_id: Checkout.shape.id,
   spots_at: z.string(),
   items: z.array(PurchaseQuoteLine),
-  // The lines no live bid can price. Both quotes carry it now: quoting a metal
-  // with no bid at $0 is a payout figure a customer ships metal on (MP F9).
   unpriceable: z.array(CheckoutItem.shape.id),
-  // The same split `OrderPricing` carries, from the same CASE over
-  // `bullion_id IS NULL`: a sell basket's review step shows what the scrap is
-  // worth beside what the bullion is worth, and `total` is their sum.
   scrap_total: z.number(),
   bullion_total: z.number(),
   total: z.number(),
@@ -127,9 +122,6 @@ export const OrderPricingLine = z.object({
 })
 export type OrderPricingLine = z.infer<typeof OrderPricingLine>
 
-// The bid and ask each of the order's metals is priced at, resolved the same
-// way every line is: the order's frozen row when it is locked, the live feed
-// when it is not. A metal appears only when the order has a line in it.
 export const OrderPricingSpot = z.object({
   metal_id: OrderSpot.shape.metal_id,
   bid: OrderSpot.shape.bid,

@@ -14,8 +14,6 @@ export const schedulePickup = asyncHandler(async (req, res) => {
   const view = await withTransaction((tx) =>
     pickupService.schedule(body.fulfillment_id, body.pickup, tx)
   )
-  // After the booking is committed, never inside it: an email cannot be rolled
-  // back. A draft fulfillment has no order yet, so there is nobody to tell.
   if (view?.fulfillment.order_id) await emails.sendPickupBooked(view.fulfillment.order_id)
   return res.status(200).json(view)
 })

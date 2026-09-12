@@ -86,8 +86,6 @@ const IDENTITY = {
 const isPhoneField = (state: IdentityState): boolean =>
   state === 'sign-in' || state === 'change-phone'
 
-// The one place a countable noun is inflected. Everything else is a fixed
-// string from the design.
 const attemptsBody = (remaining: number): string =>
   `Check the digits and try again. You have ${remaining} ${
     remaining === 1 ? 'attempt' : 'attempts'
@@ -108,7 +106,6 @@ const confirmedSubhead = (view: ChangeConfirmedView): string => {
   return `You'll sign in with ${view.next_value} from now on.${notice}`
 }
 
-// Where the code screen's one link goes is the PURPOSE, which is the API's.
 const codeFooter = (view: VerificationView): { prose: string; label: string; href: string } => {
   if (view.purpose === 'step_up') {
     return { prose: 'Lost access?', label: 'Contact support', href: SUPPORT_HREF }
@@ -231,8 +228,6 @@ export function AuthForm(props: AuthFormProps) {
   ) {
     const { state, view, code, onCodeChange, onResend, pending, message } = props
     const footer = codeFooter(view)
-    // Which words the code screen wears is the PURPOSE, not the state name: a
-    // wrong code during a step-up is still "Verify it's you".
     const stepUp = view.purpose === 'step_up'
     return (
       <form
@@ -254,10 +249,6 @@ export function AuthForm(props: AuthFormProps) {
             resendIn={secondsUntil(view.resend_at)}
             onResend={onResend}
           />
-          {/* NO CAPTCHA SLOT HERE. The widget renders where a verification is
-              STARTED - sign-in, sign-up and the two factor changes. A resend
-              from this screen is a send inside the pending window, which
-              `send_code` accepts without a token. */}
           <Button type="submit" className="w-full" disabled={pending} aria-busy={pending}>
             Verify
           </Button>

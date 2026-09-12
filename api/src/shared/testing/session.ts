@@ -25,10 +25,6 @@ type TestSession = {
 let current: TestSession = null
 let real: ((...args: unknown[]) => unknown) | null = null
 
-// Ruling 90 moved the middleware off `auth.api.getSession` and onto the
-// session seam, which reads ban state and role from the database on every
-// request. Patching the seam is what keeps these tests off that read; the
-// public surface below is unchanged.
 export async function mockSessions() {
   if (real) return
   real = sessions.current as (...args: unknown[]) => unknown
@@ -62,9 +58,6 @@ export async function as<T>(
         session: {
           id: user.session_id ?? '00000000-0000-0000-0000-000000000000',
           userId: user.id,
-          // Freshness and one-factor-per-session are session facts, so the mock
-          // carries them. A caller that names none gets a session minted now,
-          // which is what every existing caller assumed.
           createdAt: user.session_created_at ?? new Date().toISOString(),
           stepped_up_at: user.stepped_up_at ?? null,
           factor_changed: user.factor_changed ?? null,

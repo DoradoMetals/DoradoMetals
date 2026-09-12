@@ -3,8 +3,6 @@ import { renderMailer, Text, Card, Button } from '@dorado/components/email'
 import { maskPhone } from '#shared/text/mask.ts'
 import type { VoicemailReceivedMail } from '@dorado/contracts'
 
-// No Figma mailer exists for this one: it is an internal notice to staff, on
-// the plain base layout, and docs/waves/auth-passwordless.md says so.
 export function subject(): string {
   return 'A caller left a voicemail'
 }

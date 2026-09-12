@@ -104,8 +104,7 @@ test('the column itself refuses a negative balance, whatever wrote it', async ()
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c)
     await assert.rejects(
-      () =>
-        c.query('UPDATE auth.users SET dorado_funds = -1 WHERE id = $1', [user.id]),
+      () => c.query('UPDATE auth.users SET dorado_funds = -1 WHERE id = $1', [user.id]),
       /users_dorado_funds_non_negative/
     )
   })
@@ -174,15 +173,8 @@ test('a rolled-back movement leaves neither the balance nor the log changed', as
   }
 })
 
-// RULING 88 (Jacob, 2026-09-07), executed. Finding 28 was that credit applied
-// to a sale was SPENT at placement with nothing recording why, and came back
-// only when somebody ran a script. The reservation is now a ledger fact tied to
-// the order, and these four tests are its whole life.
-
 const ledgerRows = async (c: PoolClient, order_id: string) =>
-  (
-    await c.query(`SELECT type, amount FROM payments.ledger WHERE order_id = $1`, [order_id])
-  ).rows
+  (await c.query(`SELECT type, amount FROM payments.ledger WHERE order_id = $1`, [order_id])).rows
 
 test('a reservation moves the balance and records itself against the order', async () => {
   await inRollback(async (c: PoolClient) => {

@@ -60,9 +60,6 @@ export async function place(checkout_id: string, world: typeof LIVE = LIVE): Pro
   return order
 }
 
-// The admin builds the customer's checkout server-side - the same checkout
-// service, logistics draft and payment write the customer's own steps use -
-// and then places it through place() above.
 export async function placeForAdmin(
   order: AdminOrderCreate,
   world: typeof LIVE = LIVE
@@ -142,11 +139,7 @@ async function snapshotAddress(
   await orderAddresses.create({ order_id, address_id, source_address_id }, tx)
 }
 
-async function placePurchase(
-  checkout: Checkout,
-  cart: Lot[],
-  world: typeof LIVE
-): Promise<string> {
+async function placePurchase(checkout: Checkout, cart: Lot[], world: typeof LIVE): Promise<string> {
   const draft = rules.requireFreeFulfillmentDraft(
     await fulfillmentService.getById(checkout.fulfillment_id!)
   )
@@ -189,11 +182,7 @@ async function placePurchase(
   return placed.order_id
 }
 
-async function placeSale(
-  checkout: Checkout,
-  cart: Lot[],
-  world: typeof LIVE
-): Promise<string> {
+async function placeSale(checkout: Checkout, cart: Lot[], world: typeof LIVE): Promise<string> {
   const address = rules.requireAddress(
     await placeAddresses.getOne(checkout.recipient_address_id!),
     'delivery'
@@ -239,12 +228,6 @@ async function placeSale(
     )
 
     if (quote.pre_charges_amount > 0) {
-      // The quote read the balance outside this transaction. Re-read it under
-      // FOR UPDATE before spending it, so a concurrent placement or admin edit
-      // cannot leave the balance negative (MP F7 / MI F3). The schema half is
-      // 134's CHECK (dorado_funds >= 0), and `removeFunds` refuses on its own
-      // read too - this is the refusal a customer should see, and it names what
-      // happened instead of surfacing a constraint.
       rules.assertCreditCovers(
         await usersRepo.balanceForUpdate(checkout.user_id, tx),
         quote.pre_charges_amount
@@ -254,12 +237,7 @@ async function placeSale(
         await credit.settleReservation(id, tx)
       }
     }
-    await taxService.updateStateSalesTax(
-      quote.sales_tax,
-      quote.item_total,
-      address.state,
-      tx
-    )
+    await taxService.updateStateSalesTax(quote.sales_tax, quote.item_total, address.state, tx)
     if (intent) await paymentsService.attachOrder(intent.payment_intent_id, id, tx)
     await clearChoices(checkout, tx)
     return id

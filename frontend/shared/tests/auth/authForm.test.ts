@@ -24,7 +24,6 @@ const view = (over: Partial<VerificationView> = {}): VerificationView => ({
   ...over,
 })
 
-// The state the code screen wears is the API's answer, never a decision here.
 describe('codeStateFor', () => {
   test('a sent code is the plain OTP screen', () => {
     expect(codeStateFor(view())).toBe('otp')

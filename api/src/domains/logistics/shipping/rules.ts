@@ -38,15 +38,14 @@ export function declaredValue(total: number): number {
   return Math.max(0, Number(total) || 0)
 }
 
-// What a returning parcel is worth. A purchase cancelled before it is finalized
-// has no order total yet, so pricing it from the total alone sent the customer's
-// metal back uninsured; the value the customer declared on the way IN is on the
-// inbound parcel and is the floor (MP F5).
 export function returnDeclaredValue(
   inboundDeclared: number | null | undefined,
   orderTotal: number | null | undefined
 ): number {
-  return Math.max(declaredValue(Number(orderTotal ?? 0)), declaredValue(Number(inboundDeclared ?? 0)))
+  return Math.max(
+    declaredValue(Number(orderTotal ?? 0)),
+    declaredValue(Number(inboundDeclared ?? 0))
+  )
 }
 
 export function offeredRates(
@@ -122,10 +121,6 @@ export function scheduleFromPickup(pickup: FulfillmentPickup | undefined): Parce
   }
 }
 
-// The date the carrier is told to cancel. `shipping.pickups.requested_at` is a
-// timestamptz written from a bare local string, so deriving the date through
-// toISOString() answers UTC's day, not the customer's (LD F15). The parcel's own
-// `pickup_date` is the provider's string and is what was asked for.
 export function pickupDateFor(
   parcelDate: string | null | undefined,
   requestedAt: Date | string | null
@@ -153,12 +148,7 @@ export function quotedCharge(
   return quoted.netCharge
 }
 
-// A parcel that already carries a label or a tracking number has its carrier
-// settled - changing it would describe a box that is already in the network.
-export function assertAwaitingTracking(
-  shipment: OrderViewShipment,
-  shipment_id: string
-): void {
+export function assertAwaitingTracking(shipment: OrderViewShipment, shipment_id: string): void {
   if (shipment.tracking_number || shipment.label) {
     throw new Conflict(
       `shipment ${shipment_id} already has a label or a tracking number, so its ` +
@@ -182,8 +172,6 @@ export function assertUnlabelled(
   if (tracking_number) throw new Conflict(`shipment ${shipment_id} already has a label`)
 }
 
-// A second cancel must not buy a second return label and orphan the first
-// (LD F5). The leg that already carries a tracking number IS the cancellation.
 export function assertReturnNotBought(
   tracking_number: string | null | undefined,
   order_id: string
@@ -195,9 +183,6 @@ export function assertReturnNotBought(
   }
 }
 
-// The claim a label purchase takes before it calls the carrier. One statement,
-// so two concurrent buys cannot both pass: the loser writes no row and is told
-// so here rather than paying for a second label (LD F5).
 export function assertClaimed(claimed: boolean, shipment_id: string): void {
   if (!claimed) {
     throw new Conflict(
@@ -224,11 +209,10 @@ export function assertHandoff<T>(
   }
 }
 
-// A return leg hangs off the order's fulfillment. No fulfillment means nothing
-// records how the metal arrived, and answering "no return label needed" would
-// cancel the order and quietly keep the customer's metal (LD F4 is about a
-// PICKUP order, which HAS a fulfillment and correctly needs no label).
-export function assertHandoverKnown<T>(category: T | null | undefined, order_id: string): asserts category is T {
+export function assertHandoverKnown<T>(
+  category: T | null | undefined,
+  order_id: string
+): asserts category is T {
   if (!category) {
     throw new NotFound(
       `order ${order_id} has no fulfillment, so there is no handover to return the metal by`
@@ -236,9 +220,6 @@ export function assertHandoverKnown<T>(category: T | null | undefined, order_id:
   }
 }
 
-// RULING 89. A label held for collection needs a place to be held at, and that
-// place is a row now. No default_return row, or one the carrier knows by no
-// code, and no label is bought - the alternative is a payload naming nowhere.
 export function assertReturnLocation<T>(hold: T | null | undefined): asserts hold is T {
   if (!hold) {
     throw new Invalid(
@@ -470,14 +451,6 @@ export function assertLabelService<T extends { carrier_id: string | null; name: 
   }
 }
 
-// A row that names NO ceiling is not a ceiling of zero. `Number(null)` is 0 and
-// 0 is finite, so one NULL row made `Math.min` answer 0, every label was bought
-// with declaredValue 0 and `sealForPlacement` wrote `insured = false` on a
-// parcel of metal (LD F19).
-// The insurance ceiling a carrier service is offered at. A row of its own wins
-// when it names a finite one; otherwise the carrier's lowest active ceiling is
-// what the label may be insured for. The rows are the carrier's `shipping.services`
-// (`getInsuranceCeilings`) - read with `.find`, never indexed into a Map (ruling 78).
 export function lowestCeiling(rows: InsuranceCeiling[]): number {
   const values = rows
     .filter((r) => r.max_insured_value != null)

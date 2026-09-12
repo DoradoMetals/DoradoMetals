@@ -20,9 +20,6 @@ export async function listUnmatched(): Promise<InboundTransaction[]> {
   return await inbound.listUnmatched()
 }
 
-// The ladder is one SQL read: it labels every unmatched row with the rung it
-// reached for THIS order and orders the strongest first. Nothing here
-// confirms anything - a pre-selection is a suggestion (design notes, rung 3).
 export async function candidatesFor(order_id: string): Promise<MatchCandidate[]> {
   return await inbound.candidates(order_id, null)
 }
@@ -45,9 +42,6 @@ export async function recordWire(body: RecordWireBody): Promise<InboundTransacti
   })
 }
 
-// Confirming a match is what makes a charge Received. Both writes are one
-// transaction, so an order is never Received against a row that says nothing
-// was matched to it.
 export async function confirmMatch(
   inbound_id: string,
   order_id: string,
@@ -76,9 +70,6 @@ export async function confirmMatch(
   })
 }
 
-// Unmatching returns the money to the unmatched list AND the order to owing.
-// A charge that was Received because of this row is Due again; anything else
-// is left alone, because a card charge was never this row's doing.
 export async function unmatch(inbound_id: string): Promise<InboundTransaction> {
   return await withTransaction(async (tx) => {
     const row = assertMatched(assertInbound(inbound_id, await inbound.getOne(inbound_id, tx)))
@@ -110,25 +101,23 @@ export async function unmatch(inbound_id: string): Promise<InboundTransaction> {
 
 export async function ingestMoovInbound(event: MoovEvent): Promise<InboundTransaction | undefined> {
   if (!event.transferID) return undefined
-  return await withTransaction(async (tx) =>
-    await inbound.create(
-      {
-        source: 'moov',
-        external_id: event.transferID,
-        amount: 0,
-        occurred_at: event.occurredAt,
-        counterparty_name: null,
-        memo: event.type,
-        account_ref: null,
-      },
-      tx
-    )
+  return await withTransaction(
+    async (tx) =>
+      await inbound.create(
+        {
+          source: 'moov',
+          external_id: event.transferID,
+          amount: 0,
+          occurred_at: event.occurredAt,
+          counterparty_name: null,
+          memo: event.type,
+          account_ref: null,
+        },
+        tx
+      )
   )
 }
 
-// The Truist feed. A credit is a NEGATIVE amount in Plaid's sign convention,
-// so only those become inbound rows; the cursor is saved after the page is
-// written, so a crash re-reads the page rather than skipping it.
 export async function syncFeed(): Promise<number> {
   const token = assertFeedToken(process.env.PLAID_TRUIST_ACCESS_TOKEN)
   const held = await feedCursors.getOne(FEED)
@@ -137,19 +126,20 @@ export async function syncFeed(): Promise<number> {
   let written = 0
   for (const entry of page.added) {
     if (!isCredit(entry)) continue
-    const created = await withTransaction(async (tx) =>
-      await inbound.create(
-        {
-          source: 'plaid',
-          external_id: entry.transaction_id,
-          amount: Math.abs(entry.amount),
-          occurred_at: `${entry.date}T00:00:00.000Z`,
-          counterparty_name: entry.merchant_name ?? entry.name,
-          memo: entry.name,
-          account_ref: entry.account_id,
-        },
-        tx
-      )
+    const created = await withTransaction(
+      async (tx) =>
+        await inbound.create(
+          {
+            source: 'plaid',
+            external_id: entry.transaction_id,
+            amount: Math.abs(entry.amount),
+            occurred_at: `${entry.date}T00:00:00.000Z`,
+            counterparty_name: entry.merchant_name ?? entry.name,
+            memo: entry.name,
+            account_ref: entry.account_id,
+          },
+          tx
+        )
     )
     if (created) written += 1
   }

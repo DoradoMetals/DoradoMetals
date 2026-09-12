@@ -28,10 +28,6 @@ export async function update(
   row: Partial<OrganizationPatch> | undefined,
   executor?: Executor
 ): Promise<boolean> {
-  // The caller's patch travels as it was written. `buildUpdate` already says
-  // what each shape means - a key present is set, an explicit null clears, an
-  // absent key is left alone - and coalescing every absent field to null here
-  // turned "edit the logo" into "wipe the name, email and phone" (MA F3).
   const built = buildUpdate({
     table: 'organizations.organizations',
     allowed: PATCHABLE,

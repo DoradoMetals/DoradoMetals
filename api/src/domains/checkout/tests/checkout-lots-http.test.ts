@@ -173,8 +173,6 @@ test("a bullion line inherits the product's metal, weights, purity and content",
         assert.equal(Number(row.purity), Number(product.purity))
         assert.equal(Number(row.content), Number(product.content))
         assert.equal(row.unit, 't oz')
-        // A basket carries no premium: at checkout it is a live quote, and
-        // storing it was the quote quoting itself.
         assert.ok(!('premium' in row), 'a basket lot carries a premium again')
       })
     },
@@ -422,8 +420,7 @@ test('a direction that is not one of the two labels is a 400', async () => {
         assert.equal((await get('')).status, 400)
         assert.equal((await put('sideways', [])).status, 400)
         assert.equal(
-          (await request(app).delete('/api/checkout/lots').query({ direction: 'sideways' }))
-            .status,
+          (await request(app).delete('/api/checkout/lots').query({ direction: 'sideways' })).status,
           400
         )
       })

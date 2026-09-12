@@ -9,8 +9,6 @@ import type { Executor } from '#shared/db/executor.ts'
 
 const sql = sqlFrom(import.meta.dirname)
 
-// The money half of a lot patch. The physical half lands on lots.items, so the
-// two tables never see each other's columns.
 export const PATCHABLE = columnsOf(
   OrderLot.pick({ premium: true, price: true, sales_tax_charged: true, confirmed: true })
 )

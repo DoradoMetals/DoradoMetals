@@ -18,7 +18,6 @@ export async function getOne(
   return rows[0]
 }
 
-// The partial unique index allows one open change per user, so this is a row.
 export async function openFor(
   user_id: string,
   executor?: Executor

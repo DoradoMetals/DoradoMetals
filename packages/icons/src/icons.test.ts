@@ -5,10 +5,6 @@ import { join, dirname } from 'node:path'
 
 const SRC_DIR = dirname(fileURLToPath(import.meta.url))
 
-// A path command letter followed by its own numeric run, repeated. Catches an
-// export that took a Figma frame/layer name (e.g. d="Frame") instead of the
-// actual vector path data - every character in a real `d` value belongs to
-// this grammar, and a plain word does not.
 const PATH_DATA = /^[Mm][0-9eE.,+\-\s]*(?:[MLHVCSQTAZmlhvcsqtaz][0-9eE.,+\-\s]*)*$/
 
 const iconFiles = readdirSync(SRC_DIR).filter(

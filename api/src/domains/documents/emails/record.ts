@@ -7,9 +7,6 @@ import { attempt } from '#shared/attempt.ts'
 
 type Executor = PoolClient | undefined
 
-// The labels of media.email_kind, as the database declares them. A hand-kept
-// union drifted from the enum the moment a migration added one (ruling 95 added
-// twelve at once in 141), and every mailer files under one of these.
 export type EmailKind = Email['kind']
 
 type EmailBase = {

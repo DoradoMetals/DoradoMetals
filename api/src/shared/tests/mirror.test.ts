@@ -5,18 +5,6 @@ import path from 'node:path'
 
 const ROOT = path.resolve(import.meta.dirname, '../../../..')
 
-// THERE IS NOTHING TO MIRROR RIGHT NOW (the frontend nuke, ruling 99).
-//
-// This held one pair: `convertTroyOz`, written twice because the API quoted a
-// weight and the browser re-showed it. The frontend copy went with the sell
-// and buy surfaces, so the drift this file exists to catch cannot happen -
-// there is only one copy left, which is the state the file wants.
-//
-// The list is empty rather than the file deleted, because the SECOND copy is
-// what comes back first: the moment a surface shows a weight somebody will
-// reach for `convertTroyOz` in the browser, and this is where that copy gets
-// pinned to the API's. `no second copy has come back` below fails the day one
-// appears without an entry here.
 const PAIRS: {
   what: string
   api: string
@@ -85,11 +73,6 @@ test('the comparison is reading real function bodies, not empty strings', () => 
   }
 })
 
-// THE GUARD THAT REPLACES THE PAIR. An empty PAIRS list passes every test
-// above trivially, and a check that reads nothing accepts everything - so the
-// emptiness has to be asserted from the other side. These are the frontend
-// files that USED to hold a second copy of a number the API also computes. If
-// one comes back, it is either a duplicate to delete or a pair to declare.
 test('no second copy of an API calculation has come back to the frontend', () => {
   const copies = [
     'frontend/shared/utils/convertWeights.ts',

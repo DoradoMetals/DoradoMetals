@@ -243,9 +243,10 @@ test('editing a scrap line writes the weights it names and derives the content',
 
     const {
       rows: [item],
-    } = await client.query('SELECT li.content, ol.premium FROM orders.lots ol JOIN lots.items li ON li.id = ol.lot_id WHERE ol.id = $1', [
-      fixture.itemId,
-    ])
+    } = await client.query(
+      'SELECT li.content, ol.premium FROM orders.lots ol JOIN lots.items li ON li.id = ol.lot_id WHERE ol.id = $1',
+      [fixture.itemId]
+    )
     assert.equal(Number(item.content), 4)
     assert.equal(Number(item.premium), 0.82)
   } finally {
@@ -279,9 +280,10 @@ test('a partial edit leaves the columns it does not name alone', async () => {
   try {
     const {
       rows: [before],
-    } = await client.query('SELECT li.pre_melt, li.purity, li.unit FROM orders.lots ol JOIN lots.items li ON li.id = ol.lot_id WHERE ol.id = $1', [
-      fixture.itemId,
-    ])
+    } = await client.query(
+      'SELECT li.pre_melt, li.purity, li.unit FROM orders.lots ol JOIN lots.items li ON li.id = ol.lot_id WHERE ol.id = $1',
+      [fixture.itemId]
+    )
 
     await orders.editLot(fixture.itemId, { post_melt: 8 })
 
@@ -306,7 +308,10 @@ test('an explicit null clears the column it names', async () => {
     await orders.editLot(fixture.itemId, { post_melt: null })
     const {
       rows: [after],
-    } = await client.query('SELECT li.post_melt FROM orders.lots ol JOIN lots.items li ON li.id = ol.lot_id WHERE ol.id = $1', [fixture.itemId])
+    } = await client.query(
+      'SELECT li.post_melt FROM orders.lots ol JOIN lots.items li ON li.id = ol.lot_id WHERE ol.id = $1',
+      [fixture.itemId]
+    )
     assert.equal(after.post_melt, null)
   } finally {
     await cleanup(client, fixture)
@@ -326,13 +331,6 @@ test('an empty patch is refused, and a line that does not exist is a 404', async
   }
 })
 
-// MP F1. The catalogue snapshot writes the product's FINE content, and the
-// admin lifecycle for a bullion line is add -> confirm -> finalize: `confirmed`
-// is what `actionsFor` requires before finalize is offered. `editLine`
-// used to re-derive content as post_melt x purity on EVERY patch, and
-// create_from_product had put the fine content in post_melt, so the confirm
-// multiplied the purity in a second time and 8-10% of the customer's metal
-// disappeared from the payout, the invoice and add_funds.
 const aProductWhosePurityWouldBite = async (c: PoolClient) => {
   const { rows } = await c.query(
     `SELECT id, name, gross, content, purity
@@ -380,9 +378,10 @@ test('confirming a catalogue line leaves its content alone - the purity is appli
 
     const {
       rows: [stored],
-    } = await client.query('SELECT li.content, li.post_melt FROM orders.lots ol JOIN lots.items li ON li.id = ol.lot_id WHERE ol.id = $1', [
-      created.id,
-    ])
+    } = await client.query(
+      'SELECT li.content, li.post_melt FROM orders.lots ol JOIN lots.items li ON li.id = ol.lot_id WHERE ol.id = $1',
+      [created.id]
+    )
     assert.equal(Number(stored.content), Number(product.content))
     assert.equal(stored.post_melt, null, 'a fine weight is sitting in the gross-weight column')
   } finally {
@@ -413,7 +412,10 @@ test('a scrap line cannot be edited into a unit nobody quotes in', async () => {
     )
     const {
       rows: [after],
-    } = await client.query('SELECT li.unit, li.content FROM orders.lots ol JOIN lots.items li ON li.id = ol.lot_id WHERE ol.id = $1', [fixture.itemId])
+    } = await client.query(
+      'SELECT li.unit, li.content FROM orders.lots ol JOIN lots.items li ON li.id = ol.lot_id WHERE ol.id = $1',
+      [fixture.itemId]
+    )
     assert.equal(after.unit, 't oz', 'the refused edit still wrote the unit')
     assert.equal(Number(after.content), 9, 'the refused edit still moved the content')
   } finally {

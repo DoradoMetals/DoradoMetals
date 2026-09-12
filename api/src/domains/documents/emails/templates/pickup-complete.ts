@@ -4,9 +4,6 @@ import { ordersUrl } from '#documents/emails/links.ts'
 import { orderLabel } from '#documents/emails/rules.ts'
 import type { ScheduleMail } from '@dorado/contracts'
 
-// Figma "Mailer · Pickup complete" (211:704). The design's lede names the
-// driver and the minute; both are facts of the booking, so they are card rows
-// here and the sentence says what happened without pretending to know them.
 export function subject(mail: ScheduleMail): string {
   return `We have your metals - ${orderLabel(mail.direction, mail.order_number)}`
 }

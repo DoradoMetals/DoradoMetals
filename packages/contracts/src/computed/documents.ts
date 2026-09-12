@@ -6,16 +6,12 @@ import { OrderView } from '../orders/orders.js'
 import { OrderPricing } from '../pricing/quotes.js'
 import { Package } from '../shipping/packages.js'
 
-// One line of a mailer's summary card - the Email Row symbol. Label left,
-// figure right. The rows come out of the mailer's own SQL read as jsonb, so a
-// template never stitches one (ruling 78).
 export const MailerRow = z.object({
   label: z.string(),
   value: z.string(),
 })
 export type MailerRow = z.infer<typeof MailerRow>
 
-// Who the mailer goes to and what its paper-trail row links to.
 export const MailerAddressee = z.object({
   order_id: Order.shape.id.nullable(),
   user_id: User.shape.id.nullable(),
@@ -94,8 +90,6 @@ export const PromoMail = MailerAddressee.extend({
 })
 export type PromoMail = z.infer<typeof PromoMail>
 
-// An internal notice to staff, not a customer mailer: no Figma design exists
-// for it, so it wears the plain base layout.
 export const VoicemailReceivedMail = MailerAddressee.extend({
   from_number: z.string(),
   received_at: z.string(),
@@ -103,7 +97,6 @@ export const VoicemailReceivedMail = MailerAddressee.extend({
 })
 export type VoicemailReceivedMail = z.infer<typeof VoicemailReceivedMail>
 
-// One row of a document's Table symbol - name, headline figure, dotted facts.
 export const DocumentTableRow = z.object({
   name: z.string(),
   figure: z.string(),
@@ -133,8 +126,6 @@ export const RateSheetDocument = z.object({
 })
 export type RateSheetDocument = z.infer<typeof RateSheetDocument>
 
-// What a paper document is rendered from: the order view plus what pricing
-// answered for it. Both are one SQL read parsed by its own contract.
 export const DocumentInput = z.object({
   order: OrderView,
   pricing: OrderPricing,

@@ -9,10 +9,6 @@ import { TEST_ACTOR } from '#shared/testing/actor.ts'
 import { LOCKS } from '#shared/testing/locks.ts'
 import { aUser, anAddress, anOrder } from '#shared/testing/builders/index.ts'
 
-// Migration 172 is the subject, so the test runs THE MIGRATION - not a
-// re-implementation of its rule in TypeScript. A copy of the rule would pass
-// while the file production runs says something else, which is the one failure
-// a backfill test exists to prevent.
 const MIGRATION = fs.readFileSync(
   path.join(
     import.meta.dirname,
@@ -34,8 +30,6 @@ const run = async (c: PoolClient): Promise<void> => {
   await c.query(MIGRATION)
 }
 
-// 555-01xx is the reserved fictional range; the last four keep two tests in the
-// same database from handing each other a collision that is not the subject.
 let minted = 0
 const aPhone = (): { e164: string; typed: string } => {
   minted += 1
@@ -60,10 +54,6 @@ const createdAt = (c: PoolClient, address_id: string, when: string) =>
 const orderedAt = (c: PoolClient, order_id: string, when: string) =>
   c.query(`UPDATE orders.orders SET created_at = $2 WHERE id = $1`, [order_id, when])
 
-// THE RULE. The address a parcel actually went to wins, and the default-shipping
-// flag is not consulted - a book entry can be flagged default and still be a
-// relative's house, while an address FedEx delivered to is a number the customer
-// answered.
 test('the number comes from the address an order went to, not the default one', async () => {
   await inPinnedTransaction(async (c) => {
     const user = await aUser(c, { phone_number: null })
@@ -147,16 +137,12 @@ test('a customer who already has a sign-in number is never overwritten', async (
   }, OPTIONS)
 })
 
-// A household shares a landline. The unique index means only one of them can
-// sign in with it and a migration must not pick which.
 test('two customers who would receive the same number are both left for a human', async () => {
   await inPinnedTransaction(async (c) => {
     const shared = aPhone()
     const one = await aUser(c, { phone_number: null })
     const two = await aUser(c, { phone_number: null })
 
-    // Typed differently on each address, so the collision is only visible AFTER
-    // normalisation - which is the point at which it has to be caught.
     await anAddress(c, one, { phone_number: shared.typed })
     await anAddress(c, two, { phone_number: `1-959-555-${shared.e164.slice(-4)} ` })
 

@@ -52,19 +52,12 @@ const ATTRS: Record<MaskKind, Partial<InputProps>> = {
   },
 }
 
-/** @deprecated See {@link MaskedField}. */
 export type MaskedFieldProps = Omit<InputProps, 'value' | 'onChange' | 'type'> & {
   mask: MaskKind
   value: string
   onValueChange: (raw: string) => void
 }
 
-/**
- * @deprecated Use `Input` and type the formatted string into `value`. The Figma
- * page is "Masked Field (deprecated - use Input)"; the component is kept on both
- * sides because deleting a published Figma component detaches every instance of
- * it. Nothing in this repo imports it. Delete both halves together.
- */
 export function MaskedField({ mask, value, onValueChange, ...props }: MaskedFieldProps) {
   return (
     <Input

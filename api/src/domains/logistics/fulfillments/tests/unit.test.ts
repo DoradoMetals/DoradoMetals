@@ -99,9 +99,6 @@ test('no statement joins a second table', () => {
     ]),
     ['pickups/update', builtPickup()] as [string, string],
     ['directs/update', builtDirect()] as [string, string],
-    // `shipments/get_for` is deliberately absent: it joins shipping.shipments to
-    // put the HANDOVER leg first, because ordering the links by their own random
-    // uuid picked a return leg about half the time (LD F3).
     ...['get_by_shipment', 'exists_for', 'create', 'upsert'].map(
       (n) => [`shipments/${n}`, linksSql(n)] as [string, string]
     ),
@@ -216,10 +213,6 @@ test('the fulfillment view is one read that nests every child by its table', () 
   assert.match(view, /ORDER BY COALESCE/, "the schedule order is not the view's")
 })
 
-// LD F7. A sale's parcel is created Outbound, so the first statement of the
-// SHIPMENT branch returned an empty `missing` the moment the draft existed and
-// `carrier_service_id` was never demanded - `sale_quote.sql` INNER JOINs
-// shipping.services, so a null service prices the customer's delivery at zero.
 const aSaleParcel = (carrier_service_id: string | null) =>
   ({
     method: { category: 'SHIPMENT', type: 'CARRIER DROPOFF' },

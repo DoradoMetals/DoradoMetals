@@ -54,8 +54,6 @@ test('a purchase order walks pricing, funds and status, and the money facts agre
       }
 
       const actions = priced.body.actions
-      // Finalized: the spots are locked, so Finalize is spent and the lots are
-      // read-only (Jacob's Sep 4-5 notes, section 4).
       assert.equal(actions.finalize, false)
       assert.equal(actions.edit_lots, false)
       assert.equal(actions.supply, false)

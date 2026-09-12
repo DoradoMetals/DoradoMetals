@@ -1,5 +1,3 @@
-// The tokens, read from theme.css. There is no second copy of a value here.
-
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -38,7 +36,6 @@ function declarationBlocks(css: string, opts: { inline?: boolean } = {}): string
 function declarations(css: string): Map<string, string> {
   const found = new Map<string, string>()
   for (const block of declarationBlocks(css, { inline: true })) {
-    // Skip nested at-rules (@keyframes inside @theme) by cutting them out.
     const flat = block.replace(/@[\w-]+[^{]*\{[\s\S]*?\}\s*\}/g, '')
     const decl = /(--[\w-]+)\s*:\s*([^;{}]+);/g
     let match: RegExpExecArray | null
@@ -104,7 +101,6 @@ function evaluate(value: string, seen: Set<string>): string {
   return asHex ?? out
 }
 
-/** Every token theme.css declares, with `var()`, `calc()` and `hsl()` resolved. */
 export const tokens: Readonly<Record<string, string>> = Object.freeze(
   Object.fromEntries(
     [...RAW.keys()].map((name) => [name, evaluate(RAW.get(name) as string, new Set([name]))])
@@ -117,12 +113,10 @@ function read(name: string): string {
   return value
 }
 
-/** A colour as a hex string. Mail clients resolve no custom property. */
 export function color(name: string): string {
   return read(name.startsWith('--') ? name : `--${name}`)
 }
 
-/** A length in px, whatever unit theme.css declares it in. */
 export function px(name: string): string {
   const value = read(name.startsWith('--') ? name : `--${name}`)
   const rem = /^(-?[\d.]+)rem$/.exec(value)
@@ -141,7 +135,6 @@ export type TypeStep = {
   weight: string
 }
 
-/** One step of the ramp, every part in px so an inline style can carry it. */
 export function text(step: string): TypeStep {
   const size = px(`--text-${step}`)
   const size_ = pxNumber(size)

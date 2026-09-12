@@ -24,8 +24,6 @@ export type OrderLot = z.infer<typeof OrderLot>
 import { Lot, LotView } from '../lots/items.js'
 import { RefiningOrder } from '../refining/orders.js'
 
-// The admin's one write over a line: the money on the link row and the physical
-// facts on the lot, in one patch, because the drawer edits them together.
 export const OrderLotPatch = OrderLot.pick({
   premium: true,
   price: true,
@@ -56,8 +54,6 @@ export const OrderLotView = OrderLot.extend({
 })
 export type OrderLotView = z.infer<typeof OrderLotView>
 
-// What placement copies out of the basket. The lot id is the same row, so this
-// is the lot plus nothing.
 export const OrderLotLine = OrderLot.pick({ lot_id: true })
 export type OrderLotLine = z.infer<typeof OrderLotLine>
 

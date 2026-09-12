@@ -1,15 +1,5 @@
 import { expect, test } from '@playwright/test'
 
-// The passwordless screens, in a real browser, signed out.
-//
-// WHAT IS NOT HERE: a submitted sign-in. `POST /api/account/send_code` runs the
-// captcha and a headless browser is exactly what it refuses, so a spec that
-// submitted would fail for the anti-bot check doing its job. The session the
-// authed specs reuse is minted through the API in `shared/tests/auth.setup.ts`.
-// What a browser can prove is that every screen renders, that the two channels
-// reach each other, and that a code screen with no code in flight sends the
-// customer back to the start rather than sitting there empty.
-
 test.describe('the auth screens', () => {
   test('sign-in is phone first and offers email as the equal fallback', async ({ page }) => {
     await page.goto('/auth/sign-in')
@@ -24,7 +14,9 @@ test.describe('the auth screens', () => {
 
     await page.getByRole('link', { name: 'Send the code there' }).click()
     await expect(page).toHaveURL(/\/auth\/sign-in\/email$/)
-    await expect(page.getByText("Enter your email and we'll send you a sign-in code.")).toBeVisible()
+    await expect(
+      page.getByText("Enter your email and we'll send you a sign-in code.")
+    ).toBeVisible()
 
     await page.getByRole('link', { name: 'Send the code there' }).click()
     await expect(page).toHaveURL(/\/auth\/sign-in$/)

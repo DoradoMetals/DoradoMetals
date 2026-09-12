@@ -1,9 +1,3 @@
-// The captcha the customer sees, and the token the form sends.
-//
-// Two shapes matter and both are tested: the site key is present, so Cloudflare
-// renders a widget whose token reaches the submit; and the site key is absent,
-// so no script is loaded, no widget is rendered, and the token is empty - which
-// is what local development against the API's recording fake runs on.
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { useState } from 'react'
 import { act, render, screen } from '@testing-library/react'

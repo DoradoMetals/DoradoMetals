@@ -15,9 +15,6 @@ const headerValue = (headers: string, name: string): string => {
   return found ? found[1]!.trim() : ''
 }
 
-// One file part out of a multipart/form-data body, without a dependency. The
-// route mounts express.raw() for this type, so `body` is the exact bytes the
-// client sent and the parts are split on the declared boundary.
 export function firstFile(contentType: string, body: unknown): UploadedFile | null {
   const boundary = boundaryOf(contentType)
   if (!boundary || !Buffer.isBuffer(body)) return null
@@ -40,7 +37,10 @@ export function firstFile(contentType: string, body: unknown): UploadedFile | nu
     const filename = /filename="([^"]*)"/i.exec(disposition)?.[1]
     if (!filename) continue
     let bytes = part.subarray(split + 4)
-    while (bytes.length > 0 && (bytes[bytes.length - 1] === 0x0a || bytes[bytes.length - 1] === 0x0d)) {
+    while (
+      bytes.length > 0 &&
+      (bytes[bytes.length - 1] === 0x0a || bytes[bytes.length - 1] === 0x0d)
+    ) {
       bytes = bytes.subarray(0, bytes.length - 1)
     }
     return {

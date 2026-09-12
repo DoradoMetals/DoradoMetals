@@ -22,9 +22,6 @@ export type Location = z.infer<typeof Location>
 // generated:end
 import { Address } from './addresses.js'
 
-// RULING 89: where a label is held for collection. It is the business's default
-// return location - one row of places.locations - and not a constant in the
-// carrier adapter. Only the fields a label needs.
 export const HoldAtLocation = z
   .object({
     type: Location.shape.type,
@@ -40,7 +37,5 @@ export const HoldAtLocation = z
       is_residential: true,
     }),
   })
-  // The column is nullable; the read filters the nulls out, because a location
-  // the carrier knows by no code cannot be named on a label.
   .extend({ code: z.string() })
 export type HoldAtLocation = z.infer<typeof HoldAtLocation>

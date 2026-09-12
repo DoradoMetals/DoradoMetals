@@ -16,16 +16,11 @@ export default function Page() {
   const verifyCode = useVerifyCode()
   const stepUp = useStepUp()
 
-  // The handover empties the context on purpose; without this the effect below
-  // would read that as "arrived with nothing to prove" and replace the
-  // destination with /account. Same shape as /auth/verify's own guard.
   const leaving = useRef(false)
 
   const view = verification?.view ?? null
   const state = view ? codeStateFor(view) : null
 
-  // Step-up is asked for by the screen that needed it; arriving without one
-  // means there is nothing to prove.
   useEffect(() => {
     if (leaving.current) return
     if (!verification || verification.view.purpose !== 'step_up') router.replace('/account')

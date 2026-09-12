@@ -17,8 +17,6 @@ function ChangeEmail() {
   const stepUp = useStepUp()
   const { setVerification } = useVerification()
 
-  // A stale session proves itself first; a fresh one goes straight through.
-  // Which of the two it is is the API's answer, never a clock read here.
   const submit = async () => {
     try {
       const view = await changeEmail.mutateAsync({ email })

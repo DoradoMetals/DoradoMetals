@@ -1,6 +1,3 @@
-// The refiner order screen, composed. A refiner order is a different animal
-// from a customer order: no Finalize, no Chat, a Settlement card where Profit
-// sits, and a draft that is not yet an order the refiner can see.
 import { describe, expect, test, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 
@@ -25,8 +22,6 @@ const state = {
   fulfillment: null as ReturnType<typeof aFulfillment> | null,
 }
 
-// A refiner order's handover has no read of its own: the create route answers
-// with the existing view, so the screen holds it from that mutation.
 const handover = () => ({ mutate: vi.fn(), isPending: false, data: state.fulfillment })
 
 vi.mock('@dorado/client', () => ({

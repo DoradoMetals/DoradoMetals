@@ -7,11 +7,6 @@ import type {
   MoovTransfer,
 } from '#providers/moov/types.ts'
 
-// The recording fake. It answers every call the live adapter answers, keeps
-// what it was asked, and moves a transfer only when a test (or the e2e
-// harness) says so - which is what makes a state machine testable without a
-// vendor sandbox.
-
 type Call = { what: string; detail: string }
 
 const calls: Call[] = []
@@ -174,7 +169,10 @@ export const getTransfer: MoovRails['getTransfer'] = async (transferID) => {
 
 export const walletBalance: MoovRails['walletBalance'] = async (accountID) => {
   record('walletBalance', accountID)
-  return { walletID: `wallet_${crypto.createHash('sha1').update(accountID).digest('hex').slice(0, 8)}`, availableCents: 5_000_00 }
+  return {
+    walletID: `wallet_${crypto.createHash('sha1').update(accountID).digest('hex').slice(0, 8)}`,
+    availableCents: 5_000_00,
+  }
 }
 
 export const rails: MoovRails = {

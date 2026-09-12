@@ -2,8 +2,6 @@ import { createElement as h } from 'react'
 import { renderMailer, Text, Code } from '@dorado/components/email'
 import type { SignInCodeMail } from '@dorado/contracts'
 
-// Figma "Mailer · Sign-in code" (6:107). Copy verbatim from the design.
-
 export function subject(): string {
   return 'Your Dorado sign-in code'
 }

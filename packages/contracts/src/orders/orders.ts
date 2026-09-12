@@ -47,17 +47,12 @@ import { UserSummary } from '../auth/users.js'
 export const OrderRead = Order.extend({ totals: OrderTotals.nullable() })
 export type OrderRead = z.infer<typeof OrderRead>
 
-// GET /api/orders' row: the header's reference and who the order belongs to,
-// same as the single view (ruling 83 - no browser decides either).
 export const OrderListItem = OrderRead.extend({
   reference: z.string(),
   customer: UserSummary.nullable(),
 })
 export type OrderListItem = z.infer<typeof OrderListItem>
 
-// A shipment as an order shows it: the row, plus the two labels a document
-// prints instead of an id. Both are scalar subselects in `db/orders/sql/view.sql`
-// (ruling 78 - the shape is the SQL read's, not a services/packages Map).
 export const OrderViewShipmentDetail = OrderViewShipment.extend({
   service_name: CarrierService.shape.name.nullable(),
   package_label: Package.shape.label.nullable(),
@@ -76,12 +71,7 @@ export const OrderViewFacts = z
     user: OrderViewUser.nullable(),
   })
   .extend({
-    // No column holds this: it is EXISTS over the order's payments.ledger rows,
-    // read in db/orders/sql/view.sql. `actions.add_funds` turns itself off from
-    // it, and `addFunds` refuses on it (MP F4).
     credited: z.boolean(),
-    // "PO-2481" / "SO-2481", built in db/orders/sql/view.sql. The prefix is a
-    // label and no browser decides it (ruling 83).
     reference: z.string(),
   })
 export type OrderViewFacts = z.infer<typeof OrderViewFacts>
@@ -97,10 +87,6 @@ export type OrderPatch = z.infer<typeof OrderPatch>
 export const OrderCreateBody = z.object({ checkout_id: Checkout.shape.id }).strict()
 export type OrderCreateBody = z.infer<typeof OrderCreateBody>
 
-// An admin places on a customer's behalf, so the body is exactly what makes a
-// checkout placeable: checkout/rules.ts `checkoutState` (items, a fulfillment,
-// and the direction's own settlement column) plus fulfillments/rules.ts
-// `missingFor` (the chosen category's own choices).
 export const AdminOrderFulfillment = z
   .object({
     method_id: FulfillmentMethod.shape.id,
@@ -138,9 +124,6 @@ export const AdminOrderCreate = z.discriminatedUnion('direction', [
 ])
 export type AdminOrderCreate = z.infer<typeof AdminOrderCreate>
 
-// Every field is optional: the Figma header's Cancel is a bare button, so the
-// server chooses the default return service and package when the caller names
-// neither (ruling 76).
 export const OrderCancelBody = z
   .object({
     carrier_service_id: CarrierService.shape.id,

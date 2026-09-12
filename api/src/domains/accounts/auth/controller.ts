@@ -33,8 +33,6 @@ export const signUp = asyncHandler(async (req, res) => {
   return res.status(200).json(await service.signUp(body, clientIp(req)))
 })
 
-// Unguarded, because a sign-in has no session yet - but a step-up does, and the
-// session it stamps is the caller's own.
 export const verifyCode = asyncHandler(async (req, res) => {
   const body = strictBody(VerifyCodeBody, req.body)
   const caller = await sessions.current(fromNodeHeaders(req.headers))

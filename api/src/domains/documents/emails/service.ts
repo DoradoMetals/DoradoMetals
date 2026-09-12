@@ -43,9 +43,6 @@ import {
   formatSalesOrderNumber,
 } from '#shared/utils/formatOrderNumbers.ts'
 
-// One send, one row. The row is filed BEFORE the failure travels on, so a
-// failure is a row too - and the trail is what makes a scheduled mailer
-// idempotent. Every mailer of the Figma "Media" page goes out through here.
 async function post(
   kind: EmailKind,
   to: MailerAddressee,
@@ -69,10 +66,6 @@ async function post(
   rules.assertDelivered(delivery)
 }
 
-// A mailer that reports a MOMENT - a parcel scanned, a driver gone, a payout
-// paid - goes out once per order. The trail is what remembers: no flag column,
-// no in-memory set, nothing to get out of step with the rows. A trigger may
-// therefore be called as often as its caller likes.
 async function sentAlready(
   kind: EmailKind,
   order_id: string,
@@ -81,11 +74,6 @@ async function sentAlready(
   return await mailers.hasSent(order_id, [kind], executor)
 }
 
-// ---------------------------------------------------------------------------
-// Order received (6:173) - replaces purchase_order_created AND
-// sales_order_created. One mailer, two kinds: the kind is what says which side
-// of the business the row belongs to.
-// ---------------------------------------------------------------------------
 export async function sendOrderPlacedConfirmation(
   order_id: string,
   transport?: Transport,
@@ -104,9 +92,6 @@ export async function sendOrderReceived(
   const mail = await mailers.orderReceived(order_id, executor)
   if (!mail || mail.email.length === 0) return
 
-  // A buyer ships nothing. The packing list is purchase-shaped throughout - it
-  // says "put this in your package" and embeds an inbound label a sale does not
-  // have - so a sale's confirmation carries its own invoice instead.
   const isSale = mail.direction === 'sale'
   const input = await inputs.packingListInputs(order_id, executor)
   const bytes = isSale
@@ -140,11 +125,6 @@ export async function sendOrderReceived(
   )
 }
 
-// ---------------------------------------------------------------------------
-// Document sent (214:904) - the mailer that carries a PDF. Every document an
-// admin sends from an order goes out under this shell; the priced invoice keeps
-// its own kind, so the trail it has been writing since 090 stays continuous.
-// ---------------------------------------------------------------------------
 export async function sendDocument(
   order_id: string,
   label: string,
@@ -194,9 +174,6 @@ export async function sendPricedEmail(
   )
 }
 
-// ---------------------------------------------------------------------------
-// Logistics (154:808, 154:881, 211:659, 211:704, 211:747, 211:790)
-// ---------------------------------------------------------------------------
 export async function sendShipmentSent(
   order_id: string,
   transport?: Transport,
@@ -329,10 +306,6 @@ export async function sendAppointmentTomorrow(
   })
 }
 
-// The daily reminder. WHICH appointments are due is a SQL question, and the
-// answer already excludes every order the trail says has been reminded - so the
-// job is a loop and nothing else, and running it twice on the same day sends
-// nothing the second time.
 export async function sendTomorrowsReminders(
   transport?: Transport,
   executor?: PoolClient
@@ -344,9 +317,6 @@ export async function sendTomorrowsReminders(
   return due.length
 }
 
-// ---------------------------------------------------------------------------
-// Payout sent (6:260) - the customer has been paid.
-// ---------------------------------------------------------------------------
 export async function sendPayoutSent(
   order_id: string,
   transport?: Transport,
@@ -369,28 +339,6 @@ export async function sendPayoutSent(
   })
 }
 
-// ---------------------------------------------------------------------------
-// FOR THE PASSWORDLESS-AUTH LANE.
-//
-// These three take a CONTRACT rather than a bag of arguments, so zod has
-// already said the shape is right by the time one reaches here:
-//
-//   sendSignInCode({ order_id: null, user_id, email, name, code,
-//                    expires_in_minutes })      -> kind `sign_in_code`
-//   sendAccountCreated({ order_id: null, user_id, email, name, url })
-//                                               -> kind `account_created`
-//   sendDetailsChanged({ order_id: null, user_id, email, name, changed,
-//                        changed_at, rows })    -> kind `details_changed`
-//
-// `changed` names the field in words ("Email address"), `changed_at` is already
-// formatted for a reader ("Sep 3 at 4:18 PM CT"). Build the card's rows with
-// `rules.detailsChangedRows(changed, previous, next)`, which MASKS both values -
-// never pass a raw address or number into a row yourself.
-//
-// All three throw if the transport refuses, AFTER the trail row is written, the
-// same as every other sender. Pass a transport in tests: nothing in a test run
-// may reach a real mailbox.
-// ---------------------------------------------------------------------------
 export async function sendSignInCode(
   mail: SignInCodeMail,
   transport?: Transport,
@@ -442,8 +390,6 @@ export async function sendDetailsChanged(
   )
 }
 
-// A marketing send. Nothing schedules one; it is here so the suppression rule
-// has a path, and it is the ONLY kind that rule applies to.
 export async function sendPromo(
   mail: PromoMail,
   transport?: Transport,
@@ -452,8 +398,6 @@ export async function sendPromo(
   await post('promo', mail, promo.subject(mail), promo.render(mail), [], null, transport, executor)
 }
 
-// What Resend's webhook does to the row it names. The lock is taken first, so
-// two callbacks for the same message cannot both read the pre-update state.
 export async function applyDeliveryEvent(event: ResendEvent, tx: PoolClient): Promise<void> {
   const outcome = rules.deliveryOutcomeOf(event.type)
   if (!outcome) return
@@ -466,11 +410,6 @@ export async function recordDelivery(event: ResendEvent): Promise<void> {
   await withTransaction((tx) => applyDeliveryEvent(event, tx))
 }
 
-// ---------------------------------------------------------------------------
-// Not in the Figma page, and staying
-// ---------------------------------------------------------------------------
-// An internal notice to staff when a caller reaches nobody. No Figma mailer
-// exists for it; it wears the plain base layout.
 export async function sendVoicemailReceived(
   mail: VoicemailReceivedMail,
   transport?: Transport,
@@ -488,8 +427,6 @@ export async function sendVoicemailReceived(
   )
 }
 
-// The refiner's copy of a sales order. It goes to a SUPPLIER, not a customer,
-// so it is not one of the customer mailers and keeps its own template.
 export async function sendSalesOrderToSupplier(
   input: DocumentInput,
   email: string,

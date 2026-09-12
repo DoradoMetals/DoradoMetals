@@ -42,9 +42,6 @@ router.use('/', addressRoutes)
 
 router.get('/:id', requireUser, requireOwnOrderParam, getOrder)
 router.get('/:id/documents', requireAdmin, getOrderDocuments)
-// The URL is the order's; media.pdfs is the documents domain's table, so the
-// handlers are its (ruling 13). The import arrives as multipart, so this one
-// route takes the raw body instead of the JSON parser's.
 router.post('/:id/documents/:kind/send', requireAdmin, sendOrderDocument)
 router.post(
   '/:id/documents/:kind',
@@ -66,12 +63,7 @@ router.post('/:id/add_funds', requireAdmin, addFundsToOrder)
 router.post('/:id/finalize', requireAdmin, finalizeOrder)
 router.post('/:id/cancel', requireAdmin, cancelOrder)
 router.post('/:id/reopen', requireAdmin, reopenOrder)
-// The customer's sales order, ordered from a supplier. The URL is the order's
-// because that is the id the caller holds; the handler is refining's because
-// those are the tables it owns (ruling 26b).
 router.post('/:id/supply', requireAdmin, supplyOrder)
-// The other direction: a finalized purchase order's lots wrapped into a refiner
-// SELL order - the Items card's "Create Sale".
 router.post('/:id/refining-sale', requireAdmin, sellToRefiner)
 
 router.patch('/:id', requireAdmin, patchOrder)

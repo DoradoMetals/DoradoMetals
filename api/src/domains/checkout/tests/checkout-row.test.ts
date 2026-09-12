@@ -406,9 +406,6 @@ test('an admin naming a user_id nothing owns gets 404, not a minted row', async 
   )
 })
 
-// MP F2. `PATCH /api/checkout` took any payment_method_id at all, and both
-// quotes read the card surcharge and the payout fee straight off whatever row
-// the customer named.
 test('a payment method of the wrong direction, or a disabled one, is refused', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {

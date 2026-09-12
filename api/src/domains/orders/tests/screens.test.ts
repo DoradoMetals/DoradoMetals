@@ -1,6 +1,3 @@
-// The admin order screens' own reads and writes: the header's reference and
-// order count, the spot buttons, a bare Cancel, the lot search and the
-// Documents card's Send / Import split.
 import { test, afterAll } from 'vitest'
 import assert from 'node:assert/strict'
 import type { PoolClient } from 'pg'

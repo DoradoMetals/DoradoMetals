@@ -64,9 +64,6 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           className={cn(fieldTrigger(), success && 'border-success')}
         >
           {leading != null && (
-            // Figma Input (26:391): leading icon draws at 16px in a fixed box,
-            // same text-muted-foreground token as FieldLabel. [&>svg] forces
-            // that size regardless of what the caller's icon className says.
             <span className="flex size-4 shrink-0 items-center justify-center text-muted-foreground [&>svg]:size-4">
               {leading}
             </span>
@@ -90,9 +87,6 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             {...props}
           />
           {trailing != null && (
-            // Trailing is a single axis (unit label OR clear icon, 26:391) so
-            // it stays auto-width for text; [&>svg] still caps a clear icon
-            // to the drawn 16px.
             <span className="flex shrink-0 items-center text-small text-muted-foreground [&>svg]:size-4">
               {trailing}
             </span>

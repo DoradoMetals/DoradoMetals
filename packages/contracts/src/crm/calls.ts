@@ -27,5 +27,3 @@ export const Call = z.object({
 })
 export type Call = z.infer<typeof Call>
 // generated:end
-
-// Hand-written derivations go here: New, Patch, named reads.

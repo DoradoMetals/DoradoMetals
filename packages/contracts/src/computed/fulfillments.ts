@@ -13,16 +13,14 @@ import { Order } from '../orders/orders.js'
 import { RefiningOrder } from '../refining/orders.js'
 import { OrderViewShipment } from '../shipping/shipments.js'
 
-// `transitions` names the operator moves that are open right now, per kind -
-// Headed to Pickup, Mark Picked Up, Check In, Mark Complete, Headed to Refinery,
-// Mark Dropped Off. They are statuses, not labels, so nothing is decided in the
-// browser (ruling 83).
-export const FulfillmentActions = z.object({
-  set_method: z.boolean(),
-  schedule: z.boolean(),
-  cancel_schedule: z.boolean(),
-  categories: z.array(FulfillmentCategory),
-}).extend({ transitions: z.array(FulfillmentStatus) })
+export const FulfillmentActions = z
+  .object({
+    set_method: z.boolean(),
+    schedule: z.boolean(),
+    cancel_schedule: z.boolean(),
+    categories: z.array(FulfillmentCategory),
+  })
+  .extend({ transitions: z.array(FulfillmentStatus) })
 export type FulfillmentActions = z.infer<typeof FulfillmentActions>
 
 export const FulfillmentParcel = OrderViewShipment.pick({
@@ -38,10 +36,6 @@ export const FulfillmentParcel = OrderViewShipment.pick({
 })
 export type FulfillmentParcel = z.infer<typeof FulfillmentParcel>
 
-// The customer order a drop-shipped refiner BUY order's parcel is filling. No
-// foreign key joins the two orders (ruling 42) - the lot is the join, one hop.
-// Null for a SELL order: its lot joins the same way to the customer PURCHASE
-// that fed it, which is the source, not something this parcel supplies.
 export const LinkedOrder = Order.pick({ id: true, number: true, direction: true }).extend({
   reference: z.string(),
 })
@@ -50,8 +44,6 @@ export type LinkedOrder = z.infer<typeof LinkedOrder>
 export const FulfillmentViewFacts = z.object({
   fulfillment: Fulfillment,
   method: FulfillmentMethodRead,
-  // Without user_id: the owner 137 stamps on the row is plumbing for the
-  // composite key, not a fact about the collection anybody reads.
   pickup: FulfillmentPickup.omit({ user_id: true }).nullable(),
   direct: FulfillmentDirect.nullable(),
   dropoff: FulfillmentDropoff.nullable(),
@@ -71,9 +63,6 @@ export type FulfillmentDecisions = z.infer<typeof FulfillmentDecisions>
 export const FulfillmentView = FulfillmentViewFacts.extend(FulfillmentDecisions.shape)
 export type FulfillmentView = z.infer<typeof FulfillmentView>
 
-// One key of three. A basket makes a DRAFT that an order later adopts; an order
-// that reached the database without one gets its handover made against itself;
-// a refiner order gets its drop-off.
 export const FulfillmentCreateBody = z
   .object({
     checkout_id: Checkout.shape.id,

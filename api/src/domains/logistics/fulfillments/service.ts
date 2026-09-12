@@ -146,13 +146,7 @@ async function ensureDetail(
   await directs.create({ fulfillment_id }, executor)
 }
 
-// Whose fulfillment this is - the checkout that points at a draft, or the order
-// an attached one belongs to. Read from the rows rather than from the caller,
-// so an admin patching a customer's fulfillment is held to the CUSTOMER's book.
-export async function ownerOf(
-  fulfillment_id: string,
-  executor?: Executor
-): Promise<string | null> {
+export async function ownerOf(fulfillment_id: string, executor?: Executor): Promise<string | null> {
   const checkout = await checkoutRows.findByFulfillment(fulfillment_id, executor)
   return checkout?.user_id ?? (await orderOwnerOf(fulfillment_id, executor))
 }
@@ -163,8 +157,6 @@ async function ownerNaming(fulfillment_id: string, executor?: Executor): Promise
   return owner
 }
 
-// An address a customer names must be one of their own. `requireFulfillmentOwner`
-// proves the FULFILLMENT is theirs; this proves the ADDRESS is (LD F2).
 async function assertAddressIsTheirs(
   owner: string,
   address_id: string,
@@ -191,9 +183,6 @@ export async function patchChoices(
     rules.assertChoicesMatchCategory(method.category, 'SHIPMENT', id)
     const [link] = await shipmentLinks.getFor(id, executor)
     rules.assertParcel(link, id)
-    // The owner is stamped on the parcel BEFORE the address is written, because
-    // 137's composite key checks the address against that owner's book and a
-    // row with no owner satisfies the key whatever address it carries.
     if (body.shipment.shipper_address_id != null || body.shipment.recipient_address_id != null) {
       const owner = await ownerNaming(id, executor)
       if (body.shipment.shipper_address_id != null) {
@@ -317,9 +306,6 @@ export async function chooseDefault(
   return await createFulfillment(order_id, method.id, executor)
 }
 
-// The six operator transitions. The status column moves and, for a drop-off,
-// the two timestamps that ARE its states move with it - the design gives
-// Drop-off no status of its own (GAP 19/20).
 export async function setStatus(
   id: string,
   status: FulfillmentStatus,
@@ -397,10 +383,6 @@ export async function categoryOfOrder(
   return (await methodService.getOne(row.method_id, executor))?.category ?? null
 }
 
-// The link a RETURN leg gets. A return is not the customer's handover, so the
-// fulfillment's category does not gate it and `assertCategory` is not called:
-// an order the customer brought in by pickup or appointment could not be
-// cancelled at all while it was (LD F4).
 export async function linkReturn(
   order_id: string,
   shipment_id: string,
@@ -433,9 +415,6 @@ export async function cancelSchedule(
   return await getById(fulfillment_id, executor)
 }
 
-// A handover for an order that reached the database without one - an admin
-// order, or a refiner order taking a drop-off. The draft path is the customer's
-// (a basket makes one and the order adopts it); this is the other key (GAP 14).
 export async function createForOrder(
   order_id: string,
   method_id: string | null,
@@ -452,8 +431,6 @@ export async function createForOrder(
   return await recompose(view.fulfillment.id, executor)
 }
 
-// A refiner order's handover: the drop-off. The order key is the other one, and
-// the direction a detail row is built for is the business's own leg out.
 export async function createForRefiningOrder(
   refining_order_id: string,
   method_id: string | null,

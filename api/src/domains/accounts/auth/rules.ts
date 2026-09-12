@@ -28,8 +28,6 @@ export const SENDS_PER_IP = 10
 export const IP_WINDOW_SECONDS = 3600
 export const SEND_FLOOR_MS = 600
 
-// better-auth's own attempt ceiling sits above ours on both plugins, so the
-// throttle row is what locks and what the view reports.
 export const PLUGIN_ALLOWED_ATTEMPTS = MAX_ATTEMPTS + 5
 
 export const TEMP_EMAIL_DOMAIN = 'phone.dorado.invalid'
@@ -71,10 +69,6 @@ export function assertThrottle(row: AuthOtpThrottle | undefined): asserts row is
   if (!row) throw new Conflict('the rate-limit row for this identity could not be taken')
 }
 
-// Postgres does not raise on a zero-row UPDATE, so a WHERE that has quietly
-// stopped resolving succeeds forever. Every write in this flow has to bite: a
-// step-up that stamps nothing leaves the customer asking for one for ever, and
-// a confirm that writes nothing tells them their address moved when it did not.
 export function assertApplied(changed: unknown, what: string): void {
   if (!changed) throw new Conflict(`${what} changed nothing`)
 }
@@ -98,9 +92,6 @@ export const identifierFor = (type: string, value: string): string =>
 export const temporaryEmailFor = (phone_number: string): string =>
   `${phone_number.replace(/\D/g, '')}@${TEMP_EMAIL_DOMAIN}`
 
-// The value a code is sent to, taken from the body the caller chose the channel
-// with. Sign-in is the one place the caller picks; everywhere else the server
-// does, and the other half of the body is absent by contract.
 export function destinationOf(
   channel: OtpChannel,
   phone_number: string | null,
@@ -117,8 +108,6 @@ export function destinationOf(
 
 export const maskFor = (channel: OtpChannel, value: string): string =>
   channel === 'sms' ? maskPhone(value) : maskEmail(value)
-
-// -------------------------------------------------------------- the throttle
 
 export function isLocked(row: AuthOtpThrottle, now: number): boolean {
   const until = ms(row.locked_until)
@@ -140,15 +129,6 @@ export function resendAt(row: AuthOtpThrottle, now: number): string {
   return iso(last === null ? now : last + RESEND_SECONDS * 1000)
 }
 
-// Jacob's amendment, 2026-09-11: the Turnstile widget must never appear on the
-// OTP code screen, so a resend needs a token only when there is no live
-// pending send. "Live" is read off the THROTTLE row, never off
-// auth.verification: reserveSend stamps last_sent_at for a known and an
-// unknown identity alike, while a verification row is only minted for a known
-// one - keying this off the verification row would answer 403 for an unknown
-// number and 200 for a known one, telling an attacker which numbers exist.
-// True with no row (never sent) or once the pending code has expired, so the
-// first send and a resend after expiry both need a fresh token.
 export function captchaRequired(row: AuthOtpThrottle | undefined, now: number): boolean {
   const last = row ? ms(row.last_sent_at) : null
   return last === null || last + OTP_EXPIRES_SECONDS * 1000 <= now
@@ -168,7 +148,6 @@ export function withinSendLimit(
   return !windowOpen(row, now, windowSeconds) || row.sends < limit
 }
 
-// A send that is allowed, counted. A window that has run out starts again at one.
 export function nextSend(
   row: AuthOtpThrottle,
   now: number,
@@ -194,8 +173,6 @@ export function clearedAttempts(): Partial<AuthOtpThrottle> {
   return { attempts: 0, locked_until: null }
 }
 
-// ------------------------------------------------------------------ the code
-
 export function codeMatches(row: Verification | undefined, code: string, now: number): boolean {
   if (!row) return false
   const expires = ms(row.expiresAt)
@@ -211,8 +188,6 @@ export function assertCodeAccepted(status: VerificationStatus): void {
   }
   if (status !== 'verified') throw new Invalid('that code is not right')
 }
-
-// ----------------------------------------------------------- the session gate
 
 export function sessionFreshUntil(session: Session): number | null {
   const created = ms(session.createdAt)
@@ -239,8 +214,6 @@ export function assertFactorNotChanged(session: Session): void {
 export function assertSession(session: Session | undefined): asserts session is Session {
   if (!session) throw new Forbidden('this session no longer exists')
 }
-
-// ------------------------------------------------------------- the change
 
 export function assertOtherFactorVerified(user: User, changing: Factor): void {
   if (changing === 'email') {
@@ -276,9 +249,6 @@ export function assertOpenChange(
 export const currentValueOf = (user: User, factor: Factor): string | null =>
   factor === 'email' ? user.email : user.phone_number
 
-// The code that confirms a change goes to the OTHER factor, and the customer
-// does not choose: an email change is proved by the phone, a phone change by
-// the email.
 export function carrierFor(user: User, changing: Factor): string {
   const value = changing === 'email' ? user.phone_number : user.email
   if (!value) throw new Forbidden('the other factor is not on this account')
@@ -297,9 +267,6 @@ export const changedAtLabel = (now: number): string =>
 export const detailsChangedLabel = (factor: Factor): string =>
   factor === 'email' ? 'Email address' : 'Phone number'
 
-// The step-up code goes to the phone when it is proved, and to the email
-// otherwise: the change endpoint refuses BEFORE a pending row exists, so
-// step-up cannot know which factor is about to move.
 export const stepUpChannel = (user: User): OtpChannel =>
   user.phone_number && user.phone_number_verified ? 'sms' : 'email'
 
@@ -308,8 +275,6 @@ export function stepUpDestination(user: User): string {
   if (!value) throw new Forbidden('this account has no factor to send a code to')
   return value
 }
-
-// ----------------------------------------------------------------- the views
 
 export function verificationView(
   purpose: OtpPurpose,
@@ -341,7 +306,6 @@ export function statusAfterCheck(
   return matched ? 'verified' : 'invalid'
 }
 
-// The one column each factor writes when its change is confirmed.
 export function confirmedUserPatch(
   factor: Factor,
   next_value: string
@@ -369,8 +333,6 @@ export function sessionView(user: User, session: Session, now: number): SessionV
     factor_changed: session.factor_changed,
   }
 }
-
-// ----------------------------------------------- ruling 90, unchanged by this
 
 type FreshnessRow = Pick<User, 'banned' | 'role'> & { ban_expires: Date | string | null }
 

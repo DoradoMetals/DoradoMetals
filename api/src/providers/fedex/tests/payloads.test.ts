@@ -32,10 +32,6 @@ const parcelWith = (handoff: CarrierHandoff): Parcel =>
     schedule: null,
   }) as unknown as Parcel
 
-// LD F6. `getFulfillmentRates` quoted with pickupType `undefined` while
-// `buyLabel` quoted the same parcel with `parcel.handoff.code`. FedEx rates
-// differ between the two, and the SECOND answer is what is deducted from the
-// customer's payout.
 test('a rate quote carries the pickup type it was given, and omits nothing else', () => {
   for (const method_type of ['CARRIER DROPOFF', 'CARRIER PICKUP']) {
     const handoff = handoffFor(HANDOFFS, method_type)
@@ -71,11 +67,6 @@ test('a quote with no pickup type is visibly missing it, which is the state F6 d
   assert.equal(quoted.requestedShipment.pickupType, undefined)
 })
 
-// RULING 89 (Jacob, 2026-09-07), executed. HOLD_AT_LOCATION stays; where the
-// parcel is held is the business's default return location, read from
-// places.locations and handed to the request builder. Nothing about it is
-// written into the adapter any more, so this test supplies the row and proves
-// every field of the payload came from it.
 const HOLD = {
   code: 'TEST1',
   type: 'FEDEX_OFFICE',
@@ -127,10 +118,9 @@ test('a return label is held at the row the caller read, field for field', () =>
   assert.deepEqual(special?.specialServiceTypes, ['HOLD_AT_LOCATION'], 'ruling 89 keeps the hold')
   assert.equal(special?.holdAtLocationDetail?.locationId, HOLD.code)
   assert.equal(special?.holdAtLocationDetail?.locationType, HOLD.type)
-  assert.deepEqual(
-    special?.holdAtLocationDetail?.locationContactAndAddress?.address?.streetLines,
-    ['1 Hold Street']
-  )
+  assert.deepEqual(special?.holdAtLocationDetail?.locationContactAndAddress?.address?.streetLines, [
+    '1 Hold Street',
+  ])
   assert.equal(
     special?.holdAtLocationDetail?.locationContactAndAddress?.address?.postalCode,
     HOLD.address.zip

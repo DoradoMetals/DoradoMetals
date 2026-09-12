@@ -1,11 +1,3 @@
-// THE ADMIN INDEX, in its three states.
-//
-// Both lists are stubbed at the hook, so what this pins is the composition: a
-// skeleton while the read is in flight, the library's EmptyState when the API
-// answers nothing, and one row per order whose primary cell is a link into the
-// screen that already exists. The cell text is asserted against the field the
-// row carries - a test that accepted a composed label would let a browser-side
-// "PO-" back in.
 import { describe, expect, test, vi, beforeEach } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import type { OrderListItem, RefiningOrderView } from '@dorado/contracts'

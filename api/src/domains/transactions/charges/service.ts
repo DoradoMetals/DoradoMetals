@@ -56,7 +56,6 @@ export async function openCharge(body: OpenChargeBody): Promise<Transfer> {
   })
 }
 
-// A refiner SELL order is money coming IN: the refiner pays us for the lots.
 async function openRefiningCharge(
   body: OpenChargeBody,
   refining_order_id: string
@@ -91,20 +90,11 @@ async function openRefiningCharge(
   })
 }
 
-// The customer's own bank pushes the money: their linked account is the
-// SOURCE and our wallet is the destination. Same machine as a payout, same
-// after-commit ordering, opposite direction.
-export async function requestCharge(
-  transfer_id: string,
-  bank_link_id: string
-): Promise<Transfer> {
+export async function requestCharge(transfer_id: string, bank_link_id: string): Promise<Transfer> {
   const opened = assertSendable(
     assertKind(assertTransfer(transfer_id, await transfers.getOne(transfer_id)), 'charge')
   )
-  const link = assertPayable(
-    opened,
-    assertLink(bank_link_id, await bankLinks.getOne(bank_link_id))
-  )
+  const link = assertPayable(opened, assertLink(bank_link_id, await bankLinks.getOne(bank_link_id)))
   const destination = assertWalletMethod(process.env.MOOV_WALLET_PAYMENT_METHOD_ID)
 
   await withTransaction(async (tx) => {

@@ -40,9 +40,6 @@ router.patch('/orders/:id', requireAdmin, patchRefiningOrder)
 router.post('/orders/:id/send', requireAdmin, sendRefiningOrder)
 router.post('/orders/:id/cancel', requireAdmin, cancelRefiningOrder)
 router.get('/orders/:id/spots', requireAdmin, getRefiningSpots)
-// The URL is the refiner order's, because that is the id the caller holds; the
-// handlers live with the domains that own payments.transfers and media.pdfs
-// (ruling 13).
 router.get('/orders/:id/payment', requireAdmin, getRefiningPayment)
 router.get('/orders/:id/fulfillment', requireAdmin, getFulfillmentByRefiningOrder)
 router.get('/orders/:id/documents', requireAdmin, getRefiningDocuments)

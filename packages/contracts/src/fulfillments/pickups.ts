@@ -20,8 +20,6 @@ export type FulfillmentPickup = z.infer<typeof FulfillmentPickup>
 export const FulfillmentPickupPatch = FulfillmentPickup.omit({ id: true }).partial()
 export type FulfillmentPickupPatch = z.infer<typeof FulfillmentPickupPatch>
 
-// `user_id` is claimed by its own statement, never patched - see
-// ShipmentPatchColumns for why.
 export const FulfillmentPickupPatchColumns = FulfillmentPickupPatch.omit({
   fulfillment_id: true,
   user_id: true,

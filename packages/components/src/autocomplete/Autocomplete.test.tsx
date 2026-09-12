@@ -5,8 +5,6 @@ import * as React from 'react'
 import { Autocomplete } from './Autocomplete'
 import { axeViolations } from '../test/axe'
 
-// Stand-in for a lucide icon: oversize on purpose, to prove the slot wins
-// (Figma 100:29 composes Input's chassis - 16px leading icon, 26:391).
 function FakeIcon({ className }: { className?: string }) {
   return (
     <svg data-testid="fake-icon" className={className} width={24} height={24}>

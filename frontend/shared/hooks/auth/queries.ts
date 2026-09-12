@@ -17,12 +17,6 @@ import {
 } from '@/shared/hooks/auth/authClient'
 import { forgetSession } from '@dorado/client'
 
-// WHAT IS LEFT TO CLEAR IS UI STATE (ruling 63: "Frontend stores should be for
-// UI elements, not data"). The basket is not here any more - it is server rows
-// under the session's own user id, and changing identity changes which rows the
-// queries answer with. `forgetSession` is the one thing this must do: it makes
-// @dorado/client ask again who is signed in before the next basket write,
-// rather than writing against a session that has gone.
 const clearClientState = () => {
   forgetSession()
   localStorage.removeItem('dorado_checkout_items')
@@ -30,9 +24,6 @@ const clearClientState = () => {
   localStorage.removeItem('sales-order-checkout')
 }
 
-// better-auth's own `useSession()` (via `useUser`) is REACTIVE - a nanostore
-// atom, not a react-query cache - so this is a name, not a network call any
-// more (ruling 62: no useQuery/useMutation left outside @dorado/client).
 export const useGetSession = () => {
   const { user, session, error, isPending } = useUser()
   return { user, session, error, isPending }
@@ -41,21 +32,11 @@ export const useGetSession = () => {
 export const useUpdateUser = () =>
   useAsyncAction((userData: { name?: string; image?: string }) => updateUser(userData))
 
-// EVERY SIGN-IN ENDS IN A CODE (ruling 91), so what used to be `useSignIn` is
-// the verify step in `@dorado/client`. What is left here is the housekeeping a
-// new identity forces: forget who the client thought was signed in, and drop
-// every cached read taken as somebody else.
 export const useAdoptSession = () => {
   const { clear } = useQueryCache()
   return useCallback(() => {
     forgetSession()
     clear()
-    // AND TELL BETTER-AUTH THERE IS A SESSION NOW. `/api/account/verify_code`
-    // mints it server-side, so the reactive store never saw a sign-in and
-    // still holds the signed-out answer with isPending false - which every
-    // guard on the landing page reads as "not signed in" and bounces on.
-    // `$store.notify('$sessionSignal')` is better-auth's own way to make it
-    // ask again; the impersonation hooks below have always used it.
     auth.$store.notify('$sessionSignal')
   }, [clear])
 }
@@ -98,17 +79,11 @@ export const useGoogleSignIn = () => {
   )
 }
 
-// The account is created and the customer signs in with a code like anybody
-// else - there is no invitation link to send any more.
 export const useCreateUser = () =>
   useAsyncAction(({ email, name }: { email: string; name: string }) =>
     admin.createUser({ email, name, role: 'user' })
   )
 
-// admin.* has no atomListener of its own (unlike sign-in/sign-out/
-// update-user), so nothing refreshes the reactive session for an impersonated
-// identity without asking - `auth.$store.notify` is better-auth's own,
-// documented way to do that.
 export const useImpersonateUser = () => {
   const router = useRouter()
   const { removeAll } = useQueryCache()
@@ -147,9 +122,6 @@ export const useStopImpersonation = () => {
   )
 }
 
-// better-auth's dynamic client proxy types `listSessions()` too loosely for
-// TS to carry the row shape through - named here instead, for the fields
-// ActiveDevices.tsx actually reads.
 type ListedSession = {
   id: string
   token: string

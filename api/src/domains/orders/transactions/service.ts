@@ -26,11 +26,6 @@ export async function update(
   return written
 }
 
-// A payout has been recorded against this order. CALL IT AFTER THE TRANSACTION
-// THAT WROTE IT COMMITS - an email cannot be rolled back, and a customer told
-// they have been paid by a transaction that then fails is the one outcome the
-// side-effects rule exists to prevent. The mailer is once per order and the
-// email trail is what remembers, so a second call is a no-op.
 export async function payoutRecorded(order_id: string): Promise<void> {
   await emails.sendPayoutSent(order_id)
 }

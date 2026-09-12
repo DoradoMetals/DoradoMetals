@@ -488,12 +488,6 @@ test('a sale paid by card waits for the webhook before it confirms', async () =>
   })
 })
 
-// RULING 88 and the lane-B hand-off. `credit.removeFunds` now refuses below
-// zero, and `placeSale` must answer a customer-shaped refusal rather than a
-// 500. The two guards are assembled here in the order the placement runs them,
-// with the real quote and the real locked read, because placeSale re-prices
-// from the balance it locks: the window between the two is a genuine race and
-// there is no seam that opens it deterministically.
 test('a balance spent between pricing and placement is refused, not charged twice', async () => {
   await inPinned(async (c: PoolClient) => {
     const f = await fixtures(c)

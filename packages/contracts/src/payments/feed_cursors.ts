@@ -16,7 +16,5 @@ export const FeedCursor = z.object({
 export type FeedCursor = z.infer<typeof FeedCursor>
 // generated:end
 
-// Hand-written derivations go here: New, Patch, named reads.
-
 export const FeedCursorPatch = FeedCursor.pick({ cursor: true, synced_at: true }).partial()
 export type FeedCursorPatch = z.infer<typeof FeedCursorPatch>

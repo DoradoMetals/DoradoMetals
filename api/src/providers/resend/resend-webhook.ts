@@ -1,8 +1,5 @@
 import crypto from 'node:crypto'
 
-// Resend signs a delivery the Svix way: the secret is `whsec_` + base64 key,
-// the signed content is `id.timestamp.body`, and the header carries one or
-// more space-separated `v1,<base64>` candidates.
 export const ID_HEADER = 'svix-id'
 export const TIMESTAMP_HEADER = 'svix-timestamp'
 export const SIGNATURE_HEADER = 'svix-signature'

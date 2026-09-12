@@ -29,13 +29,12 @@ export function usePaymentView(orderId: string, options: { enabled?: boolean } =
   })
 }
 
-// The payee's saved accounts. Bank details are intrinsic to the counterparty,
-// so this is keyed by the user, not by the order.
 export function usePayTo(userId: string | null, options: { enabled?: boolean } = {}) {
   return useQuery<PayTo[]>({
     queryKey: keys.payments.payTo(userId ?? ''),
     enabled: (options.enabled ?? true) && !!userId,
-    queryFn: () => apiRequest<PayTo[]>('GET', '/payments/payouts/pay_to', undefined, { user_id: userId }),
+    queryFn: () =>
+      apiRequest<PayTo[]>('GET', '/payments/payouts/pay_to', undefined, { user_id: userId }),
   })
 }
 
@@ -43,11 +42,11 @@ export function usePaymentMethods(direction: Direction, options: { enabled?: boo
   return useQuery<PaymentMethod[]>({
     queryKey: keys.payments.methods(direction),
     enabled: options.enabled ?? true,
-    queryFn: () => apiRequest<PaymentMethod[]>('GET', '/payments/methods', undefined, { direction }),
+    queryFn: () =>
+      apiRequest<PaymentMethod[]>('GET', '/payments/methods', undefined, { direction }),
   })
 }
 
-// The unmatched inbound transactions this order could be, best rung first.
 export function useMatchCandidates(orderId: string, options: { enabled?: boolean } = {}) {
   return useQuery<MatchCandidate[]>({
     queryKey: keys.payments.candidates(orderId),

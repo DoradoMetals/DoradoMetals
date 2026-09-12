@@ -38,8 +38,6 @@ export function useHandoffs(options: { enabled?: boolean } = {}) {
   })
 }
 
-// The live carrier log. `ShipmentView.timeline` already holds the stored scans,
-// so this is the refresh, not the first read.
 export function useTracking(shipmentId: string, options: { enabled?: boolean } = {}) {
   return useQuery<TrackingScan[]>({
     queryKey: keys.shipping.tracking(shipmentId),

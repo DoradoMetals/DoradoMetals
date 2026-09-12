@@ -10,9 +10,6 @@ import type {
   TransferState,
 } from '@dorado/contracts'
 
-// The two state machines, written down once. A payout runs Not sent ->
-// Processing -> Sent; a charge runs Due -> Processing -> Received. Either ends
-// Failed, with a reason. Nothing else is a transition.
 const RANK = new Map<TransferState, number>([
   ['Not sent', 0],
   ['Due', 0],
@@ -32,8 +29,6 @@ const OPENING = new Map<TransferKind, TransferState>([
   ['charge', 'Due'],
 ])
 
-// Moov's transfer statuses, mapped onto ours. `created` and `pending` are the
-// same thing to us: the money is moving and nobody may send it again.
 const MOOV = new Map<string, 'moving' | 'settled' | 'failed'>([
   ['created', 'moving'],
   ['queued', 'moving'],
@@ -52,10 +47,6 @@ export function settledState(kind: TransferKind): TransferState {
   return SETTLED.get(kind) as TransferState
 }
 
-// Out-of-order delivery is the normal case, not the exception: a `completed`
-// that arrives before its `pending` must not be undone by the late one. So a
-// state only ever moves FORWARD, and an event that would move it back is
-// recorded and applied to nothing.
 export function movesForward(from: TransferState, to: TransferState): boolean {
   if (from === to) return false
   return (RANK.get(to) ?? 0) > (RANK.get(from) ?? 0)
@@ -80,14 +71,10 @@ export function referenceFor(direction: Direction | null, number: number): strin
   return `${direction === 'sale' ? 'SO' : 'PO'}-${number}`
 }
 
-// A refiner order's own number. It shares no sequence with a customer order, so
-// the memo an operator matches against carries its own prefix.
 export function refiningReferenceFor(number: number): string {
   return `RO-${number}`
 }
 
-// The table's CHECK, asked before the insert so the refusal names the mistake
-// rather than a constraint (GAP 12).
 export function assertOneOrder(
   order_id: string | null | undefined,
   refining_order_id: string | null | undefined
@@ -97,9 +84,6 @@ export function assertOneOrder(
   }
 }
 
-// The provider's idempotency key. It names the row, not the click, so a
-// double-submit and a network retry both replay the SAME provider transfer,
-// and a genuine second attempt after a failure is a new row with a new key.
 export function transferKeyFor(transfer_id: string): string {
   return `transfer:${transfer_id}`
 }
@@ -160,10 +144,7 @@ export function assertOwned(link: BankLink, user_id: string): BankLink {
   return link
 }
 
-export function assertInbound(
-  id: string,
-  row: InboundTransaction | undefined
-): InboundTransaction {
+export function assertInbound(id: string, row: InboundTransaction | undefined): InboundTransaction {
   if (!row) throw new NotFound(`no inbound transaction ${id}`)
   return row
 }
@@ -193,7 +174,6 @@ export function assertRecorded<T>(what: string, row: T | undefined): T {
   if (row === undefined) throw new Conflict(`${what} was not written`)
   return row
 }
-
 
 export function assertWalletMethod(payment_method_id: string | undefined): string {
   if (!payment_method_id) {

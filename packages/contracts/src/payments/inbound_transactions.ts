@@ -29,8 +29,6 @@ export const InboundTransaction = z.object({
 export type InboundTransaction = z.infer<typeof InboundTransaction>
 // generated:end
 
-// Hand-written derivations go here: New, Patch, named reads.
-
 export const InboundTransactionWrite = InboundTransaction.pick({
   source: true,
   external_id: true,

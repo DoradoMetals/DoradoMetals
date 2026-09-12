@@ -1,7 +1,3 @@
-// What is left of the old string-substitution templates: the refiner's copy of
-// a sales order. Every CUSTOMER mailer is built from the Figma page now - see
-// templates/*.ts - and renders through render/base.ts rather than through
-// [BODY] and [First Name]. The three auth mails died with the passwords.
 import fs from 'fs'
 import path from 'path'
 import { formatSalesOrderNumber } from '#shared/utils/formatOrderNumbers.ts'
@@ -52,8 +48,6 @@ export function renderSalesOrderToSupplierEmail({
     .filter(Boolean)
     .join('')
 
-  // The order's own metals, in the SQL read's order, priced the way every line
-  // on the order is priced (ruling 78 - no asks Map, no per-line index).
   const spotsHtml = pricing.spots
     .map(
       (spot) => `

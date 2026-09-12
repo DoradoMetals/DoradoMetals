@@ -237,13 +237,6 @@ test('changing the method takes the booking with it', async () => {
 
 test('a fulfillment with a real shipment refuses to move off SHIPMENT', async () => {
   await inRollback(async (c: PoolClient) => {
-    // A SHIPMENT ROW IS NOT A SHIPPED PARCEL, and this query used to conflate
-    // them: `categoriesFor` locks the category on `tracking_number != null` -
-    // a label that was actually bought - so a fulfillment whose shipment has
-    // no tracking number is movable BY DESIGN. The join alone picked whatever
-    // row came first, which stopped meaning anything the moment the database
-    // held an unlabelled one (`seed:e2e:order` stubs `buyLabel` and mints
-    // exactly that). Ask for the tracking number the rule reads.
     const { rows } = await c.query(
       `SELECT f.id FROM fulfillments.fulfillments f
         JOIN fulfillments.shipments fs ON fs.fulfillment_id = f.id
@@ -325,9 +318,6 @@ test("another customer's fulfillment is not readable by asking for its order", a
 const anAddressId = async (c: PoolClient, user_id: string) =>
   (await anAddress(c, { id: user_id })).id
 
-// A draft belongs to the checkout that points at it, and that is where its owner
-// comes from. `createForCheckout` links the two before it patches anything; a
-// test that patches an unattached draft is testing a state HTTP cannot reach.
 const ownedBy = async (c: PoolClient, fulfillment_id: string, user_id: string) => {
   await c.query(
     `INSERT INTO checkout.checkouts (user_id, direction, fulfillment_id)

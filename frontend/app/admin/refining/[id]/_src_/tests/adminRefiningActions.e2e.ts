@@ -2,9 +2,6 @@ import { test, expect } from '@playwright/test'
 
 import { statePath } from '@/shared/tests/roles'
 
-// A refiner order's handover, end to end: create the fulfillment against the
-// refining order, choose the refinery and the date, and schedule the drop-off.
-// The whole method was GAP 20 - no read, no patch arm, no route.
 test.use({ storageState: statePath('admin') })
 
 const API = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api').replace(/\/$/, '')
@@ -54,9 +51,6 @@ test('Create fulfillment gives a refiner order its drop-off, and Schedule books 
     'DROPOFF'
   )
 
-  // A PREVIOUS RUN MAY HAVE BOOKED THIS ONE. The suite reuses the refiner's one
-  // open sell order, so cancel the booking first and take the card back to its
-  // choices - which is also the Cancel Drop-off path, driven for free.
   const cancel = page.getByRole('button', { name: 'Cancel Drop-off' })
   if (await cancel.isVisible().catch(() => false)) {
     const undone = page.waitForResponse(
@@ -105,13 +99,6 @@ test('the refiner Settlement statement is imported as multipart, never sent', as
   page,
   playwright,
 }) => {
-  // Its own order, not the shared one above: importing a document has no
-  // Delete wired to a real call and no API route to undo it, so reusing the
-  // shared order would find Settlement already `available` on a second run
-  // and never show an Import button again. `buy` rather than `sell` because
-  // the shared order above already holds the one open sell order a refiner
-  // may have (`assertNoOpenSellOrder`); a fresh buy order never conflicts
-  // with it and documents don't vary by direction.
   const api = await playwright.request.newContext({ storageState: statePath('admin') })
   const refiners = await api.get(`${API}/suppliers/get_all`)
   const list = (await refiners.json()) as { id: string }[]

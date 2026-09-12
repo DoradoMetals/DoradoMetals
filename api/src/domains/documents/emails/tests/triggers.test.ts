@@ -42,8 +42,6 @@ const trail = async (c: PoolClient, order_id: string, kind: string) => {
   return rows
 }
 
-// A booking of the given category, attached to the order. The mailers read the
-// booking rather than being told about it, so the test has to write one.
 async function aBooking(
   c: PoolClient,
   order_id: string,
@@ -62,8 +60,6 @@ async function aBooking(
   return made.id
 }
 
-// Tomorrow, in the office's own time zone - the reminder's window is a Chicago
-// calendar day, so a UTC "tomorrow" is the wrong question to ask.
 async function tomorrowAtNoon(c: PoolClient): Promise<string> {
   const { rows } = await query<{ at: string }>(
     `SELECT (((now() AT TIME ZONE 'America/Chicago')::date + 1) + time '12:00')

@@ -1,4 +1,3 @@
-// The Chat composer, and the Call Event rows the timeline draws.
 import { test, afterAll } from 'vitest'
 import assert from 'node:assert/strict'
 import type { PoolClient } from 'pg'

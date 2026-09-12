@@ -46,8 +46,6 @@ function SignInEmail() {
   )
 }
 
-// `useSearchParams` opts a client page out of prerendering unless a Suspense
-// boundary stands above it. That is Next's rule, not a choice here.
 export default function Page() {
   return (
     <Suspense fallback={null}>

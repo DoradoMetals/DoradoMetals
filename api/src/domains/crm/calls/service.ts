@@ -54,8 +54,6 @@ export async function recordStatus(form: WebhookForm): Promise<void> {
   })
 }
 
-// Twilio reuses one URL across three roles here (fresh call, the <Dial>
-// action result, the <Record> action result); the payload shape says which.
 export async function handleTwiml(form: WebhookForm): Promise<string> {
   if (form.RecordingUrl) return finishVoicemail(form)
   if (form.DialCallStatus) return afterDial(form)

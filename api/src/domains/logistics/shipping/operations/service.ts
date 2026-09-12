@@ -64,10 +64,6 @@ export async function getTracking(
   fetchTracking?: (shipment: ShipmentRow, client?: Executor) => Promise<ParsedTracking>
 ): Promise<ShipmentView | null> {
   const view = await refreshTracking(shipment_id, isAdmin, fetchTracking)
-  // The mailers go out AFTER the scan rows are committed. An email cannot be
-  // rolled back, and both of these are gated by their own SQL read - one waits
-  // for a scan that is not 'Label Created', the other for a delivered parcel -
-  // so calling them on every refresh is correct and the trail makes each once.
   await notifyOnScan(shipment_id)
   return view
 }
@@ -106,9 +102,6 @@ async function refreshTracking(
     return await shipmentView.getById(shipment_id, isAdmin)
   }
 
-  // The carrier is asked BEFORE the transaction opens. The replace of the scan
-  // history stays atomic; what is left is a network round trip holding an open
-  // transaction, which is what the side-effect gate forbids (LD F13).
   return await withTransaction(async (tx) => {
     await trackingRepo.removeEvents(shipment_id, tx)
     await trackingRepo.insertEvents(trackingInfo, shipment_id, tx)
@@ -138,8 +131,6 @@ export async function quoteRate(
 ): Promise<ReturnType<typeof shippingHandler.getRates>> {
   shippingRules.assertShippingType(shippingType)
   const inbound = shippingType === 'Inbound'
-  // The inbound parcel travels to the same place a label is held at, and that
-  // place is a row now (ruling 89).
   const hold = await locationsRepo.defaultReturn()
   shippingRules.assertReturnLocation(hold)
   const shipperAddress: RatesInput['shipperAddress'] = inbound ? address : DORADO_ADDRESS
@@ -179,9 +170,6 @@ export async function getFulfillmentRates(fulfillment_id: string): Promise<Check
   const total = inbound && quote.direction === 'purchase' ? quote.total : 0
   const declaredValue = await carrierServices.clampInsuredValue(shippingRules.declaredValue(total))
 
-  // The same handoff the label will be bought with. Quoting with no pickupType
-  // and buying with `parcel.handoff.code` asked FedEx two different questions,
-  // and the second answer is what is deducted from the payout (LD F6).
   const handoff = shippingRules.handoffFor(await handoffsService.getHandoffs(), view.method.type)
 
   const quoted = await quoteRate(

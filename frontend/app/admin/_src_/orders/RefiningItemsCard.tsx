@@ -1,7 +1,20 @@
 'use client'
 
 import * as React from 'react'
-import { Autocomplete, Button, EmptyState, Input, Link, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, type AutocompleteItem } from '@dorado/components'
+import {
+  Autocomplete,
+  Button,
+  EmptyState,
+  Input,
+  Link,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  type AutocompleteItem,
+} from '@dorado/components'
 import { Trash2 } from '@dorado/icons'
 import type { LotView, RefiningLotPatch, RefiningLotView } from '@dorado/contracts'
 
@@ -20,9 +33,6 @@ export type RefiningItemsCardProps = {
   pending?: boolean
 }
 
-// The refiner's table: Item · Lot · Order · Weight · Purity · Premium · Value.
-// A refiner line carries the customer order the metal came off, because that
-// pairing is the margin - and it is one SQL read, not a join written here.
 export function RefiningItemsCard({
   lots,
   kindLabel,

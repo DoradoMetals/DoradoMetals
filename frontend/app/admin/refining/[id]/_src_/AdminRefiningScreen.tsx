@@ -47,9 +47,6 @@ import {
 
 const RAILS = Rail.options
 
-// We SELL lots to a refiner (`direction: 'sell'`) or we BUY bullion from one
-// (`direction: 'buy'`). A draft is an order that has not been sent; sending it
-// is what the refiner sees, and it replaces Finalize - refiner orders have none.
 export function AdminRefiningScreen({ id }: { id: string }) {
   const order = useRefiningOrder(id)
   const refiners = useRefiners()
@@ -90,9 +87,6 @@ export function AdminRefiningScreen({ id }: { id: string }) {
   const cancelled = view.cancelled_at !== null
   const refinerName = view.refiner?.organization.name ?? 'Unknown refiner'
 
-  // A refiner order's handover has no read of its own: `POST /fulfillments`
-  // answers with the existing view when one is there, so the screen holds the
-  // newest view any of its writes answered until that read exists.
   const fulfilment =
     [createFulfillment, patchFulfillment, scheduleDropoff, setStatus, cancelSchedule]
       .filter((one) => one.data != null)
@@ -173,7 +167,9 @@ export function AdminRefiningScreen({ id }: { id: string }) {
               employees={employees.data ?? []}
               refiners={refiners.data ?? []}
               onCancel={() => cancelSchedule.mutate({ fulfillment_id: fulfilment.fulfillment.id })}
-              onReschedule={() => cancelSchedule.mutate({ fulfillment_id: fulfilment.fulfillment.id })}
+              onReschedule={() =>
+                cancelSchedule.mutate({ fulfillment_id: fulfilment.fulfillment.id })
+              }
               onAdvance={(status) =>
                 setStatus.mutate({ fulfillment_id: fulfilment.fulfillment.id, status })
               }

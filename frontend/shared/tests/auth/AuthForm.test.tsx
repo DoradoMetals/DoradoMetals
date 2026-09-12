@@ -1,9 +1,3 @@
-// The twelve states of the auth form, rendered.
-//
-// The design is one component with twelve variants and the copy is the design's
-// - so what is pinned here is the copy, and the fact that every number a
-// customer sees (attempts left, the cooldown, the masked destination, how many
-// digits) comes off the API's VerificationView rather than out of the browser.
 import { describe, expect, test, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import type { ChangeConfirmedView, VerificationView } from '@dorado/contracts'

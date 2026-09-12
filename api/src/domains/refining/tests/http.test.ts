@@ -1,4 +1,3 @@
-// The refiner surface over HTTP: every route, its guard, and what it refuses.
 import { test, afterAll } from 'vitest'
 import assert from 'node:assert/strict'
 import type { PoolClient } from 'pg'
@@ -331,13 +330,15 @@ test('a pool lock is refused where there is no metal, and taken where there is',
 test('a lock cites an order that must exist, and the suppliers list is admin-only', async () => {
   await inRefining(async (c) => {
     await asAdmin(admin, async () => {
-      const res = await request(app).post('/api/refining/pool/locks').send({
-        refiner_id: await refinerId(c),
-        metal_id: 'Gold',
-        troy_oz: 1,
-        lock_price: 2450,
-        refining_order_id: anUnknownId(),
-      })
+      const res = await request(app)
+        .post('/api/refining/pool/locks')
+        .send({
+          refiner_id: await refinerId(c),
+          metal_id: 'Gold',
+          troy_oz: 1,
+          lock_price: 2450,
+          refining_order_id: anUnknownId(),
+        })
       assert.equal(res.status, 404, `answered ${res.status}`)
 
       const suppliers = await request(app).get('/api/suppliers/get_all')

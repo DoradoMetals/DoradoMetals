@@ -26,8 +26,6 @@ export function assertChecksum(matches: boolean, checksum: string): void {
   if (!matches) throw new Error(`bytes do not match stored checksum ${checksum}`)
 }
 
-// Send only works on a row the card marks available: a kind with a renderer, or
-// a kind somebody has imported a file for.
 export function assertDocumentAvailable(
   document: OrderDocument | undefined,
   kind: string

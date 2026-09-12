@@ -190,11 +190,6 @@ test("shipping is free over $1000 and the service row's price under it", async (
   )
 })
 
-// MP F2. The customer names payment_method_id, and the quote read the surcharge
-// off whatever they named. CREDIT settles from the balance the quote has
-// already applied, carries surcharge 0, and leaves `payment_surface` at 'card',
-// so naming it took the whole surcharge off a card charge that still happened -
-// $254 on the $8,762 basket the review measured.
 test('a method that cannot take the charge does not set its surcharge', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
@@ -218,9 +213,6 @@ test('a method that cannot take the charge does not set its surcharge', async ()
   )
 })
 
-// MP F9. `spots.spots.bid` is nullable, and purchase_quote swallowed a null one
-// as COALESCE(bid, 0): a sell basket quoted $0.00 for those lines, with a 200
-// and no warning, and the customer decides to ship metal on that number.
 test('a sell basket whose metal has no live bid is refused, not quoted at zero', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {

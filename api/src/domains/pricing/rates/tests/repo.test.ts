@@ -41,9 +41,6 @@ test('update returns true for a real id, and the row actually changed', async ()
       const row = await rates.getOne(id, client)
       assert.equal(Number(row?.scrap_pct), 0.5)
     },
-    // rates.rates' GIST exclusion constraint makes two overlapping inserts
-    // wait on each other rather than one raising 23505 - a real deadlock
-    // hazard `lint-test-locks` doesn't know this table needs (D... see locks.ts).
     { actor: TEST_ACTOR.id, lock: LOCKS.RATES }
   )
 })

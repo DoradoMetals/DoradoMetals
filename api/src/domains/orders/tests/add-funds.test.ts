@@ -21,8 +21,6 @@ const admin: UserFixture = TEST_ACTOR
 
 const TOTAL = 1234.56
 
-// A DORADO_ACCOUNT payout, because that is the only payout a Dorado balance
-// credits (MP F4): the rule was in `actionsFor` and nowhere near the money.
 const anOrderWorthSomething = async (
   c: PoolClient,
   method = 'DORADO_ACCOUNT'

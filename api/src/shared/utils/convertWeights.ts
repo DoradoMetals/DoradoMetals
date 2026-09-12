@@ -1,11 +1,3 @@
-// MIRRORED. The same conversion exists in the frontend:
-//   frontend/shared/utils/convertWeights.ts
-// api/src/shared/tests/mirror.test.ts fails if the two drift apart.
-//
-// This is NOT the money conversion. Every fine-content figure the business
-// pays on is derived by metals.fine_content in SQL, which is the one
-// definition; a unit it does not recognise raises there rather than valuing
-// the metal at nothing. What is left here sizes a parcel.
 export function convertTroyOz(num: number, unit: string): number {
   if (isNaN(num)) return 0
   switch (unit.toLowerCase()) {

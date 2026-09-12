@@ -55,9 +55,6 @@ export async function aShipment(
     c
   )
 
-  // The number comes from the id the DATABASE minted, so two shipments built in
-  // one test can never collide on 136's unique index. `aTag()` was truncated to
-  // fit twelve characters and dropped the digit that made it unique.
   const tracking_number = options.tracking_number ?? `7941${id.replace(/-/g, '').slice(0, 8)}`
   await shipments.update(id, { tracking_number }, c)
 

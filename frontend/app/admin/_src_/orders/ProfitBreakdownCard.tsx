@@ -10,9 +10,6 @@ export type ProfitBreakdownCardProps = {
   loading?: boolean
 }
 
-// The margin report. It is ROWS: the SQL read returns the whole object and
-// nothing here assembles it - a metal appears because the order has a line in
-// it, and not otherwise.
 export function ProfitBreakdownCard({ breakdown, loading = false }: ProfitBreakdownCardProps) {
   const dorado = breakdown?.parties.find((party) => party.party === 'dorado') ?? null
   const shares = (breakdown?.shares ?? []).filter(

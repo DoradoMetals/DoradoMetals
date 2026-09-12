@@ -55,7 +55,8 @@ test("basket, row, fulfillment, payout and placement agree on one order's money"
         request(app)
           .put('/api/checkout/lots')
           .query({ direction: 'purchase' })
-          .send({ lots: [
+          .send({
+            lots: [
               { metal_id: gold, pre_melt: 10, purity: 0.925, unit: 'g', quantity: 1 },
               { bullion_id: product.id, quantity: 1 },
             ],
@@ -163,9 +164,6 @@ test("basket, row, fulfillment, payout and placement agree on one order's money"
       const total = Number(priced.body.totals?.total)
       assert.ok(Number.isFinite(total), 'finalize wrote no readable total')
 
-      // This order is paid out by ACH, so a Dorado balance is not where its
-      // money goes (MP F4). The action says so and the endpoint agrees; the
-      // DORADO_ACCOUNT path is pinned in orders/tests/add-funds.test.ts.
       assert.equal(priced.body.actions.add_funds, false)
       const funded = await asAdmin(admin, () =>
         request(app).post(`/api/orders/${placed.order.id}/add_funds`)

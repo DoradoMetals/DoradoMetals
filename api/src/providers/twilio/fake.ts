@@ -56,8 +56,6 @@ export function reset(): void {
   counter = 0
 }
 
-// The fake never receives a Twilio webhook, so there is nothing to verify. A
-// route that trusts this must be mounted only while isFake() is true.
 export function verifySignature(): boolean {
   return true
 }

@@ -20,11 +20,6 @@ const STORE_ADDRESS = {
   country_code: 'US',
   is_residential: false,
 }
-// The recorded exchange carries a hold-at-location detail the adapter used to
-// supply from a constant. Ruling 89 moved that to a places.locations row the
-// caller reads, so the test hands over the same values - already in FedEx's own
-// shape, which the adapter passes through untouched - and the recorded request
-// still matches.
 const RECORDED_HOLD = {
   code: 'ADSK',
   type: 'FEDEX_OFFICE',

@@ -28,20 +28,16 @@ afterAll(() => {
   fakeEmail.reset()
 })
 
-// A customer with both factors proved, and a session minted `agoSeconds` ago.
 const aCustomer = async (c: PoolClient, phone_number: string, agoSeconds = 0) => {
   const user = await aUser(c, { phone_number })
   await c.query(`UPDATE auth.users SET phone_number_verified = true WHERE id = $1`, [user.id])
   return { user, session_id: await aSessionRow(c, user.id, agoSeconds) }
 }
 
-// Where a change's code was actually minted. The identifier IS the value the
-// code was sent to, so this is the cross-factor rule made observable.
 const codeMintedFor = async (value: string): Promise<boolean> =>
   Boolean(await verifications.byIdentifier(rules.identifierFor(rules.CHANGE_OTP_TYPE, value)))
 
-// RULE 1: an EMAIL change is proved by the PHONE, and the caller does not choose.
-test("an email change texts the phone and does not mail either address", async () => {
+test('an email change texts the phone and does not mail either address', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
       stubAuthApi(c)
@@ -76,7 +72,6 @@ test("an email change texts the phone and does not mail either address", async (
   )
 })
 
-// RULE 1, the other way round.
 test('a phone change mails the email and does not text either number', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
@@ -104,7 +99,6 @@ test('a phone change mails the email and does not text either number', async () 
   )
 })
 
-// RULE 3: step-up is demanded of a stale session and of no other.
 test('a stale session is sent to step-up; a fresh one goes straight through', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
@@ -150,8 +144,6 @@ test('a step-up code texts the phone, and the change it unblocks then goes throu
   )
 })
 
-// RULES 4 and 8: the change lands, the OLD value is told, and the new value is
-// the one unmasked figure in the whole surface.
 test('confirming a phone change applies it, texts the OLD number, and answers in full', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
@@ -189,8 +181,6 @@ test('confirming a phone change applies it, texts the OLD number, and answers in
   )
 })
 
-// RULE 4, and the proof that the notice runs AFTER the commit: it goes out
-// through the recording email fake, and the change stands regardless.
 test('an email change notifies the old address through the recording fake', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
@@ -213,10 +203,12 @@ test('an email change notifies the old address through the recording fake', asyn
       assert.ok(alarm, 'the takeover alarm never reached the address being replaced')
       assert.match(alarm.html, /email address changed/i)
 
-      // The alarm goes to the value being REPLACED, which here is an address -
-      // so the phone saw the change CODE and nothing else.
       const texts = fakeSms.sent().filter((m) => m.to === '+15125553008')
-      assert.equal(texts.length, 1, 'the phone was texted twice; the alarm went to the wrong factor')
+      assert.equal(
+        texts.length,
+        1,
+        'the phone was texted twice; the alarm went to the wrong factor'
+      )
       assert.match(texts[0]!.body, new RegExp(CODE))
       assert.ok(previous.includes('@'), 'the replaced value was an address')
     },
@@ -224,7 +216,6 @@ test('an email change notifies the old address through the recording fake', asyn
   )
 })
 
-// RULE 5: one factor per session.
 test('a session that changed one factor may not change the other', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
@@ -247,7 +238,6 @@ test('a session that changed one factor may not change the other', async () => {
   )
 })
 
-// RULE 7 on the confirm: a wrong code is refused and counted, never answered.
 test('a wrong confirmation code is refused, and enough of them lock the identity', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
@@ -327,7 +317,6 @@ test('a change is refused while the other factor is unproved', async () => {
   )
 })
 
-// RULE 8 on the session read.
 test('the session view masks both values and reports its own freshness', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {

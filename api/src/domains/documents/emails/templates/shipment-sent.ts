@@ -4,9 +4,6 @@ import { trackingUrl } from '#documents/emails/links.ts'
 import { orderLabel } from '#documents/emails/rules.ts'
 import type { ShipmentMail } from '@dorado/contracts'
 
-// Figma "Mailer · Shipment sent" (154:808). Sent when the label is bought and
-// the parcel takes its first carrier scan.
-
 export function subject(mail: ShipmentMail): string {
   return `Your metals are on the move - ${orderLabel(mail.direction, mail.order_number)}`
 }

@@ -10,9 +10,6 @@ const ROOTS = [
 
 const CONTEXT = /\b(mutationFn|queryFn|request|onSuccess|onSettled|onError|onMutate)\s*:/g
 
-// The keys that run AFTER an operation has already succeeded. An API call in
-// one of these is the defect; anything else - a mutationFn, a queryFn, a helper
-// a wrapper is handed - is the call itself.
 const AFTER = new Set(['onSuccess', 'onSettled', 'onError', 'onMutate'])
 
 const CALL =
@@ -48,10 +45,6 @@ const stringEnd = (src: string, at: number): number => {
   return src.length
 }
 
-// Where a `key:` value ends - the first comma or closing bracket at depth zero.
-// The nearest PRECEDING key is not the enclosing one: a wrapper whose onSettled
-// invalidates, called by a hook that passes the real request beside it, put
-// every one of those requests inside an onSettled that had already closed.
 const valueEnd = (src: string, from: number): number => {
   let depth = 0
   let i = from
@@ -97,7 +90,6 @@ const spansOf = (src: string): Span[] =>
     return { key: m[1], start, end: valueEnd(src, start) }
   })
 
-// The INNERMOST span that contains the call, not the last one that opened.
 const contextAt = (spans: Span[], at: number): string => {
   let inner: Span | null = null
   for (const span of spans) {
@@ -136,10 +128,6 @@ test('only the two order emails are triggered after an operation already succeed
     }
   }
 
-  // THE CONTROL AND THE FLOOR ROSE WITH THE ADMIN ORDER SCREENS. The control
-  // stays the session read - a scan that cannot see the auth module is reading
-  // nothing - and the floor is the calls the eleven resource modules really
-  // make. Both rise again as surfaces are built.
   assert.ok(
     all.includes('queryFn GET /account/session'),
     'packages/client/src was not scanned - the known /account/session queryFn call is missing'
@@ -162,8 +150,6 @@ test('only the two order emails are triggered after an operation already succeed
   console.log(`      ${total} apiRequest call(s) scanned, ${found.length} after a success`)
 })
 
-// THE SCANNER'S OWN PROOF. The first case is the write wrapper every resource
-// module uses; the second is the defect it must still catch.
 test('the scanner allows an invalidating onSettled and still refuses a call in one', () => {
   const invalidating = `
     function useOrderWrite(id, run) {
@@ -183,7 +169,10 @@ test('the scanner allows an invalidating onSettled and still refuses a call in o
     scan(invalidating).map((e) => `${e.context} ${e.verb} ${e.url}`),
     ['(top level) PATCH /orders/1']
   )
-  assert.deepEqual(scan(invalidating).filter((e) => AFTER.has(e.context)), [])
+  assert.deepEqual(
+    scan(invalidating).filter((e) => AFTER.has(e.context)),
+    []
+  )
 
   const effectful = `
     useMutation({

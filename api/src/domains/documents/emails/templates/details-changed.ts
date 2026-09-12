@@ -3,9 +3,6 @@ import { renderMailer, Text, Card, Button } from '@dorado/components/email'
 import { accountUrl } from '#documents/emails/links.ts'
 import type { DetailsChangedMail } from '@dorado/contracts'
 
-// Figma "Mailer · Details changed" (154:1010). Copy verbatim from the design.
-// The card's Previous and New rows carry MASKED values - the caller masks them,
-// and the render test proves the raw address never reaches the page.
 export function subject(): string {
   return 'Your Dorado sign-in details changed'
 }

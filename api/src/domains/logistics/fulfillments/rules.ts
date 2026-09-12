@@ -11,17 +11,12 @@ import type {
   FulfillmentViewFacts,
 } from '@dorado/contracts'
 
-// A handover that is DONE. The status is an enum now (168), so this is the one
-// place that says which of its labels mean "we have the metal".
 const DONE: FulfillmentStatus[] = ['PICKED_UP', 'COMPLETED', 'DROPPED_OFF']
 
 export function isCollected(status: FulfillmentStatus | null | undefined): boolean {
   return status != null && DONE.includes(status)
 }
 
-// The six operator transitions the design notes name, as statuses rather than
-// button labels, so nothing is decided in the browser (GAP 19). A handover that
-// has not been scheduled offers none: there is nothing to be headed to.
 export function transitionsFor(view: FulfillmentViewFacts): FulfillmentStatus[] {
   const status = view.fulfillment.status
   if (isCollected(status)) return []
@@ -47,9 +42,6 @@ export function requiresSchedule(category: FulfillmentCategory): boolean {
 
 const ALL_CATEGORIES: FulfillmentCategory[] = ['SHIPMENT', 'PICKUP', 'DIRECT']
 
-// DROPOFF is not offered as a move: it is the business driving sealed lots to a
-// refinery, chosen on a refiner order, and its method row is hidden for that
-// reason. A fulfillment already on it stays on it.
 export function categoriesFor(
   category: FulfillmentCategory,
   hasShipment: boolean
@@ -96,9 +88,6 @@ export function missingFor(
   const { method, parcel, pickup, direct, dropoff } = view
 
   if (method.category === 'SHIPMENT') {
-    // A sale's leg goes out, not in: the customer picks the delivery service and
-    // nothing else. `return missing` with nothing in it let a sale be placed
-    // with no service at all, which prices its carriage at zero (LD F7).
     if (parcel && parcel.direction !== 'Inbound') {
       if (!parcel.carrier_service_id) missing.push('carrier_service_id')
       return missing
@@ -147,11 +136,10 @@ export function assertOneSubject(body: FulfillmentCreateBody): void {
 export function assertCheckoutSubject(
   checkout_id: string | undefined
 ): asserts checkout_id is string {
-  if (!checkout_id) throw new Invalid('name exactly one of checkout_id, order_id or refining_order_id')
+  if (!checkout_id)
+    throw new Invalid('name exactly one of checkout_id, order_id or refining_order_id')
 }
 
-// A customer makes a handover for their own basket. Making one for an ORDER is
-// an admin act - the customer has no options after placing (ruling 3).
 export function assertAdminCreate(is_admin: boolean): void {
   if (!is_admin) throw new Forbidden('only an admin can create a fulfillment for an order')
 }
@@ -203,10 +191,6 @@ export function assertDefault<T>(
   if (!row) throw new NotFound(`no default ${category} method for a ${direction}`)
 }
 
-// A transition the card is not offering. The status column is an enum, so a
-// wrong word is already a 400; this is about the ORDER of the six moves, and it
-// only bites where there IS an order: a SHIPMENT's progress comes off the
-// parcel's own scans, so nothing here constrains it.
 export function assertTransition(
   offered: FulfillmentStatus[],
   wanted: FulfillmentStatus,
@@ -225,11 +209,6 @@ export function assertDropoff<T>(row: T | null | undefined, id: string): asserts
   }
 }
 
-// Postgres does not raise on a zero-row UPDATE, so a WHERE that has quietly
-// stopped resolving succeeds forever and the only symptom is data that never
-// changes - cancel_schedule deletes the detail row, and a PATCH that reaches
-// `dropoffs.update` after that would otherwise answer 200 having written
-// nothing.
 export function assertApplied(changed: unknown, what: string): void {
   if (!changed) throw new Conflict(`${what} changed nothing`)
 }
@@ -290,11 +269,6 @@ export function assertParcel<T>(parcel: T | null | undefined, id: string): asser
   }
 }
 
-// 123 made the address columns carry a composite key into places.user_addresses
-// - "this address is in THIS ROW'S OWNER'S book". 128 moved the columns onto
-// the fulfillment detail rows and the key did not follow, so a customer could
-// point their parcel at any address row in the database (LD F2). The rule is
-// here now; the FK cannot be, because no fulfillment detail row carries a user.
 export function assertAddressIsTheirs(theirs: boolean, address_id: string): void {
   if (!theirs) throw new NotFound(`no address ${address_id}`)
 }
@@ -333,8 +307,6 @@ export function assertTimestamp(value: unknown): void {
   }
 }
 
-// 137's composite key is checked against the owner this stamps, so a stamp that
-// matched no row would leave the next write unguarded.
 export function assertOwnerClaimed(claimed: boolean, id: string): void {
   if (!claimed) {
     throw new NotFound(`${id} vanished before its owner could be stamped on it`)

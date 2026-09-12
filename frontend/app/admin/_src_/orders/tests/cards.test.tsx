@@ -1,10 +1,3 @@
-// Every card, in every state the notes name, rendered from a fixture view.
-//
-// What is pinned is that the state on screen comes off the API's own view - a
-// badge, a button label, a disabled control, a column - and never out of a
-// decision written in the browser. A card that computes its own state passes
-// with the fixture and fails against the API, so the fixtures are typed by the
-// contracts and nothing here invents a field.
 import { describe, expect, test, vi } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import type { FulfillmentMethodRead, FulfillmentStatus, Rail } from '@dorado/contracts'
@@ -202,7 +195,14 @@ describe('Spots', () => {
 
   test('refiner orders carry no lock button at all', () => {
     render(
-      <SpotsCard spots={spots} live={[]} locked canToggle={false} onToggleLock={noop} onSetBid={noop} />
+      <SpotsCard
+        spots={spots}
+        live={[]}
+        locked
+        canToggle={false}
+        onToggleLock={noop}
+        onSetBid={noop}
+      />
     )
     expect(screen.queryByRole('button', { name: 'Unlock Spots' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Lock Spots' })).toBeNull()
@@ -214,7 +214,16 @@ describe('Lots', () => {
 
   test('scrap: the melt columns, the lot link, New / Batch / Delete', () => {
     render(<LotsCard kind="scrap" lots={[aLot()]} {...handlers} />)
-    for (const column of ['Item', 'Lot', 'Qty', 'Pre Melt', 'Post Melt', 'Purity', 'Premium', 'Price']) {
+    for (const column of [
+      'Item',
+      'Lot',
+      'Qty',
+      'Pre Melt',
+      'Post Melt',
+      'Purity',
+      'Premium',
+      'Price',
+    ]) {
       expect(screen.getByText(column)).toBeTruthy()
     }
     expect(screen.getByRole('link', { name: 'Lot 2481-A' })).toBeTruthy()
@@ -358,9 +367,13 @@ describe('Payment', () => {
   })
 
   test('matching: the Method row is replaced by the unmatched feed and Confirm match', () => {
-    render(<PaymentCard {...base} matching payment={aPaymentView({ kind: 'charge', state: 'Due' })} />)
+    render(
+      <PaymentCard {...base} matching payment={aPaymentView({ kind: 'charge', state: 'Due' })} />
+    )
     expect(screen.getByText('Unmatched inbound transactions')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Confirm match' }).hasAttribute('disabled')).toBe(true)
+    expect(screen.getByRole('button', { name: 'Confirm match' }).hasAttribute('disabled')).toBe(
+      true
+    )
     expect(screen.queryByText('Method')).toBeNull()
   })
 
@@ -425,7 +438,11 @@ describe('Settlement', () => {
 
 describe('Fulfillment', () => {
   const chrome = {
-    methods: [aMethod('SHIPMENT', 'Shipment'), aMethod('PICKUP', 'Pickup'), aMethod('DIRECT', 'Appointment')],
+    methods: [
+      aMethod('SHIPMENT', 'Shipment'),
+      aMethod('PICKUP', 'Pickup'),
+      aMethod('DIRECT', 'Appointment'),
+    ],
     services: [],
     packages: [],
     handoffs: [],
@@ -464,12 +481,12 @@ describe('Fulfillment', () => {
 
 describe('Shipment', () => {
   test('label created: the label details, no tracker, Cancel Shipment', () => {
-    render(
-      <ShipmentCard shipment={aShipment()} onSaveTracking={noop} onCancelLabel={noop} />
-    )
+    render(<ShipmentCard shipment={aShipment()} onSaveTracking={noop} onCancelLabel={noop} />)
     expect(screen.getByText('Label Created')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Cancel Shipment' })).toBeTruthy()
-    expect(screen.getByText('The label exists and the carrier has not scanned it yet.')).toBeTruthy()
+    expect(
+      screen.getByText('The label exists and the carrier has not scanned it yet.')
+    ).toBeTruthy()
   })
 
   test('awaiting tracking: a drop ship, so a Tracking # and Save Tracking', () => {
@@ -482,7 +499,9 @@ describe('Shipment', () => {
     )
     expect(screen.getByText('Awaiting Tracking')).toBeTruthy()
     expect(screen.getByLabelText('Tracking #')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Save Tracking' }).hasAttribute('disabled')).toBe(true)
+    expect(screen.getByRole('button', { name: 'Save Tracking' }).hasAttribute('disabled')).toBe(
+      true
+    )
     expect(screen.queryByRole('button', { name: 'Cancel Shipment' })).toBeNull()
   })
 
@@ -493,7 +512,12 @@ describe('Shipment', () => {
           { shipped_at: '2026-09-01T16:12:00.000Z' },
           {
             timeline: [
-              { stage: 'Picked Up', location: 'Austin, TX', scan_time: '2026-09-01T16:12:00.000Z', reached: true },
+              {
+                stage: 'Picked Up',
+                location: 'Austin, TX',
+                scan_time: '2026-09-01T16:12:00.000Z',
+                reached: true,
+              },
               { stage: 'Delivered', location: null, scan_time: null, reached: false },
             ],
           }
@@ -537,8 +561,6 @@ describe('Shipment', () => {
 describe('Pickup, Appointment and Drop-off', () => {
   const handlers = { onCancel: noop, onReschedule: noop, onAdvance: noop }
 
-  // The badge is the fulfillment's own status and the buttons are the moves the
-  // API says are open - `FulfillmentActions.transitions`, not a table here.
   const booked = (
     category: FulfillmentMethodRead['category'],
     label: string,
@@ -575,9 +597,7 @@ describe('Pickup, Appointment and Drop-off', () => {
   })
 
   test('pickup · Picked Up is the end of the line', () => {
-    render(
-      <PickupCard fulfillment={booked('PICKUP', 'Pickup', 'PICKED_UP', [])} {...handlers} />
-    )
+    render(<PickupCard fulfillment={booked('PICKUP', 'Pickup', 'PICKED_UP', [])} {...handlers} />)
     expect(screen.getByRole('button', { name: 'Picked Up' }).hasAttribute('disabled')).toBe(true)
   })
 
@@ -729,10 +749,6 @@ describe('Refiner items', () => {
   })
 })
 
-// THE STATES THAT WERE WAITING ON AN API GAP, now wired. Each names the gap it
-// closes; the table is docs/waves/admin-orders-screen.md. Only GAP 23 - six
-// document renderers, waiting on a Figma Documents page - has nothing here,
-// and it never had a marker: it is a rendering gap, not a screen state.
 describe('the states the API lane unblocked', () => {
   test('GAP 1 and 2: the header prints the server reference and the orders-to-date line', () => {
     const view = anOrderView()
@@ -797,7 +813,9 @@ describe('the states the API lane unblocked', () => {
       />
     )
     expect(screen.getByText('Office')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Cancel Order' }).hasAttribute('disabled')).toBe(false)
+    expect(screen.getByRole('button', { name: 'Cancel Order' }).hasAttribute('disabled')).toBe(
+      false
+    )
   })
 
   test('GAP 6: the lock button follows actions.lock_spots / unlock_spots, not a guess', () => {
@@ -825,7 +843,9 @@ describe('the states the API lane unblocked', () => {
         onSetBid={noop}
       />
     )
-    expect(screen.getByRole('button', { name: 'Unlock Spots' }).hasAttribute('disabled')).toBe(false)
+    expect(screen.getByRole('button', { name: 'Unlock Spots' }).hasAttribute('disabled')).toBe(
+      false
+    )
   })
 
   test('GAP 7: a refiner order draws its own frozen prices and no lock button', () => {
@@ -1055,8 +1075,6 @@ describe('the states the API lane unblocked', () => {
     expect(screen.queryByText('Drop-offs are arranged off-screen for now.')).toBeNull()
   })
 
-  // A drop-off has no row until it is scheduled and the PATCH arm writes
-  // nothing, so its choices are held in the card and sent whole to Schedule.
   test('GAP 20: the drop-off choices ride with Schedule, not one PATCH each', () => {
     const onPatch = vi.fn()
     const onSchedule = vi.fn()

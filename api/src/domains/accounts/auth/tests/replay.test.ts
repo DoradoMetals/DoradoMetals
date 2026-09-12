@@ -47,10 +47,6 @@ test('a body that is not the contract is refused before anything is minted', asy
     ['/api/account/send_code', {}],
     ['/api/account/send_code', { channel: 'carrier-pigeon', captcha_token: 't' }],
     ['/api/account/send_code', { channel: 'sms', phone_number: 5125550134, captcha_token: 't' }],
-    // captcha_token is optional now (Jacob's amendment, 2026-09-11: no token on
-    // a pending resend) - a body with no token is a valid SHAPE, not a contract
-    // violation, so it belongs with send-code.test.ts's captchaRequired cases,
-    // not here.
     [
       '/api/account/send_code',
       { channel: 'sms', phone_number: '+15125550134', captcha_token: 't', admin: true },

@@ -109,12 +109,8 @@ describe('useBreakpoint', () => {
     expect(container.textContent).toBe('true')
   })
 
-  // The thresholds are the THEME's, not this file's. packages/theme declares
-  // --breakpoint-* in a plain @theme block precisely so they are emitted and
-  // can be read here; the constants are only what answers on the server.
   describe('the threshold comes from the theme token', () => {
     it('falls back to the compiled scale when the stylesheet declares nothing', () => {
-      // jsdom applies no stylesheet, so every property reads empty.
       expect(breakpointPx('md')).toBe(BREAKPOINTS.md)
     })
 
@@ -138,10 +134,8 @@ describe('useBreakpoint', () => {
         return <output>{String(useMediaUp('lg'))}</output>
       }
       const { container } = render(<One />)
-      // 1440 is above 1200 ...
       expect(container.textContent).toBe('true')
       resize(1100)
-      // ... and 1100 is below it, where the compiled 1024 would have said true.
       expect(container.textContent).toBe('false')
     })
   })

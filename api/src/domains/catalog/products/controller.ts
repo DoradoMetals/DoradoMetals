@@ -5,13 +5,6 @@ import { parseStrict, strictBody, uuidParam } from '#shared/http/validate.ts'
 import { asyncHandler } from '#shared/middleware/asyncHandler.ts'
 import * as productService from '#catalog/products/service.ts'
 
-// `side` is the GATE, and the two sides are deliberately different (ruling 49,
-// Jacob 2026-09-03: "We can show all of them on sell tab. We can't show all of
-// them on buy"). `ask` is the buy storefront and is gated on `display`; `bid`
-// is the sell side and has NO gate, so it lists every row in products.bullion,
-// hidden ones included. LD F21 read the bid side's missing predicate as a
-// defect; it is the ruling. What LD F21 is right about is CLAUDE.md, which
-// still calls the two corrupt-`type` rows "not reachable today".
 const Query = z
   .object({
     side: z.enum(['ask', 'bid']).default('ask'),

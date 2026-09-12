@@ -258,12 +258,6 @@ test('set_method refuses to move a fulfillment that already has a shipment, and 
   )
 })
 
-// LD F14. `withTransaction` is the only issuer of `set_config('app.actor_id')`,
-// and 116's audit_stamp writes updated_by only when the actor is set - so every
-// admin edit through these endpoints left the row naming whoever last touched
-// it inside a transaction. `setMethod` was four independent writes on four pool
-// checkouts besides, so a failure between them left a fulfillment whose method
-// says PICKUP with its pickup row deleted and no new detail.
 test('an admin status change stamps the admin who made it', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
@@ -274,7 +268,9 @@ test('an admin status change stamps the admin who made it', async () => {
       )
 
       const res = await as({ ...admin, role: 'admin' }, () =>
-        request(app).post('/api/fulfillments/set_status').send({ fulfillment_id: id, status: 'COMPLETED' })
+        request(app)
+          .post('/api/fulfillments/set_status')
+          .send({ fulfillment_id: id, status: 'COMPLETED' })
       )
       assert.equal(res.status, 200, res.text)
 

@@ -42,9 +42,6 @@ const INTENT: Record<TransferState, 'warning' | 'info' | 'success' | 'danger'> =
   Failed: 'danger',
 }
 
-// The payout direction runs Not sent -> Processing -> Sent; the charge
-// direction runs Due -> Processing -> Received. Both states and both labels
-// come off `PaymentView`; nothing here decides which phase the money is in.
 const PAYOUT_LABEL: Record<TransferState, string> = {
   'Not sent': 'Send payment',
   Due: 'Send payment',
@@ -196,9 +193,7 @@ export function PaymentCard({
         </div>
       )}
 
-      {sendReason && !settled && (
-        <p className="text-micro text-muted-foreground">{sendReason}</p>
-      )}
+      {sendReason && !settled && <p className="text-micro text-muted-foreground">{sendReason}</p>}
       {payment?.failure_reason && (
         <p className="text-micro text-destructive">{payment.failure_reason}</p>
       )}

@@ -26,9 +26,6 @@ function domainOf(address: string): string {
   return bare.slice(bare.lastIndexOf('@') + 1).toLowerCase()
 }
 
-// Resend refuses a From on an unverified domain, and the refusal arrives as a
-// failed row per send rather than at boot. In production the domain is stated
-// up front so the process cannot start believing it can mail.
 export function assertSendable(): void {
   if (process.env.NODE_ENV !== 'production') return
   const verified = (process.env.RESEND_FROM_DOMAIN ?? '').trim().toLowerCase()

@@ -11,9 +11,6 @@ import * as rules from '#accounts/auth/rules.ts'
 import { adoptAnonymousCheckoutQuietly } from '#checkout/adopt.ts'
 import { sendSignInCode } from '#documents/emails/service.ts'
 
-// Every route ends in a code (ruling 91). There is no credential provider, no
-// reset flow and no magic link: better-auth mints every code, SMS or email
-// alike, and Twilio only delivers it.
 export const auth = betterAuth({
   database: new Pool({
     connectionString: process.env.DATABASE_URL,
@@ -77,8 +74,6 @@ export const auth = betterAuth({
       otpLength: rules.OTP_LENGTH,
       expiresIn: rules.OTP_EXPIRES_SECONDS,
       allowedAttempts: rules.PLUGIN_ALLOWED_ATTEMPTS,
-      // Without this an unknown address gets an account minted with no phone,
-      // and the send itself would say whether the address is known.
       disableSignUp: true,
       sendVerificationOTP: async ({ email, otp }) => {
         await sendSignInCode({

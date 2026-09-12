@@ -27,10 +27,6 @@ import { Bullion } from '../products/bullion.js'
 
 export const OrderViewItem = OrderItem.extend({
   product_name: Bullion.shape.name.nullable(),
-  // What a scrap lot is CALLED on an invoice or a packing list: "Gold Item 2",
-  // numbered per metal across the order's scrap lines. The numbering is a
-  // window function in `db/orders/sql/view.sql`, not a Map stitched by the
-  // renderer (ruling 78). A product line has a `product_name` instead.
   item_name: OrderItem.shape.metal_id.nullable(),
   payable: OrderItem.shape.content,
   line_total: OrderItem.shape.price,

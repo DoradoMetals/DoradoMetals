@@ -28,7 +28,6 @@ afterAll(() => restoreAuthApi())
 const verify = (code: string, session_id: string | null = null, number = NUMBER) =>
   service.verifyCode({ channel: 'sms', phone_number: number, code }, session_id)
 
-// RULE 7: the attempt ladder, then the lock, then the cooldown.
 test('a wrong code counts down, the fifth locks, and the lock outlives a right code', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
@@ -175,7 +174,6 @@ test('a sign-up for a number that is already an account texts nothing and says t
   )
 })
 
-// RULE 3: a step-up is what makes a stale session fresh again.
 test('a step-up code stamps the session rather than minting a new one', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {

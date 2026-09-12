@@ -11,7 +11,6 @@ export async function getOne(id: string, executor?: Executor): Promise<User | un
   return rows[0]
 }
 
-// The partial unique index makes a number one account's, so this is a row.
 export async function byPhone(
   phone_number: string,
   executor?: Executor
@@ -25,9 +24,6 @@ export async function byEmail(email: string, executor?: Executor): Promise<User 
   return rows[0]
 }
 
-// auth.users is better-auth's table and half its columns are camelCase, which
-// buildUpdate cannot quote. The writable set is named in SQL instead, and a
-// null argument leaves the column alone.
 export async function update(
   id: string,
   patch: Partial<

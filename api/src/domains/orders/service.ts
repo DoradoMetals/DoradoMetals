@@ -66,8 +66,6 @@ export async function searchLots(q: string | null, unassigned: boolean): Promise
   return await lotsRepo.search(q, unassigned)
 }
 
-// A lot is minted, then linked. The id the mint returns is the id the refiner
-// settles, so nothing downstream ever mints a second one.
 export async function addLot(order_id: string, input: OrderLotPatch): Promise<OrderLotView> {
   rules.assertDirection(await ordersRepo.directionOf(order_id), 'purchase', 'adding a lot')
 
@@ -91,8 +89,6 @@ async function mintFromCatalogue(bullion_id: string, quantity: number | null, tx
   return created
 }
 
-// The money is the link row's and the weights are the lot's, so one patch is
-// two writes and the content generates itself from what the second one leaves.
 export async function editLot(id: string, changes: OrderLotPatch): Promise<OrderLotView> {
   rules.assertNamesAField(changes)
   const link = await orderLots.getOne(id)
@@ -133,10 +129,6 @@ export async function removeLot(id: string): Promise<void> {
   })
 }
 
-// A split never rewrites a lot in place: it mints children carrying
-// `split_from_id` and leaves the parent where it is. The parent keeps its
-// orders.lots row; the children get their own, so each can go to its own
-// refiner.
 export async function splitLot(id: string, parts: LotSplitPart[]): Promise<OrderLotView[]> {
   const link = await orderLots.getOne(id)
   rules.assertLot(link, id)
@@ -169,9 +161,6 @@ export async function finalize(order_id: string): Promise<OrderView> {
   return await viewOf(order_id)
 }
 
-// Cancelling is not the end of an order: a parcel comes back, the customer
-// changes their mind, and the row has to be workable again. Reopen puts it back
-// on the ladder at Received, which is where a cancelled purchase order left it.
 export async function reopen(order_id: string): Promise<OrderView> {
   const order = await viewOf(order_id)
   rules.assertReopenable(order)
@@ -197,9 +186,6 @@ export async function addFunds(order_id: string): Promise<OrderView> {
   rules.assertPayableToAccount(order.payout?.method ?? null, order.order.number)
 
   await withTransaction(async (tx) => {
-    // Read the ledger INSIDE the transaction that writes it: the view's
-    // `credited` turns the button off, and this is what makes a second POST -
-    // or two at once - refuse rather than credit the customer twice (MP F4).
     rules.assertNotAlreadyCredited(await ledger.hasCreditFor(order_id, tx), order.order.number)
     await credit.addFunds(order.order.user_id, amount, tx)
     await ledger.addTransactionLog(
@@ -208,16 +194,11 @@ export async function addFunds(order_id: string): Promise<OrderView> {
     )
   })
 
-  // The money has moved and the ledger row is committed. Telling the customer
-  // is the next thing, and it happens outside the transaction on purpose.
   await orderTransactionsService.payoutRecorded(order_id)
 
   return await viewOf(order_id)
 }
 
-// The Figma header's Cancel is a bare button, so every field of the body is
-// optional and the server picks the default return service and box when the
-// caller names neither (ruling 76, GAP 3).
 export async function cancel(
   order_id: string,
   choices: OrderCancelBody,
@@ -238,8 +219,6 @@ export async function cancel(
   const carrier_service_id = (choices.carrier_service_id ?? chosenService?.id) as string
   const package_id = box.id
   const service = await carrierServices.labelServiceFor(carrier_service_id)
-  // The floor is what the customer declared on the way in, so metal cancelled
-  // before it was priced does not travel back uninsured (MP F5).
   const declaredValue = await shippingLabels.returnDeclaredValue(
     order_id,
     order.totals?.total ?? null,
@@ -262,8 +241,6 @@ export async function cancel(
     )
   })
 
-  // null is a pickup or an appointment order: it is cancelled, and there is no
-  // parcel to post back (LD F4).
   if (shipment_id) await buy(shipment_id)
 
   return await viewOf(order_id)

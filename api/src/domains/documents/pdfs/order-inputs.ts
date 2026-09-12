@@ -11,12 +11,6 @@ import type {
 } from '@dorado/contracts'
 import type { Executor } from '#shared/db/executor.ts'
 
-// Every document is the order view plus what the pricing domain answered for
-// it - two SQL reads, each parsed through its own contract (ruling 78). The
-// service names, package labels and per-metal spots that used to be assembled
-// into `DocumentLabels`, a bids Map and an asks Map are columns of those two
-// reads now: `OrderViewShipment.service_name` / `.package_label`,
-// `OrderLotView.lot.reference`, and `OrderPricing.spots`.
 const inboundShipment = (order: OrderView): OrderView['shipments'][number] | null =>
   order.shipments.find((s) => s.direction !== 'Return') ?? null
 

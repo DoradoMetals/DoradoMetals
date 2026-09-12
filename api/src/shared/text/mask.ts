@@ -1,11 +1,3 @@
-// The masking rules the auth design applies to anything identifying that a
-// mailer prints back at its reader. A mailer travels through a mailbox that is
-// not always the account's own - a forwarded receipt, a shared inbox, a preview
-// on a lock screen - so the value confirms WHICH address or number without
-// republishing it.
-//
-// j•••@domain, (•••) •••-0134.
-
 const DOT = '•'
 
 export function maskEmail(value: string | null | undefined): string {

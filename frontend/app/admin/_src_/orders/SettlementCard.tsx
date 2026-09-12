@@ -17,9 +17,6 @@ const BADGE_INTENT: Record<string, 'warning' | 'success' | 'danger' | 'neutral'>
   Cancelled: 'neutral',
 }
 
-// The refiner sales order's replacement for Profit Breakdown: what we estimated
-// against what the refinery assayed. `state` is a label the view computes;
-// Settled fine oz and Variance fill in when the settlement lands.
 export function SettlementCard({ order }: SettlementCardProps) {
   const intent = BADGE_INTENT[order.state] ?? 'warning'
 

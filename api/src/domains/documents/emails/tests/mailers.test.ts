@@ -29,9 +29,6 @@ const rows: MailerRow[] = [
   { label: 'Declared value', value: '$10,000' },
 ]
 
-// A mailer is a document a customer reads. These three strings are what a
-// broken one prints, and none of them may reach a page - `hasNaN`'s sibling on
-// the PDF side exists for exactly the same reason.
 function isClean(html: string, what: string): void {
   assert.ok(html.length > 1000, `${what} produced no document`)
   for (const rot of ['undefined', 'NaN', '>null<', '$null', 'null,', '[object Object]']) {
@@ -40,9 +37,6 @@ function isClean(html: string, what: string): void {
   assert.ok(!/\[[A-Z_ ]+\]/.test(html), `${what} left a template placeholder unfilled`)
 }
 
-// Every mailer wears the same shell: 600px, the dark ground, the header logo,
-// the postal address CAN-SPAM requires and the unsubscribe that leads to
-// notification preferences rather than to a blanket opt-out.
 function wearsTheShell(html: string, what: string): void {
   assert.ok(html.includes('width="600"'), `${what} is not 600 wide`)
   assert.ok(html.includes('#09090c'), `${what} lost the dark ground`)

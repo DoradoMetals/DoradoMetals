@@ -15,10 +15,6 @@ export type OrderCardProps = {
   children: React.ReactNode
 }
 
-// The chassis every order card wears: card chrome, a title row whose left half
-// is the collapse trigger and whose right half holds the badge and the actions,
-// and a body that unmounts when closed. Closed keeps the title, the badge and a
-// one-line summary; the actions go.
 export function OrderCard({
   title,
   right,
@@ -63,18 +59,13 @@ export function OrderCard({
             </span>
           )}
         </Button>
-        {right != null && (
-          <div className="flex shrink-0 items-center gap-xs pt-sm">{right}</div>
-        )}
+        {right != null && <div className="flex shrink-0 items-center gap-xs pt-sm">{right}</div>}
       </div>
-      {isOpen && (
-        <div className="flex flex-col gap-md px-md pt-2xs pb-md">{children}</div>
-      )}
+      {isOpen && <div className="flex flex-col gap-md px-md pt-2xs pb-md">{children}</div>}
     </section>
   )
 }
 
-// One label/figure line, the shape every summary card in the file is built of.
 export function CardRow({
   label,
   value,
@@ -86,7 +77,12 @@ export function CardRow({
 }) {
   return (
     <div className="flex w-full items-center justify-between gap-md">
-      <p className={cn('text-small', strong ? 'font-medium text-foreground' : 'text-muted-foreground')}>
+      <p
+        className={cn(
+          'text-small',
+          strong ? 'font-medium text-foreground' : 'text-muted-foreground'
+        )}
+      >
         {label}
       </p>
       <p className="text-right text-small font-medium text-foreground">{value}</p>
@@ -98,8 +94,6 @@ export function CardHairline() {
   return <div className="h-px w-full bg-border" />
 }
 
-// A label above a value, the "Account name / Marguerite Whitfield" pair the
-// Payment and fulfillment cards use across a row.
 export function CardFact({
   label,
   value,

@@ -28,8 +28,6 @@ export async function recordStatus(input: SmsStatusUpdate): Promise<void> {
   })
 }
 
-// Every send - OTP and conversational alike - goes through here. Exported so
-// the accounts/auth service can deliver a code without owning the trail.
 export async function sendMessage(
   to: string,
   body: string,
@@ -47,9 +45,6 @@ export async function sendMessage(
   return (await smsRepo.getOne(row.id)) ?? row
 }
 
-// The Chat composer. The client sends the customer's id and what was typed; the
-// number it goes to is read here, never round-tripped (ruling 10). Attachments
-// are urls the media upload already handed back, so nothing binary crosses.
 export async function sendToCustomer(input: SmsSendBody): Promise<SmsMessage> {
   const user = await users.getOne(input.user_id)
   rules.assertTextable(user?.phone_number ?? null, input.user_id)

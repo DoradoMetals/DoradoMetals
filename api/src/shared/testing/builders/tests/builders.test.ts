@@ -40,9 +40,6 @@ test('a built user is a real person in auth.users, and nothing mirrors it', asyn
       assert.equal(auth[0].email, user.email)
       assert.equal(Number(auth[0].dorado_funds), 250, 'the starting balance was not set')
 
-      // Migration 133 retired the auth -> exchange identity mirror (ruling 36,
-      // Jacob 2026-09-06). A new user is an auth.users row and nothing else; the
-      // exchange rows that already exist keep their values and stop changing.
       const { rows: mirrored } = await c.query(
         `SELECT email, name FROM exchange.users WHERE id = $1`,
         [user.id]

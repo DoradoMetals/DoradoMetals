@@ -27,31 +27,21 @@ const PUBLIC = new Set([
   'GET /api/products/:slug',
   'GET /api/rates/',
   'GET /api/rates/tiers',
-  // A public rate sheet PDF, unguarded like the rates it reads.
   'GET /api/rates/sheet.pdf',
   'GET /api/reviews/public',
   'GET /api/spots/',
   'POST /api/quotes/catalog',
   'GET /api/payments/methods/',
   'GET /api/carrier_services/sale_options',
-  // Signing in has no session to guard with (ruling 91). What stands in for one
-  // is the captcha on the send, the per-number and per-IP limits, and the
-  // wrong-code lockout - all in accounts/auth/rules.ts.
   'POST /api/account/send_code',
   'POST /api/account/verify_code',
   'POST /api/account/sign_up',
-  // The e2e read-back. It is MOUNTED only while the recording fake is the SMS
-  // adapter and NODE_ENV is not production, so in a real deployment there is no
-  // route here to guard - see accounts/auth/routes.ts and its test.
   'GET /api/account/last_code',
 ])
 
 const NOT_OURS = new Set([
   'POST /api/auth/stripe/webhook',
   'ALL /api/auth/*splat',
-  // Twilio's four webhooks, mounted directly on app.ts before express.json()
-  // the same way the Stripe webhook is - no session to guard with, and their
-  // own signature check is the real guard (rulings 92/93).
   'POST /api/sms/inbound',
   'POST /api/sms/status',
   'POST /api/calls/twiml',
@@ -207,7 +197,6 @@ import { domainDirs, sourceRoot, wildcardRoots } from '../../../../scripts/lib/l
 const API_ROOT = path.join(import.meta.dirname, '..', '..', '..', '..')
 const API = sourceRoot(API_ROOT)
 const FEATURE_DIRS = domainDirs(API_ROOT).map((d) => path.join(API, d))
-// A URL whose first segment IS a domain resolves under the domains root too.
 const BASES = [...new Set([API, ...FEATURE_DIRS.map((d) => path.dirname(d)), ...FEATURE_DIRS])]
 
 const UNROUTED = {
@@ -220,6 +209,14 @@ const UNROUTED = {
   },
   'domains/documents/emails/controller.ts': {
     handleResendWebhook: 'mounted directly on the app in app.ts, before express.json',
+  },
+  'domains/crm/calls/controller.ts': {
+    twiml: 'mounted directly on the app in app.ts, before express.json',
+    status: 'mounted directly on the app in app.ts, before express.json',
+  },
+  'domains/crm/sms/controller.ts': {
+    inbound: 'mounted directly on the app in app.ts, before express.json',
+    status: 'mounted directly on the app in app.ts, before express.json',
   },
 } satisfies Record<string, Record<string, string>> as Record<
   string,
@@ -346,8 +343,6 @@ test('no public endpoint reads a user id from the request', () => {
       .replace(/^\/api\//, '')
       .split('/')
       .filter(Boolean)
-    // The URL's first segment is a MOUNT name (ruling 13 pins it); the folder
-    // it lives in is the domain's, which need not share that name.
     const candidates = segments.length > 1 ? [segments, segments.slice(1)] : [segments]
     for (const base of BASES)
       for (const segs of candidates) {

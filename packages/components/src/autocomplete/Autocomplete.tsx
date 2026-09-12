@@ -81,8 +81,6 @@ export function Autocomplete({
       {label != null && <FieldLabel htmlFor={id}>{label}</FieldLabel>}
       <div data-disabled={disabled || undefined} className={fieldTrigger()}>
         {leading != null && (
-          // Matches Input (26:391 / 100:29 compose the same chassis): leading
-          // icon is a fixed 16px box, text-muted-foreground like FieldLabel.
           <span className="flex size-4 shrink-0 items-center justify-center text-muted-foreground [&>svg]:size-4">
             {leading}
           </span>
@@ -120,7 +118,6 @@ export function Autocomplete({
           {...(({ onFocus: _f, onBlur: _b, onKeyDown: _k, ...rest }) => rest)(inputProps ?? {})}
         />
         {trailing != null && (
-          // Was missing the label's text-muted-foreground token entirely.
           <span className="flex shrink-0 items-center text-muted-foreground [&>svg]:size-4">
             {trailing}
           </span>

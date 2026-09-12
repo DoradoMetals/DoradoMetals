@@ -35,10 +35,6 @@ import type {
   VerifyCodeBody,
 } from '@dorado/contracts'
 
-// One SMS/email send, counted against the identity and against the caller's IP
-// in the same transaction, with both rows taken in a fixed order so two
-// requests for one number queue rather than race. The boolean is whether the
-// send may happen; the row is what the view reports.
 async function reserveSend(
   subject: string,
   kind: ThrottleKind,
@@ -76,8 +72,6 @@ async function reserveSend(
   })
 }
 
-// better-auth mints every code; this only chooses which of its two senders
-// carries it (ruling 92).
 async function dispatchSignIn(channel: OtpChannel, destination: string): Promise<void> {
   if (channel === 'sms') {
     await auth.api.sendPhoneNumberOTP({ body: { phoneNumber: destination } })
@@ -119,8 +113,6 @@ async function deliverCode(
   })
 }
 
-// --------------------------------------------------------------- the sign-in
-
 export async function sendCode(body: SendCodeBody, ip: string | null): Promise<VerificationView> {
   const started = Date.now()
 
@@ -132,10 +124,6 @@ export async function sendCode(body: SendCodeBody, ip: string | null): Promise<V
   const kind = rules.kindOf(body.channel)
   const subject = rules.subjectOf(kind, destination)
 
-  // A token is asked for only when there is no live pending send (Jacob's
-  // amendment, 2026-09-11) - read off the throttle row, never auth.verification;
-  // see rules.captchaRequired. Peeked outside any transaction: captcha.verify
-  // is a network call and must never sit inside one.
   const throttleRow = await throttles.getOne(subject)
   if (rules.captchaRequired(throttleRow, Date.now())) {
     rules.assertCaptcha(await captcha.verify(body.captcha_token ?? '', ip))
@@ -152,8 +140,6 @@ export async function sendCode(body: SendCodeBody, ip: string | null): Promise<V
     rules.NUMBER_WINDOW_SECONDS
   )
 
-  // An unknown identity is never texted: it costs money and it is spam. The
-  // body, the status and the timing are the same either way.
   if (may && known) {
     await attempt('auth.sendCode', () => dispatchSignIn(body.channel, destination))
   }
@@ -203,9 +189,6 @@ export async function signUp(body: SignUpBody, ip: string | null): Promise<Verif
   return rules.verificationView('sign_up', 'sms', body.phone_number, row, status, now)
 }
 
-// The purpose is not on the wire: it is read off the state. A signed-in caller
-// with a step-up code outstanding is stepping up; a known identity is signing
-// in; a number with a pending signup is signing up.
 async function checkCode(
   subject: string,
   kind: ThrottleKind,
@@ -309,8 +292,6 @@ export async function verifyCode(
   ]
 }
 
-// The code has already been checked against our own throttle; better-auth
-// re-reads the same row, mints the session and deletes the code.
 async function mintSession(
   channel: OtpChannel,
   destination: string,
@@ -329,8 +310,6 @@ async function mintSession(
   })
   return answered.headers.getSetCookie()
 }
-
-// ---------------------------------------------------------------- step-up
 
 export async function stepUp(
   user_id: string,
@@ -365,8 +344,6 @@ export async function stepUp(
   const status: VerificationStatus = rules.isLocked(row, now) ? 'locked' : 'sent'
   return rules.verificationView('step_up', channel, destination, row, status, now)
 }
-
-// ----------------------------------------------------------- the factor change
 
 async function requestChange(
   factor: Factor,
@@ -498,8 +475,6 @@ export async function confirmChange(
     rules.assertApplied(spent, 'the confirmation code')
   })
 
-  // The takeover alarm. It goes to the value that is being replaced, and only
-  // after the change is committed.
   const notified = previous
     ? await attempt('auth.notifyPrevious', () =>
         notifyPrevious(user, pending.factor, previous, pending.next_value, now)
@@ -533,8 +508,6 @@ async function notifyPrevious(
   return true
 }
 
-// --------------------------------------------------------------- the session
-
 export async function sessionOf(user_id: string, session_id: string): Promise<SessionView> {
   const user = await users.getOne(user_id)
   rules.assertUser(user)
@@ -543,8 +516,6 @@ export async function sessionOf(user_id: string, session_id: string): Promise<Se
   return rules.sessionView(user, session, Date.now())
 }
 
-// The recording fakes' last code, for the e2e harness. The route that reads it
-// is mounted only while a fake adapter is the one in use.
 export function lastCode(number: string | undefined, email: string | undefined): string | null {
   if (number) return fakeSms.lastCodeTo(number)
   if (email) return fakeEmail.lastCodeTo(email)

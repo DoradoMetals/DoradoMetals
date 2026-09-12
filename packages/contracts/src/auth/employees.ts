@@ -18,10 +18,12 @@ export const Employee = z.object({
 export type Employee = z.infer<typeof Employee>
 // generated:end
 
-// The Driver / With selects. An id with no name is not a choice an operator can
-// make, so the name travels with it (GAP 18).
 import { User } from './users.js'
 
-export const EmployeeSummary = Employee.pick({ id: true, user_id: true, role: true, enabled: true })
-  .extend({ name: User.shape.name })
+export const EmployeeSummary = Employee.pick({
+  id: true,
+  user_id: true,
+  role: true,
+  enabled: true,
+}).extend({ name: User.shape.name })
 export type EmployeeSummary = z.infer<typeof EmployeeSummary>

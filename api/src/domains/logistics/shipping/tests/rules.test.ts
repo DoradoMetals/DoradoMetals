@@ -234,9 +234,6 @@ test('assertOneShippableCarrier refuses ambiguity as loudly as absence', () => {
   )
 })
 
-// LD F19. `Number(null)` is 0 and 0 is finite, so one service row with no
-// ceiling made Math.min answer 0, every label was bought with declaredValue 0
-// and the parcel of metal travelled uninsured.
 const ceilings = [
   { id: 'a', name: 'Express Saver', max_insured_value: 10000 },
   { id: 'b', name: 'Priority Overnight', max_insured_value: null },
@@ -256,7 +253,6 @@ test('with no ceilings at all there is still no insurance, which is the honest a
   assert.equal(lowestCeiling([]), 0)
 })
 
-// MP F5: a purchase cancelled before it is priced has no order total.
 test('a return leg is worth at least what the customer declared on the way in', () => {
   assert.equal(returnDeclaredValue(8000, null), 8000)
   assert.equal(returnDeclaredValue(8000, 0), 8000)
@@ -265,7 +261,6 @@ test('a return leg is worth at least what the customer declared on the way in', 
   assert.equal(returnDeclaredValue(null, null), 0)
 })
 
-// LD F15: the slot is the provider's own string; toISOString() answered UTC's day.
 test("the pickup date FedEx is told to cancel is the parcel's own string", () => {
   assert.equal(pickupDateFor('2026-09-06', new Date('2026-09-07T00:00:00Z')), '2026-09-06')
   assert.equal(pickupDateFor(null, '2026-09-06 19:00:00'), '2026-09-06')

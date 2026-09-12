@@ -11,11 +11,6 @@ afterAll(async () => {
   await pool.end()
 })
 
-// Every test here creates a `Gold`/`oz`/`[0,)` rate band, and rates.rates'
-// GIST exclusion constraint makes two overlapping inserts from separate
-// transactions wait on each other rather than one raising 23505 - a real
-// deadlock hazard `lint-test-locks`'s table map doesn't know this table needs
-// (see locks.ts). `repo.test.ts` inserts the same band and needs the same lock.
 const pinned = <T>(fn: (c: import('pg').PoolClient) => Promise<T>) =>
   inPinnedTransaction(fn, { actor: TEST_ACTOR.id, lock: LOCKS.RATES })
 
