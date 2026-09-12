@@ -351,6 +351,7 @@ END $$;
 
 -- Sequences ----------------------------------------------------------
 
+CREATE SEQUENCE IF NOT EXISTS orders.number_seq AS bigint;
 CREATE SEQUENCE IF NOT EXISTS orders.purchase_number_seq AS bigint;
 CREATE SEQUENCE IF NOT EXISTS orders.sale_number_seq AS bigint;
 CREATE SEQUENCE IF NOT EXISTS refining.order_number_seq AS bigint;
@@ -992,7 +993,9 @@ CREATE TABLE IF NOT EXISTS inventory.pool (
   created_at timestamp with time zone DEFAULT now() NOT NULL,
   created_by_id uuid,
   purpose inventory.lock_purpose,
-  lot_id uuid
+  lot_id uuid,
+  spot numeric,
+  basis_spot numeric
 );
 ALTER TABLE inventory.pool ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE inventory.pool ADD COLUMN IF NOT EXISTS refiner_id uuid;
@@ -1006,6 +1009,8 @@ ALTER TABLE inventory.pool ADD COLUMN IF NOT EXISTS created_at timestamp with ti
 ALTER TABLE inventory.pool ADD COLUMN IF NOT EXISTS created_by_id uuid;
 ALTER TABLE inventory.pool ADD COLUMN IF NOT EXISTS purpose inventory.lock_purpose;
 ALTER TABLE inventory.pool ADD COLUMN IF NOT EXISTS lot_id uuid;
+ALTER TABLE inventory.pool ADD COLUMN IF NOT EXISTS spot numeric;
+ALTER TABLE inventory.pool ADD COLUMN IF NOT EXISTS basis_spot numeric;
 
 CREATE TABLE IF NOT EXISTS leads.leads (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -2056,7 +2061,7 @@ ALTER TABLE refining.lots ADD COLUMN IF NOT EXISTS updated_by_id uuid;
 
 CREATE TABLE IF NOT EXISTS refining.orders (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
-  number bigint DEFAULT nextval('refining.order_number_seq'::regclass) NOT NULL,
+  number bigint DEFAULT nextval('orders.number_seq'::regclass) NOT NULL,
   direction refining.direction NOT NULL,
   refiner_id uuid NOT NULL,
   assigned_to_id uuid,
@@ -2076,7 +2081,7 @@ CREATE TABLE IF NOT EXISTS refining.orders (
   settlement_type refining.settlement_type DEFAULT 'pooled'::refining.settlement_type NOT NULL
 );
 ALTER TABLE refining.orders ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
-ALTER TABLE refining.orders ADD COLUMN IF NOT EXISTS number bigint DEFAULT nextval('refining.order_number_seq'::regclass);
+ALTER TABLE refining.orders ADD COLUMN IF NOT EXISTS number bigint DEFAULT nextval('orders.number_seq'::regclass);
 ALTER TABLE refining.orders ADD COLUMN IF NOT EXISTS direction refining.direction;
 ALTER TABLE refining.orders ADD COLUMN IF NOT EXISTS refiner_id uuid;
 ALTER TABLE refining.orders ADD COLUMN IF NOT EXISTS assigned_to_id uuid;
@@ -2861,6 +2866,26 @@ DO $$ BEGIN
     WHERE con.conname = 'an_entry_cites_an_order_or_a_lot' AND c.relname = 'pool' AND n.nspname = 'inventory'
   ) THEN
     ALTER TABLE inventory.pool ADD CONSTRAINT an_entry_cites_an_order_or_a_lot CHECK (((refining_order_id IS NOT NULL) OR (lot_id IS NOT NULL)));
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'pool_credit_carries_the_spot' AND c.relname = 'pool' AND n.nspname = 'inventory'
+  ) THEN
+    ALTER TABLE inventory.pool ADD CONSTRAINT pool_credit_carries_the_spot CHECK (((entry = 'credit'::inventory.pool_entry) OR (spot IS NULL)));
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'pool_lock_carries_the_basis' AND c.relname = 'pool' AND n.nspname = 'inventory'
+  ) THEN
+    ALTER TABLE inventory.pool ADD CONSTRAINT pool_lock_carries_the_basis CHECK (((entry = 'lock'::inventory.pool_entry) OR (basis_spot IS NULL)));
   END IF;
 END $$;
 DO $$ BEGIN
