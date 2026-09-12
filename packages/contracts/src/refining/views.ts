@@ -9,6 +9,7 @@ import { LotEdge } from '../inventory/lot_sources.js'
 import { RefiningLot } from './lots.js'
 import { RefiningOrder } from './orders.js'
 import { PoolBalance } from '../inventory/pool.js'
+import { PaymentView } from '../payments/transfers.js'
 
 export const RefiningLotView = RefiningLot.extend({
   lot: LotView,
@@ -51,6 +52,7 @@ export const RefiningOrderView = RefiningOrder.extend({
   expected_settlement: RefiningOrder.shape.fee,
   orders_to_date: z.number().int(),
   linked_orders: z.array(RefiningLinkedOrder),
+  payment: PaymentView.nullable(),
 })
 export type RefiningOrderView = z.infer<typeof RefiningOrderView>
 

@@ -19,5 +19,5 @@ export const requestCharge = asyncHandler(async (req, res) => {
 
 export const patchCharge = asyncHandler(async (req, res) => {
   const changes = strictBody(ChargePatch, req.body)
-  return res.json(await charges.failCharge(uuidParam(req, 'id'), changes.failure_reason))
+  return res.json(await charges.patchCharge(uuidParam(req, 'id'), changes))
 })

@@ -7,6 +7,7 @@ import type {
   LotPosition,
   OrderDocument,
   OrderRead,
+  PaymentView,
   PdfKind,
   RefiningBatch,
   RefiningBatchResult,
@@ -234,6 +235,19 @@ export function batchResult(
 
 const REFINING_DOCUMENTS: { kind: PdfKind; name: string }[] = [{ kind: 'invoice', name: 'Invoice' }]
 
+export function sendPaymentConfirm(order: RefiningOrder): string | null {
+  if (order.settled_at !== null) return null
+  return `Refiner order ${order.number} has not been settled yet`
+}
+
+export function sendPaymentOverride(payment: PaymentView | null): string | null {
+  if (!payment || payment.state === null) return null
+  if (payment.state === 'Processing' || payment.state === 'Sent') {
+    return `This refiner order already has a ${payment.state} payout`
+  }
+  return null
+}
+
 export function offer(
   name: string,
   confirm: string | null = null,
@@ -245,6 +259,7 @@ export function offer(
 export function actionsFor(view: RefiningOrderView): RefiningOrderActions {
   const offered: Action[] = []
   const open = view.cancelled_at === null && view.settled_at === null
+  const notCancelled = view.cancelled_at === null
   if (open) offered.push(offer('edit_lots', sentConfirm(view)))
   if (open && view.sent_at === null) offered.push(offer('send'))
   if (open && view.sent_at !== null) {
@@ -253,6 +268,16 @@ export function actionsFor(view: RefiningOrderView): RefiningOrderActions {
   if (open && view.sent_at !== null) offered.push(offer('dispute'))
   if (open) offered.push(offer('cancel'))
   if (view.settled_at !== null) offered.push(offer('lock_ounces'))
+  if (notCancelled && view.direction === 'buy') {
+    offered.push(offer('send_payment', sendPaymentConfirm(view), sendPaymentOverride(view.payment)))
+  }
+  if (notCancelled && view.direction === 'sell' && view.payment !== null) {
+    const state = view.payment.state
+    if (state === null || state === 'Due') offered.push(offer('request_payment'))
+    if (view.payment.transfer_id !== null && state !== 'Received') {
+      offered.push(offer('mark_received'))
+    }
+  }
   return offered
 }
 

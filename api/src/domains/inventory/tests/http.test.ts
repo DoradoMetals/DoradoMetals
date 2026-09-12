@@ -203,11 +203,18 @@ test('GET /api/lots/:id reports split lineage in both directions, and combine sh
 test('a refiner lot never appears in GET /api/lots nor in GET /api/inventory/summary', async () => {
   await inInventory(async (c) => {
     await asAdmin(admin, async () => {
+      const before = await request(app).get('/api/inventory/summary')
+      const baseline = Number(
+        before.body.metals.find((m: { metal_id: string }) => m.metal_id === 'Gold')
+          ?.on_hand_content ?? 0
+      )
+
       const refiner_id = await aRefiner(c)
       const { rows } = await c.query<{ id: string }>(
         `INSERT INTO refining.orders (refiner_id, direction) VALUES ($1, 'sell') RETURNING id`,
         [refiner_id]
       )
+      const control = await lotsRepo.create({ metal_id: 'Gold', pre_melt: 3, purity: 1 }, c)
       const refinerLot = await lotsRepo.create({ metal_id: 'Gold', pre_melt: 999, purity: 1 }, c)
       await c.query(`INSERT INTO refining.lots (refining_order_id, lot_id) VALUES ($1, $2)`, [
         rows[0]!.id,
@@ -220,7 +227,11 @@ test('a refiner lot never appears in GET /api/lots nor in GET /api/inventory/sum
       const summary = await request(app).get('/api/inventory/summary')
       const gold = summary.body.metals.find((m: { metal_id: string }) => m.metal_id === 'Gold')
       assert.ok(gold, 'no Gold row in the summary')
-      assert.ok(gold.on_hand_content < 999, 'the refiner lot leaked into on-hand content')
+      assert.equal(
+        Number(gold.on_hand_content),
+        baseline + Number(control.content),
+        'the refiner lot leaked into on-hand content, or the control lot did not land'
+      )
     })
   })
 })
@@ -228,6 +239,13 @@ test('a refiner lot never appears in GET /api/lots nor in GET /api/inventory/sum
 test('a minted sale lot never appears in GET /api/lots nor in GET /api/inventory/summary', async () => {
   await inInventory(async (c) => {
     await asAdmin(admin, async () => {
+      const before = await request(app).get('/api/inventory/summary')
+      const baseline = Number(
+        before.body.metals.find((m: { metal_id: string }) => m.metal_id === 'Silver')
+          ?.on_hand_content ?? 0
+      )
+
+      const control = await lotsRepo.create({ metal_id: 'Silver', pre_melt: 7, purity: 1 }, c)
       const stockLot = await lotsRepo.create({ metal_id: 'Silver', pre_melt: 10, purity: 0.9 }, c)
       const saleLot = await lotsRepo.create({ metal_id: 'Silver', pre_melt: 999, purity: 1 }, c)
       await lotSourcesRepo.link(saleLot.id, stockLot.id, 'sale', c)
@@ -238,7 +256,11 @@ test('a minted sale lot never appears in GET /api/lots nor in GET /api/inventory
       const summary = await request(app).get('/api/inventory/summary')
       const silver = summary.body.metals.find((m: { metal_id: string }) => m.metal_id === 'Silver')
       assert.ok(silver, 'no Silver row in the summary')
-      assert.ok(silver.on_hand_content < 999, 'the sale lot leaked into on-hand content')
+      assert.equal(
+        Number(silver.on_hand_content),
+        baseline + Number(control.content),
+        'the sale lot (or the stock lot it consumed) leaked into on-hand content'
+      )
     })
   })
 })

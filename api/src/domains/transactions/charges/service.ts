@@ -3,6 +3,7 @@ import { attempt } from '#shared/attempt.ts'
 import { orders, paymentTransfers as transfers, bankLinks, refiningOrders } from '#db'
 import * as moov from '#providers/moov/index.ts'
 import * as rails from '#transactions/rails/service.ts'
+import * as rules from '#transactions/charges/rules.ts'
 import {
   assertKind,
   assertLink,
@@ -19,9 +20,10 @@ import {
   refiningReferenceFor,
   transferKeyFor,
 } from '#transactions/rails/rules.ts'
-import type { OpenChargeBody, Transfer } from '@dorado/contracts'
+import type { ChargePatch, OpenChargeBody, Transfer } from '@dorado/contracts'
 
 const MOOV = 'moov'
+const MANUAL = 'manual'
 
 export async function openCharge(body: OpenChargeBody): Promise<Transfer> {
   assertOneOrder(body.order_id, body.refining_order_id)
@@ -136,6 +138,33 @@ export async function requestCharge(transfer_id: string, bank_link_id: string): 
 export async function failCharge(transfer_id: string, reason: string): Promise<Transfer> {
   await rails.markFailed(transfer_id, reason)
   return await rails.getTransfer(transfer_id)
+}
+
+export async function markReceived(transfer_id: string, reference: string): Promise<Transfer> {
+  await withTransaction(async (tx) => {
+    const current = assertKind(
+      assertTransfer(transfer_id, await transfers.getOne(transfer_id, tx)),
+      'charge'
+    )
+    assertWritten(
+      transfer_id,
+      await transfers.update(
+        transfer_id,
+        { provider: MANUAL, provider_ref: reference, reference },
+        { state: current.state },
+        tx
+      )
+    )
+    const stamped = assertTransfer(transfer_id, await transfers.getOne(transfer_id, tx))
+    assertWritten(transfer_id, await rails.moveState(stamped, 'Received', null, tx))
+  })
+  return await rails.getTransfer(transfer_id)
+}
+
+export async function patchCharge(transfer_id: string, changes: ChargePatch): Promise<Transfer> {
+  rules.assertNamesExactlyOneField(changes)
+  if (changes.reference !== undefined) return await markReceived(transfer_id, changes.reference)
+  return await failCharge(transfer_id, changes.failure_reason as string)
 }
 
 export async function getCharge(transfer_id: string): Promise<Transfer> {
