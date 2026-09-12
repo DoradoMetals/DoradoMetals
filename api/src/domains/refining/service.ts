@@ -9,6 +9,7 @@ import * as pdfs from '#db/media/pdfs/repo.ts'
 
 import * as rules from '#refining/rules.ts'
 import withTransaction from '#shared/db/withTransaction.ts'
+import { withDecisions } from '#shared/views.ts'
 import type { Executor } from '#shared/db/executor.ts'
 import type {
   OrderDocument,
@@ -22,6 +23,7 @@ import type {
   RefiningOrderCreate,
   RefiningOrderPatch,
   RefiningOrderView,
+  RefiningOrderRead,
   RefiningSettlement,
   RefiningSpot,
 } from '@dorado/contracts'
@@ -34,13 +36,13 @@ export async function list(
   return await refiningOrders.list(refiner_id, direction, state)
 }
 
-export async function view(id: string, executor?: Executor): Promise<RefiningOrderView> {
+export async function view(id: string, executor?: Executor): Promise<RefiningOrderRead> {
   const found = await refiningOrders.view(id, executor)
   rules.assertRefiningOrder(found, id)
-  return found
+  return withDecisions(found, { actions: rules.actionsFor(found) })
 }
 
-export async function create(body: RefiningOrderCreate): Promise<RefiningOrderView> {
+export async function create(body: RefiningOrderCreate): Promise<RefiningOrderRead> {
   const refiner = await refiners.viewOne(body.refiner_id)
   rules.assertRefiner(refiner, body.refiner_id)
   if (body.direction === 'sell') {
@@ -60,7 +62,7 @@ export async function create(body: RefiningOrderCreate): Promise<RefiningOrderVi
   return await view(created.id)
 }
 
-export async function cancel(id: string): Promise<RefiningOrderView> {
+export async function cancel(id: string): Promise<RefiningOrderRead> {
   const order = await refiningOrders.getOne(id)
   rules.assertRefiningOrder(order, id)
   rules.assertCancellable(order)
@@ -83,7 +85,7 @@ export async function documentsFor(id: string): Promise<OrderDocument[]> {
   return rules.documentsFor(order.sent_at !== null, await pdfs.storedKinds(null, id))
 }
 
-export async function patch(id: string, changes: RefiningOrderPatch): Promise<RefiningOrderView> {
+export async function patch(id: string, changes: RefiningOrderPatch): Promise<RefiningOrderRead> {
   rules.assertNamesAField(changes)
   const written = await withTransaction((tx) => refiningOrders.update(id, changes, tx))
   rules.assertRefiningOrder(written, id)
@@ -100,7 +102,6 @@ export async function assignLots(
 ): Promise<RefiningLot[]> {
   const order = await refiningOrders.getOne(refining_order_id)
   rules.assertRefiningOrder(order, refining_order_id)
-  rules.assertOpen(order)
   rules.assertLotsExist(await lots.getByIds(lot_ids), lot_ids)
   rules.assertUnassigned(await refiningLots.getByLots(lot_ids), lot_ids)
 
@@ -112,7 +113,6 @@ export async function removeLot(id: string): Promise<void> {
   rules.assertRefiningLot(lot, id)
   const order = await refiningOrders.getOne(lot.refining_order_id)
   rules.assertRefiningOrder(order, lot.refining_order_id)
-  rules.assertOpen(order)
   await withTransaction(async (tx) => rules.assertLotRemoved(await refiningLots.remove(id, tx), id))
 }
 
@@ -127,7 +127,7 @@ export async function recordAssay(id: string, changes: RefiningLotPatch): Promis
   return written
 }
 
-export async function send(id: string): Promise<RefiningOrderView> {
+export async function send(id: string): Promise<RefiningOrderRead> {
   const order = await refiningOrders.getOne(id)
   rules.assertRefiningOrder(order, id)
   rules.assertSendable(order, await refiningLots.getFor(id))
@@ -136,7 +136,7 @@ export async function send(id: string): Promise<RefiningOrderView> {
   return await view(id)
 }
 
-export async function settle(id: string, body: RefiningSettlement): Promise<RefiningOrderView> {
+export async function settle(id: string, body: RefiningSettlement): Promise<RefiningOrderRead> {
   const order = await refiningOrders.getOne(id)
   rules.assertRefiningOrder(order, id)
   rules.assertSettleable(order)
@@ -189,7 +189,7 @@ export async function lockFromPool(body: PoolLockCreate): Promise<PoolEntry> {
 export async function supplyOrder(
   order_id: string,
   refiner_id: string
-): Promise<RefiningOrderView> {
+): Promise<RefiningOrderRead> {
   rules.assertSaleOrder(await ordersRepo.directionOf(order_id), order_id)
   const refiner = await refiners.viewOne(refiner_id)
   rules.assertRefiner(refiner, refiner_id)
@@ -210,9 +210,9 @@ export async function supplyOrder(
 export async function sellToRefiner(
   order_id: string,
   refiner_id: string
-): Promise<RefiningOrderView> {
+): Promise<RefiningOrderRead> {
   rules.assertPurchaseOrder(await ordersRepo.directionOf(order_id), order_id)
-  rules.assertFinalizedOrder(await ordersRepo.getOne(order_id), order_id)
+  rules.assertOrderExists(await ordersRepo.getOne(order_id), order_id)
   const refiner = await refiners.viewOne(refiner_id)
   rules.assertRefiner(refiner, refiner_id)
 

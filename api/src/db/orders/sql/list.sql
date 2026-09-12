@@ -2,6 +2,7 @@ SELECT to_jsonb(o)
        || jsonb_build_object(
             'created_at', to_char(o.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
             'updated_at', to_char(o.updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+            'cancelled_at', to_char(o.cancelled_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
             'totals',
               (SELECT to_jsonb(t)
                       || jsonb_build_object(
@@ -11,6 +12,7 @@ SELECT to_jsonb(o)
                 WHERE t.order_id = o.id),
             -- Shared with view.sql via order_reference.sql so the two cannot drift.
             'reference', /*__order_reference__*/,
+            'state', /*__order_state__*/,
             'customer',
               (SELECT jsonb_build_object('id', u.id, 'name', u.name, 'email', u.email)
                  FROM auth.users u

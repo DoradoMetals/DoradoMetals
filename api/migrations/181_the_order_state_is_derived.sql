@@ -1,0 +1,26 @@
+-- allow-destructive: drops orders.orders.status, a free-text column whose only
+-- load-bearing value was 'Cancelled'. 180 carried that value onto
+-- orders.orders.cancelled_at first and printed the counts; every other value is
+-- now derived in SQL by db/orders/sql/order_state.sql, on the model of
+-- refining/orders/sql/view_one.sql's `state`. exchange.purchase_orders and
+-- exchange.sales_orders still hold their own status columns, untouched, so the
+-- original text remains readable there for as long as exchange stands - that is
+-- the backup. `exchange` is neither read nor written by this file.
+--
+-- Ruling 112 (Jacob, 2026-09-12): statuses are decorative. The database stores
+-- facts; every label is derived in the view; the frontend never computes state.
+--
+-- The measurement that authorised this ran on the production-shaped copy
+-- `chain6` before the column went: `docs/waves/facts-and-positions.md` holds the
+-- matrix of derived label against the status exchange holds, order by order.
+--
+-- What read it, and what reads the derivation now:
+--   rules.statusesFor            deleted with OrderActions.statuses (nothing consumed it)
+--   rules.actionsFor             cancelled_at
+--   rules.assertReopenable       cancelled_at
+--   find_sales_awaiting_settled_intent.sql   the charge's own facts
+--   places addresses `locked`    the derived state is not 'Completed'
+--
+-- Reversible only from exchange: re-add the column and re-run 030's correction.
+
+ALTER TABLE orders.orders DROP COLUMN IF EXISTS status;

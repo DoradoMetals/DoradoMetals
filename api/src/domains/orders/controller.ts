@@ -14,6 +14,7 @@ import {
   OrderCancelBody,
   OrderCreateBody,
   OrderPatch,
+  OverrideBody,
 } from '@dorado/contracts'
 
 export const listOrders = asyncHandler(async (req, res) => {
@@ -70,7 +71,8 @@ export const createOrderReview = asyncHandler(async (req, res) => {
 })
 
 export const addFundsToOrder = asyncHandler(async (req, res) => {
-  return res.status(200).json(await orders.addFunds(uuidParam(req, 'id')))
+  const body = strictBody(OverrideBody, req.body ?? {})
+  return res.status(200).json(await orders.addFunds(uuidParam(req, 'id'), body, req.sessionId ?? null))
 })
 
 export const finalizeOrder = asyncHandler(async (req, res) => {

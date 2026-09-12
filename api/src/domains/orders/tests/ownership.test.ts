@@ -25,7 +25,7 @@ type OrderFixture = {
 const world = async (c: PoolClient) => {
   const victimUser = await aUser(c, { name: 'The Owner' })
   const strangerUser = await aUser(c, { name: 'The Stranger' })
-  const order = await anOrder(c, victimUser, { direction: 'purchase', status: 'Pending' })
+  const order = await anOrder(c, victimUser, { direction: 'purchase' })
     .withLots(1)
     .withSpots()
   return {

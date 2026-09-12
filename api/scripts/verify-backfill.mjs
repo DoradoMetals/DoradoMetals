@@ -318,7 +318,7 @@ const TABLES = [
   {
     name: 'orders.orders',
     key: 'direction, number',
-    cols: `id, user_id, direction::text, status, number, notes,
+    cols: `id, user_id, direction::text, cancelled_at, number, notes,
            review_created, order_sent, tracking_updated, spots_locked,
            created_by, updated_by, created_at, updated_at`,
     population: {
@@ -336,6 +336,8 @@ const TABLES = [
       order_sent: 'sending the supplier their copy flips it natively',
       tracking_updated: 'the tracking sweep flips it natively',
       review_created: 'leaving a review flips it natively',
+      cancelled_at:
+        "cancelling an order stamps it natively; 030 and 031 derive it from exchange's own status text, which is the only record a rebuild has",
     },
   },
   {

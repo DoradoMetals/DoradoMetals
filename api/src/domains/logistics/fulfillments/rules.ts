@@ -36,6 +36,48 @@ export function transitionsFor(view: FulfillmentViewFacts): FulfillmentStatus[] 
   return []
 }
 
+const REACHABLE: Record<string, FulfillmentStatus[]> = {
+  PICKUP: ['SCHEDULED', 'IN_TRANSIT', 'PICKED_UP'],
+  DIRECT: ['SCHEDULED', 'IN_PROGRESS', 'COMPLETED'],
+  DROPOFF: ['SCHEDULED', 'IN_TRANSIT', 'DROPPED_OFF'],
+  SHIPMENT: ['SCHEDULED', 'IN_TRANSIT', 'COMPLETED'],
+}
+
+export function transitionConfirm(
+  view: FulfillmentViewFacts,
+  wanted: FulfillmentStatus
+): string | null {
+  const open = transitionsFor(view)
+  if (open.includes(wanted)) return null
+  if (open.length === 0) {
+    return isCollected(view.fulfillment.status)
+      ? `This handover is already ${view.fulfillment.status}`
+      : 'Nothing is scheduled yet, so no handover step is open'
+  }
+  return `The open moves from here are ${open.join(', ')}`
+}
+
+export function assertCategoryStatus(
+  category: FulfillmentCategory,
+  wanted: FulfillmentStatus,
+  id: string
+): void {
+  const reachable = REACHABLE[category] ?? []
+  if (!reachable.includes(wanted)) {
+    throw new Conflict(
+      `fulfillment ${id} is a ${category}, and ${wanted} is not one of its steps ` +
+        `(${reachable.join(', ')})`
+    )
+  }
+}
+
+export function movesFor(view: FulfillmentViewFacts): FulfillmentActions['moves'] {
+  const reachable = REACHABLE[view.method.category] ?? []
+  return reachable
+    .filter((status) => status !== view.fulfillment.status)
+    .map((status) => ({ name: status, confirm: transitionConfirm(view, status), override: null }))
+}
+
 export function requiresSchedule(category: FulfillmentCategory): boolean {
   return category === 'PICKUP' || category === 'DIRECT' || category === 'DROPOFF'
 }
@@ -60,6 +102,7 @@ export function actionsFor(view: FulfillmentViewFacts): FulfillmentActions {
     cancel_schedule: requiresSchedule(category) && view.scheduled_at !== null,
     categories,
     transitions: transitionsFor(view),
+    moves: movesFor(view),
   }
 }
 
@@ -191,17 +234,7 @@ export function assertDefault<T>(
   if (!row) throw new NotFound(`no default ${category} method for a ${direction}`)
 }
 
-export function assertTransition(
-  offered: FulfillmentStatus[],
-  wanted: FulfillmentStatus,
-  id: string
-): void {
-  if (offered.length > 0 && !offered.includes(wanted)) {
-    throw new Conflict(
-      `fulfillment ${id} cannot move to ${wanted} - open moves are ${offered.join(', ')}`
-    )
-  }
-}
+
 
 export function assertDropoff<T>(row: T | null | undefined, id: string): asserts row is T {
   if (!row) {

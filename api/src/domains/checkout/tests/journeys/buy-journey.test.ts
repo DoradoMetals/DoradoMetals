@@ -4,7 +4,7 @@ import type { PoolClient } from 'pg'
 import request from 'supertest'
 import pool from '#pool'
 import query from '#shared/db/query.ts'
-import { mockSessions, restoreSessions, as, asAdmin } from '#shared/testing/session.ts'
+import { mockSessions, restoreSessions, as } from '#shared/testing/session.ts'
 import { TEST_ACTOR } from '#shared/testing/actor.ts'
 import { inPinnedTransaction } from '#shared/testing/pinned-pool.ts'
 import { LOCKS } from '#shared/testing/locks.ts'
@@ -13,7 +13,6 @@ import * as place from '#orders/place.ts'
 import {
   aHandover,
   aUser,
-  anAdmin,
   anAddress,
   aProduct,
   saleServiceId,
@@ -46,7 +45,6 @@ test('basket, row, a real intent and placement agree on one sales order', async 
     async (c: PoolClient) => {
       const built = await aUser(c)
       const customer = asCaller(built)
-      const admin = await anAdmin(c)
       const address = await anAddress(c, customer)
       const product = await aProduct(c, { metal_id: 'Gold', content: 1, ask_premium: 60 })
       const service = await saleServiceId(c)
@@ -111,14 +109,6 @@ test('basket, row, a real intent and placement agree on one sales order', async 
         placed.order.id,
         'placement did not attach the intent this HTTP call opened'
       )
-
-      for (const status of ['Preparing', 'Shipped', 'Cancelled']) {
-        const moved = await asAdmin(admin, () =>
-          request(app).patch(`/api/orders/${placed.order.id}`).send({ status })
-        )
-        assert.equal(moved.status, 200, moved.text)
-        assert.equal(moved.body.order.status, status)
-      }
     },
     { actor: TEST_ACTOR.id, lock: [LOCKS.ORDERS, LOCKS.ADDRESSES, LOCKS.USERS] }
   )

@@ -11,10 +11,18 @@ export const OpenPayoutBody = z
     rail: Transfer.shape.rail,
     bank_link_id: Transfer.shape.bank_link_id.optional(),
     details_id: Transfer.shape.details_id.optional(),
+    amount: Transfer.shape.amount.optional(),
+    override_reason: Transfer.shape.override_reason.optional(),
   })
   .partial({ order_id: true, refining_order_id: true })
   .strict()
 export type OpenPayoutBody = z.infer<typeof OpenPayoutBody>
+
+export const SendPayoutBody = z
+  .object({ override_reason: Transfer.shape.override_reason })
+  .partial()
+  .strict()
+export type SendPayoutBody = z.infer<typeof SendPayoutBody>
 
 export const MarkSentBody = z.object({ reference: z.string().min(1).max(120) }).strict()
 export type MarkSentBody = z.infer<typeof MarkSentBody>

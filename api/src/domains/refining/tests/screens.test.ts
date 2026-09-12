@@ -97,7 +97,7 @@ test('Create Sale wraps a finalized purchase order, and pools onto the open sell
   })
 })
 
-test('an unfinalized order, and a sales order, are both refused a Create Sale', async () => {
+test('an unfinalized order offers Create Sale with a reason; a sales order is refused', async () => {
   await inRefining(async (c) => {
     const seller = await aUser(c)
     const open = await anOrder(c, seller, { direction: 'purchase' }).withLots(1)
@@ -105,10 +105,18 @@ test('an unfinalized order, and a sales order, are both refused a Create Sale', 
     const refiner_id = await refinerId(c)
 
     await asAdmin(TEST_ACTOR, async () => {
+      const offered = await request(app).get(`/api/orders/${open.id}`)
+      assert.match(
+        offered.body.actions.find((a: { name: string }) => a.name === 'refining_sale')?.confirm ??
+          '',
+        /not finalized/,
+        'an unfinalized order offered Create Sale with no reason'
+      )
+
       const unfinalized = await request(app)
         .post(`/api/orders/${open.id}/refining-sale`)
         .send({ refiner_id })
-      assert.equal(unfinalized.status, 422, unfinalized.text)
+      assert.equal(unfinalized.status, 201, unfinalized.text)
 
       const wrongWay = await request(app)
         .post(`/api/orders/${sale.id}/refining-sale`)

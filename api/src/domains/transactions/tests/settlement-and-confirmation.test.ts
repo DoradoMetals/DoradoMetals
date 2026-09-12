@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import type { PoolClient } from 'pg'
 import * as webhook from '#transactions/webhook.ts'
 import * as sweeps from '#transactions/sweeps.ts'
-import * as ordersRepo from '#db/orders/repo.ts'
+import * as credit from '#transactions/credit/service.ts'
 import { settlementCovers } from '#transactions/rules.ts'
 import { inPinnedTransaction } from '#shared/testing/pinned-pool.ts'
 import { TEST_ACTOR } from '#shared/testing/actor.ts'
@@ -11,10 +11,15 @@ import { LOCKS } from '#shared/testing/locks.ts'
 import { aUser } from '#shared/testing/builders/index.ts'
 import query from '#shared/db/query.ts'
 
-async function aSale(c: PoolClient, user_id: string, owed: number): Promise<string> {
+async function aSale(
+  c: PoolClient,
+  user_id: string,
+  owed: number,
+  reserved = 0
+): Promise<string> {
   const { rows } = await query<{ id: string }>(
-    `INSERT INTO orders.orders (direction, status, number, user_id)
-     VALUES ('sale', 'Pending', nextval('orders.sale_number_seq'), $1) RETURNING id`,
+    `INSERT INTO orders.orders (direction, number, user_id)
+     VALUES ('sale', nextval('orders.sale_number_seq'), $1) RETURNING id`,
     [user_id],
     c
   )
@@ -24,6 +29,7 @@ async function aSale(c: PoolClient, user_id: string, owed: number): Promise<stri
     [id, owed],
     c
   )
+  if (reserved > 0) await credit.reserve(user_id, reserved, id, c)
   return id
 }
 
@@ -51,9 +57,17 @@ async function anIntent(
   return id
 }
 
-const statusOf = async (c: PoolClient, id: string) =>
-  (await query<{ status: string }>(`SELECT status FROM orders.orders WHERE id = $1`, [id], c))
-    .rows[0]?.status
+const ledgerTypeOf = async (c: PoolClient, order_id: string): Promise<string | undefined> =>
+  (
+    await query<{ type: string }>(
+      `SELECT type FROM payments.ledger WHERE order_id = $1 ORDER BY created_at DESC LIMIT 1`,
+      [order_id],
+      c
+    )
+  ).rows[0]?.type
+
+const cancel = async (c: PoolClient, order_id: string) =>
+  await query(`UPDATE orders.orders SET cancelled_at = now() WHERE id = $1`, [order_id], c)
 
 const silent: typeof webhook.LIVE = {
   retrieve: async () => ({ id: 'unused' }),
@@ -70,7 +84,7 @@ test('settlementCovers refuses a short payment and ignores an order that owes no
   assert.equal(settlementCovers('250.00', '250.00'), true)
 })
 
-test('a webhook that settled LESS than the order owes does not mark it paid', async () => {
+test('a webhook that settled LESS than the order owes does not confirm it', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
       const user = await aUser(c)
@@ -78,23 +92,24 @@ test('a webhook that settled LESS than the order owes does not mark it paid', as
       const pi = `pi_short_${Date.now()}`
       await anIntent(c, pi, order, 500)
 
+      let sends = 0
       await webhook.applyIntentEvent(
         { id: pi, status: 'succeeded', amount: 50000, amount_received: 10000 },
         undefined,
-        silent
+        { ...silent, confirm: async () => void (sends += 1) }
       )
 
       assert.equal(
-        await statusOf(c, order),
-        'Pending',
-        'Stripe took $100 against a $500 order and the order was marked paid anyway'
+        sends,
+        0,
+        'Stripe took $100 against a $500 order and the placement confirmation went out anyway'
       )
     },
     { actor: TEST_ACTOR.id, lock: [LOCKS.ORDERS, LOCKS.FULFILLMENTS, LOCKS.ADDRESSES, LOCKS.USERS] }
   )
 })
 
-test('a webhook that settled the whole total does mark it paid', async () => {
+test('a webhook that settled the whole total does confirm it', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
       const user = await aUser(c)
@@ -102,24 +117,25 @@ test('a webhook that settled the whole total does mark it paid', async () => {
       const pi = `pi_full_${Date.now()}`
       await anIntent(c, pi, order, 500)
 
+      let sends = 0
       await webhook.applyIntentEvent(
         { id: pi, status: 'succeeded', amount: 50000, amount_received: 50000 },
         undefined,
-        silent
+        { ...silent, confirm: async () => void (sends += 1) }
       )
 
-      assert.equal(await statusOf(c, order), 'Preparing')
+      assert.equal(sends, 1, 'a fully settled card charge did not confirm the order')
     },
     { actor: TEST_ACTOR.id, lock: [LOCKS.ORDERS, LOCKS.FULFILLMENTS, LOCKS.ADDRESSES, LOCKS.USERS] }
   )
 })
 
-test('the settled sweep holds an order Stripe underpaid, and advances one it did not', async () => {
+test('the settled sweep holds a reservation Stripe underpaid, and resolves one it did not', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
-      const user = await aUser(c)
-      const short = await aSale(c, user.id, 500)
-      const full = await aSale(c, user.id, 500)
+      const user = await aUser(c, { funds: 1000 })
+      const short = await aSale(c, user.id, 500, 50)
+      const full = await aSale(c, user.id, 500, 50)
       await anIntent(c, `pi_sweep_short_${Date.now()}`, short, 500, 'succeeded')
       await anIntent(c, `pi_sweep_full_${Date.now()}`, full, 500, 'succeeded')
       await query(
@@ -148,18 +164,18 @@ test('the settled sweep holds an order Stripe underpaid, and advances one it did
         results.find((r) => r.order_id === full),
         { order_id: full, outcome: 'advanced' }
       )
-      assert.equal(await statusOf(c, short), 'Pending')
-      assert.equal(await statusOf(c, full), 'Preparing')
+      assert.equal(await ledgerTypeOf(c, short), 'Reserve', 'an underpaid order resolved anyway')
+      assert.equal(await ledgerTypeOf(c, full), 'Debit', 'a fully paid order was left reserved')
     },
     { actor: TEST_ACTOR.id, lock: [LOCKS.ORDERS, LOCKS.FULFILLMENTS, LOCKS.ADDRESSES, LOCKS.USERS] }
   )
 })
 
-test('the settled sweep does not resurrect an order cancelled between its read and its write', async () => {
+test('the settled sweep does not resurrect a reservation cancelled between its read and its write', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
-      const user = await aUser(c)
-      const order = await aSale(c, user.id, 500)
+      const user = await aUser(c, { funds: 1000 })
+      const order = await aSale(c, user.id, 500, 50)
       await anIntent(c, `pi_race_${Date.now()}`, order, 500, 'succeeded')
       await query(
         `INSERT INTO payments.settlements (id, attempt_id, settled_amount, provider, provider_ref)
@@ -169,35 +185,44 @@ test('the settled sweep does not resurrect an order cancelled between its read a
         [order],
         c
       )
-      await query(`UPDATE orders.orders SET status = 'Cancelled' WHERE id = $1`, [order], c)
+      await cancel(c, order)
 
       const results = await sweeps.sweepSettledIntents(c)
       assert.equal(
         results.find((r) => r.order_id === order),
         undefined,
-        'a cancelled and refunded order was picked up as a candidate'
+        'a cancelled order was picked up as a candidate'
       )
-      assert.equal(await statusOf(c, order), 'Cancelled')
+      assert.equal(
+        await ledgerTypeOf(c, order),
+        'Reserve',
+        'the cancelled reservation was resolved anyway'
+      )
     },
     { actor: TEST_ACTOR.id, lock: [LOCKS.ORDERS, LOCKS.FULFILLMENTS, LOCKS.ADDRESSES, LOCKS.USERS] }
   )
 })
 
-test('the advance the sweep writes is guarded, so a row that moved on is a no-op', async () => {
+test('a reservation already resolved cannot be resolved again - ruling 88', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
-      const user = await aUser(c)
-      const order = await aSale(c, user.id, 500)
-      await query(`UPDATE orders.orders SET status = 'Cancelled' WHERE id = $1`, [order], c)
+      const user = await aUser(c, { funds: 1000 })
+      const order = await aSale(c, user.id, 500, 500)
 
-      const advanced = await ordersRepo.update(
-        order,
-        { status: 'Preparing' },
-        { status: 'Pending' },
-        c
+      assert.equal(await credit.settleReservation(order, c), true)
+      assert.equal(await ledgerTypeOf(c, order), 'Debit')
+
+      const releasedAfterwards = await credit.releaseReservation(order, c)
+      assert.equal(
+        releasedAfterwards,
+        0,
+        'a reservation that already settled was released a second time'
       )
-      assert.equal(advanced, false, 'the guard the sweep now passes did not hold')
-      assert.equal(await statusOf(c, order), 'Cancelled')
+      assert.equal(
+        await ledgerTypeOf(c, order),
+        'Debit',
+        'the second write flipped a reservation that already resolved'
+      )
     },
     { actor: TEST_ACTOR.id, lock: [LOCKS.ORDERS, LOCKS.FULFILLMENTS, LOCKS.ADDRESSES, LOCKS.USERS] }
   )

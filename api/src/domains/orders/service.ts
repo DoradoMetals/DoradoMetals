@@ -19,12 +19,14 @@ import * as orderSpotsService from '#orders/spots/service.ts'
 import * as rules from '#orders/rules.ts'
 import * as shippingRules from '#logistics/shipping/rules.ts'
 import * as pricing from '#pricing/index.ts'
+import * as accounts from '#accounts/auth/step-up.ts'
 
 import withTransaction from '#shared/db/withTransaction.ts'
 import type { Executor } from '#shared/db/executor.ts'
 import type {
   LotSplitPart,
   OrderCancelBody,
+  OverrideBody,
   OrderDocument,
   OrderLotPatch,
   OrderLotView,
@@ -60,10 +62,6 @@ export async function retierPremiums(order_id: string, executor?: Executor): Pro
 
 export async function lotsFor(order_id: string): Promise<OrderLotView[]> {
   return await orderLots.viewFor(order_id)
-}
-
-export async function searchLots(q: string | null, unassigned: boolean): Promise<LotView[]> {
-  return await lotsRepo.search(q, unassigned)
 }
 
 export async function addLot(order_id: string, input: OrderLotPatch): Promise<OrderLotView> {
@@ -129,20 +127,6 @@ export async function removeLot(id: string): Promise<void> {
   })
 }
 
-export async function splitLot(id: string, parts: LotSplitPart[]): Promise<OrderLotView[]> {
-  const link = await orderLots.getOne(id)
-  rules.assertLot(link, id)
-
-  await withTransaction(async (tx) => {
-    for (const child of await lotsRepo.splitOff(link.lot_id, parts, tx)) {
-      await orderLots.link(link.order_id, child.id, tx)
-    }
-    await retierPremiums(link.order_id, tx)
-  })
-
-  return await orderLots.viewFor(link.order_id)
-}
-
 export async function finalize(order_id: string): Promise<OrderView> {
   const order = await viewOf(order_id)
   rules.assertFinalizable(order)
@@ -164,7 +148,7 @@ export async function finalize(order_id: string): Promise<OrderView> {
 export async function reopen(order_id: string): Promise<OrderView> {
   const order = await viewOf(order_id)
   rules.assertReopenable(order)
-  await withTransaction((tx) => ordersRepo.update(order_id, { status: 'Received' }, {}, tx))
+  await withTransaction((tx) => ordersRepo.update(order_id, { cancelled_at: null }, {}, tx))
   return await viewOf(order_id)
 }
 
@@ -177,7 +161,11 @@ export async function documentsFor(order_id: string): Promise<OrderDocument[]> {
   )
 }
 
-export async function addFunds(order_id: string): Promise<OrderView> {
+export async function addFunds(
+  order_id: string,
+  body: OverrideBody = {},
+  session_id: string | null = null
+): Promise<OrderView> {
   const order = await viewOf(order_id)
   rules.assertDirection(order.order.direction, 'purchase', 'adding funds')
 
@@ -185,8 +173,12 @@ export async function addFunds(order_id: string): Promise<OrderView> {
   rules.assertCreditable(amount, order.order.number)
   rules.assertPayableToAccount(order.payout?.method ?? null, order.order.number)
 
+  if (await ledger.hasCreditFor(order_id)) {
+    rules.assertCreditOverride(true, body.override_reason, order.order.number)
+    await accounts.assertSteppedUp(session_id)
+  }
+
   await withTransaction(async (tx) => {
-    rules.assertNotAlreadyCredited(await ledger.hasCreditFor(order_id, tx), order.order.number)
     await credit.addFunds(order.order.user_id, amount, tx)
     await ledger.addTransactionLog(
       { user_id: order.order.user_id, type: 'Credit', order_id, amount },
@@ -228,6 +220,7 @@ export async function cancel(
 
   const shipment_id = await withTransaction(async (tx) => {
     await orderSpotsService.applyLock(order_id, false, tx)
+    await ordersRepo.update(order_id, { cancelled_at: new Date().toISOString() }, {}, tx)
     return await shipmentService.returnLeg(
       order_id,
       {

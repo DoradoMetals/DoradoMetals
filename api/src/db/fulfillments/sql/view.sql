@@ -57,7 +57,8 @@ SELECT to_jsonb(f)
                  'carrier_service_id', s.carrier_service_id,
                  'pickup_date', s.pickup_date,
                  'pickup_time', s.pickup_time,
-                 'tracking_number', s.tracking_number)
+                 'tracking_number', s.tracking_number,
+                 'delivered_at', to_char(s.delivered_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'))
           FROM fulfillments.shipments fs
           JOIN shipping.shipments s ON s.id = fs.shipment_id
          WHERE fs.fulfillment_id = f.id

@@ -107,29 +107,26 @@ const confirmEveryLine = async (client: PoolClient) => {
   await client.query(`UPDATE orders.lots SET confirmed = true WHERE order_id = $1`, [order.id])
 }
 
-test('finalizing an order with an unconfirmed line is refused, and nothing is written', async () => {
+test('finalizing an order with an unconfirmed line still succeeds, but the drawer was warned first', async () => {
   await inPinnedTransaction(
     async (client: PoolClient) => {
       await asAdmin(admin, async () => {
         await client.query(`UPDATE orders.lots SET confirmed = false WHERE id = $1`, [items[0]!.id])
         const view = await orderRead.view(order.id)
-        assert.equal(view?.actions.finalize, false, 'the action was still offered')
+        const finalizeAction = view?.actions.find((a) => a.name === 'finalize')
+        assert.ok(finalizeAction, 'the action was not offered at all')
+        assert.match(
+          finalizeAction!.confirm ?? '',
+          /not confirmed/,
+          'an unconfirmed lot should carry a confirm reason, not a block'
+        )
 
         const res = await request(app).post(`/api/orders/${order.id}/finalize`).send({})
-        assert.equal(res.status, 422, `answered ${res.status}: ${JSON.stringify(res.body)}`)
-
-        const row = (
-          await client.query(
-            `SELECT o.spots_locked, t.total FROM orders.orders o
-               JOIN orders.transactions t ON t.order_id = o.id WHERE o.id = $1`,
-            [order.id]
-          )
-        ).rows[0]
-        assert.equal(row.spots_locked, false, 'the refused finalize still pinned the spots')
+        assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`)
         assert.equal(
-          row.total === null ? null : Number(row.total),
-          order.total_price === null ? null : Number(order.total_price),
-          "the refused finalize still moved the order's total"
+          res.body.order.spots_locked,
+          true,
+          'confirm is a warning, not a gate - finalize should still have run'
         )
       })
     },
@@ -143,7 +140,7 @@ test("a clean finalize prices the order from the database's own rows", async () 
       await asAdmin(admin, async () => {
         await confirmEveryLine(client)
         const before = (
-          await client.query(`SELECT status FROM orders.orders WHERE id = $1`, [order.id])
+          await client.query(`SELECT cancelled_at FROM orders.orders WHERE id = $1`, [order.id])
         ).rows[0]
 
         const res = await request(app).post(`/api/orders/${order.id}/finalize`).send({})
@@ -151,7 +148,7 @@ test("a clean finalize prices the order from the database's own rows", async () 
 
         const row = (
           await client.query(
-            `SELECT t.total AS total_price, o.status, o.spots_locked
+            `SELECT t.total AS total_price, o.cancelled_at, o.spots_locked
              FROM orders.orders o
              JOIN orders.transactions t ON t.order_id = o.id
             WHERE o.id = $1`,
@@ -159,9 +156,9 @@ test("a clean finalize prices the order from the database's own rows", async () 
           )
         ).rows[0]
         assert.equal(
-          row.status,
-          before.status,
-          'finalize moved the status - pipelines must not write labels'
+          row.cancelled_at,
+          before.cancelled_at,
+          'finalize moved an unrelated fact - pipelines must not write facts beside their own'
         )
         assert.equal(row.spots_locked, true, 'finalizing pins the spots')
 

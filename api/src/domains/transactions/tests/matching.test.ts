@@ -22,8 +22,8 @@ afterAll(async () => {
 
 async function aSale(c: PoolClient, user_id: string, owed: number): Promise<[string, number]> {
   const { rows } = await query<{ id: string; number: number }>(
-    `INSERT INTO orders.orders (direction, status, number, user_id)
-     VALUES ('sale', 'Pending', nextval('orders.sale_number_seq'), $1) RETURNING id, number`,
+    `INSERT INTO orders.orders (direction, number, user_id)
+     VALUES ('sale', nextval('orders.sale_number_seq'), $1) RETURNING id, number`,
     [user_id],
     c
   )

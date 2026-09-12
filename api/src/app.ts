@@ -15,7 +15,8 @@ import paymentMethodRoutes from '#transactions/methods/routes.ts'
 import spotRoutes from '#pricing/spots/routes.ts'
 import transactionRoutes from '#transactions/ledger/routes.ts'
 import ordersRoutes from '#orders/routes.ts'
-import { lotSearchRoutes } from '#orders/lots/routes.ts'
+import inventoryRoutes from '#inventory/routes.ts'
+import { inventorySummaryRoutes } from '#inventory/routes.ts'
 import locationRoutes from '#accounts/places/locations/routes.ts'
 import employeeRoutes from '#accounts/employees/routes.ts'
 import shipmentRoutes from '#logistics/shipping/shipments/routes.ts'
@@ -97,7 +98,8 @@ app.use('/api/reviews', reviewRoutes)
 app.use('/api/emails', emailRoutes)
 app.use('/api/transactions', transactionRoutes)
 app.use('/api/orders', ordersRoutes)
-app.use('/api/lots', lotSearchRoutes)
+app.use('/api/lots', inventoryRoutes)
+app.use('/api/inventory', inventorySummaryRoutes)
 app.use('/api/locations', locationRoutes)
 app.use('/api/employees', employeeRoutes)
 app.use('/api/shipments', shipmentRoutes)

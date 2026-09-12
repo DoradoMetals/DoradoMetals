@@ -19,14 +19,14 @@ export type BuiltOrder = {
   number: number
   user_id: string | null
   direction: Direction
-  status: string
+  cancelled_at: string | null
   checkout_id: string
   lots: { id: string; lot_id: string; bullion_id: string | null; metal_id: string }[]
 }
 
 export type OrderOptions = {
   direction?: Direction
-  status?: string
+  cancelled_at?: string | null
   notes?: string | null
 }
 
@@ -223,7 +223,7 @@ class OrderPlan implements PromiseLike<BuiltOrder> {
 
   private async run(): Promise<BuiltOrder> {
     const direction = this.options.direction ?? 'purchase'
-    const status = this.options.status ?? 'Pending'
+    const cancelled_at = this.options.cancelled_at ?? null
     if (!this.user) {
       throw new Error(
         'anOrder needs a user - orders.orders.createForCheckout copies its owner ' +
@@ -236,11 +236,14 @@ class OrderPlan implements PromiseLike<BuiltOrder> {
       (await checkoutsRepo.findFor(this.user.id, direction, this.c))
     if (!checkout) throw new Error('checkout.checkouts refused a new session')
 
-    const created = await ordersRepo.createForCheckout(checkout.id, status, this.c)
+    const created = await ordersRepo.createForCheckout(checkout.id, this.c)
     if (!created) throw new Error('orders.orders refused a new order')
 
     if (this.options.notes !== undefined) {
       await ordersRepo.update(created.id, { notes: this.options.notes }, {}, this.c)
+    }
+    if (cancelled_at !== null) {
+      await ordersRepo.update(created.id, { cancelled_at }, {}, this.c)
     }
 
     const order: BuiltOrder = {
@@ -248,7 +251,7 @@ class OrderPlan implements PromiseLike<BuiltOrder> {
       number: created.number,
       user_id: this.user.id,
       direction,
-      status,
+      cancelled_at,
       checkout_id: checkout.id,
       lots: [],
     }

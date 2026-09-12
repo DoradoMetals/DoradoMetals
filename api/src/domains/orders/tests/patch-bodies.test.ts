@@ -72,10 +72,15 @@ const refusesField = (
   assert.match(said, new RegExp(named), `the refusal does not name ${named}`)
 }
 
-test("the order PATCH is the row's own columns, and the four actions are not among them", () => {
-  assert.equal(OrderPatch.safeParse({ status: 'Received' }).success, true)
+test('the order PATCH is notes and assigned_to_id only - status is gone (ruling 112) and the four actions are not among them', () => {
   assert.equal(OrderPatch.safeParse({ notes: 'left on the porch' }).success, true)
   assert.equal(OrderPatch.safeParse({ notes: null }).success, true)
+  assert.equal(
+    OrderPatch.safeParse({ assigned_to_id: '00000000-0000-4000-8000-000000000000' }).success,
+    true
+  )
+  assert.equal(OrderPatch.safeParse({ assigned_to_id: null }).success, true)
+  refusesField(OrderPatch, { status: 'Received' }, 'status')
   for (const action of ['add_funds', 'finalize', 'cancel', 'supplier']) {
     refusesField(OrderPatch, { [action]: true }, action)
   }

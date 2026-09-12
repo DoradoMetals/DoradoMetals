@@ -1,11 +1,14 @@
 import query from '#shared/db/query.ts'
 import { buildUpdate } from '#shared/db/patch.ts'
 import { sqlFrom } from '#shared/db/sql.ts'
+import { ORDER_STATE } from '#db/orders/repo.ts'
 import { AddressWriteColumns } from '@dorado/contracts'
 import type { Address, AddressPatch } from '@dorado/contracts'
 import type { Executor } from '#shared/db/executor.ts'
 
 const sql = sqlFrom(import.meta.dirname)
+const IS_ACTIVE_SQL = sql('is_active').replace('/*__order_state__*/', ORDER_STATE)
+const ACTIVE_AMONG_SQL = sql('active_among').replace('/*__order_state__*/', ORDER_STATE)
 
 export const PATCHABLE = Object.keys(AddressWriteColumns.shape) as readonly string[]
 
@@ -70,7 +73,7 @@ export async function isActive(
   executor?: Executor
 ): Promise<boolean> {
   const { rows } = await query<{ locked: boolean }>(
-    sql('is_active'),
+    IS_ACTIVE_SQL,
     [address_id, user_id],
     executor
   )
@@ -84,7 +87,7 @@ export async function activeAmong(
 ): Promise<string[]> {
   if (ids.length === 0) return []
   const { rows } = await query<{ source_address_id: string }>(
-    sql('active_among'),
+    ACTIVE_AMONG_SQL,
     [ids, user_id],
     executor
   )

@@ -31,8 +31,8 @@ const anOrderWithScrap = async (c: PoolClient) => {
   const {
     rows: [order],
   } = await c.query(
-    `INSERT INTO orders.orders (direction, status, number)
-     VALUES ('purchase', 'Pending', nextval('orders.purchase_number_seq'))
+    `INSERT INTO orders.orders (direction, number)
+     VALUES ('purchase', nextval('orders.purchase_number_seq'))
      RETURNING id`
   )
   const {
@@ -77,8 +77,8 @@ const anEmptyGoldOrder = async (c: PoolClient) => {
   const {
     rows: [order],
   } = await c.query(
-    `INSERT INTO orders.orders (direction, status, number)
-     VALUES ('purchase', 'Pending', nextval('orders.purchase_number_seq'))
+    `INSERT INTO orders.orders (direction, number)
+     VALUES ('purchase', nextval('orders.purchase_number_seq'))
      RETURNING id`
   )
   return { orderId: order.id }
@@ -153,8 +153,8 @@ test("adding bullion re-tiers the order's scrap by their combined content", asyn
   const {
     rows: [order],
   } = await client.query(
-    `INSERT INTO orders.orders (direction, status, number)
-     VALUES ('purchase', 'Pending', nextval('orders.purchase_number_seq'))
+    `INSERT INTO orders.orders (direction, number)
+     VALUES ('purchase', nextval('orders.purchase_number_seq'))
      RETURNING id`
   )
   const fixture = { orderId: order.id }

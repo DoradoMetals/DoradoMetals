@@ -34,12 +34,12 @@ afterAll(async () => {
 
 const inRollback = rollbackIn({ lock: LOCKS.ORDERS })
 
-test('a new order lands with its direction, status and number, copied from its checkout', async () => {
+test('a new order lands with its direction and number, copied from its checkout, and no cancellation', async () => {
   await inRollback(async (c: PoolClient) => {
     const user_id = (await aUser(c)).id
     const checkout_id = await aCheckoutId(c, user_id, 'purchase')
 
-    const created = await orders.createForCheckout(checkout_id, 'Pending', c)
+    const created = await orders.createForCheckout(checkout_id, c)
     assert.ok(created, 'the order was not written')
     const { id, number, user_id: owner } = created!
 
@@ -47,7 +47,7 @@ test('a new order lands with its direction, status and number, copied from its c
     assert.ok(row, 'the order was not written')
     assert.equal(owner, user_id, 'the owner was not copied from the checkout')
     assert.equal(row!.direction, 'purchase', 'the order was not created as a purchase')
-    assert.equal(row!.status, 'Pending')
+    assert.equal(row!.cancelled_at, null, 'a new order is not born cancelled')
     assert.ok(Number(number) > 0, 'the order drew no number from the sequence')
     assert.equal(Number(row!.number), Number(number))
   })
@@ -58,15 +58,15 @@ test('each direction draws from its own sequence, and each draw advances it', as
     const user_id = (await aUser(c)).id
     const purchase_checkout_id = await aCheckoutId(c, user_id, 'purchase')
 
-    const first = await orders.createForCheckout(purchase_checkout_id, 'Pending', c)
-    const second = await orders.createForCheckout(purchase_checkout_id, 'Pending', c)
+    const first = await orders.createForCheckout(purchase_checkout_id, c)
+    const second = await orders.createForCheckout(purchase_checkout_id, c)
     assert.ok(
       Number(second!.number) > Number(first!.number),
       'the sequence did not advance between two creates'
     )
 
     const sale_checkout_id = await aCheckoutId(c, user_id, 'sale')
-    const sale = await orders.createForCheckout(sale_checkout_id, 'Pending', c)
+    const sale = await orders.createForCheckout(sale_checkout_id, c)
     const { rows } = await c.query(`SELECT direction FROM orders.orders WHERE id = $1`, [sale!.id])
     assert.equal(rows[0].direction, 'sale')
   })
@@ -77,7 +77,7 @@ test('a new order starts with its spots unpinned', async () => {
     const user_id = (await aUser(c)).id
     const checkout_id = await aCheckoutId(c, user_id, 'purchase')
 
-    const created = await orders.createForCheckout(checkout_id, 'Pending', c)
+    const created = await orders.createForCheckout(checkout_id, c)
 
     const { rows } = await c.query('SELECT spots_locked FROM orders.orders WHERE id = $1', [
       created!.id,
@@ -92,7 +92,7 @@ test('rolling back undoes the order', async () => {
   try {
     await writer.query('BEGIN')
     const checkout_id = await aCheckoutId(writer, TEST_ACTOR.id, 'purchase')
-    const created = await orders.createForCheckout(checkout_id, 'Pending', writer)
+    const created = await orders.createForCheckout(checkout_id, writer)
     const { id } = created!
     await writer.query('ROLLBACK')
 

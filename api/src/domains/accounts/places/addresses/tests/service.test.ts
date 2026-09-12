@@ -249,20 +249,36 @@ test('deleting removes the link and the address, and answers the entry it remove
   })
 })
 
-test('an address an order points at survives being removed from a book', async () => {
+test('an address an order points at survives being removed from a book, once the order is done', async () => {
   await pinned(async (c) => {
     const { owner } = await twoPeople(c)
     const made = await service.create(owner, address(), link())
 
-    const order = await anOrder(
-      c,
-      { id: owner },
-      { direction: 'purchase', status: 'Completed' }
-    ).withAddress({ id: made.address.id })
+    const order = await anOrder(c, { id: owner }, { direction: 'purchase' })
+      .withFulfillment()
+      .withTotals({ total: 100 })
+      .withAddress({ id: made.address.id })
+    await c.query(
+      `UPDATE shipping.shipments s
+          SET shipping_status = 'Delivered', delivered_at = now()
+         FROM fulfillments.shipments fs
+         JOIN fulfillments.fulfillments f ON f.id = fs.fulfillment_id
+        WHERE fs.shipment_id = s.id AND f.order_id = $1`,
+      [order.id]
+    )
+    await c.query(`UPDATE orders.orders SET spots_locked = true WHERE id = $1`, [order.id])
+    await c.query(
+      `INSERT INTO payments.ledger (user_id, type, order_id, amount) VALUES ($1, 'Credit', $2, 100)`,
+      [owner, order.id]
+    )
+
     const {
       rows: [orderLink],
     } = await c.query('SELECT id FROM orders.addresses WHERE order_id = $1', [order.id])
     assert.ok(orderLink, 'the order was built without its address snapshot')
+
+    const beforeRemoval = (await service.list(owner)).find((e) => e.address.id === made.address.id)
+    assert.equal(beforeRemoval?.locked, false, 'the fixture order did not derive to Completed')
 
     await service.remove(made.address.id, owner)
 
@@ -309,7 +325,7 @@ test('an address on an unfinished order can be neither edited nor deleted, and s
   await pinned(async (c) => {
     const { owner } = await twoPeople(c)
     const made = await service.create(owner, address(), link())
-    await anOrder(c, { id: owner }, { direction: 'purchase', status: 'Pending' }).withAddress({
+    await anOrder(c, { id: owner }, { direction: 'purchase' }).withAddress({
       id: made.address.id,
     })
 

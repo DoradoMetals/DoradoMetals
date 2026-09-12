@@ -24,7 +24,6 @@ await mockSessions()
 const { default: app } = await import('#app')
 
 type UserFixture = { id: string; name: string | null; email: string | null }
-type OrderFixture = { id: string; user_id: string; status: string }
 
 const admin: UserFixture = TEST_ACTOR
 
@@ -32,7 +31,7 @@ const anOpenPurchaseOrder = async (c: PoolClient) => {
   const owner = await aUser(c, { name: 'The Customer' })
   const address = await anAddress(c, owner)
   const product = await aProduct(c)
-  const built = await anOrder(c, owner, { direction: 'purchase', status: 'Pending' })
+  const built = await anOrder(c, owner, { direction: 'purchase' })
     .withBullion(product, 1)
     .withLots(1, { metal_id: 'Gold' })
     .withSpots()
@@ -42,14 +41,14 @@ const anOpenPurchaseOrder = async (c: PoolClient) => {
   await aRefiningOrder(c, built)
   await aPayout(c, owner, { order: built })
   return {
-    order: { id: built.id, user_id: owner.id, status: 'Pending' },
+    order: { id: built.id, user_id: owner.id },
     owner,
   }
 }
 
 const anAddresslessPurchaseOrder = async (c: PoolClient) => {
   const owner = await aUser(c)
-  const built = await anOrder(c, owner, { direction: 'purchase', status: 'Pending' })
+  const built = await anOrder(c, owner, { direction: 'purchase' })
     .withLots(1)
     .withSpots()
     .withTotals({ total: 1000 })
@@ -142,7 +141,7 @@ test('a customer is refused outright, their own order included', async () => {
       await asUser(owner, async () => {
         const before = (
           await client.query(
-            `SELECT o.status, t.total FROM orders.orders o
+            `SELECT o.cancelled_at, t.total FROM orders.orders o
              JOIN orders.transactions t ON t.order_id = o.id WHERE o.id = $1`,
             [order.id]
           )
@@ -150,8 +149,8 @@ test('a customer is refused outright, their own order included', async () => {
 
         const label = await request(app)
           .patch(`/api/orders/${order.id}`)
-          .send({ status: 'Completed' })
-        assert.equal(label.status, 403, 'the owner reached the status label')
+          .send({ notes: 'a note the owner should not be able to write' })
+        assert.equal(label.status, 403, 'the owner reached the patch endpoint')
 
         for (const action of ['add_funds', 'finalize', 'cancel', 'supply']) {
           const res = await request(app).post(`/api/orders/${order.id}/${action}`).send({})
@@ -166,7 +165,7 @@ test('a customer is refused outright, their own order included', async () => {
 
         const after = (
           await client.query(
-            `SELECT o.status, t.total FROM orders.orders o
+            `SELECT o.cancelled_at, t.total FROM orders.orders o
              JOIN orders.transactions t ON t.order_id = o.id WHERE o.id = $1`,
             [order.id]
           )
@@ -178,7 +177,7 @@ test('a customer is refused outright, their own order included', async () => {
   )
 })
 
-test('a status write moves the label and NOTHING else', async () => {
+test('a notes write moves the note and NOTHING else', async () => {
   await inPinnedTransaction(
     async (client: PoolClient) => {
       const { order } = await anOpenPurchaseOrder(client)
@@ -200,24 +199,24 @@ test('a status write moves the label and NOTHING else', async () => {
 
         const res = await request(app)
           .patch(`/api/orders/${order.id}`)
-          .send({ status: 'Payment Processing' })
+          .send({ notes: 'left at the front desk' })
         assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`)
 
         const row = (
           await client.query(
-            `SELECT o.status, t.total, o.spots_locked, o.updated_by
+            `SELECT o.notes, t.total, o.spots_locked, o.updated_by
              FROM orders.orders o
              JOIN orders.transactions t ON t.order_id = o.id WHERE o.id = $1`,
             [order.id]
           )
         ).rows[0]
-        assert.equal(row.status, 'Payment Processing')
+        assert.equal(row.notes, 'left at the front desk')
         assert.equal(row.updated_by, admin.name, 'the audit name did not come from the session')
 
         assert.deepEqual(
           { total: row.total, spots_locked: row.spots_locked },
           moneyBefore,
-          'a bare status write moved money or the spot pin'
+          'a bare notes write moved money or the spot pin'
         )
         const pricesAfter = (
           await client.query(
@@ -226,14 +225,14 @@ test('a status write moves the label and NOTHING else', async () => {
             [order.id]
           )
         ).rows
-        assert.deepEqual(pricesAfter, pricesBefore, 'a bare status write re-priced the lines')
+        assert.deepEqual(pricesAfter, pricesBefore, 'a bare notes write re-priced the lines')
       })
     },
     { actor: TEST_ACTOR.id, lock: ORDER_LOCK }
   )
 })
 
-test('the cancel action reaches the label pipeline and a label failure cancels nothing', async () => {
+test('the cancel action reaches the label pipeline, and a label failure leaves the cancellation standing', async () => {
   await inPinnedTransaction(
     async (client: PoolClient) => {
       const { service, box } = await label(client)
@@ -250,10 +249,14 @@ test('the cancel action reaches the label pipeline and a label failure cancels n
           `expected the label guard's 500, got ${res.status}: ${JSON.stringify(res.body)}`
         )
 
-        const { rows } = await client.query(`SELECT status FROM orders.orders WHERE id = $1`, [
-          returnable.id,
-        ])
-        assert.notEqual(rows[0].status, 'Cancelled')
+        const { rows } = await client.query(
+          `SELECT cancelled_at FROM orders.orders WHERE id = $1`,
+          [returnable.id]
+        )
+        assert.ok(
+          rows[0].cancelled_at,
+          'the DB write commits before the carrier is asked, so a label failure must not undo it'
+        )
       })
     },
     { actor: TEST_ACTOR.id, lock: ORDER_LOCK }
@@ -284,18 +287,18 @@ test('an unknown field is refused over HTTP and executes nothing beside it', asy
       const { order } = await anOpenPurchaseOrder(client)
       await asAdmin(admin, async () => {
         const before = (
-          await client.query(`SELECT status FROM orders.orders WHERE id = $1`, [order.id])
+          await client.query(`SELECT notes FROM orders.orders WHERE id = $1`, [order.id])
         ).rows[0]
 
         const res = await request(app)
           .patch(`/api/orders/${order.id}`)
-          .send({ status: 'Received', order_spots: [] })
+          .send({ notes: 'should not land', order_spots: [] })
 
         assert.equal(res.status, 400, `answered ${res.status}`)
         assert.match(res.body?.error?.message ?? '', /"order_spots"/)
 
         const after = (
-          await client.query(`SELECT status FROM orders.orders WHERE id = $1`, [order.id])
+          await client.query(`SELECT notes FROM orders.orders WHERE id = $1`, [order.id])
         ).rows[0]
         assert.deepEqual(after, before, 'the valid half of a refused document was executed')
       })
@@ -310,7 +313,7 @@ test('a nonexistent order answers 404 to an admin', async () => {
       await asAdmin(admin, async () => {
         const res = await request(app)
           .patch('/api/orders/00000000-0000-4000-8000-000000000000')
-          .send({ status: 'Received' })
+          .send({ notes: 'anything' })
         assert.equal(res.status, 404, `answered ${res.status}`)
       })
     },
@@ -338,7 +341,7 @@ const pinMetals = async (client: PoolClient) => {
 const snapshot = async (client: PoolClient, id: string) => ({
   order: (
     await client.query(
-      `SELECT o.status, o.spots_locked, t.total
+      `SELECT o.notes, o.spots_locked, t.total
          FROM orders.orders o
          JOIN orders.transactions t ON t.order_id = o.id WHERE o.id = $1`,
       [id]
@@ -383,11 +386,11 @@ test('finalizing prices the order and pins its spots; the label that follows mov
 
         const label = await request(app)
           .patch(`/api/orders/${order.id}`)
-          .send({ status: 'Payment Processing' })
+          .send({ notes: 'ready to pay' })
         assert.equal(label.status, 200, `label answered ${label.status}`)
 
         const after = await snapshot(client, order.id)
-        assert.equal(after.order.status, 'Payment Processing')
+        assert.equal(after.order.notes, 'ready to pay')
         assert.deepEqual(
           { total: after.order.total, spots_locked: after.order.spots_locked, items: after.items },
           {

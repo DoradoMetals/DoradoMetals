@@ -1,14 +1,30 @@
 import query from '#shared/db/query.ts'
 import { buildUpdate } from '#shared/db/patch.ts'
 import { sqlFrom } from '#shared/db/sql.ts'
+import { ARRIVED } from '#db/fulfillments/repo.ts'
 import { columnsOf, returningOf } from '#shared/db/columns.ts'
-import { Lot, LotPatch, LotView } from '@dorado/contracts'
+import {
+  InventoryLotView,
+  InventoryMetal,
+  Lot,
+  LotDetailFacts,
+  LotFilter,
+  LotPatch,
+  LotPosition,
+  LotView,
+} from '@dorado/contracts'
 import type { Executor } from '#shared/db/executor.ts'
 
 const sql = sqlFrom(import.meta.dirname)
 
 export const PATCHABLE = columnsOf(LotPatch)
 const RETURNING = returningOf(Lot)
+
+const POSITION = sql('position').trim().replaceAll('/*__fulfillment_arrived__*/', ARRIVED)
+const LIST_SQL = sql('list').replaceAll('/*__lot_position__*/', POSITION)
+const VIEW_ONE_SQL = sql('view_one').replaceAll('/*__lot_position__*/', POSITION)
+const POSITION_OF_SQL = sql('position_of').replaceAll('/*__lot_position__*/', POSITION)
+const INVENTORY_BY_METAL_SQL = sql('inventory_by_metal').replaceAll('/*__lot_position__*/', POSITION)
 
 export async function getOne(id: string, executor?: Executor): Promise<Lot | undefined> {
   const { rows } = await query<Lot>(sql('get_one'), [id], executor)
@@ -28,6 +44,56 @@ export async function search(
 ): Promise<LotView[]> {
   const { rows } = await query(sql('search'), [q, unassigned], executor)
   return rows.map((row) => LotView.parse(row))
+}
+
+export async function list(filter: LotFilter, executor?: Executor): Promise<InventoryLotView[]> {
+  const { rows } = await query(
+    LIST_SQL,
+    [
+      filter.positions,
+      filter.metal_id,
+      filter.kind,
+      filter.order_id,
+      filter.refiner_id,
+      filter.q,
+      filter.unassigned,
+    ],
+    executor
+  )
+  return rows.map((row) => InventoryLotView.parse(row))
+}
+
+export async function detail(
+  id: string,
+  executor?: Executor
+): Promise<LotDetailFacts | undefined> {
+  const { rows } = await query<{ view: unknown }>(VIEW_ONE_SQL, [id], executor)
+  return rows[0] === undefined ? undefined : LotDetailFacts.parse(rows[0].view)
+}
+
+export async function positionsOf(ids: string[], executor?: Executor): Promise<LotPosition[]> {
+  if (ids.length === 0) return []
+  const { rows } = await query(POSITION_OF_SQL, [ids], executor)
+  return rows.map((row) => LotPosition.parse(row))
+}
+
+export async function inventoryByMetal(executor?: Executor): Promise<InventoryMetal[]> {
+  const { rows } = await query(INVENTORY_BY_METAL_SQL, [], executor)
+  return rows.map((row) => InventoryMetal.parse(row))
+}
+
+export async function combine(lot_ids: string[], executor?: Executor): Promise<Lot> {
+  const { rows } = await query<Lot>(sql('combine'), [lot_ids], executor)
+  return rows[0]
+}
+
+export async function markCombined(
+  lot_ids: string[],
+  combined_into_id: string,
+  executor?: Executor
+): Promise<number> {
+  const { rowCount } = await query(sql('combine_parents'), [combined_into_id, lot_ids], executor)
+  return rowCount ?? 0
 }
 
 export async function create(row: LotPatch, executor?: Executor): Promise<Lot> {

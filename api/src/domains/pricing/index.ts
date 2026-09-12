@@ -1,4 +1,5 @@
 export {
+  inventoryMetals,
   priceCheckout,
   priceOrder,
   priceProduct,

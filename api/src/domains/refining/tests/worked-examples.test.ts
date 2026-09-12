@@ -191,7 +191,7 @@ test('the pool is a ledger: a lock is negative, and the balance is their sum', a
   })
 })
 
-test('a refiner order that has been sent refuses new lots, and settles only once', async () => {
+test('a refiner order that has been sent warns about new lots, and settles only once', async () => {
   await inOrders(async (c) => {
     const { order } = await aMixedOrder(c)
     const [r1] = await refinerIds(c)
@@ -200,13 +200,18 @@ test('a refiner order that has been sent refuses new lots, and settles only once
     await refining.assignLots(engagement.id, [lotA!.lot_id])
 
     await assert.rejects(() => refining.settle(engagement.id, { lots: [] }), /has not been sent/)
-    await refining.send(engagement.id)
-    await assert.rejects(
-      () => refining.assignLots(engagement.id, [lotB!.lot_id]),
-      /has been sent and its lots cannot change/
+    const sent = await refining.send(engagement.id)
+    assert.match(
+      sent.actions.find((a) => a.name === 'edit_lots')?.confirm ?? '',
+      /has already been sent/,
+      'a sent order offers edit_lots with a reason rather than refusing it'
     )
+    await refining.assignLots(engagement.id, [lotB!.lot_id])
     await refining.settle(engagement.id, {
-      lots: [{ lot_id: lotA!.lot_id, premium: 0.95 }],
+      lots: [
+        { lot_id: lotA!.lot_id, premium: 0.95 },
+        { lot_id: lotB!.lot_id, premium: 0.95 },
+      ],
     })
     await assert.rejects(
       () => refining.settle(engagement.id, { lots: [{ lot_id: lotA!.lot_id, premium: 0.9 }] }),

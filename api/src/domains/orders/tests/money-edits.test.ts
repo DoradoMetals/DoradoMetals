@@ -20,7 +20,7 @@ const admin: UserFixture = TEST_ACTOR
 
 const money = async (c: PoolClient) => {
   const customer = await aUser(c)
-  const order = await anOrder(c, customer, { direction: 'purchase', status: 'Pending' })
+  const order = await anOrder(c, customer, { direction: 'purchase' })
     .withLots(1)
     .withTotals({ total: 1000 })
   const parcel = await aShipment(c, order)

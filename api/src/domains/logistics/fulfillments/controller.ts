@@ -10,10 +10,9 @@ import { oneString } from '#shared/http/query.ts'
 import { callerId } from '#shared/http/caller.ts'
 import { asyncHandler } from '#shared/middleware/asyncHandler.ts'
 import { requireFulfillmentOwner } from '#logistics/fulfillments/owner.ts'
+import * as rules from '#logistics/fulfillments/rules.ts'
 import * as fulfillmentDrafts from '#logistics/fulfillments/drafts.ts'
 import * as fulfillmentService from '#logistics/fulfillments/service.ts'
-import * as rules from '#logistics/fulfillments/rules.ts'
-import * as emails from '#documents/emails/service.ts'
 import withTransaction from '#shared/db/withTransaction.ts'
 
 export const getSchedule = asyncHandler(async (req, res) => {
@@ -49,17 +48,13 @@ export const setMethod = asyncHandler(async (req, res) => {
 
 export const setStatus = asyncHandler(async (req, res) => {
   const body = parseStrict(FulfillmentSetStatusBody, req.body, 'fulfillments/set_status body')
-  const view = await withTransaction((tx) =>
-    fulfillmentService.moveStatus(body.fulfillment_id, body.status, tx)
-  )
-  if (
-    view?.fulfillment.order_id &&
-    view.method.category === 'PICKUP' &&
-    rules.isCollected(view.fulfillment.status)
-  ) {
-    await emails.sendPickupComplete(view.fulfillment.order_id)
-  }
-  return res.status(200).json(view)
+  return res
+    .status(200)
+    .json(
+      await withTransaction((tx) =>
+        fulfillmentService.moveStatus(body.fulfillment_id, body.status, tx)
+      )
+    )
 })
 
 export const getFulfillmentByOrder = asyncHandler(async (req, res) => {

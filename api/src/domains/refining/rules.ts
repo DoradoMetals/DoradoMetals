@@ -1,6 +1,7 @@
 import { Conflict, Invalid, NotFound } from '#shared/errors.ts'
 import { WeightUnit } from '@dorado/contracts'
 import type {
+  Action,
   Direction,
   Lot,
   OrderDocument,
@@ -9,6 +10,8 @@ import type {
   RefiningLot,
   RefiningLotPatch,
   RefiningOrder,
+  RefiningOrderActions,
+  RefiningOrderView,
   RefiningSettlementLot,
   StoredDocument,
 } from '@dorado/contracts'
@@ -65,13 +68,8 @@ export function assertPurchaseOrder(direction: Direction | null, order_id: strin
   }
 }
 
-export function assertFinalizedOrder(order: OrderRead | undefined, order_id: string): void {
+export function assertOrderExists(order: OrderRead | undefined, order_id: string): void {
   if (!order) throw new NotFound(`no order ${order_id}`)
-  if (!order.spots_locked) {
-    throw new Invalid(
-      `order ${order.number} is not finalized, so its lots have no settled price to sell on`
-    )
-  }
 }
 
 export function assertCancellable(order: RefiningOrder): void {
@@ -101,10 +99,9 @@ export function assertNoOpenSellOrder(open: RefiningOrder | undefined): void {
   }
 }
 
-export function assertOpen(order: RefiningOrder): void {
-  if (order.sent_at !== null) {
-    throw new Conflict(`refiner order ${order.number} has been sent and its lots cannot change`)
-  }
+export function sentConfirm(order: RefiningOrder): string | null {
+  if (order.sent_at === null) return null
+  return `Refiner order ${order.number} has already been sent, so its metal has left`
 }
 
 export function assertSendable(order: RefiningOrder, lots: RefiningLot[]): void {
@@ -197,6 +194,26 @@ export function assertLockable(balance: number, troy_oz: number): void {
 }
 
 const REFINING_DOCUMENTS: { kind: PdfKind; name: string }[] = [{ kind: 'invoice', name: 'Invoice' }]
+
+export function offer(
+  name: string,
+  confirm: string | null = null,
+  override: string | null = null
+): Action {
+  return { name, confirm, override }
+}
+
+export function actionsFor(view: RefiningOrderView): RefiningOrderActions {
+  const offered: Action[] = []
+  const open = view.cancelled_at === null && view.settled_at === null
+  if (open) offered.push(offer('edit_lots', sentConfirm(view)))
+  if (open && view.sent_at === null) offered.push(offer('send'))
+  if (open && view.sent_at !== null) offered.push(offer('settle'))
+  if (open && view.sent_at !== null) offered.push(offer('dispute'))
+  if (open) offered.push(offer('cancel'))
+  if (view.settled_at !== null) offered.push(offer('lock_ounces'))
+  return offered
+}
 
 export function documentsFor(sent: boolean, stored: StoredDocument[]): OrderDocument[] {
   return REFINING_DOCUMENTS.map((row) => {

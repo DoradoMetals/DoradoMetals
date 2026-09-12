@@ -1,4 +1,4 @@
-import { FailTransferBody, MarkSentBody, OpenPayoutBody } from '@dorado/contracts'
+import { FailTransferBody, MarkSentBody, OpenPayoutBody, SendPayoutBody } from '@dorado/contracts'
 import { asyncHandler } from '#shared/middleware/asyncHandler.ts'
 import { parseStrict, uuidParam } from '#shared/http/validate.ts'
 import { oneString } from '#shared/http/query.ts'
@@ -7,7 +7,7 @@ import * as payouts from '#transactions/payouts/service.ts'
 
 export const openPayout = asyncHandler(async (req, res) => {
   const body = parseStrict(OpenPayoutBody, req.body, 'payments/payouts body')
-  return res.status(201).json(await payouts.openPayout(body))
+  return res.status(201).json(await payouts.openPayout(body, req.sessionId ?? null))
 })
 
 export const getPayout = asyncHandler(async (req, res) => {
@@ -15,7 +15,8 @@ export const getPayout = asyncHandler(async (req, res) => {
 })
 
 export const sendPayout = asyncHandler(async (req, res) => {
-  return res.json(await payouts.sendPayout(uuidParam(req, 'id')))
+  const body = parseStrict(SendPayoutBody, req.body ?? {}, 'payments/payouts send body')
+  return res.json(await payouts.sendPayout(uuidParam(req, 'id'), body, req.sessionId ?? null))
 })
 
 export const markPayoutSent = asyncHandler(async (req, res) => {

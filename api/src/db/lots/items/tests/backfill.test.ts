@@ -58,8 +58,8 @@ async function anUnbackfilledLine(
 ): Promise<{ order_id: string; item_id: string }> {
   const user = await aUser(c)
   const { rows } = await c.query<{ id: string }>(
-    `INSERT INTO orders.orders (user_id, direction, status, number, spots_locked)
-     VALUES ($1, 'purchase', 'Completed', nextval('orders.purchase_number_seq'), $2)
+    `INSERT INTO orders.orders (user_id, direction, number, spots_locked)
+     VALUES ($1, 'purchase', nextval('orders.purchase_number_seq'), $2)
      RETURNING id`,
     [user.id, settled]
   )

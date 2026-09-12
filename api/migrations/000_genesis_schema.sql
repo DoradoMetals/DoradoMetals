@@ -325,6 +325,33 @@ CREATE SEQUENCE IF NOT EXISTS refining.order_number_seq AS bigint;
 -- function in its expression, and CREATE TABLE resolves it there and
 -- then. lots.items.content calls metals.fine_content.
 
+CREATE OR REPLACE FUNCTION lots.assay_stamp()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  IF (NEW.pre_melt, NEW.post_melt, NEW.purity, NEW.unit, NEW.quantity)
+     IS DISTINCT FROM
+     (OLD.pre_melt, OLD.post_melt, OLD.purity, OLD.unit, OLD.quantity)
+  THEN
+    NEW.assayed_at := now();
+  END IF;
+  RETURN NEW;
+END $function$;
+
+CREATE OR REPLACE FUNCTION lots.declare_stamp()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  NEW.declared_unit := COALESCE(NEW.declared_unit, NEW.unit);
+  NEW.declared_quantity := COALESCE(NEW.declared_quantity, NEW.quantity);
+  NEW.declared_pre_melt := COALESCE(NEW.declared_pre_melt, NEW.pre_melt);
+  NEW.declared_post_melt := COALESCE(NEW.declared_post_melt, NEW.post_melt);
+  NEW.declared_purity := COALESCE(NEW.declared_purity, NEW.purity);
+  RETURN NEW;
+END $function$;
+
 CREATE OR REPLACE FUNCTION metals.fine_content(weight numeric, unit text, purity numeric)
  RETURNS numeric
  LANGUAGE plpgsql
@@ -463,7 +490,7 @@ ALTER TABLE auth.pending_changes ADD COLUMN IF NOT EXISTS updated_by_id uuid;
 
 CREATE TABLE IF NOT EXISTS auth.pending_signups (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
-  phone_number text NOT NULL,
+  phone_number text,
   email text NOT NULL,
   name text NOT NULL,
   expires_at timestamp with time zone NOT NULL,
@@ -891,7 +918,15 @@ END) STORED,
   created_at timestamp with time zone DEFAULT now() NOT NULL,
   updated_at timestamp with time zone DEFAULT now() NOT NULL,
   created_by_id uuid,
-  updated_by_id uuid
+  updated_by_id uuid,
+  declared_unit text,
+  declared_quantity numeric,
+  declared_pre_melt numeric,
+  declared_post_melt numeric,
+  declared_purity numeric,
+  assayed_at timestamp with time zone,
+  declared_content numeric GENERATED ALWAYS AS (metals.fine_content(COALESCE(declared_post_melt, declared_pre_melt), declared_unit, declared_purity)) STORED,
+  combined_into_id uuid
 );
 ALTER TABLE lots.items ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE lots.items ADD COLUMN IF NOT EXISTS bullion_id uuid;
@@ -913,6 +948,14 @@ ALTER TABLE lots.items ADD COLUMN IF NOT EXISTS created_at timestamp with time z
 ALTER TABLE lots.items ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
 ALTER TABLE lots.items ADD COLUMN IF NOT EXISTS created_by_id uuid;
 ALTER TABLE lots.items ADD COLUMN IF NOT EXISTS updated_by_id uuid;
+ALTER TABLE lots.items ADD COLUMN IF NOT EXISTS declared_unit text;
+ALTER TABLE lots.items ADD COLUMN IF NOT EXISTS declared_quantity numeric;
+ALTER TABLE lots.items ADD COLUMN IF NOT EXISTS declared_pre_melt numeric;
+ALTER TABLE lots.items ADD COLUMN IF NOT EXISTS declared_post_melt numeric;
+ALTER TABLE lots.items ADD COLUMN IF NOT EXISTS declared_purity numeric;
+ALTER TABLE lots.items ADD COLUMN IF NOT EXISTS assayed_at timestamp with time zone;
+ALTER TABLE lots.items ADD COLUMN IF NOT EXISTS declared_content numeric GENERATED ALWAYS AS (metals.fine_content(COALESCE(declared_post_melt, declared_pre_melt), declared_unit, declared_purity)) STORED;
+ALTER TABLE lots.items ADD COLUMN IF NOT EXISTS combined_into_id uuid;
 
 CREATE TABLE IF NOT EXISTS media.emails (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -1092,7 +1135,6 @@ CREATE TABLE IF NOT EXISTS orders.orders (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
   user_id uuid,
   direction orders.direction,
-  status text,
   number bigint NOT NULL,
   notes text,
   review_created boolean,
@@ -1105,12 +1147,12 @@ CREATE TABLE IF NOT EXISTS orders.orders (
   order_sent boolean,
   tracking_updated boolean,
   spots_locked boolean DEFAULT false NOT NULL,
-  assigned_to_id uuid
+  assigned_to_id uuid,
+  cancelled_at timestamp with time zone
 );
 ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS user_id uuid;
 ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS direction orders.direction;
-ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS status text;
 ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS number bigint;
 ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS notes text;
 ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS review_created boolean;
@@ -1124,6 +1166,7 @@ ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS order_sent boolean;
 ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS tracking_updated boolean;
 ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS spots_locked boolean DEFAULT false;
 ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS assigned_to_id uuid;
+ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS cancelled_at timestamp with time zone;
 
 CREATE TABLE IF NOT EXISTS orders.spots (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -1613,7 +1656,8 @@ CREATE TABLE IF NOT EXISTS payments.transfers (
   updated_at timestamp with time zone DEFAULT now() NOT NULL,
   created_by_id uuid,
   updated_by_id uuid,
-  refining_order_id uuid
+  refining_order_id uuid,
+  override_reason text
 );
 ALTER TABLE payments.transfers ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE payments.transfers ADD COLUMN IF NOT EXISTS order_id uuid;
@@ -1637,6 +1681,7 @@ ALTER TABLE payments.transfers ADD COLUMN IF NOT EXISTS updated_at timestamp wit
 ALTER TABLE payments.transfers ADD COLUMN IF NOT EXISTS created_by_id uuid;
 ALTER TABLE payments.transfers ADD COLUMN IF NOT EXISTS updated_by_id uuid;
 ALTER TABLE payments.transfers ADD COLUMN IF NOT EXISTS refining_order_id uuid;
+ALTER TABLE payments.transfers ADD COLUMN IF NOT EXISTS override_reason text;
 
 CREATE TABLE IF NOT EXISTS places.addresses (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -2675,6 +2720,16 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'a_lot_is_not_its_own_successor' AND c.relname = 'items' AND n.nspname = 'lots'
+  ) THEN
+    ALTER TABLE lots.items ADD CONSTRAINT a_lot_is_not_its_own_successor CHECK (((combined_into_id IS NULL) OR (combined_into_id <> id)));
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'a_product_lot_is_not_melted' AND c.relname = 'items' AND n.nspname = 'lots'
   ) THEN
     ALTER TABLE lots.items ADD CONSTRAINT a_product_lot_is_not_melted CHECK (((bullion_id IS NULL) OR (post_melt IS NULL)));
@@ -3068,6 +3123,16 @@ DO $$ BEGIN
     WHERE con.conname = 'a_transfer_moves_for_one_order' AND c.relname = 'transfers' AND n.nspname = 'payments'
   ) THEN
     ALTER TABLE payments.transfers ADD CONSTRAINT a_transfer_moves_for_one_order CHECK (((order_id IS NULL) <> (refining_order_id IS NULL)));
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'transfers_override_reason_said_something' AND c.relname = 'transfers' AND n.nspname = 'payments'
+  ) THEN
+    ALTER TABLE payments.transfers ADD CONSTRAINT transfers_override_reason_said_something CHECK (((override_reason IS NULL) OR (length(btrim(override_reason)) >= 10)));
   END IF;
 END $$;
 DO $$ BEGIN
@@ -4048,6 +4113,16 @@ DO $$ BEGIN
     WHERE con.conname = 'leads_updated_by_id_fkey' AND c.relname = 'leads' AND n.nspname = 'leads'
   ) THEN
     ALTER TABLE leads.leads ADD CONSTRAINT leads_updated_by_id_fkey FOREIGN KEY (updated_by_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'items_combined_into_id_fkey' AND c.relname = 'items' AND n.nspname = 'lots'
+  ) THEN
+    ALTER TABLE lots.items ADD CONSTRAINT items_combined_into_id_fkey FOREIGN KEY (combined_into_id) REFERENCES lots.items(id) ON DELETE SET NULL;
   END IF;
 END $$;
 DO $$ BEGIN
@@ -5271,6 +5346,7 @@ CREATE INDEX IF NOT EXISTS employees_enabled_idx ON auth.employees USING btree (
 CREATE UNIQUE INDEX IF NOT EXISTS employees_user_uniq ON auth.employees USING btree (user_id);
 CREATE UNIQUE INDEX IF NOT EXISTS pending_changes_one_open_per_user ON auth.pending_changes USING btree (user_id) WHERE (confirmed_at IS NULL);
 CREATE INDEX IF NOT EXISTS pending_signups_email ON auth.pending_signups USING btree (email);
+CREATE UNIQUE INDEX IF NOT EXISTS pending_signups_one_email_no_phone ON auth.pending_signups USING btree (email) WHERE (phone_number IS NULL);
 CREATE INDEX IF NOT EXISTS session_impersonatedby_idx ON auth.sessions USING btree ("impersonatedBy");
 CREATE INDEX IF NOT EXISTS session_userid_idx ON auth.sessions USING btree ("userId");
 CREATE INDEX IF NOT EXISTS users_anonymous_stale_idx ON auth.users USING btree ("updatedAt") WHERE "isAnonymous";
@@ -5321,6 +5397,8 @@ CREATE INDEX IF NOT EXISTS idx_leads_leads_updated_by_id ON leads.leads USING bt
 CREATE INDEX IF NOT EXISTS migration_leads_email_idx ON leads.leads USING btree (lower(email));
 CREATE INDEX IF NOT EXISTS migration_leads_phone_idx ON leads.leads USING btree (phone);
 CREATE INDEX IF NOT EXISTS migration_leads_status_idx ON leads.leads USING btree (converted, contacted, responded);
+CREATE INDEX IF NOT EXISTS items_combined_into_idx ON lots.items USING btree (combined_into_id) WHERE (combined_into_id IS NOT NULL);
+CREATE INDEX IF NOT EXISTS items_split_from_idx ON lots.items USING btree (split_from_id) WHERE (split_from_id IS NOT NULL);
 CREATE INDEX IF NOT EXISTS lots_items_bullion ON lots.items USING btree (bullion_id);
 CREATE INDEX IF NOT EXISTS lots_items_metal ON lots.items USING btree (metal_id);
 CREATE INDEX IF NOT EXISTS lots_items_split ON lots.items USING btree (split_from_id);
@@ -5346,6 +5424,7 @@ CREATE INDEX IF NOT EXISTS idx_orders_orders_created_by_id ON orders.orders USIN
 CREATE INDEX IF NOT EXISTS idx_orders_orders_updated_by_id ON orders.orders USING btree (updated_by_id);
 CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders.orders USING btree (user_id);
 CREATE INDEX IF NOT EXISTS orders_assigned ON orders.orders USING btree (assigned_to_id);
+CREATE INDEX IF NOT EXISTS orders_cancelled_at_idx ON orders.orders USING btree (cancelled_at) WHERE (cancelled_at IS NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_order_spots_metal ON orders.spots USING btree (metal_id);
 CREATE INDEX IF NOT EXISTS idx_order_spots_order ON orders.spots USING btree (order_id);
 CREATE UNIQUE INDEX IF NOT EXISTS order_spots_one_per_order_metal ON orders.spots USING btree (order_id, metal_id);
@@ -5407,7 +5486,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS transfer_events_provider_event_key ON payments
 CREATE INDEX IF NOT EXISTS transfer_events_provider_ref_idx ON payments.transfer_events USING btree (provider_ref);
 CREATE INDEX IF NOT EXISTS transfer_events_transfer_idx ON payments.transfer_events USING btree (transfer_id, occurred_at DESC);
 CREATE INDEX IF NOT EXISTS transfers_counterparty_idx ON payments.transfers USING btree (counterparty_user_id);
-CREATE UNIQUE INDEX IF NOT EXISTS transfers_one_live_per_order_kind ON payments.transfers USING btree (order_id, kind) WHERE (state <> 'Failed'::payments.transfer_state);
+CREATE UNIQUE INDEX IF NOT EXISTS transfers_one_live_per_order_kind ON payments.transfers USING btree (order_id, kind) WHERE ((state <> 'Failed'::payments.transfer_state) AND (override_reason IS NULL));
 CREATE UNIQUE INDEX IF NOT EXISTS transfers_one_live_per_refining_order_kind ON payments.transfers USING btree (refining_order_id, kind) WHERE (state <> 'Failed'::payments.transfer_state);
 CREATE INDEX IF NOT EXISTS transfers_order_idx ON payments.transfers USING btree (order_id);
 CREATE UNIQUE INDEX IF NOT EXISTS transfers_provider_ref_key ON payments.transfers USING btree (provider, provider_ref) WHERE (provider_ref IS NOT NULL);
@@ -5485,6 +5564,21 @@ CREATE INDEX IF NOT EXISTS sales_tax_rules_lookup_idx ON tax.sales_tax_rules USI
 --
 -- The compat views, which reassemble an exchange-shaped row from the
 -- tables it was split across. Only the parity check reads them.
+
+CREATE OR REPLACE VIEW fulfillments.arrivals AS
+ SELECT f.id AS fulfillment_id,
+    f.order_id,
+    f.refining_order_id,
+    m.category,
+        CASE
+            WHEN m.category = 'SHIPMENT'::fulfillments.category THEN (EXISTS ( SELECT 1
+               FROM fulfillments.shipments fs
+                 JOIN shipping.shipments s ON s.id = fs.shipment_id
+              WHERE fs.fulfillment_id = f.id AND s.direction = 'Inbound'::shipping.direction AND (s.delivered_at IS NOT NULL OR s.shipping_status = 'Delivered'::text)))
+            ELSE f.status = ANY (ARRAY['PICKED_UP'::fulfillments.fulfillment_status, 'COMPLETED'::fulfillments.fulfillment_status, 'DROPPED_OFF'::fulfillments.fulfillment_status])
+        END AS arrived
+   FROM fulfillments.fulfillments f
+     JOIN fulfillments.methods m ON m.id = f.method_id;
 
 CREATE OR REPLACE VIEW metals.exchange_compat AS
  SELECT m.id,

@@ -1,11 +1,13 @@
 import query from '#shared/db/query.ts'
 import { buildUpdate } from '#shared/db/patch.ts'
 import { sqlFrom } from '#shared/db/sql.ts'
+import { ORDER_STATE } from '#db/orders/repo.ts'
 import { AddressBookEntryFacts as Facts, UserAddressWriteColumns } from '@dorado/contracts'
 import type { AddressBookEntryFacts, UserAddress } from '@dorado/contracts'
 import type { Executor } from '#shared/db/executor.ts'
 
 const sql = sqlFrom(import.meta.dirname)
+const VIEW_SQL = sql('view').replace('/*__order_state__*/', ORDER_STATE)
 
 const RETURNING =
   'id, address_id, user_id, recipient_name, label, default_shipping, default_billing'
@@ -17,7 +19,7 @@ export async function view(
   address_id: string | null,
   executor?: Executor
 ): Promise<AddressBookEntryFacts[]> {
-  const { rows } = await query(sql('view'), [user_id, address_id], executor)
+  const { rows } = await query(VIEW_SQL, [user_id, address_id], executor)
   return rows.map((row) => Facts.parse(row))
 }
 

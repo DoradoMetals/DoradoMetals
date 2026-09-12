@@ -486,8 +486,11 @@ test('a carrier failure buying the label leaves the order and its shell shipment
 
       const {
         rows: [order],
-      } = await c.query(`SELECT status FROM orders.orders WHERE id = $1`, [fulfillment.order_id])
-      assert.equal(order.status, 'In Transit', 'the order row itself did not survive')
+      } = await c.query(`SELECT direction, cancelled_at FROM orders.orders WHERE id = $1`, [
+        fulfillment.order_id,
+      ])
+      assert.equal(order.direction, 'purchase', 'the order row itself did not survive')
+      assert.equal(order.cancelled_at, null, 'a failed label should not have cancelled the order')
 
       const {
         rows: [shipment],

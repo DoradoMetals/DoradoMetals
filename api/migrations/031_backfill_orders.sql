@@ -61,12 +61,21 @@ END $$;
 -- runs after 093 has created the engagement rows. Purchases never had a
 -- source column, which is the same fact this file always recorded.
 
+-- `status` was copied here until 2026-09-12. It is gone (ruling 112: statuses
+-- are decorative, the database stores facts) and its one load-bearing value
+-- lands on `cancelled_at` instead; every other value the column held is derived
+-- by db/orders/sql/order_state.sql from payment, fulfillment and lot facts.
+-- Edited rather than left, for the same reason the offers block below was.
+
 INSERT INTO orders.orders (
-  id, user_id, direction, status, number, notes, review_created,
+  id, user_id, direction, cancelled_at, number, notes, review_created,
   spots_locked, created_by, updated_by, created_at, updated_at
 )
 SELECT
-  p.id, p.user_id, 'purchase', p.purchase_order_status, p.order_number,
+  p.id, p.user_id, 'purchase',
+  CASE WHEN p.purchase_order_status = 'Cancelled'
+       THEN p.updated_at AT TIME ZONE 'UTC' END,
+  p.order_number,
   p.notes, p.review_created, coalesce(p.spots_locked, false),
   p.created_by, p.updated_by,
   p.created_at AT TIME ZONE 'UTC', p.updated_at AT TIME ZONE 'UTC'
@@ -74,12 +83,15 @@ FROM exchange.purchase_orders p
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO orders.orders (
-  id, user_id, direction, status, number, notes, review_created,
+  id, user_id, direction, cancelled_at, number, notes, review_created,
   created_by, updated_by, created_at, updated_at
 )
 SELECT
   s.id, s.user_id,
-  'sale', s.sales_order_status, s.order_number,
+  'sale',
+  CASE WHEN s.sales_order_status = 'Cancelled'
+       THEN s.updated_at AT TIME ZONE 'UTC' END,
+  s.order_number,
   s.notes, s.review_created, s.created_by, s.updated_by,
   s.created_at AT TIME ZONE 'UTC', s.updated_at AT TIME ZONE 'UTC'
 FROM exchange.sales_orders s

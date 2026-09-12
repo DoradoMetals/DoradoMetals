@@ -22,6 +22,14 @@ export const Lot = z.object({
   'updated_at': z.string(),
   'created_by_id': z.string().uuid().nullable(),
   'updated_by_id': z.string().uuid().nullable(),
+  'declared_unit': z.string().nullable(),
+  'declared_quantity': z.number().nullable(),
+  'declared_pre_melt': z.number().nullable(),
+  'declared_post_melt': z.number().nullable(),
+  'declared_purity': z.number().nullable(),
+  'assayed_at': z.string().nullable(),
+  'declared_content': z.number().nullable(),
+  'combined_into_id': z.string().uuid().nullable(),
 })
 export type Lot = z.infer<typeof Lot>
 // generated:end
@@ -57,9 +65,57 @@ export type LotSplitPart = z.infer<typeof LotSplitPart>
 export const LotSplit = z.object({ parts: z.array(LotSplitPart).min(2) }).strict()
 export type LotSplit = z.infer<typeof LotSplit>
 
+export const Position = z.enum([
+  'incoming',
+  'on hand',
+  'at refiner',
+  'pooled',
+  'sold',
+  'consumed',
+])
+export type Position = z.infer<typeof Position>
+
+export const LotKind = z.enum(['scrap', 'bullion'])
+export type LotKind = z.infer<typeof LotKind>
+
 export const LotView = Lot.extend({
   product_name: Bullion.shape.name.nullable(),
   form: Bullion.shape.type.nullable(),
   reference: Lot.shape.metal_id.nullable(),
 })
 export type LotView = z.infer<typeof LotView>
+
+export const InventoryLotView = LotView.extend({
+  position: Position,
+  order_id: Lot.shape.id.nullable(),
+  order_number: z.number().int().nullable(),
+  order_reference: z.string().nullable(),
+  order_direction: z.string().nullable(),
+  refining_order_id: Lot.shape.id.nullable(),
+  refining_order_number: z.number().int().nullable(),
+  refining_order_reference: z.string().nullable(),
+  refiner_id: Lot.shape.id.nullable(),
+  refiner_name: z.string().nullable(),
+  variance: Lot.shape.content,
+})
+export type InventoryLotView = z.infer<typeof InventoryLotView>
+
+export const LotPosition = z.object({
+  id: Lot.shape.id,
+  position: Position,
+})
+export type LotPosition = z.infer<typeof LotPosition>
+
+export const LotFilter = z.object({}).extend({
+  positions: z.array(Position).nullable(),
+  metal_id: z.string().nullable(),
+  kind: LotKind.nullable(),
+  order_id: z.string().uuid().nullable(),
+  refiner_id: z.string().uuid().nullable(),
+  q: z.string().nullable(),
+  unassigned: z.boolean().nullable(),
+})
+export type LotFilter = z.infer<typeof LotFilter>
+
+export const LotCombine = z.object({ lot_ids: z.array(Lot.shape.id).min(2) }).strict()
+export type LotCombine = z.infer<typeof LotCombine>

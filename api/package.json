@@ -120,6 +120,7 @@
     "#pricing/*": "./src/domains/pricing/*",
     "#orders/*": "./src/domains/orders/*",
     "#refining/*": "./src/domains/refining/*",
+    "#inventory/*": "./src/domains/inventory/*",
     "#checkout/*": "./src/domains/checkout/*",
     "#transactions/*": "./src/domains/transactions/*",
     "#catalog/*": "./src/domains/catalog/*",
