@@ -1,6 +1,13 @@
 import { describe, expect, test, vi } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
-import type { FulfillmentMethodRead, FulfillmentStatus, Rail } from '@dorado/contracts'
+import {
+  OrderActions,
+  type FulfillmentMethodRead,
+  type FulfillmentStatus,
+  type Rail,
+} from '@dorado/contracts'
+
+import { hasAction } from '@/shared/utils/actions'
 
 import {
   AppointmentCard,
@@ -825,7 +832,7 @@ describe('the states the API lane unblocked', () => {
         live={[]}
         locked
         canToggle
-        toggleDisabled={!anActions({ unlock_spots: false }).unlock_spots}
+        toggleDisabled={!hasAction(anActions({ unlock_spots: false }), 'unlock_spots')}
         onToggleLock={noop}
         onSetBid={noop}
       />
@@ -838,7 +845,7 @@ describe('the states the API lane unblocked', () => {
         live={[]}
         locked
         canToggle
-        toggleDisabled={!anActions({ unlock_spots: true }).unlock_spots}
+        toggleDisabled={!hasAction(anActions({ unlock_spots: true }), 'unlock_spots')}
         onToggleLock={noop}
         onSetBid={noop}
       />
@@ -1214,8 +1221,10 @@ describe('nothing is decided in the browser', () => {
   })
 
   test('anActions default is a shape the contract accepts', () => {
-    const actions = anActions({ finalize: false, finalize_blocked_by: ['spots are unlocked'] })
-    expect(actions.finalize_blocked_by).toEqual(['spots are unlocked'])
+    const actions = anActions({ finalize: false })
+    expect(() => OrderActions.parse(actions)).not.toThrow()
+    expect(hasAction(actions, 'finalize')).toBe(false)
+    expect(hasAction(actions, 'cancel')).toBe(true)
     expect(vi.isMockFunction(noop)).toBe(false)
   })
 })

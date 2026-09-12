@@ -28,22 +28,37 @@ import type {
 
 const ID = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
 
-export const anActions = (over: Partial<OrderActions> = {}): OrderActions => ({
+type ActionOverride = boolean | { confirm?: string | null; override?: string | null }
+
+const ACTION_DEFAULTS: Record<string, boolean> = {
   cancel: true,
   reopen: false,
   finalize: true,
   add_funds: false,
+  send_payment: true,
   supply: false,
+  refining_sale: false,
   buy_label: false,
   update_tracking: false,
   edit_lots: true,
   assign_lots: true,
   lock_spots: true,
   unlock_spots: false,
-  statuses: [],
-  finalize_blocked_by: [],
-  ...over,
-})
+}
+
+export const anActions = (over: Record<string, ActionOverride> = {}): OrderActions => {
+  const merged: Record<string, ActionOverride> = { ...ACTION_DEFAULTS, ...over }
+  const offered: OrderActions = []
+  for (const [name, value] of Object.entries(merged)) {
+    if (value === false) continue
+    offered.push({
+      name,
+      confirm: value === true ? null : (value.confirm ?? null),
+      override: value === true ? null : (value.override ?? null),
+    })
+  }
+  return offered
+}
 
 export const aTotals = (over: Partial<OrderTotals> = {}): OrderTotals =>
   ({
@@ -108,6 +123,14 @@ export const aLot = (over: Partial<OrderLotView> = {}): OrderLotView =>
       updated_at: '2026-09-01T12:00:00.000Z',
       created_by_id: null,
       updated_by_id: null,
+      declared_unit: 'g',
+      declared_quantity: 1,
+      declared_pre_melt: 42.1,
+      declared_post_melt: 41.8,
+      declared_purity: 0.585,
+      assayed_at: null,
+      declared_content: 0.786,
+      combined_into_id: null,
       product_name: null,
       form: 'Scrap',
       reference: 'Lot 2481-A',
@@ -142,7 +165,6 @@ export const anOrderView = (over: Partial<OrderView> = {}): OrderView =>
       id: ID(1),
       user_id: ID(2),
       direction: 'purchase',
-      status: 'In Transit',
       number: 2481,
       notes: null,
       review_created: null,
@@ -156,7 +178,9 @@ export const anOrderView = (over: Partial<OrderView> = {}): OrderView =>
       tracking_updated: null,
       spots_locked: false,
       assigned_to_id: ID(3),
+      cancelled_at: null,
     },
+    state: 'Awaiting Receipt',
     totals: aTotals(),
     lots: [aLot()],
     address: {
@@ -323,6 +347,7 @@ export const aFulfillment = (over: Partial<FulfillmentView> = {}): FulfillmentVi
       cancel_schedule: true,
       categories: [],
       transitions: [],
+      moves: [],
     },
     ...over,
   }) satisfies FulfillmentView
