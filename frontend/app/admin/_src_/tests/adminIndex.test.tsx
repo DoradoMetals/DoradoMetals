@@ -19,7 +19,7 @@ const anOrder = (over: Partial<OrderListItem> = {}): OrderListItem =>
     id: '11111111-1111-4111-8111-111111111111',
     user_id: '22222222-2222-4222-8222-222222222222',
     direction: 'purchase',
-    status: 'In Transit',
+    state: 'In Transit',
     number: 16286,
     created_at: '2026-09-04T15:30:00.000Z',
     spots_locked: false,

@@ -2,6 +2,7 @@
 
 import * as React from 'react'
 import {
+  useAddFunds,
   useAdmins,
   useAdminUser,
   useCancelLabel,
@@ -50,14 +51,27 @@ import {
   useSendSms,
   useSetFulfillmentMethod,
   useSetFulfillmentStatus,
+  useSupplyOrder,
 } from '@dorado/client'
 import {
   Rail,
+  type Action,
   type FulfillmentPatchBody,
   type OrderLotPatch,
   type SmsMedia,
 } from '@dorado/contracts'
-import { Skeleton } from '@dorado/components'
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Skeleton,
+} from '@dorado/components'
+
+import { findAction, hasAction } from '@/shared/utils/actions'
 
 import {
   AppointmentCard,
@@ -117,6 +131,8 @@ export function AdminOrderScreen({ id }: { id: string }) {
   const deleteLot = useDeleteOrderLot(id)
   const batch = useCreateRefiningOrder()
   const createSale = useCreateRefiningSale(id)
+  const supply = useSupplyOrder(id)
+  const addFunds = useAddFunds(id)
   const openPayout = useOpenPayout(id)
   const sendPayout = useSendPayout(id)
   const openCharge = useOpenCharge(id)
@@ -139,12 +155,23 @@ export function AdminOrderScreen({ id }: { id: string }) {
   const [payToId, setPayToId] = React.useState<string | null>(null)
   const [matching, setMatching] = React.useState(false)
   const [batchRefiner, setBatchRefiner] = React.useState<string | null>(null)
+  const [confirming, setConfirming] = React.useState<{ reason: string; run: () => void } | null>(
+    null
+  )
+
+  const runAction = (action: Action | undefined, run: () => void) => {
+    if (action?.confirm) {
+      setConfirming({ reason: action.confirm, run })
+      return
+    }
+    run()
+  }
 
   if (order.isPending || !order.data) return <ScreenSkeleton />
 
   const view = order.data
   const actions = view.actions
-  const cancelled = (view.order.status ?? '').toLowerCase() === 'cancelled'
+  const cancelled = view.order.cancelled_at !== null
   const isSale = direction === 'sale'
   const fulfilment = fulfillment.data ?? null
   const category = fulfilment?.method.category ?? null
@@ -159,11 +186,19 @@ export function AdminOrderScreen({ id }: { id: string }) {
     name: one.organization.name ?? 'Unnamed refiner',
   }))
 
+  const finalizeAction = findAction(actions, 'finalize')
+  const sendPaymentAction = findAction(actions, 'send_payment')
+  const supplyAction = findAction(actions, 'supply')
+  const refiningSaleAction = findAction(actions, 'refining_sale')
+  const addFundsAction = findAction(actions, 'add_funds')
+  const notFinalized = hasAction(actions, 'finalize')
+
   return (
     <div className="flex flex-col gap-lg p-md lg:p-xl">
       <OrderHeaderCard
         eyebrow={isSale ? 'SALES ORDER' : 'PURCHASE ORDER'}
         reference={view.reference}
+        state={view.state}
         cancelled={cancelled}
         party={{
           kind: 'customer',
@@ -176,7 +211,7 @@ export function AdminOrderScreen({ id }: { id: string }) {
         assignDisabled={cancelled}
         onAssign={(assigned_to_id) => patchOrder.mutate({ assigned_to_id })}
         cancel={
-          actions.cancel
+          hasAction(actions, 'cancel')
             ? {
                 label: 'Cancel Order',
                 onClick: () => cancel.mutate({}),
@@ -185,13 +220,14 @@ export function AdminOrderScreen({ id }: { id: string }) {
             : undefined
         }
         primary={{
-          label: actions.finalize ? 'Finalize' : 'Finalized',
-          onClick: () => finalize.mutate(undefined),
-          disabled: !actions.finalize,
-          reason: actions.finalize_blocked_by.join(' · ') || undefined,
+          label: finalizeAction ? 'Finalize' : 'Finalized',
+          onClick: () => runAction(finalizeAction, () => finalize.mutate(undefined)),
+          disabled: !finalizeAction,
         }}
         reopen={
-          actions.reopen ? { label: 'Reopen Order', onClick: () => reopen.mutate(undefined) } : undefined
+          hasAction(actions, 'reopen')
+            ? { label: 'Reopen Order', onClick: () => reopen.mutate(undefined) }
+            : undefined
         }
       />
 
@@ -340,8 +376,12 @@ export function AdminOrderScreen({ id }: { id: string }) {
             spots={spots.data ?? []}
             live={live.data ?? []}
             locked={view.order.spots_locked}
-            canToggle={actions.lock_spots || actions.unlock_spots}
-            toggleDisabled={view.order.spots_locked ? !actions.unlock_spots : !actions.lock_spots}
+            canToggle={hasAction(actions, 'lock_spots') || hasAction(actions, 'unlock_spots')}
+            toggleDisabled={
+              view.order.spots_locked
+                ? !hasAction(actions, 'unlock_spots')
+                : !hasAction(actions, 'lock_spots')
+            }
             onToggleLock={(lock) => putSpots.mutate({ lock })}
             onSetBid={(metal_id, bid) => putSpots.mutate({ set: [{ metal_id, bid }] })}
             pending={putSpots.isPending}
@@ -350,7 +390,7 @@ export function AdminOrderScreen({ id }: { id: string }) {
           <LotsCard
             kind={isSale ? 'bullion' : 'scrap'}
             lots={view.lots}
-            readOnly={!actions.edit_lots}
+            readOnly={!hasAction(actions, 'edit_lots')}
             refiners={refinerItems}
             refinerId={batchRefiner}
             onRefinerChange={setBatchRefiner}
@@ -362,11 +402,21 @@ export function AdminOrderScreen({ id }: { id: string }) {
               batch.mutate({ refiner_id: batchRefiner, direction: 'sell', lot_ids })
             }}
             onCreateSale={
-              actions.supply
-                ? () => batchRefiner && createSale.mutate({ refiner_id: batchRefiner })
-                : undefined
+              isSale
+                ? supplyAction
+                  ? () =>
+                      batchRefiner &&
+                      runAction(supplyAction, () => supply.mutate({ refiner_id: batchRefiner }))
+                  : undefined
+                : refiningSaleAction
+                  ? () =>
+                      batchRefiner &&
+                      runAction(refiningSaleAction, () =>
+                        createSale.mutate({ refiner_id: batchRefiner })
+                      )
+                  : undefined
             }
-            createSaleDisabled={createSale.isPending}
+            createSaleDisabled={isSale ? supply.isPending : createSale.isPending}
             pending={patchLot.isPending || deleteLot.isPending || createLot.isPending}
           />
 
@@ -395,19 +445,39 @@ export function AdminOrderScreen({ id }: { id: string }) {
             }}
             onSend={() => {
               if (!chosenRail) return
-              if (payment.data?.transfer_id) {
-                sendPayout.mutate(payment.data.transfer_id)
-                return
+              const run = () => {
+                if (payment.data?.transfer_id) {
+                  sendPayout.mutate(payment.data.transfer_id)
+                  return
+                }
+                if (isSale) openCharge.mutate({ order_id: id, rail: chosenRail })
+                else openPayout.mutate({ order_id: id, rail: chosenRail })
               }
-              if (isSale) openCharge.mutate({ order_id: id, rail: chosenRail })
-              else openPayout.mutate({ order_id: id, rail: chosenRail })
+              runAction(sendPaymentAction, run)
             }}
-            sendDisabled={actions.finalize}
+            sendDisabled={notFinalized}
             sendReason={
-              actions.finalize ? 'Finalize the order before the money moves.' : null
+              notFinalized
+                ? 'Finalize the order before the money moves.'
+                : (sendPaymentAction?.confirm ?? null)
             }
             pending={openPayout.isPending || sendPayout.isPending || openCharge.isPending}
           />
+
+          {addFundsAction && (
+            <div className="flex items-center gap-sm">
+              <Button
+                variant="secondary"
+                disabled={!!addFundsAction.override || addFunds.isPending}
+                onClick={() => addFunds.mutate(undefined)}
+              >
+                Add Funds
+              </Button>
+              {addFundsAction.override && (
+                <p className="text-micro text-muted-foreground">{addFundsAction.override}</p>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="flex w-full flex-col gap-lg lg:w-[400px] lg:shrink-0">
@@ -433,6 +503,29 @@ export function AdminOrderScreen({ id }: { id: string }) {
           />
         </div>
       </div>
+
+      <Dialog open={confirming != null} onOpenChange={(open) => !open && setConfirming(null)}>
+        <DialogContent size="sm">
+          <DialogHeader>
+            <DialogTitle>Are you sure?</DialogTitle>
+          </DialogHeader>
+          <DialogDescription>{confirming?.reason}</DialogDescription>
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setConfirming(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                confirming?.run()
+                setConfirming(null)
+              }}
+            >
+              Continue
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
