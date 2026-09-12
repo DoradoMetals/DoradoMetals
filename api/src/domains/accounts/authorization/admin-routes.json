@@ -22,7 +22,6 @@
   "GET /api/lots/:id",
   "GET /api/metals",
   "GET /api/mints",
-  "GET /api/orders/:id/documents",
   "GET /api/orders/:orderId/directs",
   "GET /api/orders/:orderId/dropoffs",
   "GET /api/orders/:orderId/pickups",

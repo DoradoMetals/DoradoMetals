@@ -20,6 +20,8 @@ import {
 } from '#documents/emails/service.ts'
 import { detailsChangedRows } from '#documents/emails/rules.ts'
 import type {
+  AccountProfile,
+  AccountProfilePatch,
   AuthOtpThrottle,
   ChangeConfirmedView,
   ConfirmChangeBody,
@@ -534,4 +536,28 @@ export function lastCode(number: string | undefined, email: string | undefined):
   if (number) return fakeSms.lastCodeTo(number)
   if (email) return fakeEmail.lastCodeTo(email)
   return null
+}
+
+export async function profile(user_id: string): Promise<AccountProfile> {
+  const row = await users.getProfile(user_id)
+  return rules.assertProfile(user_id, row)
+}
+
+export async function updateProfile(
+  user_id: string,
+  patch: AccountProfilePatch
+): Promise<AccountProfile> {
+  const updated = await withTransaction((tx) => users.update(user_id, patch, tx))
+  rules.assertApplied(updated, 'the account')
+  return await profile(user_id)
+}
+
+export async function requestDeletion(user_id: string): Promise<AccountProfile> {
+  const user = await users.getOne(user_id)
+  rules.assertUser(user)
+  rules.assertNotAnonymous(user)
+  await withTransaction((tx) =>
+    users.update(user_id, { deletion_requested_at: rules.stamp(Date.now()) }, tx)
+  )
+  return await profile(user_id)
 }

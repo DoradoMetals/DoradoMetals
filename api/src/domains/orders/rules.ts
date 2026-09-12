@@ -11,6 +11,7 @@ import type {
   LotPatch,
   OrderActions,
   OrderDocument,
+  OrderListItem,
   OrderLotPatch,
   OrderLotView,
   OrderSpot,
@@ -227,6 +228,14 @@ export function actionsFor(view: OrderViewFacts): OrderActions {
   if (view.order.spots_locked && !isFinalized(view)) offered.push(offer('unlock_spots'))
 
   return offered
+}
+
+export function orderViewForCustomer(view: OrderView): OrderView {
+  return { ...view, order: { ...view.order, notes: null, assigned_to_id: null } }
+}
+
+export function orderListForCustomer(items: OrderListItem[]): OrderListItem[] {
+  return items.map((item) => ({ ...item, notes: null, assigned_to_id: null }))
 }
 
 const FINALIZED: PdfKind[] = ['invoice', 'assay_results']
