@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { Documents, DOCUMENT_NAMES, type DocumentName, type DocumentRow } from '@dorado/components'
+import { Documents, type DocumentName, type DocumentRow } from '@dorado/components'
 import type { OrderDocument } from '@dorado/contracts'
 
 export type DocumentsCardProps = {
@@ -11,30 +11,26 @@ export type DocumentsCardProps = {
   onImport?: (kind: string, file: File) => void
 }
 
-const KNOWN = new Set<string>(DOCUMENT_NAMES)
-
 export function DocumentsCard({ documents, onDownload, onSend, onImport }: DocumentsCardProps) {
   const input = React.useRef<HTMLInputElement>(null)
   const [kind, setKind] = React.useState<string | null>(null)
 
-  const rows: DocumentRow[] = documents
-    .filter((document) => KNOWN.has(document.name))
-    .map((document) => ({
-      id: document.kind,
-      name: document.name as DocumentName,
-      state: document.available ? 'available' : 'unavailable',
-      showSend: document.available && !!onSend,
-      showImport: !document.available && !!onImport,
-      onDownload: document.available && onDownload ? () => onDownload(document.kind) : undefined,
-      onSend: document.available && onSend ? () => onSend(document.kind) : undefined,
-      onImport:
-        !document.available && onImport
-          ? () => {
-              setKind(document.kind)
-              input.current?.click()
-            }
-          : undefined,
-    }))
+  const rows: DocumentRow[] = documents.map((document) => ({
+    id: document.kind,
+    name: document.name as DocumentName,
+    state: document.available ? 'available' : 'unavailable',
+    showSend: document.available && !!onSend,
+    showImport: !document.available && !!onImport,
+    onDownload: document.available && onDownload ? () => onDownload(document.kind) : undefined,
+    onSend: document.available && onSend ? () => onSend(document.kind) : undefined,
+    onImport:
+      !document.available && onImport
+        ? () => {
+            setKind(document.kind)
+            input.current?.click()
+          }
+        : undefined,
+  }))
 
   return (
     <>
