@@ -13,4 +13,4 @@ VALUES ('inbound', $1, $2, $3, $4, $5, $6,
 ON CONFLICT (provider_sid) DO UPDATE SET provider_sid = EXCLUDED.provider_sid
 RETURNING id, direction, provider, provider_sid, from_number, to_number, body, media,
           status, error_code, user_id, received_at, sent_at,
-          created_at, updated_at, created_by_id, updated_by_id
+          created_at, updated_at, created_by_id, updated_by_id, read_at

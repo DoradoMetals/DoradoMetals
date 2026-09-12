@@ -94,6 +94,101 @@ test('markRecording sets recording_url and the voicemail status', async () => {
   )
 })
 
+test('an inbound call starts unread, an outbound one starts read', async () => {
+  await inPinnedTransaction(
+    async (client) => {
+      const inbound = await repo.create(
+        'twilio',
+        aSid(),
+        'inbound',
+        '+15125550010',
+        '+15125550000',
+        null,
+        'ringing',
+        '+15125550010',
+        client
+      )
+      assert.equal(inbound.read_at, null)
+
+      const outbound = await repo.create(
+        'twilio',
+        aSid(),
+        'outbound',
+        '+15125550000',
+        '+15125550011',
+        null,
+        'ringing',
+        '+15125550011',
+        client
+      )
+      assert.ok(outbound.read_at, 'an outbound call should be read by definition')
+    },
+    { actor: TEST_ACTOR.id }
+  )
+})
+
+test('markRead clears an unread inbound call for a number and leaves others alone', async () => {
+  await inPinnedTransaction(
+    async (client) => {
+      const number = '+15125550012'
+      const other = '+15125550013'
+      const mine = await repo.create(
+        'twilio',
+        aSid(),
+        'inbound',
+        number,
+        '+15125550000',
+        null,
+        'ringing',
+        number,
+        client
+      )
+      const theirs = await repo.create(
+        'twilio',
+        aSid(),
+        'inbound',
+        other,
+        '+15125550000',
+        null,
+        'ringing',
+        other,
+        client
+      )
+
+      await repo.markRead(null, number, client)
+
+      assert.ok((await repo.getOne(mine.id, client))?.read_at)
+      assert.equal((await repo.getOne(theirs.id, client))?.read_at, null)
+    },
+    { actor: TEST_ACTOR.id }
+  )
+})
+
+test('attachToUser matches on the last 10 digits regardless of formatting', async () => {
+  await inPinnedTransaction(
+    async (client) => {
+      const call = await repo.create(
+        'twilio',
+        aSid(),
+        'inbound',
+        '+15125550014',
+        '+15125550000',
+        null,
+        'ringing',
+        '+15125550014',
+        client
+      )
+      assert.equal(call.user_id, null)
+
+      const user = await aUser(client)
+      await repo.attachToUser('5125550014', user.id, client)
+
+      assert.equal((await repo.getOne(call.id, client))?.user_id, user.id)
+    },
+    { lock: LOCKS.USERS, actor: TEST_ACTOR.id }
+  )
+})
+
 test('applyStatus stamps ended_at for a terminal status and not for ringing', async () => {
   await inPinnedTransaction(
     async (client) => {

@@ -3,6 +3,8 @@ import assert from 'node:assert/strict'
 import pool from '#pool'
 import { inPinnedTransaction } from '#shared/testing/pinned-pool.ts'
 import { TEST_ACTOR } from '#shared/testing/actor.ts'
+import { LOCKS } from '#shared/testing/locks.ts'
+import { aUser } from '#shared/testing/builders/index.ts'
 import * as repo from '#db/crm/sms-messages/repo.ts'
 
 afterAll(async () => {
@@ -64,5 +66,77 @@ test('getByProviderSid and getOne agree on the same row', async () => {
       assert.equal(byId?.id, bySid?.id)
     },
     { actor: TEST_ACTOR.id }
+  )
+})
+
+test('an inbound message starts unread, an outbound one starts read', async () => {
+  await inPinnedTransaction(
+    async (client) => {
+      const inbound = await repo.upsertInbound(
+        { provider_sid: aSid(), from_number: '+15125550004', to_number: '+15125550000', body: 'x', media: [] },
+        'twilio',
+        client
+      )
+      assert.equal(inbound.read_at, null)
+
+      const outbound = await repo.createOutbound(
+        'twilio',
+        '+15125550000',
+        '+15125550005',
+        'hey',
+        [],
+        client
+      )
+      assert.ok(outbound.read_at, 'an outbound message should be read by definition')
+    },
+    { actor: TEST_ACTOR.id }
+  )
+})
+
+test('markRead clears unread inbound messages for a number and leaves others alone', async () => {
+  await inPinnedTransaction(
+    async (client) => {
+      const number = '+15125550006'
+      const other = '+15125550007'
+      const mine = await repo.upsertInbound(
+        { provider_sid: aSid(), from_number: number, to_number: '+15125550000', body: 'a', media: [] },
+        'twilio',
+        client
+      )
+      const theirs = await repo.upsertInbound(
+        { provider_sid: aSid(), from_number: other, to_number: '+15125550000', body: 'b', media: [] },
+        'twilio',
+        client
+      )
+
+      await repo.markRead(null, number, client)
+
+      assert.ok((await repo.getOne(mine.id, client))?.read_at, 'the matched conversation is still unread')
+      assert.equal(
+        (await repo.getOne(theirs.id, client))?.read_at,
+        null,
+        'an unrelated conversation was marked read'
+      )
+    },
+    { actor: TEST_ACTOR.id }
+  )
+})
+
+test('attachToUser matches on the last 10 digits regardless of formatting', async () => {
+  await inPinnedTransaction(
+    async (client) => {
+      const message = await repo.upsertInbound(
+        { provider_sid: aSid(), from_number: '+15125550008', to_number: '+15125550000', body: 'a', media: [] },
+        'twilio',
+        client
+      )
+      assert.equal(message.user_id, null)
+
+      const user = await aUser(client)
+      await repo.attachToUser('5125550008', user.id, client)
+
+      assert.equal((await repo.getOne(message.id, client))?.user_id, user.id)
+    },
+    { lock: LOCKS.USERS, actor: TEST_ACTOR.id }
   )
 })

@@ -24,6 +24,7 @@ export const Call = z.object({
   'updated_at': z.string(),
   'created_by_id': z.string().uuid().nullable(),
   'updated_by_id': z.string().uuid().nullable(),
+  'read_at': z.string().nullable(),
 })
 export type Call = z.infer<typeof Call>
 // generated:end
