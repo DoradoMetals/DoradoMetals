@@ -28,7 +28,6 @@ import paymentViewRoutes from '#transactions/rails/routes.ts'
 import supplierRoutes from '#refining/refiners/routes.ts'
 import refiningRoutes from '#refining/routes.ts'
 import carriersRoutes from '#logistics/shipping/carriers/routes.ts'
-import recaptchaRoutes from '#accounts/recaptcha/routes.ts'
 import userRoutes from '#accounts/users/routes.ts'
 import accountRoutes from '#accounts/auth/routes.ts'
 import imageRoutes from '#accounts/images/routes.ts'
@@ -114,7 +113,6 @@ app.use('/api/payments/banks', bankLinkRoutes)
 app.use('/api/payments/view', paymentViewRoutes)
 app.use('/api/suppliers', supplierRoutes)
 app.use('/api/refining', refiningRoutes)
-app.use('/api/recaptcha', recaptchaRoutes)
 app.use('/api/users', userRoutes)
 app.use('/api/account', accountRoutes)
 app.use('/api/images', imageRoutes)

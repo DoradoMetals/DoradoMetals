@@ -1,9 +1,6 @@
-import { test, afterAll, beforeAll, vi } from 'vitest'
+import { test, afterAll } from 'vitest'
 import assert from 'node:assert/strict'
 
-vi.mock('axios', () => ({ default: { post: vi.fn() } }))
-
-import axios from 'axios'
 import type { PoolClient } from 'pg'
 import { inPinnedTransaction } from '#shared/testing/pinned-pool.ts'
 import { TEST_ACTOR } from '#shared/testing/actor.ts'
@@ -26,10 +23,6 @@ import {
 const NUMBER = '+15125552001'
 const WRONG = '000000'
 
-beforeAll(() => {
-  process.env.RECAPTCHA_SECRET_KEY = 'test-secret'
-  vi.mocked(axios.post).mockResolvedValue({ data: { success: true, score: 1 } } as never)
-})
 afterAll(() => restoreAuthApi())
 
 const verify = (code: string, session_id: string | null = null, number = NUMBER) =>

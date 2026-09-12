@@ -25,15 +25,20 @@ export default function Page() {
   const submit = async () => {
     if (!acceptedTerms) return
     const phone_number = `+1${digits}`
-    const view = await signUp.mutateAsync({
-      name,
-      email,
-      phone_number,
-      accepted_terms: true,
-      captcha_token: await captcha('sign_up'),
-    })
-    setVerification({ view, channel: 'sms', phone_number })
-    router.push(view.status === 'locked' ? '/auth/locked' : '/auth/verify')
+    const captcha_token = await captcha.token()
+    try {
+      const view = await signUp.mutateAsync({
+        name,
+        email,
+        phone_number,
+        accepted_terms: true,
+        captcha_token,
+      })
+      setVerification({ view, channel: 'sms', phone_number })
+      router.push(view.status === 'locked' ? '/auth/locked' : '/auth/verify')
+    } finally {
+      captcha.reset()
+    }
   }
 
   return (
@@ -48,6 +53,7 @@ export default function Page() {
       onPhoneChange={(next) => setDigits(normalizePhone(next))}
       onTermsChange={setAcceptedTerms}
       onSubmit={submit}
+      captcha={captcha.widget}
       pending={signUp.isPending}
       message={messageOf(signUp.error)}
       onGoogle={() => google.mutate()}

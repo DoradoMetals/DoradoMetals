@@ -169,9 +169,10 @@ Cloudflare will sit in front of the app for bot defence. In the API:
 - the client IP used by rate limits and the lockout comes from
   `CF-Connecting-IP` only when `TRUST_CLOUDFLARE=1`; otherwise the socket
   address; never `X-Forwarded-For` blindly. One helper in shared, tested.
-- the captcha check moves behind a provider interface (`providers/captcha`
-  already exists: keep recaptcha as the adapter, add Turnstile as a second
-  with the same `verify(token, ip)` shape) so the switch is a config line.
+- the captcha check sits behind a provider interface (`providers/captcha`):
+  Cloudflare Turnstile is the one adapter, a recording fake stands in when
+  `TURNSTILE_SECRET_KEY` is absent, and the Google adapter is deleted
+  (`docs/waves/turnstile.md`).
 - the webhook routes (`/api/stripe`, `/api/sms/*`, `/api/calls/*`) are
   listed in the doc as paths Cloudflare's bot rules must allow; their own
   signature checks are the real guard.
@@ -322,7 +323,7 @@ default and the real adapters refuse to construct without their keys):
 `TWILIO_API_KEY_SID`, `TWILIO_API_KEY_SECRET`, `TWILIO_TWIML_APP_SID`,
 `PUBLIC_API_URL` (the URL the webhook signature is checked against — it must be
 the public one, never the `Host` header), `SMS_PROVIDER=twilio`,
-`CAPTCHA_PROVIDER` (`recaptcha` | `turnstile`), `TURNSTILE_SECRET_KEY`,
+`TURNSTILE_SECRET_KEY` (with `NEXT_PUBLIC_TURNSTILE_SITE_KEY` in the frontend),
 `TRUST_CLOUDFLARE=1`.
 
 Twilio console, on the one business number: Messaging webhook

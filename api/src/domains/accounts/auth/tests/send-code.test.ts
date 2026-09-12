@@ -1,14 +1,12 @@
-import { test, afterAll, beforeAll, vi } from 'vitest'
+import { test, afterAll, beforeEach } from 'vitest'
 import assert from 'node:assert/strict'
 
-vi.mock('axios', () => ({ default: { post: vi.fn() } }))
-
-import axios from 'axios'
 import type { PoolClient } from 'pg'
 import { inPinnedTransaction } from '#shared/testing/pinned-pool.ts'
 import { TEST_ACTOR } from '#shared/testing/actor.ts'
 import { LOCKS } from '#shared/testing/locks.ts'
 import { aUser } from '#shared/testing/builders/index.ts'
+import * as captcha from '#providers/captcha/fake.ts'
 import * as throttles from '#db/auth/throttles/repo.ts'
 import * as rules from '#accounts/auth/rules.ts'
 import * as service from '#accounts/auth/service.ts'
@@ -18,11 +16,11 @@ const KNOWN = '+15125551001'
 const UNKNOWN = '+15125551002'
 const IP = '203.0.113.7'
 
-beforeAll(() => {
-  process.env.RECAPTCHA_SECRET_KEY = 'test-secret'
-  vi.mocked(axios.post).mockResolvedValue({ data: { success: true, score: 1 } } as never)
+beforeEach(() => captcha.reset())
+afterAll(() => {
+  restoreAuthApi()
+  captcha.reset()
 })
-afterAll(() => restoreAuthApi())
 
 const send = (channel: 'sms' | 'email', value: string, ip: string | null = IP) =>
   service.sendCode(
@@ -32,12 +30,29 @@ const send = (channel: 'sms' | 'email', value: string, ip: string | null = IP) =
     ip
   )
 
+// RULE 9: the captcha is on the send, and the token and caller's IP are what
+// the provider is asked about.
+test('the token and the IP reach the provider on every send', async () => {
+  await inPinnedTransaction(
+    async (c: PoolClient) => {
+      stubAuthApi(c)
+      await aUser(c, { phone_number: KNOWN })
+      await send('sms', KNOWN)
+      assert.deepEqual(
+        captcha.lastCheck() && [captcha.lastCheck()!.token, captcha.lastCheck()!.ip],
+        ['t', IP]
+      )
+    },
+    { actor: TEST_ACTOR.id, lock: LOCKS.USERS }
+  )
+})
+
 // RULE 9: the captcha is on the send.
 test('a captcha that does not pass refuses the send outright', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
       stubAuthApi(c)
-      vi.mocked(axios.post).mockResolvedValueOnce({ data: { success: false } } as never)
+      captcha.next(false)
       await assert.rejects(() => send('sms', KNOWN), /captcha did not pass/)
       assert.deepEqual(dispatched, [], 'a failed captcha must not reach the provider')
     },
@@ -188,7 +203,11 @@ test('one IP working through many numbers stops at its own allowance', async () 
 
       dispatched.length = 0
       await send('sms', KNOWN, null)
-      assert.deepEqual(dispatched, [{ channel: 'sms', to: KNOWN }], 'a caller behind no IP is still served')
+      assert.deepEqual(
+        dispatched,
+        [{ channel: 'sms', to: KNOWN }],
+        'a caller behind no IP is still served'
+      )
     },
     { actor: TEST_ACTOR.id, lock: LOCKS.USERS }
   )

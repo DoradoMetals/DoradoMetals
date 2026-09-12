@@ -7,8 +7,6 @@ import { ThemeProvider } from '@/shared/providers/ThemeProvider'
 import QueryProvider from '@/shared/providers/QueryProvider'
 import GoogleMapsProvider from '@/shared/providers/GoogleMapsProvider'
 
-import GoogleRecaptchaProvider from '@/shared/providers/GoogleRecaptchaProvider'
-
 // GEIST, ONE FAMILY (brand refresh, 2026-08-30). Every text style in the Figma
 // library is Geist; Montserrat, Open Sans and Poppins are the old brand. Both
 // CSS variables survive - typography.css hangs headings off --font-header and
@@ -42,15 +40,13 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             The provider itself survives only because next-themes owns the
             no-flash inline script; the toggle UI is deleted. */}
         <ThemeProvider attribute="class" defaultTheme="dark" forcedTheme="dark">
-          <GoogleRecaptchaProvider>
-            <QueryProvider>
-              <GoogleMapsProvider>
-                <LayoutProvider>
-                  <AppShell>{children}</AppShell>
-                </LayoutProvider>
-              </GoogleMapsProvider>
-            </QueryProvider>
-          </GoogleRecaptchaProvider>
+          <QueryProvider>
+            <GoogleMapsProvider>
+              <LayoutProvider>
+                <AppShell>{children}</AppShell>
+              </LayoutProvider>
+            </GoogleMapsProvider>
+          </QueryProvider>
         </ThemeProvider>
       </body>
     </html>

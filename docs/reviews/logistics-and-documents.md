@@ -555,10 +555,10 @@ files, which were deleted afterwards; the tree is unchanged.
   correctly. Same at `service.ts:297`.
 - `documents/emails/controller.ts:35-40` `sendCreatedEmail` is exported but no
   route mounts it (`emails/routes.ts` mounts only `purchase_order_priced`).
-- `providers/captcha/recaptcha.ts` is reachable only through
-  `POST /api/recaptcha/verify-recaptcha`, which returns a boolean to the client.
-  No write path consults it, and both public write surfaces in this area (leads,
-  reviews) are `requireAdmin`, so the captcha protects nothing server-side.
+- the captcha provider was reachable only through a standalone verify
+  endpoint that returned a boolean to the client, and no write path consulted
+  it. FIXED by the Turnstile swap: the endpoint is deleted and the token is
+  checked inside `send_code` and `sign_up` (`docs/waves/turnstile.md`).
 - `logistics/shipping/services/service.ts:17-65`: `toNewRow` and `toPatchRow`
   re-spell twenty columns each, twice, purely to rename four (`supports_pickup`
   -> `supports_pickups`, `max_weight_lbs` -> `max_weight_lb`). The rename belongs

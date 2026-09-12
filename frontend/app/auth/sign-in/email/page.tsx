@@ -19,13 +19,14 @@ export default function Page() {
   const { setVerification } = useVerification()
 
   const submit = async () => {
-    const view = await sendCode.mutateAsync({
-      channel: 'email',
-      email,
-      captcha_token: await captcha('sign_in'),
-    })
-    setVerification({ view, channel: 'email', email })
-    router.push(view.status === 'locked' ? '/auth/locked' : '/auth/verify')
+    const captcha_token = await captcha.token()
+    try {
+      const view = await sendCode.mutateAsync({ channel: 'email', email, captcha_token })
+      setVerification({ view, channel: 'email', email })
+      router.push(view.status === 'locked' ? '/auth/locked' : '/auth/verify')
+    } finally {
+      captcha.reset()
+    }
   }
 
   return (
@@ -34,6 +35,7 @@ export default function Page() {
       value={email}
       onValueChange={setEmail}
       onSubmit={submit}
+      captcha={captcha.widget}
       pending={sendCode.isPending}
       message={messageOf(sendCode.error)}
       onGoogle={() => google.mutate()}

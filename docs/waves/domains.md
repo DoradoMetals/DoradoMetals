@@ -31,7 +31,6 @@ under `api/`. `api/db/<schema>/<table>` stays by schema. `shared/`,
 | `identity/authorization/` | authorization | — |
 | `identity/users/` | users | users |
 | `identity/places/` | places (addresses/, lookup/) | places (addresses/) |
-| `identity/recaptcha/` | recaptcha | recaptcha |
 | `media/images/` `media/emails/` `media/pdfs/` | media/* | media/* |
 
 Transport files land BESIDE the service they serve: `transport/orders/routes.ts`
