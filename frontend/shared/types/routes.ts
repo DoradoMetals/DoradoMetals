@@ -41,6 +41,7 @@ export const protectedRoutes: Record<string, RouteConfig> = {
     roles: ['user', 'admin'],
     seoIndex: false,
   },
+  admin: { path: '/admin', roles: ['admin'], seoIndex: false },
   adminOrder: { path: '/admin/orders', roles: ['admin'], seoIndex: false },
   adminRefining: { path: '/admin/refining', roles: ['admin'], seoIndex: false },
 }

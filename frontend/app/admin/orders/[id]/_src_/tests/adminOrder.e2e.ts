@@ -111,7 +111,9 @@ test('the composer sends a message and the conversation shows it back', async ({
   await expect(page.getByText(body)).toBeVisible()
 })
 
-test('an available document offers Send, and pressing it calls the send route', async ({ page }) => {
+test('an available document offers Send, and pressing it calls the send route', async ({
+  page,
+}) => {
   await page.goto(`/admin/orders/${orderId}`)
 
   const send = page.getByRole('button', { name: /^Send [A-Z]/ }).first()
@@ -181,4 +183,53 @@ test('Batch creates the refiner order and assigns the lots in one call', async (
   expect(response.status(), await response.text()).toBe(201)
   const body = response.request().postDataJSON() as { lot_ids?: string[] }
   expect(body.lot_ids?.length ?? 0).toBeGreaterThan(0)
+})
+
+// THE WAY IN. Before the nav lane there was none: `/admin/orders/<id>` was a
+// URL you had to already know. These two drive the route Jacob asked for - the
+// header's Admin link, and the index's table - and click through to the screen
+// the tests above assert on.
+test('an admin is offered the Admin link, and it lands on the index', async ({ page }) => {
+  await page.goto('/')
+
+  const admin = page.getByRole('navigation', { name: 'Primary' }).getByRole('link', {
+    name: 'Admin',
+  })
+  await expect(admin).toBeVisible()
+  await admin.click()
+  await expect(page).toHaveURL(/\/admin$/)
+  // `exact` because "Refiner orders" also contains the word.
+  await expect(page.getByRole('table', { name: 'Orders', exact: true })).toBeVisible()
+})
+
+test('the index lists the seeded order and clicks through to its screen', async ({
+  page,
+  playwright,
+}) => {
+  // WHICH CELL to look for is the API's answer, not a guess: the list route
+  // serves the order NUMBER (there is no `reference` on it), so the row is
+  // found by the number this very order carries.
+  const api = await playwright.request.newContext({ storageState: statePath('admin') })
+  const read = await api.get(`${API}/orders/${orderId}`)
+  expect(read.ok(), `GET /orders/:id answered ${read.status()}`).toBeTruthy()
+  const view = (await read.json()) as { order: { number: number } }
+  await api.dispose()
+
+  await page.goto('/admin')
+
+  const table = page.getByRole('table', { name: 'Orders', exact: true })
+  const link = table.getByRole('link', { name: String(view.order.number), exact: true })
+  await expect(link).toBeVisible()
+
+  await link.click()
+  await expect(page).toHaveURL(new RegExp(`/admin/orders/${orderId}$`))
+  await expect(page.getByText('PURCHASE ORDER')).toBeVisible()
+})
+
+test('the admin index refuses a signed-out visitor', async ({ browser }) => {
+  const anonymous = await browser.newContext({ storageState: { cookies: [], origins: [] } })
+  const page = await anonymous.newPage()
+  await page.goto('/admin')
+  await expect(page).toHaveURL(/\/auth\/sign-in/)
+  await anonymous.close()
 })
