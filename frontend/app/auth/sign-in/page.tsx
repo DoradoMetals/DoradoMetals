@@ -21,13 +21,14 @@ export default function Page() {
 
   const submit = async () => {
     const phone_number = `+1${digits}`
-    const view = await sendCode.mutateAsync({
-      channel: 'sms',
-      phone_number,
-      captcha_token: await captcha('sign_in'),
-    })
-    setVerification({ view, channel: 'sms', phone_number })
-    router.push(view.status === 'locked' ? '/auth/locked' : '/auth/verify')
+    const captcha_token = await captcha.token()
+    try {
+      const view = await sendCode.mutateAsync({ channel: 'sms', phone_number, captcha_token })
+      setVerification({ view, channel: 'sms', phone_number })
+      router.push(view.status === 'locked' ? '/auth/locked' : '/auth/verify')
+    } finally {
+      captcha.reset()
+    }
   }
 
   return (
@@ -36,6 +37,7 @@ export default function Page() {
       value={formatPhoneNumber(digits)}
       onValueChange={(next) => setDigits(normalizePhone(next))}
       onSubmit={submit}
+      captcha={captcha.widget}
       pending={sendCode.isPending}
       message={messageOf(sendCode.error)}
       onGoogle={() => google.mutate()}

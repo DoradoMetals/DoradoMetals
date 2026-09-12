@@ -35,8 +35,8 @@ None was removed.
 | `app/auth/**` (7 routes), `app/settings/**` (4 routes) | the passwordless screens — `docs/waves/frontend-auth.md` is their spec |
 | `shared/ui/auth/AuthShell.tsx`, `AuthForm.tsx` | the Panel/Pitch shell and the twelve-state form |
 | `shared/utils/authForm.ts`, `formatPhoneNumber.ts` | the whole view→state mapping, and the one formatter the screens use |
-| `shared/hooks/auth/{authClient,queries}.ts`, `useAsyncAction.ts`, `useCaptcha.ts`, `useProtectedPage.tsx` | better-auth's client, the session/impersonation housekeeping, the captcha the OTP send needs, the role gate on `/settings/*` |
-| `shared/providers/*` (all six) | theme, query client, recaptcha, maps, `LayoutProvider`, `VerificationProvider` |
+| `shared/hooks/auth/{authClient,queries}.ts`, `useAsyncAction.ts`, `useCaptcha.tsx`, `useProtectedPage.tsx` | better-auth's client, the session/impersonation housekeeping, the captcha the OTP send needs, the role gate on `/settings/*` |
+| `shared/providers/*` (all five) | theme, query client, maps, `LayoutProvider`, `VerificationProvider` |
 | `shared/types/routes.ts` | trimmed to the eleven auth paths and two fields — `roles` and `seoIndex` |
 | `playwright.config.ts`, `shared/tests/auth.setup.ts`, the seeded users | the e2e harness, and the one spec that proves OTP sign-in end to end |
 | `@dorado/components` | untouched. Jacob's design system |
@@ -104,8 +104,7 @@ four files tested them.
 What is left is the substrate plus auth: `fetch.ts` (the fetcher and
 `ApiError`), `keys.ts` (trimmed from fifteen namespaces to `auth`),
 `session.ts` (the `ensureSession` bridge better-auth registers into),
-`cache.ts` (`useQueryCache`) and `auth/queries.ts` — nine `/account/*` hooks
-plus the recaptcha verify.
+`cache.ts` (`useQueryCache`) and `auth/queries.ts` — nine `/account/*` hooks.
 
 `package.json` lost its eight subpath exports (`./orders`, `./checkout`, …);
 only `.` remains. `test` gained `--passWithNoTests`, which is honest rather

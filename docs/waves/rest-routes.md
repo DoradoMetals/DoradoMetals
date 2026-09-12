@@ -193,7 +193,6 @@ unchanged, not a resource.
 | spots | GET /api/spots/spot_prices | GET /api/spots | VERB (drops the redundant segment; mount is already the noun) | spots/controller.ts#getSpotPrices | none (public) | none |
 | transactions | GET /api/transactions/get_transactions | GET /api/transactions (session-scoped) | VERB | transactions/controller.ts#getTransactionHistory | requireUser | none |
 | tax | POST /api/tax/get_sales_tax | POST /api/tax/calculate | VERB (computation, not a stored resource) | sales-tax/controller.ts#getSalesTax | requireUser | untyped |
-| recaptcha | POST /api/recaptcha/verify-recaptcha | POST /api/recaptcha/verify | VERB (trims the redundant leading segment) | recaptcha/controller.ts#verifyRecaptcha | none (public) | untyped |
 
 ## Where the RPC-disguised-as-PATCH lives
 
@@ -214,7 +213,7 @@ goes back to being a real field patch of one column.
 ## Migration plan
 
 One feature per pass. Order the passes by frontend blast radius (see below),
-smallest first — `spots`, `transactions`, `recaptcha`, `tax` (near-zero
+smallest first — `spots`, `transactions`, `tax` (near-zero
 frontend surface) before `orders` (largest, and the one this document's own
 example comes from) — not by the order resources appear in the table above.
 
@@ -241,10 +240,9 @@ A `308` (not `301`) is required — it is the only redirect status that
 preserves the request method and body on a POST/PATCH, which most of these
 are. `GET`-only routes could use `301`; using `308` everywhere is simpler
 and correct for both. Reserve a `410 Gone` (body: `{ moved_to: "<new
-path>" }`) for routes with zero frontend callers today — grep confirmed
-`recaptcha` has none currently found via the `url:`/`apiRequest` scan, so a
-route with no caller can skip the redirect and go straight to `410` for one
-release as a canary that the scan was complete.
+path>" }`) for routes with zero frontend callers today: a route with no
+caller can skip the redirect and go straight to `410` for one release as a
+canary that the scan was complete.
 
 ## Frontend impact (files calling the old paths — not edited)
 
@@ -283,7 +281,6 @@ updated when that pass lands:
 - **users**: `features/users/queries.ts`
 - **account**: `features/auth/queries.ts` (`/account/set_password`)
 - **spots**: `features/spots/queries.ts`
-- **recaptcha**: `features/auth/queries.ts` (`recaptcha/verify-recaptcha`)
 
 No file was edited during this research — every path above is confirmed by
 grep, not inferred.

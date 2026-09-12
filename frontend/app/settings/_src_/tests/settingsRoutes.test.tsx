@@ -55,7 +55,7 @@ vi.mock('@dorado/client', () => ({
 }))
 
 vi.mock('@/shared/hooks/useCaptcha', () => ({
-  useCaptcha: () => async () => 'captcha-token',
+  useCaptcha: () => ({ widget: null, token: async () => 'captcha-token', reset: () => {} }),
 }))
 
 vi.mock('@/shared/hooks/auth/queries', () => ({

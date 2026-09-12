@@ -29,7 +29,6 @@ const PUBLIC = new Set([
   'GET /api/rates/tiers',
   'GET /api/reviews/public',
   'GET /api/spots/',
-  'POST /api/recaptcha/verify-recaptcha',
   'POST /api/quotes/catalog',
   'GET /api/payments/methods/',
   'GET /api/carrier_services/sale_options',

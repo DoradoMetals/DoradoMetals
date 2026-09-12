@@ -102,7 +102,7 @@ path is untestable in the default lane; `seed-e2e-order.mjs` exists because `pla
 always buys a label. Only `getTracking` has a seam.
 
 **No HTTP mocking library exists anywhere in the monorepo** — no `nock`, `msw`,
-`polly` or `stripe-mock`. All outbound calls are axios (FedEx, reCAPTCHA) or the Stripe
+`polly` or `stripe-mock`. All outbound calls are axios (FedEx, Turnstile) or the Stripe
 SDK; Stripe 18.5 defaults to `createNodeHttpClient`, node's `https` module, and nothing
 in `api/` uses `fetch`, so one `http`/`https` interceptor covers
 **100% of outbound traffic**.

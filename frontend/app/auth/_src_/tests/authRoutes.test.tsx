@@ -94,7 +94,7 @@ vi.mock('@dorado/client', () => ({
 }))
 
 vi.mock('@/shared/hooks/useCaptcha', () => ({
-  useCaptcha: () => async () => 'captcha-token',
+  useCaptcha: () => ({ widget: null, token: async () => 'captcha-token', reset: () => {} }),
 }))
 
 const adoptSession = vi.fn()

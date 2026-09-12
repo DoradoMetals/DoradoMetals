@@ -15,6 +15,7 @@ type Shared = {
   message?: string | null
   onGoogle?: () => void
   googlePending?: boolean
+  captcha?: React.ReactNode
 }
 
 type IdentityState = 'sign-in' | 'sign-in-email' | 'change-email' | 'change-phone'
@@ -253,6 +254,7 @@ export function AuthForm(props: AuthFormProps) {
             resendIn={secondsUntil(view.resend_at)}
             onResend={onResend}
           />
+          {props.captcha}
           <Button type="submit" className="w-full" disabled={pending} aria-busy={pending}>
             Verify
           </Button>
@@ -336,6 +338,7 @@ export function AuthForm(props: AuthFormProps) {
               and <NextLink href="/privacy-policy">Privacy Policy</NextLink>
             </label>
           </div>
+          {props.captcha}
           <Button
             type="submit"
             className="w-full"
@@ -379,6 +382,7 @@ export function AuthForm(props: AuthFormProps) {
           invalid={Boolean(message)}
           message={message ?? undefined}
         />
+        {props.captcha}
         <Button type="submit" className="w-full" disabled={pending} aria-busy={pending}>
           {copy.submit}
         </Button>

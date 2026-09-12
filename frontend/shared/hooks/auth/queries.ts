@@ -15,7 +15,7 @@ import {
   updateUser,
   useUser,
 } from '@/shared/hooks/auth/authClient'
-import { forgetSession, useVerifyRecaptcha as useVerifyRecaptchaHook } from '@dorado/client'
+import { forgetSession } from '@dorado/client'
 
 // WHAT IS LEFT TO CLEAR IS UI STATE (ruling 63: "Frontend stores should be for
 // UI elements, not data"). The basket is not here any more - it is server rows
@@ -178,5 +178,3 @@ export const useListSessions = () => {
 }
 
 export const useRevokeSession = () => useAsyncAction((token: string) => revokeSession({ token }))
-
-export const useVerifyRecaptcha = useVerifyRecaptchaHook

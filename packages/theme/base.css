@@ -101,10 +101,6 @@ input:-webkit-autofill:active {
   -webkit-text-fill-color: var(--foreground);
 }
 
-.grecaptcha-badge {
-  visibility: hidden !important;
-}
-
 number-flow-react::part(left),
 number-flow-react::part(right),
 number-flow-react::part(left)::after,

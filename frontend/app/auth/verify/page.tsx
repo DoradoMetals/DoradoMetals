@@ -71,14 +71,19 @@ export default function Page() {
   }
 
   const resend = async () => {
-    const next = await sendCode.mutateAsync({
-      channel: verification.channel,
-      phone_number: verification.phone_number,
-      email: verification.email,
-      captcha_token: await captcha('resend'),
-    })
-    setVerification({ ...verification, view: next })
-    setCode('')
+    const captcha_token = await captcha.token()
+    try {
+      const next = await sendCode.mutateAsync({
+        channel: verification.channel,
+        phone_number: verification.phone_number,
+        email: verification.email,
+        captcha_token,
+      })
+      setVerification({ ...verification, view: next })
+      setCode('')
+    } finally {
+      captcha.reset()
+    }
   }
 
   return (
@@ -89,6 +94,7 @@ export default function Page() {
       onCodeChange={setCode}
       onSubmit={submit}
       onResend={resend}
+      captcha={captcha.widget}
       pending={verifyCode.isPending || confirmChange.isPending || sendCode.isPending}
       message={changing ? messageOf(confirmChange.error) : null}
     />

@@ -1,9 +1,6 @@
-import { test, afterAll, beforeAll, beforeEach, vi } from 'vitest'
+import { test, afterAll, beforeEach } from 'vitest'
 import assert from 'node:assert/strict'
 
-vi.mock('axios', () => ({ default: { post: vi.fn() } }))
-
-import axios from 'axios'
 import type { PoolClient } from 'pg'
 import { inPinnedTransaction } from '#shared/testing/pinned-pool.ts'
 import { TEST_ACTOR } from '#shared/testing/actor.ts'
@@ -21,10 +18,6 @@ import { CODE, aSessionRow, restoreAuthApi, stubAuthApi } from '#accounts/auth/t
 
 const IP = '203.0.113.11'
 
-beforeAll(() => {
-  process.env.RECAPTCHA_SECRET_KEY = 'test-secret'
-  vi.mocked(axios.post).mockResolvedValue({ data: { success: true, score: 1 } } as never)
-})
 beforeEach(() => {
   fakeSms.reset()
   fakeEmail.reset()

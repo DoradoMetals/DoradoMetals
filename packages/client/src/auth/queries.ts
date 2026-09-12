@@ -47,7 +47,8 @@ export function useVerifyCode() {
 
 export function useSignUp() {
   return useMutation({
-    mutationFn: (body: SignUpBody) => apiRequest<VerificationView>('POST', '/account/sign_up', body),
+    mutationFn: (body: SignUpBody) =>
+      apiRequest<VerificationView>('POST', '/account/sign_up', body),
   })
 }
 
@@ -79,12 +80,5 @@ export function useConfirmChange() {
     onSettled: () => {
       client.invalidateQueries({ queryKey: keys.auth.all(), refetchType: 'active' })
     },
-  })
-}
-
-export function useVerifyRecaptcha() {
-  return useMutation({
-    mutationFn: (token: string) =>
-      apiRequest<boolean>('POST', '/recaptcha/verify-recaptcha', { token }),
   })
 }

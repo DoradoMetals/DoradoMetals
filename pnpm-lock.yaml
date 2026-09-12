@@ -288,9 +288,6 @@ importers:
       react-dom:
         specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
-      react-google-recaptcha-v3:
-        specifier: ^1.11.0
-        version: 1.11.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react-hook-form:
         specifier: ^7.87.0
         version: 7.87.0(react@19.2.8)
@@ -4566,9 +4563,6 @@ packages:
   hey-listen@1.0.8:
     resolution: {integrity: sha512-COpmrF2NOg4TBWUJ5UVyaCU2A88wEMkUPK4hNqyCkqHbxT92BbvfjoSozkAIIm6XhicGlJHhFdullInrdhwU8Q==}
 
-  hoist-non-react-statics@3.3.2:
-    resolution: {integrity: sha512-/gGivxi8JPKWNm/W0jSmzcMPpfpPLc3dY/6GxhX2hQ9iGj3aDfklV4ET7NjKpSinLpJ5vafa9iiGIEZg10SfBw==}
-
   html-encoding-sniffer@6.0.0:
     resolution: {integrity: sha512-CV9TW3Y3f8/wT0BRFc1/KAVQ3TUHiXmaAb6VW9vtiMFf7SLoMd1PdAc4W3KFOFETBJUb90KatHqlsZMWV+R9Gg==}
     engines: {node: ^20.19.0 || ^22.12.0 || >=24.0.0}
@@ -5514,12 +5508,6 @@ packages:
     resolution: {integrity: sha512-rVprimfGBG3DR+Tq0IQG2DT5PxKth1WIGDmj5yPmlzr4YBe7uyE+Du4oVqTDXZSHGGGXRtTJEGSSePyQCMBglQ==}
     peerDependencies:
       react: ^19.2.8
-
-  react-google-recaptcha-v3@1.11.0:
-    resolution: {integrity: sha512-kLQqpz/77m8+trpBwzqcxNtvWZYoZ/YO6Vm2cVTHW8hs80BWUfDpC7RDwuAvpswwtSYApWfaSpIDFWAIBNIYxQ==}
-    peerDependencies:
-      react: ^16.3 || ^17.0 || ^18.0 || ^19.0
-      react-dom: ^17.0 || ^18.0 || ^19.0
 
   react-hook-form@7.87.0:
     resolution: {integrity: sha512-zhFzWvLxNHH+8839OnZcUxgMZw88ah2jZWDWvKWgF3Tpbnd0vKL+dlcuU3nZVWESZQjd81EW8K+wU+cYfYAc0w==}
@@ -10402,10 +10390,6 @@ snapshots:
 
   hey-listen@1.0.8: {}
 
-  hoist-non-react-statics@3.3.2:
-    dependencies:
-      react-is: 16.13.1
-
   html-encoding-sniffer@6.0.0(@noble/hashes@2.4.0):
     dependencies:
       '@exodus/bytes': 1.15.1(@noble/hashes@2.4.0)
@@ -11364,12 +11348,6 @@ snapshots:
     dependencies:
       react: 19.2.8
       scheduler: 0.27.0
-
-  react-google-recaptcha-v3@1.11.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
-    dependencies:
-      hoist-non-react-statics: 3.3.2
-      react: 19.2.8
-      react-dom: 19.2.8(react@19.2.8)
 
   react-hook-form@7.87.0(react@19.2.8):
     dependencies:
