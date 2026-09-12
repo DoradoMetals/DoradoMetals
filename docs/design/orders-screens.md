@@ -16,7 +16,7 @@ COPY built from library instances and tokens.
 
 ---
 
-## 1. Intake — nothing to draw
+## 1. Intake — one control, not a card
 
 An earlier pass drew a `Received` axis on the Lots card (Awaiting / Receiving
 / Received, a `Mark received` button, a Variance column, position badges).
@@ -30,8 +30,8 @@ An earlier pass drew a `Received` axis on the Lots card (Awaiting / Receiving
   Variance column on the order screen.
 - *"Variance belongs on the Lot screen, maybe too much on the orders screen."*
 
-So **his `Lots` card stands as it is on the order**, and intake needs no new
-component. Variance against the customer's declaration is shown on the **lot**
+So **his `Lots` card stands as it is on the order**, and intake adds one
+tertiary button and nothing else (§1.1). Variance against the customer's declaration is shown on the **lot**
 screen (Lineage and the Refiner card), not here.
 
 What the API still needs underneath is unchanged and still missing
@@ -39,6 +39,23 @@ What the API still needs underneath is unchanged and still missing
 fulfillment**, because without it `on hand` is underivable and the `on_assay`
 payout policy has nothing to gate on. That is an API fact with no screen of
 its own.
+
+---
+
+### 1.1 Adopting the refiner's assay
+
+The one intake control that survives. Once an order's lots have settled
+refiner lines, the operator should not retype the refiner's figures into his
+fields — but nor should they be written without a look, because a refiner line
+is often shared across lots.
+
+| component | frame id | states | source | what the API must provide |
+|---|---|---|---|---|
+| `Lots · proposed` | `729:17246` | one | **apply at source** on `Lots` `170:2260` | its one change is an `Adopt refiner assay` tertiary in the title row, shown only when the order's lots have settled refiner lines. Nothing else changes. |
+| `Adopt refiner assay` | `729:17608` | `Layout=Desktop` `729:17287` · `Layout=Mobile` `729:17450` | **new** | **a new write**: `POST /api/orders/:id/adopt-assay { lots: [{ lot_id, post_melt, purity }] }` sets our figures from the settled refiner line. The read behind the dialog gives, per lot, our current figures and the refiner's figures for that lot — or, where one refiner line covers several lots, that lot's **allocated share**, with the basis stated (`Shared line · 31% by declared content`). The employee may edit any figure before adopting; the endpoint takes what the dialog sends, not what it computed. |
+
+Sections, no badges: `FROM ITS OWN LINE` and `FROM A SHARED LINE`; an empty
+section is omitted. `Adopt` primary, `Cancel`.
 
 ---
 
@@ -117,6 +134,23 @@ badge drawn in earlier passes has been removed.
 
 ---
 
+### 2.2 The refiner purchase order feeds more than one sale
+
+| component | frame id | states | source | what the API must provide |
+|---|---|---|---|---|
+| `Linked Fulfillment · proposed` | `728:45748` | `Layout=Desktop` `728:45664` · `Layout=Mobile` `728:45705` | **apply at source** on `Linked Fulfillment` `371:8332` / `371:8408` | the linked orders and **their shipments**: per row the sales order reference, its customer and city, and that order's `shipping_status` read from its own shipment. Read-only here. |
+
+His Linked Fulfillment card becomes a **list** — one row per customer sales
+order the refiner purchase order feeds: the reference as a link, the customer
+and city, and that order's shipment state as plain text. His row pattern, no
+badges beyond the `Drop ship` badge his title row already carries. `Ships from`
+stays as the single detail above the list, because there is one refiner.
+
+**Tracking is entered on each customer sales order's own shipment card, never
+here** — the note line on the card says so, and there is no input in the list.
+
+---
+
 ## 3. Derived order state
 
 | component | frame id | states | source | what the API must provide |
@@ -163,6 +197,8 @@ and nothing else, so `OrderListItem` needs neither `lots_by_position` nor
 | `Sales Order (Refiner) · Settlement Settled` | `719:16091` | `320:2717` | refiner figures settled; aside Settlement badged `Settled` with `Dispute`, settled fine oz and variance filled |
 | `Sales Order (Refiner) · Match lines open` | `719:16814` | `320:2717` | the dialog open over a scrim, centred in the first viewport |
 | `Admin / Orders · state chips` | `673:20375` | `620:5115` | the list with the state-chip row and six cards on six derived states |
+| `Purchase Order (Refiner) · Linked orders` | `729:34954` | `358:6416` | the Fulfillment card as a list of two customer sales orders with their shipment states |
+| `PO-2481 · Adopt refiner assay` | `729:35427` | `168:2022` | his Lots card with the `Adopt refiner assay` tertiary, and the dialog open over a scrim |
 
 ### Mobile
 
@@ -174,6 +210,8 @@ and nothing else, so `OrderListItem` needs neither `lots_by_position` nor
 | `Mobile · Settlement · Settled` | `721:17154` |
 | `Mobile · Settlement · Match lines` | `721:17220` |
 | `Mobile · Order Cards` | `673:34763` |
+| `Mobile · Linked orders` | `729:36214` |
+| `Mobile · Adopt refiner assay` | `729:36280` |
 
 His `Lots / Refiner` has no mobile twin, so the mobile frames carry the header
 and the aside Settlement card only; the note frame on each says so.
@@ -195,6 +233,9 @@ Notes on canvas: `Draft note` `673:35312`, `Held · library limits` `673:35313`.
 4. `Order Card (proposal)` `640:13045` swaps its two component badges for one
    `Order State` and drops both extra footer lines.
 5. `Filter Bar (proposal A)` `626:11861` gains a state-chip row.
+6. `Lots` `170:2260` gains an `Adopt refiner assay` tertiary in its title row.
+7. `Linked Fulfillment` `371:8332` / `371:8408` becomes a list of the customer
+   sales orders the refiner purchase order feeds.
 
 ---
 

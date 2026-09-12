@@ -29,7 +29,8 @@ viewport with 358 of content. Card chrome — `surface/card`, `border/default`,
 
 Breadcrumb `Admin > Inventory > Lot 2481-A`. Six states, one per position; each
 is the same screen with its card instances swapped. Main column: `Details`, `Refiner`
-(from At refiner onward), `Where`. Aside: `Worth`, `Lineage`, `Photos`. There is no Documents card on a lot
+(At refiner and Pooled only). Aside: `Worth`, `Lineage`, `Photos`. There is no
+`Where` card and no `Documents` card. Aside: `Worth`, `Lineage`, `Photos`. There is no Documents card on a lot
 - documents belong to the order.
 
 ### Screens (frame ids unchanged through every rebuild)
@@ -65,20 +66,20 @@ lines: eyebrow `SCRAP LOT` (or `BULLION LOT`, mirroring PURCHASE ORDER / SALES
 ORDER) with the position badge immediately beside it at his eyebrow-to-badge gap;
 the item `14 Karat Gold` as the big title; and
 `Lot 2481-A . PO-2481 . Marguerite Whitfield`, where `PO-2481` wears the library
-Link. The right block is his: `Assigned to` on top, the button row under it. On
-hand shows `Split` `Combine` `Assign to sale` (tertiary) and `Batch into`
+Link. The right block holds only the position-dependent buttons and is empty when
+there are none - there is no `Assigned to` on a lot. On hand shows `Split` `Combine` `Assign to sale` (tertiary) and `Batch into`
 (primary); every other position shows the select alone.
 
 ### Which card state each position shows
 
-| position | Details | Refiner | Where | Worth (Totals instance) | Lineage |
-|---|---|---|---|---|---|
-| Incoming | `Kind=Scrap, State=ReadOnly` | absent | `PO-2481` . `In Transit` . **Open PO-2481** | `Spot . live` / Premium / Est. fine oz, total `Est. value` | Created |
-| On hand | `Kind=Scrap, State=ReadOnly` | absent | `PO-2481` . `Received` . **Open PO-2481** | `Spot . live` (the order's spots are usually still unlocked) | Created . Received . Assayed |
-| At refiner | `Kind=Scrap, State=Locked` | `State=Pending assay` | adds `SO-2493` . `Pending assay` . Open, and the refiner | `Spot . locked Aug 28` / Premium / Est. fine oz, total `Est. value` | adds Batched |
-| Pooled | `Kind=Scrap, State=Locked` | `State=Settled` | adds `SO-2493` . `Settled` . Open, and the refiner | `Spot . locked Aug 28` / Premium / Settled fine oz / Variance, total `Settled value` | adds Settled |
-| Sold | `Kind=Scrap, State=Locked` | absent | adds `SO-2488` . `In Transit` . Open | `Spot . locked Aug 28` / Premium / Margin, total `Sale price` | Created . Received . Assayed . Sold |
-| Consumed | `Kind=Scrap, State=Locked` | absent | customer order only | `Spot . locked Aug 28` / Premium / Est. fine oz, total `Est. value` | adds Split and Combined |
+| position | Details | Refiner | Worth (Totals instance) | Lineage |
+|---|---|---|---|---|
+| Incoming | `Kind=Scrap, State=ReadOnly` | absent | `Spot . live` / Premium / Est. fine oz, total `Est. value` | Created |
+| On hand | `Kind=Scrap, State=ReadOnly` | absent | `Spot . live` (the order's spots are usually still unlocked) | Created . Received . Assayed |
+| At refiner | `Kind=Scrap, State=Locked` | `State=Pending assay` | `Spot . locked Aug 28` / Premium / Est. fine oz, total `Est. value` | adds Batched |
+| Pooled | `Kind=Scrap, State=Locked` | `State=Settled` | `Spot . locked Aug 28` / Premium / Settled fine oz / Variance, total `Settled value` | adds Settled |
+| Sold | `Kind=Scrap, State=Locked` | absent | `Spot . locked Aug 28` / Premium / Margin, total `Sale price` | Created . Received . Assayed . Sold |
+| Consumed | `Kind=Scrap, State=Locked` | absent | `Spot . locked Aug 28` / Premium / Est. fine oz, total `Est. value` | adds Split and Combined |
 
 `Kind=Bullion`, `State=Editing` and `Photos State=Empty` are drawn on the
 components, not on a screen.
@@ -93,9 +94,8 @@ header, and the Where card's Customer order row carries a **Secondary**
 |---|---|---|---|
 | `Lot Header` | `690:36760` | `Position` x6 | `LotView.position` (**new**, §5.1). Eyebrow needs the lot kind; title the item name; line 2 the lot number, its customer order and the customer. `Assigned to` at the **lot** grain is **new**. Buttons map to `POST /api/lots/split` (exists), `POST /api/lots/combine` (**new**, §5.5), `POST /api/orders/lots/:id/assign` (**new**, §5.4), `POST /api/refining/orders/batch` (**new**, §5.5). |
 | `Lot Header / Mobile` | `690:37145` | `Position` x6 | same; the button row wraps. |
-| `Lot Details` | `697:25304` | `Kind=Scrap \| Bullion` x `State=ReadOnly \| Editing \| Locked` | Three equal columns, no holes. Scrap: `Kind` and `Metal` are library **Selects**, then `Purity`, `Pre melt`, `Post melt`, `Premium` as Inputs. Bullion: `Kind` and `Product` Selects, `Qty`, `Premium` editable, `Purity` and `Weight` read-only from the product. `Item`, `Purity label` and `Fine content` are gone - the name is derived from metal and purity and already sits in the header. Below a rule, a computed group in his Totals rows: `Content` and `Payable content` (content x premium), never editable. Everything editable writes through **`PATCH /api/orders/lots/:id`**, and **a premium change retiers the order's sibling lots**, so that endpoint must reprice siblings and return them. `Locked` carries `Edit on SO-2493` pointing at the owning order. |
-| `Lot Refiner` | `698:43517` (mobile `698:43966`) | `State=Pending assay \| Settled \| Disputed` | A duplicate of his `Settlement` frame `327:9722`, so the title row, badge slot and body container are his. Its top group is **label/value rows, not fields** - a fact is never an Input. Rows from `refining.orders`: refiner, location, `sent_at`, `settled_at`, and the refiner order id for the `SO-2493` link and `Open SO-2493`. The `OURS · REFINER` table compares our figures against **`refining.lots`** - `pre_melt`, `post_melt` and `purity` on that table are the **refiner's** assay, ours are the lot's own - with the variance per metric; the variance turns `text/danger` only past tolerance, and **tolerance is a new setting** (no column defines it). `Settled value` is a pricing read; it is hidden until the refiner order settles. Mobile stacks the comparison three lines per metric. |
-| `Lot Where` | `697:25794` | `Position` x6 | `orders.lots`, `refining.lots` + `refining.orders` (`sent_at`/`settled_at` -> the badge), `refiners` and location. Each badge is the derived order display state (`statuses.md` §3 - **new** as a view field); each `Open` needs the order id, which `orders.lots` carries. |
+| `Lot Details` | `723:18772` | `Kind=Scrap \| Bullion` x `State=ReadOnly \| Editing` | One shape for both kinds, three equal columns, no holes: `Kind` / `Metal` or `Product` / `Qty`, then `Pre melt` / `Post melt` / `Purity`, then `Weight` / `Premium`. A field that does not apply shows an em dash with its unit. Below a rule, a computed group in his Totals rows: `Content` and `Payable content` (content x premium), never editable. **A lot is editable in every position** - there is no `Locked` state and no `Edit on …` line - and everything writes through **`PATCH /api/orders/lots/:id`**; **a premium change retiers the order's sibling lots**, so that endpoint must reprice siblings and return them. |
+| `Lot Refiner` | `732:20441` (mobile `732:21468`) | `State=Pending assay \| Settled \| Disputed \| Shared` x `Edit=ReadOnly \| Editing` (7 drawn) | Same shape as `Lot Details`: title row with the settlement badge and the `Edit` -> `Save` / `Discard` toggle, one field row `Refiner post melt` / `Refiner purity` / `Refiner premium` with trailing units, then a hairline and a computed group in his Totals rows, `Refiner fine oz` and `Variance` (danger text past tolerance, no sign). Pending assay shows em dashes with units in the fields and in the computed rows, exactly as `Details` does. **The write is a `PATCH` on the lot's line of the refiner order** - the same write the refiner order's own `Settlement` card makes - so `refining.lots` must be addressable per line. Our own figures are not repeated here; they are on `Details`, one card up. |
 | `Worth` (no local component) | instance of `170:2346` | rows swapped per position | **The spot row follows the ORDER's spot state, never the lot's position**: `orders.orders.spots_locked` (exists) picks the label - `Spot . live` while unlocked, `Spot . locked <date>` once frozen - and the lock date needs a timestamp beside that boolean, which is **new**. There is no "spot at purchase": an incoming lot has not been priced against a frozen spot yet. Premium per lot is today on the order item / `order_metals`, not on the lot; exposing it on `LotView` is **new**. Estimate is `content` at the current spot; Settled is `refining.lots.post_melt`/`purity` with `refining.orders.settled_at`; Sold is the sale line and its margin. Every figure is a pricing read - the screen computes nothing. |
 | `Lot Lineage` | `694:64571` | `Position` x6 | The lot's story, and only what has happened - no "Pending" rows, no employee names, no fulfillment steps (those live on the order); the position badge says where it is. Created `from PO-2481 . Marguerite Whitfield`: `orders.lots` plus the customer. Received `139.22 g . matches declared`: **gap** - nothing marks arrival or compares against the declared weight (`statuses.md` §Q3 recommends `received_at` on the inbound fulfillment). Assayed `56.3% . 2.505 oz fine`: **gap** - no inbound-assay column. Batched: `refining.orders.sent_at` + `refiners`. Settled: `settled_at` and the settled-vs-estimate delta. Sold: the sale `orders.lots` row. Split / Combined: `split_from_id` (exists) and the **undecided** combine column (`statuses.md` §4 recommends `combined_into_id`). |
 | `Lot Photos` | `694:64781` | `State=Filled \| Empty` | The media domain's image routes: `POST /api/images` to upload, `GET /api/images/:id/url` to render. **A lot-to-image link is new** - images hang off accounts and orders today, and nothing associates one with a lot. |
@@ -253,10 +253,53 @@ it needs one before the `Disputed` state can be derived rather than typed.
    The one deliberate exception is `Details`: its editable fields stay Inputs in
    `ReadOnly` too, because the Edit toggle flips the same control in place.
 2. **An order reference is one Link and nothing else.** `PO-2481`, `SO-2493` and
-   `SO-2488` are Link-styled references on the header line, the `Where` rows, the
-   `Refiner` card and the `Lineage` steps. There are no `Open …` buttons
+   `SO-2488` are Link-styled references on the header line, the the `Refiner` card and the `Lineage` steps. There are no `Open …` buttons
    anywhere; the `Where` row keeps its state badge right-aligned.
 
 `Worth` rows are now `Spot · live` (or `· locked <date>`), `Premium`,
 `Payable content`, total `Est. value`; pooled swaps in `Settled fine oz` /
 `Variance` / `Settled value` and sold swaps in `Margin` / `Sale price`.
+
+### Three rules from 2026-09-12
+
+1. **A field that does not apply shows an em dash, never blank and never
+   hidden** - mirroring his Lots tables on the order screens. `Details` is one
+   shape for both kinds: `Kind` / `Metal` or `Product` / `Qty`, then
+   `Pre melt` / `Post melt` / `Purity`, then `Weight` / `Premium`. Scrap shows
+   `Qty —` and `Weight — ozt`; bullion shows `Pre melt —` and `Post melt —`.
+   The dash keeps its unit and its label, so the grid never changes shape
+   between the two kinds.
+2. **Badges live only in card title rows and the page header.** The `Order` row
+   on the `Refiner` card lost its state badge (the card's own title-row badge
+   already says `Pending assay` / `Settled` / `Disputed`).
+   **A column of badges was the "assaulted" effect**, so those became plain
+   text in the table's body style (Small/Medium, `text/default`): the `Position`
+   column on the Inventory table, the same value in `Lot Card / Mobile`, and the
+   `Entry` column on the Pool ledger, desktop and mobile. 53 badges removed.
+   The position chips above the table and the position badge in the lot header
+   stay - those are the sparse ones. Because `Lot Row (proposal)` `639:13959` is
+   not mine to edit, the Inventory table now uses a local copy, **`Lot Row`
+   `724:17677`** (5 position variants), with the column as text; the proposal
+   component is untouched.
+3. **There is no `Where` card.** The header line names the customer order and
+   `Lineage` names every order the lot has touched, so the card repeated both.
+
+### The refiner model, and the Shared variant
+
+A refiner order has **lines**, many-to-many with customer lots, so one line can
+carry more than one lot. When this lot's line is shared, the `Shared` variant
+(drawn on the Pooled state `671:20757`) adds one line above the grid - `Shared
+with 2481-B · 58% by declared content` - and the grid is **read-only with no
+Edit**: a shared line is edited on the refiner order, where all of its lots are
+in view. The allocation basis (declared content) and the per-lot share are
+**new** - `refining.lots` today links a lot to an order, not to a line, and
+nothing stores a split percentage.
+
+### Header actions, and one icon gap
+
+The header's actions are Icon Buttons, the same component and variants his
+`Lots` card title row uses (Size=Default, gap `spacing/sm`, the lead action
+Primary and the rest Secondary): `split` for Split, `combine` for Combine,
+`boxes` for Batch into (his own Batch icon). **There is no assign-to-sale icon
+in the set**, so Assign to sale wears `receipt-text` as the closest library
+icon - recorded here rather than drawn, per the no-invented-primitives rule.
