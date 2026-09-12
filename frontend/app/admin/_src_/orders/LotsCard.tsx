@@ -264,9 +264,9 @@ function LotRow({
           />,
           <Cell
             key="premium"
-            value={lot.premium}
+            value={lot.lot.premium}
             readOnly={readOnly}
-            display={asPremium(lot.premium)}
+            display={asPremium(lot.lot.premium)}
             onCommit={(premium) => onEdit({ premium })}
           />,
         ]
@@ -279,9 +279,9 @@ function LotRow({
           />,
           <Cell
             key="premium"
-            value={lot.premium}
+            value={lot.lot.premium}
             readOnly={readOnly}
-            display={asPremium(lot.premium)}
+            display={asPremium(lot.lot.premium)}
             onCommit={(premium) => onEdit({ premium })}
           />,
         ]
