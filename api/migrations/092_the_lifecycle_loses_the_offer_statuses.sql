@@ -48,20 +48,34 @@ UPDATE exchange.purchase_orders
    SET purchase_order_status = 'Cancelled'
  WHERE purchase_order_status = 'Rejected';
 
--- The new schema's copy of the same rows. orders.orders holds both
--- directions; the retired labels were only ever purchase-side, but the
--- direction guard states the intent rather than relying on that.
-UPDATE orders.orders
-   SET status = 'Payment Processing'
- WHERE status = 'Accepted' AND direction = 'purchase';
+-- EDITED 2026-09-12 (ruling 112, facts lane). `orders.orders.status` is gone -
+-- 181 dropped it, and the lifecycle it recorded is derived now, never stored -
+-- so a build from nothing reaches this file with the column already gone.
+-- Guarded rather than rewritten like 030 and 180: unlike 030's `cancelled_at`,
+-- none of these three retired labels has a surviving fact column to write
+-- instead. 'Payment Processing' and 'Received' are projections of payment,
+-- fulfillment and lot facts with no column of their own to backfill, and
+-- 'Rejected' -> 'Cancelled' duplicates what 180 already stamped onto
+-- `cancelled_at` for any row this would have touched. A no-op wherever
+-- `status` is already gone, exactly like 030 and 180.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns
+              WHERE table_schema = 'orders' AND table_name = 'orders'
+                AND column_name = 'status') THEN
+    UPDATE orders.orders
+       SET status = 'Payment Processing'
+     WHERE status = 'Accepted' AND direction = 'purchase';
 
-UPDATE orders.orders
-   SET status = 'Received'
- WHERE status = 'Offer Sent' AND direction = 'purchase';
+    UPDATE orders.orders
+       SET status = 'Received'
+     WHERE status = 'Offer Sent' AND direction = 'purchase';
 
-UPDATE orders.orders
-   SET status = 'Cancelled'
- WHERE status = 'Rejected' AND direction = 'purchase';
+    UPDATE orders.orders
+       SET status = 'Cancelled'
+     WHERE status = 'Rejected' AND direction = 'purchase';
+  END IF;
+END $$;
 
 -- The mail the accept pipeline sent becomes the pricing-finalized mail.
 -- Rename rather than add-and-retire: the kind's meaning is unchanged - the
