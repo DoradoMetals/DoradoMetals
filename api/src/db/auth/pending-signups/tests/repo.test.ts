@@ -60,6 +60,57 @@ test('the row is deleted by the number the verify carried', async () => {
   )
 })
 
+test('a phone-less signup is held by email until the code is answered', async () => {
+  await inPinnedTransaction(
+    async (c: PoolClient) => {
+      const email = `new-${Math.floor(Math.random() * 100000)}@dorado.test`
+      const made = await pendingSignups.create(
+        { phone_number: null, email, name: 'New Person', expires_at: inTenMinutes() },
+        c
+      )
+      assert.ok(made.id, 'the database mints the id')
+      assert.equal(made.phone_number, null)
+      assert.equal((await pendingSignups.byEmail(email, c))?.id, made.id)
+    },
+    { actor: TEST_ACTOR.id }
+  )
+})
+
+test('a second phone-less attempt at the same email reuses the row rather than racing it', async () => {
+  await inPinnedTransaction(
+    async (c: PoolClient) => {
+      const email = `new-${Math.floor(Math.random() * 100000)}@dorado.test`
+      const first = await pendingSignups.create(
+        { phone_number: null, email, name: 'A', expires_at: inTenMinutes() },
+        c
+      )
+      const second = await pendingSignups.create(
+        { phone_number: null, email, name: 'B', expires_at: inTenMinutes() },
+        c
+      )
+      assert.equal(second.id, first.id, 'a unique violation would have been the alternative')
+      assert.equal(second.name, 'B', 'the newer answers win')
+    },
+    { actor: TEST_ACTOR.id }
+  )
+})
+
+test('the row is deleted by the email the verify carried', async () => {
+  await inPinnedTransaction(
+    async (c: PoolClient) => {
+      const email = `new-${Math.floor(Math.random() * 100000)}@dorado.test`
+      await pendingSignups.create(
+        { phone_number: null, email, name: 'A', expires_at: inTenMinutes() },
+        c
+      )
+      assert.equal(await pendingSignups.removeByEmail(email, c), true)
+      assert.equal(await pendingSignups.byEmail(email, c), undefined)
+      assert.equal(await pendingSignups.removeByEmail(email, c), false)
+    },
+    { actor: TEST_ACTOR.id }
+  )
+})
+
 test('the update patches only what it names', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {

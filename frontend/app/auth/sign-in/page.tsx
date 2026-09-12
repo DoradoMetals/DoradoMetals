@@ -8,25 +8,23 @@ import { AuthForm } from '@/shared/ui/auth/AuthForm'
 import { useCaptcha } from '@/shared/hooks/useCaptcha'
 import { useGoogleSignIn } from '@/shared/hooks/auth/queries'
 import { useVerification } from '@/shared/providers/VerificationProvider'
-import formatPhoneNumber, { normalizePhone } from '@/shared/utils/formatPhoneNumber'
 import { messageOf } from '@/shared/utils/authForm'
 import { nextFrom } from '@/shared/utils/returnTo'
 
 function SignIn() {
   const router = useRouter()
   const params = useSearchParams()
-  const [digits, setDigits] = useState('')
+  const [email, setEmail] = useState('')
   const sendCode = useSendCode()
   const captcha = useCaptcha()
   const google = useGoogleSignIn()
   const { setVerification } = useVerification()
 
   const submit = async () => {
-    const phone_number = `+1${digits}`
     const captcha_token = await captcha.token()
     try {
-      const view = await sendCode.mutateAsync({ channel: 'sms', phone_number, captcha_token })
-      setVerification({ view, channel: 'sms', phone_number, next: nextFrom(params) ?? undefined })
+      const view = await sendCode.mutateAsync({ channel: 'email', email, captcha_token })
+      setVerification({ view, channel: 'email', email, next: nextFrom(params) ?? undefined })
       router.push(view.status === 'locked' ? '/auth/locked' : '/auth/verify')
     } finally {
       captcha.reset()
@@ -35,9 +33,9 @@ function SignIn() {
 
   return (
     <AuthForm
-      state="sign-in"
-      value={formatPhoneNumber(digits)}
-      onValueChange={(next) => setDigits(normalizePhone(next))}
+      state="sign-in-email"
+      value={email}
+      onValueChange={setEmail}
       onSubmit={submit}
       captcha={captcha.widget}
       pending={sendCode.isPending}

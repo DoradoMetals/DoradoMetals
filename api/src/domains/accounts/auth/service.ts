@@ -153,15 +153,19 @@ export async function sendCode(body: SendCodeBody, ip: string | null): Promise<V
 export async function signUp(body: SignUpBody, ip: string | null): Promise<VerificationView> {
   const started = Date.now()
   rules.assertCaptcha(await captcha.verify(body.captcha_token, ip))
-  rules.assertUsPhone(body.phone_number)
+  if (body.phone_number) rules.assertUsPhone(body.phone_number)
 
   const email = body.email.toLowerCase()
-  const takenPhone = await users.byPhone(body.phone_number)
+  const channel: OtpChannel = body.phone_number ? 'sms' : 'email'
+  const destination = body.phone_number ?? email
+  const kind = rules.kindOf(channel)
+
+  const takenPhone = body.phone_number ? await users.byPhone(body.phone_number) : undefined
   const takenEmail = await users.byEmail(email)
 
   const [row, may] = await reserveSend(
-    rules.subjectOf('phone', body.phone_number),
-    'phone',
+    rules.subjectOf(kind, destination),
+    kind,
     ip,
     rules.SENDS_PER_NUMBER,
     rules.NUMBER_WINDOW_SECONDS
@@ -170,7 +174,7 @@ export async function signUp(body: SignUpBody, ip: string | null): Promise<Verif
   await withTransaction(async (tx) =>
     pendingSignups.create(
       {
-        phone_number: body.phone_number,
+        phone_number: body.phone_number ?? null,
         email,
         name: body.name,
         expires_at: rules.otpExpiresAt(Date.now()),
@@ -180,13 +184,13 @@ export async function signUp(body: SignUpBody, ip: string | null): Promise<Verif
   )
 
   if (may && !takenPhone && !takenEmail) {
-    await attempt('auth.signUp', () => dispatchSignIn('sms', body.phone_number))
+    await attempt('auth.signUp', () => dispatchSignIn(channel, destination))
   }
   await padTo(started, rules.SEND_FLOOR_MS)
 
   const now = Date.now()
   const status: VerificationStatus = rules.isLocked(row, now) ? 'locked' : 'sent'
-  return rules.verificationView('sign_up', 'sms', body.phone_number, row, status, now)
+  return rules.verificationView('sign_up', channel, destination, row, status, now)
 }
 
 async function checkCode(
@@ -233,7 +237,10 @@ export async function verifyCode(
 
   const known =
     body.channel === 'sms' ? await users.byPhone(destination) : await users.byEmail(destination)
-  const pending = body.channel === 'sms' ? await pendingSignups.byPhone(destination) : undefined
+  const pending =
+    body.channel === 'sms'
+      ? await pendingSignups.byPhone(destination)
+      : await pendingSignups.byEmail(destination)
 
   const stepping = Boolean(session_id && stepUpOutstanding)
   const purpose = stepping ? 'step_up' : known || !pending ? 'sign_in' : 'sign_up'
@@ -259,20 +266,26 @@ export async function verifyCode(
     return [rules.verificationView(purpose, body.channel, destination, row, status, now), []]
   }
 
-  const cookies = await mintSession(body.channel, destination, body.code)
+  const cookies = await mintSession(body.channel, destination, body.code, pending?.name)
 
   if (purpose === 'sign_up' && pending) {
-    const created = await users.byPhone(destination)
+    const created =
+      body.channel === 'sms' ? await users.byPhone(destination) : await users.byEmail(destination)
     if (created) {
       await withTransaction(async (tx) => {
-        const named = await users.update(
-          created.id,
-          { email: pending.email, name: pending.name, emailVerified: true },
-          tx
-        )
-        rules.assertApplied(named, "the new account's own name and email")
-        const cleared = await pendingSignups.remove(destination, tx)
-        rules.assertApplied(cleared, 'the held sign-up answers')
+        if (body.channel === 'sms') {
+          const named = await users.update(
+            created.id,
+            { email: pending.email, name: pending.name, emailVerified: true },
+            tx
+          )
+          rules.assertApplied(named, "the new account's own name and email")
+          const cleared = await pendingSignups.remove(destination, tx)
+          rules.assertApplied(cleared, 'the held sign-up answers')
+        } else {
+          const cleared = await pendingSignups.removeByEmail(destination, tx)
+          rules.assertApplied(cleared, 'the held sign-up answers')
+        }
       })
       await attempt('auth.accountCreated', () =>
         sendAccountCreated({
@@ -295,7 +308,8 @@ export async function verifyCode(
 async function mintSession(
   channel: OtpChannel,
   destination: string,
-  code: string
+  code: string,
+  name?: string
 ): Promise<string[]> {
   if (channel === 'sms') {
     const answered = await auth.api.verifyPhoneNumber({
@@ -305,7 +319,7 @@ async function mintSession(
     return answered.headers.getSetCookie()
   }
   const answered = await auth.api.signInEmailOTP({
-    body: { email: destination, otp: code },
+    body: { email: destination, otp: code, name },
     returnHeaders: true,
   })
   return answered.headers.getSetCookie()

@@ -5,7 +5,7 @@ import type { ChangeConfirmedView, VerificationView } from '@dorado/contracts'
 import { Alert, Button, Checkbox, Divider, Input, Link, OTPInput } from '@dorado/components'
 import { GoogleLogo, Phone } from '@dorado/icons'
 
-import { minutesUntil, secondsUntil } from '@/shared/utils/authForm'
+import { PHONE_SIGN_IN_LIVE, minutesUntil, secondsUntil } from '@/shared/utils/authForm'
 
 const SUPPORT_HREF = 'mailto:support@doradometals.com'
 const TITLE_ID = 'auth-form-title'
@@ -114,8 +114,8 @@ const codeFooter = (view: VerificationView): { prose: string; label: string; hre
     return { prose: 'Changed your mind?', label: 'Cancel', href: '/account' }
   }
   return view.channel === 'sms'
-    ? { prose: 'Wrong number?', label: 'Change it', href: '/auth/sign-in' }
-    : { prose: 'Wrong email?', label: 'Change it', href: '/auth/sign-in/email' }
+    ? { prose: 'Wrong number?', label: 'Change it', href: '/auth/sign-in/phone' }
+    : { prose: 'Wrong email?', label: 'Change it', href: '/auth/sign-in' }
 }
 
 function Head({ title, children }: { title: string; children: React.ReactNode }) {
@@ -308,6 +308,8 @@ export function AuthForm(props: AuthFormProps) {
             onChange={(event) => onEmailChange(event.target.value)}
             type="email"
             autoComplete="email"
+            invalid={Boolean(message)}
+            message={message ?? undefined}
           />
           <Input
             label="Phone"
@@ -318,8 +320,8 @@ export function AuthForm(props: AuthFormProps) {
             type="tel"
             inputMode="numeric"
             autoComplete="tel"
-            invalid={Boolean(message)}
-            message={message ?? undefined}
+            disabled={!PHONE_SIGN_IN_LIVE}
+            message={PHONE_SIGN_IN_LIVE ? undefined : 'Text sign-in coming soon'}
           />
           <div className="flex w-full items-center gap-xs">
             <Checkbox
@@ -389,11 +391,9 @@ export function AuthForm(props: AuthFormProps) {
             googlePending={googlePending}
           />
           <FooterRow prose="New here?" label="Create an account" href="/auth/sign-up" />
-          <FooterRow
-            prose={state === 'sign-in' ? 'Prefer email?' : 'Prefer a text?'}
-            label="Send the code there"
-            href={state === 'sign-in' ? '/auth/sign-in/email' : '/auth/sign-in'}
-          />
+          {state === 'sign-in' && (
+            <FooterRow prose="Prefer email?" label="Send the code there" href="/auth/sign-in" />
+          )}
         </>
       )}
       {(state === 'change-email' || state === 'change-phone') && (
