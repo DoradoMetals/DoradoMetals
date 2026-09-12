@@ -212,6 +212,9 @@ A reported gap is often a rename rather than a loss. Declare the mapping in
 
 ## Tests
 
+`pnpm seed` from the repo root seeds the e2e users (admin phone from
+`SEED_ADMIN_PHONE`) and a disposable order; `pnpm dev` starts both apps.
+
 `pnpm dev` builds `@dorado/contracts` once, then runs the API and frontend dev
 servers together via `concurrently` (one log prefix each, on their own ports).
 Each workspace's own `predev`/`prestart`/`prebuild` hook rebuilds contracts too

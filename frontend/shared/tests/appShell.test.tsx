@@ -67,19 +67,19 @@ describe('the header, signed out', () => {
     expect(within(bar).queryByText('Admin')).toBeNull()
     expect(within(bar).getByText('Sign in')).toBeTruthy()
     expect(screen.queryByLabelText('Account menu')).toBeNull()
-    expect(hrefsIn(bar)).toContain('/auth/sign-in')
+    expect(hrefsIn(bar)).toContain('/auth/sign-in?next=%2F')
   })
 
   test('the drawer carries the same entries the bar does', () => {
     shell()
     const panel = openDrawer()
-    expect(hrefsIn(panel)).toEqual(['/', '/auth/sign-in', '/auth/sign-up'])
+    expect(hrefsIn(panel)).toEqual(['/', '/auth/sign-in?next=%2F', '/auth/sign-up'])
     expect(within(panel).queryByText('Sign out')).toBeNull()
   })
 
   test('the footer Account column is the two ways in', () => {
     shell()
-    expect(hrefsIn(footer())).toEqual(['/', '/auth/sign-in', '/auth/sign-up'])
+    expect(hrefsIn(footer())).toEqual(['/', '/auth/sign-in?next=%2F', '/auth/sign-up'])
   })
 })
 

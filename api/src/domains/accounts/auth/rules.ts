@@ -67,9 +67,7 @@ export function assertUser(row: User | undefined): asserts row is User {
   if (!row) throw new NotFound('no such account')
 }
 
-export function assertThrottle(
-  row: AuthOtpThrottle | undefined
-): asserts row is AuthOtpThrottle {
+export function assertThrottle(row: AuthOtpThrottle | undefined): asserts row is AuthOtpThrottle {
   if (!row) throw new Conflict('the rate-limit row for this identity could not be taken')
 }
 
@@ -89,8 +87,7 @@ export const channelOf = (factor: Factor): OtpChannel => (factor === 'phone' ? '
 
 export const otherFactorOf = (factor: Factor): Factor => (factor === 'phone' ? 'email' : 'phone')
 
-export const kindOf = (channel: OtpChannel): ThrottleKind =>
-  channel === 'sms' ? 'phone' : 'email'
+export const kindOf = (channel: OtpChannel): ThrottleKind => (channel === 'sms' ? 'phone' : 'email')
 
 export const subjectOf = (kind: ThrottleKind, value: string): string =>
   `${kind}:${kind === 'email' ? value.toLowerCase() : value}`
@@ -143,6 +140,20 @@ export function resendAt(row: AuthOtpThrottle, now: number): string {
   return iso(last === null ? now : last + RESEND_SECONDS * 1000)
 }
 
+// Jacob's amendment, 2026-09-11: the Turnstile widget must never appear on the
+// OTP code screen, so a resend needs a token only when there is no live
+// pending send. "Live" is read off the THROTTLE row, never off
+// auth.verification: reserveSend stamps last_sent_at for a known and an
+// unknown identity alike, while a verification row is only minted for a known
+// one - keying this off the verification row would answer 403 for an unknown
+// number and 200 for a known one, telling an attacker which numbers exist.
+// True with no row (never sent) or once the pending code has expired, so the
+// first send and a resend after expiry both need a fresh token.
+export function captchaRequired(row: AuthOtpThrottle | undefined, now: number): boolean {
+  const last = row ? ms(row.last_sent_at) : null
+  return last === null || last + OTP_EXPIRES_SECONDS * 1000 <= now
+}
+
 const windowOpen = (row: AuthOtpThrottle, now: number, windowSeconds: number): boolean => {
   const started = ms(row.window_started_at)
   return started !== null && started + windowSeconds * 1000 > now
@@ -185,11 +196,7 @@ export function clearedAttempts(): Partial<AuthOtpThrottle> {
 
 // ------------------------------------------------------------------ the code
 
-export function codeMatches(
-  row: Verification | undefined,
-  code: string,
-  now: number
-): boolean {
+export function codeMatches(row: Verification | undefined, code: string, now: number): boolean {
   if (!row) return false
   const expires = ms(row.expiresAt)
   if (expires === null || expires <= now) return false

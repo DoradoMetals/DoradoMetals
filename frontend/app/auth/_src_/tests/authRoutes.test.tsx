@@ -33,10 +33,12 @@ const push = vi.fn()
 const replace = vi.fn()
 const back = vi.fn()
 
+let searchParams = new URLSearchParams()
+
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push, replace, back }),
   usePathname: () => '/',
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => searchParams,
 }))
 
 const sendCodeMutateAsync = vi.fn()
@@ -98,6 +100,11 @@ vi.mock('@/shared/hooks/useCaptcha', () => ({
 }))
 
 const adoptSession = vi.fn()
+const getSession = vi.fn(async () => ({ data: { user: { id: 'u-1', role: 'user' } } }))
+
+vi.mock('@/shared/hooks/auth/authClient', () => ({
+  getSession: (...args: unknown[]) => getSession(...(args as [])),
+}))
 
 vi.mock('@/shared/hooks/auth/queries', () => ({
   useGoogleSignIn: () => ({ mutate: vi.fn(), isPending: false }),
@@ -160,6 +167,8 @@ function renderPage(
 }
 
 beforeEach(() => {
+  searchParams = new URLSearchParams()
+  getSession.mockClear()
   push.mockClear()
   replace.mockClear()
   back.mockClear()
@@ -199,6 +208,43 @@ describe('/auth/sign-in', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
 
     await waitFor(() => expect(push).toHaveBeenCalledWith('/auth/locked'))
+  })
+
+  test('?next= travels in the verification, and a foreign one does not', async () => {
+    searchParams = new URLSearchParams('next=/admin/orders/abc-123')
+    sendCodeMutateAsync.mockResolvedValue(view({ status: 'sent' }))
+    // A holder, not a plain `let`: TypeScript's control flow narrows a local
+    // assigned only inside a closure to its initialiser and the reads go never.
+    const seen: { value: Verification | null } = { value: null }
+    const latest = () => seen.value
+    function Spy() {
+      seen.value = useVerification().verification
+      return null
+    }
+
+    const utils = render(
+      <VerificationProvider>
+        <SignInPage />
+        <Spy />
+      </VerificationProvider>
+    )
+    fireEvent.change(screen.getByLabelText('Phone'), { target: { value: '2145550134' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+    await waitFor(() => expect(latest()?.next).toBe('/admin/orders/abc-123'))
+    utils.unmount()
+
+    searchParams = new URLSearchParams('next=https://evil.example')
+    seen.value = null
+    render(
+      <VerificationProvider>
+        <SignInPage />
+        <Spy />
+      </VerificationProvider>
+    )
+    fireEvent.change(screen.getByLabelText('Phone'), { target: { value: '2145550134' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+    await waitFor(() => expect(latest()?.view).toBeTruthy())
+    expect(latest()?.next).toBe(undefined)
   })
 })
 
@@ -289,6 +335,75 @@ describe('/auth/verify', () => {
       },
     })
     await waitFor(() => expect(replace).toHaveBeenCalledWith('/auth/locked'))
+  })
+
+  test('THE CODE SCREEN CARRIES NO CAPTCHA, and a resend sends no token', async () => {
+    sendCodeMutateAsync.mockResolvedValueOnce(view({ resend_at: new Date(NOW).toISOString() }))
+    const { container } = renderPage(<VerifyPage />, {
+      verification: {
+        view: view({ resend_at: new Date(NOW).toISOString() }),
+        channel: 'sms',
+        phone_number: '+12145550134',
+      },
+    })
+
+    expect(container.querySelector('[data-testid="turnstile"]')).toBe(null)
+    fireEvent.click(screen.getByRole('button', { name: 'Resend code' }))
+
+    await waitFor(() =>
+      expect(sendCodeMutateAsync).toHaveBeenCalledWith({
+        channel: 'sms',
+        phone_number: '+12145550134',
+        email: undefined,
+      })
+    )
+  })
+
+  test('AN ACCEPTED CODE LANDS ON THE PAGE IT CAME FROM, never back on sign-in', async () => {
+    vi.useFakeTimers()
+    try {
+      verifyCodeMutateAsync.mockResolvedValueOnce(view({ status: 'verified' }))
+      renderPage(<VerifyPage />, {
+        verification: {
+          view: view(),
+          channel: 'sms',
+          phone_number: '+12145550134',
+          next: '/admin/orders/abc-123',
+        },
+      })
+
+      fireEvent.change(screen.getByLabelText('One-time code'), { target: { value: '123456' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Verify' }))
+      await vi.waitFor(() => expect(verifyCodeMutateAsync).toHaveBeenCalled())
+      await vi.advanceTimersByTimeAsync(2000)
+
+      expect(replace).toHaveBeenCalledWith('/admin/orders/abc-123')
+      expect(replace).not.toHaveBeenCalledWith('/auth/sign-in')
+      expect(adoptSession).toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  test('with nothing asked for, the role decides: an admin lands on /admin', async () => {
+    vi.useFakeTimers()
+    try {
+      getSession.mockResolvedValueOnce({ data: { user: { id: 'u-1', role: 'admin' } } })
+      verifyCodeMutateAsync.mockResolvedValueOnce(view({ status: 'verified' }))
+      renderPage(<VerifyPage />, {
+        verification: { view: view(), channel: 'sms', phone_number: '+12145550134' },
+      })
+
+      fireEvent.change(screen.getByLabelText('One-time code'), { target: { value: '123456' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Verify' }))
+      await vi.waitFor(() => expect(verifyCodeMutateAsync).toHaveBeenCalled())
+      await vi.advanceTimersByTimeAsync(2000)
+
+      expect(replace).toHaveBeenCalledWith('/admin')
+      expect(replace).not.toHaveBeenCalledWith('/auth/sign-in')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   test('a change_email verification confirms through useConfirmChange and lands on settings', async () => {

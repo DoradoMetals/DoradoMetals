@@ -21,6 +21,7 @@ import {
 } from '@dorado/components'
 
 import { useGetSession, useSignOut } from '@/shared/hooks/auth/queries'
+import { signInHref } from '@/shared/utils/returnTo'
 
 // The auth screens draw their own full-bleed panel (AuthShell), so they wear no
 // chrome. Everything else does.
@@ -74,21 +75,22 @@ const SIGNED_IN_ACCOUNT: Entry[] = [
 ]
 
 const SIGNED_OUT_ACCOUNT: Entry[] = [
-  { href: '/auth/sign-in', label: 'Sign in' },
   { href: '/auth/sign-up', label: 'Create an account' },
 ]
 
 function useChrome() {
   const { user } = useGetSession()
+  // Signing in from the nav returns to the page it was clicked on.
+  const pathname = usePathname() ?? '/'
   const signedIn = Boolean(user)
   const isAdmin = user?.role === 'admin'
 
   return {
     signedIn,
     nav: signedIn && isAdmin ? [HOME, ADMIN] : [HOME],
-    account: signedIn ? SIGNED_IN_ACCOUNT : SIGNED_OUT_ACCOUNT,
-    // The account's own name, as the menu says it. It is the session's field,
-    // not a greeting this component composes.
+    account: signedIn
+      ? SIGNED_IN_ACCOUNT
+      : [{ href: signInHref(pathname), label: 'Sign in' }, ...SIGNED_OUT_ACCOUNT],
     who: user?.name || user?.email || '',
     initials: initials(user?.name, user?.email),
   }
@@ -111,11 +113,12 @@ function NavLinks({ pathname }: { pathname: string }) {
 function AccountMenu() {
   const { signedIn, account, who, initials: label } = useChrome()
   const { mutate: signOut } = useSignOut()
+  const pathname = usePathname() ?? '/'
 
   if (!signedIn) {
     return (
       <UILink asChild variant="nav">
-        <NextLink href="/auth/sign-in">Sign in</NextLink>
+        <NextLink href={signInHref(pathname)}>Sign in</NextLink>
       </UILink>
     )
   }

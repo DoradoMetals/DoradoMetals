@@ -10,13 +10,27 @@ import query from '#shared/db/query.ts'
 import { auth } from '#accounts/auth/client.ts'
 import * as fakeSms from '#providers/twilio/fake.ts'
 
+// THE ADMIN'S NUMBER IS CONFIGURABLE, the customer's is not (Jacob,
+// 2026-09-11). Jacob signs in as the seeded admin on his own phone while
+// testing, so `SEED_ADMIN_PHONE` in his own api/.env carries his real number
+// and NO real number is ever written down in this repository. Unset, it is the
+// +1555555xxxx reserved test number the e2e harness has always used.
+// `frontend/shared/tests/roles.ts` reads the same variable, so the harness
+// sends the code to whatever was seeded.
+const ADMIN_PHONE = process.env.SEED_ADMIN_PHONE ?? '+15555550100'
+if (!/^\+1[2-9]\d{2}[2-9]\d{6}$/.test(ADMIN_PHONE)) {
+  throw new Error(
+    `SEED_ADMIN_PHONE=${ADMIN_PHONE} is not a US number in E.164 form, such as +12145550134`
+  )
+}
+
 // There are no passwords any more (ruling 91). A seeded account gets a
 // VERIFIED phone number, and the harness signs in the way a customer does:
 // send a code, read it back from the recording fake, verify it.
 export const E2E_USERS = {
   admin: {
     email: 'e2e-admin@example.invalid',
-    phone_number: '+15555550100',
+    phone_number: ADMIN_PHONE,
     name: 'E2E Admin',
     role: 'admin',
   },

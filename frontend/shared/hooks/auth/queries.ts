@@ -50,6 +50,13 @@ export const useAdoptSession = () => {
   return useCallback(() => {
     forgetSession()
     clear()
+    // AND TELL BETTER-AUTH THERE IS A SESSION NOW. `/api/account/verify_code`
+    // mints it server-side, so the reactive store never saw a sign-in and
+    // still holds the signed-out answer with isPending false - which every
+    // guard on the landing page reads as "not signed in" and bounces on.
+    // `$store.notify('$sessionSignal')` is better-auth's own way to make it
+    // ask again; the impersonation hooks below have always used it.
+    auth.$store.notify('$sessionSignal')
   }, [clear])
 }
 

@@ -1,6 +1,7 @@
 import { ReactNode, useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useGetSession } from '@/shared/hooks/auth/queries'
+import { signInHref } from '@/shared/utils/returnTo'
 
 interface ProtectedPageProps {
   children: ReactNode
@@ -11,6 +12,7 @@ export default function ProtectedPage({ children, requiredRoles }: ProtectedPage
   const { user, isPending } = useGetSession()
 
   const router = useRouter()
+  const pathname = usePathname()
 
   const role = user?.role
   const authorized = requiredRoles.includes(role ?? '')
@@ -20,11 +22,12 @@ export default function ProtectedPage({ children, requiredRoles }: ProtectedPage
   useEffect(() => {
     if (!isPending) {
       if (!authorized) {
-        router.replace('/auth/sign-in')
+        // The page they wanted travels to the sign-in screen and back.
+        router.replace(signInHref(pathname))
       }
       setChecked(true)
     }
-  }, [authorized, isPending, router])
+  }, [authorized, isPending, pathname, router])
 
   if (!checked || isPending) return <p>Loading...</p>
 

@@ -1,14 +1,15 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useConfirmChange, useSendCode, useVerifyCode } from '@dorado/client'
 
 import { AuthForm } from '@/shared/ui/auth/AuthForm'
-import { useCaptcha } from '@/shared/hooks/useCaptcha'
+import { getSession } from '@/shared/hooks/auth/authClient'
 import { useAdoptSession } from '@/shared/hooks/auth/queries'
 import { useVerification } from '@/shared/providers/VerificationProvider'
 import { codeStateFor, messageOf } from '@/shared/utils/authForm'
+import { landingFor } from '@/shared/utils/returnTo'
 
 // How long the "Code verified" alert stays before the flow moves on.
 const HANDOVER_MS = 900
@@ -20,8 +21,14 @@ export default function Page() {
   const verifyCode = useVerifyCode()
   const confirmChange = useConfirmChange()
   const sendCode = useSendCode()
-  const captcha = useCaptcha()
   const adopt = useAdoptSession()
+
+  // THE BOUNCE AND THE HANDOVER BOTH READ AN EMPTY CONTEXT, and the handover
+  // empties it on purpose. Without this flag the success path read as an
+  // arrival with nothing in flight: `setVerification(null)` re-ran the effect
+  // below, whose `replace('/auth/sign-in')` then overtook the handover's own
+  // destination - the bug Jacob hit, a CORRECT code landing back on sign-in.
+  const leaving = useRef(false)
 
   const view = verification?.view ?? null
   const state = view ? codeStateFor(view) : null
@@ -29,7 +36,7 @@ export default function Page() {
 
   // A reload empties the flow, and there is no code to enter without it.
   useEffect(() => {
-    if (!verification) router.replace('/auth/sign-in')
+    if (!verification && !leaving.current) router.replace('/auth/sign-in')
   }, [verification, router])
 
   useEffect(() => {
@@ -38,13 +45,19 @@ export default function Page() {
 
   useEffect(() => {
     if (state !== 'otp-success' || !purpose) return
-    const timer = setTimeout(() => {
+    leaving.current = true
+    const next = verification?.next ?? null
+    const timer = setTimeout(async () => {
+      // The accepted code minted a session, and its ROLE is the default
+      // landing - read from the session rather than guessed, and read before
+      // `adopt()` drops the caches.
+      const session = await getSession().catch(() => null)
       adopt()
       setVerification(null)
-      router.replace('/')
+      router.replace(landingFor(session?.data?.user?.role ?? null, next))
     }, HANDOVER_MS)
     return () => clearTimeout(timer)
-  }, [state, purpose, adopt, setVerification, router])
+  }, [state, purpose, verification?.next, adopt, setVerification, router])
 
   if (!verification || !view || !state || state === 'locked') return null
 
@@ -57,6 +70,7 @@ export default function Page() {
     if (changing) {
       const confirmed = await confirmChange.mutateAsync({ code })
       setConfirmed(confirmed)
+      leaving.current = true
       setVerification(null)
       router.replace(`/settings/${confirmed.factor === 'email' ? 'email' : 'phone'}/confirmed`)
       return
@@ -70,20 +84,18 @@ export default function Page() {
     setVerification({ ...verification, view: next })
   }
 
+  // NO CAPTCHA ON THIS SCREEN (Jacob, 2026-09-11: "cloudflare seems to be
+  // popping up every page"). A resend is a send INSIDE the pending window, and
+  // `send_code` asks for a token only outside one - so the widget belongs on
+  // the screens that start a verification, and on no other.
   const resend = async () => {
-    const captcha_token = await captcha.token()
-    try {
-      const next = await sendCode.mutateAsync({
-        channel: verification.channel,
-        phone_number: verification.phone_number,
-        email: verification.email,
-        captcha_token,
-      })
-      setVerification({ ...verification, view: next })
-      setCode('')
-    } finally {
-      captcha.reset()
-    }
+    const next = await sendCode.mutateAsync({
+      channel: verification.channel,
+      phone_number: verification.phone_number,
+      email: verification.email,
+    })
+    setVerification({ ...verification, view: next })
+    setCode('')
   }
 
   return (
@@ -94,7 +106,6 @@ export default function Page() {
       onCodeChange={setCode}
       onSubmit={submit}
       onResend={resend}
-      captcha={captcha.widget}
       pending={verifyCode.isPending || confirmChange.isPending || sendCode.isPending}
       message={changing ? messageOf(confirmChange.error) : null}
     />

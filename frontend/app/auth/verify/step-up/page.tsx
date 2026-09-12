@@ -1,12 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useStepUp, useVerifyCode } from '@dorado/client'
 
 import { AuthForm } from '@/shared/ui/auth/AuthForm'
 import { useVerification } from '@/shared/providers/VerificationProvider'
 import { codeStateFor } from '@/shared/utils/authForm'
+import { safeNext } from '@/shared/utils/returnTo'
 
 export default function Page() {
   const router = useRouter()
@@ -15,12 +16,18 @@ export default function Page() {
   const verifyCode = useVerifyCode()
   const stepUp = useStepUp()
 
+  // The handover empties the context on purpose; without this the effect below
+  // would read that as "arrived with nothing to prove" and replace the
+  // destination with /account. Same shape as /auth/verify's own guard.
+  const leaving = useRef(false)
+
   const view = verification?.view ?? null
   const state = view ? codeStateFor(view) : null
 
   // Step-up is asked for by the screen that needed it; arriving without one
   // means there is nothing to prove.
   useEffect(() => {
+    if (leaving.current) return
     if (!verification || verification.view.purpose !== 'step_up') router.replace('/account')
   }, [verification, router])
 
@@ -30,7 +37,8 @@ export default function Page() {
 
   useEffect(() => {
     if (state !== 'otp-success' || !verification) return
-    const next = verification.next ?? '/account'
+    const next = safeNext(verification.next) ?? '/account'
+    leaving.current = true
     setVerification(null)
     router.replace(next)
   }, [state, verification, setVerification, router])

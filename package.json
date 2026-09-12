@@ -28,6 +28,7 @@
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
     "check": "node scripts/check.mjs",
+    "seed": "pnpm --filter @dorado/api seed:e2e && pnpm --filter @dorado/api seed:e2e:order",
     "figma:tokens": "node scripts/figma/check-tokens.mjs",
     "figma:inventory": "node scripts/figma/check-inventory.mjs",
     "figma:hygiene": "node scripts/figma/check-hygiene.mjs",

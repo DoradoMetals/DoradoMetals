@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useSignUp } from '@dorado/client'
 
 import { AuthForm } from '@/shared/ui/auth/AuthForm'
@@ -10,9 +10,11 @@ import { useGoogleSignIn } from '@/shared/hooks/auth/queries'
 import { useVerification } from '@/shared/providers/VerificationProvider'
 import formatPhoneNumber, { normalizePhone } from '@/shared/utils/formatPhoneNumber'
 import { messageOf } from '@/shared/utils/authForm'
+import { nextFrom } from '@/shared/utils/returnTo'
 
-export default function Page() {
+function SignUp() {
   const router = useRouter()
+  const params = useSearchParams()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [digits, setDigits] = useState('')
@@ -34,7 +36,7 @@ export default function Page() {
         accepted_terms: true,
         captcha_token,
       })
-      setVerification({ view, channel: 'sms', phone_number })
+      setVerification({ view, channel: 'sms', phone_number, next: nextFrom(params) ?? undefined })
       router.push(view.status === 'locked' ? '/auth/locked' : '/auth/verify')
     } finally {
       captcha.reset()
@@ -59,5 +61,15 @@ export default function Page() {
       onGoogle={() => google.mutate()}
       googlePending={google.isPending}
     />
+  )
+}
+
+// `useSearchParams` opts a client page out of prerendering unless a Suspense
+// boundary stands above it. That is Next's rule, not a choice here.
+export default function Page() {
+  return (
+    <Suspense fallback={null}>
+      <SignUp />
+    </Suspense>
   )
 }
