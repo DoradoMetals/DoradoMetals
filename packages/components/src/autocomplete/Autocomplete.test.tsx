@@ -5,6 +5,16 @@ import * as React from 'react'
 import { Autocomplete } from './Autocomplete'
 import { axeViolations } from '../test/axe'
 
+// Stand-in for a lucide icon: oversize on purpose, to prove the slot wins
+// (Figma 100:29 composes Input's chassis - 16px leading icon, 26:391).
+function FakeIcon({ className }: { className?: string }) {
+  return (
+    <svg data-testid="fake-icon" className={className} width={24} height={24}>
+      <path d="M0 0h24v24H0z" />
+    </svg>
+  )
+}
+
 const items = [
   { id: '1', textValue: '123 Main St', label: '123 Main St' },
   { id: '2', textValue: '456 Oak Ave', label: '456 Oak Ave' },
@@ -69,5 +79,20 @@ describe('Autocomplete', () => {
   it('the input binds to size/h5, not size/body (100:29, 2026-09-04)', () => {
     const { getByRole } = renderAC()
     expect((getByRole('combobox') as HTMLInputElement).className).toContain('text-h5')
+  })
+
+  it('leading icon is boxed at 16px and matches the label token, regardless of its own className (100:29 composes 26:391)', () => {
+    const { getByTestId } = renderAC({ leading: <FakeIcon className="size-6" /> })
+    const wrapper = getByTestId('fake-icon').parentElement as HTMLElement
+    expect(wrapper.className).toContain('size-4')
+    expect(wrapper.className).toContain('[&>svg]:size-4')
+    expect(wrapper.className).toContain('text-muted-foreground')
+  })
+
+  it('trailing icon is capped at 16px and gets the label token too (was missing it entirely)', () => {
+    const { getByTestId } = renderAC({ trailing: <FakeIcon className="size-6" /> })
+    const wrapper = getByTestId('fake-icon').parentElement as HTMLElement
+    expect(wrapper.className).toContain('[&>svg]:size-4')
+    expect(wrapper.className).toContain('text-muted-foreground')
   })
 })

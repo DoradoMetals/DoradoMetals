@@ -80,7 +80,13 @@ export function Autocomplete({
     <div className={cn('relative flex w-full flex-col gap-0.5', className)}>
       {label != null && <FieldLabel htmlFor={id}>{label}</FieldLabel>}
       <div data-disabled={disabled || undefined} className={fieldTrigger()}>
-        {leading != null && <span className="shrink-0 text-muted-foreground">{leading}</span>}
+        {leading != null && (
+          // Matches Input (26:391 / 100:29 compose the same chassis): leading
+          // icon is a fixed 16px box, text-muted-foreground like FieldLabel.
+          <span className="flex size-4 shrink-0 items-center justify-center text-muted-foreground [&>svg]:size-4">
+            {leading}
+          </span>
+        )}
         <input
           id={id}
           role="combobox"
@@ -113,7 +119,12 @@ export function Autocomplete({
           className="min-w-0 flex-1 bg-transparent text-h5 text-foreground outline-none placeholder:text-placeholder disabled:text-foreground-disabled"
           {...(({ onFocus: _f, onBlur: _b, onKeyDown: _k, ...rest }) => rest)(inputProps ?? {})}
         />
-        {trailing != null && <span className="shrink-0">{trailing}</span>}
+        {trailing != null && (
+          // Was missing the label's text-muted-foreground token entirely.
+          <span className="flex shrink-0 items-center text-muted-foreground [&>svg]:size-4">
+            {trailing}
+          </span>
+        )}
       </div>
       {showPanel && (
         <ul

@@ -5,6 +5,16 @@ import * as React from 'react'
 import { Input } from './Input'
 import { axeViolations } from '../test/axe'
 
+// Stand-in for a lucide icon: a plain <svg>, sized oversize on purpose to
+// prove the slot - not the caller - wins (Figma 26:391 draws it at 16px).
+function FakeIcon({ className }: { className?: string }) {
+  return (
+    <svg data-testid="fake-icon" className={className} width={24} height={24}>
+      <path d="M0 0h24v24H0z" />
+    </svg>
+  )
+}
+
 describe('Input', () => {
   it('label reaches the input, and axe finds nothing', async () => {
     const { getByLabelText, container } = render(<Input label="Order note" />)
@@ -24,6 +34,32 @@ describe('Input', () => {
   it('trailing slot renders - the unit label', () => {
     const { getByText } = render(<Input label="Weight" trailing={<span>t oz</span>} />)
     expect(getByText('t oz')).toBeTruthy()
+  })
+
+  it("leading icon is boxed at 16px and shares the label token (26:391), regardless of the icon's own className", () => {
+    const { container, getByTestId } = render(
+      <Input label="Phone" leading={<FakeIcon className="size-6" />} />
+    )
+    const wrapper = getByTestId('fake-icon').parentElement as HTMLElement
+    expect(wrapper.className).toContain('size-4')
+    expect(wrapper.className).toContain('[&>svg]:size-4')
+    expect(wrapper.className).toContain('text-muted-foreground')
+    const label = container.querySelector('label') as HTMLElement
+    expect(label.className).toContain('text-muted-foreground')
+  })
+
+  it('trailing clear icon is capped at 16px, and the unit-label trailing stays auto-width', () => {
+    const { getByTestId, getByText, rerender } = render(
+      <Input label="Weight" trailing={<FakeIcon className="size-6" />} />
+    )
+    const iconWrapper = getByTestId('fake-icon').parentElement as HTMLElement
+    expect(iconWrapper.className).toContain('[&>svg]:size-4')
+    expect(iconWrapper.className).toContain('text-muted-foreground')
+    expect(iconWrapper.className).not.toContain('size-4 shrink-0 items-center justify-center')
+
+    rerender(<Input label="Weight" trailing={<span>t oz</span>} />)
+    const textWrapper = getByText('t oz').parentElement as HTMLElement
+    expect(textWrapper.className).toContain('text-muted-foreground')
   })
 
   it('disabled is the normal chrome at 50% (2026-09-05 convention)', () => {

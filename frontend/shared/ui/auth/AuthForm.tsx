@@ -320,7 +320,7 @@ export function AuthForm(props: AuthFormProps) {
             placeholder="(214) 555-0134"
             value={phone}
             onChange={(event) => onPhoneChange(event.target.value)}
-            leading={<Phone aria-hidden className="size-4" />}
+            leading={<Phone aria-hidden />}
             type="tel"
             inputMode="numeric"
             autoComplete="tel"
@@ -374,7 +374,7 @@ export function AuthForm(props: AuthFormProps) {
           placeholder={copy.placeholder}
           value={value}
           onChange={(event) => onValueChange(event.target.value)}
-          leading={phoneField ? <Phone aria-hidden className="size-4" /> : undefined}
+          leading={phoneField ? <Phone aria-hidden /> : undefined}
           type={phoneField ? 'tel' : 'email'}
           inputMode={phoneField ? 'numeric' : 'email'}
           autoComplete={phoneField ? 'tel' : 'email'}
