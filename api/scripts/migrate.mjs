@@ -128,6 +128,21 @@ async function main() {
   })
   await client.connect()
 
+  // A migration that RAISEs its counts is reporting to whoever runs it, and on
+  // production day that is a person reading this output once. pg.Client drops
+  // every NOTICE on the floor unless something listens, so 165's unresolved
+  // engagements and 172's filled/skipped/collided customers were being computed
+  // and thrown away. Printed indented, under the `applying ...` line they
+  // belong to.
+  const notices = []
+  client.on('notice', (n) => {
+    const text = (n?.message ?? '').toString().trim()
+    if (text) notices.push(text)
+  })
+  const flushNotices = () => {
+    for (const text of notices.splice(0)) console.log(`    ${text}`)
+  }
+
   try {
     await ensureTable(client)
     const done = await applied(client)
@@ -206,6 +221,7 @@ async function main() {
         }
         const noTx = /^\s*--\s*no-transaction\b/m.test(f.sql)
         process.stdout.write(`applying ${f.name}${noTx ? ' (no transaction)' : ''} ... `)
+        notices.length = 0
 
         if (!noTx) await client.query('BEGIN')
         try {
@@ -250,9 +266,11 @@ async function main() {
           }
           if (!noTx) await client.query('COMMIT')
           console.log('ok')
+          flushNotices()
         } catch (err) {
           if (!noTx) await client.query('ROLLBACK')
           console.log('FAILED')
+          flushNotices()
           console.error(
             `\n${f.name} ${noTx ? 'failed (not rolled back - see above)' : 'rolled back'}:\n  ${err.message}\n`
           )

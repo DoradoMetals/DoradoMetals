@@ -236,4 +236,19 @@ export const FLOWS: FlowMap = {
       },
     },
   },
+  // Ruling 108, migration 172: a customer who registered before the
+  // passwordless cutover gave us a phone ONCE, on the address a parcel went
+  // to, and that is the number they now sign in with. It is a value flow and
+  // not an ownership mapping - `auth.users` does not own addresses and
+  // `exchange.addresses` is not the users table - which is exactly the kind of
+  // movement FLOWS exists to keep visible. The value is normalised to US E.164
+  // on the way, so `audit:precision`'s cast is the wrong question here; what
+  // makes it honest is that the movement is written down at all.
+  users: {
+    'exchange.addresses': {
+      'auth.users': {
+        phone_number: 'phone_number',
+      },
+    },
+  },
 }
