@@ -6,7 +6,7 @@ import { mockSessions, restoreSessions, as, anonymous } from '#shared/testing/se
 import { TEST_ACTOR } from '#shared/testing/actor.ts'
 import { LOCKS } from '#shared/testing/locks.ts'
 import { inPinnedTransaction } from '#shared/testing/pinned-pool.ts'
-import { aUser } from '#shared/testing/builders/index.ts'
+import { aUser, anOrder } from '#shared/testing/builders/index.ts'
 
 await mockSessions()
 const { default: app } = await import('#app')
@@ -33,6 +33,27 @@ test('the admin timeline read answers 200 for a real customer', async () => {
         assert.equal(res.status, 200)
         assert.ok(Array.isArray(res.body))
         assert.ok(res.body.some((row: { kind: string }) => row.kind === 'sms'))
+      })
+    },
+    { lock: LOCKS.USERS, actor: TEST_ACTOR.id }
+  )
+})
+
+test('the timeline includes an order and a note when the customer has them', async () => {
+  await inPinnedTransaction(
+    async (client) => {
+      const user = await aUser(client)
+      await anOrder(client, user, { direction: 'purchase' })
+      await client.query(`UPDATE auth.users SET notes = 'called about a big sale' WHERE id = $1`, [
+        user.id,
+      ])
+
+      await asAdmin(TEST_ACTOR.id, async () => {
+        const res = await request(app).get(`/api/customers/${user.id}/timeline`)
+        assert.equal(res.status, 200)
+        const kinds = res.body.map((row: { kind: string }) => row.kind)
+        assert.ok(kinds.includes('order'), 'no order row in the timeline')
+        assert.ok(kinds.includes('note'), 'no note row in the timeline')
       })
     },
     { lock: LOCKS.USERS, actor: TEST_ACTOR.id }

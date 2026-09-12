@@ -23,9 +23,13 @@ export const Lead = z.object({
   'priority': z.string(),
   'created_by_id': z.string().uuid().nullable(),
   'updated_by_id': z.string().uuid().nullable(),
+  'assigned_to_id': z.string().uuid().nullable(),
+  'source': z.string().nullable(),
 })
 export type Lead = z.infer<typeof Lead>
 // generated:end
+import { LeadStage } from '../computed/crm.js'
+
 export const LeadPatch = Lead.pick({
   name: true,
   phone: true,
@@ -37,5 +41,31 @@ export const LeadPatch = Lead.pick({
   contact: true,
   notes: true,
   priority: true,
-}).partial()
+  source: true,
+  assigned_to_id: true,
+})
+  .partial()
+  .strict()
 export type LeadPatch = z.infer<typeof LeadPatch>
+
+export const LeadView = Lead.extend({ lead_stage: LeadStage })
+export type LeadView = z.infer<typeof LeadView>
+
+export const LeadConvertBody = z
+  .object({
+    name: Lead.shape.name,
+    phone: Lead.shape.phone,
+    email: Lead.shape.email,
+  })
+  .partial()
+  .strict()
+export type LeadConvertBody = z.infer<typeof LeadConvertBody>
+
+export const LeadFilter = z.object({}).extend({
+  stage: LeadStage.nullable(),
+  priority: Lead.shape.priority.nullable(),
+  assigned_to: z.string().nullable(),
+  source: Lead.shape.source,
+  search: z.string().nullable(),
+})
+export type LeadFilter = z.infer<typeof LeadFilter>

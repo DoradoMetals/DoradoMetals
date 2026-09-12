@@ -42,7 +42,7 @@ export const CallToken = z.object({
 })
 export type CallToken = z.infer<typeof CallToken>
 
-export const TimelineKind = z.enum(['sms', 'call', 'email'])
+export const TimelineKind = z.enum(['sms', 'call', 'email', 'order', 'note'])
 export type TimelineKind = z.infer<typeof TimelineKind>
 
 export const CallKind = z.enum(['Outgoing', 'No answer', 'Incoming', 'Missed'])
@@ -68,3 +68,31 @@ export const SmsSendBody = z
   .extend({ media: z.array(SmsMedia).optional() })
   .strict()
 export type SmsSendBody = z.infer<typeof SmsSendBody>
+
+export const LeadStage = z.enum(['New', 'Contacted', 'Responded', 'Converted'])
+export type LeadStage = z.infer<typeof LeadStage>
+
+export const InboxChannel = z.enum(['sms', 'call', 'voicemail'])
+export type InboxChannel = z.infer<typeof InboxChannel>
+
+export const InboxConversationKind = z.enum(['customer', 'lead', 'unknown'])
+export type InboxConversationKind = z.infer<typeof InboxConversationKind>
+
+export const ConversationKey = z.object({
+  user_id: z.string().uuid().nullable(),
+  phone: z.string().nullable(),
+})
+export type ConversationKey = z.infer<typeof ConversationKey>
+
+export const InboxConversation = z.object({
+  key: z.string(),
+  kind: InboxConversationKind,
+  name: z.string().nullable(),
+  phone: z.string(),
+  channel: InboxChannel,
+  preview: z.string(),
+  last_message_at: z.string(),
+  unread_count: z.number().int(),
+  assigned_to_id: z.string().uuid().nullable(),
+})
+export type InboxConversation = z.infer<typeof InboxConversation>

@@ -5,11 +5,12 @@
 -- TypeScript.
 INSERT INTO crm.sms_messages
        (direction, provider, provider_sid, from_number, to_number, body, media,
-        status, user_id)
+        status, user_id, read_at)
 VALUES ('outbound', $1, 'pending:' || gen_random_uuid()::text, $2, $3, $4,
         COALESCE($5::jsonb, '[]'::jsonb),
         'queued',
-        (SELECT id FROM auth.users WHERE phone_number = $3 AND phone_number_verified))
+        (SELECT id FROM auth.users WHERE phone_number = $3 AND phone_number_verified),
+        now())
 RETURNING id, direction, provider, provider_sid, from_number, to_number, body, media,
           status, error_code, user_id, received_at, sent_at,
-          created_at, updated_at, created_by_id, updated_by_id
+          created_at, updated_at, created_by_id, updated_by_id, read_at

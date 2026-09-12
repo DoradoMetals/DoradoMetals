@@ -94,3 +94,19 @@ export async function onDutyEmployees(
   )
   return rows
 }
+
+export async function markRead(
+  user_id: string | null,
+  phone: string | null,
+  executor?: Executor
+): Promise<void> {
+  await query(sql('mark_read'), [user_id, phone], executor)
+}
+
+export async function attachToUser(
+  phone: string,
+  user_id: string,
+  executor?: Executor
+): Promise<void> {
+  await query(sql('attach_to_user'), [phone, user_id], executor)
+}

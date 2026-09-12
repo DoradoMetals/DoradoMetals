@@ -41,4 +41,32 @@ SELECT e.id, 'email'::text AS kind,
   FROM media.emails e
  WHERE e.user_id = $1
 
+UNION ALL
+
+-- The order's own reference format duplicated as a one-line CASE rather than
+-- reused from db/orders (too small a fragment to justify a cross-domain
+-- export). The status column below is ORDER_STATE reused as-is, because that
+-- ladder is exactly the fragment orders/list.sql and places already share.
+SELECT o.id, 'order'::text AS kind,
+       to_char(o.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS at,
+       'outbound'::text AS direction,
+       (CASE WHEN o.direction = 'sale' THEN 'SO-' ELSE 'PO-' END || o.number) AS summary,
+       /*__order_state__*/ AS status,
+       NULL::text AS call_kind
+  FROM orders.orders o
+ WHERE o.user_id = $1
+
+UNION ALL
+
+-- auth.users.notes is one free-text field, not a row per note (accounts/users
+-- decision, docs/waves/customers-leads-api.md), so it can appear at most once
+-- here, timestamped by the row's own last update.
+SELECT u.id, 'note'::text AS kind,
+       to_char(u."updatedAt" AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS at,
+       'outbound'::text AS direction,
+       u.notes AS summary, 'noted'::text AS status,
+       NULL::text AS call_kind
+  FROM auth.users u
+ WHERE u.id = $1 AND u.notes IS NOT NULL
+
  ORDER BY at ASC, id
