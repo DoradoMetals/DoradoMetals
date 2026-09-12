@@ -23,7 +23,6 @@ import {
   useRefiningOrder,
   useRefiningPayment,
   useRefiningSpots,
-  useScheduleDropoff,
   useSendPayout,
   useSendRefiningOrder,
   useSetFulfillmentStatus,
@@ -66,7 +65,6 @@ export function AdminRefiningScreen({ id }: { id: string }) {
   const importDocument = useImportRefiningDocument(id)
   const createFulfillment = useCreateFulfillment(id)
   const patchFulfillment = usePatchFulfillment(id)
-  const scheduleDropoff = useScheduleDropoff(id)
   const setStatus = useSetFulfillmentStatus(id)
   const cancelSchedule = useCancelSchedule(id)
   const openPayout = useOpenPayout(id)
@@ -88,7 +86,7 @@ export function AdminRefiningScreen({ id }: { id: string }) {
   const refinerName = view.refiner?.organization.name ?? 'Unknown refiner'
 
   const fulfilment =
-    [createFulfillment, patchFulfillment, scheduleDropoff, setStatus, cancelSchedule]
+    [createFulfillment, patchFulfillment, setStatus, cancelSchedule]
       .filter((one) => one.data != null)
       .sort((a, b) => (b.submittedAt ?? 0) - (a.submittedAt ?? 0))[0]?.data ?? null
   const scheduled = !!fulfilment?.scheduled_at
@@ -196,18 +194,20 @@ export function AdminRefiningScreen({ id }: { id: string }) {
               }
               onSchedule={(dropoff) => {
                 if (!fulfilment) return
-                scheduleDropoff.mutate({
+                patchFulfillment.mutate({
                   fulfillment_id: fulfilment.fulfillment.id,
-                  dropoff: {
-                    refiner_id: fulfilment.dropoff?.refiner_id ?? view.refiner_id,
-                    location_id: fulfilment.dropoff?.location_id ?? null,
-                    driver_employee_id: fulfilment.dropoff?.driver_employee_id ?? null,
-                    start_time: fulfilment.dropoff?.start_time ?? null,
-                    ...dropoff,
+                  choices: {
+                    dropoff: {
+                      refiner_id: fulfilment.dropoff?.refiner_id ?? view.refiner_id,
+                      location_id: fulfilment.dropoff?.location_id ?? null,
+                      driver_employee_id: fulfilment.dropoff?.driver_employee_id ?? null,
+                      start_time: fulfilment.dropoff?.start_time ?? null,
+                      ...dropoff,
+                    },
                   },
                 })
               }}
-              pending={patchFulfillment.isPending || scheduleDropoff.isPending}
+              pending={patchFulfillment.isPending}
             />
           )}
 

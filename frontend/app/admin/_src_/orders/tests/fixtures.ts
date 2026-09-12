@@ -292,6 +292,8 @@ export const aLiveSpot = (id: string, bid: number): SpotPrice => ({
   bid,
   percent_change: 0.4,
   dollar_change: 9.1,
+  updated_at: '2026-09-01T12:00:00.000Z',
+  source: 'live',
 })
 
 export const aDocument = (
@@ -506,6 +508,7 @@ export const anAdmin = (): AdminUser => ({
   phone_number: '+15125550100',
   isAnonymous: false,
   phone_number_verified: true,
+  deletion_requested_at: null,
   created_at: '2026-01-01T00:00:00.000Z',
   updated_at: '2026-01-01T00:00:00.000Z',
   email_verified: true,

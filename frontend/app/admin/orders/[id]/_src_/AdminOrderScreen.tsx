@@ -41,10 +41,9 @@ import {
   usePaymentView,
   useProfitBreakdown,
   usePutOrderSpots,
+  useRecordShipmentTracking,
   useRefiners,
-  useReopenOrder,
   useScheduleDirect,
-  useScheduleDropoff,
   useSchedulePickup,
   useSendOrderDocument,
   useSendPayout,
@@ -123,7 +122,6 @@ export function AdminOrderScreen({ id }: { id: string }) {
 
   const patchOrder = usePatchOrder(id)
   const finalize = useFinalizeOrder(id)
-  const reopen = useReopenOrder(id)
   const cancel = useCancelOrder(id)
   const putSpots = usePutOrderSpots(id)
   const createLot = useCreateOrderLot(id)
@@ -142,10 +140,10 @@ export function AdminOrderScreen({ id }: { id: string }) {
   const patchFulfillment = usePatchFulfillment(id)
   const schedulePickup = useSchedulePickup(id)
   const scheduleDirect = useScheduleDirect(id)
-  const scheduleDropoff = useScheduleDropoff(id)
   const setStatus = useSetFulfillmentStatus(id)
   const cancelSchedule = useCancelSchedule(id)
   const patchShipment = usePatchShipment(id)
+  const recordTracking = useRecordShipmentTracking(id)
   const cancelLabel = useCancelLabel(id)
   const sendDocument = useSendOrderDocument(id)
   const importDocument = useImportOrderDocument(id)
@@ -226,7 +224,7 @@ export function AdminOrderScreen({ id }: { id: string }) {
         }}
         reopen={
           hasAction(actions, 'reopen')
-            ? { label: 'Reopen Order', onClick: () => reopen.mutate(undefined) }
+            ? { label: 'Reopen Order', onClick: () => patchOrder.mutate({ cancelled_at: null }) }
             : undefined
         }
       />
@@ -244,7 +242,7 @@ export function AdminOrderScreen({ id }: { id: string }) {
             <ShipmentCard
               shipment={returned}
               onSaveTracking={(tracking_number) =>
-                patchShipment.mutate({ shipment_id: returned.shipment.id, patch: { tracking_number } })
+                recordTracking.mutate({ shipment_id: returned.shipment.id, tracking_number })
               }
               onSetCarrier={(carrier_service_id) =>
                 patchShipment.mutate({
@@ -254,13 +252,13 @@ export function AdminOrderScreen({ id }: { id: string }) {
               }
               onCancelLabel={() => cancelLabel.mutate({ shipment_id: returned.shipment.id })}
               services={(services.data ?? []).map((one) => ({ id: one.id, name: one.name }))}
-              pending={patchShipment.isPending}
+              pending={patchShipment.isPending || recordTracking.isPending}
             />
           ) : scheduled && category === 'SHIPMENT' && parcel ? (
             <ShipmentCard
               shipment={parcel}
               onSaveTracking={(tracking_number) =>
-                patchShipment.mutate({ shipment_id: parcel.shipment.id, patch: { tracking_number } })
+                recordTracking.mutate({ shipment_id: parcel.shipment.id, tracking_number })
               }
               onSetCarrier={(carrier_service_id) =>
                 patchShipment.mutate({
@@ -270,7 +268,7 @@ export function AdminOrderScreen({ id }: { id: string }) {
               }
               onCancelLabel={() => cancelLabel.mutate({ shipment_id: parcel.shipment.id })}
               services={(services.data ?? []).map((one) => ({ id: one.id, name: one.name }))}
-              pending={patchShipment.isPending}
+              pending={patchShipment.isPending || recordTracking.isPending}
             />
           ) : scheduled && category === 'PICKUP' && fulfilment ? (
             <PickupCard
@@ -278,7 +276,9 @@ export function AdminOrderScreen({ id }: { id: string }) {
               locations={locations.data ?? []}
               employees={employees.data ?? []}
               onCancel={() => cancelSchedule.mutate({ fulfillment_id: fulfilment.fulfillment.id })}
-              onReschedule={() => cancelSchedule.mutate({ fulfillment_id: fulfilment.fulfillment.id })}
+              onReschedule={() =>
+                cancelSchedule.mutate({ fulfillment_id: fulfilment.fulfillment.id })
+              }
               onAdvance={(status) =>
                 setStatus.mutate({ fulfillment_id: fulfilment.fulfillment.id, status })
               }
@@ -290,7 +290,9 @@ export function AdminOrderScreen({ id }: { id: string }) {
               locations={locations.data ?? []}
               employees={employees.data ?? []}
               onCancel={() => cancelSchedule.mutate({ fulfillment_id: fulfilment.fulfillment.id })}
-              onReschedule={() => cancelSchedule.mutate({ fulfillment_id: fulfilment.fulfillment.id })}
+              onReschedule={() =>
+                cancelSchedule.mutate({ fulfillment_id: fulfilment.fulfillment.id })
+              }
               onAdvance={(status) =>
                 setStatus.mutate({ fulfillment_id: fulfilment.fulfillment.id, status })
               }
@@ -303,7 +305,9 @@ export function AdminOrderScreen({ id }: { id: string }) {
               employees={employees.data ?? []}
               refiners={refiners.data ?? []}
               onCancel={() => cancelSchedule.mutate({ fulfillment_id: fulfilment.fulfillment.id })}
-              onReschedule={() => cancelSchedule.mutate({ fulfillment_id: fulfilment.fulfillment.id })}
+              onReschedule={() =>
+                cancelSchedule.mutate({ fulfillment_id: fulfilment.fulfillment.id })
+              }
               onAdvance={(status) =>
                 setStatus.mutate({ fulfillment_id: fulfilment.fulfillment.id, status })
               }
@@ -347,14 +351,16 @@ export function AdminOrderScreen({ id }: { id: string }) {
                   return
                 }
                 if (fulfilment.method.category === 'DROPOFF') {
-                  scheduleDropoff.mutate({
+                  patchFulfillment.mutate({
                     fulfillment_id,
-                    dropoff: {
-                      refiner_id: fulfilment.dropoff?.refiner_id ?? null,
-                      location_id: fulfilment.dropoff?.location_id ?? null,
-                      driver_employee_id: fulfilment.dropoff?.driver_employee_id ?? null,
-                      start_time: fulfilment.dropoff?.start_time ?? null,
-                      ...dropoff,
+                    choices: {
+                      dropoff: {
+                        refiner_id: fulfilment.dropoff?.refiner_id ?? null,
+                        location_id: fulfilment.dropoff?.location_id ?? null,
+                        driver_employee_id: fulfilment.dropoff?.driver_employee_id ?? null,
+                        start_time: fulfilment.dropoff?.start_time ?? null,
+                        ...dropoff,
+                      },
                     },
                   })
                   return
