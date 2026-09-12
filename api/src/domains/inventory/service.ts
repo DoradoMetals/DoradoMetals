@@ -1,4 +1,5 @@
-import * as lotsRepo from '#db/lots/items/repo.ts'
+import * as lotsRepo from '#db/inventory/lots/repo.ts'
+import * as lotSourcesRepo from '#db/inventory/lot-sources/repo.ts'
 import * as orderLots from '#db/orders/lots/repo.ts'
 import * as rules from '#inventory/rules.ts'
 import * as pricing from '#pricing/index.ts'
@@ -28,15 +29,19 @@ export async function detail(id: string): Promise<LotDetail> {
 export async function combine(lot_ids: string[]): Promise<InventoryLotView> {
   const lots = await lotsRepo.getByIds(lot_ids)
   const positions = await lotsRepo.positionsOf(lot_ids)
-  rules.assertCombinable(lot_ids, lots, positions)
+  const sources = await lotSourcesRepo.sourcesOf(lot_ids)
+  const refinerLot = rules.assertCombinable(lot_ids, lots, positions, sources)
 
   const created = await withTransaction(async (tx) => {
     const combined = await lotsRepo.combine(lot_ids, tx)
     rules.assertParentsMarked(
-      await lotsRepo.markCombined(lot_ids, combined.id, tx),
+      await lotsRepo.linkCombined(lot_ids, combined.id, tx),
       lot_ids.length,
       combined.id
     )
+    if (refinerLot !== null) {
+      await lotSourcesRepo.repoint(refinerLot, combined.id, 'batch', tx)
+    }
     return combined
   })
 

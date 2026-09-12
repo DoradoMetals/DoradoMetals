@@ -1,18 +1,11 @@
 import query from '#shared/db/query.ts'
-import { buildUpdate } from '#shared/db/patch.ts'
 import { sqlFrom } from '#shared/db/sql.ts'
-import { columnsOf, returningOf } from '#shared/db/columns.ts'
-import { OrderLot, OrderLotView } from '@dorado/contracts'
-import type { OrderLotPatch } from '@dorado/contracts'
+import { OrderLotView } from '@dorado/contracts'
+import type { OrderLot } from '@dorado/contracts'
 import type { SoldLotPrice } from '@dorado/contracts'
 import type { Executor } from '#shared/db/executor.ts'
 
 const sql = sqlFrom(import.meta.dirname)
-
-export const PATCHABLE = columnsOf(
-  OrderLot.pick({ premium: true, price: true, sales_tax_charged: true, confirmed: true })
-)
-const RETURNING = returningOf(OrderLot)
 
 export async function getOne(id: string, executor?: Executor): Promise<OrderLot | undefined> {
   const { rows } = await query<OrderLot>(sql('get_one'), [id], executor)
@@ -66,27 +59,27 @@ export async function createSold(
       priced.map((p) => p.lot_id),
       priced.map((p) => p.premium),
       priced.map((p) => p.sales_tax),
-      priced.map((p) => p.price),
     ],
     executor
   )
   return rows
 }
 
-export async function update(
-  id: string,
-  patch: OrderLotPatch,
+export async function adoptAssayProposal(order_id: string, executor?: Executor): Promise<unknown> {
+  const { rows } = await query<{ proposal: unknown }>(
+    sql('adopt_assay_proposal'),
+    [order_id],
+    executor
+  )
+  return rows[0]?.proposal
+}
+
+export async function mintFromStock(
+  order_id: string,
+  lot_id: string,
   executor?: Executor
-): Promise<OrderLot | undefined> {
-  const built = buildUpdate({
-    table: 'orders.lots',
-    allowed: PATCHABLE,
-    patch,
-    where: { id },
-    returning: RETURNING,
-  })
-  if (!built) return await getOne(id, executor)
-  const { rows } = await query<OrderLot>(built.text, built.values, executor)
+): Promise<OrderLot> {
+  const { rows } = await query<OrderLot>(sql('mint_from_stock'), [order_id, lot_id], executor)
   return rows[0]
 }
 

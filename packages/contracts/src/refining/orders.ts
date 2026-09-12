@@ -4,7 +4,7 @@
 //
 // Postgres table: refining.orders
 import { z } from 'zod/v4'
-import { RefiningDirection } from './enums.js'
+import { RefiningDirection, SettlementType } from './enums.js'
 
 export const RefiningOrder = z.object({
   'id': z.string().uuid(),
@@ -25,18 +25,21 @@ export const RefiningOrder = z.object({
   'updated_by_id': z.string().uuid().nullable(),
   'location_id': z.string().uuid().nullable(),
   'cancelled_at': z.string().nullable(),
+  'settlement_type': SettlementType,
 })
 export type RefiningOrder = z.infer<typeof RefiningOrder>
 // generated:end
 
-import { Lot } from '../lots/items.js'
+import { Lot } from '../inventory/lots.js'
 import { RefiningLot, RefiningLotPatch } from './lots.js'
 
 export const RefiningOrderCreate = RefiningOrder.pick({
   refiner_id: true,
   direction: true,
+  settlement_type: true,
 })
   .extend({ lot_ids: z.array(Lot.shape.id).min(1).optional() })
+  .partial({ settlement_type: true })
   .strict()
 export type RefiningOrderCreate = z.infer<typeof RefiningOrderCreate>
 
@@ -49,6 +52,7 @@ export const RefiningOrderPatch = RefiningOrder.pick({
   assay_lab: true,
   expected_settlement_on: true,
   disputed_at: true,
+  settlement_type: true,
 })
   .partial()
   .strict()
@@ -70,3 +74,11 @@ export type RefiningSettlement = z.infer<typeof RefiningSettlement>
 
 export const RefiningSupply = RefiningOrder.pick({ refiner_id: true }).strict()
 export type RefiningSupply = z.infer<typeof RefiningSupply>
+
+export const RefiningBatch = RefiningOrder.pick({ refiner_id: true })
+  .extend({
+    lot_ids: z.array(Lot.shape.id).min(1).optional(),
+    order_ids: z.array(Lot.shape.id).min(1).optional(),
+  })
+  .strict()
+export type RefiningBatch = z.infer<typeof RefiningBatch>

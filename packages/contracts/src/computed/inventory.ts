@@ -1,13 +1,24 @@
 import { z } from 'zod/v4'
-import { InventoryLotView, Lot } from '../lots/items.js'
-import { PoolBalance } from '../refining/pool.js'
+import { InventoryLotView, Lot } from '../inventory/lots.js'
+import { LotEdge } from '../inventory/lot_sources.js'
+import { PoolBalance } from '../inventory/pool.js'
 import { Action } from './orders.js'
 
 export const LotActions = z.array(Action)
 export type LotActions = z.infer<typeof LotActions>
 
 export const LotTimelineStep = z.object({
-  step: z.enum(['Received', 'Assayed', 'Sent', 'Settled', 'Sold', 'Split', 'Combined']),
+  step: z.enum([
+    'Received',
+    'Assayed',
+    'Confirmed',
+    'Batched',
+    'Sent',
+    'Settled',
+    'Sold',
+    'Split',
+    'Combined',
+  ]),
   at: z.string(),
   actor_id: z.string().uuid().nullable(),
 })
@@ -49,10 +60,15 @@ export const LotWhere = z.object({
 export type LotWhere = z.infer<typeof LotWhere>
 
 export const LotWorthSettled = z.object({
-  post_melt: z.number().nullable(),
-  purity: z.number().nullable(),
-  content: z.number().nullable(),
-  settled_at: z.string().nullable(),
+  lot_id: Lot.shape.id,
+  pre_melt: Lot.shape.pre_melt,
+  post_melt: Lot.shape.post_melt,
+  purity: Lot.shape.purity,
+  content: Lot.shape.content,
+  premium: Lot.shape.premium,
+  settled_spot: Lot.shape.settled_spot,
+  settled_at: Lot.shape.settled_at,
+  share: Lot.shape.content,
 })
 export type LotWorthSettled = z.infer<typeof LotWorthSettled>
 
@@ -68,12 +84,8 @@ export const LotWorth = z.object({
 export type LotWorth = z.infer<typeof LotWorth>
 
 export const LotLineage = z.object({
-  split_from_id: Lot.shape.split_from_id,
-  split_from_reference: z.string().nullable(),
-  children: z.array(LotLineageRef),
-  combined_into_id: Lot.shape.combined_into_id,
-  combined_into_reference: z.string().nullable(),
-  combined_from: z.array(LotLineageRef),
+  sources: z.array(LotEdge),
+  derived: z.array(LotEdge),
 })
 export type LotLineage = z.infer<typeof LotLineage>
 

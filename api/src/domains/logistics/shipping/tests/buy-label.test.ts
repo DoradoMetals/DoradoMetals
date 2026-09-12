@@ -17,7 +17,7 @@ import * as shipmentService from '#logistics/shipping/shipments/service.ts'
 import * as packagesRepo from '#db/shipping/packages/repo.ts'
 import * as shipmentsRepo from '#db/shipping/shipments/repo.ts'
 import * as servicesService from '#logistics/shipping/services/service.ts'
-import * as lotsRepo from '#db/lots/items/repo.ts'
+import * as lotsRepo from '#db/inventory/lots/repo.ts'
 import * as orderLots from '#db/orders/lots/repo.ts'
 import { parcelWeightLb } from '#logistics/shipping/rules.ts'
 

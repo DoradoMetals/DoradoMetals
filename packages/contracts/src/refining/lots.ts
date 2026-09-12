@@ -9,13 +9,6 @@ export const RefiningLot = z.object({
   'id': z.string().uuid(),
   'refining_order_id': z.string().uuid(),
   'lot_id': z.string().uuid(),
-  'unit': z.string(),
-  'pre_melt': z.number().nullable(),
-  'post_melt': z.number().nullable(),
-  'purity': z.number().nullable(),
-  'content': z.number().nullable(),
-  'premium': z.number().nullable(),
-  'settled_at': z.string().nullable(),
   'created_at': z.string(),
   'updated_at': z.string(),
   'created_by_id': z.string().uuid().nullable(),
@@ -24,14 +17,15 @@ export const RefiningLot = z.object({
 export type RefiningLot = z.infer<typeof RefiningLot>
 // generated:end
 
-import { Lot } from '../lots/items.js'
+import { Lot } from '../inventory/lots.js'
 
-export const RefiningLotPatch = RefiningLot.pick({
+export const RefiningLotPatch = Lot.pick({
   pre_melt: true,
   post_melt: true,
   purity: true,
   unit: true,
   premium: true,
+  settled_spot: true,
 })
   .partial()
   .strict()

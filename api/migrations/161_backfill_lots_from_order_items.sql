@@ -51,7 +51,7 @@
 -- its stored value is a live defect rather than history.
 -- See `docs/waves/lots-backfill-production.md`.
 
-INSERT INTO lots.items
+INSERT INTO inventory.lots
        (id, bullion_id, metal_id, unit, quantity, pre_melt, post_melt, purity,
         content_snapshot, created_at, updated_at)
 SELECT oi.id,
@@ -73,7 +73,7 @@ SELECT oi.id,
        o.updated_at
   FROM orders.items oi
   JOIN orders.orders o ON o.id = oi.order_id
- WHERE NOT EXISTS (SELECT 1 FROM lots.items li WHERE li.id = oi.id);
+ WHERE NOT EXISTS (SELECT 1 FROM inventory.lots li WHERE li.id = oi.id);
 
 INSERT INTO orders.lots
        (order_id, lot_id, premium, price, sales_tax_charged, confirmed,
@@ -104,7 +104,7 @@ BEGIN
   -- stored value has to agree with the derivation or one of the two is wrong.
   SELECT count(*), COALESCE(max(abs(li.content - oi.content)), 0)
     INTO moved, worst
-    FROM lots.items li
+    FROM inventory.lots li
     JOIN orders.items oi ON oi.id = li.id
    WHERE li.content_snapshot IS NULL
      AND li.content IS DISTINCT FROM oi.content;
@@ -127,7 +127,7 @@ BEGIN
                              to_char(abs(d.v - li.content_snapshot), 'FM0.999999') || ' t oz)',
                              ', ') FILTER (WHERE abs(d.v - li.content_snapshot) > 1e-3), 'none')
     INTO settled, settled_moved, settled_worst, settled_over, offenders
-    FROM lots.items li
+    FROM inventory.lots li
     CROSS JOIN LATERAL (
       SELECT metals.fine_content(COALESCE(li.post_melt, li.pre_melt), li.unit, li.purity)
     ) AS d(v)

@@ -1,7 +1,7 @@
 import type { PoolClient } from 'pg'
 import { anUnknownId } from '#shared/testing/builders/ids.ts'
 import * as checkouts from '#db/checkout/checkouts/repo.ts'
-import * as lots from '#db/lots/items/repo.ts'
+import * as lots from '#db/inventory/lots/repo.ts'
 import * as checkoutLots from '#db/checkout/lots/repo.ts'
 import type { MetalName } from '#shared/testing/builders/reference.ts'
 import type { BuiltUser } from '#shared/testing/builders/users.ts'

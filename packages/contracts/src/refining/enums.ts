@@ -7,5 +7,5 @@ import { z } from 'zod/v4'
 export const RefiningDirection = z.enum(['sell', 'buy'])
 export type RefiningDirection = z.infer<typeof RefiningDirection>
 
-export const PoolEntryKind = z.enum(['credit', 'lock'])
-export type PoolEntryKind = z.infer<typeof PoolEntryKind>
+export const SettlementType = z.enum(['paid', 'pooled'])
+export type SettlementType = z.infer<typeof SettlementType>

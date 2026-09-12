@@ -3,7 +3,9 @@ import { refuseWith } from '#shared/http/refuse.ts'
 import { strictBody, uuidParam } from '#shared/http/validate.ts'
 import * as refining from '#refining/service.ts'
 import {
+  PoolEntryKind,
   PoolLockCreate,
+  RefiningBatch,
   RefiningDirection,
   RefiningLotPatch,
   RefiningLotsBody,
@@ -39,6 +41,10 @@ export const getRefiningOrder = asyncHandler(async (req, res) => {
 
 export const createRefiningOrder = asyncHandler(async (req, res) => {
   return res.status(201).json(await refining.create(strictBody(RefiningOrderCreate, req.body)))
+})
+
+export const batchRefiningOrders = asyncHandler(async (req, res) => {
+  return res.status(201).json(await refining.batch(strictBody(RefiningBatch, req.body)))
 })
 
 export const patchRefiningOrder = asyncHandler(async (req, res) => {
@@ -96,7 +102,13 @@ export const getPoolBalances = asyncHandler(async (req, res) => {
 })
 
 export const getPoolEntries = asyncHandler(async (req, res) => {
-  return res.json(await refining.entries(named(req, 'refiner_id'), named(req, 'metal_id')))
+  const entry = named(req, 'entry')
+  if (entry !== null && !PoolEntryKind.safeParse(entry).success) {
+    refuseWith(400, `"entry" is ${PoolEntryKind.options.join(' or ')}`)
+  }
+  return res.json(
+    await refining.entries(named(req, 'refiner_id'), named(req, 'metal_id'), entry as never)
+  )
 })
 
 export const createPoolLock = asyncHandler(async (req, res) => {

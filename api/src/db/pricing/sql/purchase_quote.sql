@@ -15,7 +15,7 @@ lines AS (
               THEN COALESCE(li.content, 0)
               ELSE COALESCE(li.content, 0) * li.quantity END AS weighed
     FROM checkout.lots cl
-    JOIN lots.items li ON li.id = cl.lot_id
+    JOIN inventory.lots li ON li.id = cl.lot_id
     JOIN checkout ON checkout.id = cl.checkout_id
     LEFT JOIN spots.spots s ON s.metal_id = li.metal_id
 ),

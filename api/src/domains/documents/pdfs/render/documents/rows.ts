@@ -27,7 +27,7 @@ function scrapRow(line: OrderLotView, pricing: OrderPricing): TableRow {
     facts: [
       weightFact(line.lot.post_melt ?? line.lot.pre_melt, line.lot.unit, 'post melt'),
       pctFact(line.lot.purity, 'purity'),
-      pctFact(line.premium, 'premium'),
+      pctFact(line.lot.premium, 'premium'),
       moneyFact(spotFor(pricing.spots, line.lot.metal_id), 'spot'),
     ],
   }
@@ -40,7 +40,7 @@ function bullionRow(line: OrderLotView, pricing: OrderPricing): TableRow {
     figure: formatCurrency(price?.line_total),
     facts: [
       unitsFact(line.lot.quantity),
-      pctFact(line.premium, 'premium'),
+      pctFact(line.lot.premium, 'premium'),
       moneyFact(spotFor(pricing.spots, line.lot.metal_id), 'spot'),
     ],
   }

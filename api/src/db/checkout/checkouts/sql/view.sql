@@ -8,7 +8,7 @@ SELECT c.id, c.user_id, c.direction, c.payment_method_id, c.payment_details_id,
                         'updated_at', to_char(li.updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'))
                    ORDER BY cl.created_at ASC, cl.id ASC)
             FROM checkout.lots cl
-            JOIN lots.items li ON li.id = cl.lot_id
+            JOIN inventory.lots li ON li.id = cl.lot_id
            WHERE cl.checkout_id = c.id),
          '[]'::jsonb) AS lots
   FROM checkout.checkouts c

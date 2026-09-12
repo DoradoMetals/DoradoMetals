@@ -109,11 +109,11 @@ test('a line is a product line or a scrap line, and never both', async () => {
 
     for (const line of bullion) {
       assert.ok(!('product' in line), 'a bullion line still embeds the catalogue row')
-      assert.ok(line.lot.metal_id, 'lots.items.metal_id is NOT NULL')
+      assert.ok(line.lot.metal_id, 'inventory.lots.metal_id is NOT NULL')
     }
     for (const line of scrap) {
       assert.ok(!('product' in line), 'a scrap line still embeds the catalogue row')
-      assert.ok(line.lot.metal_id, 'lots.items.metal_id is NOT NULL')
+      assert.ok(line.lot.metal_id, 'inventory.lots.metal_id is NOT NULL')
     }
   })
 })

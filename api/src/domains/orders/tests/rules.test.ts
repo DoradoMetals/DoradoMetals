@@ -177,7 +177,10 @@ test('an operation of the wrong direction is refused, naming both', () => {
 type Facts = Parameters<typeof rules.actionsFor>[0]
 
 const aLot = (confirmed: boolean, settled = true) =>
-  ({ confirmed, settled, lot: { content: 1 } }) as Facts['lots'][number]
+  ({
+    settled,
+    lot: { content: 1, confirmed_at: confirmed ? '2024-01-01T00:00:00.000Z' : null },
+  }) as Facts['lots'][number]
 const parcel = (direction: string, tracking_number: string | null) =>
   ({ direction, tracking_number }) as Facts['shipments'][number]
 
@@ -218,8 +221,19 @@ const paidBy = (method: string | null): Partial<Facts> => ({
 
 test("an order with no lines is not confirmed, which the drawer's every() called true", () => {
   assert.equal(rules.allLotsConfirmed([]), false)
-  assert.equal(rules.allLotsConfirmed([{ confirmed: true }, { confirmed: false }]), false)
-  assert.equal(rules.allLotsConfirmed([{ confirmed: true }]), true)
+  assert.equal(
+    rules.allLotsConfirmed([
+      { lot: { confirmed_at: '2024-01-01T00:00:00.000Z' } } as Facts['lots'][number],
+      { lot: { confirmed_at: null } } as Facts['lots'][number],
+    ]),
+    false
+  )
+  assert.equal(
+    rules.allLotsConfirmed([
+      { lot: { confirmed_at: '2024-01-01T00:00:00.000Z' } } as Facts['lots'][number],
+    ]),
+    true
+  )
 })
 
 test('crediting an account is a payout fact, read from the array of offered actions', () => {
@@ -268,10 +282,10 @@ test('cancelling needs somewhere to send the metal back to', () => {
 
 test("payable and line_total are the view's SQL, not a rule", () => {
   const view = readFileSync(new URL('../../../db/orders/sql/view.sql', import.meta.url), 'utf8')
-  assert.match(view, /'payable',\s*\n?\s*CASE WHEN li\.content IS NULL OR ol\.premium IS NULL/)
-  assert.match(view, /ELSE li\.content \* ol\.premium END/)
-  assert.match(view, /WHEN li\.bullion_id IS NULL THEN ol\.price/)
-  assert.match(view, /ELSE ol\.price \* li\.quantity END/)
+  assert.match(view, /'payable',\s*\n?\s*CASE WHEN li\.content IS NULL OR li\.premium IS NULL/)
+  assert.match(view, /ELSE li\.content \* li\.premium END/)
+  assert.match(view, /WHEN li\.bullion_id IS NULL THEN pr\.price/)
+  assert.match(view, /ELSE pr\.price \* li\.quantity END/)
 })
 
 test('a balance that no longer covers what the quote applied is refused', () => {
@@ -334,7 +348,9 @@ test('finalizeConfirm names the missing fine weight before the missing confirmat
   assert.match(rules.finalizeConfirm(facts({ lots: [aLot(false)] })) ?? '', /1 of 1 lots are not confirmed/)
   assert.match(
     rules.finalizeConfirm(
-      facts({ lots: [{ confirmed: false, lot: { content: null } } as Facts['lots'][number]] })
+      facts({
+        lots: [{ lot: { content: null, confirmed_at: null } } as Facts['lots'][number]],
+      })
     ) ?? '',
     /1 of 1 lots have no fine weight/
   )

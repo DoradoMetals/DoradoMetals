@@ -22,6 +22,9 @@ export const User = z.object({
   'phone_number': z.string().nullable(),
   'isAnonymous': z.boolean(),
   'phone_number_verified': z.boolean(),
+  'assigned_to_id': z.string().uuid().nullable(),
+  'notes': z.string().nullable(),
+  'deletion_requested_at': z.string().nullable(),
 })
 export type User = z.infer<typeof User>
 // generated:end

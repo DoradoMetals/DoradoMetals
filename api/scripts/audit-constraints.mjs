@@ -10,6 +10,20 @@ const MERGED_ORDER_MONEY =
   '(D63: 15/15 sales rows populated, every null on the purchase side).'
 
 const ACCEPTED_NOT_NULL = {
+  'exchange.purchase_order_items.confirmed -> inventory.lots.confirmed_at':
+    'the boolean became a FACT (ruling 112): confirmed_at is the moment an ' +
+    'employee agreed the figures, and "not confirmed yet" is the absence of ' +
+    'that moment, not a false. A NOT NULL here would need a sentinel date, ' +
+    'which is the thing a nullable timestamp exists to avoid. Every exchange ' +
+    'row carried its false across as a NULL, and 40 of 180 dev lots carry a ' +
+    'real stamp.',
+  'exchange.sales_order_items.sales_tax_rate -> inventory.lots.sales_tax_rate':
+    'exchange kept sale lines in their own table, so every row had a rate and ' +
+    'NOT NULL was free. inventory.lots holds purchase lots and refiner lots ' +
+    'and sale lots in ONE table, and only a sale line is ever taxed - a NOT ' +
+    'NULL would force a meaningless zero onto every lot a customer sold TO us. ' +
+    'The dollars are on orders.transactions.sales_tax either way; this column ' +
+    'is the rate the line was taxed at, and a lot with no rate was not taxed.',
   'exchange.sales_orders.order_total -> orders.transactions.total': MERGED_ORDER_MONEY,
   'exchange.sales_orders.item_total -> orders.transactions.items': MERGED_ORDER_MONEY,
   'exchange.sales_orders.base_total -> orders.transactions.base_total': MERGED_ORDER_MONEY,
@@ -56,14 +70,6 @@ const ACCEPTED_NOT_NULL = {
     'the carrier, and the shipment records that choice on its own row. Only ' +
     'the three business rows are NULL; the carrier catalogue keeps its ids.',
 
-  'exchange.sell_cart_items.quantity -> checkout.items.quantity':
-    'checkout.items merges cart_items and sell_cart_items, and exchange.' +
-    'cart_items.quantity is NULLABLE - only the sell side carried the guard. ' +
-    'The sync body (req.body.cart) is not validated by any contract, so a client ' +
-    'sending a null quantity would 23502 on a cart sync that exchange accepts ' +
-    'today. checkout.* is device-sync, not a ledger; the right fix is a contract ' +
-    'on the sync body, not a column constraint. Measured: 3/3 production ' +
-    'cart_items and 26/26 sell_cart_items rows populated.',
 }
 
 const ACCEPTED_UNIQUE = {

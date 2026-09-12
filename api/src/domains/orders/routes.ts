@@ -3,10 +3,12 @@ import express from 'express'
 import {
   addFundsToOrder,
   adminCreateOrder,
+  adoptAssay,
   cancelOrder,
   createOrder,
   createOrderReview,
   finalizeOrder,
+  getAdoptAssayProposal,
   getOrder,
   getOrderDocuments,
   listOrders,
@@ -65,6 +67,8 @@ router.post('/:id/cancel', requireAdmin, cancelOrder)
 router.post('/:id/reopen', requireAdmin, reopenOrder)
 router.post('/:id/supply', requireAdmin, supplyOrder)
 router.post('/:id/refining-sale', requireAdmin, sellToRefiner)
+router.get('/:id/adopt_assay', requireAdmin, getAdoptAssayProposal)
+router.post('/:id/adopt_assay', requireAdmin, adoptAssay)
 
 router.patch('/:id', requireAdmin, patchOrder)
 

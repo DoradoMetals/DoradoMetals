@@ -6,7 +6,7 @@ SELECT $1, cl.lot_id
   FROM checkout.lots cl
  WHERE cl.checkout_id = $2
  ORDER BY cl.created_at ASC, cl.id ASC
-RETURNING id, order_id, lot_id, premium, price, sales_tax_charged, confirmed,
+RETURNING id, order_id, lot_id,
           to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS created_at,
           to_char(updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS updated_at,
           created_by_id, updated_by_id

@@ -33,9 +33,9 @@
 --
 -- See `docs/waves/lots-backfill-production.md`.
 
-ALTER TABLE lots.items DROP CONSTRAINT IF EXISTS a_snapshot_belongs_to_a_product;
+ALTER TABLE inventory.lots DROP CONSTRAINT IF EXISTS a_snapshot_belongs_to_a_product;
 
-UPDATE lots.items li
+UPDATE inventory.lots li
    SET content_snapshot = oi.content
   FROM orders.items oi
   JOIN orders.orders o ON o.id = oi.order_id
@@ -58,7 +58,7 @@ BEGIN
          COALESCE(string_agg(li.id::text, ', ')
                   FILTER (WHERE abs(d.v - li.content_snapshot) > 1e-3), 'none')
     INTO settled, over, offenders
-    FROM lots.items li
+    FROM inventory.lots li
     CROSS JOIN LATERAL (
       SELECT metals.fine_content(COALESCE(li.post_melt, li.pre_melt), li.unit, li.purity)
     ) AS d(v)

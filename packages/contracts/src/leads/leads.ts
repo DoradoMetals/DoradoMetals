@@ -23,6 +23,8 @@ export const Lead = z.object({
   'priority': z.string(),
   'created_by_id': z.string().uuid().nullable(),
   'updated_by_id': z.string().uuid().nullable(),
+  'assigned_to_id': z.string().uuid().nullable(),
+  'source': z.string().nullable(),
 })
 export type Lead = z.infer<typeof Lead>
 // generated:end

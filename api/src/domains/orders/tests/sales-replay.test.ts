@@ -29,7 +29,7 @@ const aSalesOrder = async (c: PoolClient) => {
   const owner = await aUser(c, { name: 'The Buyer' })
   const product = await aProduct(c)
   const built = await anOrder(c, owner, { direction: 'sale' })
-    .withBullion(product, 2, { price: 2600 })
+    .withBullion(product, 2)
     .withTotals({ total: 5200, items: 5200 })
   return {
     order: { id: built.id, user_id: owner.id, number: built.number },

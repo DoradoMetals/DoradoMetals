@@ -35,7 +35,7 @@ test('the order view is one read that parses through OrderViewFacts', async () =
     const product = await aProduct(c)
     const order = await anOrder(c, user, { direction: 'purchase' })
       .withLots(1)
-      .withBullion(product, 3, { price: 250 })
+      .withBullion(product, 3)
       .withAddress(address)
       .withTotals({ total: 1234.5 })
     await aShipment(c, order)
@@ -59,20 +59,58 @@ test('a bullion line carries its payable and its line total from SQL, and no pro
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c)
     const product = await aProduct(c)
-    const order = await anOrder(c, user, { direction: 'purchase' }).withBullion(product, 4, {
-      price: 25,
-    })
+    const order = await anOrder(c, user, { direction: 'purchase' })
+      .withBullion(product, 4, { premium: 5 })
+      .withSpots({ bid: 100 })
+    await c.query('UPDATE orders.orders SET spots_locked = true WHERE id = $1', [order.id])
 
     const view = await orders.view(order.id, c)
     assert.ok(view)
     const line = view.lots.find((i) => i.lot.bullion_id === product.id)
     assert.ok(line, 'the bullion line is missing')
     assert.ok(!('product' in line), 'the view still embeds the catalogue row')
-    assert.equal(line.line_total, 100, 'line_total is not price x quantity')
+
+    const expectedUnit = Number(line.lot.content) * Number(line.lot.premium) * 100
+    assert.ok(
+      Math.abs(Number(line.price) - expectedUnit) < 1e-9,
+      `price ${line.price} is not content x premium x spot (${expectedUnit})`
+    )
+    assert.ok(
+      Math.abs(Number(line.line_total) - expectedUnit * 4) < 1e-9,
+      'line_total is not price x quantity'
+    )
     assert.equal(
       line.payable,
-      line.lot.content === null || line.premium === null ? null : line.lot.content * line.premium,
+      line.lot.content === null || line.lot.premium === null
+        ? null
+        : line.lot.content * line.lot.premium,
       'payable is not content x premium'
+    )
+  })
+})
+
+test('a sale line prices at the frozen ask, not the bid - direction-aware pricing', async () => {
+  await inRollback(async (c: PoolClient) => {
+    const user = await aUser(c)
+    const product = await aProduct(c)
+    const order = await anOrder(c, user, { direction: 'sale' })
+      .withBullion(product, 2, { premium: 3 })
+      .withSpots({ bid: 100, ask: 150 })
+    await c.query('UPDATE orders.orders SET spots_locked = true WHERE id = $1', [order.id])
+
+    const view = await orders.view(order.id, c)
+    assert.ok(view)
+    const line = view.lots.find((i) => i.lot.bullion_id === product.id)
+    assert.ok(line, 'the sale line is missing')
+
+    const expectedUnit = Number(line.lot.content) * 3 * 150
+    assert.ok(
+      Math.abs(Number(line.price) - expectedUnit) < 1e-9,
+      `price ${line.price} did not price a sale off the ask (expected ${expectedUnit})`
+    )
+    assert.ok(
+      Math.abs(Number(line.line_total) - expectedUnit * 2) < 1e-9,
+      'line_total is not price x quantity'
     )
   })
 })
@@ -106,7 +144,7 @@ test('a scrap line is named by the SQL read, numbered per metal; a product line 
     const order = await anOrder(c, user, { direction: 'purchase' })
       .withLots(2, { metal_id: 'Gold' })
       .withLots(1, { metal_id: 'Silver' })
-      .withBullion(product, 1, { price: 10 })
+      .withBullion(product, 1)
 
     const view = await orders.view(order.id, c)
     assert.ok(view)

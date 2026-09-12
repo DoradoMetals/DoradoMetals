@@ -311,7 +311,8 @@ test('send_payment names the unsettled lots, and drops the reason once every one
       )
 
       await c.query(
-        `UPDATE refining.lots SET settled_at = now(), premium = 0.9 WHERE refining_order_id = $1`,
+        `UPDATE inventory.lots li SET settled_at = now(), premium = 0.9
+           FROM refining.lots rl WHERE rl.lot_id = li.id AND rl.refining_order_id = $1`,
         [engagement.id]
       )
 

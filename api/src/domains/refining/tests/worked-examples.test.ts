@@ -50,10 +50,18 @@ const aMixedOrder = async (c: PoolClient) => {
 
 const contentOf = async (c: PoolClient, lot_id: string): Promise<number> => {
   const { rows } = await c.query<{ content: string }>(
-    'SELECT content FROM lots.items WHERE id = $1',
+    'SELECT content FROM inventory.lots WHERE id = $1',
     [lot_id]
   )
   return Number(rows[0]!.content)
+}
+
+const setSpot = async (c: PoolClient, metal_id: string, bid: number, ask: number): Promise<void> => {
+  await c.query(
+    `INSERT INTO spots.spots (metal_id, bid, ask) VALUES ($1, $2, $3)
+       ON CONFLICT (metal_id) DO UPDATE SET bid = EXCLUDED.bid, ask = EXCLUDED.ask`,
+    [metal_id, bid, ask]
+  )
 }
 
 test("a lot's fine content is generated from its own weights, once", async () => {
@@ -84,7 +92,7 @@ test('the order view pays content x premium per lot, and prices the pieces', asy
   })
 })
 
-test('one customer order splits across two refiner orders, keeping its lot ids', async () => {
+test('one customer order splits across two refiner orders, and each refiner lot names its source', async () => {
   await inOrders(async (c) => {
     const { order } = await aMixedOrder(c)
     const [r1, r2] = await refinerIds(c)
@@ -94,23 +102,31 @@ test('one customer order splits across two refiner orders, keeping its lot ids',
     const second = await refining.create({ refiner_id: r2, direction: 'sell' })
 
     const [lotA, lotB, lotC] = order.lots
-    await refining.assignLots(first.id, [lotA!.lot_id, lotC!.lot_id])
-    await refining.assignLots(second.id, [lotB!.lot_id])
+    const firstAssigned = await refining.assignLots(first.id, [lotA!.lot_id, lotC!.lot_id])
+    const secondAssigned = await refining.assignLots(second.id, [lotB!.lot_id])
+
+    assert.equal(firstAssigned.length, 2)
+    assert.equal(secondAssigned.length, 1)
+    assert.ok(
+      firstAssigned.every((row) => row.lot_id !== lotA!.lot_id && row.lot_id !== lotC!.lot_id),
+      'assign minted no new refiner lot - it pointed straight at the customer lot'
+    )
 
     const one = await refining.view(first.id)
     const two = await refining.view(second.id)
     assert.deepEqual(
-      one.lots.map((l) => l.lot_id).sort(),
+      one.lots.flatMap((l) => l.sources.map((s) => s.id)).sort(),
       [lotA!.lot_id, lotC!.lot_id].sort(),
-      'the first refiner does not hold the lots it was given'
+      'the first refiner does not source back to the lots it was given'
     )
     assert.deepEqual(
-      two.lots.map((l) => l.lot_id),
+      two.lots.flatMap((l) => l.sources.map((s) => s.id)),
       [lotB!.lot_id]
     )
 
     assert.equal(one.lots[0]!.order_number, order.number)
     assert.equal(two.lots[0]!.order_number, order.number)
+    assert.equal(two.lots[0]!.sources[0]!.share, null, 'a lot with one source has no share')
   })
 })
 
@@ -135,15 +151,15 @@ test('settling a sell order credits the pool content x premium x pieces', async 
     const [r1] = await refinerIds(c)
     const engagement = await refining.create({ refiner_id: r1!, direction: 'sell' })
     const [lotA, , lotC] = order.lots
-    await refining.assignLots(engagement.id, [lotA!.lot_id, lotC!.lot_id])
+    const assigned = await refining.assignLots(engagement.id, [lotA!.lot_id, lotC!.lot_id])
     await refining.send(engagement.id)
 
     const settled = await refining.settle(engagement.id, {
       fee: 7,
       statement_reference: 'R1-2026-09-14',
       lots: [
-        { lot_id: lotA!.lot_id, post_melt: 10, purity: 0.9, unit: 't oz', premium: 0.95 },
-        { lot_id: lotC!.lot_id, premium: 0.98 },
+        { lot_id: assigned[0]!.lot_id, post_melt: 10, purity: 0.9, unit: 't oz', premium: 0.95 },
+        { lot_id: assigned[1]!.lot_id, premium: 0.98 },
       ],
     })
 
@@ -151,25 +167,51 @@ test('settling a sell order credits the pool content x premium x pieces', async 
     assert.ok(settled.settled_at, 'the order settled without a timestamp')
     close(settled.fee, 7, 'the fee is one number in one place')
     assert.ok(
-      settled.lots.every((l) => l.settled_at !== null),
+      settled.lots.every((l) => l.lot.settled_at !== null),
       'a lot was left unsettled on a settled order'
     )
 
     const gold = settled.pool.find((p) => p.metal_id === 'Gold')
     assert.ok(gold, 'settling a sell order credited no gold to the pool')
     close(gold.troy_oz, 9 * 0.95 + 0.999 * 0.98 * 2, "R1's gold balance")
+    close(gold.balance, gold.troy_oz, 'balance is the credit side, and nothing has locked yet')
+    close(gold.locked, 0, 'nothing has locked yet')
+    close(gold.available, gold.balance - gold.locked, 'available nets balance and locked')
   })
 })
 
-test('the pool is a ledger: a lock is negative, and the balance is their sum', async () => {
+test('the pool credit reads the refiner lot own figures, not the customer lot it came from', async () => {
   await inOrders(async (c) => {
     const { order } = await aMixedOrder(c)
     const [r1] = await refinerIds(c)
     const engagement = await refining.create({ refiner_id: r1!, direction: 'sell' })
-    await refining.assignLots(engagement.id, [order.lots[0]!.lot_id])
+    const [lotA] = order.lots
+    const assigned = await refining.assignLots(engagement.id, [lotA!.lot_id])
+    await refining.send(engagement.id)
+
+    await refining.settle(engagement.id, {
+      lots: [
+        { lot_id: assigned[0]!.lot_id, post_melt: 20, purity: 0.5, unit: 't oz', premium: 0.4 },
+      ],
+    })
+
+    const customerContent = await contentOf(c, lotA!.lot_id)
+    close(customerContent, 9, "the customer lot's own content never moved")
+
+    const gold = (await refining.balances(r1!, 'Gold'))[0]
+    close(gold!.balance, 20 * 0.5 * 0.4, "the credit used the refiner lot's reported weight, not the customer's")
+  })
+})
+
+test('the pool is a ledger: a lock is negative, and available is balance minus locked', async () => {
+  await inOrders(async (c) => {
+    const { order } = await aMixedOrder(c)
+    const [r1] = await refinerIds(c)
+    const engagement = await refining.create({ refiner_id: r1!, direction: 'sell' })
+    const assigned = await refining.assignLots(engagement.id, [order.lots[0]!.lot_id])
     await refining.send(engagement.id)
     await refining.settle(engagement.id, {
-      lots: [{ lot_id: order.lots[0]!.lot_id, premium: 0.95 }],
+      lots: [{ lot_id: assigned[0]!.lot_id, premium: 0.95 }],
     })
 
     const before = (await refining.balances(r1!, 'Gold'))[0]
@@ -181,23 +223,28 @@ test('the pool is a ledger: a lock is negative, and the balance is their sum', a
       troy_oz: 1,
       lock_price: 2450,
       refining_order_id: engagement.id,
+      purpose: 'Sell to refiner',
     })
     assert.equal(lock.entry, 'lock')
+    assert.equal(lock.purpose, 'Sell to refiner')
     close(lock.troy_oz, -1, 'a lock takes metal out, so it is negative')
 
     const after = (await refining.balances(r1!, 'Gold'))[0]
     close(after!.troy_oz, Number(before.troy_oz) - 1, 'the balance is sum(troy_oz)')
     close(after!.last_lock_price, 2450, 'the last lock price is what the metal changed hands at')
+    close(after!.balance, before.balance, 'a lock does not change what was ever credited')
+    close(after!.locked, 1, 'the lock is one troy oz drawn out')
+    close(after!.available, after!.balance - after!.locked, 'available nets balance and locked')
   })
 })
 
-test('a refiner order that has been sent warns about new lots, and settles only once', async () => {
+test('a refiner order that has been sent warns about new lots, settles partially, and settles only once', async () => {
   await inOrders(async (c) => {
     const { order } = await aMixedOrder(c)
     const [r1] = await refinerIds(c)
     const engagement = await refining.create({ refiner_id: r1!, direction: 'sell' })
     const [lotA, lotB] = order.lots
-    await refining.assignLots(engagement.id, [lotA!.lot_id])
+    const firstAssigned = await refining.assignLots(engagement.id, [lotA!.lot_id])
 
     await assert.rejects(() => refining.settle(engagement.id, { lots: [] }), /has not been sent/)
     const sent = await refining.send(engagement.id)
@@ -206,17 +253,107 @@ test('a refiner order that has been sent warns about new lots, and settles only 
       /has already been sent/,
       'a sent order offers edit_lots with a reason rather than refusing it'
     )
-    await refining.assignLots(engagement.id, [lotB!.lot_id])
-    await refining.settle(engagement.id, {
-      lots: [
-        { lot_id: lotA!.lot_id, premium: 0.95 },
-        { lot_id: lotB!.lot_id, premium: 0.95 },
-      ],
-    })
-    await assert.rejects(
-      () => refining.settle(engagement.id, { lots: [{ lot_id: lotA!.lot_id, premium: 0.9 }] }),
-      /a correction is a new pool entry/
+    assert.match(
+      sent.actions.find((a) => a.name === 'settle')?.confirm ?? '',
+      /are not settled/,
+      'settle is offered with a reason before anything has settled'
     )
+    const secondAssigned = await refining.assignLots(engagement.id, [lotB!.lot_id])
+
+    const partial = await refining.settle(engagement.id, {
+      lots: [{ lot_id: firstAssigned[0]!.lot_id, premium: 0.95 }],
+    })
+    assert.equal(partial.state, 'Settled', 'a partial settlement still closes the order')
+    const [settledLot, unsettledLot] = [
+      partial.lots.find((l) => l.lot_id === firstAssigned[0]!.lot_id)!,
+      partial.lots.find((l) => l.lot_id === secondAssigned[0]!.lot_id)!,
+    ]
+    assert.ok(settledLot.lot.settled_at !== null, 'a named lot settled')
+    assert.equal(unsettledLot.lot.settled_at, null, 'a partial settlement touched an unnamed lot')
+
+    await assert.rejects(
+      () =>
+        refining.settle(engagement.id, {
+          lots: [{ lot_id: secondAssigned[0]!.lot_id, premium: 0.95 }],
+        }),
+      /a correction is a new pool entry/,
+      'settling is one event on the order - a second call corrects, it does not extend'
+    )
+  })
+})
+
+test('a settlement line naming a lot not on the order is refused', async () => {
+  await inOrders(async (c) => {
+    const { order } = await aMixedOrder(c)
+    const [r1] = await refinerIds(c)
+    const engagement = await refining.create({ refiner_id: r1!, direction: 'sell' })
+    await refining.assignLots(engagement.id, [order.lots[0]!.lot_id])
+    await refining.send(engagement.id)
+
+    await assert.rejects(
+      () =>
+        refining.settle(engagement.id, {
+          lots: [{ lot_id: order.lots[1]!.lot_id, premium: 0.9 }],
+        }),
+      /is not on this refiner order/
+    )
+  })
+})
+
+test('settled_spot is stamped server-side from the live spot on a paid order', async () => {
+  await inOrders(async (c) => {
+    const { order } = await aMixedOrder(c)
+    const [r1] = await refinerIds(c)
+    await setSpot(c, 'Gold', 2410, 2420)
+    const engagement = await refining.create({
+      refiner_id: r1!,
+      direction: 'sell',
+      settlement_type: 'paid',
+    })
+    const assigned = await refining.assignLots(engagement.id, [order.lots[0]!.lot_id])
+    await refining.send(engagement.id)
+
+    const settled = await refining.settle(engagement.id, {
+      lots: [{ lot_id: assigned[0]!.lot_id, premium: 0.95 }],
+    })
+    close(
+      settled.lots[0]!.lot.settled_spot,
+      2410,
+      'a silent line takes the live bid, not something the caller had to compute'
+    )
+
+    const spots = await refining.spotsFor(engagement.id)
+    const gold = spots.find((s) => s.metal_id === 'Gold')!
+    close(gold.spot, 2410, 'the spots read answers the settled spot of the settled lots')
+    assert.equal(gold.lots, 1)
+    assert.equal(gold.settled_lots, 1)
+  })
+})
+
+test('a pooled order never carries a spot, and refuses one on a settlement line', async () => {
+  await inOrders(async (c) => {
+    const { order } = await aMixedOrder(c)
+    const [r1] = await refinerIds(c)
+    const engagement = await refining.create({ refiner_id: r1!, direction: 'sell' })
+    assert.equal(engagement.settlement_type, 'pooled', 'pooled is the default settlement type')
+    const assigned = await refining.assignLots(engagement.id, [order.lots[0]!.lot_id])
+    await refining.send(engagement.id)
+
+    await assert.rejects(
+      () =>
+        refining.settle(engagement.id, {
+          lots: [{ lot_id: assigned[0]!.lot_id, premium: 0.95, settled_spot: 2400 }],
+        }),
+      /never carries a spot/
+    )
+
+    const settled = await refining.settle(engagement.id, {
+      lots: [{ lot_id: assigned[0]!.lot_id, premium: 0.95 }],
+    })
+    assert.equal(settled.lots[0]!.lot.settled_spot, null, 'a pooled order stamped a spot anyway')
+
+    const spots = await refining.spotsFor(engagement.id)
+    assert.equal(spots[0]!.spot, null, 'the spots read reported one for a pooled order')
   })
 })
 
@@ -225,13 +362,13 @@ test('the settlement view sums estimated and settled fine oz, and their variance
     const { order } = await aMixedOrder(c)
     const [r1] = await refinerIds(c)
     const engagement = await refining.create({ refiner_id: r1!, direction: 'sell' })
-    await refining.assignLots(engagement.id, [order.lots[0]!.lot_id])
+    const assigned = await refining.assignLots(engagement.id, [order.lots[0]!.lot_id])
     await refining.send(engagement.id)
 
     const settled = await refining.settle(engagement.id, {
       lots: [
         {
-          lot_id: order.lots[0]!.lot_id,
+          lot_id: assigned[0]!.lot_id,
           post_melt: 10.5,
           purity: 0.9,
           unit: 't oz',
@@ -242,6 +379,30 @@ test('the settlement view sums estimated and settled fine oz, and their variance
     close(settled.estimated_content, 9, 'the declared fine oz')
     close(settled.settled_content, 10.5 * 0.9, 'the assayed fine oz')
     close(settled.variance, 10.5 * 0.9 - 9, 'the variance is settled minus estimated')
+  })
+})
+
+test("linked_orders derives a buy order's sales through lots, with no stored order-to-order link", async () => {
+  await inOrders(async (c) => {
+    const buyer = await aUser(c)
+    const product = await aProduct(c, { metal_id: 'Gold', gross: 1, content: 1, purity: 1 })
+    const sale = await anOrder(c, buyer, { direction: 'sale' }).withBullion(product, 1)
+    const [r1] = await refinerIds(c)
+
+    const engagement = await refining.supplyOrder(sale.id, r1!)
+    const held = await refining.lotsFor(engagement.id)
+    assert.equal(held.length, 1)
+
+    await c.query(
+      `INSERT INTO inventory.lot_sources (lot_id, source_lot_id, kind) VALUES ($1, $2, 'sale')`,
+      [sale.lots[0]!.lot_id, held[0]!.lot_id]
+    )
+
+    const view = await refining.view(engagement.id)
+    assert.ok(
+      view.linked_orders.some((row) => row.id === sale.id && row.direction === 'sale'),
+      'a buy order does not name the sale its metal is bound for'
+    )
   })
 })
 

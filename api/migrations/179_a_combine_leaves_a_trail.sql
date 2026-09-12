@@ -13,27 +13,27 @@
 --
 -- Additive. `exchange` is neither read nor written.
 
-ALTER TABLE lots.items
+ALTER TABLE inventory.lots
   ADD COLUMN IF NOT EXISTS combined_into_id uuid;
 
 DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'items_combined_into_id_fkey') THEN
-    ALTER TABLE lots.items ADD CONSTRAINT items_combined_into_id_fkey
-      FOREIGN KEY (combined_into_id) REFERENCES lots.items(id) ON DELETE SET NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'lots_combined_into_fk') THEN
+    ALTER TABLE inventory.lots ADD CONSTRAINT lots_combined_into_fk
+      FOREIGN KEY (combined_into_id) REFERENCES inventory.lots(id) ON DELETE SET NULL;
   END IF;
 END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'a_lot_is_not_its_own_successor') THEN
-    ALTER TABLE lots.items ADD CONSTRAINT a_lot_is_not_its_own_successor
+    ALTER TABLE inventory.lots ADD CONSTRAINT a_lot_is_not_its_own_successor
       CHECK (combined_into_id IS NULL OR combined_into_id <> id);
   END IF;
 END $$;
 
-CREATE INDEX IF NOT EXISTS items_combined_into_idx
-  ON lots.items (combined_into_id)
+CREATE INDEX IF NOT EXISTS lots_combined_into_idx
+  ON inventory.lots (combined_into_id)
   WHERE combined_into_id IS NOT NULL;
 
-CREATE INDEX IF NOT EXISTS items_split_from_idx
-  ON lots.items (split_from_id)
+CREATE INDEX IF NOT EXISTS lots_split_from_idx
+  ON inventory.lots (split_from_id)
   WHERE split_from_id IS NOT NULL;

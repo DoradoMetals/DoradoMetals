@@ -8,7 +8,8 @@ import { TEST_ACTOR } from '#shared/testing/actor.ts'
 import { inPinnedTransaction } from '#shared/testing/pinned-pool.ts'
 import { LOCKS } from '#shared/testing/locks.ts'
 import { aUser, anOrder, aProduct } from '#shared/testing/builders/index.ts'
-import * as lotsRepo from '#db/lots/items/repo.ts'
+import * as lotsRepo from '#db/inventory/lots/repo.ts'
+import * as lotSourcesRepo from '#db/inventory/lot-sources/repo.ts'
 
 await mockSessions()
 const { default: app } = await import('#app')
@@ -22,6 +23,12 @@ afterAll(async () => {
 
 const inInventory = <T>(fn: (c: PoolClient) => Promise<T>) =>
   inPinnedTransaction(fn, { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS })
+
+const aRefiner = async (c: PoolClient): Promise<string> => {
+  const { rows } = await c.query<{ id: string }>('SELECT id FROM refiners.refiners LIMIT 1')
+  assert.ok(rows[0], 'the test database has no refiner')
+  return rows[0].id
+}
 
 test('every inventory route is admin-only, and a signed-out caller is refused outright', async () => {
   await inInventory(async () => {
@@ -109,8 +116,8 @@ test('GET /api/lots/:id returns the five cards, and an unknown id is a 404', asy
       assert.equal(res.body.where.order.id, order.id)
       assert.equal(res.body.where.refining_order, null)
       assert.ok('declared_content' in res.body.worth)
-      assert.deepEqual(res.body.lineage.children, [])
-      assert.equal(res.body.lineage.split_from_id, null)
+      assert.deepEqual(res.body.lineage.sources, [])
+      assert.deepEqual(res.body.lineage.derived, [])
       assert.ok(Array.isArray(res.body.timeline))
 
       const missing = await request(app).get(
@@ -140,7 +147,98 @@ test('GET /api/lots/:id shows a split parent as consumed, with its children in l
       const parentView = await request(app).get(`/api/lots/${parent_id}`)
       assert.equal(parentView.status, 200, parentView.text)
       assert.equal(parentView.body.lot.position, 'consumed')
-      assert.equal(parentView.body.lineage.children.length, 2)
+      assert.equal(parentView.body.lineage.derived.length, 2)
+      assert.ok(parentView.body.lineage.derived.every((edge: { kind: string }) => edge.kind === 'split'))
+    })
+  })
+})
+
+test('GET /api/lots/:id reports split lineage in both directions, and combine shares', async () => {
+  await inInventory(async (c) => {
+    await asAdmin(admin, async () => {
+      const parent = await lotsRepo.create({ metal_id: 'Gold', pre_melt: 20, purity: 0.9 }, c)
+      const children = await lotsRepo.splitOff(
+        parent.id,
+        [
+          { pre_melt: 12, purity: 0.9 },
+          { pre_melt: 8, purity: 0.9 },
+        ],
+        c
+      )
+
+      const parentView = await request(app).get(`/api/lots/${parent.id}`)
+      assert.equal(parentView.body.lineage.derived.length, 2)
+
+      const childView = await request(app).get(`/api/lots/${children[0]!.id}`)
+      assert.equal(childView.body.lineage.sources.length, 1)
+      assert.equal(childView.body.lineage.sources[0].id, parent.id)
+      assert.equal(childView.body.lineage.sources[0].kind, 'split')
+      assert.equal(childView.body.lineage.sources[0].share, null)
+
+      const a = await lotsRepo.create({ metal_id: 'Silver', pre_melt: 10, purity: 0.9 }, c)
+      const b = await lotsRepo.create({ metal_id: 'Silver', pre_melt: 30, purity: 0.9 }, c)
+      const combineRes = await request(app)
+        .post('/api/lots/combine')
+        .send({ lot_ids: [a.id, b.id] })
+      assert.equal(combineRes.status, 201, combineRes.text)
+
+      const combinedView = await request(app).get(`/api/lots/${combineRes.body.id}`)
+      assert.equal(combinedView.body.lineage.sources.length, 2)
+      const total = Number(a.content) + Number(b.content)
+      for (const [lot, expected] of [
+        [a, Number(a.content) / total],
+        [b, Number(b.content) / total],
+      ] as const) {
+        const edge = combinedView.body.lineage.sources.find(
+          (row: { id: string }) => row.id === lot.id
+        )
+        assert.ok(edge, `no lineage edge for ${lot.id}`)
+        assert.equal(edge.kind, 'combine')
+        assert.ok(Math.abs(edge.share - expected) < 1e-9)
+      }
+    })
+  })
+})
+
+test('a refiner lot never appears in GET /api/lots nor in GET /api/inventory/summary', async () => {
+  await inInventory(async (c) => {
+    await asAdmin(admin, async () => {
+      const refiner_id = await aRefiner(c)
+      const { rows } = await c.query<{ id: string }>(
+        `INSERT INTO refining.orders (refiner_id, direction) VALUES ($1, 'sell') RETURNING id`,
+        [refiner_id]
+      )
+      const refinerLot = await lotsRepo.create({ metal_id: 'Gold', pre_melt: 999, purity: 1 }, c)
+      await c.query(`INSERT INTO refining.lots (refining_order_id, lot_id) VALUES ($1, $2)`, [
+        rows[0]!.id,
+        refinerLot.id,
+      ])
+
+      const list = await request(app).get('/api/lots')
+      assert.ok(!list.body.some((row: { id: string }) => row.id === refinerLot.id))
+
+      const summary = await request(app).get('/api/inventory/summary')
+      const gold = summary.body.metals.find((m: { metal_id: string }) => m.metal_id === 'Gold')
+      assert.ok(gold, 'no Gold row in the summary')
+      assert.ok(gold.on_hand_content < 999, 'the refiner lot leaked into on-hand content')
+    })
+  })
+})
+
+test('a minted sale lot never appears in GET /api/lots nor in GET /api/inventory/summary', async () => {
+  await inInventory(async (c) => {
+    await asAdmin(admin, async () => {
+      const stockLot = await lotsRepo.create({ metal_id: 'Silver', pre_melt: 10, purity: 0.9 }, c)
+      const saleLot = await lotsRepo.create({ metal_id: 'Silver', pre_melt: 999, purity: 1 }, c)
+      await lotSourcesRepo.link(saleLot.id, stockLot.id, 'sale', c)
+
+      const list = await request(app).get('/api/lots')
+      assert.ok(!list.body.some((row: { id: string }) => row.id === saleLot.id))
+
+      const summary = await request(app).get('/api/inventory/summary')
+      const silver = summary.body.metals.find((m: { metal_id: string }) => m.metal_id === 'Silver')
+      assert.ok(silver, 'no Silver row in the summary')
+      assert.ok(silver.on_hand_content < 999, 'the sale lot leaked into on-hand content')
     })
   })
 })

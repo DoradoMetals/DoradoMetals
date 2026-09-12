@@ -49,7 +49,7 @@ const rowsOf = async (c: PoolClient, user_id: string, direction: string) => {
     `SELECT i.bullion_id, i.metal_id, i.pre_melt, i.post_melt, i.purity,
             i.content, i.unit, i.quantity
        FROM checkout.lots cl
-       JOIN lots.items i ON i.id = cl.lot_id
+       JOIN inventory.lots i ON i.id = cl.lot_id
        JOIN checkout.checkouts c ON c.id = cl.checkout_id
       WHERE c.user_id = $1 AND c.direction = $2
       ORDER BY cl.created_at, cl.id`,

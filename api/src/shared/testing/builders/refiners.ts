@@ -1,7 +1,7 @@
 import type { PoolClient } from 'pg'
 import * as refiningOrders from '#db/refining/orders/repo.ts'
 import * as refiningLots from '#db/refining/lots/repo.ts'
-import * as pool from '#db/refining/pool/repo.ts'
+import * as pool from '#db/inventory/pool/repo.ts'
 import type { BuiltOrder } from '#shared/testing/builders/orders.ts'
 import type { RefiningDirection, RefiningLotPatch } from '@dorado/contracts'
 
@@ -44,6 +44,7 @@ export async function aRefiningOrder(
         refiner_id,
         metal_id: options.lock.metal_id,
         troy_oz: options.lock.troy_oz,
+        purpose: 'Sell to refiner',
         lock_price: options.lock.lock_price,
         refining_order_id: created.id,
       },

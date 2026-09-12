@@ -38,7 +38,9 @@ test('a purchase order walks pricing and funds, and the money facts agree', asyn
       assert.equal(before.status, 200, before.text)
       for (const line of before.body) {
         const confirmed = await asAdmin(admin, () =>
-          request(app).patch(`/api/orders/lots/${line.id}`).send({ confirmed: true })
+          request(app)
+            .patch(`/api/orders/lots/${line.id}`)
+            .send({ confirmed_at: new Date().toISOString() })
         )
         assert.equal(confirmed.status, 200, confirmed.text)
       }
@@ -52,7 +54,7 @@ test('a purchase order walks pricing and funds, and the money facts agree', asyn
       assert.ok(total > 0, 'finalize wrote no positive total')
 
       for (const line of priced.body.lots) {
-        assert.equal(line.payable, Number(line.lot.content) * Number(line.premium))
+        assert.equal(line.payable, Number(line.lot.content) * Number(line.lot.premium))
         assert.equal(line.line_total, Number(line.price))
       }
 

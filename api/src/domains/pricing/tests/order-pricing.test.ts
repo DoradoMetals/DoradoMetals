@@ -20,7 +20,6 @@ type QuoteLine = {
   kind: string
   unit_price: number
   line_total: number
-  source: string
 }
 
 const EXACT = 1e-9
@@ -49,21 +48,13 @@ async function aQuotableOrder(c: PoolClient) {
   const product = await aProduct(c, { metal_id: 'Gold', content: 1 })
 
   const specs = [
-    {
-      bullion_id: null as string | null,
-      metal_id: gold.metal_id,
-      content: 2,
-      premium: 1,
-      quantity: 1,
-      price: 1500 as number | null,
-    },
+    { bullion_id: null as string | null, metal_id: gold.metal_id, content: 2, premium: 1, quantity: 1 },
     {
       bullion_id: null as string | null,
       metal_id: gold.metal_id,
       content: 0.5,
       premium: 0.9,
       quantity: 1,
-      price: null as number | null,
     },
     {
       bullion_id: product.id,
@@ -71,7 +62,6 @@ async function aQuotableOrder(c: PoolClient) {
       content: product.content,
       premium: 40,
       quantity: 1,
-      price: 1999 as number | null,
     },
     {
       bullion_id: product.id,
@@ -79,21 +69,11 @@ async function aQuotableOrder(c: PoolClient) {
       content: product.content,
       premium: 45,
       quantity: 2,
-      price: null as number | null,
     },
   ]
 
   const order = await anOrder(c, owner, { direction: 'purchase' })
-    .withLines(
-      ...specs.map((s) => ({
-        bullion_id: s.bullion_id,
-        metal_id: s.metal_id,
-        content: s.content,
-        premium: s.premium,
-        quantity: s.quantity,
-        price: s.price,
-      }))
-    )
+    .withLines(...specs)
     .withSpots({ bid: null })
     .withTotals({ total: 1 })
 
@@ -102,13 +82,11 @@ async function aQuotableOrder(c: PoolClient) {
 
   const expected = specs.map((s, i) => {
     const kind = s.bullion_id === null ? 'scrap' : 'product'
-    const stored = s.price != null
-    const unit_price = stored ? s.price! : s.content * (gold.bid * s.premium)
+    const unit_price = s.content * (gold.bid * s.premium)
     const line_total = kind === 'product' ? unit_price * s.quantity : unit_price
     return {
       id: order.lots[i]!.id,
       kind,
-      source: stored ? 'stored' : 'quoted',
       unit_price,
       line_total,
     }
@@ -128,9 +106,11 @@ test("the order quote is the owner's and the admins', and nobody else's", async 
     async (c: PoolClient) => {
       const owner = await aUser(c)
       const stranger = await aUser(c)
-      const order = await anOrder(c, owner, { direction: 'purchase' }).withLines(
-        { metal_id: gold.metal_id, content: 1, premium: 1, price: 100 }
-      )
+      const order = await anOrder(c, owner, { direction: 'purchase' }).withLines({
+        metal_id: gold.metal_id,
+        content: 1,
+        premium: 1,
+      })
 
       await anonymous(async () => {
         const res = await request(app).post('/api/quotes/order').send({ order_id: order.id })
@@ -168,7 +148,7 @@ test("the order quote is the owner's and the admins', and nobody else's", async 
   )
 })
 
-test('stored prices come back verbatim and estimates come from the tables', async () => {
+test('every line prices from content x spot x premium, scrap and product alike', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
       const { order, owner, expected, payoutCost, shippingCharge } = await aQuotableOrder(c)
@@ -188,11 +168,6 @@ test('stored prices come back verbatim and estimates come from the tables', asyn
           const line = res.body.items.find((l: QuoteLine) => l.id === exp.id)
           assert.ok(line, `item ${exp.id} is missing from the quote`)
           assert.equal(line.kind, exp.kind)
-          assert.equal(
-            line.source,
-            exp.source,
-            `item ${exp.id} (${exp.kind}) not flagged ${exp.source}`
-          )
           assert.ok(
             Math.abs(line.unit_price - exp.unit_price) < EXACT,
             `unit_price ${line.unit_price} != hand-computed ${exp.unit_price} for ${exp.kind} ${exp.id}`
@@ -230,7 +205,7 @@ test('a locked order prices at its locked spots, an unlocked one at live', async
     async (c: PoolClient) => {
       const owner = await aUser(c)
       const order = await anOrder(c, owner, { direction: 'purchase' })
-        .withLines({ metal_id: gold.metal_id, content: 3, premium: 1, price: null })
+        .withLines({ metal_id: gold.metal_id, content: 3, premium: 1 })
         .withSpots({ bid: null })
       const target = order.lots[0]!
 
@@ -250,7 +225,6 @@ test('a locked order prices at its locked spots, an unlocked one at live', async
         )
         const lockedLine = locked.body.items.find((l: QuoteLine) => l.id === target.id)
         assert.ok(lockedLine, `item ${target.id} is missing from the locked quote`)
-        assert.equal(lockedLine.source, 'quoted')
         const atPin = 3 * (1234.56 * 1)
         assert.ok(
           Math.abs(lockedLine.unit_price - atPin) < EXACT,
@@ -278,9 +252,11 @@ test('no body-supplied price, spot or order object is accepted at all', async ()
   await inPinnedTransaction(
     async (c: PoolClient) => {
       const owner = await aUser(c)
-      const order = await anOrder(c, owner, { direction: 'purchase' }).withLines(
-        { metal_id: gold.metal_id, content: 1, premium: 1, price: 100 }
-      )
+      const order = await anOrder(c, owner, { direction: 'purchase' }).withLines({
+        metal_id: gold.metal_id,
+        content: 1,
+        premium: 1,
+      })
 
       await as({ ...owner, role: 'user' }, async () => {
         const clean = await request(app).post('/api/quotes/order').send({ order_id: order.id })
@@ -313,7 +289,7 @@ test("the quote carries the order's own metals, priced frozen-or-live like every
     async (c: PoolClient) => {
       const owner = await aUser(c)
       const order = await anOrder(c, owner, { direction: 'purchase' })
-        .withLines({ metal_id: gold.metal_id, content: 1, premium: 1, price: null })
+        .withLines({ metal_id: gold.metal_id, content: 1, premium: 1 })
         .withSpots({ bid: 7, ask: 9 })
 
       const live = await pricing.priceOrder(order.id, c)

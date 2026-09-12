@@ -191,8 +191,9 @@ test('a notes write moves the note and NOTHING else', async () => {
         ).rows[0]
         const pricesBefore = (
           await client.query(
-            `SELECT id, price FROM orders.lots
-            WHERE order_id = $1 ORDER BY id`,
+            `SELECT ol.id, li.premium, li.content FROM orders.lots ol
+               JOIN inventory.lots li ON li.id = ol.lot_id
+              WHERE ol.order_id = $1 ORDER BY ol.id`,
             [order.id]
           )
         ).rows
@@ -220,8 +221,9 @@ test('a notes write moves the note and NOTHING else', async () => {
         )
         const pricesAfter = (
           await client.query(
-            `SELECT id, price FROM orders.lots
-            WHERE order_id = $1 ORDER BY id`,
+            `SELECT ol.id, li.premium, li.content FROM orders.lots ol
+               JOIN inventory.lots li ON li.id = ol.lot_id
+              WHERE ol.order_id = $1 ORDER BY ol.id`,
             [order.id]
           )
         ).rows
@@ -356,8 +358,9 @@ const snapshot = async (client: PoolClient, id: string) => ({
   ).rows,
   items: (
     await client.query(
-      `SELECT id, price FROM orders.lots
-        WHERE order_id = $1 ORDER BY id`,
+      `SELECT ol.id, li.premium, li.content FROM orders.lots ol
+         JOIN inventory.lots li ON li.id = ol.lot_id
+        WHERE ol.order_id = $1 ORDER BY ol.id`,
       [id]
     )
   ).rows,
@@ -370,7 +373,11 @@ test('finalizing prices the order and pins its spots; the label that follows mov
     async (client: PoolClient) => {
       const { order } = await anOpenPurchaseOrder(client)
       await pinMetals(client)
-      await client.query(`UPDATE orders.lots SET confirmed = true WHERE order_id = $1`, [order.id])
+      await client.query(
+        `UPDATE inventory.lots li SET confirmed_at = now()
+           FROM orders.lots ol WHERE ol.lot_id = li.id AND ol.order_id = $1`,
+        [order.id]
+      )
       await asAdmin(admin, async () => {
         const finalize = await request(app)
           .post(`/api/orders/${order.id}/finalize`)

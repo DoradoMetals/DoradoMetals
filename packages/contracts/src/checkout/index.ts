@@ -3,5 +3,4 @@
 //
 // Every entity of the `checkout` schema, one namespace each.
 export * from './checkouts.js'
-export * from './items.js'
 export * from './lots.js'
