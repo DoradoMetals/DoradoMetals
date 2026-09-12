@@ -31,9 +31,16 @@ DO $$ BEGIN
   END IF;
 END $$;
 
+-- EDITED 2026-09-12 (uat2 lane, from-nothing rebuild finding). The guard
+-- checked `refining.pool_entry`, but the type this creates is
+-- `inventory.pool_entry` - a copy-paste leftover from the `refining.direction`
+-- guard just above. Invisible on dev, where the very first run found neither
+-- name and created the type either way; fatal on a from-genesis rebuild, where
+-- genesis already has `inventory.pool_entry` and the guard's wrong namespace
+-- reports "not exists" anyway.
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
-                  WHERE t.typname = 'pool_entry' AND n.nspname = 'refining') THEN
+                  WHERE t.typname = 'pool_entry' AND n.nspname = 'inventory') THEN
     CREATE TYPE inventory.pool_entry AS ENUM ('credit', 'lock');
   END IF;
 END $$;
