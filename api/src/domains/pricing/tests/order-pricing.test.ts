@@ -83,7 +83,7 @@ async function aQuotableOrder(c: PoolClient) {
     },
   ]
 
-  const order = await anOrder(c, owner, { direction: 'purchase', status: 'Pending' })
+  const order = await anOrder(c, owner, { direction: 'purchase' })
     .withLines(
       ...specs.map((s) => ({
         bullion_id: s.bullion_id,
@@ -128,7 +128,7 @@ test("the order quote is the owner's and the admins', and nobody else's", async 
     async (c: PoolClient) => {
       const owner = await aUser(c)
       const stranger = await aUser(c)
-      const order = await anOrder(c, owner, { direction: 'purchase', status: 'Pending' }).withLines(
+      const order = await anOrder(c, owner, { direction: 'purchase' }).withLines(
         { metal_id: gold.metal_id, content: 1, premium: 1, price: 100 }
       )
 
@@ -229,7 +229,7 @@ test('a locked order prices at its locked spots, an unlocked one at live', async
   await inPinnedTransaction(
     async (c: PoolClient) => {
       const owner = await aUser(c)
-      const order = await anOrder(c, owner, { direction: 'purchase', status: 'Pending' })
+      const order = await anOrder(c, owner, { direction: 'purchase' })
         .withLines({ metal_id: gold.metal_id, content: 3, premium: 1, price: null })
         .withSpots({ bid: null })
       const target = order.lots[0]!
@@ -278,7 +278,7 @@ test('no body-supplied price, spot or order object is accepted at all', async ()
   await inPinnedTransaction(
     async (c: PoolClient) => {
       const owner = await aUser(c)
-      const order = await anOrder(c, owner, { direction: 'purchase', status: 'Pending' }).withLines(
+      const order = await anOrder(c, owner, { direction: 'purchase' }).withLines(
         { metal_id: gold.metal_id, content: 1, premium: 1, price: 100 }
       )
 
@@ -312,7 +312,7 @@ test("the quote carries the order's own metals, priced frozen-or-live like every
   await inPinnedTransaction(
     async (c: PoolClient) => {
       const owner = await aUser(c)
-      const order = await anOrder(c, owner, { direction: 'purchase', status: 'Pending' })
+      const order = await anOrder(c, owner, { direction: 'purchase' })
         .withLines({ metal_id: gold.metal_id, content: 1, premium: 1, price: null })
         .withSpots({ bid: 7, ask: 9 })
 

@@ -7,7 +7,7 @@ import { z } from 'zod/v4'
 
 export const AuthPendingSignup = z.object({
   'id': z.string().uuid(),
-  'phone_number': z.string(),
+  'phone_number': z.string().nullable(),
   'email': z.string(),
   'name': z.string(),
   'expires_at': z.string(),

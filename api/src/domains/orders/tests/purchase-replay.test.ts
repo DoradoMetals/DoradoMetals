@@ -26,17 +26,14 @@ afterAll(async () => {
   await pool.end()
 })
 
-const MOVE_TO = 'Payment Processing'
-
 const aBuiltOrder = async (c: PoolClient) => {
   const owner = await aUser(c)
-  const order = await anOrder(c, owner, { direction: 'purchase', status: 'Pending' })
+  const order = await anOrder(c, owner, { direction: 'purchase' })
     .withLots(1, { metal_id: 'Gold' })
     .withLots(1, { metal_id: 'Silver' })
     .withSpots()
     .withTotals({ total: 1000 })
-  assert.notEqual(order.status, MOVE_TO, 'the fixture starts in the target status')
-  return { id: order.id, number: order.number, status: order.status, user_id: owner.id }
+  return { id: order.id, number: order.number, user_id: owner.id }
 }
 
 test('a customer sees only their own rows, and the admin list is served whole', async () => {
@@ -60,7 +57,7 @@ test('a customer sees only their own rows, and the admin list is served whole', 
         for (const field of [
           'id',
           'number',
-          'status',
+          'state',
           'created_at',
           'direction',
           'user_id',
@@ -84,7 +81,7 @@ test('no admin order response carries a full bank number', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
       const owner = await aUser(c)
-      const order = await anOrder(c, owner, { direction: 'purchase', status: 'Pending' })
+      const order = await anOrder(c, owner, { direction: 'purchase' })
         .withLots(1, { metal_id: 'Gold' })
         .withTotals({ total: 100 })
       const payout = await aPayout(c, owner, { order })
@@ -116,39 +113,15 @@ test('no admin order response carries a full bank number', async () => {
   )
 })
 
-test("moving an order's status takes the body the drawer sends", async () => {
-  await inPinnedTransaction(
-    async (c: PoolClient) => {
-      const order = await aBuiltOrder(c)
-
-      await as(admin, async () => {
-        const res = await request(app).patch(`/api/orders/${order.id}`).send({ status: MOVE_TO })
-
-        assert.equal(res.status, 200, JSON.stringify(res.body))
-
-        const list = await request(app).get('/api/orders?direction=purchase')
-        const moved = list.body.find((o: { id: string; status: string }) => o.id === order.id)
-        assert.notEqual(
-          order.status,
-          MOVE_TO,
-          'the order was already in the target status - this proves nothing'
-        )
-        assert.equal(moved.status, MOVE_TO)
-      })
-    },
-    { actor: TEST_ACTOR.id, lock: ORDER_LOCK }
-  )
-})
-
-test("a customer cannot move an order's status", async () => {
+test('a customer is refused the admin-only order patch', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
       const order = await aBuiltOrder(c)
       await as(customer, async () => {
         const res = await request(app)
           .patch(`/api/orders/${order.id}`)
-          .send({ status: 'Completed' })
-        assert.equal(res.status, 403, 'a customer moved their own order to Completed')
+          .send({ notes: 'nope' })
+        assert.equal(res.status, 403, 'a customer patched their own order')
       })
     },
     { actor: TEST_ACTOR.id, lock: ORDER_LOCK }
@@ -166,7 +139,7 @@ test('locking spots freezes them and unlocking releases them', async () => {
 
         const list = await request(app).get('/api/orders?direction=purchase')
         assert.equal(
-          list.body.find((o: { id: string; status: string }) => o.id === order.id).spots_locked,
+          list.body.find((o: { id: string; state: string }) => o.id === order.id).spots_locked,
           true,
           'the order does not report its spots as locked'
         )

@@ -1,7 +1,8 @@
 SELECT to_jsonb(o)
        || jsonb_build_object(
             'created_at', to_char(o.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
-            'updated_at', to_char(o.updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'))
+            'updated_at', to_char(o.updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+            'cancelled_at', to_char(o.cancelled_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'))
          AS "order",
        (SELECT to_jsonb(t)
                || jsonb_build_object(
@@ -142,6 +143,7 @@ SELECT to_jsonb(o)
        -- in the browser is deciding it in three browsers (ruling 83). Shared
        -- with list.sql via order_reference.sql so the two cannot drift.
        /*__order_reference__*/ AS reference,
+       /*__order_state__*/ AS state,
        -- Whether this order's payout has already been credited to the
        -- customer's balance. The add_funds action turns itself off from it, and
        -- the endpoint refuses on it (MP F4).

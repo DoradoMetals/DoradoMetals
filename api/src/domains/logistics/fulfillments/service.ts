@@ -338,7 +338,7 @@ export async function moveStatus(
 ): Promise<FulfillmentView | null> {
   const current = await getById(id, executor)
   rules.assertFulfillment(current, id)
-  rules.assertTransition(current.actions.transitions, status, id)
+  rules.assertCategoryStatus(current.method.category, status, id)
   return await setStatus(id, status, executor)
 }
 

@@ -23,14 +23,14 @@ const ACCEPTED_NOT_NULL = {
     MERGED_ORDER_MONEY,
   'exchange.sales_orders.used_funds -> orders.transactions.used_funds': MERGED_ORDER_MONEY,
 
-  'exchange.sales_orders.sales_order_status -> orders.orders.status':
-    'orders.orders merges both directions and exchange.purchase_orders.' +
-    'purchase_order_status is NULLABLE, so this would tighten the purchase side ' +
-    'rather than restore the sales side. Measured: 0 nulls in 62 production ' +
-    'purchase orders and 48 dev rows, so it COULD be tightened - but repo.mirror ' +
-    'copies purchase_order_status straight across, and a 23502 there fails the ' +
-    'whole order transaction. A status drives no logic; an unwritten order is ' +
-    'unrecoverable.',
+  'exchange.sales_orders.sales_order_status -> orders.orders.cancelled_at':
+    'ruling 112 (2026-09-12): the status is no longer stored. Its one ' +
+    'load-bearing value became the FACT orders.orders.cancelled_at, and a ' +
+    'timestamp that says "this order was cancelled" is null for every order ' +
+    'that was not - so NOT NULL here would mean "every order is cancelled". ' +
+    'The other eight values are derived by db/orders/sql/order_state.sql from ' +
+    'payment, fulfillment and lot facts. exchange keeps its own column, ' +
+    'untouched, which is where the original text still reads back.',
 
   'exchange.payouts.method -> payments.details.method_id':
     'payments.details merges payout ACCOUNTS with Stripe INSTRUMENTS. The ' +

@@ -45,6 +45,7 @@ export async function openCharge(body: OpenChargeBody): Promise<Transfer> {
         provider_ref: null,
         reference: referenceFor(order?.direction ?? null, order?.number ?? 0),
         idempotency_key: null,
+        override_reason: null,
       },
       tx
     )
@@ -79,6 +80,7 @@ async function openRefiningCharge(
         provider_ref: null,
         reference: refiningReferenceFor(order?.number ?? 0),
         idempotency_key: null,
+        override_reason: null,
       },
       tx
     )

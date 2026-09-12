@@ -93,7 +93,7 @@ test('a refiner order reads back by id, and an unknown one is a 404', async () =
       const read = await request(app).get(`/api/refining/orders/${created.id}`)
       assert.equal(read.status, 200, read.text)
       assert.equal(read.body.number, created.number)
-      assert.equal(read.body.state, 'Pending assay')
+      assert.equal(read.body.state, 'Awaiting Delivery', 'a buy order waits on its delivery')
       assert.deepEqual(read.body.lots, [])
       assert.equal(read.body.variance, null, 'an order with no lots reported a variance')
 
@@ -187,7 +187,7 @@ test('lots are assigned, listed, assayed and removed while the order is open', a
   })
 })
 
-test('an unknown lot cannot be assigned, and a lot on a sent order cannot be removed', async () => {
+test('an unknown lot cannot be assigned, and a lot on a sent order comes off with a warning', async () => {
   await inRefining(async (c) => {
     const order = await anOrder(c, await aUser(c), { direction: 'purchase' }).withLots(1)
     await asAdmin(admin, async () => {
@@ -210,8 +210,15 @@ test('an unknown lot cannot be assigned, and a lot on a sent order cannot be rem
       const bare = await request(app).post(`/api/refining/orders/${created.id}/send`)
       assert.equal(bare.status, 200, bare.text)
 
+      const sent = await request(app).get(`/api/refining/orders/${created.id}`)
+      assert.match(
+        sent.body.actions.find((a: { name: string }) => a.name === 'edit_lots')?.confirm ?? '',
+        /has already been sent/,
+        'a sent order offers edit_lots with a reason rather than refusing it'
+      )
+
       const removed = await request(app).delete(`/api/refining/lots/${assigned.body[0].id}`)
-      assert.equal(removed.status, 409, `answered ${removed.status}`)
+      assert.equal(removed.status, 204, `answered ${removed.status}`)
     })
   })
 })

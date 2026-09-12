@@ -53,6 +53,7 @@ const VIEW_MEMBERS = [
   'user',
   'credited',
   'reference',
+  'state',
   'actions',
 ]
 

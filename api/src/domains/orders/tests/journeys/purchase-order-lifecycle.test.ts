@@ -18,12 +18,15 @@ afterAll(async () => {
   await pool.end()
 })
 
-test('a purchase order walks pricing, funds and status, and the money facts agree', async () => {
+const hasAction = (body: { actions: { name: string }[] }, name: string): boolean =>
+  body.actions.some((a) => a.name === name)
+
+test('a purchase order walks pricing and funds, and the money facts agree', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
       const admin = await anAdmin(c)
       const seller = await aUser(c, { funds: 0 })
-      const order = await anOrder(c, seller, { direction: 'purchase', status: 'In Transit' })
+      const order = await anOrder(c, seller, { direction: 'purchase' })
         .withLots(2, { metal_id: 'Gold', pre_melt: 10, purity: 0.925 })
         .withSpots({ bid: 2400, ask: 2450 })
         .withTotals({})
@@ -53,21 +56,25 @@ test('a purchase order walks pricing, funds and status, and the money facts agre
         assert.equal(line.line_total, Number(line.price))
       }
 
-      const actions = priced.body.actions
-      assert.equal(actions.finalize, false)
-      assert.equal(actions.edit_lots, false)
-      assert.equal(actions.supply, false)
-      assert.equal(actions.add_funds, true, 'a DORADO_ACCOUNT payout with a total is creditable')
-      assert.deepEqual(actions.statuses, ['Received', 'Cancelled'])
+      assert.equal(hasAction(priced.body, 'finalize'), false, 'finalize is done and locked')
+      assert.equal(hasAction(priced.body, 'edit_lots'), false, 'edit_lots closes with the lock')
+      assert.equal(hasAction(priced.body, 'supply'), false, 'supply is sale-only')
+      assert.equal(
+        hasAction(priced.body, 'add_funds'),
+        true,
+        'a DORADO_ACCOUNT payout with a total is creditable'
+      )
 
       const funded = await asAdmin(admin, () =>
         request(app).post(`/api/orders/${order.id}/add_funds`)
       )
       assert.equal(funded.status, 200, funded.text)
-      assert.equal(
-        funded.body.actions.add_funds,
-        false,
-        'the credit was paid and the action is still offered (MP F4)'
+      const addFunds = funded.body.actions.find((a: { name: string }) => a.name === 'add_funds')
+      assert.ok(addFunds, 'the credit was paid and the action disappeared entirely (MP F4)')
+      assert.match(
+        addFunds.override ?? '',
+        /already been credited/,
+        'a credited order should warn against crediting it again, not stay silent'
       )
 
       const {
@@ -88,27 +95,6 @@ test('a purchase order walks pricing, funds and status, and the money facts agre
       assert.equal(entry.type, 'Credit')
       assert.equal(Number(entry.amount), total, 'the ledger entry does not match what was credited')
       assert.equal(entry.order_id, order.id)
-
-      for (const status of ['Received', 'In Transit']) {
-        const moved = await asAdmin(admin, () =>
-          request(app).patch(`/api/orders/${order.id}`).send({ status })
-        )
-        assert.equal(moved.status, 200, moved.text)
-        assert.equal(moved.body.order.status, status)
-        if (status === 'Received') {
-          assert.deepEqual(moved.body.actions.statuses, [
-            'Payment Processing',
-            'In Transit',
-            'Cancelled',
-          ])
-        }
-      }
-
-      const cancelled = await asAdmin(admin, () =>
-        request(app).patch(`/api/orders/${order.id}`).send({ status: 'Cancelled' })
-      )
-      assert.equal(cancelled.status, 200, cancelled.text)
-      assert.equal(cancelled.body.order.status, 'Cancelled')
     },
     { actor: TEST_ACTOR.id, lock: [LOCKS.ORDERS, LOCKS.USERS] }
   )

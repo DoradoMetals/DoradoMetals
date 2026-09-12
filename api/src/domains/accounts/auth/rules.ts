@@ -215,6 +215,12 @@ export function assertSession(session: Session | undefined): asserts session is 
   if (!session) throw new Forbidden('this session no longer exists')
 }
 
+export function assertSessionNamed(
+  session_id: string | null | undefined
+): asserts session_id is string {
+  if (!session_id) throw new Forbidden('step_up_required')
+}
+
 export function assertOtherFactorVerified(user: User, changing: Factor): void {
   if (changing === 'email') {
     if (!user.phone_number || !user.phone_number_verified) {

@@ -55,6 +55,13 @@ const ACCEPTED: Record<string, { count: number; why: string }> = {
       'a Voice SDK access token: the token and its expiry are computed, not read ' +
       'from a table row, so there is no view to build in SQL (CallToken names no column)',
   },
+  'domains/inventory/service.ts': {
+    count: 1,
+    why:
+      'two sibling arrays from two other domains (pricing and refining), each ' +
+      'already its own view - this pairs them for one response without joining, ' +
+      'stitching or looking either up by the other',
+  },
 }
 
 const acceptedHit = new Map<string, number>()

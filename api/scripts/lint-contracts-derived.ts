@@ -43,6 +43,9 @@ const COMPUTED: Record<string, string> = {
   'computed/crm.ts':
     "the provider's own webhook bodies and the customer " +
     'timeline - Twilio field names on the way in, three tables merged on the way out',
+  'computed/inventory.ts':
+    "the lot detail's where/worth/lineage/timeline cards and the per-metal " +
+    'inventory rollup - a position label, a timeline step and a lot count are none of them a column',
 }
 
 const FILE_FLOOR = 60

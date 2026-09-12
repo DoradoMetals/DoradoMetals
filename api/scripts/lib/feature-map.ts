@@ -69,13 +69,13 @@ export const RENAMES: RenameMap = {
   'exchange.suppliers': { is_active: 'enabled' },
   'exchange.carriers': { is_active: 'enabled' },
   'exchange.purchase_orders': {
-    purchase_order_status: 'status',
+    purchase_order_status: 'cancelled_at',
     order_number: 'number',
     total_price: 'total',
     address_id: '-',
   },
   'exchange.sales_orders': {
-    sales_order_status: 'status',
+    sales_order_status: 'cancelled_at',
     order_number: 'number',
     supplier_id: 'refiner_id',
     order_total: 'total',

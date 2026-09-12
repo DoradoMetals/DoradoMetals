@@ -20,7 +20,7 @@ const admin: UserFixture = TEST_ACTOR
 const lines = async (c: PoolClient) => {
   const customer = await aUser(c)
   const product = await aProduct(c)
-  const order = await anOrder(c, customer, { direction: 'purchase', status: 'Pending' })
+  const order = await anOrder(c, customer, { direction: 'purchase' })
     .withBullion(product, 1)
     .withLots(1, { metal_id: 'Gold', pre_melt: 10, purity: 0.585 })
     .withSpots()

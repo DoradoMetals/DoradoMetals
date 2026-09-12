@@ -11,7 +11,7 @@ const inPinned = <T>(fn: (c: import('pg').PoolClient) => Promise<T> | T): Promis
 import { inPinnedTransaction } from '#shared/testing/pinned-pool.ts'
 import { aHandover } from '#shared/testing/builders/index.ts'
 import { mockSessions, restoreSessions, as } from '#shared/testing/session.ts'
-import * as ordersRepo from '#db/orders/repo.ts'
+import * as orderRead from '#orders/read.ts'
 import * as place from '#orders/place.ts'
 import * as orderRules from '#orders/rules.ts'
 import * as usersRepo from '#db/users/repo.ts'
@@ -51,12 +51,12 @@ afterAll(async () => {
   await closeBrowser()
 })
 
-async function seedSale(c: PoolClient, status: string): Promise<string> {
+async function seedSale(c: PoolClient): Promise<string> {
   const { rows } = await query<{ id: string }>(
-    `INSERT INTO orders.orders (direction, status, number)
-     VALUES ('sale', $1, nextval('orders.sale_number_seq'))
+    `INSERT INTO orders.orders (direction, number)
+     VALUES ('sale', nextval('orders.sale_number_seq'))
      RETURNING id`,
-    [status],
+    [],
     c
   )
   return rows[0]!.id
@@ -100,85 +100,45 @@ async function seedIntent(
   }
 }
 
-async function statusOf(c: PoolClient, id: string) {
-  const native = await query<{ status: string }>(
-    `SELECT status FROM orders.orders WHERE id = $1`,
-    [id],
-    c
-  )
-  return { native: native.rows[0]?.status }
-}
-
-test('the flair stamp relabels from anywhere - a label, never a gate (D211: flair)', async () => {
+test('payment_intent.succeeded confirms the order the intent is attached to', async () => {
   await inPinned(async (c: PoolClient) => {
-    const id = await seedSale(c, 'Pending')
-    await ordersRepo.update(id, { status: 'Preparing' }, {}, c)
-    assert.deepEqual(await statusOf(c, id), { native: 'Preparing' })
-
-    const relabelled = await seedSale(c, 'Completed')
-    await ordersRepo.update(relabelled, { status: 'Preparing' }, {}, c)
-    assert.deepEqual(await statusOf(c, relabelled), { native: 'Preparing' })
-  })
-})
-
-test("a webhook RETRY does not stomp an admin's later label - by payment fact, not status", async () => {
-  await inPinned(async (c: PoolClient) => {
-    const orderId = await seedSale(c, 'Pending')
-    const pi = `pi_p9_retry_${Date.now()}`
-    await seedIntent(c, pi, { order_id: orderId })
-
-    await paymentsWebhook.applyIntentEvent({
-      id: pi,
-      status: 'succeeded',
-      amount: 5178,
-      amount_received: 5178,
-    })
-    assert.deepEqual(await statusOf(c, orderId), { native: 'Preparing' })
-
-    await query(`UPDATE orders.orders SET status = 'Completed' WHERE id = $1`, [orderId], c)
-    await query(`UPDATE orders.orders SET status = 'Completed' WHERE id = $1`, [orderId], c)
-
-    await paymentsWebhook.applyIntentEvent({
-      id: pi,
-      status: 'succeeded',
-      amount: 5178,
-      amount_received: 5178,
-    })
-    assert.deepEqual(await statusOf(c, orderId), { native: 'Completed' })
-  })
-})
-
-test('payment_intent.succeeded advances the order the intent is attached to', async () => {
-  await inPinned(async (c: PoolClient) => {
-    const orderId = await seedSale(c, 'Pending')
+    const orderId = await seedSale(c)
     const pi = `pi_p9_webhook_${Date.now()}`
     await seedIntent(c, pi, { order_id: orderId })
 
-    await paymentsWebhook.applyIntentEvent({
-      id: pi,
-      status: 'succeeded',
-      amount: 5178,
-      amount_received: 5178,
-    })
+    let sends = 0
+    await paymentsWebhook.applyIntentEvent(
+      { id: pi, status: 'succeeded', amount: 5178, amount_received: 5178 },
+      undefined,
+      { retrieve: async () => ({ id: 'unused' }), confirm: async () => void (sends += 1) }
+    )
 
-    assert.deepEqual(await statusOf(c, orderId), { native: 'Preparing' })
+    assert.equal(sends, 1, 'a fully settled intent did not confirm its order')
   })
 })
 
-test('payment_intent.processing does NOT advance the order', async () => {
+test('payment_intent.processing does NOT confirm the order', async () => {
   await inPinned(async (c: PoolClient) => {
-    const orderId = await seedSale(c, 'Pending')
+    const orderId = await seedSale(c)
     const pi = `pi_p9_processing_${Date.now()}`
     await seedIntent(c, pi, { order_id: orderId })
 
-    await paymentsWebhook.applyIntentEvent({
-      id: pi,
-      status: 'processing',
-      amount: 5178,
-      amount_received: 0,
-    })
+    let sends = 0
+    await paymentsWebhook.applyIntentEvent(
+      { id: pi, status: 'processing', amount: 5178, amount_received: 0 },
+      undefined,
+      { retrieve: async () => ({ id: 'unused' }), confirm: async () => void (sends += 1) }
+    )
 
-    assert.deepEqual(await statusOf(c, orderId), { native: 'Pending' })
+    assert.equal(sends, 0, 'a merely processing intent confirmed its order')
+    const { rows } = await query<{ status: string }>(
+      `SELECT i.status FROM payments.intents i
+         JOIN payments.attempts a ON a.intent_id = i.id
+        WHERE a.provider_ref = $1`,
+      [pi],
+      c
+    )
+    assert.equal(rows[0]?.status, 'processing')
   })
 })
 
@@ -297,7 +257,7 @@ test('a SETTLED intent already attached to an order refuses a second one', async
     const f = await fixtures(c)
     assert.ok(f, 'no fixtures')
     const checkout_id = await primeSaleCheckout(c, f)
-    const paid = await seedSale(c, 'Pending')
+    const paid = await seedSale(c)
     await seedIntent(c, `pi_p9_attached_${Date.now()}`, {
       status: 'succeeded',
       cents: 999999,
@@ -305,24 +265,28 @@ test('a SETTLED intent already attached to an order refuses a second one', async
       user_id: f.user_id,
       order_id: paid,
     })
+    const before = await orderRead.view(paid, c)
     await assert.rejects(
       () => place.place(checkout_id),
       (e: unknown) => kindOf(e) === 'conflict'
     )
-    assert.equal(
-      (await statusOf(c, paid)).native,
-      'Pending',
-      'the paid order was touched by the refused retry'
-    )
+    const after = await orderRead.view(paid, c)
+    assert.equal(after?.state, before?.state, 'the paid order was touched by the refused retry')
+    assert.equal(after?.order.cancelled_at, null)
   })
 })
 
-test('an unsettled sale is superseded by fact, whatever its label says', async () => {
+test('an unsettled sale is cancelled by fact, whatever its label says', async () => {
   await inPinned(async (c: PoolClient) => {
-    const id = await seedSale(c, 'Preparing')
+    const id = await seedSale(c)
     const result = await sweeps.cancelPendingSale(id, c)
     assert.equal(result.order_id, id)
-    assert.deepEqual(await statusOf(c, id), { native: 'Cancelled' })
+    const { rows } = await query<{ cancelled_at: string | null }>(
+      `SELECT cancelled_at FROM orders.orders WHERE id = $1`,
+      [id],
+      c
+    )
+    assert.ok(rows[0]?.cancelled_at, 'cancelPendingSale did not stamp cancelled_at')
   })
 })
 
@@ -343,8 +307,7 @@ test('a paid-but-orderless intent is honoured: the order is created already Prep
 
     const order = await place.place(checkout_id, NO_SIDE_EFFECTS)
     assert.ok(order, 'no order came back')
-    const got = await statusOf(c, order.order.id)
-    assert.equal(got.native, 'Preparing', 'a PAID order was born awaiting payment')
+    assert.equal(order.state, 'Preparing', 'a PAID order was born awaiting payment')
 
     const { rows: attached } = await query<{ order_id: string | null }>(
       `SELECT i.order_id FROM payments.intents i
@@ -385,7 +348,7 @@ test('an order fully covered by credit is born Preparing, with no intent attache
 
     const order = await place.place(checkout_id, NO_SIDE_EFFECTS)
     assert.ok(order, 'no order came back')
-    assert.equal(order.order.status, 'Preparing', 'a fully-paid order was born awaiting payment')
+    assert.equal(order.state, 'Preparing', 'a fully-paid order was born awaiting payment')
     assert.ok(Number(order.totals?.funds) > 0, "the customer's credit was not applied to the order")
     assert.equal(order.totals?.used_funds, true)
   })
@@ -427,7 +390,7 @@ test('a sale paid entirely by credit sends its confirmation at placement', async
 
     const placed = await place.place(checkout_id, world)
 
-    assert.equal(placed.order.status, 'Preparing')
+    assert.equal(placed.state, 'Preparing')
     assert.equal(t.sent.length, 1, 'expected the confirmation to go out at placement')
     const [msg] = t.sent
     assert.match(String(msg.subject), /We've got your order/)
@@ -460,7 +423,7 @@ test('a sale paid by card waits for the webhook before it confirms', async () =>
     }
 
     const placed = await place.place(checkout_id, world)
-    assert.equal(placed.order.status, 'Pending')
+    assert.equal(placed.state, 'Awaiting Payment')
     assert.equal(t.sent.length, 0, 'the confirmation went out before the card was even charged')
 
     const webhookWorld: typeof paymentsWebhook.LIVE = {
@@ -473,7 +436,7 @@ test('a sale paid by card waits for the webhook before it confirms', async () =>
       webhookWorld
     )
 
-    assert.equal((await statusOf(c, placed.order.id)).native, 'Preparing')
+    assert.equal((await orderRead.view(placed.order.id, c))?.state, 'Preparing')
     assert.equal(t.sent.length, 1, 'expected the confirmation once the webhook landed')
     const [msg] = t.sent
     assert.match(String(msg.subject), /We've got your order/)

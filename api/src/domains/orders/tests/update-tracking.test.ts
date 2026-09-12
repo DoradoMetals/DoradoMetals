@@ -27,7 +27,7 @@ const admin: AdminFixture = TEST_ACTOR
 const aSalesShipment = async (c: PoolClient) => {
   const customer = await aUser(c)
   const product = await aProduct(c)
-  const order = await anOrder(c, customer, { direction: 'sale', status: 'Pending' })
+  const order = await anOrder(c, customer, { direction: 'sale' })
     .withBullion(product, 1)
     .withTotals({ total: 500 })
   const parcel = await aShipment(c, order, { method: 'DROPSHIP' })

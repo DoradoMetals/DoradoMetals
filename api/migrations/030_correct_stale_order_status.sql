@@ -15,16 +15,24 @@
 --
 -- exchange is untouched.
 
+-- EDITED 2026-09-12 (ruling 112, facts lane). `orders.orders.status` is gone -
+-- 180 carried its one load-bearing value onto `cancelled_at` and 181 dropped the
+-- column - so the drift this file closes is now the drift in that fact. Edited
+-- rather than left, for the same reason 031 was: this file is part of the
+-- build-from-nothing path, and a migration naming a dropped column breaks it.
+
 UPDATE orders.orders o
-SET status = p.purchase_order_status
+SET cancelled_at = COALESCE(o.cancelled_at, p.updated_at AT TIME ZONE 'UTC', now())
 FROM exchange.purchase_orders p
 WHERE p.id = o.id
   AND o.direction = 'purchase'
-  AND o.status IS DISTINCT FROM p.purchase_order_status;
+  AND p.purchase_order_status = 'Cancelled'
+  AND o.cancelled_at IS NULL;
 
 UPDATE orders.orders o
-SET status = s.sales_order_status
+SET cancelled_at = COALESCE(o.cancelled_at, s.updated_at AT TIME ZONE 'UTC', now())
 FROM exchange.sales_orders s
 WHERE s.id = o.id
   AND o.direction = 'sale'
-  AND o.status IS DISTINCT FROM s.sales_order_status;
+  AND s.sales_order_status = 'Cancelled'
+  AND o.cancelled_at IS NULL;

@@ -167,7 +167,7 @@ test('a checkout becomes an order with its items and its fulfillment', async () 
     const order = await place.place(await primeCheckout(c), carrierAnswers())
 
     assert.equal(order.order.direction, 'purchase')
-    assert.equal(order.order.status, 'In Transit')
+    assert.equal(order.state, 'Awaiting Receipt', 'a freshly placed purchase awaits its parcel')
     assert.ok(Number(order.order.number) > 0)
     assert.equal(order.order.user_id, customer)
 

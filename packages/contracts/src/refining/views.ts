@@ -1,4 +1,5 @@
 import { z } from 'zod/v4'
+import { Action } from '../computed/orders.js'
 
 import { Lot, LotView } from '../lots/items.js'
 import { Order } from '../orders/orders.js'
@@ -41,6 +42,12 @@ export const RefiningOrderView = RefiningOrder.extend({
   orders_to_date: z.number().int(),
 })
 export type RefiningOrderView = z.infer<typeof RefiningOrderView>
+
+export const RefiningOrderActions = z.array(Action)
+export type RefiningOrderActions = z.infer<typeof RefiningOrderActions>
+
+export const RefiningOrderRead = RefiningOrderView.extend({ actions: RefiningOrderActions })
+export type RefiningOrderRead = z.infer<typeof RefiningOrderRead>
 
 export const RefiningSpot = Spot.pick({ metal_id: true, ask: true, bid: true }).extend({
   ask: Spot.shape.ask.nullable(),

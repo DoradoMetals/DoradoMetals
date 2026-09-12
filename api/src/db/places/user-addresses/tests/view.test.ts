@@ -42,7 +42,7 @@ test('locked is the EXISTS of an unfinished order on that address', async () => 
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c)
     const built = await anAddress(c, user)
-    await anOrder(c, user, { direction: 'purchase', status: 'In Transit' }).withAddress(built)
+    await anOrder(c, user, { direction: 'purchase' }).withAddress(built)
 
     const [entry] = await userAddresses.view(user.id, built.id, c)
     assert.equal(entry?.locked, true, 'an address on a live order is not locked')

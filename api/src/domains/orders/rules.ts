@@ -1,7 +1,9 @@
 import { Conflict, Invalid, NotFound } from '#shared/errors.ts'
 import { WeightUnit } from '@dorado/contracts'
+import { isSettled } from '#transactions/rules.ts'
 
 import type {
+  Action,
   CheckoutMissing,
   CheckoutQuote,
   Direction,
@@ -96,9 +98,7 @@ export function retiersAfterEdit(changes: OrderLotPatch): boolean {
   )
 }
 
-export function isSettled(payment_status: string | null | undefined): boolean {
-  return payment_status === 'succeeded' || payment_status === 'processing'
-}
+export { isSettled }
 
 export function chargeCents(post_charges_amount: number): number {
   return Math.round(post_charges_amount * 100)
@@ -112,14 +112,6 @@ export function belowStripeMinimum(cents: number): boolean {
 
 export function settlesAtPlacement(cents: number, alreadySucceeded: boolean): boolean {
   return cents === 0 || alreadySucceeded
-}
-
-export function statusAtPlacement(cents: number, alreadySucceeded: boolean): string {
-  return settlesAtPlacement(cents, alreadySucceeded) ? 'Preparing' : 'Pending'
-}
-
-export function confirmsAtPlacement(status: string): boolean {
-  return status !== 'Pending'
 }
 
 export function attachmentVerdict(
@@ -141,21 +133,6 @@ export function payoutFeeOf(methods: PaymentMethod[], payment_method_id: string 
   return Number(methods.find((m) => m.id === payment_method_id)?.flat_fee ?? 0)
 }
 
-const PURCHASE_LADDER: Record<string, string[]> = {
-  'In Transit': ['Received', 'Cancelled'],
-  Received: ['Payment Processing', 'In Transit', 'Cancelled'],
-  'Payment Processing': ['Completed', 'Received', 'Cancelled'],
-  Cancelled: ['Received'],
-  Completed: ['Payment Processing'],
-}
-
-const SALE_LADDER: Record<string, string[]> = {
-  Pending: ['Preparing'],
-  Preparing: ['In Transit', 'Pending'],
-  'In Transit': ['Completed', 'Preparing'],
-  Completed: ['In Transit'],
-}
-
 export function allLotsConfirmed(lots: Pick<OrderLotView, 'confirmed'>[]): boolean {
   return lots.length > 0 && lots.every((lot) => lot.confirmed === true)
 }
@@ -164,29 +141,42 @@ export function finalizeBlockedBy(view: OrderViewFacts): string[] {
   const blocked: string[] = []
   if (view.order.direction !== 'purchase') blocked.push('this is not a purchase order')
   if (view.lots.length === 0) blocked.push('the order holds no lots')
-  else if (!allLotsConfirmed(view.lots)) blocked.push('every lot has to be confirmed')
-  if (view.lots.some((lot) => lot.lot.content === null)) {
-    blocked.push('a lot has no fine weight, so it cannot be priced')
-  }
   return blocked
+}
+
+export function finalizeConfirm(view: OrderViewFacts): string | null {
+  const unconfirmed = view.lots.filter((lot) => lot.confirmed !== true).length
+  const unpriced = view.lots.filter((lot) => lot.lot.content === null).length
+  if (unpriced > 0) {
+    return `${unpriced} of ${view.lots.length} lots have no fine weight, so they cannot be priced`
+  }
+  if (unconfirmed > 0) {
+    return `${unconfirmed} of ${view.lots.length} lots are not confirmed`
+  }
+  return null
+}
+
+export function payoutConfirm(view: OrderViewFacts): string | null {
+  const unsettled = view.lots.filter((lot) => lot.settled !== true).length
+  if (unsettled > 0) {
+    return `Refiner has not settled ${unsettled} of ${view.lots.length} lots`
+  }
+  if (!isFinalized(view)) return 'This order has not been finalized, so it has no settled total'
+  return null
+}
+
+export function shipConfirm(view: OrderViewFacts): string | null {
+  if (view.order.direction !== 'sale') return null
+  if (view.state === 'Awaiting Payment') return 'The customer has not paid for this order yet'
+  return null
+}
+
+export function offer(name: string, confirm: string | null = null, override: string | null = null): Action {
+  return { name, confirm, override }
 }
 
 export function creditsToAccount(payoutMethod: string | null): boolean {
   return payoutMethod === 'DORADO_ACCOUNT'
-}
-
-export function statusesFor(view: OrderViewFacts): string[] {
-  const ladder = view.order.direction === 'sale' ? SALE_LADDER : PURCHASE_LADDER
-  const offered = ladder[view.order.status ?? ''] ?? []
-  return offered.filter((next) => {
-    if (next === 'Payment Processing' && view.order.direction === 'purchase') {
-      return allLotsConfirmed(view.lots)
-    }
-    if (next === 'In Transit' && view.order.direction === 'sale') {
-      return view.order.order_sent === true && view.order.tracking_updated === true
-    }
-    return true
-  })
 }
 
 export function isFinalized(view: OrderViewFacts): boolean {
@@ -196,28 +186,47 @@ export function isFinalized(view: OrderViewFacts): boolean {
 export function actionsFor(view: OrderViewFacts): OrderActions {
   const purchase = view.order.direction === 'purchase'
   const sale = view.order.direction === 'sale'
-  const cancelled = view.order.status === 'Cancelled'
+  const cancelled = view.order.cancelled_at !== null
   const inbound = view.shipments.find((s) => s.direction === 'Inbound')
-  const blocked = finalizeBlockedBy(view)
-  return {
-    cancel: purchase && !cancelled && view.address !== null,
-    reopen: cancelled,
-    finalize: blocked.length === 0 && !view.order.spots_locked,
-    finalize_blocked_by: blocked,
-    add_funds:
-      purchase &&
-      view.totals?.total != null &&
-      creditsToAccount(view.payout?.method ?? null) &&
-      !view.credited,
-    supply: sale && view.lots.length > 0,
-    buy_label: purchase && !!inbound && !inbound.tracking_number,
-    update_tracking: view.shipments.length > 0,
-    edit_lots: purchase && !view.order.spots_locked,
-    assign_lots: purchase && allLotsConfirmed(view.lots),
-    lock_spots: !view.order.spots_locked,
-    unlock_spots: view.order.spots_locked && !isFinalized(view),
-    statuses: statusesFor(view),
+  const offered: Action[] = []
+
+  if (purchase && !cancelled && view.address !== null) offered.push(offer('cancel'))
+  if (cancelled) offered.push(offer('reopen'))
+  if (finalizeBlockedBy(view).length === 0 && !view.order.spots_locked) {
+    offered.push(offer('finalize', finalizeConfirm(view)))
   }
+  if (purchase && view.totals?.total != null && creditsToAccount(view.payout?.method ?? null)) {
+    offered.push(
+      offer(
+        'add_funds',
+        null,
+        view.credited ? 'This order has already been credited to the customer balance' : null
+      )
+    )
+  }
+  if (purchase && view.totals?.total != null) {
+    offered.push(offer('send_payment', payoutConfirm(view)))
+  }
+  if (sale && view.lots.length > 0) offered.push(offer('supply'))
+  if (purchase && view.lots.length > 0) {
+    offered.push(
+      offer(
+        'refining_sale',
+        isFinalized(view)
+          ? null
+          : `Order ${view.order.number} is not finalized, so its lots have no settled price to sell on`
+      )
+    )
+  }
+  if (purchase && inbound && !inbound.tracking_number) offered.push(offer('buy_label'))
+  if (sale && view.shipments.length > 0) offered.push(offer('ship', shipConfirm(view)))
+  if (view.shipments.length > 0) offered.push(offer('update_tracking'))
+  if (purchase && !view.order.spots_locked) offered.push(offer('edit_lots'))
+  if (purchase) offered.push(offer('assign_lots', finalizeConfirm(view)))
+  if (!view.order.spots_locked) offered.push(offer('lock_spots'))
+  if (view.order.spots_locked && !isFinalized(view)) offered.push(offer('unlock_spots'))
+
+  return offered
 }
 
 const FINALIZED: PdfKind[] = ['invoice', 'assay_results']
@@ -365,21 +374,31 @@ export function assertPayableToAccount(
   }
 }
 
-export function assertNotAlreadyCredited(credited: boolean, number: string | number | null): void {
-  if (credited) {
-    throw new Conflict(`order ${number} has already been credited to the customer's balance`)
+export function assertCreditOverride(
+  credited: boolean,
+  override_reason: string | null | undefined,
+  number: string | number | null
+): void {
+  if (!credited) return
+  if (!override_reason || override_reason.trim().length < 10) {
+    throw new Conflict(
+      `order ${number} has already been credited to the customer's balance. Crediting it ` +
+        `again moves the money twice, so this needs a written override_reason of at least ` +
+        `10 characters AND a session stepped up in the last five minutes ` +
+        `(POST /api/account/step_up)`
+    )
   }
 }
 
 export function assertFinalizable(view: OrderViewFacts): void {
   const blocked = finalizeBlockedBy(view)
   if (blocked.length > 0) {
-    throw new Invalid(`order ${view.order.number} cannot be finalized yet: ${blocked.join('; ')}`)
+    throw new Invalid(`order ${view.order.number} cannot be finalized: ${blocked.join('; ')}`)
   }
 }
 
 export function assertReopenable(view: OrderViewFacts): void {
-  if (view.order.status !== 'Cancelled') {
+  if (view.order.cancelled_at === null) {
     throw new Conflict(`order ${view.order.number} is not cancelled, so there is nothing to reopen`)
   }
 }

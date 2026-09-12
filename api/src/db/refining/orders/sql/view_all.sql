@@ -9,10 +9,7 @@ SELECT
             'created_at', to_char(ro.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
             'updated_at', to_char(ro.updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
             'cancelled_at', to_char(ro.cancelled_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
-            'state', CASE WHEN ro.cancelled_at IS NOT NULL THEN 'Cancelled'
-                          WHEN ro.disputed_at IS NOT NULL THEN 'Disputed'
-                          WHEN ro.settled_at IS NOT NULL THEN 'Settled'
-                          ELSE 'Pending assay' END,
+            'state', /*__refining_state__*/,
             'orders_to_date',
               (SELECT count(*) FROM refining.orders peer
                 WHERE peer.refiner_id = ro.refiner_id),
@@ -100,8 +97,5 @@ SELECT
   LEFT JOIN refining.order_money money ON money.refining_order_id = ro.id
  WHERE ($1::uuid IS NULL OR ro.refiner_id = $1::uuid)
    AND ($2::refining.direction IS NULL OR ro.direction = $2::refining.direction)
-   AND ($3::text IS NULL OR $3::text = CASE WHEN ro.cancelled_at IS NOT NULL THEN 'Cancelled'
-                                              WHEN ro.disputed_at IS NOT NULL THEN 'Disputed'
-                                              WHEN ro.settled_at IS NOT NULL THEN 'Settled'
-                                              ELSE 'Pending assay' END)
+   AND ($3::text IS NULL OR $3::text = /*__refining_state__*/)
  ORDER BY ro.number DESC

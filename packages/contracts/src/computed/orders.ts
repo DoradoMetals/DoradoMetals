@@ -2,21 +2,30 @@ import { z } from 'zod/v4'
 import { UserSummary } from '../auth/users.js'
 import { Pdf } from '../media/pdfs.js'
 
-export const OrderActions = z.object({
-  cancel: z.boolean(),
-  reopen: z.boolean(),
-  finalize: z.boolean(),
-  add_funds: z.boolean(),
-  supply: z.boolean(),
-  buy_label: z.boolean(),
-  update_tracking: z.boolean(),
-  edit_lots: z.boolean(),
-  assign_lots: z.boolean(),
-  lock_spots: z.boolean(),
-  unlock_spots: z.boolean(),
-  statuses: z.array(z.string()),
-  finalize_blocked_by: z.array(z.string()),
+export const OrderState = z.enum([
+  'Cancelled',
+  'Awaiting Receipt',
+  'At Refiner',
+  'Awaiting Payout',
+  'Ready to Pay',
+  'Awaiting Payment',
+  'Preparing',
+  'In Transit',
+  'Completed',
+])
+export type OrderState = z.infer<typeof OrderState>
+
+export const Action = z.object({
+  name: z.string(),
+  confirm: z.string().nullable(),
+  override: z.string().nullable(),
 })
+export type Action = z.infer<typeof Action>
+
+export const OverrideBody = z.object({ override_reason: z.string().nullable() }).partial().strict()
+export type OverrideBody = z.infer<typeof OverrideBody>
+
+export const OrderActions = z.array(Action)
 export type OrderActions = z.infer<typeof OrderActions>
 
 export const SettledAwaiting = z.object({

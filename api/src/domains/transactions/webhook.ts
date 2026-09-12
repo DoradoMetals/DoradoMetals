@@ -50,9 +50,7 @@ export async function applyIntentEvent(
     if (settlementCovers(toDollars(paymentIntent.amount_received), owed)) {
       await withTransaction(async (tx) => {
         await rails.settleCardCharge(order_id, paymentIntent.id, tx)
-        if (await ordersRepo.update(order_id, { status: 'Preparing' }, { status: 'Pending' }, tx)) {
-          await credit.settleReservation(order_id, tx)
-        }
+        await credit.settleReservation(order_id, tx)
       })
       if (!(await emails.hasSent(order_id, PLACED))) await world.confirm(order_id)
     } else {

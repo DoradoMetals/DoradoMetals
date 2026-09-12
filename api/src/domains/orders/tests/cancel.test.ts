@@ -72,8 +72,15 @@ test('the return shipment commits before the carrier is asked, and a failure lea
 
       const {
         rows: [orderRow],
-      } = await c.query(`SELECT spots_locked FROM orders.orders WHERE id = $1`, [order_id])
+      } = await c.query(`SELECT spots_locked, cancelled_at FROM orders.orders WHERE id = $1`, [
+        order_id,
+      ])
       assert.equal(orderRow.spots_locked, false, "the WRITE step's own unpin did not commit")
+      assert.ok(
+        orderRow.cancelled_at,
+        'the WRITE step committed before the carrier call, so cancelled_at should stand ' +
+          'even though the label purchase failed'
+      )
     },
     { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS }
   )
@@ -118,6 +125,8 @@ test('a clean cancel buys the label against the row it already committed', async
       const view = await orders.cancel(order_id, input, succeeding)
 
       assert.equal(view.order.spots_locked, false)
+      assert.ok(view.order.cancelled_at, 'cancel did not stamp cancelled_at')
+      assert.equal(view.state, 'Cancelled')
       const returns = view.shipments.filter((s) => s.direction === 'Return')
       assert.equal(returns.length, 1)
       assert.deepEqual(asked, [returns[0].id])

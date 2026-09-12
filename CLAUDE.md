@@ -62,8 +62,10 @@ packages/components/  @dorado/components   the component library
 packages/icons/ packages/theme/            icons; CSS tokens
 ```
 
-The nine domains are `accounts`, `catalog`, `checkout`, `crm`, `documents`,
-`logistics`, `orders`, `pricing`, `transactions`. Under `db/` there are 21
+The eleven domains are `accounts`, `catalog`, `checkout`, `crm`, `documents`,
+`inventory`, `logistics`, `orders`, `pricing`, `refining`, `transactions`.
+`inventory` owns the lot — position, split, combine, the lot view, the inventory
+summary (ruling 113); `refining` owns batches and the pool. Under `db/` there are 21
 folders, one per table group, named for the schema they query — a few read a
 schema of another name (`db/sales-tax` queries `tax`, `db/mints` queries
 `products.mints`). Genesis creates 17 schemas: `auth`, `checkout`,
@@ -328,7 +330,7 @@ designing anything. In summary:
 The `exchange` migration is finished in code: no application statement and no
 trigger touches it, and every domain reads and writes its own schema. The legacy
 machinery — dual writes, `*_SOURCE` switches, `api/legacy/`, `shared/wire/` — is
-deleted. The API is TypeScript end to end under nine domains in
+deleted. The API is TypeScript end to end under eleven domains in
 `api/src/domains/`, with its tables under `api/src/db/<schema>/`. The frontend
 has no `features/` folder: a route's code is `app/<route>/_src_/`, and what
 crosses routes is `shared/`. A four-reviewer API audit produced 63 findings and

@@ -40,8 +40,8 @@ async function anOrderOf(
 ): Promise<[string, number]> {
   const sequence = direction === 'sale' ? 'orders.sale_number_seq' : 'orders.purchase_number_seq'
   const { rows } = await query<{ id: string; number: number }>(
-    `INSERT INTO orders.orders (direction, status, number, user_id)
-     VALUES ($1::orders.direction, 'Pending', nextval('${sequence}'), $2) RETURNING id, number`,
+    `INSERT INTO orders.orders (direction, number, user_id)
+     VALUES ($1::orders.direction, nextval('${sequence}'), $2) RETURNING id, number`,
     [direction, user_id],
     c
   )
