@@ -19,6 +19,8 @@ export const PoolEntry = z.object({
   'created_by_id': z.string().uuid().nullable(),
   'purpose': LockPurpose.nullable(),
   'lot_id': z.string().uuid().nullable(),
+  'spot': z.number().nullable(),
+  'basis_spot': z.number().nullable(),
 })
 export type PoolEntry = z.infer<typeof PoolEntry>
 // generated:end
@@ -46,5 +48,11 @@ export const PoolBalance = PoolEntry.pick({ refiner_id: true, metal_id: true }).
   locked: PoolEntry.shape.troy_oz,
   available: PoolEntry.shape.troy_oz,
   last_lock_price: PoolEntry.shape.lock_price,
+  basis: PoolEntry.shape.spot,
+  realised_gain: z.number(),
+  unrealised_gain: PoolEntry.shape.spot,
 })
 export type PoolBalance = z.infer<typeof PoolBalance>
+
+export const PoolEntryView = PoolEntry.extend({ gain: PoolEntry.shape.spot })
+export type PoolEntryView = z.infer<typeof PoolEntryView>

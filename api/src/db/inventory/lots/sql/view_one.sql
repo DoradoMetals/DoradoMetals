@@ -52,7 +52,8 @@ SELECT jsonb_build_object(
            'order_direction', od.direction::text,
            'refining_order_id', ro.id, 'refining_order_number', ro.number,
            'refining_order_reference', CASE WHEN ro.number IS NULL THEN NULL
-                                             ELSE 'RO-' || ro.number END,
+                                             ELSE (CASE ro.direction WHEN 'buy' THEN 'RP-' ELSE 'RS-' END)
+                                                  || ro.number END,
            'refiner_id', ro.refiner_id, 'refiner_name', org.name,
            'variance', CASE WHEN li.content IS NULL OR li.declared_content IS NULL THEN NULL
                             ELSE li.content - li.declared_content END),
@@ -66,7 +67,8 @@ SELECT jsonb_build_object(
            'refining_order', CASE WHEN ro.id IS NULL THEN NULL
                                   ELSE jsonb_build_object(
                                     'id', ro.id, 'number', ro.number,
-                                    'reference', 'RO-' || ro.number,
+                                    'reference', (CASE ro.direction WHEN 'buy' THEN 'RP-' ELSE 'RS-' END)
+                                                 || ro.number,
                                     'state', CASE WHEN ro.cancelled_at IS NOT NULL THEN 'Cancelled'
                                                   WHEN ro.disputed_at IS NOT NULL THEN 'Disputed'
                                                   WHEN ro.settled_at IS NOT NULL THEN 'Settled'

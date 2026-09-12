@@ -15,6 +15,7 @@
 SELECT
        to_jsonb(ro)
        || jsonb_build_object(
+            'number', (CASE ro.direction WHEN 'buy' THEN 'RP-' ELSE 'RS-' END) || ro.number,
             'sent_at', to_char(ro.sent_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
             'settled_at', to_char(ro.settled_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
             'disputed_at', to_char(ro.disputed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
@@ -56,7 +57,8 @@ SELECT
                                        'settled_at', to_char(li.settled_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
                                        'source', li.source::text,
                                        'product_name', b.name, 'form', COALESCE(b.type, 'Scrap'),
-                                       'reference', 'RO-' || ro.number || '-' || chr(64 + rseat.n::int)),
+                                       'reference', (CASE ro.direction WHEN 'buy' THEN 'RP-' ELSE 'RS-' END)
+                                                    || ro.number || '-' || chr(64 + rseat.n::int)),
                            'sources', COALESCE(batch.edges, '[]'::jsonb),
                            'order_id', (batch.edges -> 0 ->> 'order_id')::uuid,
                            'order_number', (batch.edges -> 0 ->> 'order_number')::int,
@@ -123,13 +125,24 @@ SELECT
                            WHERE lk.refiner_id = bal.refiner_id
                              AND lk.metal_id = bal.metal_id
                              AND lk.entry = 'lock'
-                           ORDER BY lk.occurred_at DESC, lk.id DESC LIMIT 1))
+                           ORDER BY lk.occurred_at DESC, lk.id DESC LIMIT 1),
+                       'basis', bal.basis,
+                       'realised_gain', bal.realised_gain,
+                       'unrealised_gain', CASE WHEN bal.basis IS NULL THEN NULL
+                                                ELSE (bal.troy_oz - bal.locked)
+                                                     * (COALESCE(sp.bid, sp.ask) - bal.basis) END)
                        ORDER BY bal.metal_id)
                 FROM (SELECT p.refiner_id, p.metal_id, sum(p.troy_oz) AS troy_oz,
-                             COALESCE(sum(abs(p.troy_oz)) FILTER (WHERE p.entry = 'lock'), 0) AS locked
+                             COALESCE(sum(abs(p.troy_oz)) FILTER (WHERE p.entry = 'lock'), 0) AS locked,
+                             sum(p.troy_oz * p.spot) FILTER (WHERE p.entry = 'credit' AND p.spot IS NOT NULL)
+                               / NULLIF(sum(p.troy_oz) FILTER (WHERE p.entry = 'credit' AND p.spot IS NOT NULL), 0)
+                               AS basis,
+                             COALESCE(sum(abs(p.troy_oz) * (p.lock_price - p.basis_spot))
+                               FILTER (WHERE p.entry = 'lock' AND p.basis_spot IS NOT NULL), 0) AS realised_gain
                         FROM inventory.pool p
                        WHERE p.refiner_id = ro.refiner_id
-                       GROUP BY p.refiner_id, p.metal_id) bal), '[]'::jsonb),
+                       GROUP BY p.refiner_id, p.metal_id) bal
+                LEFT JOIN spots.spots sp ON sp.metal_id = bal.metal_id), '[]'::jsonb),
             'estimated_content', sums.estimated,
             'settled_content', sums.settled,
             'variance', CASE WHEN sums.settled IS NULL OR sums.estimated IS NULL THEN NULL

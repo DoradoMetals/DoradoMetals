@@ -39,6 +39,7 @@ export const RefiningTotals = z.object({
 export type RefiningTotals = z.infer<typeof RefiningTotals>
 
 export const RefiningOrderView = RefiningOrder.extend({
+  number: z.string(),
   state: RefiningOrder.shape.assay_lab.unwrap(),
   refiner: RefinerView.nullable(),
   lots: z.array(RefiningLotView),

@@ -102,7 +102,7 @@ export function assertNoOpenSellOrder(open: RefiningOrder | undefined): void {
   }
 }
 
-export function sentConfirm(order: RefiningOrder): string | null {
+export function sentConfirm(order: RefiningOrderView): string | null {
   if (order.sent_at === null) return null
   return `Refiner order ${order.number} has already been sent, so its metal has left`
 }
@@ -198,8 +198,8 @@ export function assertPooledHasNoSpot(order: RefiningOrder, lots: RefiningSettle
   const spoken = lots.find((line) => line.settled_spot !== undefined && line.settled_spot !== null)
   if (spoken) {
     throw new Invalid(
-      `refiner order ${order.number} is pooled - it never carries a spot, so lot ` +
-        `${spoken.lot_id} cannot settle with one`
+      `refiner order ${order.number} is pooled - it takes the market spot automatically, so ` +
+        `lot ${spoken.lot_id} cannot name its own`
     )
   }
 }
@@ -235,7 +235,7 @@ export function batchResult(
 
 const REFINING_DOCUMENTS: { kind: PdfKind; name: string }[] = [{ kind: 'invoice', name: 'Invoice' }]
 
-export function sendPaymentConfirm(order: RefiningOrder): string | null {
+export function sendPaymentConfirm(order: RefiningOrderView): string | null {
   if (order.settled_at !== null) return null
   return `Refiner order ${order.number} has not been settled yet`
 }

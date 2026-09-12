@@ -210,9 +210,9 @@ test('a checkout becomes an order with its items and its fulfillment', async () 
 test('the order number comes from the native sequence and collides with nothing', async () => {
   await inPinned(async (c: PoolClient) => {
     await aWorld(c)
-    const { rows: before } = await c.query(`SELECT last_value FROM orders.purchase_number_seq`)
+    const { rows: before } = await c.query(`SELECT last_value FROM orders.number_seq`)
     const order = await place.place(await primeCheckout(c), carrierAnswers())
-    const { rows: after } = await c.query(`SELECT last_value FROM orders.purchase_number_seq`)
+    const { rows: after } = await c.query(`SELECT last_value FROM orders.number_seq`)
 
     assert.ok(
       Number(after[0].last_value) > Number(before[0].last_value),

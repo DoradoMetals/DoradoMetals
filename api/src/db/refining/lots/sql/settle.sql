@@ -4,11 +4,12 @@
 -- it already has, so a partial settlement leaves the rest alone.
 --
 -- settled_spot is per pricing event, stamped here, not passed down from the
--- order: a `paid` order takes the line's own spot, or the metal's live
--- bid/ask when the line is silent (bid first, matching
--- refining.order_money); a `pooled` order never carries a spot anywhere, so
--- it is forced NULL regardless of what the line or the live market says -
--- the rules layer already refuses a `pooled` line that tries to carry one.
+-- order, and now the SAME for both settlement types (ruling 123): the
+-- line's own spot when the caller names one, or the metal's live bid/ask
+-- when it is silent (bid first, matching refining.order_money) - the
+-- refiner's own price on a `paid` order, the market's on a `pooled` one. The
+-- rules layer refuses a `pooled` line that tries to name its own spot, so
+-- `a.settled_spot` is always NULL there and the market read is what lands.
 WITH lines AS (
   SELECT * FROM unnest(
     $2::uuid[], $3::numeric[], $4::numeric[], $5::numeric[], $6::text[],
@@ -21,18 +22,14 @@ UPDATE inventory.lots li
        purity = COALESCE(a.purity, li.purity),
        unit = COALESCE(a.unit, li.unit),
        premium = COALESCE(a.premium, li.premium),
-       settled_spot = CASE
-         WHEN ro.settlement_type = 'pooled' THEN NULL
-         ELSE COALESCE(
+       settled_spot = COALESCE(
                 a.settled_spot,
                 li.settled_spot,
                 (SELECT sp.bid FROM spots.spots sp WHERE sp.metal_id = li.metal_id),
-                (SELECT sp.ask FROM spots.spots sp WHERE sp.metal_id = li.metal_id))
-       END,
+                (SELECT sp.ask FROM spots.spots sp WHERE sp.metal_id = li.metal_id)),
        settled_at = COALESCE(li.settled_at, now())
   FROM lines a
   JOIN refining.lots rl ON rl.lot_id = a.lot_id
-  JOIN refining.orders ro ON ro.id = rl.refining_order_id
  WHERE li.id = a.lot_id
    AND rl.refining_order_id = $1
 RETURNING rl.id, rl.refining_order_id, rl.lot_id,
