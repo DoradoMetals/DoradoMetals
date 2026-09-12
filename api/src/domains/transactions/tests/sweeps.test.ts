@@ -55,7 +55,11 @@ test('the settled sweep advances an order whose webhook went missing', async () 
       const id = await seedSale(c)
       await seedIntent(c, `pi_rec_settled_${Date.now()}`, 'succeeded', id)
 
-      const { rows: users } = await query<{ id: string }>(`SELECT id FROM auth.users LIMIT 1`, [], c)
+      const { rows: users } = await query<{ id: string }>(
+        `SELECT id FROM auth.users LIMIT 1`,
+        [],
+        c
+      )
       await query(
         `INSERT INTO payments.ledger (user_id, type, order_id, amount)
          VALUES ($1, 'Reserve', $2, 20)`,
@@ -103,8 +107,6 @@ test('the abandonment sweep cancels a stale unpaid order and returns its reserva
         [id],
         c
       )
-      // What a placement writes under ruling 88: the credit is held against
-      // this order, and the ledger row is the fact the sweep returns.
       await query(
         `INSERT INTO payments.ledger (user_id, type, order_id, amount)
          VALUES ($1, 'Reserve', $2, 125.50)`,

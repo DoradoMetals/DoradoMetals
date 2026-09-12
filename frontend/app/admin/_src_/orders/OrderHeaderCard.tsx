@@ -44,10 +44,6 @@ export type OrderHeaderCardProps = {
   office?: OrderHeaderOffice
 }
 
-// PURCHASE ORDER / SALES ORDER, who it is with, where it is, and the two things
-// an admin may do to the order itself. The Cancelled badge earns its place here
-// because it stops every other card; no other order-level status does, so none
-// is drawn.
 export function OrderHeaderCard({
   eyebrow,
   reference,
@@ -101,9 +97,7 @@ export function OrderHeaderCard({
           {meta ? `${reference}   ·   ${meta}` : reference}
         </p>
         {party.ordersToDate !== null && (
-          <p className="text-small text-muted-foreground">
-            {party.ordersToDate} orders to date
-          </p>
+          <p className="text-small text-muted-foreground">{party.ordersToDate} orders to date</p>
         )}
         {office && (
           <div className="w-full pt-2xs lg:w-[320px]">
@@ -147,9 +141,7 @@ export function OrderHeaderCard({
           ))}
         </div>
         {blocked.length > 0 && (
-          <p className="text-micro text-muted-foreground lg:text-right">
-            {blocked.join(' · ')}
-          </p>
+          <p className="text-micro text-muted-foreground lg:text-right">{blocked.join(' · ')}</p>
         )}
       </div>
     </section>

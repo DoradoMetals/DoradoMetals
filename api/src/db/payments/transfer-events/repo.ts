@@ -5,9 +5,6 @@ import type { Executor } from '#shared/db/executor.ts'
 
 const sql = sqlFrom(import.meta.dirname)
 
-// No row back means this (provider, event_id) has already been recorded, which
-// is the whole of webhook idempotency: the caller stops instead of applying it
-// a second time.
 export async function record(
   row: TransferEventWrite,
   executor?: Executor

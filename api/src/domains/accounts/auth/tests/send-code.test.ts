@@ -30,8 +30,6 @@ const send = (channel: 'sms' | 'email', value: string, ip: string | null = IP) =
     ip
   )
 
-// RULE 9: the captcha is on the send, and the token and caller's IP are what
-// the provider is asked about.
 test('the token and the IP reach the provider on every send', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
@@ -47,7 +45,6 @@ test('the token and the IP reach the provider on every send', async () => {
   )
 })
 
-// RULE 9: the captcha is on the send.
 test('a captcha that does not pass refuses the send outright', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
@@ -60,7 +57,6 @@ test('a captcha that does not pass refuses the send outright', async () => {
   )
 })
 
-// RULE 9: US numbers only.
 test('a number that is not a US number is refused before anything is minted', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
@@ -72,7 +68,6 @@ test('a number that is not a US number is refused before anything is minted', as
   )
 })
 
-// RULE 2: free choice on sign-in.
 test('the caller picks the channel, and the code goes down the one they picked', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
@@ -94,7 +89,6 @@ test('the caller picks the channel, and the code goes down the one they picked',
   )
 })
 
-// RULE 6: enumeration safety - the same body for a known and an unknown identity.
 test('a known and an unknown number answer the same body, and only one is texted', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
@@ -126,7 +120,6 @@ test('a known and an unknown number answer the same body, and only one is texted
   )
 })
 
-// RULE 6: and not distinguishable by latency either.
 test('both branches answer at the constant-time floor', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
@@ -155,7 +148,6 @@ test('both branches answer at the constant-time floor', async () => {
   )
 })
 
-// RULE 9: the per-number send limit.
 test('a number that has had its allowance is not texted again inside the window', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
@@ -182,7 +174,6 @@ test('a number that has had its allowance is not texted again inside the window'
   )
 })
 
-// RULE 9: the per-IP send limit, which is what an SMS pump runs into.
 test('one IP working through many numbers stops at its own allowance', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
@@ -213,7 +204,6 @@ test('one IP working through many numbers stops at its own allowance', async () 
   )
 })
 
-// RULE 7: a locked identity is told so, with its cooldown.
 test('a locked number answers the Locked screen and nothing is sent', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
@@ -235,8 +225,6 @@ test('a locked number answers the Locked screen and nothing is sent', async () =
   )
 })
 
-// Jacob's amendment, 2026-09-11: the Turnstile widget never appears on the
-// OTP screen, so a token is asked for only when there is no live pending send.
 test('a first send with no token is refused, and nothing is sent', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
@@ -285,9 +273,6 @@ test('a resend inside the pending window needs no token, and is still counted', 
         'the tokenless resend is still sent'
       )
 
-      // still counted against the per-number limit: the row already carries
-      // one send, so two more tokenless resends reach the limit of three and
-      // a fourth is refused.
       dispatched.length = 0
       await service.sendCode({ channel: 'sms', phone_number: KNOWN }, IP)
       dispatched.length = 0
@@ -327,8 +312,6 @@ test('a resend after the pending code has expired needs a token again', async ()
   )
 })
 
-// RULE 6, extended: enumeration-safety must hold for the captcha gate too -
-// an unknown identity is throttled off the same row shape as a known one.
 test('an unknown identity is gated by the same captcha rule as a known one', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
@@ -369,7 +352,6 @@ test('an unknown identity is gated by the same captcha rule as a known one', asy
   )
 })
 
-// RULE 8: nothing in the answer is a full value.
 test('the view never carries a full number or a full address', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {

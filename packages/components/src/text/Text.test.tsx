@@ -5,7 +5,6 @@ import * as React from 'react'
 import { Text, type TextVariant } from './Text'
 import { axeViolations } from '../test/axe'
 
-// The Foundations ramp, by the names the Figma snapshot's textStyles carry.
 const RAMP: Array<[TextVariant, string, string]> = [
   ['display', 'display', 'H1'],
   ['h1', 'text-h1', 'H1'],

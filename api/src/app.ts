@@ -70,10 +70,6 @@ app.post('/api/webhooks/moov', express.raw({ type: 'application/json' }), handle
 app.post('/api/webhooks/plaid', express.raw({ type: 'application/json' }), handlePlaidWebhook)
 
 app.post('/api/webhooks/resend', express.raw({ type: 'application/json' }), handleResendWebhook)
-// Twilio's four webhooks are form-encoded and mount before express.json(),
-// each with its own express.urlencoded() - the same shape as the Stripe
-// webhook above. Their signatures are the guard; the admin reads for these
-// same resources mount later, with the rest, after the JSON parser.
 app.post('/api/sms/inbound', express.urlencoded({ extended: false }), smsController.inbound)
 app.post('/api/sms/status', express.urlencoded({ extended: false }), smsController.status)
 app.post('/api/calls/twiml', express.urlencoded({ extended: false }), callsController.twiml)

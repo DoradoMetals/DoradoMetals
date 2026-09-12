@@ -1,11 +1,3 @@
-// THE CHROME, BY WHO IS LOOKING AT IT.
-//
-// What this pins is the link table, not the layout: which routes the header
-// offers a signed-out visitor, a signed-in customer and an admin, that the
-// drawer behind the hamburger offers the same ones, and that the footer's one
-// column follows the account. Every href asserted here is a route that exists
-// under `frontend/app/` - a link in the chrome that 404s is the one failure
-// this file is for.
 import { describe, expect, test, vi, beforeEach } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 
@@ -40,15 +32,11 @@ const footer = () => document.querySelector('footer') as HTMLElement
 const hrefsIn = (root: HTMLElement) =>
   [...root.querySelectorAll('a[href]')].map((a) => a.getAttribute('href'))
 
-// The drawer is the mobile menu: the hamburger opens it, and it is portalled to
-// the body rather than nested in the header.
 const openDrawer = () => {
   fireEvent.click(screen.getByRole('button', { name: 'Open menu' }))
   return screen.getByRole('navigation', { name: 'Menu' })
 }
 
-// Radix opens a dropdown from the keyboard as well as the pointer, and the
-// keyboard path is the one jsdom implements faithfully.
 const openAccountMenu = () => {
   fireEvent.keyDown(screen.getByLabelText('Account menu'), { key: 'Enter' })
   return document.body.querySelector('[role="menu"]') as HTMLElement
@@ -97,7 +85,6 @@ describe('the header, signed in', () => {
     shell()
     const menu = openAccountMenu()
     expect(within(menu).getByText('Account')).toBeTruthy()
-    // The account line is the session's own name, falling back to its email.
     expect(within(menu).getByText('Dana Doe')).toBeTruthy()
     expect(within(menu).getByText('Settings')).toBeTruthy()
     expect(hrefsIn(menu)).toEqual(['/settings/email', '/settings/phone'])

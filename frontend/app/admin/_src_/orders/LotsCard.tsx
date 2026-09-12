@@ -48,11 +48,6 @@ export type LotsCardProps = {
 const SCRAP_HEAD = ['Item', 'Lot', 'Qty', 'Pre Melt', 'Post Melt', 'Purity', 'Premium', 'Price']
 const BULLION_HEAD = ['Item', 'Lot', 'Qty', 'Premium', 'Price']
 
-// The order's lines. Finalizing an order gates the invoice and the payment,
-// never the lots - so there is no editable/finalized axis here: rows carry a
-// checkbox, the head carries select-all, and New / Batch / Delete sit in the
-// title row. Batch wraps the selected lots into a refiner order, before or
-// after finalization.
 export function LotsCard({
   kind,
   lots,
@@ -79,10 +74,10 @@ export function LotsCard({
   const toggleAll = () => setSelected(allSelected ? [] : lots.map((lot) => lot.id))
 
   const total = lots.reduce((sum, lot) => sum + (lot.line_total ?? 0), 0)
-  // Selection is by the LINK row - that is what Delete keys on - but a refiner
-  // order is assigned LOTS, so Batch hands over `lot_id`.
   const selectedLotIds = () =>
-    selected.map((id) => lots.find((lot) => lot.id === id)?.lot_id).filter((id): id is string => !!id)
+    selected
+      .map((id) => lots.find((lot) => lot.id === id)?.lot_id)
+      .filter((id): id is string => !!id)
 
   return (
     <OrderCard
@@ -242,9 +237,24 @@ function LotRow({
   const cells: React.ReactNode[] =
     kind === 'scrap'
       ? [
-          <Cell key="qty" value={lot.lot.quantity} readOnly={readOnly} onCommit={(quantity) => onEdit({ quantity })} />,
-          <Cell key="pre" value={lot.lot.pre_melt} readOnly={readOnly} onCommit={(pre_melt) => onEdit({ pre_melt })} />,
-          <Cell key="post" value={lot.lot.post_melt} readOnly={readOnly} onCommit={(post_melt) => onEdit({ post_melt })} />,
+          <Cell
+            key="qty"
+            value={lot.lot.quantity}
+            readOnly={readOnly}
+            onCommit={(quantity) => onEdit({ quantity })}
+          />,
+          <Cell
+            key="pre"
+            value={lot.lot.pre_melt}
+            readOnly={readOnly}
+            onCommit={(pre_melt) => onEdit({ pre_melt })}
+          />,
+          <Cell
+            key="post"
+            value={lot.lot.post_melt}
+            readOnly={readOnly}
+            onCommit={(post_melt) => onEdit({ post_melt })}
+          />,
           <Cell
             key="purity"
             value={lot.lot.purity}
@@ -261,7 +271,12 @@ function LotRow({
           />,
         ]
       : [
-          <Cell key="qty" value={lot.lot.quantity} readOnly={readOnly} onCommit={(quantity) => onEdit({ quantity })} />,
+          <Cell
+            key="qty"
+            value={lot.lot.quantity}
+            readOnly={readOnly}
+            onCommit={(quantity) => onEdit({ quantity })}
+          />,
           <Cell
             key="premium"
             value={lot.premium}
@@ -313,9 +328,7 @@ function Cell({
   React.useEffect(() => setDraft(asText), [asText])
 
   if (readOnly) {
-    return (
-      <p className="text-center text-small text-foreground">{display ?? plain(value)}</p>
-    )
+    return <p className="text-center text-small text-foreground">{display ?? plain(value)}</p>
   }
 
   return (

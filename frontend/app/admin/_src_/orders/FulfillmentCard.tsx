@@ -61,10 +61,6 @@ const TAB_LABEL: Record<FulfillmentMethodRead['category'], string> = {
   DROPOFF: 'Drop-off',
 }
 
-// Empty: no method yet, an Empty State and Create fulfillment. Chosen: the
-// method tabs plus that method's own choices, and Schedule once `missing` is
-// empty. What is missing is the fulfillment domain's answer, never a check
-// written here.
 export function FulfillmentCard({
   fulfillment,
   methods,
@@ -84,10 +80,6 @@ export function FulfillmentCard({
   onSchedule,
   pending = false,
 }: FulfillmentCardProps) {
-  // A DROP-OFF HAS NO ROW UNTIL IT IS SCHEDULED, and `PATCH /fulfillments/:id`
-  // with a `dropoff` arm answers 200 having written nothing, so its choices are
-  // held here and sent whole to `schedule_dropoff` - which is also what the
-  // Figma card says: nothing is saved until the button.
   const [draft, setDraft] = React.useState<FulfillmentDropoffChoices>({})
   const booked = fulfillment?.dropoff ?? null
   React.useEffect(() => setDraft({}), [booked?.id])
@@ -118,7 +110,9 @@ export function FulfillmentCard({
             </Button>
           }
         />
-        {createReason && <p className="text-center text-micro text-muted-foreground">{createReason}</p>}
+        {createReason && (
+          <p className="text-center text-micro text-muted-foreground">{createReason}</p>
+        )}
       </OrderCard>
     )
   }
@@ -127,7 +121,9 @@ export function FulfillmentCard({
   const offered = TAB_ORDER.filter((one) => methods.some((method) => method.category === one))
   const outstanding =
     category === 'DROPOFF'
-      ? fulfillment.missing.filter((step) => chosen(step as keyof FulfillmentDropoffChoices) == null)
+      ? fulfillment.missing.filter(
+          (step) => chosen(step as keyof FulfillmentDropoffChoices) == null
+        )
       : fulfillment.missing
   const ready = outstanding.length === 0
 
@@ -190,9 +186,7 @@ export function FulfillmentCard({
             label="Driver"
             items={employeeItems(employees)}
             value={fulfillment.pickup?.assigned_employee_id ?? undefined}
-            onValueChange={(assigned_employee_id) =>
-              onPatch({ pickup: { assigned_employee_id } })
-            }
+            onValueChange={(assigned_employee_id) => onPatch({ pickup: { assigned_employee_id } })}
             placeholder="Who drives"
           />
           <DateField
@@ -216,9 +210,7 @@ export function FulfillmentCard({
             label="With"
             items={employeeItems(employees)}
             value={fulfillment.direct?.assigned_employee_id ?? undefined}
-            onValueChange={(assigned_employee_id) =>
-              onPatch({ direct: { assigned_employee_id } })
-            }
+            onValueChange={(assigned_employee_id) => onPatch({ direct: { assigned_employee_id } })}
             placeholder="Who takes it"
           />
           <DateField
@@ -406,7 +398,6 @@ function AmountField({
   )
 }
 
-// The Slim datepicker with its own label above it - Figma's calendar slot.
 function DateField({
   label,
   value,

@@ -171,12 +171,6 @@ test('a complete purchase checkout gets back priced services', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
       const customer = await aUser(c)
-      // A fixed, real street address - not the random-tag default `anAddress`
-      // otherwise mints - because the request this scenario sends to FedEx
-      // must come out byte-identical on every offline replay for nock.back to
-      // match it against the recorded cassette. `default_shipping` (the
-      // builder's default) is what makes the draft below pick it up on its
-      // own (`fulfillments/drafts.ts` `withDefaultAddress`).
       await anAddress(c, customer, {
         line_1: '6100 Main St',
         city: 'Houston',
@@ -193,11 +187,6 @@ test('a complete purchase checkout gets back priced services', async () => {
       )
       assert.equal(put.status, 200, put.text)
 
-      // Pin the checkout's total comfortably above every FedEx service's
-      // insurance ceiling ($10,000 - migration 047's shipping.services seed)
-      // so getFulfillmentRates is forced to CLAMP declaredValue rather than
-      // merely echo it - proving the insurance ceiling rule, not just its
-      // presence on the response.
       const { rows: bandRows } = await c.query<{ bullion_pct: string }>(
         `SELECT bullion_pct FROM rates.rates WHERE metal_id = 'Gold' ORDER BY min_qty ASC LIMIT 1`
       )

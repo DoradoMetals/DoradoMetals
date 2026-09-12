@@ -68,13 +68,6 @@ export function paymentSurface(post_charges_amount: number): PaymentSurface {
   return isChargeable(chargeCents(post_charges_amount)) ? 'card' : 'credit'
 }
 
-// The Stripe idempotency key. It used to be `intent:<type>:<user>:<session>` -
-// stable for the whole better-auth session, while Stripe replays a key for 24
-// hours, so the second checkout in a session got the FIRST (already resolved)
-// PaymentIntent back and then collided on payments.attempts.provider_ref. The
-// attempt ordinal is a database fact (how many intents this session/user/type
-// already has), so a genuine network retry of the same call still replays and
-// a new intent never does.
 export function idempotencyKeyFor(
   type: string,
   user_id: string,

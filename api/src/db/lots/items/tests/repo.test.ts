@@ -11,8 +11,7 @@ afterAll(async () => {
   await pool.end()
 })
 
-const inLots = <T>(fn: (c: PoolClient) => Promise<T>) =>
-  inRollback(fn, { actor: TEST_ACTOR.id })
+const inLots = <T>(fn: (c: PoolClient) => Promise<T>) => inRollback(fn, { actor: TEST_ACTOR.id })
 
 test('a declared lot generates its fine content from its own weights', async () => {
   await inLots(async (c) => {
@@ -26,14 +25,15 @@ test('a declared lot generates its fine content from its own weights', async () 
 
     const read = await lots.getOne(lot.id, c)
     assert.equal(read?.id, lot.id)
-    assert.deepEqual((await lots.getByIds([lot.id], c)).map((l) => l.id), [lot.id])
+    assert.deepEqual(
+      (await lots.getByIds([lot.id], c)).map((l) => l.id),
+      [lot.id]
+    )
     assert.deepEqual(await lots.getByIds([], c), [])
     assert.equal(await lots.getOne(anUnknownId(), c), undefined)
   })
 })
 
-// The post-melt weight is what a lot is worth once it has been melted, so the
-// generated column prefers it over the declared gross.
 test('a post-melt weight replaces the declared one in the generated content', async () => {
   await inLots(async (c) => {
     const lot = await lots.create(
@@ -45,7 +45,6 @@ test('a post-melt weight replaces the declared one in the generated content', as
     const edited = await lots.update(lot.id, { purity: 0.25 }, c)
     assert.equal(Number(edited?.content), 2, 'the content did not follow the purity')
 
-    // A patch that names nothing reads the row back rather than writing one.
     assert.equal((await lots.update(lot.id, {}, c))?.id, lot.id)
   })
 })
@@ -64,7 +63,6 @@ test('a catalogue lot snapshots the product and never re-derives', async () => {
     assert.equal(lot.post_melt, null, 'a coin is not melted')
     assert.equal(Number(lot.quantity), 3)
 
-    // Editing the catalogue afterwards moves nothing (ruling 51).
     await c.query('UPDATE products.bullion SET content = 500, purity = 0.5 WHERE id = $1', [
       product.id,
     ])
@@ -72,8 +70,6 @@ test('a catalogue lot snapshots the product and never re-derives', async () => {
   })
 })
 
-// `display` gates the BUY side only (ruling 49): a hidden product still reaches
-// a sell basket and an admin's order line.
 test('a hidden product is refused to a buyer and allowed to a seller', async () => {
   await inLots(async (c) => {
     const hidden = await aProduct(c, { display: false })
@@ -82,8 +78,6 @@ test('a hidden product is refused to a buyer and allowed to a seller', async () 
   })
 })
 
-// A split mints children and leaves the parent where it is: the id has to
-// survive to the refiner, so nothing is ever rewritten in place.
 test('a split mints children carrying split_from_id and leaves the parent alone', async () => {
   await inLots(async (c) => {
     const parent = await lots.create(
@@ -117,12 +111,6 @@ test('a split mints children carrying split_from_id and leaves the parent alone'
   })
 })
 
-// `a_snapshot_belongs_to_a_product` was the CHECK that said only a catalogue
-// lot has a fixed content. 161 gives a SETTLED scrap lot one too - the fine
-// weight its payout was computed from - and a CHECK cannot see whether a lot's
-// order has been finalized, so 173 drops it. The half that is still true is
-// that no LIVE path writes a scrap lot's snapshot, and these are the three
-// places one could come from.
 test('no live path can snapshot a scrap lot', async () => {
   await inLots(async (c) => {
     const lot = await lots.create({ metal_id: 'Gold', pre_melt: 10, purity: 0.9 }, c)

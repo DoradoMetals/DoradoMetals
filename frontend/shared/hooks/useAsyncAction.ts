@@ -1,12 +1,5 @@
 'use client'
 
-// A `useMutation`-shaped wrapper (mutate/mutateAsync/isPending/isSuccess/
-// isError/error) for an action that is NOT an API call - better-auth's own
-// client, which @dorado/client may not depend on (ruling 62: the package
-// imports nothing but @dorado/contracts/react/react-query, never "the
-// frontend's stores, its auth client or an HTTP library"). Plain React state,
-// no react-query import, so this stays legal under `frontend/` while keeping
-// the same interface every consumer already destructures.
 import { useCallback, useRef, useState } from 'react'
 
 type ActionOptions<TData, TVars> = {

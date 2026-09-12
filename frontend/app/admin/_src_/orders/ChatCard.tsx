@@ -14,8 +14,6 @@ export type ChatCardProps = {
   onCall?: () => void
 }
 
-// The four call kinds are the API's `call_kind`, paired from direction and
-// status in SQL; the card only spells them.
 const KIND: Record<CallKind, ChatCall['kind']> = {
   Outgoing: 'outgoing',
   'No answer': 'no-answer',

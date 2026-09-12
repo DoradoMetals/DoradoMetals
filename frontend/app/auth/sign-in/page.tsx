@@ -26,8 +26,6 @@ function SignIn() {
     const captcha_token = await captcha.token()
     try {
       const view = await sendCode.mutateAsync({ channel: 'sms', phone_number, captcha_token })
-      // Where the visitor was when they were sent here rides along in the
-      // verification, so the code screen can hand them back to it.
       setVerification({ view, channel: 'sms', phone_number, next: nextFrom(params) ?? undefined })
       router.push(view.status === 'locked' ? '/auth/locked' : '/auth/verify')
     } finally {
@@ -50,8 +48,6 @@ function SignIn() {
   )
 }
 
-// `useSearchParams` opts a client page out of prerendering unless a Suspense
-// boundary stands above it. That is Next's rule, not a choice here.
 export default function Page() {
   return (
     <Suspense fallback={null}>

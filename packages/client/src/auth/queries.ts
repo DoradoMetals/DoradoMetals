@@ -32,8 +32,6 @@ export function useSendCode() {
   })
 }
 
-// A verify mints a session, so everything the app knows about the caller is
-// stale the moment it returns.
 export function useVerifyCode() {
   const client = useQueryClient()
   return useMutation({

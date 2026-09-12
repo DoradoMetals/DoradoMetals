@@ -6,9 +6,6 @@ import type { Executor } from '#shared/db/executor.ts'
 
 const sql = sqlFrom(import.meta.dirname)
 
-// better-auth mints every code and writes it here (ruling 92). It is read back
-// only to be compared; the attempts counter and the lockout are ours, in
-// auth.otp_throttles, so one place answers both.
 export async function byIdentifier(
   identifier: string,
   executor?: Executor

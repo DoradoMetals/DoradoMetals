@@ -79,8 +79,6 @@ type LabelInput = {
   hold?: HoldAtLocation | null
 }
 
-// HOLD_AT_LOCATION, in FedEx's own shape. Every value comes from the row the
-// caller read (ruling 89); nothing about the business is written here.
 function toHoldAtLocation(hold?: HoldAtLocation | null) {
   if (!hold) return null
   return {

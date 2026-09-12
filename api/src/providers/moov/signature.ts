@@ -1,10 +1,5 @@
 import crypto from 'node:crypto'
 
-// Moov signs a webhook delivery with the four headers below. The signing
-// string is joined with `|` in this order and hashed HMAC-SHA512 with the
-// endpoint's signing secret. The comparison is constant time, and a delivery
-// older than the tolerance is refused so a captured body cannot be replayed
-// against us for ever.
 export const SIGNATURE_HEADER = 'x-signature'
 export const TIMESTAMP_HEADER = 'x-timestamp'
 export const NONCE_HEADER = 'x-nonce'

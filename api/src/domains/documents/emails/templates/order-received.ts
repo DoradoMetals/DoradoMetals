@@ -4,9 +4,6 @@ import { ordersUrl } from '#documents/emails/links.ts'
 import { orderLabel } from '#documents/emails/rules.ts'
 import type { OrderReceivedMail } from '@dorado/contracts'
 
-// Figma "Mailer · Order received" (6:173). ONE mailer for both directions: it
-// replaces purchase_order_created AND sales_order_created, and the lede is what
-// changes - a seller is waiting for a label, a buyer is waiting for a parcel.
 export function subject(mail: OrderReceivedMail): string {
   return `We've got your order - ${orderLabel(mail.direction, mail.order_number)}`
 }

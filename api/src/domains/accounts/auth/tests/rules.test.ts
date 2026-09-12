@@ -67,7 +67,6 @@ const aUser = (over: Partial<User> = {}): User =>
     over
   )
 
-// RULE 9: US numbers only.
 test('a US E.164 number is accepted and everything else is refused', () => {
   assert.equal(rules.isUsPhone('+15125550134'), true)
   assert.equal(rules.isUsPhone('+15555550100'), true, 'the e2e numbers must pass')
@@ -85,7 +84,6 @@ test('a US E.164 number is accepted and everything else is refused', () => {
   }
 })
 
-// RULE 2: free choice on sign-in - the body says which value carries the code.
 test('the destination comes from the channel the caller picked', () => {
   assert.equal(rules.destinationOf('sms', '+15125550134', null), '+15125550134')
   assert.equal(rules.destinationOf('email', null, 'Jacob@Example.COM'), 'jacob@example.com')
@@ -96,7 +94,6 @@ test('the destination comes from the channel the caller picked', () => {
   )
 })
 
-// RULE 1: the server picks the channel for a change, and picks the OTHER one.
 test('a change is verified through the other factor, and the caller does not choose', () => {
   assert.equal(rules.otherFactorOf('email'), 'phone')
   assert.equal(rules.otherFactorOf('phone'), 'email')
@@ -125,7 +122,6 @@ test('a change is refused when the other factor is missing or unproved', () => {
   rules.assertOtherFactorVerified(aUser(), 'phone')
 })
 
-// RULE 3: step-up only on a stale session.
 test('a session is fresh for five minutes from whichever proof is later', () => {
   assert.equal(rules.STEP_UP_FRESH_SECONDS, 5 * 60)
   assert.equal(rules.isFresh(aSession({ createdAt: secondsAgo(10) }), NOW), true)
@@ -142,7 +138,6 @@ test('a session is fresh for five minutes from whichever proof is later', () => 
   rules.assertFresh(aSession(), NOW)
 })
 
-// RULE 5: one factor per session.
 test('a session that changed one factor may not change the other', () => {
   rules.assertFactorNotChanged(aSession())
   assert.throws(
@@ -155,7 +150,6 @@ test('a session that changed one factor may not change the other', () => {
   )
 })
 
-// RULE 7: lockout with a cooldown.
 test('the attempt ladder locks at MAX_ATTEMPTS and the lock carries a cooldown', () => {
   assert.equal(rules.MAX_ATTEMPTS, 5)
   assert.equal(rules.LOCKOUT_SECONDS, 15 * 60)
@@ -183,7 +177,6 @@ test('the attempt ladder locks at MAX_ATTEMPTS and the lock carries a cooldown',
   assert.equal(rules.clearedAttempts().locked_until, null)
 })
 
-// RULE 9: per-number and per-IP send limits.
 test('a send window counts up to its limit and then starts again when it runs out', () => {
   const w = rules.NUMBER_WINDOW_SECONDS
   let row = aThrottle()
@@ -230,7 +223,6 @@ test('a code matches only while it is the minted one and has not expired', () =>
   )
 })
 
-// RULE 8: masking everywhere, and the ONE unmasked value.
 test('every view masks, and only the confirmed view carries the new value in full', () => {
   const view = rules.verificationView('sign_in', 'sms', '+15125550134', aThrottle(), 'sent', NOW)
   assert.equal(view.destination, '(•••) •••-0134')
@@ -357,7 +349,6 @@ test('the captcha is a refusal, not a warning', () => {
   assert.throws(() => rules.assertCaptcha(false), /captcha did not pass/)
 })
 
-// Jacob's amendment, 2026-09-11: no token while a send is still pending.
 test('captchaRequired is true with no row and true again once the pending code expires', () => {
   assert.equal(rules.captchaRequired(undefined, NOW), true, 'a first send always needs a token')
 

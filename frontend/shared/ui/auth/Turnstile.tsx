@@ -35,9 +35,6 @@ function load(): Promise<TurnstileApi | null> {
   return loading
 }
 
-// Cloudflare's own element, rendered where the customer is about to act. With
-// no site key there is no widget and no script: local development runs against
-// the API's recording fake, which accepts the empty token.
 export function Turnstile({ onToken }: { onToken: (token: string) => void }) {
   const host = useRef<HTMLDivElement>(null)
   const key = siteKey()

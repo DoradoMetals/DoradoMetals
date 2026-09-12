@@ -42,8 +42,6 @@ export const LotPatch = Lot.pick({
   .strict()
 export type LotPatch = z.infer<typeof LotPatch>
 
-// A split never rewrites a lot: it mints children carrying `split_from_id` and
-// leaves the parent where it is. The caller declares the children's weights.
 export const LotSplitPart = Lot.pick({
   pre_melt: true,
   post_melt: true,
@@ -59,10 +57,6 @@ export type LotSplitPart = z.infer<typeof LotSplitPart>
 export const LotSplit = z.object({ parts: z.array(LotSplitPart).min(2) }).strict()
 export type LotSplit = z.infer<typeof LotSplit>
 
-// What a lot is called and what shape it is in - both read off the row and the
-// product it snapshots, never stored twice. `form` is 'Scrap' for a declared
-// lot and the product's own type for a catalogue one; `reference` is the
-// "Lot 2481-A" the admin screens and the refiner's paperwork quote.
 export const LotView = Lot.extend({
   product_name: Bullion.shape.name.nullable(),
   form: Bullion.shape.type.nullable(),

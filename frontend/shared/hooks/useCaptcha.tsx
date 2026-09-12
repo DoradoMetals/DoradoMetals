@@ -12,8 +12,6 @@ export type Captcha = {
   reset: () => void
 }
 
-// The token the API's captcha provider verifies. The browser only obtains it;
-// whether it passes is the server's decision.
 export function useCaptcha(): Captcha {
   const held = useRef('')
   const settled = useRef(false)

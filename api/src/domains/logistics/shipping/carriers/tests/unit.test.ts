@@ -13,8 +13,6 @@ const body = (name: string): string =>
     .filter((l) => !l.trim().startsWith('--'))
     .join('\n')
 
-// No `update`: the carrier's patch is built by `buildUpdate` now, so an omitted
-// logo is left alone instead of being bound as NULL (LD F18).
 test('every statement loads and is not empty', () => {
   for (const n of ['get_all', 'get_one', 'create', 'delete']) {
     assert.ok(sql(n).trim().length > 0, `${n} is empty`)

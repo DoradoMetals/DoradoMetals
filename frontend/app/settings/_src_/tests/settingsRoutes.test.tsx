@@ -1,12 +1,3 @@
-// The four /settings auth-adjacent route pages, rendered.
-//
-// email and phone wrap their content in ProtectedPage (useGetSession), which
-// shows "Loading..." until its own effect settles - so these tests await the
-// real content rather than asserting on the first paint. The two *_/confirmed
-// pages read the VerificationProvider's `confirmed` value the same way the
-// /auth pages read `verification` - seeded through the same double-render
-// pattern (see authRoutes.test.tsx for why a single render races the page's
-// own "nothing seeded, bounce" effect).
 import { describe, test, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { useEffect } from 'react'

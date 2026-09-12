@@ -30,9 +30,6 @@ export async function create(
   return rows[0]
 }
 
-// Patch semantics, not a fixed SET: `sql/update.sql` wrote `logo = $1`, and an
-// omitted logo arrives as undefined, which the driver binds as NULL - so any
-// edit that did not re-send the logo deleted it (LD F18).
 export async function update(
   id: string,
   patch: Partial<Pick<Carrier, 'logo'>>,

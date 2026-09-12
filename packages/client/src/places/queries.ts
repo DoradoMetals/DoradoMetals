@@ -6,8 +6,6 @@ import type { Location } from '@dorado/contracts'
 import { apiRequest } from '../fetch'
 import { keys } from '../keys'
 
-// The business's own offices and refineries. A pickup, an appointment and a
-// refiner order each name one.
 export function useLocations(options: { enabled?: boolean } = {}) {
   return useQuery<Location[]>({
     queryKey: keys.places.locations(),

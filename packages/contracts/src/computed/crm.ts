@@ -4,14 +4,12 @@ import { Call } from '../crm/calls.js'
 import { CallState, SmsDeliveryStatus, SmsDirection } from '../crm/enums.js'
 import { SmsMessage } from '../crm/sms_messages.js'
 
-// The MediaUrl<N> / MediaContentType<N> pairs of an inbound, collapsed.
 export const SmsMedia = z.object({
   url: z.string(),
   content_type: z.string(),
 })
 export type SmsMedia = z.infer<typeof SmsMedia>
 
-// Twilio's own field names: this is its form body, parsed.
 export const SmsInbound = z.object({
   MessageSid: SmsMessage.shape.provider_sid,
   From: SmsMessage.shape.from_number,
@@ -47,25 +45,21 @@ export type CallToken = z.infer<typeof CallToken>
 export const TimelineKind = z.enum(['sms', 'call', 'email'])
 export type TimelineKind = z.infer<typeof TimelineKind>
 
-// The four Call Event rows the design draws. Direction and status together say
-// which one a call is, and that pairing is made in SQL so no browser makes it.
 export const CallKind = z.enum(['Outgoing', 'No answer', 'Incoming', 'Missed'])
 export type CallKind = z.infer<typeof CallKind>
 
-// One SQL read merges messages, calls and mailers; status reads differently per
-// kind, so it crosses as text.
-export const CustomerTimeline = z.object({
-  id: SmsMessage.shape.id,
-  kind: TimelineKind,
-  at: SmsMessage.shape.created_at,
-  direction: SmsDirection,
-  summary: z.string(),
-  status: z.string(),
-}).extend({ call_kind: CallKind.nullable() })
+export const CustomerTimeline = z
+  .object({
+    id: SmsMessage.shape.id,
+    kind: TimelineKind,
+    at: SmsMessage.shape.created_at,
+    direction: SmsDirection,
+    summary: z.string(),
+    status: z.string(),
+  })
+  .extend({ call_kind: CallKind.nullable() })
 export type CustomerTimeline = z.infer<typeof CustomerTimeline>
 
-// The composer. `user_id` because that is the id the screen holds; the number
-// it goes to is the customer's own verified one, read server-side (ruling 10).
 export const SmsSendBody = z
   .object({
     user_id: SmsMessage.shape.user_id.unwrap(),

@@ -1,7 +1,3 @@
-// The Fulfillment family's missing pieces: a handover made for an ORDER rather
-// than a basket, the Drop-off method end to end, the operator transitions, the
-// coverage choices, the carrier a drop-shipped parcel gets late, and the link
-// back to the customer order a refiner parcel fills.
 import { test, afterAll } from 'vitest'
 import assert from 'node:assert/strict'
 import type { PoolClient } from 'pg'
@@ -173,7 +169,9 @@ test('the shipment choices carry cover and who pays the return', async () => {
       const view = await request(app).get(`/api/orders/${order.id}/fulfillments`)
       const res = await request(app)
         .patch(`/api/fulfillments/${view.body.fulfillment.id}`)
-        .send({ shipment: { insured: true, additional_coverage: 250, bill_return_to_customer: true } })
+        .send({
+          shipment: { insured: true, additional_coverage: 250, bill_return_to_customer: true },
+        })
       assert.equal(res.status, 200, res.text)
 
       const { rows } = await c.query(

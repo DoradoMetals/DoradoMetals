@@ -2,31 +2,20 @@ import { test, expect } from '@playwright/test'
 
 import { statePath } from '@/shared/tests/roles'
 
-// The refiner order screen in a real browser, signed in as the seeded admin.
-//
-// A refiner order is created through the API rather than seeded: unlike an
-// order, creating one buys nothing and sends nothing - `sent_at` is null until
-// Send to Refiner is pressed, which is exactly the draft state this screen has
-// to draw. The order is created here and left as a draft; nothing is sent, so
-// no refiner is ever contacted by a test run.
 test.use({ storageState: statePath('admin') })
 
 const API = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api').replace(/\/$/, '')
 
 let refiningOrderId: string
 
-// A REFINER MAY HAVE ONLY ONE OPEN SELL ORDER, and the API enforces it with a
-// 409. So this reuses the open draft when there is one and opens a new one only
-// when there is not - the same thing an admin would do, and the reason a second
-// run of this suite does not fail on the first.
 test.beforeAll(async ({ playwright }) => {
   const api = await playwright.request.newContext({ storageState: statePath('admin') })
 
   const existing = await api.get(`${API}/refining/orders`)
   expect(existing.ok(), `GET /refining/orders answered ${existing.status()}`).toBeTruthy()
-  const open = ((await existing.json()) as { id: string; direction: string; sent_at: string | null }[]).find(
-    (one) => one.direction === 'sell' && one.sent_at === null
-  )
+  const open = (
+    (await existing.json()) as { id: string; direction: string; sent_at: string | null }[]
+  ).find((one) => one.direction === 'sell' && one.sent_at === null)
 
   if (open) {
     refiningOrderId = open.id
@@ -54,8 +43,6 @@ test('a refiner draft renders with the refiner select and Send to Refiner', asyn
   await expect(page.getByText('SALES ORDER')).toBeVisible()
   await expect(page.getByRole('combobox', { name: 'Refiner' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Send to Refiner' })).toBeVisible()
-  // The meta line is the order number and nothing else - a refiner has no city
-  // on this view, so it must not repeat the number where the city would be.
   await expect(page.getByText(/^SO-\d+$/)).toBeVisible()
 })
 

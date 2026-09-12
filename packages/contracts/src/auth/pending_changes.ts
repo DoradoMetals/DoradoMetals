@@ -22,5 +22,3 @@ export const AuthPendingChange = z.object({
 })
 export type AuthPendingChange = z.infer<typeof AuthPendingChange>
 // generated:end
-
-// Hand-written derivations go here: New, Patch, named reads.

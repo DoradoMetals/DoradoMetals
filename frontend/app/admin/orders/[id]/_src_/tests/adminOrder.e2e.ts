@@ -6,14 +6,6 @@ import { statePath } from '@/shared/tests/roles'
 
 const API = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api').replace(/\/$/, '')
 
-// The customer order screen in a real browser, signed in as the seeded admin,
-// against a real API and a real order.
-//
-// The order is minted by `seed:e2e:order` rather than through the create
-// endpoint, because the real create always buys a FedEx label. What the seed
-// gives back is an id, and every assertion below is about what the API answers
-// for THAT id - so a card that renders from a hard-coded shape fails here even
-// though it passed under jsdom.
 test.use({ storageState: statePath('admin') })
 
 const repoRoot = path.resolve(process.cwd(), '..')
@@ -64,9 +56,6 @@ test('the aside carries Totals, Profit, Documents and the conversation', async (
   await expect(page.getByRole('button', { name: /Documents/ })).toBeVisible()
 })
 
-// WHICH METALS the card draws is the order's own spot rows, so the assertion
-// asks the API which they are rather than naming one. Hard-coding "Gold" made
-// this pass or fail on what the seed happened to put on the order.
 test('every spot field is one the order own rows name', async ({ page, playwright }) => {
   const api = await playwright.request.newContext({ storageState: statePath('admin') })
   const read = await api.get(`${API}/orders/${orderId}/spots`)
@@ -88,11 +77,6 @@ test('the screen refuses a signed-out visitor', async ({ browser }) => {
   await expect(page).toHaveURL(/\/auth\/sign-in/)
   await anonymous.close()
 })
-
-// THE WRITES THE SECOND PASS WIRED. They live in this file rather than beside
-// it because `seed:e2e:order` clears the previous e2e order as it mints the
-// next: two spec files seeding in parallel workers raced on the same rows and
-// failed on a foreign key. One seed, one file.
 
 test('the composer sends a message and the conversation shows it back', async ({ page }) => {
   const body = `e2e ${Date.now()}`
@@ -146,8 +130,6 @@ test('an unavailable document offers Import, which is a multipart POST', async (
   expect(request.headers()['content-type'] ?? '').toContain('multipart/form-data')
 })
 
-// BATCH IS ONE CALL NOW (GAP 8). It used to be a create followed by an assign
-// with nothing between them, so this asserts the lot ids ride with the create.
 test('Batch creates the refiner order and assigns the lots in one call', async ({
   page,
   playwright,
@@ -185,10 +167,6 @@ test('Batch creates the refiner order and assigns the lots in one call', async (
   expect(body.lot_ids?.length ?? 0).toBeGreaterThan(0)
 })
 
-// THE WAY IN. Before the nav lane there was none: `/admin/orders/<id>` was a
-// URL you had to already know. These two drive the route Jacob asked for - the
-// header's Admin link, and the index's table - and click through to the screen
-// the tests above assert on.
 test('an admin is offered the Admin link, and it lands on the index', async ({ page }) => {
   await page.goto('/')
 
@@ -198,7 +176,6 @@ test('an admin is offered the Admin link, and it lands on the index', async ({ p
   await expect(admin).toBeVisible()
   await admin.click()
   await expect(page).toHaveURL(/\/admin$/)
-  // `exact` because "Refiner orders" also contains the word.
   await expect(page.getByRole('table', { name: 'Orders', exact: true })).toBeVisible()
 })
 
@@ -206,9 +183,6 @@ test('the index lists the seeded order and clicks through to its screen', async 
   page,
   playwright,
 }) => {
-  // WHICH CELL to look for is the API's answer, not a guess: the list route
-  // serves the order NUMBER (there is no `reference` on it), so the row is
-  // found by the number this very order carries.
   const api = await playwright.request.newContext({ storageState: statePath('admin') })
   const read = await api.get(`${API}/orders/${orderId}`)
   expect(read.ok(), `GET /orders/:id answered ${read.status()}`).toBeTruthy()

@@ -24,9 +24,6 @@ export const CheckoutItem = z.object({
 })
 export type CheckoutItem = z.infer<typeof CheckoutItem>
 // generated:end
-// A basket line is one of two shapes, and the boundary decides which (ruling
-// 80): a bullion line names a product and a quantity, a scrap line declares
-// its own metal and weights. Neither accepts the other's columns.
 export const CheckoutBullionLine = CheckoutItem.pick({
   bullion_id: true,
   quantity: true,

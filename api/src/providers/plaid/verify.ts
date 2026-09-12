@@ -1,10 +1,6 @@
 import crypto from 'node:crypto'
 import type { PlaidVerificationKey } from '#providers/plaid/types.ts'
 
-// Plaid signs a webhook with a JWT in the `plaid-verification` header: ES256
-// over the usual `<header>.<payload>`, with the body's SHA-256 as a claim. So
-// verifying is three questions - is the token signed by the key Plaid names,
-// is it recent, and is this body the body it was signed over.
 export const VERIFICATION_HEADER = 'plaid-verification'
 
 const TOLERANCE_SECONDS = 5 * 60

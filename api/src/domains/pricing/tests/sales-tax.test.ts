@@ -79,8 +79,6 @@ test("the delivery address's state is what reaches the rules, and it charges", a
         .withBullion(product, 1)
         .withRow({ recipient_address_id: address.id })
 
-      // Ruling 87: nexus is what opens the gate. This test is about which
-      // state's rules are read, so it opens the gate and asks that question.
       await c.query(`UPDATE tax.sales_tax SET reached_nexus = true WHERE state::text = $1`, [
         rule.state,
       ])
@@ -121,13 +119,6 @@ test("the price a line is taxed on is the server's, not anything a client sent",
     { actor: TEST_ACTOR.id, lock: SALE_LOCKS }
   )
 })
-
-// RULING 87 (Jacob, 2026-09-07), executed. Finding MP F3 was the two halves of
-// sales tax disagreeing inside one request: the quote charged wherever a rule
-// matched, the accrual owed only where nexus was reached. The ruling keeps the
-// accrual's condition and moves the quote to it, and adds the volume every
-// state needs so that reaching a threshold is visible before an auditor finds
-// it. One test per half.
 
 test('a state that has not reached nexus is charged no tax, and one that has is', async () => {
   const rule = await chargingRule()

@@ -13,9 +13,6 @@ export type BuiltRefiningOrder = {
   lot_ids: string[]
 }
 
-// A refiner order holding an order's lots. It is the pooling shape on purpose:
-// call it twice with two different orders and the same refiner order id to see
-// one refiner order holding lots of several customer orders.
 export async function aRefiningOrder(
   c: PoolClient,
   order: BuiltOrder,
@@ -41,7 +38,6 @@ export async function aRefiningOrder(
   if (options.assay) {
     for (const lot of assigned) await refiningLots.update(lot.id, options.assay, c)
   }
-  // The refiner's feed is the pool's last lock price, not a per-order spot row.
   if (options.lock) {
     await pool.lock(
       {

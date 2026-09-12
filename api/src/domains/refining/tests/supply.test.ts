@@ -73,8 +73,6 @@ test('a refiner that does not exist is refused, and nothing is written', async (
   )
 })
 
-// The customer's sales order is filled by a supplier: one `buy` refiner order
-// carrying the SAME lots, sent, with no foreign key between the two orders.
 test('supplying a sales order opens a buy order over its own lots and sends it', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
@@ -108,9 +106,7 @@ test('a lot already on a refiner order cannot be supplied twice', async () => {
       const order = await aSaleOrder(c)
       const refiner_id = await refinerId(c)
       await asAdmin(admin, async () => {
-        const first = await request(app)
-          .post(`/api/orders/${order.id}/supply`)
-          .send({ refiner_id })
+        const first = await request(app).post(`/api/orders/${order.id}/supply`).send({ refiner_id })
         assert.equal(first.status, 201, first.text)
 
         const again = await request(app).post(`/api/orders/${order.id}/supply`).send({ refiner_id })

@@ -9,10 +9,6 @@ import { TEST_ACTOR } from '#shared/testing/actor.ts'
 import { LOCKS } from '#shared/testing/locks.ts'
 import { aUser } from '#shared/testing/builders/index.ts'
 
-// Migration 161 is the subject, so the test runs THE MIGRATION - not a
-// re-implementation of its rule in TypeScript. A copy of the rule would pass
-// while the file production runs says something else, which is the one failure
-// a backfill test exists to prevent.
 const MIGRATION = fs.readFileSync(
   path.join(
     import.meta.dirname,
@@ -39,10 +35,6 @@ type LineShape = {
   content: number
 }
 
-// The offending production row, to the digit: purchase order 270's silver line.
-// Its content was computed from a purity of ~0.058542 that
-// `exchange.scrap.purity numeric(4,3)` then rounded UP to 0.059, so the
-// derivation says 0.259010 and the customer was paid on 0.257.
 const ORDER_270_SILVER: LineShape = {
   unit: 't oz',
   pre_melt: 4.425,
@@ -51,8 +43,6 @@ const ORDER_270_SILVER: LineShape = {
   content: 0.257,
 }
 
-// A rounding residue rather than a defect: 70.449 g melted to 67.027 g at
-// 0.255, stored rounded to three decimals at write time.
 const A_ROUNDED_LINE: LineShape = {
   unit: 'g',
   pre_melt: 70.449,
@@ -95,9 +85,6 @@ const lotOf = async (c: PoolClient, id: string) => {
   return rows[0]
 }
 
-// THE RULE. An order that has been settled is a fact: the payout was computed
-// from the content the line stored, the invoice printed it, and re-deriving it
-// - even by a rounding residue - re-prices history.
 test('a settled order’s lot keeps the fine weight its payout was computed from', async () => {
   await inPinnedTransaction(async (c) => {
     const { item_id } = await anUnbackfilledLine(c, ORDER_270_SILVER, { settled: true })
@@ -110,8 +97,6 @@ test('a settled order’s lot keeps the fine weight its payout was computed from
   }, OPTIONS)
 })
 
-// The same defect on an order that can still be re-priced is a live one, and
-// the gate that catches it has to survive the narrowing.
 test('the same line on an OPEN order still stops the chain', async () => {
   await inPinnedTransaction(async (c) => {
     await anUnbackfilledLine(c, ORDER_270_SILVER, { settled: false })
@@ -122,9 +107,6 @@ test('the same line on an OPEN order still stops the chain', async () => {
   }, OPTIONS)
 })
 
-// An open lot's content is GENERATED from its own weights through
-// `metals.fine_content` - the stored value is only a cache of it, and a
-// three-decimal residue is the derivation being the more precise of the two.
 test('an open order’s lot generates its content and carries no snapshot', async () => {
   await inPinnedTransaction(async (c) => {
     const { item_id } = await anUnbackfilledLine(c, A_ROUNDED_LINE, { settled: false })

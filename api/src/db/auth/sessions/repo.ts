@@ -17,7 +17,6 @@ export const PATCHABLE = columnsOf(Session)
 
 type Freshness = Pick<User, 'banned' | 'role'> & { ban_expires: Date | string | null }
 
-// No row means the session no longer exists - revoked, or expired and swept.
 export async function freshnessOf(
   session_id: string,
   executor?: Executor
@@ -31,8 +30,6 @@ export async function getOne(id: string, executor?: Executor): Promise<Session |
   return rows[0]
 }
 
-// Only the two snake_case columns this codebase added are patchable; the rest
-// are better-auth's, written through its own pool.
 export async function update(
   id: string,
   patch: Partial<Pick<Session, 'factor_changed' | 'stepped_up_at'>>,

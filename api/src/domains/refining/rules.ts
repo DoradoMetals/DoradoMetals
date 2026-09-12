@@ -38,9 +38,6 @@ export function assertLotsExist(found: Lot[], asked: string[]): void {
   }
 }
 
-// `a_lot_goes_to_one_refiner` would raise 23505 and the customer-facing message
-// would be a constraint name. The refusal says which lot and where it already
-// is, which is the thing an admin needs to know.
 export function assertUnassigned(taken: RefiningLot[], lot_ids: string[]): void {
   const held = taken.filter((row) => lot_ids.includes(row.lot_id))
   if (held.length > 0) {
@@ -50,8 +47,6 @@ export function assertUnassigned(taken: RefiningLot[], lot_ids: string[]): void 
   }
 }
 
-// A customer PURCHASE feeds a refiner SELL order - our metal goes out to be
-// refined - and only a customer SALE is filled by a supplier's BUY order.
 export function assertSaleOrder(direction: Direction | null, order_id: string): void {
   if (direction === null) throw new NotFound(`no order ${order_id}`)
   if (direction !== 'sale') {
@@ -61,10 +56,6 @@ export function assertSaleOrder(direction: Direction | null, order_id: string): 
   }
 }
 
-// The Create Sale action runs the other way from `supply`: a customer PURCHASE
-// order's lots are wrapped into a refiner SELL order, and only once the order
-// is finalized, because an unfinalized lot has no price the sale can be built
-// against.
 export function assertPurchaseOrder(direction: Direction | null, order_id: string): void {
   if (direction === null) throw new NotFound(`no order ${order_id}`)
   if (direction !== 'purchase') {
@@ -136,9 +127,6 @@ export function assertSettleable(order: RefiningOrder): void {
   }
 }
 
-// The refiner's assay, refused on the same grounds a customer's declaration is:
-// a unit the conversion does not know is worth ZERO fine ounces and a missing
-// one raises inside the generated column.
 export function assertWeighable(patch: RefiningLotPatch, current: RefiningLot): void {
   const unit = patch.unit !== undefined ? patch.unit : current.unit
   const weight =
@@ -158,9 +146,6 @@ export function assertWeighable(patch: RefiningLotPatch, current: RefiningLot): 
   }
 }
 
-// Every lot the settlement names has to be on this order, and every lot on the
-// order has to be named: a settlement that silently skipped one would leave it
-// unsettled and the order payable anyway.
 export function assertSettling(held: RefiningLot[], named: RefiningSettlementLot[]): void {
   const on = new Set(held.map((lot) => lot.lot_id))
   const stranger = named.find((line) => !on.has(line.lot_id))
@@ -211,8 +196,6 @@ export function assertLockable(balance: number, troy_oz: number): void {
   }
 }
 
-// A refiner order has no handover category, so its documents are named here
-// rather than looked up by one.
 const REFINING_DOCUMENTS: { kind: PdfKind; name: string }[] = [{ kind: 'invoice', name: 'Invoice' }]
 
 export function documentsFor(sent: boolean, stored: StoredDocument[]): OrderDocument[] {

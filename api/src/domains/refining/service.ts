@@ -40,10 +40,6 @@ export async function view(id: string, executor?: Executor): Promise<RefiningOrd
   return found
 }
 
-// One open sell order per refiner is the pooling mechanic: lots accumulate onto
-// it until it is sent. The partial unique index is what guarantees it; this
-// read is what turns a second one into a refusal that names the order the
-// caller should be adding to, rather than a 23505 carrying an index name.
 export async function create(body: RefiningOrderCreate): Promise<RefiningOrderView> {
   const refiner = await refiners.viewOne(body.refiner_id)
   rules.assertRefiner(refiner, body.refiner_id)
@@ -56,8 +52,6 @@ export async function create(body: RefiningOrderCreate): Promise<RefiningOrderVi
     rules.assertUnassigned(await refiningLots.getByLots(lot_ids), lot_ids)
   }
 
-  // The batch is ONE transaction. Creating the order and then assigning its lots
-  // in two calls left an empty refiner order behind whenever the second failed.
   const created = await withTransaction(async (tx) => {
     const row = await refiningOrders.create(body, tx)
     if (lot_ids.length > 0) await refiningLots.assign(row.id, lot_ids, tx)
@@ -66,8 +60,6 @@ export async function create(body: RefiningOrderCreate): Promise<RefiningOrderVi
   return await view(created.id)
 }
 
-// Cancelling releases the lots: `a_lot_goes_to_one_refiner` is unique on lot_id,
-// so a lot left on a cancelled order could never be batched again.
 export async function cancel(id: string): Promise<RefiningOrderView> {
   const order = await refiningOrders.getOne(id)
   rules.assertRefiningOrder(order, id)
@@ -80,8 +72,6 @@ export async function cancel(id: string): Promise<RefiningOrderView> {
   return await view(id)
 }
 
-// A refiner order's four frozen prices. It never has an orders.spots row - the
-// price its metal changed hands at is the pool's last lock (GAP 7).
 export async function spotsFor(id: string): Promise<RefiningSpot[]> {
   rules.assertRefiningOrder(await refiningOrders.getOne(id), id)
   return await refiningOrders.spots(id)
@@ -137,8 +127,6 @@ export async function recordAssay(id: string, changes: RefiningLotPatch): Promis
   return written
 }
 
-// Sending closes the order to further lots. Telling the refiner is a manual
-// send off the Documents card (ruling 15), not something this stamp does.
 export async function send(id: string): Promise<RefiningOrderView> {
   const order = await refiningOrders.getOne(id)
   rules.assertRefiningOrder(order, id)
@@ -148,25 +136,18 @@ export async function send(id: string): Promise<RefiningOrderView> {
   return await view(id)
 }
 
-// Settlement is the one write that touches four tables, so it is one
-// transaction: the fee and the statement reference on the order, the refiner's
-// premium and assay on every lot, every lot's settled_at, and the pool credits
-// a sell order earns.
-export async function settle(
-  id: string,
-  body: RefiningSettlement
-): Promise<RefiningOrderView> {
+export async function settle(id: string, body: RefiningSettlement): Promise<RefiningOrderView> {
   const order = await refiningOrders.getOne(id)
   rules.assertRefiningOrder(order, id)
   rules.assertSettleable(order)
 
-  // Every refusal happens BEFORE the write: `settled_lots_carry_a_premium` is a
-  // CHECK, and a settlement that reached it would answer with a constraint name
-  // instead of saying which lots the refiner priced nothing for.
   const held = await refiningLots.getFor(id)
   rules.assertSettling(held, body.lots)
   for (const line of body.lots) {
-    rules.assertWeighable(line, held.find((lot) => lot.lot_id === line.lot_id)!)
+    rules.assertWeighable(
+      line,
+      held.find((lot) => lot.lot_id === line.lot_id)!
+    )
   }
   rules.assertSettlementPremiums(held, body.lots)
 
@@ -205,11 +186,6 @@ export async function lockFromPool(body: PoolLockCreate): Promise<PoolEntry> {
   return await withTransaction((tx) => pool.lock(body, tx))
 }
 
-// The sale-side supplier flow, in one call: a customer's sales order is filled
-// by a supplier, so the business places a `buy` order carrying the same lots.
-// The URL is the customer order's, because that is the id the caller holds;
-// the handler is here, because these are the tables this domain owns (ruling
-// 26b). No foreign key joins the two orders - the lot is the join.
 export async function supplyOrder(
   order_id: string,
   refiner_id: string
@@ -231,10 +207,6 @@ export async function supplyOrder(
   return await send(id)
 }
 
-// The "Create Sale" action: a finalized customer PURCHASE order's lots become a
-// refiner SELL order. It obeys the pooling mechanic rather than fighting it -
-// lots accumulate onto the one open sell order per refiner, so a second call for
-// the same refiner adds to that order instead of being refused (GAP 9).
 export async function sellToRefiner(
   order_id: string,
   refiner_id: string

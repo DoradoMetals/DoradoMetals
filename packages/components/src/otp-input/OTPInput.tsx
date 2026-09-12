@@ -55,18 +55,11 @@ export function OTPInput({
   const digits = value.slice(0, length).split('')
   const activeIndex = Math.min(digits.length, length - 1)
 
-  // The field is the whole point of the screen: it takes the cursor on mount so
-  // the code can be typed without a click, and takes it back when a wrong code
-  // re-enables the cells.
   React.useEffect(() => {
     if (!autoFocus || disabled) return
     inputRef.current?.focus()
   }, [autoFocus, disabled])
 
-  // One real input sits over the cells, so the browser's own cursor can land
-  // anywhere in the value while the DRAWN caret always sits in the cell the next
-  // digit goes in. Pinning the selection to the end keeps the two agreeing -
-  // typing, pasting and backspace all act on the end of the value.
   const toEnd = () => {
     const el = inputRef.current
     if (!el) return
@@ -106,13 +99,8 @@ export function OTPInput({
           inputMode="numeric"
           pattern="\d*"
           maxLength={length}
-          // The browser's own caret is hidden with the input; the drawn one is
-          // the library's (96:11), so it sits in the cell rather than over it.
           className="absolute inset-0 z-10 h-full w-full cursor-default opacity-0"
         />
-        {/* 48 x 56 cells, 12px apart, centred - the OTP Input drawing (96:32,
-            revised 2026-09-11). They may shrink on a narrow screen but never
-            grow past 48 wide, so a cell is always taller than it is wide. */}
         <div aria-hidden className="flex items-center justify-center gap-sm">
           {Array.from({ length }, (_, i) => {
             const isActive = focused && i === activeIndex && !disabled

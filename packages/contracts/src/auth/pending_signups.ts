@@ -18,5 +18,3 @@ export const AuthPendingSignup = z.object({
 })
 export type AuthPendingSignup = z.infer<typeof AuthPendingSignup>
 // generated:end
-
-// Hand-written derivations go here: New, Patch, named reads.

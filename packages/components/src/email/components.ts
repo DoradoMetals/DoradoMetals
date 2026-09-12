@@ -30,7 +30,6 @@ function table(
   )
 }
 
-/** A hairline. One definition; the header and the footer draw the same one. */
 export function Rule({ palette = screen, span = 1 }: WithPalette & { span?: number }): ReactNode {
   return h(
     'tr',
@@ -113,7 +112,6 @@ export function Code({
 
 export type RowEntry = { label: string; value: string }
 
-/** Label left, figure right, so a column of them reads down the right edge. */
 export function Row({ label, value, palette = screen }: WithPalette & RowEntry): ReactNode {
   return h(
     'tr',
@@ -139,7 +137,6 @@ export function Row({ label, value, palette = screen }: WithPalette & RowEntry):
   )
 }
 
-/** Fewer than three rows is expected; an empty list renders no box at all. */
 export function Card({ rows, palette = screen }: WithPalette & { rows: RowEntry[] }): ReactNode {
   if (rows.length === 0) return null
   const body = rows.flatMap((entry, i) => [

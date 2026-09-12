@@ -25,9 +25,6 @@ export async function setSpots(orderId: string, body: OrderSpotsPutBody): Promis
   return await rowsFor(orderId)
 }
 
-// Locking takes today's bid AND ask onto every frozen row; unlocking clears
-// both (MP F10). One statement, and its row count is looked at: an order with
-// no orders.spots rows repriced nothing and the caller was told it succeeded.
 export async function applyLock(orderId: string, locked: boolean, tx: Executor): Promise<void> {
   await ordersRepo.update(orderId, { spots_locked: locked }, {}, tx)
   if ((await spotsRepo.setBidsFromFeed(orderId, locked, tx)) === 0) {

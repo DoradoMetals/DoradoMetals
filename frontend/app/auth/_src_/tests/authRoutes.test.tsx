@@ -1,23 +1,3 @@
-// The eleven auth/settings route pages, rendered through their real
-// VerificationProvider.
-//
-// This file covers the seven under /auth. Each page is a thin wrapper around
-// AuthForm (already pinned in shared/tests/auth/AuthForm.test.tsx) plus one
-// mutation and a redirect rule - what is pinned HERE is that rule: which hook
-// gets called with which payload, and which route the page sends the
-// customer to next, off the API's own VerificationView rather than a
-// constant in the browser.
-//
-// The provider is real, not mocked - the whole point of these pages is what
-// they do with the verification in flight, and a mock would just restate the
-// component's own logic back at it. It is seeded through a double-render:
-// mount a tiny Seed component inside the SAME <VerificationProvider>, let its
-// effect call setVerification/setConfirmed, then rerender swapping in the
-// real page. The provider sits at the root of both renders so React never
-// remounts it and the seeded state survives the swap - which sidesteps the
-// ordering problem a single render would have (the page's own child effects
-// fire before a parent Seed's effect would, so seeding inside the same tree
-// as the page races its own "no verification, bounce" effect).
 import { describe, test, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { useEffect } from 'react'
@@ -146,8 +126,6 @@ function Seed({
   useEffect(() => {
     if (verification !== undefined) setVerification(verification)
     if (confirmed !== undefined) setConfirmed(confirmed)
-    // Seed once, on mount only - this component exists only to prime state
-    // before the page it precedes gets swapped in.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   return null
@@ -213,8 +191,6 @@ describe('/auth/sign-in', () => {
   test('?next= travels in the verification, and a foreign one does not', async () => {
     searchParams = new URLSearchParams('next=/admin/orders/abc-123')
     sendCodeMutateAsync.mockResolvedValue(view({ status: 'sent' }))
-    // A holder, not a plain `let`: TypeScript's control flow narrows a local
-    // assigned only inside a closure to its initialiser and the reads go never.
     const seen: { value: Verification | null } = { value: null }
     const latest = () => seen.value
     function Spy() {

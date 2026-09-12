@@ -49,9 +49,6 @@ export async function priceOrder(order_id: string, executor?: Executor): Promise
   return pricingRow
 }
 
-// The admin margin split: one SQL read over the order, its refiner's assay and
-// both spot feeds (api/src/db/pricing/sql/profit_breakdown.sql). Nothing is
-// assembled here - the whole answer is the row.
 export async function profitBreakdown(
   order_id: string,
   executor?: Executor

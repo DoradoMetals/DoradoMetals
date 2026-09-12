@@ -28,8 +28,6 @@ export const BankLink = z.object({
 export type BankLink = z.infer<typeof BankLink>
 // generated:end
 
-// Hand-written derivations go here: New, Patch, named reads.
-
 export const BankLinkWrite = BankLink.pick({
   user_id: true,
   provider: true,

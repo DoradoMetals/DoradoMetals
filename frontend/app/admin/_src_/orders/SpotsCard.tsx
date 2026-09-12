@@ -19,10 +19,6 @@ export type SpotsCardProps = {
   pending?: boolean
 }
 
-// Unlocked: the four prices follow the live market and the inputs are
-// read-only. Locked: the prices are frozen on the order and become editable.
-// Refiner orders are always locked and carry no button - there is no live
-// market to unlock to.
 export function SpotsCard({
   spots,
   live,

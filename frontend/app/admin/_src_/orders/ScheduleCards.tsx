@@ -1,7 +1,13 @@
 'use client'
 
 import { Badge, Button } from '@dorado/components'
-import type { EmployeeSummary, FulfillmentStatus, FulfillmentView, Location, RefinerView } from '@dorado/contracts'
+import type {
+  EmployeeSummary,
+  FulfillmentStatus,
+  FulfillmentView,
+  Location,
+  RefinerView,
+} from '@dorado/contracts'
 
 import { CardFact, OrderCard } from './OrderCard'
 import { DASH, when } from './format'
@@ -17,10 +23,6 @@ export type ScheduleCardProps = {
   pending?: boolean
 }
 
-// The three booked handovers. Each runs the same shape - a badge, the facts,
-// Cancel / Reschedule, and the moves the API says are open. The status is the
-// fulfillment domain's enum and the open moves are `actions.transitions`, so
-// no label and no transition is decided here.
 const STATUS_LABEL: Record<FulfillmentStatus, string> = {
   PENDING: 'Pending',
   SCHEDULED: 'Scheduled',
@@ -107,12 +109,7 @@ function ScheduleCard({
           </Button>
         ) : (
           moves.map((move) => (
-            <Button
-              key={move}
-              variant="primary"
-              disabled={pending}
-              onClick={() => onAdvance(move)}
-            >
+            <Button key={move} variant="primary" disabled={pending} onClick={() => onAdvance(move)}>
               {MOVE_LABEL[kind][move]}
             </Button>
           ))

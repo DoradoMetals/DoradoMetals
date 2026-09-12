@@ -22,5 +22,3 @@ export const AuthOtpThrottle = z.object({
 })
 export type AuthOtpThrottle = z.infer<typeof AuthOtpThrottle>
 // generated:end
-
-// Hand-written derivations go here: New, Patch, named reads.

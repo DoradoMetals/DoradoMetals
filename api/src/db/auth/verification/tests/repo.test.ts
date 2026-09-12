@@ -29,8 +29,6 @@ test('a resend leaves the newest code as the one that is read', async () => {
     async (c: PoolClient) => {
       await mint(c, '+15125559001', '111111:0')
       await mint(c, '+15125559001', '222222:0')
-      // Every row here is written by one writer, so one clock orders them: the
-      // older code is aged against the same default `now()` the newer one took.
       await c.query(`UPDATE auth.verification SET "createdAt" = "createdAt" - interval '1 minute'
                       WHERE identifier = '+15125559001' AND value = '111111:0'`)
       const row = await verifications.byIdentifier('+15125559001', c)

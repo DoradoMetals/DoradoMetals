@@ -68,8 +68,6 @@ export async function apiRequestBlob(
   return response.blob()
 }
 
-// A document import is multipart, so the body is a FormData and the browser
-// sets its own boundary - Content-Type must not be named here.
 export async function apiRequestForm<T>(
   method: ApiMethod,
   url: string,

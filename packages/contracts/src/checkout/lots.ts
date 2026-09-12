@@ -19,10 +19,6 @@ export type CheckoutLot = z.infer<typeof CheckoutLot>
 
 import { Lot } from '../lots/items.js'
 
-// A basket line is one of two shapes and the boundary decides which (ruling
-// 80): a bullion line names a product and a quantity, a scrap line declares its
-// own metal and weights. Neither accepts the other's columns, and neither
-// carries a premium - at checkout the premium is a live quote.
 export const CheckoutBullionLot = Lot.pick({ bullion_id: true, quantity: true })
   .extend({
     bullion_id: Lot.shape.bullion_id.unwrap(),

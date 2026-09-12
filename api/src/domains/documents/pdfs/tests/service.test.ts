@@ -48,7 +48,6 @@ afterAll(async () => {
   await pool.end()
 })
 
-// Fonts and the logo are inlined as base64, and base64 noise can spell NaN.
 const hasNaN = (html: string): boolean =>
   html
     .replace(/<style[\s\S]*?<\/style>/g, '')
@@ -208,11 +207,6 @@ test('every order item appears as a row in the packing list', async () => {
   assert.deepEqual(missing, [])
 })
 
-// Reproduces the exact shape of production orders 259, 272 and 328: a scrap
-// line declared with no weight, purity, content or quantity recorded yet.
-// docs/waves/packing-list-nan.md has the full finding - the columns render
-// clean today (pct()/oz()/"-" already guarded them); this pins that contract
-// so it stays true, on all three documents, not just the packing list.
 test('a scrap line with no recorded weight, purity or quantity shows a dash, never NaN or the word null', async () => {
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c)

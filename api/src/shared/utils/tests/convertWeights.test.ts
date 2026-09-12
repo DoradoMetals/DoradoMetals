@@ -25,10 +25,6 @@ const fine = async (
   return rows[0].content === null ? null : Number(rows[0].content)
 }
 
-// MA F10. A troy ounce is 31.1034768 g and an avoirdupois pound is 453.59237 g,
-// so a pound is exactly 175/12 troy ounces. The old 31.1035 / 453.592 pair
-// returned LESS fine metal than the weight really is, and both the JavaScript
-// and the SQL carried it, so the tests certified the loss.
 test('a pound is exactly 175/12 troy ounces, not the old 14.5833105', () => {
   assert.ok(Math.abs(convertTroyOz(1, 'lb') - 175 / 12) < 1e-12)
   assert.ok(Math.abs(convertTroyOz(1, 'lb') - 14.5833105) > 1e-6)
@@ -50,9 +46,6 @@ test('a pound of anything weighs a pound', () => {
   assert.ok(Math.abs(convertToPounds(175 / 12, 't oz') - 1) < 1e-12)
 })
 
-// MA F4 / MP F1. The money conversion lives in `metals.fine_content` now, and
-// it is the only one: a weight in a unit it does not know used to be worth
-// ZERO fine ounces, persisted, on a parcel of real metal.
 test('the SQL definition values every unit the business quotes in', async () => {
   assert.equal(await fine(1, 't oz', 1), 1)
   assert.equal(Number((await fine(31.1034768, 'g', 1))!.toFixed(12)), 1)

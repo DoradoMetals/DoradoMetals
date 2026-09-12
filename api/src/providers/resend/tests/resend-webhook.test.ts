@@ -9,9 +9,6 @@ import {
   verify,
 } from '#providers/resend/resend-webhook.ts'
 
-// Hand-written from Resend's documented Svix scheme: the key is the base64
-// body of `whsec_`, the signed content is `id.timestamp.body`, HMAC-SHA256,
-// base64. The expected value below was NOT produced by the code under test.
 const SECRET = 'whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw'
 const ID = 'msg_2VeQjHPCLLHPz9zWLKwcxMKRvCF'
 const TIMESTAMP = '1757548800'

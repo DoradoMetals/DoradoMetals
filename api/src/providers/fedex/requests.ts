@@ -1,9 +1,6 @@
 import { DORADO_ADDRESS, DORADO_CONTACT } from '#providers/fedex/constants.ts'
 import type { Address, HoldAtLocation, Parcel, ParcelSchedule } from '@dorado/contracts'
 
-// `hold` is where the parcel waits to be collected, and it comes from the
-// caller because it is a row of places.locations (ruling 89). The inbound leg
-// travels TO that place; the return leg is held THERE for the customer.
 export function inboundLabelRequest(
   shipper: Address,
   personName: string,

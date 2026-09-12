@@ -196,11 +196,7 @@ test('rolling back a shipment write undoes the order it hangs off too', async ()
   }
 })
 
-// LD F3. A cancel links a SECOND shipment to the same fulfillment, and every
-// "the fulfillment's parcel" read ordered the links by their own random uuid -
-// so which leg the customer, the documents and `updateTracking` saw was a coin
-// flip per order. The return leg is its own kind of link, never the parcel.
-test('the return leg never becomes the fulfillment\'s parcel', async () => {
+test("the return leg never becomes the fulfillment's parcel", async () => {
   await inRollback(async (c: PoolClient) => {
     const orderId = await anOrderWithoutShipment(c)
     const handover = await inbound(c, orderId)
@@ -229,9 +225,6 @@ test('the return leg never becomes the fulfillment\'s parcel', async () => {
   })
 })
 
-// LD F4. `create(order_id, 'Return')` resolved the order's existing fulfillment
-// and asserted its category was SHIPMENT, so an order the customer handed over
-// in person could not be cancelled at all.
 test('a pickup order is cancellable - it simply has no return label', async () => {
   await inRollback(async (c: PoolClient) => {
     const order = await anOrder(c, await aUser(c), { direction: 'purchase' })
@@ -264,7 +257,11 @@ test('an unlabelled return leg is reused, not duplicated', async () => {
     await inbound(c, orderId)
 
     const first = await dual.returnLeg(orderId, { package_id: await packageId(c) }, c)
-    const second = await dual.returnLeg(orderId, { carrier_service_id: await carrierServiceId(c) }, c)
+    const second = await dual.returnLeg(
+      orderId,
+      { carrier_service_id: await carrierServiceId(c) },
+      c
+    )
     assert.equal(second, first, 'a second return shipment was minted')
 
     const shipment = await dual.getById(first!, c)

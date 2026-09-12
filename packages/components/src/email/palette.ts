@@ -10,7 +10,6 @@ export type Palette = {
   onPrimary: string
 }
 
-/** A mailer's ground: the app's own dark surface. */
 export const screen: Palette = {
   background: color('background'),
   card: color('card'),
@@ -21,7 +20,6 @@ export const screen: Palette = {
   onPrimary: color('primary-foreground'),
 }
 
-/** The same roles on paper, and the pair the Documents page binds to. */
 export const paper: Palette = {
   background: color('primary'),
   card: color('primary'),

@@ -69,12 +69,6 @@ export async function create(
   return await getById(id, tx)
 }
 
-// THE ONE CALL A CANCEL MAKES. A return leg is a leg of its own: it is never
-// the fulfillment's parcel (LD F3), and it exists only where the metal has to
-// travel back by post - a pickup or an appointment order is cancelled with no
-// return label at all, which is why this answers null rather than refusing
-// (LD F4). An unlabelled return leg already on the order is reused, so a
-// second cancel cannot orphan the first label (LD F5).
 export async function returnLeg(
   order_id: string,
   patch: ShipmentWrite,

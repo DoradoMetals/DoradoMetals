@@ -47,9 +47,6 @@ function immediateWriteResponse(res: NodeResponse): Stripe.HttpClientResponse {
   }
 }
 
-// Stripe 22 made HttpClient/HttpClientResponse non-generic interfaces
-// (HttpClientInterface / HttpClientResponseInterface). The five methods and
-// makeRequest's eight arguments are unchanged, so the body below is v18's.
 const immediateWriteHttpClient: Stripe.HttpClient = {
   getClientName: () => 'node-immediate-write',
   makeRequest(host, port, path, method, headers, requestData, protocol, timeout) {
@@ -71,12 +68,6 @@ const immediateWriteHttpClient: Stripe.HttpClient = {
   },
 }
 
-// The money path pins its API version rather than inheriting whatever the SDK
-// happens to default to. `Stripe.LatestApiVersion` is a literal type equal to
-// the version THIS SDK ships (22.6.1 -> "2026-08-26.dahlia"), so a future SDK
-// bump that moves the wire format fails to compile here instead of changing
-// what Stripe sends back at runtime. D203 deferred this upgrade precisely to
-// stop that drift arriving unannounced.
 const API_VERSION: Stripe.LatestApiVersion = '2026-08-26.dahlia'
 
 const stripeClient = new Stripe(key, {

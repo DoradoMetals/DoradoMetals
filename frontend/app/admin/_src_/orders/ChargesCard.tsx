@@ -14,10 +14,6 @@ export type ChargesCardProps = {
   refining?: RefiningTotals | null
 }
 
-// What comes off the order before the money moves. Shipping shows only for a
-// shipment; Pool Oz Remediated only where a refiner pool is in play. A refiner
-// order has no transactions row, so its figures are the `refining.order_money`
-// view's.
 export function ChargesCard({
   totals,
   showShipping,

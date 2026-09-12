@@ -1,9 +1,5 @@
 import type { PlaidData, PlaidFeedTransaction, PlaidSync } from '#providers/plaid/types.ts'
 
-// The recording fake. `feed()` is what a test uses to say what the Truist
-// account reports next; the cursor advances the way Plaid's does, so a sync
-// that stops half way resumes where it stopped.
-
 type Call = { what: string; detail: string }
 
 const calls: Call[] = []

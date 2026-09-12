@@ -10,8 +10,6 @@ import * as inputs from '#documents/pdfs/order-inputs.ts'
 import * as orderRead from '#orders/read.ts'
 import { Forbidden, NotFound } from '#shared/errors.ts'
 
-// The caller may ask for this order's mail only if the order is theirs. WHERE
-// the mail goes is the mailer's own SQL read, never the caller's to name.
 async function assertTheirs(order_id: string, caller: Request['user']): Promise<void> {
   const order = await orderRead.view(order_id)
   if (!order) throw new NotFound(`no order ${order_id}`)
@@ -28,9 +26,6 @@ export const sendPricedEmail = asyncHandler(async (req, res) => {
   return res.status(200).json({ success: true })
 })
 
-// Resend's status callbacks. An unsigned delivery is an unauthenticated caller
-// and is answered as one; an event naming a message the trail does not hold is
-// accepted, because refusing it would only make Resend retry it for ever.
 export const handleResendWebhook = asyncHandler(async (req, res) => {
   const raw = Buffer.isBuffer(req.body) ? req.body.toString('utf8') : ''
   const id = oneString(req.headers[email.ID_HEADER])

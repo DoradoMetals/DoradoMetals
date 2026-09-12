@@ -25,11 +25,6 @@ test('the conversation read is one query, oldest first', async () => {
       const phone = '+15125559101'
       const user = await aUser(client, { phone_number: phone })
 
-      // now() is frozen for the whole pinned transaction, so two ordinary
-      // inserts a moment apart in real life would tie here - the audit_stamp
-      // trigger COALESCEs a supplied created_at (migration 116), so distinct
-      // values are given directly to make the order deterministic in THIS
-      // harness. Production rows get theirs from separate transactions.
       await client.query(
         `INSERT INTO crm.sms_messages
                 (direction, provider, provider_sid, from_number, to_number, body, status, user_id, created_at)

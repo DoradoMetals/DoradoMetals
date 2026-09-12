@@ -31,9 +31,6 @@ import { Direction } from '../orders/enums.js'
 
 const money = z.union([z.number(), z.string()]).nullable()
 
-// The two purposes an intent is ever created for. `type` is NOT NULL in the
-// database and the column has no default, so a caller that omits it used to
-// mint a live Stripe intent and then 23502 on the way to recording it.
 export const PaymentIntentType = z.enum(['sales_order_checkout', 'admin'])
 export type PaymentIntentType = z.infer<typeof PaymentIntentType>
 

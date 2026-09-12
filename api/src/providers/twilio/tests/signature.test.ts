@@ -3,10 +3,6 @@ import assert from 'node:assert/strict'
 
 import { payload, sign, verify } from '#providers/twilio/signature.ts'
 
-// Twilio's worked example. The concatenation is the string their documentation
-// prints; EXPECTED is what HMAC-SHA1 of it under "12345" is. A signature this
-// file computed for itself would prove only self-consistency, so the primitive
-// is pinned separately against a standard HMAC-SHA1 vector below.
 const URL = 'https://mycompany.com/myapp.php?foo=1&bar=2'
 const PARAMS = {
   Digits: '1234',
@@ -64,9 +60,6 @@ test('an empty or short signature is refused rather than throwing', () => {
   assert.equal(verify(URL, PARAMS, 'short', TOKEN), false)
 })
 
-// The primitive itself, against a vector this repository did not compute: a
-// signature the module checks against its own output would pass even if the
-// hash were wrong.
 test('the underlying keyed hash is HMAC-SHA1', () => {
   const known = 'de7c9b85b8b78aa6bc8a7a36f70a90701c9db4d9'
   const signed = sign('The quick brown fox jumps over the lazy dog', {}, 'key')

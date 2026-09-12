@@ -91,10 +91,6 @@ export async function applyDelivery(
   return rows.length > 0
 }
 
-// One read per mailer. Each returns a single jsonb object - the addressee, the
-// order it belongs to and the summary card's rows already assembled - which its
-// own contract parses. Nothing is stitched afterwards (ruling 78): a row of the
-// card is a row of the read.
 async function contentOf(name: string, key: string, executor?: Executor): Promise<unknown> {
   const { rows } = await query<{ content: unknown }>(sql(name), [key], executor)
   return rows[0]?.content
@@ -179,8 +175,6 @@ export async function documentSent(
   return row === undefined ? null : DocumentSent.parse(row)
 }
 
-// Tomorrow's appointments that have not been reminded yet. The trail is the
-// idempotency - see the SQL.
 export async function appointmentsDueTomorrow(executor?: Executor): Promise<string[]> {
   const { rows } = await query<{ order_id: string }>(sql('appointments_tomorrow'), [], executor)
   return rows.map((row) => row.order_id)

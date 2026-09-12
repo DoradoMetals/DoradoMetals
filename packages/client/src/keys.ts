@@ -1,10 +1,3 @@
-// THE QUERY-KEY TABLE.
-//
-// One namespace per resource, and a namespace exists only while a hook that
-// caches under it exists. The table is not a registry of what the API can
-// answer - it is a registry of what this app currently caches - so a key for a
-// hook that no longer exists is a claim nothing backs. Each namespace comes
-// back with its resource module, in the pass that builds the screen.
 export const keys = {
   auth: {
     all: () => ['auth'] as const,
@@ -12,8 +5,6 @@ export const keys = {
   },
   orders: {
     all: () => ['orders'] as const,
-    // The admin index's table. The filters are the route's own query
-    // parameters, so a key is what was asked for, not what came back.
     list: (direction: string | null, userId: string | null) =>
       ['orders', 'list', direction, userId] as const,
     view: (id: string) => ['orders', 'view', id] as const,

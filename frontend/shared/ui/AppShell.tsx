@@ -23,12 +23,8 @@ import {
 import { useGetSession, useSignOut } from '@/shared/hooks/auth/queries'
 import { signInHref } from '@/shared/utils/returnTo'
 
-// The auth screens draw their own full-bleed panel (AuthShell), so they wear no
-// chrome. Everything else does.
 const BARE_PREFIXES = ['/auth']
 
-// Admin wears the Header and NO Footer: every frame in the Orders file
-// (ymmNlCDLVIfanpRQ7QHMIs) is Header at y=0 then Content, and none has one.
 const NO_FOOTER_PREFIXES = ['/admin']
 
 const isUnder = (pathname: string, prefixes: string[]) =>
@@ -58,14 +54,6 @@ function initials(name?: string | null, email?: string | null) {
 
 type Entry = { href: string; label: string }
 
-// EVERY LINK IN THE CHROME RESOLVES TO A ROUTE THAT EXISTS, and that is the
-// whole rule of this file. Figma's Header draws How It Works / Pricing / About
-// / Contact and the Footer draws Company and Legal columns; none of those
-// routes was rebuilt after the nuke, so none of them is drawn here. A nav entry
-// or a footer column appears the day its page does.
-//
-//   nav      Home, and Admin for a signed-in admin.
-//   account  the two Settings screens, or the two ways in when signed out.
 const HOME: Entry = { href: '/', label: 'Home' }
 const ADMIN: Entry = { href: '/admin', label: 'Admin' }
 
@@ -74,13 +62,10 @@ const SIGNED_IN_ACCOUNT: Entry[] = [
   { href: '/settings/phone', label: 'Phone' },
 ]
 
-const SIGNED_OUT_ACCOUNT: Entry[] = [
-  { href: '/auth/sign-up', label: 'Create an account' },
-]
+const SIGNED_OUT_ACCOUNT: Entry[] = [{ href: '/auth/sign-up', label: 'Create an account' }]
 
 function useChrome() {
   const { user } = useGetSession()
-  // Signing in from the nav returns to the page it was clicked on.
   const pathname = usePathname() ?? '/'
   const signedIn = Boolean(user)
   const isAdmin = user?.role === 'admin'
@@ -151,9 +136,6 @@ function AccountMenu() {
   )
 }
 
-// The Drawer carries the same links the desktop bar does - the nav entries and
-// the account entries - because the mobile bar is brand and hamburger only
-// (Figma 51:57) and this is where the rest of the header goes.
 function MenuPanel({ pathname, onNavigate }: { pathname: string; onNavigate: () => void }) {
   const { signedIn, nav, account } = useChrome()
   const { mutate: signOut } = useSignOut()
@@ -187,10 +169,6 @@ function MenuPanel({ pathname, onNavigate }: { pathname: string; onNavigate: () 
 function SiteFooter() {
   const { account } = useChrome()
 
-  // ONE COLUMN, AND THAT IS NOT AN OVERSIGHT. `Footer` renders whatever columns
-  // it is handed, so a Company column is one array entry away - but About,
-  // Contact and Careers do not exist as routes, and a footer link that 404s is
-  // worse than a footer that is short.
   return (
     <Footer
       brand={<BrandMark />}

@@ -1,60 +1,8 @@
-// Appearance classes on shared-component call sites, which is Jacob's rule
-// made checkable: "the only tailwind that should REALLY live in consuming
-// components is layout like flex/grid padding/margins etc etc."
-//
-// He said it three times in one session, each time more generally - about one
-// Button, then about Button as a component, then about every shared component -
-// which is what a rule looks like just before it decays. A rule nothing checks
-// survives exactly as long as nobody is in a hurry.
-//
-// WHAT IT LOOKS FOR. A call site of a component imported from shared/ui that
-// passes a className containing APPEARANCE: colour, type size, weight, border,
-// radius, shadow, opacity, transition, or a hover:/focus: spelling of any of
-// them. Layout is fine and always was - flex/grid, gap, margins, width/height,
-// position, alignment - because the parent legitimately decides an element's
-// extent. Jacob's own example of the allowed case: "if we need it to stretch
-// the full length of a drawer or parent or some shit."
-//
-// THE TWO CLUSTERS ARE REPORTED SEPARATELY, because they mean different things
-// and imply different fixes:
-//
-//   CONTRADICTED - the element passes `variant=X` AND overrides appearance.
-//     <Button variant="secondary" className="bg-primary text-primary-foreground">
-//     It asks for one variant and paints itself another, so the prop is
-//     decorative and no reader can tell what it looks like without resolving the
-//     cascade. Either the author wanted a variant that does not exist, or the
-//     one they named is wrong. Highest signal in the codebase.
-//
-//   OVER-SPECIFIED - appearance classes with no variant prop, including the
-//     tell-tale self-cancelling hover (`bg-primary hover:bg-primary`), which
-//     nobody writes unless the variant's hover state is broken.
-//
-// PADDING IS DELIBERATELY NOT FLAGGED, and that is a judgement call worth
-// knowing about. For a component with SIZE variants, padding is the size's job
-// (`px-10` means "this button is wide"), so a padding override is usually a
-// missing size. But padding is also genuine layout on a plain container, and
-// this script cannot tell which component has sizes without reading each one.
-// Flagging it would bury the real findings in noise. See ruling 20 in
-// FOLLOWUPS.md - the size matrix is where padding gets fixed.
-//
-// NOT IN `pnpm check` YET, and exits non-zero by design while the sweep is
-// outstanding: the styling inventory measured 422 appearance overrides across
-// shared/ui call sites, so gating today would paint the gate red for a known
-// thing and train everyone to ignore it. Same reasoning that keeps
-// audit:enum-domains out. Add it to the chain when the sweep lands and it will
-// hold the line that Jacob otherwise has to restate every few months.
-//
-//   node scripts/lint-call-site-styling.mjs [--self-test] [--json]
-
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '')
 
-// Appearance: the component's or the theme's business, never the caller's.
-// Ordered most-specific-first so `text-sm` is read as type size while
-// `text-left` is read as alignment (which is layout, and 239 of them exist -
-// a naive `text-` rule would flag every one).
 const TYPE_SIZES =
   /^(text|font)-(xs|sm|base|lg|xl|[2-9]xl|display|h[1-6]|body|small|micro|thin|light|normal|medium|semibold|bold|black|mono|sans|serif)$/
 const APPEARANCE = [
@@ -74,26 +22,16 @@ const APPEARANCE = [
   /^via-/,
   /^to-/,
   /^gradient/,
-  // project-local decoration on death row (ruling 16)
   /^glass/,
   /^on-glass/,
   /^raised-off-page$/,
   /^recessed/,
   /^shine/,
 ]
-// text-<colour>: any text- that is not a size, not an alignment, not a
-// wrapping/transform utility. Colour tokens are the tail of this list.
 const TEXT_LAYOUT =
   /^text-(left|center|right|justify|start|end|wrap|nowrap|balance|pretty|ellipsis|clip)$/
 
 function classifies(token) {
-  // strip variant prefixes (hover:, focus:, sm:, dark:, group-hover:) but
-  // REMEMBER whether a state prefix was present - a hover: appearance class is
-  // the component's job by name, per Jacob: "Even things like hover:{text} need
-  // to live on the variant at the shared component level."
-  // Strip the syntax that survives splitting a cn() argument list on
-  // whitespace - quotes, commas, backticks - BEFORE classifying. Without this,
-  // `text-center'` failed the alignment test and was reported as a colour.
   const cleaned = token.replace(/^[`'",]+|[`'",]+$/g, '')
   const bare = cleaned.replace(/^(?:[a-z-]+:)+/, '')
   if (!bare || bare.startsWith('[')) return null
@@ -104,43 +42,6 @@ function classifies(token) {
   return null
 }
 
-// EVERY CLASS STRING A className CARRIES, WHATEVER SPELLING IT ARRIVES IN.
-//
-// WHY THIS EXISTS, and it is the sharpest finding of the guard-hardening pass.
-// `--scatter` used to match two spellings only:
-//
-//     className="text-sm"          and          className={`text-${n}`}
-//
-// The tree has 205 call sites spelled `className={cn('text-sm', ...)}` and NOT
-// ONE OF THEM WAS EVER READ. So the scan reported 0 type-size utilities across
-// 263 files, and that zero was quoted in a commit message as evidence the
-// typography sweep was finished. It meant "zero of the ones I can see".
-//
-// That is D95's lesson and D135's in one instrument: a detector's blind spot
-// reports as CLEAN, and a report that cannot see part of its subject prints a
-// smaller number and exits 0. The sibling default mode had already handled
-// `{cn(...)}` for the same reason - the machinery was in this very file and
-// --scatter did not use it.
-//
-// HOW IT READS THEM NOW: take the whole balanced `{...}` expression after
-// `className=`, then pull every STRING LITERAL out of it. That covers cn(),
-// clsx(), ternaries, nested calls, template literals and any combination -
-// because the class names are always literals somewhere inside, whatever
-// function is arranging them.
-//
-// *** WHAT IT STILL CANNOT SEE, stated here because a blind spot nobody wrote
-// down is a blind spot that reports as clean: ***
-//   - A CLASS STRING HELD IN A VARIABLE OR IMPORTED: `className={styles.head}`,
-//     `const heading = "text-lg"` used elsewhere, or a cva()/tv() variant map
-//     defined at module scope. The literal is real but it is not inside the
-//     className expression, so nothing here attributes it to a call site.
-//     Arbitrary sizes (`text-[10px]`) are exempt from this gap: they are matched
-//     against the WHOLE file, not just className expressions.
-//   - A CLASS NAME ASSEMBLED FROM FRAGMENTS: `text-${size}` yields no literal
-//     token to classify, and `"text-" + size` yields "text-" alone.
-//   - ANYTHING OUTSIDE .tsx. Class strings in .ts helpers are not walked.
-// Each of those is a real occurrence this number does not include. The count is
-// a floor on the scatter, never a proof of zero.
 function classNameExpressions(src) {
   const out = []
   const re = /\bclassName=/g
@@ -155,7 +56,6 @@ function classNameExpressions(src) {
       continue
     }
     if (src[i] !== '{') continue
-    // Balanced braces, so a nested object or a second cn() does not truncate it.
     let depth = 0
     const start = i
     for (; i < src.length; i += 1) {
@@ -170,8 +70,6 @@ function classNameExpressions(src) {
   return out
 }
 
-// The class tokens inside one className expression. A bare attribute value is
-// itself the class list; an expression is mined for its string literals.
 function classTokens(expr) {
   const literals = [...expr.matchAll(/"([^"]*)"|'([^']*)'|`([^`]*)`/g)].map(
     (m) => m[1] ?? m[2] ?? m[3] ?? ''
@@ -191,14 +89,8 @@ function walk(dir, out = []) {
   return out
 }
 
-// Component names imported from shared/ui in a given file. Only those are call
-// sites we can hold to the rule - a local <div> is not a shared component.
 function sharedImports(src) {
   const names = new Set()
-  // `(\w+)\s*,` USED TO REQUIRE THE COMMA, so a plain default import
-  // (`import Drawer from '...'`) was never scanned and its call sites were
-  // never flagged anywhere in the tree - found by the P1 sweep agent, and a
-  // reminder that a detector's blind spot reports as clean code (see D95).
   const re =
     /import\s+(?:(\w+)\s*(?:,\s*)?)?(?:\{([^}]*)\})?\s*from\s*['"]([^'"]*shared\/ui[^'"]*)['"]/g
   let m
@@ -213,8 +105,6 @@ function sharedImports(src) {
   return names
 }
 
-// Elements of those components, with their attribute blob. Deliberately simple:
-// this is a lint, and a miss is better than a false alarm nobody trusts.
 function elements(src, names) {
   const found = []
   for (const name of names) {
@@ -223,15 +113,6 @@ function elements(src, names) {
     while ((m = re.exec(src))) {
       const attrs = m[1]
       const line = src.slice(0, m.index).split('\n').length
-      // THE SAME EXTRACTOR --scatter USES. This spelled out three forms - a
-      // quoted string, a bare template literal, and `cn(...)` matched with
-      // `[^)]*`, which TRUNCATES at the first close paren and so lost everything
-      // after a nested call. clsx() and a plain ternary were not handled at all.
-      // Three spellings enumerated by hand is how --scatter came to report zero.
-      //
-      // BLIND SPOT WORTH NAMING HERE TOO: the element regex above stops the
-      // attribute blob at the first `>`, so a call site whose attributes contain
-      // an arrow function (`onClick={() => ...}`) is read only up to that point.
       const exprs = classNameExpressions(attrs)
       if (!exprs.length) continue
       const blob = exprs.flatMap((e) => classTokens(e)).join(' ')
@@ -261,7 +142,7 @@ export const X = () => (<>
     process.exit(1)
   }
   const verdicts = els.map((e) => e.blob.split(/\s+/).some((t) => classifies(t)))
-  const expected = [true, true, false, false] // c is pure layout, d is alignment
+  const expected = [true, true, false, false]
   if (String(verdicts) !== String(expected)) {
     console.error(`SELF-TEST FAILED: verdicts ${verdicts}, expected ${expected}`)
     console.error('  (layout-only and text-center must NOT flag; 239 alignment classes exist)')
@@ -271,17 +152,11 @@ export const X = () => (<>
     console.error('SELF-TEST FAILED: variant detection wrong')
     process.exit(1)
   }
-  // THE cn() BLIND SPOT, pinned so it cannot reopen. --scatter matched
-  // `className="..."` and a bare template literal only, so the 205 call sites
-  // spelled `className={cn(...)}` were never read and the mode reported 0 type
-  // sizes across 263 files. That zero was quoted as evidence the typography
-  // sweep was finished; the real number was 28.
   const CN_CASES = [
     [`<div className={cn("flex", active && "text-2xl font-bold")} />`, ['text-2xl', 'font-bold']],
     [`<div className={cn(clsx("gap-2", "text-sm"))} />`, ['text-sm']],
     [`<div className={active ? "text-lg" : "text-xs"} />`, ['text-lg', 'text-xs']],
     [`<div className={cn("p-2", { "font-medium": on })} />`, ['font-medium']],
-    // Must NOT flag: alignment is layout, and pure layout is the allowed case.
     [`<div className={cn("text-center", "flex w-full")} />`, []],
   ]
   for (const [markup, want] of CN_CASES) {
@@ -302,7 +177,6 @@ export const X = () => (<>
       process.exit(1)
     }
   }
-  // And the balanced-brace reader must not truncate on a nested object.
   const nested = classNameExpressions(`<div className={cn("a", { "text-sm": x })} data-x="y" />`)
   if (nested.length !== 1 || !nested[0].includes('text-sm')) {
     console.error('SELF-TEST FAILED: nested braces truncated the className expression')
@@ -315,34 +189,7 @@ export const X = () => (<>
   process.exit(0)
 }
 
-// --scatter: the OTHER half of the question, and the one Jacob actually feels.
-// The call-site check above asks "does this element style what a component
-// should own". This asks "is typography scattered across the app at all" -
-// every type-size and weight utility ANYWHERE in a .tsx, not only on shared
-// components. His words: "I would prefer to not have text styles scattered all
-// over the app, it feels terrible to deal with. Would much rather just throw
-// those on semantic html, use those semantic html for similar things and then
-// have only one place to update."
-//
-// So this is the acceptance test for the whole typography workstream, and it
-// has a target rather than a threshold: ZERO, minus whatever the manual runbook
-// legitimately excepts. When it reads zero, changing a heading size is one line
-// in typography.css - which is the entire point.
-//
-// Alignment (text-left/center/right) and arbitrary sizes are counted
-// separately: alignment is LAYOUT and never in scope, while `text-[10px]` is a
-// SCALE GAP - each one is a size the token set failed to offer.
 if (process.argv.includes('--scatter')) {
-  // `shared/ui` IS EXCLUDED, by Jacob's ruling 35: "shared primitives can
-  // carry both" - raw Tailwind sizes and semantic scale tokens are equally
-  // acceptable INSIDE a component, because that is ruling 20 working rather
-  // than failing. A Dialog deciding it is `text-lg` owns its appearance; a
-  // FEATURE file deciding it is `text-lg` is hardcoding what typography.css
-  // should own, and that is the whole distinction this metric exists to draw.
-  //
-  // Counting the primitives made the target unreachable, and a target that
-  // cannot be reached is a number everyone learns to ignore. It reported 28
-  // for exactly this reason.
   const all = walk(ROOT)
     .filter((f) => !f.includes('/scripts/'))
     .filter((f) => !f.includes('/shared/ui/'))
@@ -357,8 +204,6 @@ if (process.argv.includes('--scatter')) {
     let n = 0
     for (const expr of classNameExpressions(src)) {
       for (const raw of classTokens(expr)) {
-        // Strip the punctuation that survives splitting a cn() argument list -
-        // the same clean-up classifies() needed for exactly this reason.
         const tok = raw.replace(/^[`'",]+|[`'",]+$/g, '')
         const bare = tok.replace(/^(?:[a-z-]+:)+/, '')
         if (TEXT_LAYOUT.test(bare)) {

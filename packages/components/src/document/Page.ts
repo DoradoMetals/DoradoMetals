@@ -24,11 +24,9 @@ export type PageProps = {
   body: ReactNode[]
   foot: ReactNode
   fontFaces?: string
-  /** Overrides the ramp's own Geist stack - a caller embedding a different face. */
   fontFamily?: string
 }
 
-/** One Letter sheet: header, the bands, the footer pinned to the bottom. */
 export function Page({
   title,
   head,

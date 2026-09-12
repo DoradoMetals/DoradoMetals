@@ -29,10 +29,6 @@ export const jobs = (): Job[] => [
     },
   },
   {
-    // The one SCHEDULED mailer (ruling 95). Which appointments are due is a SQL
-    // question whose answer already excludes every order the email trail says
-    // has been reminded, so running this twice in a day sends nothing the
-    // second time and a missed tick is caught by the next one.
     name: 'appointment reminders',
     schedule: process.env.APPOINTMENT_REMINDER_SCHEDULE,
     run: async () => {

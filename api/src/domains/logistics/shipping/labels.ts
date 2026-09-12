@@ -71,9 +71,6 @@ export async function sealForPlacement(
   )
 }
 
-// The parcel's weight is the lots' declared weight. The lots are read through
-// their link rows, so a lot split after placement is weighed once per child and
-// never twice.
 async function lotsOf(order_id: string) {
   return await lotsRepo.getByIds((await orderLots.getFor(order_id)).map((row) => row.lot_id))
 }
@@ -195,18 +192,11 @@ export async function buyReturnLabel(shipment_id: string): Promise<void> {
   )
 }
 
-// The purchase is CLAIMED before the carrier is called, and the claim is what a
-// second attempt loses. Nothing is bought twice, and a purchase whose recording
-// transaction fails leaves the shipment claimed rather than open for a second
-// buy (LD F5).
 async function claim(shipment_id: string): Promise<void> {
   const claimed = await withTransaction((tx) => shipmentsRepo.claimForLabel(shipment_id, tx))
   rules.assertClaimed(claimed, shipment_id)
 }
 
-// What a returning parcel is insured for. A purchase cancelled before it is
-// priced has no order total, so the value the customer declared on the way in
-// is the floor (MP F5). Exposed for the cancel use case in orders.
 export async function returnDeclaredValue(
   order_id: string,
   order_total: number | null,
@@ -261,9 +251,6 @@ async function record(
   })
 }
 
-// Where a label is held for collection. One row, read from the database, so
-// nothing about the business's own address is written into the carrier adapter
-// (ruling 89).
 async function holdLocation(): Promise<HoldAtLocation> {
   const hold = await locationsRepo.defaultReturn()
   rules.assertReturnLocation(hold)
@@ -286,4 +273,3 @@ async function customerName(order_id: string): Promise<string> {
   if (!user_id) return ''
   return (await usersRepo.getOne(user_id))?.name ?? ''
 }
-

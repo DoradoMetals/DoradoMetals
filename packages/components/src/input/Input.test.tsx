@@ -5,8 +5,6 @@ import * as React from 'react'
 import { Input } from './Input'
 import { axeViolations } from '../test/axe'
 
-// Stand-in for a lucide icon: a plain <svg>, sized oversize on purpose to
-// prove the slot - not the caller - wins (Figma 26:391 draws it at 16px).
 function FakeIcon({ className }: { className?: string }) {
   return (
     <svg data-testid="fake-icon" className={className} width={24} height={24}>
@@ -73,7 +71,9 @@ describe('Input', () => {
   })
 
   it('State=ReadOnly keeps the full-contrast Default chrome and only stops edits (26:391, 2026-09-05)', () => {
-    const { container } = render(<Input label="Order number" readOnly value="PO-2481" onChange={() => {}} />)
+    const { container } = render(
+      <Input label="Order number" readOnly value="PO-2481" onChange={() => {}} />
+    )
     const input = container.querySelector('input') as HTMLInputElement
     expect(input.readOnly).toBe(true)
     expect(input.disabled).toBe(false)

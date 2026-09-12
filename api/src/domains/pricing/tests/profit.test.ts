@@ -1,8 +1,3 @@
-// What `profit_breakdown.sql` must answer, in numbers.
-//
-// Every expectation here is hand-computed from the fixture and written out
-// long, because this file is the oracle for the rewrite: the SQL replaced 377
-// lines of TypeScript and the only thing carried across was the arithmetic.
 import { test, afterAll } from 'vitest'
 import assert from 'node:assert/strict'
 import pool from '#pool'
@@ -46,8 +41,6 @@ test('a purchase order splits every line three ways, per metal and per category'
       const seller = await aUser(c)
       const product = await aProduct(c, { metal_id: 'Gold', content: 2 })
 
-      // One scrap line the customer was paid 0.9 of spot for, and one product
-      // line at 0.95 - three of them, so its declared content is 2 x 3.
       const order = await anOrder(c, seller, { direction: 'purchase' })
         .withLines(
           { metal_id: 'Gold', content: 10, premium: 0.9, quantity: 1 },
@@ -68,9 +61,6 @@ test('a purchase order splits every line three ways, per metal and per category'
       await aPayout(c, seller, { order, payout_fee: 20 })
       await aShipment(c, order, { cost: 24.5 })
 
-      // The refiner takes the parcel at a higher premium, and its assay weighs
-      // the scrap HEAVIER than the customer declared. Its feed is the pool's
-      // last lock price, which is what the metal changed hands at.
       const engagement = await aRefiningOrder(c, order, {
         lock: { metal_id: 'Gold', troy_oz: 1, lock_price: 120 },
       })
@@ -97,9 +87,6 @@ test('a purchase order splits every line three ways, per metal and per category'
         'a metal with no line in the order got a row anyway'
       )
 
-      // Scrap: customer 10 x 0.9 = 9 oz at the order's frozen bid of 100.
-      // The refiner keeps 1 - 0.94 of the 10.5 oz that actually arrived, Dorado
-      // the remainder, and both settle at the refiner's bid of 120.
       close(shareOf(b, 'scrap', 'customer', 'Gold')?.content, 9, 'scrap customer content')
       close(shareOf(b, 'scrap', 'customer', 'Gold')?.profit, 900, 'scrap customer profit')
       close(shareOf(b, 'scrap', 'refiner', 'Gold')?.content, 0.63, 'scrap refiner content')
@@ -108,8 +95,6 @@ test('a purchase order splits every line three ways, per metal and per category'
       close(shareOf(b, 'scrap', 'dorado', 'Gold')?.profit, 104.4, 'scrap dorado profit')
       close(shareOf(b, 'scrap', 'refiner', 'Gold')?.percentage, 6, 'scrap refiner percentage')
 
-      // Bullion: 6 oz declared, no assay weight of its own, so all three shares
-      // come off the same 6.
       close(shareOf(b, 'bullion', 'customer', 'Gold')?.content, 5.7, 'bullion customer content')
       close(shareOf(b, 'bullion', 'customer', 'Gold')?.profit, 570, 'bullion customer profit')
       close(shareOf(b, 'bullion', 'refiner', 'Gold')?.content, 0.12, 'bullion refiner content')
@@ -128,7 +113,6 @@ test('a purchase order splits every line three ways, per metal and per category'
       close(shareOf(b, 'total', 'refiner', 'Gold')?.content, 0.75, 'total refiner content')
       close(shareOf(b, 'total', 'refiner', 'Gold')?.profit, 90, 'total refiner profit')
 
-      // The three shares of a metal are exactly its ounces - no rounding slack.
       for (const category of ['scrap', 'bullion', 'total']) {
         const rows = b.shares.filter((s) => s.category === category)
         close(
@@ -138,10 +122,6 @@ test('a purchase order splits every line three ways, per metal and per category'
         )
       }
 
-      // The customer pays the inbound parcel and the payout fee; Dorado is up
-      // the difference between what it charged for carriage and what carriage
-      // cost, and down the refiner's fee; the spot gap on every ounce the
-      // customer was paid for (14.7 x 20) is Dorado's alone.
       close(partyOf(b, 'customer')?.shipping_net, -14.5, 'customer shipping_net')
       close(partyOf(b, 'customer')?.refiner_fee_net, -20, 'customer refiner_fee_net')
       close(partyOf(b, 'customer')?.spot_net, 0, 'customer spot_net')
@@ -165,9 +145,6 @@ test('a purchase order splits every line three ways, per metal and per category'
 test("a scrap line with no premium of its own takes the band the order's ounces earn", async () => {
   await inPinnedTransaction(
     async (c) => {
-      // The rule, stated independently of the SQL under test: of the bands that
-      // contain the total, the one with the lowest floor wins - so a total
-      // sitting exactly on a boundary takes the LOWER band.
       const { rows } = await c.query<{ scrap_pct: number }>(
         `SELECT r.scrap_pct FROM rates.rates r
         WHERE r.metal_id = 'Gold'
@@ -188,8 +165,6 @@ test("a scrap line with no premium of its own takes the band the order's ounces 
 
       const b = await profitBreakdown(order.id)
 
-      // No premium anywhere means the band is BOTH premiums: the customer takes
-      // the band, the refiner the rest, and Dorado nothing.
       close(shareOf(b, 'total', 'customer', 'Gold')?.content, 10 * band, 'customer content')
       close(shareOf(b, 'total', 'refiner', 'Gold')?.content, 10 * (1 - band), 'refiner content')
       close(shareOf(b, 'total', 'dorado', 'Gold')?.content, 0, 'dorado content')
@@ -213,8 +188,6 @@ test('a sale has no refiner: the customer owns all of it and Dorado keeps the ca
       const buyer = await aUser(c)
       const product = await aProduct(c, { metal_id: 'Gold', content: 1 })
 
-      // An ask premium is above spot, and a share cannot be more than the whole
-      // - it clamps to 1, which is what the old TypeScript did too.
       const order = await anOrder(c, buyer, { direction: 'sale' })
         .withLines({
           metal_id: 'Gold',

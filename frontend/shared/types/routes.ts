@@ -1,20 +1,3 @@
-// THE ROUTE TABLE, AFTER THE NUKE (ruling 99).
-//
-// This used to carry twenty-odd entries and eight fields each, because it fed
-// three consumers at once: the desktop nav, the mobile sidebar and the footer
-// all read their labels and their visibility out of it, and `sitemap.ts` read
-// which paths to publish. All four are deleted. What is left reads two fields
-// from two consumers:
-//
-//   - `roles`, by `ProtectedPage` on the two `/settings` change screens.
-//   - `seoIndex`, by `app/robots.ts`, which disallows every path that is not
-//     indexable.
-//
-// EVERY ROUTE HERE IS BEHIND A SIGN-IN, AND NONE OF THEM IS INDEXABLE. A
-// sign-in panel is not a landing page and a verification screen is a dead end
-// to a crawler, so `robots.ts` keeps the whole surface out of the index and
-// only `/` is left to allow. The labels and the display flags come back with
-// the nav, when there is something to navigate to.
 type RouteConfig = {
   path: string
   roles: string[]

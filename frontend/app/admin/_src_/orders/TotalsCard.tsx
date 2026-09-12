@@ -11,9 +11,6 @@ export type TotalsCardProps = {
   refining?: RefiningTotals | null
 }
 
-// The order's money, as the order's own transaction row records it - or, for a
-// refiner order, as `refining.order_money` defines it once. Nothing here is
-// summed in the browser.
 export function TotalsCard({ totals, totalLabel, refining }: TotalsCardProps) {
   const total = refining ? refining.total : (totals?.post_charges_amount ?? totals?.total ?? null)
 

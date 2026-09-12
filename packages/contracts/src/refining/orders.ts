@@ -32,9 +32,6 @@ export type RefiningOrder = z.infer<typeof RefiningOrder>
 import { Lot } from '../lots/items.js'
 import { RefiningLot, RefiningLotPatch } from './lots.js'
 
-// `lot_ids` is optional and, when named, the create and the assignment are one
-// transaction - a failure after the insert used to leave an empty refiner order
-// behind.
 export const RefiningOrderCreate = RefiningOrder.pick({
   refiner_id: true,
   direction: true,

@@ -20,9 +20,6 @@ import type {
 import { apiRequest, apiRequestForm } from '../fetch'
 import { keys } from '../keys'
 
-// EVERY REFINER ORDER - the admin index's second table. `GET /refining/orders`
-// is admin-only and answers the same view the screen reads, so a row here
-// carries its refiner and its state without a second call.
 export function useRefiningOrders(
   filters: {
     refiner_id?: string | null
@@ -62,8 +59,6 @@ export function useRefiningLots(id: string, options: { enabled?: boolean } = {})
   })
 }
 
-// A refiner order's four frozen prices: the pool's last lock for that refiner
-// and metal, with `locked` saying whether it is a lock or the live bid.
 export function useRefiningSpots(id: string, options: { enabled?: boolean } = {}) {
   return useQuery<RefiningSpot[]>({
     queryKey: keys.refining.spots(id),
@@ -149,15 +144,12 @@ export function useDeleteRefiningLot() {
   )
 }
 
-// Cancelling RELEASES the lots, so the order namespace goes too.
 export function useCancelRefiningOrder(id: string) {
   return useRefiningWrite(() =>
     apiRequest<RefiningOrderView>('POST', `/refining/orders/${id}/cancel`, {})
   )
 }
 
-// The refiner's settlement statement arrives as a file; there is no Send on a
-// refiner order, because a refiner is not a customer (ruling 15).
 export function useImportRefiningDocument(id: string) {
   return useRefiningWrite(({ kind, file }: { kind: string; file: File }) => {
     const form = new FormData()

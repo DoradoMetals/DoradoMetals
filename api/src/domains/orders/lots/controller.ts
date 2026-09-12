@@ -4,11 +4,12 @@ import { oneString } from '#shared/http/query.ts'
 import * as orders from '#orders/service.ts'
 import { LotSplit, OrderLotPatch } from '@dorado/contracts'
 
-// The Adding Lot autocomplete. `unassigned=true` is the batching case: lots no
-// refiner order holds yet.
 export const searchLots = asyncHandler(async (req, res) => {
   return res.json(
-    await orders.searchLots(oneString(req.query.q) ?? null, oneString(req.query.unassigned) === 'true')
+    await orders.searchLots(
+      oneString(req.query.q) ?? null,
+      oneString(req.query.unassigned) === 'true'
+    )
   )
 })
 

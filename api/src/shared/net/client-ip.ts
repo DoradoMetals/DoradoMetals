@@ -5,8 +5,6 @@ export type IpSource = {
   socket?: { remoteAddress?: string | null } | null
 }
 
-// CF-Connecting-IP is trusted only behind Cloudflare, and X-Forwarded-For is
-// never read: anything may send it.
 export function clientIp(req: IpSource): string | null {
   if (process.env.TRUST_CLOUDFLARE === '1') {
     const header = req.headers['cf-connecting-ip']

@@ -270,8 +270,6 @@ test('a label is offered only while the inbound parcel has none', () => {
 test('cancelling needs somewhere to send the metal back to', () => {
   assert.equal(rules.actionsFor(facts()).cancel, true)
   assert.equal(rules.actionsFor(facts({ address: null })).cancel, false)
-  // Supplying no longer waits on an address: the parcel is the refiner's to
-  // send, and what the action needs is lots to order.
   assert.equal(rules.actionsFor(facts(order({ direction: 'sale' }))).supply, true)
   assert.equal(rules.actionsFor({ ...facts(order({ direction: 'sale' })), lots: [] }).supply, false)
 })
@@ -284,8 +282,6 @@ test("payable and line_total are the view's SQL, not a rule", () => {
   assert.match(view, /ELSE ol\.price \* li\.quantity END/)
 })
 
-// MP F7 / MI F3. The quote reads the balance outside the placement
-// transaction; `placeSale` re-reads it FOR UPDATE and compares before spending.
 test('a balance that no longer covers what the quote applied is refused', () => {
   assert.doesNotThrow(() => rules.assertCreditCovers(100, 100))
   assert.doesNotThrow(() => rules.assertCreditCovers(100.01, 100))
@@ -297,8 +293,6 @@ test('a balance that no longer covers what the quote applied is refused', () => 
   assert.throws(() => rules.assertCreditCovers(undefined, 1), Conflict)
 })
 
-// MP F4 / MI F2. `actionsFor` advertised these three tests and the service
-// enforced none of them.
 test('add_funds is offered only for a DORADO_ACCOUNT payout that has not been credited', () => {
   const payable = { payout: { method: 'DORADO_ACCOUNT' } as Facts['payout'] }
   assert.equal(rules.actionsFor(facts(payable)).add_funds, true)
@@ -315,8 +309,6 @@ test('add_funds is offered only for a DORADO_ACCOUNT payout that has not been cr
   assert.doesNotThrow(() => rules.assertNotAlreadyCredited(false, 1))
 })
 
-// MP F12, and the Finalize gate Jacob's Sep 4-5 notes asked to be written down:
-// every lot confirmed, every lot priceable, and the metal actually received.
 test('the finalize gate names what it is waiting on, and refuses on the same list', () => {
   assert.deepEqual(rules.finalizeBlockedBy(facts()), [])
   assert.doesNotThrow(() => rules.assertFinalizable(facts()))

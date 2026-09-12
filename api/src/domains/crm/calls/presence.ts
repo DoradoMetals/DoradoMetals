@@ -1,11 +1,3 @@
-// Admin presence for the ring path, held in process memory rather than a
-// table (no migration in this pass - see the lane report for the tradeoff:
-// this does not survive a restart and does not see admins on another API
-// instance, and a `crm.presence` table is the fix once someone adds the
-// migration). Chosen over polling Twilio's client status so the ring path
-// costs one less round trip and does not depend on an external read while a
-// customer waits.
-
 const STALE_MS = 45_000
 
 const lastSeen = new Map<string, number>()

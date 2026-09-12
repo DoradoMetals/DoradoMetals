@@ -2,7 +2,6 @@ import { createElement as h, type CSSProperties, type ReactNode } from 'react'
 import { paper } from '../email/palette.ts'
 import { eyebrowType, fontStack, space, stroke, type } from '../email/style.ts'
 
-// Letter, as the Documents page draws it.
 export const PAGE = { width: 816, height: 1056, gutter: 72 } as const
 
 const ink = paper.foreground
@@ -69,7 +68,6 @@ export function Line({
   )
 }
 
-/** The measurements under a name, and the facts beside a band's cap. */
 export function Dotted({ parts }: { parts: (string | null)[] }): ReactNode {
   const kept = parts.filter((part): part is string => part !== null && part !== '')
   return h(Line, { step: 'micro', children: kept.join(' · ') })
@@ -141,7 +139,6 @@ export function Hero({
 
 export type TableRow = { name: string; figure: string; facts: (string | null)[] }
 
-/** One row style serves scrap and bullion; nothing is abbreviated. */
 export function Table({
   cap,
   column,
@@ -201,7 +198,6 @@ export function Table({
 
 export type LedgerLine = { label: string; value: string }
 
-/** The arithmetic, hanging off the table's own column. */
 export function Summary({
   cap = 'Summary',
   lines,

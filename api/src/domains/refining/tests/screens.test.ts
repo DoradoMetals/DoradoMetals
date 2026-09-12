@@ -1,5 +1,3 @@
-// The refiner order screens: the atomic batch, Create Sale, Cancel, the frozen
-// prices, the Charges and Settlement figures, the Payment card and Documents.
 import { test, afterAll } from 'vitest'
 import assert from 'node:assert/strict'
 import type { PoolClient } from 'pg'

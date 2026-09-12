@@ -99,10 +99,6 @@ test('a line with no premium renders unpriced, not a rate it never had', () => {
 
 const summarySection = (html: string): string => html.slice(html.indexOf('>Summary<'))
 
-// LD F8. The invoice printed the INBOUND plus the RETURN leg as its "Shipping
-// Fees" deduction and then printed `pricing.total`, which `order_pricing.sql`
-// makes by subtracting the inbound leg alone - so on any cancelled order the
-// printed lines missed the printed Total by exactly the return label.
 const money = (html: string, label: string): number | null => {
   const row = new RegExp(`>${label}<\\/p><p[^>]*>(-?\\$[\\d,]+\\.\\d\\d)<`).exec(
     summarySection(html)
@@ -137,8 +133,6 @@ test("the purchase invoice's own lines add up to the Total it prints", async () 
   assert.ok(compared > 0, 'no invoice was compared - this test proved nothing')
 })
 
-// LD F9. `sale_quote.sql` makes sales tax part of `order_total`, and no row
-// printed it, so the refiner's copy showed a Total higher than its own lines.
 test('the sales invoice prints the tax that is part of its own total', async () => {
   const sales: OrderView[] = []
   for (const row of await orderRead.list('sale', null)) {

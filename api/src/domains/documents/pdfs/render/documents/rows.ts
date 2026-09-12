@@ -46,8 +46,6 @@ function bullionRow(line: OrderLotView, pricing: OrderPricing): TableRow {
   }
 }
 
-/** One Table row per lot, in the order it was placed. Scrap and bullion share
- * one table now; only the facts line's shape tells them apart. */
 export function documentRows(lines: OrderLotView[], pricing: OrderPricing): TableRow[] {
   return lines.map((line) =>
     line.lot.bullion_id === null ? scrapRow(line, pricing) : bullionRow(line, pricing)

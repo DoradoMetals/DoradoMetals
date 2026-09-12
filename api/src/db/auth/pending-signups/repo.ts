@@ -26,7 +26,6 @@ export async function byPhone(
   return rows[0]
 }
 
-// A second attempt on the same number reuses the row rather than racing it.
 export async function create(
   row: Omit<
     AuthPendingSignup,

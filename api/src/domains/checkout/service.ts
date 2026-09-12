@@ -151,10 +151,6 @@ export async function listLots(
   return await checkoutLots.listFor(session.id, client)
 }
 
-// The basket is replaced whole, and each line MINTS its lot: the id written
-// here is the id the order carries and the refiner settles. A basket carries no
-// premium - at checkout the premium is a live quote, and storing it was the
-// quote quoting itself.
 export async function replaceLots(
   user_id: string,
   direction: Direction,

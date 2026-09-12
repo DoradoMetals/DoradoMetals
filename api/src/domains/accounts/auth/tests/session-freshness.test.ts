@@ -8,7 +8,6 @@ import { aUser, anAdmin } from '#shared/testing/builders/index.ts'
 import { auth } from '#accounts/auth/client.ts'
 import { sessions } from '#accounts/auth/session.ts'
 
-// A row of auth.sessions, minted by the database - the id is never invented here.
 const aSession = async (c: PoolClient, user_id: string): Promise<string> => {
   const { rows } = await c.query<{ id: string }>(
     `INSERT INTO auth.sessions ("userId", token, "expiresAt")
@@ -19,16 +18,8 @@ const aSession = async (c: PoolClient, user_id: string): Promise<string> => {
   return rows[0]!.id
 }
 
-// `banExpires` is `timestamp without time zone`, and better-auth writes it as a
-// JS Date through pg - so the stored wall clock is the API server's, which runs
-// TZ=UTC. Writing it here with Postgres's own `now()` would store the DATABASE
-// session's wall clock instead (this cluster's is America/Chicago), which is
-// five hours off and not what any ban in production looks like.
 const hoursAway = (h: number): Date => new Date(Date.now() + h * 3_600_000)
 
-// What better-auth answers out of the SIGNED COOKIE: a payload minted when the
-// session began, with no database read behind it. A fresh object each call,
-// because the seam writes the database's role onto it.
 const cookieSaid = (user_id: string, session_id: string, role: string) => () => ({
   user: { id: user_id, role },
   session: { id: session_id, userId: user_id },
@@ -114,7 +105,6 @@ test('a demotion from admin is on the session the next call answers', async () =
     async (c: PoolClient) => {
       const user = await anAdmin(c)
       const session_id = await aSession(c, user.id)
-      // The cookie was signed while this user WAS an admin, and says so.
       const cookie = cookieSaid(user.id, session_id, 'admin')
 
       assert.equal((await answerFor(cookie())).session?.user.role, 'admin')

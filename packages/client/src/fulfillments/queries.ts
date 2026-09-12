@@ -18,7 +18,6 @@ import type {
 import { apiRequest } from '../fetch'
 import { keys } from '../keys'
 
-// Fetched by ORDER id, never read off the order view (ruling 9).
 export function useOrderFulfillment(orderId: string, options: { enabled?: boolean } = {}) {
   return useQuery<FulfillmentView | null>({
     queryKey: keys.orders.fulfillment(orderId),
@@ -51,8 +50,6 @@ function useFulfillmentWrite<TVariables, TResult>(
   })
 }
 
-// An order that reached the database without a handover gets one made against
-// itself. The body takes exactly one of three keys.
 export function useCreateFulfillment(orderId: string) {
   return useFulfillmentWrite(orderId, (body: FulfillmentCreateBody) =>
     apiRequest<FulfillmentView>('POST', '/fulfillments', body)

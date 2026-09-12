@@ -62,12 +62,6 @@ export async function removeFunds(
   return await users.adjustCredit(user_id, 'subtract', total, tx)
 }
 
-// RULING 88. Credit applied to a sale is RESERVED, not spent: the balance moves
-// at placement so nobody can spend it twice, and the ledger carries a `Reserve`
-// row tied to the order that says why. That row is the fact - it is returned by
-// a cancel or by the abandoned sweep, and converted to a `Debit` the moment the
-// payment settles. Before this, the debit wrote nothing at all and only a
-// script could reverse it (finding 28).
 export async function reserve(
   user_id: string,
   amount: number,

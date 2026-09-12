@@ -33,9 +33,6 @@ async function adopt(
   await shipments.deferAddressOwnership(client)
   await fulfillmentPickups.deferAddressOwnership(client)
 
-  // The book, the basket and the PARCEL move together. 137's composite key
-  // holds a parcel's address to its owner's book, so a visitor's parcels have
-  // to change hands in the same transaction the book does.
   const addresses = await userAddresses.reassign(anonymousUserId, userId, client)
   const parcels =
     (await shipments.reassignOwner(anonymousUserId, userId, client)) +

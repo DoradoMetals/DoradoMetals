@@ -36,8 +36,6 @@ export function assertSaleQuote(
   }
 }
 
-// A declared lot names its metal and its weights; its fine content is generated
-// from them by the database and is not part of what the caller declares.
 export function declaredLot(declared: OrderLotPatch): LotPatch {
   assertDeclaredMetal(declared.metal_id)
   assertWeighable(
@@ -56,8 +54,6 @@ export function declaredLot(declared: OrderLotPatch): LotPatch {
   }
 }
 
-// The money half of a lot patch and the physical half go to different tables,
-// so the boundary splits them once rather than each caller re-spelling them.
 export function lotMoney(changes: OrderLotPatch): OrderLotPatch {
   const { premium, price, sales_tax_charged, confirmed } = changes
   return { premium, price, sales_tax_charged, confirmed }
@@ -72,10 +68,6 @@ export function namesAnyOf(patch: object): boolean {
   return Object.values(patch).some((value) => value !== undefined)
 }
 
-// A weight the conversion does not recognise used to be worth ZERO fine ounces
-// and a missing one threw a TypeError (MA F4). Both are defects in the row, so
-// the lot is refused here, before anything is written. A catalogue line carries
-// the product's own fine content and derives nothing, so its unit is not read.
 export function assertWeighable(
   bullion_id: string | null | undefined,
   unit: string | null | undefined,
@@ -118,9 +110,6 @@ export function belowStripeMinimum(cents: number): boolean {
   return cents > 0 && cents < STRIPE_MINIMUM_CENTS
 }
 
-// The payment FACT, not the label: nothing is owed, or Stripe has already taken
-// it. `statusAtPlacement` names the same fact for the customer, and ruling 88's
-// reservation converts to a debit on it.
 export function settlesAtPlacement(cents: number, alreadySucceeded: boolean): boolean {
   return cents === 0 || alreadySucceeded
 }
@@ -171,11 +160,6 @@ export function allLotsConfirmed(lots: Pick<OrderLotView, 'confirmed'>[]): boole
   return lots.length > 0 && lots.every((lot) => lot.confirmed === true)
 }
 
-// What Finalize is waiting on, in the operator's words, and the same list the
-// endpoint refuses on (Jacob's Sep 4-5 notes, section 7). Confirming a lot is
-// the admin saying the metal arrived and the declared weights hold, so the
-// handover condition is read off the lots rather than off a status - a status
-// is a pure label and drives nothing (ruling 2).
 export function finalizeBlockedBy(view: OrderViewFacts): string[] {
   const blocked: string[] = []
   if (view.order.direction !== 'purchase') blocked.push('this is not a purchase order')
@@ -205,10 +189,6 @@ export function statusesFor(view: OrderViewFacts): string[] {
   })
 }
 
-// Three spot states, not two: unlocked, locked-and-still-editable, and
-// finalized. Finalize locks the spots AND writes the total, so the total is
-// what tells the last two apart - without it `unlock_spots` would be false the
-// moment a lock was taken (GAP 6).
 export function isFinalized(view: OrderViewFacts): boolean {
   return view.order.spots_locked && view.totals?.total != null
 }
@@ -338,9 +318,6 @@ export function assertReturnable(order: OrderView): void {
   }
 }
 
-// No active carrier service supports returns, so there is nothing to buy a
-// label on and the caller named none either. Refusing here says that, rather
-// than passing null into the carrier adapter.
 export function assertReturnService(carrier_service_id: string | null): void {
   if (!carrier_service_id) {
     throw new Invalid(
@@ -376,10 +353,6 @@ export function assertCreditable(
   }
 }
 
-// The three tests `actionsFor.add_funds` already advertises, enforced where the
-// money moves (MP F4 / MI F2). Without them a second POST - an admin refresh is
-// enough - credited the customer the order total again, and an order being
-// WIRED was credited to a Dorado balance as well.
 export function assertPayableToAccount(
   payoutMethod: string | null,
   number: string | number | null
@@ -398,9 +371,6 @@ export function assertNotAlreadyCredited(credited: boolean, number: string | num
   }
 }
 
-// The Finalize gate, enforced where it matters rather than only offered as a
-// button. MP F12: the endpoint used to ask nothing at all, so an order could be
-// priced, and its total written, from declared weights nobody had verified.
 export function assertFinalizable(view: OrderViewFacts): void {
   const blocked = finalizeBlockedBy(view)
   if (blocked.length > 0) {
@@ -414,11 +384,6 @@ export function assertReopenable(view: OrderViewFacts): void {
   }
 }
 
-// MP F7 / MI F3: the quote reads the balance outside the placement
-// transaction, so by the time the debit runs it can be stale. The balance is
-// re-read FOR UPDATE inside the transaction and compared against what the
-// quote promised to spend; a disagreement is the customer's to resolve, not
-// something to silently re-clamp under a total already quoted.
 export function assertCreditCovers(balance: number | null | undefined, spending: number): void {
   if (Number(balance ?? 0) < spending) {
     throw new Conflict(

@@ -19,7 +19,10 @@ export type ShipmentCardProps = {
 
 type Phase = 'label' | 'awaiting' | 'transit' | 'done' | 'exception'
 
-const BADGE: Record<Phase, { label: string; intent: 'warning' | 'info' | 'success' | 'danger'; variant: 'soft' | 'outline' }> = {
+const BADGE: Record<
+  Phase,
+  { label: string; intent: 'warning' | 'info' | 'success' | 'danger'; variant: 'soft' | 'outline' }
+> = {
   label: { label: 'Label Created', intent: 'warning', variant: 'outline' },
   awaiting: { label: 'Awaiting Tracking', intent: 'warning', variant: 'outline' },
   transit: { label: 'In Transit', intent: 'info', variant: 'soft' },
@@ -27,9 +30,6 @@ const BADGE: Record<Phase, { label: string; intent: 'warning' | 'info' | 'succes
   exception: { label: 'Exception', intent: 'danger', variant: 'soft' },
 }
 
-// The parcel. Which phase it is in follows the shipment's own facts, and what
-// may be done to it follows `actions` - a scanned parcel can only be
-// intercepted or returned, so Cancel goes the moment it moves.
 function phaseOf(view: ShipmentView): Phase {
   if (view.shipment.delivered_at) return 'done'
   if ((view.tracking_status ?? '').toLowerCase().includes('exception')) return 'exception'
@@ -60,7 +60,10 @@ export function ShipmentCard({
   }))
 
   const [draft, setDraft] = React.useState(shipment.shipment.tracking_number ?? '')
-  React.useEffect(() => setDraft(shipment.shipment.tracking_number ?? ''), [shipment.shipment.tracking_number])
+  React.useEffect(
+    () => setDraft(shipment.shipment.tracking_number ?? ''),
+    [shipment.shipment.tracking_number]
+  )
 
   return (
     <OrderCard

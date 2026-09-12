@@ -40,8 +40,6 @@ afterAll(async () => {
   await pool.end()
 })
 
-// renderToStaticMarkup HTML-escapes text nodes, so a copy string with an
-// apostrophe never appears literally in the page.
 const carries = (html: string, text: string): boolean => html.includes(text.replace(/'/g, '&#x27;'))
 
 const clean = (html: string, name: string) => {
@@ -172,7 +170,7 @@ test('the assay results carries its own labels and the theme, with no money on i
       continue
     }
   }
-  if (!doc) return // dev has no finalized order to render assay results from
+  if (!doc) return
 
   const html = buildAssayResultsHtml(doc)
   clean(html, 'assay results')

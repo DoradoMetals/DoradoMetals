@@ -27,5 +27,3 @@ export const SmsMessage = z.object({
 })
 export type SmsMessage = z.infer<typeof SmsMessage>
 // generated:end
-
-// Hand-written derivations go here: New, Patch, named reads.

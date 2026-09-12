@@ -19,14 +19,11 @@ export async function getOne(
   return rows[0]
 }
 
-// The row the send limits and the lockout are decided on. FOR UPDATE, so two
-// requests for one number queue instead of both reading the same count.
 export async function lock(subject: string, tx: PoolClient): Promise<AuthOtpThrottle | undefined> {
   const { rows } = await query<AuthOtpThrottle>(sql('lock'), [subject], tx)
   return rows[0]
 }
 
-// Upsert: the conflicting update is what takes the row lock when it exists.
 export async function create(
   subject: string,
   kind: ThrottleKind,

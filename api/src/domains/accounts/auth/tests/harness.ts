@@ -2,10 +2,6 @@ import type { PoolClient } from 'pg'
 import { auth } from '#accounts/auth/client.ts'
 import * as rules from '#accounts/auth/rules.ts'
 
-// better-auth writes through its OWN pool, which the pinned test transaction
-// does not reach - anything it did would be committed to the test database.
-// So its five endpoints are stubbed onto the pinned client instead, doing what
-// the real ones do: mint a code into auth.verification, and hand back a cookie.
 export const CODE = '418209'
 
 export type Dispatch = { channel: 'sms' | 'email'; to: string }

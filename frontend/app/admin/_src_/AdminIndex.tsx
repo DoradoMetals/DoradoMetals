@@ -16,18 +16,6 @@ import { Inbox, TriangleAlert } from '@dorado/icons'
 
 import { DASH, when } from './orders/format'
 
-// THE ADMIN INDEX. Two lists and nothing else: every customer order, and every
-// refiner order, each row a way into the screen that already exists.
-//
-// NOTHING HERE IS COMPUTED. A cell is a field of the row the API answered with,
-// spelled by `format.ts` where it is a timestamp. `GET /api/orders` answers
-// `OrderListItem[]` - the row plus `reference` (the same "PO-2481"/"SO-2481"
-// expression the single view builds) and `customer` (id, name, email), so
-// neither is composed here (ruling 83).
-//
-// The refiner list has no such gap: `GET /api/refining/orders` answers the same
-// `RefiningOrderView` the screen reads, refiner and state included.
-
 const ordersColumns: DataTableColumn<OrderListItem>[] = [
   {
     accessorKey: 'number',

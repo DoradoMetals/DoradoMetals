@@ -40,9 +40,10 @@ beforeAll(async () => {
 
   admin = TEST_ACTOR
 
-  items = await outside<ItemFixture>(`SELECT ol.id, li.quantity FROM orders.lots ol JOIN lots.items li ON li.id = ol.lot_id WHERE ol.order_id = $1`, [
-    order.id,
-  ])
+  items = await outside<ItemFixture>(
+    `SELECT ol.id, li.quantity FROM orders.lots ol JOIN lots.items li ON li.id = ol.lot_id WHERE ol.order_id = $1`,
+    [order.id]
+  )
   assert.ok(items.length > 0, 'the fixture order has no items')
 })
 
@@ -106,16 +107,11 @@ const confirmEveryLine = async (client: PoolClient) => {
   await client.query(`UPDATE orders.lots SET confirmed = true WHERE order_id = $1`, [order.id])
 }
 
-// MP F12: `actionsFor` offers finalize only when every line is
-// confirmed, and the endpoint asked nothing at all - so an order could be
-// priced, and its total written, from declared weights nobody had verified.
 test('finalizing an order with an unconfirmed line is refused, and nothing is written', async () => {
   await inPinnedTransaction(
     async (client: PoolClient) => {
       await asAdmin(admin, async () => {
-        await client.query(`UPDATE orders.lots SET confirmed = false WHERE id = $1`, [
-          items[0]!.id,
-        ])
+        await client.query(`UPDATE orders.lots SET confirmed = false WHERE id = $1`, [items[0]!.id])
         const view = await orderRead.view(order.id)
         assert.equal(view?.actions.finalize, false, 'the action was still offered')
 
@@ -194,11 +190,6 @@ test("a clean finalize prices the order from the database's own rows", async () 
   )
 })
 
-// MP F10. `freeze.sql` copies ask AND bid at placement; the statement finalize
-// runs when it locks used to update `bid` alone. So a finalised order priced
-// its payout at the finalise day's bid while both invoices printed the ask
-// frozen at placement - two different days on one document, from a pair the
-// contract says are "resolved the same way".
 test('finalizing refreshes the frozen ask alongside the bid', async () => {
   await inPinnedTransaction(
     async (client: PoolClient) => {

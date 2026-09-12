@@ -1,7 +1,3 @@
-// The customer order screen, composed. Every hook it calls is stubbed with a
-// fixture typed by the contracts, so what this pins is the COMPOSITION: which
-// cards a purchase order draws, which a sales order draws, and which of them
-// swap when the fulfillment is booked or the order is cancelled.
 import { describe, expect, test, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 
@@ -40,7 +36,11 @@ vi.mock('@dorado/client', () => ({
   useOrder: () => query(state.order),
   useOrderSpots: () => query([aSpot('Gold', 2411.2)]),
   useLiveSpots: () => query([aLiveSpot('Gold', 2450)]),
-  useOrderDocuments: () => query([aDocument('invoice', 'Invoice', false), aDocument('packing_list', 'Packing List', true)]),
+  useOrderDocuments: () =>
+    query([
+      aDocument('invoice', 'Invoice', false),
+      aDocument('packing_list', 'Packing List', true),
+    ]),
   useOrderFulfillment: () => query(state.fulfillment),
   useOrderShipments: () => query(state.shipments),
   usePaymentView: () => query(state.payment),

@@ -23,11 +23,6 @@ import type {
 import { apiRequest, apiRequestForm } from '../fetch'
 import { keys } from '../keys'
 
-// EVERY ORDER THE CALLER MAY SEE - the admin index's table. The route decides
-// the scope, not this hook: an admin with no `user_id` gets all of them, a
-// customer gets their own whatever they ask for. The filters are the route's
-// own query parameters and go through `apiRequest`'s `params`, so the URL here
-// stays the literal the route census reads.
 export function useOrders(
   filters: { direction?: Direction | null; user_id?: string | null } = {},
   options: { enabled?: boolean } = {}
@@ -65,8 +60,6 @@ export function useOrderDocuments(id: string, options: { enabled?: boolean } = {
   })
 }
 
-// The parcel read carries its own decisions - `timeline` is already the
-// Tracker's steps and `actions` says what the card may offer.
 export function useOrderShipments(id: string, options: { enabled?: boolean } = {}) {
   return useQuery<ShipmentView[]>({
     queryKey: keys.orders.shipments(id),
@@ -75,8 +68,6 @@ export function useOrderShipments(id: string, options: { enabled?: boolean } = {
   })
 }
 
-// The refiner drop-offs booked against this order. Its own read, keyed by the
-// order, because the fulfillment view carries one dropoff and this is the list.
 export function useOrderDropoffs(id: string, options: { enabled?: boolean } = {}) {
   return useQuery<FulfillmentDropoff[]>({
     queryKey: keys.orders.dropoffs(id),
@@ -85,8 +76,6 @@ export function useOrderDropoffs(id: string, options: { enabled?: boolean } = {}
   })
 }
 
-// A read the API spells as a POST, because the body is the order id and the
-// answer is derived. It caches like the read it is.
 export function useProfitBreakdown(id: string, options: { enabled?: boolean } = {}) {
   return useQuery<ProfitBreakdown>({
     queryKey: keys.orders.profit(id),
@@ -96,9 +85,6 @@ export function useProfitBreakdown(id: string, options: { enabled?: boolean } = 
   })
 }
 
-// Every write on this screen changes the order's own view, and most change a
-// sibling read too (a lot moves the totals, a spot moves every price). One
-// invalidation of the order namespace is the honest answer; optimistic nothing.
 function useOrderWrite<TVariables, TResult>(
   id: string,
   run: (variables: TVariables) => Promise<TResult>
@@ -185,8 +171,6 @@ export function useImportOrderDocument(id: string) {
   })
 }
 
-// Create Sale: a finalized purchase order's lots wrapped onto the refiner's one
-// open SELL order.
 export function useCreateRefiningSale(id: string) {
   return useOrderWrite(id, (body: OrderSupplyBody) =>
     apiRequest<RefiningOrderView>('POST', `/orders/${id}/refining-sale`, body)

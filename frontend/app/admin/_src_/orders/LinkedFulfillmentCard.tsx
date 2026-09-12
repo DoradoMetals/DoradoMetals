@@ -13,9 +13,6 @@ export type LinkedFulfillmentCardProps = {
   linkedState: string | null
 }
 
-// A drop-shipped order: the refiner ships straight to the customer, so this
-// order has no parcel of its own. Tracking lives on the linked order and this
-// card is the pointer to it.
 export function LinkedFulfillmentCard({
   shipsFrom,
   shipsTo,

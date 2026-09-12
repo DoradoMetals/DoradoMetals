@@ -6,8 +6,6 @@ import { AuthPendingSignup } from '../auth/pending_signups.js'
 import { Session } from '../auth/sessions.js'
 import { User } from '../auth/users.js'
 
-// auth.otp_purpose types no column: the flow a code was sent for lives on the
-// wire and in the throttle subject, never in a row.
 export const OtpPurpose = z.enum(['sign_in', 'sign_up', 'step_up', 'change_email', 'change_phone'])
 export type OtpPurpose = z.infer<typeof OtpPurpose>
 
@@ -19,8 +17,6 @@ export const SendCodeBody = z
     channel: OtpChannel,
     phone_number: User.shape.phone_number.unwrap().optional(),
     email: User.shape.email.optional(),
-    // Optional: the Turnstile widget never appears on the OTP screen, so a
-    // resend inside the pending window (rules.captchaRequired) carries none.
     captcha_token: z.string().optional(),
   })
   .strict()
@@ -56,7 +52,6 @@ export type ChangePhoneBody = z.infer<typeof ChangePhoneBody>
 export const ConfirmChangeBody = z.object({ code: z.string() }).strict()
 export type ConfirmChangeBody = z.infer<typeof ConfirmChangeBody>
 
-// destination is always masked.
 export const VerificationView = z.object({
   purpose: OtpPurpose,
   channel: OtpChannel,
@@ -70,7 +65,6 @@ export const VerificationView = z.object({
 })
 export type VerificationView = z.infer<typeof VerificationView>
 
-// next_value is the one unmasked value in this surface: the caller's own.
 export const ChangeConfirmedView = z.object({
   factor: Factor,
   next_value: AuthPendingChange.shape.next_value,

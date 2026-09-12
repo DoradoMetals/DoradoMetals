@@ -5,10 +5,6 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@dorado/components'
 import { ChevronLeft } from '@dorado/icons'
 
-// The auth surface is its own page: a Panel holding the form and, from lg up, a
-// Pitch beside it. The Back control moves - top-left of the Panel on desktop,
-// its own row above the logo on mobile - so it is written once and placed by
-// the two shells.
 function BackButton() {
   const router = useRouter()
   return (

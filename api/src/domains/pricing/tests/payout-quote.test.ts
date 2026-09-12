@@ -142,10 +142,6 @@ test("a line's price is its content x the bid x the premium the band earns", asy
   )
 })
 
-// THE SPLIT IS THE SAME `CASE` `OrderPricing` USES: a scrap line's total is
-// its own unit price, a bullion line's is unit price times quantity, and the
-// two buckets are the halves of `total`. The sell basket's review step shows
-// them side by side, so the browser never sums lines to find either.
 test('scrap_total and bullion_total split the goods total by kind', async () => {
   await inPinnedTransaction(
     async (c) => {

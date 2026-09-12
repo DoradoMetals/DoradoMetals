@@ -38,8 +38,6 @@ export function lastMessageTo(email: string): FakeMessage | null {
   return null
 }
 
-// Not `\d{6}` alone: the mailer's own dark-mode card background (#101114) is
-// six digits and sits in the same html, right before the real code.
 export function lastCodeTo(email: string): string | null {
   const message = lastMessageTo(email)
   if (!message) return null

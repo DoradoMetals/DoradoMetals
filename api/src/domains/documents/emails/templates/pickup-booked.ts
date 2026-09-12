@@ -4,8 +4,6 @@ import { ordersUrl } from '#documents/emails/links.ts'
 import { orderLabel } from '#documents/emails/rules.ts'
 import type { ScheduleMail } from '@dorado/contracts'
 
-// Figma "Mailer · Pickup booked" (211:659).
-
 export function subject(mail: ScheduleMail): string {
   return `Your pickup is booked - ${orderLabel(mail.direction, mail.order_number)}`
 }

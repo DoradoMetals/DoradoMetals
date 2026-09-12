@@ -39,8 +39,6 @@ export async function updateCarrier(carrier: CarrierPatch): Promise<ComposedCarr
     const current = await carriers.getOne(id, tx)
     if (!current) return null
 
-    // `?? null` turned an omitted logo into an explicit clear, so any edit that
-    // named only the organization deleted the logo (LD F18).
     const changed = await carriers.update(id, { logo: carrier.logo }, tx)
     if (!changed) return null
 

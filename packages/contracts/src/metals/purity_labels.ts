@@ -19,5 +19,3 @@ export const PurityLabel = z.object({
 })
 export type PurityLabel = z.infer<typeof PurityLabel>
 // generated:end
-
-// Hand-written derivations go here: New, Patch, named reads.

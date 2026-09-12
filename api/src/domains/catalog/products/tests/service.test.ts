@@ -250,14 +250,13 @@ for (const field of ['metal_id', 'mint_id', 'supplier_id'] as const) {
   })
 }
 
-// LD F21, answered by ruling 49 rather than fixed. The sell side has NO gate on
-// purpose - Jacob, 2026-09-03: "We can show all of them on sell tab. We can't
-// show all of them on buy." This pins both halves so a change to either is
-// deliberate, and it is the test to rewrite if the bid side ever gets a gate.
 test('the buy side is gated on display and the sell side deliberately is not', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
-      const hidden = await aProduct(c, { display: false, name: `Hidden ${randomUUID().slice(0, 8)}` })
+      const hidden = await aProduct(c, {
+        display: false,
+        name: `Hidden ${randomUUID().slice(0, 8)}`,
+      })
 
       const buy = rowsOf(await service.listGroups({ display: true }))
       assert.ok(

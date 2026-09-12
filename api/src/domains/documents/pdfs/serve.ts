@@ -37,8 +37,6 @@ type ServedDocument = {
   source: 'stored' | 'rendered'
 }
 
-// The bytes of a file already stored, checksum-verified. Used by the Send path,
-// which has already established the caller is an admin (GAP 24).
 export async function storedBytes(
   row: PdfRow,
   storage: StoredReader = readFromStorage

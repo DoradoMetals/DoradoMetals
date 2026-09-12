@@ -41,8 +41,6 @@ async function rendered(kind: PdfKind, order_id: string): Promise<Uint8Array | n
   return null
 }
 
-// An imported file wins over a rendered one: it is what somebody actually sent
-// us, and for the six kinds with no renderer it is the only copy there is.
 async function bytesForOrder(order_id: string, document: OrderDocument): Promise<Uint8Array> {
   const stored = document.pdf_id ? await latestPdf(document.kind, order_id) : null
   const bytes =
@@ -71,16 +69,12 @@ export async function importOrderDocument(
   return written
 }
 
-// The refiner side. Nothing is emailed - a refiner is not a customer and the
-// mailers are the customer's (ruling 15) - so the only thing a refiner order's
-// Documents card does is hold what came back from them.
 export async function importRefiningDocument(
   refining_order_id: string,
   kind: PdfKind,
   bytes: Uint8Array | null
 ): Promise<OrderDocument> {
   rules.assertUpload(bytes)
-  // 404s an unknown refiner order before a single byte reaches storage.
   await refining.documentsFor(refining_order_id)
   await storeUpload(kind, null, refining_order_id, bytes)
   const written = (await refining.documentsFor(refining_order_id)).find((row) => row.kind === kind)

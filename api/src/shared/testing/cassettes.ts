@@ -222,15 +222,6 @@ function applyMatchers(def: RecordedDefinition): void {
   }
 }
 
-// Two cassettes are HAND-WRITTEN, not recorded: they describe states the
-// sandbox will not produce on demand - an intent Stripe reports as
-// `processing`, and an intent already canceled under a fixed id. `test:record`
-// runs nock.back in "update" mode, which DELETES a fixture and re-records it
-// from whatever the sandbox says now; aimed at these two it replaces the state
-// under test with a plain resource_missing 404, and the assertion that depends
-// on it stops meaning anything. The Stripe 22 pass walked into exactly that and
-// had to restore one by hand. So a recording run SKIPS them - they replay in
-// every lane, a recording one included.
 export const SYNTHETIC = new Set([
   'stripe/cancel-intent-transient-error.json',
   'stripe/self-heal-stale-intent.json',

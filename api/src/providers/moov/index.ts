@@ -9,9 +9,6 @@ import {
   verifyMoovSignature,
 } from '#providers/moov/signature.ts'
 
-// No keys, no live client. The app boots on the recording fake and every call
-// is answered in memory, which is what lets the suite - and later the e2e
-// harness - drive a transfer through its states with nothing configured.
 export const configured = (): boolean => Boolean(process.env.MOOV_SECRET_KEY)
 
 export const rails = (): MoovRails => (configured() ? live.rails : fake.rails)

@@ -30,15 +30,10 @@ export async function patchShipment(
     await orderTransactions.update(purchaseOrderId!, { shipping_fee_actual: body.shipping_actual })
   }
 
-  // The Awaiting Tracking case, and only it: a drop-shipped parcel the refiner
-  // posted, whose carrier and tracking number both arrive after the fact. A
-  // parcel we bought a label for already knows its carrier (GAP 21).
   if (body.carrier_service_id !== undefined) {
     rules.assertAwaitingTracking(shipment, shipmentId)
     const carrier_service_id = body.carrier_service_id
-    await withTransaction((tx) =>
-      shipmentsService.update(shipmentId, { carrier_service_id }, tx)
-    )
+    await withTransaction((tx) => shipmentsService.update(shipmentId, { carrier_service_id }, tx))
   }
 
   if (body.tracking_number !== undefined) {

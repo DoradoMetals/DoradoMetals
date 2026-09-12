@@ -13,10 +13,6 @@ export type DocumentsCardProps = {
 
 const KNOWN = new Set<string>(DOCUMENT_NAMES)
 
-// Which rows exist follows the order's fulfillment category and whether a row
-// is available follows finalization and whether a file was imported - both are
-// the API's answer, read straight off `GET /orders/:id/documents`. Import posts
-// the chosen file as multipart; Send goes through the mailer.
 export function DocumentsCard({ documents, onDownload, onSend, onImport }: DocumentsCardProps) {
   const input = React.useRef<HTMLInputElement>(null)
   const [kind, setKind] = React.useState<string | null>(null)

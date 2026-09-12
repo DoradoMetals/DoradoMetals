@@ -4,9 +4,6 @@ import { ordersUrl } from '#documents/emails/links.ts'
 import { orderLabel, payoutRoute } from '#documents/emails/rules.ts'
 import type { PayoutSentMail } from '@dorado/contracts'
 
-// Figma "Mailer · Payout sent" (6:260). Copy verbatim from the design; the
-// route sentence names the method and the LAST FOUR only, which is the only
-// part of a bank account any document of ours carries.
 export function subject(mail: PayoutSentMail): string {
   return `Your payout is on its way - ${orderLabel('purchase', mail.order_number)}`
 }
