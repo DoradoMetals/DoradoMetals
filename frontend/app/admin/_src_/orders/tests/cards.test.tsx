@@ -659,8 +659,8 @@ describe('Documents', () => {
       <DocumentsCard
         documents={[
           aDocument('invoice', 'Invoice', false),
-          aDocument('packing_list', 'Packing List', true),
-          aDocument('return_packing_list', 'Return Packing List', true),
+          aDocument('packing_list', 'Shipment Manifest', true),
+          aDocument('return_packing_list', 'Return Shipment Manifest', true),
           aDocument('shipping_instructions', 'Shipping Instructions', true),
         ]}
         onSend={noop}
@@ -668,7 +668,7 @@ describe('Documents', () => {
       />
     )
     expect(screen.getByText('Invoice')).toBeTruthy()
-    expect(screen.getByText('Packing List')).toBeTruthy()
+    expect(screen.getByText('Shipment Manifest')).toBeTruthy()
     expect(screen.getByText('Shipping Instructions')).toBeTruthy()
     expect(screen.getAllByText('Not yet available').length).toBe(1)
   })
@@ -684,7 +684,7 @@ describe('Documents', () => {
       />
     )
     expect(screen.getByText('Pickup Manifest')).toBeTruthy()
-    expect(screen.queryByText('Packing List')).toBeNull()
+    expect(screen.queryByText('Shipment Manifest')).toBeNull()
   })
 })
 
@@ -1147,13 +1147,13 @@ describe('the states the API lane unblocked', () => {
       <DocumentsCard
         documents={[
           aDocument('invoice', 'Invoice', false),
-          aDocument('packing_list', 'Packing List', true),
+          aDocument('packing_list', 'Shipment Manifest', true),
         ]}
         onSend={onSend}
         onImport={onImport}
       />
     )
-    fireEvent.click(screen.getByRole('button', { name: 'Send Packing List' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Send Shipment Manifest' }))
     expect(onSend).toHaveBeenCalledWith('packing_list')
 
     fireEvent.click(screen.getByRole('button', { name: 'Import Invoice' }))
@@ -1164,18 +1164,10 @@ describe('the states the API lane unblocked', () => {
     expect(onImport).toHaveBeenCalledWith('invoice', file)
   })
 
-  test('GAP 26: a refiner order names its own documents', () => {
-    render(
-      <DocumentsCard
-        documents={[
-          aDocument('invoice', 'Invoice', true),
-          aDocument('settlement', 'Settlement', false),
-        ]}
-        onImport={noop}
-      />
-    )
-    expect(screen.getByText('Settlement')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Import Settlement' })).toBeTruthy()
+  test('GAP 26: a refiner order names only Invoice, unsent so unavailable', () => {
+    render(<DocumentsCard documents={[aDocument('invoice', 'Invoice', false)]} onImport={noop} />)
+    expect(screen.getByText('Invoice')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Import Invoice' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Send Invoice' })).toBeNull()
   })
 
