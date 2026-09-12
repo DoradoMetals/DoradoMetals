@@ -10,28 +10,28 @@ for (const [role, account] of Object.entries(ROLES)) {
   setup(`authenticate as ${role}`, async ({ playwright, baseURL }) => {
     const api = await playwright.request.newContext({ baseURL })
 
-    const sent = await api.post(`${API}/auth/phone-number/send-otp`, {
-      data: { phoneNumber: account.phone_number },
+    const sent = await api.post(`${API}/account/send_code`, {
+      data: { channel: 'email', email: account.email },
       headers: { 'Content-Type': 'application/json' },
     })
     expect(
       sent.ok(),
-      `could not send a code to ${account.phone_number} (${sent.status()}). ` +
-        `Has the seed been run?\n  pnpm --filter @dorado/api seed:e2e`
+      `could not send a code to ${account.email} (${sent.status()}). ` +
+        `Has the seed been run?\n  pnpm seed`
     ).toBeTruthy()
 
     const read = await api.get(`${API}/account/last_code`, {
-      params: { number: account.phone_number },
+      params: { email: account.email },
     })
     expect(
       read.ok(),
-      `/account/last_code answered ${read.status()} - is SMS_PROVIDER the recording fake?`
+      `/account/last_code answered ${read.status()} - is the email provider the recording fake?`
     ).toBeTruthy()
     const { code } = (await read.json()) as { code: string | null }
-    expect(code, `no code was recorded for ${account.phone_number}`).toBeTruthy()
+    expect(code, `no code was recorded for ${account.email}`).toBeTruthy()
 
     const verified = await api.post(`${API}/account/verify_code`, {
-      data: { channel: 'sms', phone_number: account.phone_number, code },
+      data: { channel: 'email', email: account.email, code },
       headers: { 'Content-Type': 'application/json' },
     })
     expect(

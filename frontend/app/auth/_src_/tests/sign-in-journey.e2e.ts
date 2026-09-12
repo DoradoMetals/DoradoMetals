@@ -16,10 +16,10 @@ test.describe('signing in through the screens', () => {
     expect(new URL(page.url()).searchParams.get('next')).toBe(START)
 
     const hasSiteKey = Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY)
-    await expect(page.getByLabel('Phone')).toBeVisible()
+    await expect(page.getByLabel('Email')).toBeVisible()
     if (hasSiteKey) await expect(page.getByTestId('turnstile')).toHaveCount(1)
 
-    await page.getByLabel('Phone').fill(ROLES.admin.phone_number.replace('+1', ''))
+    await page.getByLabel('Email').fill(ROLES.admin.email)
     if (hasSiteKey) await page.waitForTimeout(3000)
     await page.getByRole('button', { name: 'Continue' }).click()
 
@@ -34,11 +34,11 @@ test.describe('signing in through the screens', () => {
     expect(cell!.height).toBeGreaterThan(cell!.width)
 
     const read = await context.request.get(`${API}/account/last_code`, {
-      params: { number: ROLES.admin.phone_number },
+      params: { email: ROLES.admin.email },
     })
     expect(
       read.ok(),
-      `/account/last_code answered ${read.status()} - is the SMS fake the provider?`
+      `/account/last_code answered ${read.status()} - is the email fake the provider?`
     ).toBeTruthy()
     const { code } = (await read.json()) as { code: string | null }
     expect(code, 'no code was recorded - has `pnpm seed` been run?').toBeTruthy()
@@ -56,5 +56,39 @@ test.describe('signing in through the screens', () => {
       'no session cookie was written'
     ).toBeTruthy()
     await expect(page.getByRole('link', { name: 'Sign in' })).toHaveCount(0)
+  })
+})
+
+test.describe('the phone channel, parked as coming soon but still wired end to end', () => {
+  test('sign-in by phone still reaches a session, direct at its own URL', async ({
+    page,
+    context,
+  }) => {
+    test.setTimeout(60_000)
+
+    await page.goto('/auth/sign-in/phone', { waitUntil: 'domcontentloaded', timeout: 60_000 })
+    await expect(page.getByLabel('Phone')).toBeVisible()
+
+    await page.getByLabel('Phone').fill(ROLES.admin.phone_number.replace('+1', ''))
+    await page.getByRole('button', { name: 'Continue' }).click()
+
+    await page.waitForURL('**/auth/verify', { timeout: 20_000 })
+
+    const read = await context.request.get(`${API}/account/last_code`, {
+      params: { number: ROLES.admin.phone_number },
+    })
+    expect(read.ok(), `/account/last_code answered ${read.status()}`).toBeTruthy()
+    const { code } = (await read.json()) as { code: string | null }
+    expect(code, 'no code was recorded').toBeTruthy()
+
+    await page.getByLabel('One-time code').fill(code!)
+    await page.getByRole('button', { name: 'Verify' }).click()
+
+    await page.waitForTimeout(2000)
+    const cookies = await context.cookies()
+    expect(
+      cookies.some((c) => c.name.includes('session')),
+      'the phone channel must still mint a session'
+    ).toBeTruthy()
   })
 })

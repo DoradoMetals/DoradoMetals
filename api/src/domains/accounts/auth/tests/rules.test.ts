@@ -295,10 +295,11 @@ test('a sign-up mints a temporary email that cannot be a real address', () => {
   assert.equal(rules.temporaryEmailFor('+15125550134'), '15125550134@phone.dorado.invalid')
 })
 
-test('the step-up code goes to the phone when it is proved, and to the email otherwise', () => {
-  assert.equal(rules.stepUpChannel(aUser()), 'sms')
-  assert.equal(rules.stepUpDestination(aUser()), '+15125550134')
-  assert.equal(rules.stepUpChannel(aUser({ phone_number_verified: false })), 'email')
+test('the step-up code goes to the email when it is proved, and to the phone otherwise', () => {
+  assert.equal(rules.stepUpChannel(aUser()), 'email')
+  assert.equal(rules.stepUpDestination(aUser()), 'jacob@doradometals.com')
+  assert.equal(rules.stepUpChannel(aUser({ emailVerified: false })), 'sms')
+  assert.equal(rules.stepUpDestination(aUser({ emailVerified: false })), '+15125550134')
   assert.equal(rules.stepUpDestination(aUser({ phone_number: null })), 'jacob@doradometals.com')
 })
 

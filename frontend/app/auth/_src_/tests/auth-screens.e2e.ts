@@ -1,28 +1,35 @@
 import { expect, test } from '@playwright/test'
 
 test.describe('the auth screens', () => {
-  test('sign-in is phone first and offers email as the equal fallback', async ({ page }) => {
+  test('sign-in asks for email first, with no phone toggle offered', async ({ page }) => {
     await page.goto('/auth/sign-in')
     await expect(page.getByText('Welcome back')).toBeVisible()
     await expect(
-      page.getByText("Enter your phone number and we'll send you a sign-in code.")
+      page.getByText("Enter your email and we'll send you a sign-in code.")
     ).toBeVisible()
     await expect(page.getByRole('button', { name: 'Continue' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Google' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Apple' })).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Facebook' })).toHaveCount(0)
+    await expect(page.getByRole('link', { name: 'Send the code there' })).toHaveCount(0)
+  })
 
-    await page.getByRole('link', { name: 'Send the code there' }).click()
-    await expect(page).toHaveURL(/\/auth\/sign-in\/email$/)
+  test('the phone channel is still reachable at its own URL, coming soon from the primary screen', async ({
+    page,
+  }) => {
+    await page.goto('/auth/sign-in/phone')
+    await expect(page.getByText('Welcome back')).toBeVisible()
     await expect(
-      page.getByText("Enter your email and we'll send you a sign-in code.")
+      page.getByText("Enter your phone number and we'll send you a sign-in code.")
     ).toBeVisible()
 
     await page.getByRole('link', { name: 'Send the code there' }).click()
     await expect(page).toHaveURL(/\/auth\/sign-in$/)
   })
 
-  test('sign-up asks for the three things and holds the terms', async ({ page }) => {
+  test('sign-up asks for the three things, holds the terms, and parks the phone as coming soon', async ({
+    page,
+  }) => {
     await page.goto('/auth/sign-in')
     await page.getByRole('link', { name: 'Create an account' }).click()
     await expect(page).toHaveURL(/\/auth\/sign-up$/)
@@ -30,6 +37,8 @@ test.describe('the auth screens', () => {
     await expect(page.getByLabel('Name')).toBeVisible()
     await expect(page.getByLabel('Email')).toBeVisible()
     await expect(page.getByLabel('Phone')).toBeVisible()
+    await expect(page.getByLabel('Phone')).toBeDisabled()
+    await expect(page.getByText('Text sign-in coming soon')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Create account' })).toBeDisabled()
   })
 

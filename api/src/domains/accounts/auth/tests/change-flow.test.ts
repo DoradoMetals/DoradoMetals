@@ -117,7 +117,7 @@ test('a stale session is sent to step-up; a fresh one goes straight through', as
   )
 })
 
-test('a step-up code texts the phone, and the change it unblocks then goes through', async () => {
+test('a step-up code mails the (verified) email by default, since it is the reliable channel', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
       stubAuthApi(c)
@@ -126,12 +126,11 @@ test('a step-up code texts the phone, and the change it unblocks then goes throu
 
       const asked = await service.stepUp(user.id, session_id, IP)
       assert.equal(asked.purpose, 'step_up')
-      assert.equal(asked.channel, 'sms')
-      assert.equal(asked.destination, '(•••) •••-3005')
-      assert.ok(fakeSms.lastMessageTo(phone), 'the step-up code was not delivered')
+      assert.equal(asked.channel, 'email')
+      assert.ok(fakeEmail.lastMessageTo(user.email), 'the step-up code was not delivered')
 
       const [proved] = await service.verifyCode(
-        { channel: 'sms', phone_number: phone, code: CODE },
+        { channel: 'email', email: user.email, code: CODE },
         session_id
       )
       assert.equal(proved.purpose, 'step_up')
@@ -139,6 +138,23 @@ test('a step-up code texts the phone, and the change it unblocks then goes throu
 
       const view = await service.changeEmail(user.id, session_id, 'after-step-up@dorado.test', IP)
       assert.equal(view.purpose, 'change_email', 'the step-up is what made this reachable')
+    },
+    { actor: TEST_ACTOR.id, lock: LOCKS.USERS }
+  )
+})
+
+test('a step-up code texts the phone when the email is not verified', async () => {
+  await inPinnedTransaction(
+    async (c: PoolClient) => {
+      stubAuthApi(c)
+      const phone = '+15125553017'
+      const { user, session_id } = await aCustomer(c, phone, rules.STEP_UP_FRESH_SECONDS + 60)
+      await c.query(`UPDATE auth.users SET "emailVerified" = false WHERE id = $1`, [user.id])
+
+      const asked = await service.stepUp(user.id, session_id, IP)
+      assert.equal(asked.channel, 'sms')
+      assert.equal(asked.destination, '(•••) •••-3017')
+      assert.ok(fakeSms.lastMessageTo(phone), 'the step-up code was not delivered')
     },
     { actor: TEST_ACTOR.id, lock: LOCKS.USERS }
   )

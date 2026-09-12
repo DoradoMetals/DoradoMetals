@@ -268,7 +268,7 @@ export const detailsChangedLabel = (factor: Factor): string =>
   factor === 'email' ? 'Email address' : 'Phone number'
 
 export const stepUpChannel = (user: User): OtpChannel =>
-  user.phone_number && user.phone_number_verified ? 'sms' : 'email'
+  user.emailVerified ? 'email' : 'sms'
 
 export function stepUpDestination(user: User): string {
   const value = stepUpChannel(user) === 'sms' ? user.phone_number : user.email

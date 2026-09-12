@@ -36,7 +36,7 @@ export const SignUpBody = z
   .object({
     name: AuthPendingSignup.shape.name,
     email: AuthPendingSignup.shape.email,
-    phone_number: AuthPendingSignup.shape.phone_number,
+    phone_number: AuthPendingSignup.shape.phone_number.unwrap().optional(),
     accepted_terms: z.literal(true),
     captcha_token: z.string(),
   })

@@ -74,7 +74,17 @@ export function stubAuthApi(c: PoolClient): void {
     return cookies()
   }
 
-  api.signInEmailOTP = async ({ body }: { body: { email: string } }) => {
+  api.signInEmailOTP = async ({ body }: { body: { email: string; name?: string } }) => {
+    const found = await c.query(`SELECT id FROM auth.users WHERE email = $1`, [body.email])
+    if (found.rows.length === 0) {
+      await c.query(
+        `INSERT INTO auth.users (email, name, role, "emailVerified")
+         VALUES ($1, $2, 'user', true)`,
+        [body.email, body.name ?? '']
+      )
+    } else {
+      await c.query(`UPDATE auth.users SET "emailVerified" = true WHERE email = $1`, [body.email])
+    }
     await c.query(`DELETE FROM auth.verification WHERE identifier = $1`, [
       rules.identifierFor(rules.SIGN_IN_OTP_TYPE, body.email),
     ])

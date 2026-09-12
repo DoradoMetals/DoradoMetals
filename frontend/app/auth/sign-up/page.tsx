@@ -26,7 +26,7 @@ function SignUp() {
 
   const submit = async () => {
     if (!acceptedTerms) return
-    const phone_number = `+1${digits}`
+    const phone_number = digits ? `+1${digits}` : undefined
     const captcha_token = await captcha.token()
     try {
       const view = await signUp.mutateAsync({
@@ -36,7 +36,11 @@ function SignUp() {
         accepted_terms: true,
         captcha_token,
       })
-      setVerification({ view, channel: 'sms', phone_number, next: nextFrom(params) ?? undefined })
+      setVerification(
+        phone_number
+          ? { view, channel: 'sms', phone_number, next: nextFrom(params) ?? undefined }
+          : { view, channel: 'email', email, next: nextFrom(params) ?? undefined }
+      )
       router.push(view.status === 'locked' ? '/auth/locked' : '/auth/verify')
     } finally {
       captcha.reset()

@@ -6,7 +6,7 @@ type RouteConfig = {
 
 export const protectedRoutes: Record<string, RouteConfig> = {
   signIn: { path: '/auth/sign-in', roles: [], seoIndex: false },
-  signInEmail: { path: '/auth/sign-in/email', roles: [], seoIndex: false },
+  signInPhone: { path: '/auth/sign-in/phone', roles: [], seoIndex: false },
   signUp: { path: '/auth/sign-up', roles: [], seoIndex: false },
   verify: { path: '/auth/verify', roles: [], seoIndex: false },
   verifyStepUp: { path: '/auth/verify/step-up', roles: ['user', 'admin'], seoIndex: false },

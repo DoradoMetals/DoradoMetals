@@ -21,39 +21,8 @@ const view = (over: Partial<VerificationView> = {}): VerificationView => ({
 
 const noop = () => {}
 
-describe('sign in', () => {
-  test('is phone first, and offers email as the equal fallback', () => {
-    render(
-      <AuthForm state="sign-in" value="" onValueChange={noop} onSubmit={noop} onGoogle={noop} />
-    )
-    expect(screen.getByText('Welcome back')).toBeTruthy()
-    expect(
-      screen.getByText("Enter your phone number and we'll send you a sign-in code.")
-    ).toBeTruthy()
-    expect(screen.getByLabelText('Phone')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Continue' })).toBeTruthy()
-    expect(screen.getByText('or continue with')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Google' })).toBeTruthy()
-    expect(screen.getByText('Prefer email?')).toBeTruthy()
-    expect(screen.getByRole('link', { name: 'Send the code there' }).getAttribute('href')).toBe(
-      '/auth/sign-in/email'
-    )
-    expect(screen.getByRole('link', { name: 'Create an account' }).getAttribute('href')).toBe(
-      '/auth/sign-up'
-    )
-  })
-
-  test('carries no Apple or Facebook button - the marks do not exist yet', () => {
-    render(
-      <AuthForm state="sign-in" value="" onValueChange={noop} onSubmit={noop} onGoogle={noop} />
-    )
-    expect(screen.queryByRole('button', { name: 'Apple' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Facebook' })).toBeNull()
-  })
-})
-
-describe('sign in by email', () => {
-  test('is the same screen keyed to email, offering the text back', () => {
+describe('sign in by email - the default', () => {
+  test('is the primary screen, and offers no phone toggle - phone is coming soon', () => {
     render(
       <AuthForm
         state="sign-in-email"
@@ -66,7 +35,41 @@ describe('sign in by email', () => {
     expect(screen.getByText('Welcome back')).toBeTruthy()
     expect(screen.getByText("Enter your email and we'll send you a sign-in code.")).toBeTruthy()
     expect(screen.getByLabelText('Email')).toBeTruthy()
-    expect(screen.getByText('Prefer a text?')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeTruthy()
+    expect(screen.getByText('or continue with')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Google' })).toBeTruthy()
+    expect(screen.queryByRole('link', { name: 'Send the code there' })).toBeNull()
+    expect(screen.getByRole('link', { name: 'Create an account' }).getAttribute('href')).toBe(
+      '/auth/sign-up'
+    )
+  })
+
+  test('carries no Apple or Facebook button - the marks do not exist yet', () => {
+    render(
+      <AuthForm
+        state="sign-in-email"
+        value=""
+        onValueChange={noop}
+        onSubmit={noop}
+        onGoogle={noop}
+      />
+    )
+    expect(screen.queryByRole('button', { name: 'Apple' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Facebook' })).toBeNull()
+  })
+})
+
+describe('sign in by phone - parked coming soon, still fully wired', () => {
+  test('is the same screen keyed to phone, offering email back', () => {
+    render(
+      <AuthForm state="sign-in" value="" onValueChange={noop} onSubmit={noop} onGoogle={noop} />
+    )
+    expect(screen.getByText('Welcome back')).toBeTruthy()
+    expect(
+      screen.getByText("Enter your phone number and we'll send you a sign-in code.")
+    ).toBeTruthy()
+    expect(screen.getByLabelText('Phone')).toBeTruthy()
+    expect(screen.getByText('Prefer email?')).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Send the code there' }).getAttribute('href')).toBe(
       '/auth/sign-in'
     )
@@ -102,6 +105,13 @@ describe('sign up', () => {
     expect(screen.getByLabelText('Phone')).toBeTruthy()
     expect(screen.getByText('or sign up with')).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Sign in' }).getAttribute('href')).toBe('/auth/sign-in')
+  })
+
+  test('the phone field is visible but disabled - text sign-in is coming soon', () => {
+    signUp()
+    const phone = screen.getByLabelText('Phone')
+    expect(phone.hasAttribute('disabled')).toBe(true)
+    expect(screen.getByText('Text sign-in coming soon')).toBeTruthy()
   })
 
   test('will not submit until the terms are accepted', () => {
@@ -147,7 +157,7 @@ describe('the code screen', () => {
     code({ channel: 'sms' })
     expect(screen.getByText('Wrong number?')).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Change it' }).getAttribute('href')).toBe(
-      '/auth/sign-in'
+      '/auth/sign-in/phone'
     )
   })
 
@@ -155,7 +165,7 @@ describe('the code screen', () => {
     code({ channel: 'email', destination: 'j•••@doradometals.com' })
     expect(screen.getByText('Wrong email?')).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Change it' }).getAttribute('href')).toBe(
-      '/auth/sign-in/email'
+      '/auth/sign-in'
     )
   })
 
