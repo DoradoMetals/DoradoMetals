@@ -11,6 +11,15 @@ const SMALL_FEATURES =
   'the small-features lane owns this file (refiners, leads, reviews, media, ' +
   'sales-tax, transactions); its declarations are its own pass to remove'
 
+// Moved from providers/pdfs/puppeteer.ts by the provider-categorization pass
+// (ruling 106): the PDF renderer is not a third party, so it landed in the
+// documents domain instead of a business-named provider folder. It is a
+// puppeteer process-lifecycle adapter, not domain logic, and the move was a
+// pure rename - conforming it to domain-code rules is separate follow-up work.
+const PROVIDER_MOVE =
+  'moved from providers/pdfs/puppeteer.ts (ruling 106) - a puppeteer lifecycle ' +
+  'adapter, not domain logic; the move was a pure rename, conformance is a separate pass'
+
 const ACCEPTED: Record<string, { count: number; why: string }> = {
   'db/media/emails/repo.ts': { count: 1, why: SMALL_FEATURES },
   'db/media/images/repo.ts': { count: 1, why: SMALL_FEATURES },
@@ -25,6 +34,7 @@ const ACCEPTED: Record<string, { count: number; why: string }> = {
   'domains/documents/pdfs/serve.ts': { count: 3, why: SMALL_FEATURES },
   'domains/documents/pdfs/service.ts': { count: 3, why: SMALL_FEATURES },
   'domains/documents/pdfs/store.ts': { count: 1, why: SMALL_FEATURES },
+  'domains/documents/pdfs/render/puppeteer.ts': { count: 1, why: PROVIDER_MOVE },
 }
 
 const acceptedHit = new Map<string, number>()
@@ -358,7 +368,7 @@ if (process.argv.includes('--self-test')) {
         env: { LINT_TYPE_HOMES_FLOOR: '0' },
         files: {
           ...manifest,
-          'providers/shipments/adapters/fedex.ts': 'type AddressLike = { city?: string };\n',
+          'providers/carriers/fedex/adapters/fedex.ts': 'type AddressLike = { city?: string };\n',
           'db/orders/repo.ts': 'export type { Order } from "@dorado/contracts";\n',
         },
         mustPrint: '0 misplaced',

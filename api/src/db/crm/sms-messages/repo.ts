@@ -4,7 +4,7 @@ import { sqlFrom } from '#shared/db/sql.ts'
 import type { Executor } from '#shared/db/executor.ts'
 import type { SmsMessage } from '@dorado/contracts'
 import type { SmsDeliveryStatus } from '@dorado/contracts'
-import type { SmsInbound, SmsMedia } from '#providers/sms/index.ts'
+import type { SmsInbound, SmsMedia } from '#providers/communications/twilio/index.ts'
 
 const sql = sqlFrom(import.meta.dirname)
 

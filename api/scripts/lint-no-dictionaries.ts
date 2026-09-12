@@ -42,6 +42,13 @@ const ACCEPTED: Record<string, { count: number; why: string }> = {
       'there is no SQL read to parse because there is no table yet (see the lane ' +
       'report for the presence tradeoff and the migration it recommends)',
   },
+  'domains/documents/pdfs/render/puppeteer.ts': {
+    count: 1,
+    why:
+      'moved from providers/pdfs/puppeteer.ts (ruling 106) - `{ ...DEFAULT_PDF_OPTIONS, ' +
+      '...pdfOptions }` merges puppeteer.PDFOptions defaults with a caller override, not ' +
+      'a row shape; the move was a pure rename, conformance is a separate pass',
+  },
 }
 
 function walk(dir: string, out: string[] = []): string[] {

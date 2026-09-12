@@ -2,7 +2,7 @@ import { test, afterAll } from 'vitest'
 import assert from 'node:assert/strict'
 import request from 'supertest'
 import pool from '#pool'
-import { sign, signingString } from '#providers/moov/signature.ts'
+import { sign, signingString } from '#providers/payments/moov/signature.ts'
 
 process.env.MOOV_WEBHOOK_SECRET = 'whsec_moov_http_test'
 const { default: app } = await import('#app')

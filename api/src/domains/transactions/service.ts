@@ -1,5 +1,5 @@
 import withTransaction from '#shared/db/withTransaction.ts'
-import * as stripe from '#providers/payment/stripe.ts'
+import * as stripe from '#providers/payments/stripe/stripe.ts'
 import {
   paymentIntents as intents,
   paymentAttempts as attempts,
@@ -22,7 +22,7 @@ import {
   idempotencyKeyFor,
 } from '#transactions/rules.ts'
 
-import type { StripeIntentLike } from '#providers/payment/stripe.ts'
+import type { StripeIntentLike } from '#providers/payments/stripe/stripe.ts'
 import type {
   PaymentIntentView,
   PaymentIntentFacts,

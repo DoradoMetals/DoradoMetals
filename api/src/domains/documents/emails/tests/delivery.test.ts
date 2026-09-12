@@ -8,7 +8,7 @@ import * as mailers from '#db/media/emails/repo.ts'
 import * as emails from '#documents/emails/service.ts'
 import * as rules from '#documents/emails/rules.ts'
 import type { EmailKind } from '#documents/emails/record.ts'
-import type { ResendEvent } from '#providers/emails/index.ts'
+import type { ResendEvent } from '#providers/communications/email/index.ts'
 
 afterAll(async () => {
   await pool.end()
