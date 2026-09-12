@@ -17,7 +17,7 @@ import * as fulfillmentPickups from '#logistics/fulfillments/pickups/service.ts'
 import * as shippingOps from '#logistics/shipping/operations/handler.ts'
 import * as shippingOperations from '#logistics/shipping/operations/service.ts'
 import * as rules from '#logistics/shipping/rules.ts'
-import * as requests from '#providers/carriers/fedex/requests.ts'
+import * as requests from '#providers/fedex/requests.ts'
 import * as checkoutService from '#checkout/service.ts'
 import * as pricing from '#pricing/index.ts'
 

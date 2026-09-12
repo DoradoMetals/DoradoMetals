@@ -1,7 +1,7 @@
 import withTransaction from '#shared/db/withTransaction.ts'
 import { attempt } from '#shared/attempt.ts'
 import { orders, paymentTransfers as transfers, bankLinks, refiningOrders } from '#db'
-import * as moov from '#providers/payments/moov/index.ts'
+import * as moov from '#providers/moov/index.ts'
 import * as rails from '#transactions/rails/service.ts'
 import {
   assertKind,

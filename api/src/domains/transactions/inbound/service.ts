@@ -1,6 +1,6 @@
 import withTransaction from '#shared/db/withTransaction.ts'
 import { paymentInbound as inbound, paymentTransfers as transfers, feedCursors } from '#db'
-import * as plaid from '#providers/payments/plaid/index.ts'
+import * as plaid from '#providers/plaid/index.ts'
 import * as rails from '#transactions/rails/service.ts'
 import {
   assertFeedToken,
@@ -10,8 +10,8 @@ import {
   assertUnmatched,
   assertWritten,
 } from '#transactions/rails/rules.ts'
-import type { MoovEvent } from '#providers/payments/moov/types.ts'
-import type { PlaidFeedTransaction } from '#providers/payments/plaid/types.ts'
+import type { MoovEvent } from '#providers/moov/types.ts'
+import type { PlaidFeedTransaction } from '#providers/plaid/types.ts'
 import type { InboundTransaction, MatchCandidate, RecordWireBody } from '@dorado/contracts'
 
 const FEED = 'plaid:truist'

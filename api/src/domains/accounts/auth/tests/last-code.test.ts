@@ -2,10 +2,10 @@ import { test, afterAll, vi } from 'vitest'
 import assert from 'node:assert/strict'
 import request from 'supertest'
 import pool from '#pool'
-import { isFake } from '#providers/communications/twilio/index.ts'
-import { isFake as emailIsFake } from '#providers/communications/email/index.ts'
-import * as fakeSms from '#providers/communications/twilio/fake.ts'
-import * as fakeEmail from '#providers/communications/email/fake.ts'
+import { isFake } from '#providers/twilio/index.ts'
+import { isFake as emailIsFake } from '#providers/resend/index.ts'
+import * as fakeSms from '#providers/twilio/fake.ts'
+import * as fakeEmail from '#providers/resend/fake.ts'
 import { sendSignInCode } from '#documents/emails/service.ts'
 import { readsBackCodes } from '#accounts/auth/routes.ts'
 
@@ -89,10 +89,10 @@ test('the read-back route stays mounted when only one channel loses its fake', a
 
 test('the read-back route does not exist at all once both channels use a real provider', async () => {
   const savedSms = process.env.SMS_PROVIDER
-  const savedEmailHost = process.env.EMAIL_HOST
+  const savedResendKey = process.env.RESEND_API_KEY
   const savedNodeEnv = process.env.NODE_ENV
   process.env.SMS_PROVIDER = 'twilio'
-  process.env.EMAIL_HOST = 'smtp.example.test'
+  process.env.RESEND_API_KEY = 're_test_key'
   process.env.NODE_ENV = 'development'
   vi.resetModules()
   try {
@@ -109,8 +109,8 @@ test('the read-back route does not exist at all once both channels use a real pr
   } finally {
     if (savedSms === undefined) delete process.env.SMS_PROVIDER
     else process.env.SMS_PROVIDER = savedSms
-    if (savedEmailHost === undefined) delete process.env.EMAIL_HOST
-    else process.env.EMAIL_HOST = savedEmailHost
+    if (savedResendKey === undefined) delete process.env.RESEND_API_KEY
+    else process.env.RESEND_API_KEY = savedResendKey
     process.env.NODE_ENV = savedNodeEnv
     vi.resetModules()
   }

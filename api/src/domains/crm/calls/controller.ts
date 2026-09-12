@@ -2,7 +2,7 @@ import type { Request } from 'express'
 import { asyncHandler } from '#shared/middleware/asyncHandler.ts'
 import { refuseWith } from '#shared/http/refuse.ts'
 import { requiredParam, callerId } from '#shared/http/caller.ts'
-import * as voice from '#providers/communications/twilio/voice.ts'
+import * as voice from '#providers/twilio/voice.ts'
 import * as service from '#crm/calls/service.ts'
 import type { WebhookForm } from '#shared/http/webhook-form.ts'
 

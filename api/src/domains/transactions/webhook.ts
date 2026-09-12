@@ -5,7 +5,7 @@ import {
   paymentIntents as intents,
   emails,
 } from '#db'
-import * as stripe from '#providers/payments/stripe/stripe.ts'
+import * as stripe from '#providers/stripe/stripe.ts'
 import {
   assertWebhookMatched,
   instrumentValues,
@@ -24,7 +24,7 @@ import type {
   StripeIntentLike,
   StripePaymentMethodLike,
   Instruments,
-} from '#providers/payments/stripe/stripe.ts'
+} from '#providers/stripe/stripe.ts'
 
 export const LIVE: Instruments & { confirm: (order_id: string) => Promise<void> } = {
   retrieve: stripe.retrievePaymentMethod,

@@ -7,7 +7,7 @@ import pool from '#pool'
 import { PROVIDERS } from '#logistics/shipping/operations/registry.ts'
 import { BUILDERS } from '#logistics/shipping/operations/builders.ts'
 import { resolveCarrier } from '#logistics/shipping/operations/resolver.ts'
-import { FEDEX_CARRIER_ID } from '#providers/carriers/fedex/constants.ts'
+import { FEDEX_CARRIER_ID } from '#providers/fedex/constants.ts'
 import * as carriers from '#logistics/shipping/carriers/service.ts'
 
 let client: PoolClient

@@ -8,7 +8,7 @@ console.log(`database: ${assertSafeDatabase('seed-e2e-users', process.env.DATABA
 import pool from '#pool'
 import query from '#shared/db/query.ts'
 import { auth } from '#accounts/auth/client.ts'
-import * as fakeSms from '#providers/communications/twilio/fake.ts'
+import * as fakeSms from '#providers/twilio/fake.ts'
 
 // There are no passwords any more (ruling 91). A seeded account gets a
 // VERIFIED phone number, and the harness signs in the way a customer does:

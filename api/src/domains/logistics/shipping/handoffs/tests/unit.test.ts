@@ -1,7 +1,7 @@
 import { test } from 'vitest'
 import assert from 'node:assert/strict'
 
-import { CATALOGUE } from '#providers/carriers/fedex/adapters/fedex.catalogue.ts'
+import { CATALOGUE } from '#providers/fedex/adapters/fedex.catalogue.ts'
 import { CATALOGUES } from '#logistics/shipping/operations/catalogues.ts'
 import { PROVIDERS } from '#logistics/shipping/operations/registry.ts'
 import { BUILDERS } from '#logistics/shipping/operations/builders.ts'

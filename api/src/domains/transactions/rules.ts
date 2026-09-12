@@ -1,6 +1,6 @@
 import { Forbidden, Invalid, NotFound } from '#shared/errors.ts'
 import type { PaymentDetailsWrite, PaymentSurface } from '@dorado/contracts'
-import type { StripePaymentMethodLike } from '#providers/payments/stripe/stripe.ts'
+import type { StripePaymentMethodLike } from '#providers/stripe/stripe.ts'
 
 export function toDollars(cents: number | null | undefined): number | null {
   return cents == null ? null : cents / 100

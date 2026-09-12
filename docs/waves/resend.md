@@ -1,24 +1,28 @@
 # Resend is the transactional email provider (ruling 104, 2026-09-11)
 
-Jacob picked Resend. It sits behind the interface `providers/emails/` already
-had, so nothing that sends mail changed: a mailer still calls
-`documents/emails/service.ts`, which still calls `deliver()`, which still files
-a paper-trail row before the failure travels on.
+Jacob picked Resend. It sits behind the interface `providers/resend/` already
+had (named `providers/emails/` at the time this ruling was made; the SMTP
+adapter it sat beside is since deleted and the folder renamed - see
+`docs/waves/providers-by-business.md`), so nothing that sends mail changed: a
+mailer still calls `documents/emails/service.ts`, which still calls
+`deliver()`, which still files a paper-trail row before the failure travels
+on.
 
 ## Selection
 
-`providers/emails/index.ts` `selected()` answers one of three, in this order:
+`providers/resend/index.ts` `selected()` answers one of two, in this order:
 
 | condition | provider |
 |---|---|
 | a test run (`NODE_ENV=test`, or `--test` in `execArgv`) | `fake` |
 | `RESEND_API_KEY` is set | `resend` |
-| no key, `EMAIL_HOST` is set | `smtp` (nodemailer, unchanged) |
 | neither | `fake` |
 
-So **without a Resend key the selection is exactly what it was**: SMTP if
-`EMAIL_HOST`, else the recording fake. A test run never reaches a real
-provider, and `NODE_ENV=production` on the fake still refuses to boot.
+**The SMTP branch is gone.** `nodemailer.ts` and the `EMAIL_HOST` /
+`EMAIL_PORT` / `EMAIL_USER` / `EMAIL_PASSWORD` env vars it read are deleted;
+without a Resend key the selection is the recording fake, full stop. A test
+run never reaches a real provider, and `NODE_ENV=production` on the fake still
+refuses to boot.
 
 `resend.ts` `assertSendable()` runs when the shared transport is built, and in
 production ONLY: `RESEND_FROM_DOMAIN` must be set, and `EMAIL_FROM` must be an
@@ -76,7 +80,7 @@ BEFORE `express.json()` with its own `express.raw({ type: 'application/json' })`
 - a delivery more than five minutes old is refused, so a captured body cannot be
   replayed forever
 
-`providers/emails/tests/resend-webhook.test.ts` pins a hand-computed signature
+`providers/resend/tests/resend-webhook.test.ts` pins a hand-computed signature
 fixture, so the implementation is checked against the documented scheme rather
 than against itself.
 
@@ -131,7 +135,8 @@ applies to.
 Nothing here is set, and no Resend token exists in any env file. Until `RESEND_API_KEY` is set the API behaves exactly as it did.
 
 1. **`RESEND_API_KEY`** — a Resend API key with send permission. Setting it
-   alone switches the provider; `EMAIL_HOST` can stay and is simply not used.
+   switches the provider; with no key, mail goes to the recording fake outside
+   a test run (SMTP support has been removed - there is no third option).
 2. **Domain verification.** Add the sending domain in the Resend dashboard and
    publish the DNS records it prints: a DKIM `TXT`, the `MX` and `TXT` for the
    return path (`send.<domain>`), and a DMARC `TXT` if there is not one already.
@@ -152,7 +157,7 @@ Nothing here is set, and no Resend token exists in any env file. Until `RESEND_A
 
 Env keys this lane reads: `RESEND_API_KEY`, `RESEND_FROM_DOMAIN`,
 `RESEND_WEBHOOK_SECRET`, `RESEND_HOST` (optional), plus the existing
-`EMAIL_FROM` and `EMAIL_HOST`.
+`EMAIL_FROM`.
 
 ## Not done here
 
