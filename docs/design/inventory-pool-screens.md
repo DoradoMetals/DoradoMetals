@@ -28,7 +28,7 @@ viewport with 358 of content. Card chrome — `surface/card`, `border/default`,
 ## 1. Lot screen
 
 Breadcrumb `Admin > Inventory > Lot 2481-A`. Six states, one per position; each
-is the same screen with its card instances swapped. Main column: `Details`, `Refiner`
+is the same screen with its card instances swapped. Main column, in order: `Lineage`, `Details`, `Refiner`
 (At refiner and Pooled only). Aside: `Worth`, `Lineage`, `Photos`. There is no
 `Where` card and no `Documents` card. Aside: `Worth`, `Lineage`, `Photos`. There is no Documents card on a lot
 - documents belong to the order.
@@ -43,6 +43,7 @@ is the same screen with its card instances swapped. Main column: `Details`, `Ref
 | Pooled | `671:20757` | `671:25263` |
 | Sold | `671:21190` | `671:25666` |
 | Consumed | `671:21596` | `671:26046` |
+| Refiner lot | `736:26924` | `736:27318` |
 
 ### How the cards are built
 
@@ -97,7 +98,7 @@ header, and the Where card's Customer order row carries a **Secondary**
 | `Lot Details` | `723:18772` | `Kind=Scrap \| Bullion` x `State=ReadOnly \| Editing` | One shape for both kinds, three equal columns, no holes: `Kind` / `Metal` or `Product` / `Qty`, then `Pre melt` / `Post melt` / `Purity`, then `Weight` / `Premium`. A field that does not apply shows an em dash with its unit. Below a rule, a computed group in his Totals rows: `Content` and `Payable content` (content x premium), never editable. **A lot is editable in every position** - there is no `Locked` state and no `Edit on …` line - and everything writes through **`PATCH /api/orders/lots/:id`**; **a premium change retiers the order's sibling lots**, so that endpoint must reprice siblings and return them. |
 | `Lot Refiner` | `732:20441` (mobile `732:21468`) | `State=Pending assay \| Settled \| Disputed \| Shared` x `Edit=ReadOnly \| Editing` (7 drawn) | Same shape as `Lot Details`: title row with the settlement badge and the `Edit` -> `Save` / `Discard` toggle, one field row `Refiner post melt` / `Refiner purity` / `Refiner premium` with trailing units, then a hairline and a computed group in his Totals rows, `Refiner fine oz` and `Variance` (danger text past tolerance, no sign). Pending assay shows em dashes with units in the fields and in the computed rows, exactly as `Details` does. **The write is a `PATCH` on the lot's line of the refiner order** - the same write the refiner order's own `Settlement` card makes - so `refining.lots` must be addressable per line. Our own figures are not repeated here; they are on `Details`, one card up. |
 | `Worth` (no local component) | instance of `170:2346` | rows swapped per position | **The spot row follows the ORDER's spot state, never the lot's position**: `orders.orders.spots_locked` (exists) picks the label - `Spot . live` while unlocked, `Spot . locked <date>` once frozen - and the lock date needs a timestamp beside that boolean, which is **new**. There is no "spot at purchase": an incoming lot has not been priced against a frozen spot yet. Premium per lot is today on the order item / `order_metals`, not on the lot; exposing it on `LotView` is **new**. Estimate is `content` at the current spot; Settled is `refining.lots.post_melt`/`purity` with `refining.orders.settled_at`; Sold is the sale line and its margin. Every figure is a pricing read - the screen computes nothing. |
-| `Lot Lineage` | `694:64571` | `Position` x6 | The lot's story, and only what has happened - no "Pending" rows, no employee names, no fulfillment steps (those live on the order); the position badge says where it is. Created `from PO-2481 . Marguerite Whitfield`: `orders.lots` plus the customer. Received `139.22 g . matches declared`: **gap** - nothing marks arrival or compares against the declared weight (`statuses.md` §Q3 recommends `received_at` on the inbound fulfillment). Assayed `56.3% . 2.505 oz fine`: **gap** - no inbound-assay column. Batched: `refining.orders.sent_at` + `refiners`. Settled: `settled_at` and the settled-vs-estimate delta. Sold: the sale `orders.lots` row. Split / Combined: `split_from_id` (exists) and the **undecided** combine column (`statuses.md` §4 recommends `combined_into_id`). |
+| `Lot Lineage` | `739:20318` (mobile `694:64571`) | `Position` x6 | The lot's story, and only what has happened - no "Pending" rows, no employee names, no fulfillment steps (those live on the order); the position badge says where it is. Created `from PO-2481 . Marguerite Whitfield`: `orders.lots` plus the customer. Received `139.22 g . matches declared`: **gap** - nothing marks arrival or compares against the declared weight (`statuses.md` §Q3 recommends `received_at` on the inbound fulfillment). Assayed `56.3% . 2.505 oz fine`: **gap** - no inbound-assay column. Batched: `refining.orders.sent_at` + `refiners`. Settled: `settled_at` and the settled-vs-estimate delta. Sold: the sale `orders.lots` row. Split / Combined: `split_from_id` (exists) and the **undecided** combine column (`statuses.md` §4 recommends `combined_into_id`). |
 | `Lot Photos` | `694:64781` | `State=Filled \| Empty` | The media domain's image routes: `POST /api/images` to upload, `GET /api/images/:id/url` to render. **A lot-to-image link is new** - images hang off accounts and orders today, and nothing associates one with a lot. |
 | `Lot Card / Mobile` | `671:29223` | `Position` x5 | `GET /api/lots` - the mobile grain of `Lot Row (proposal)` `639:13959`, which has no mobile twin. |
 
@@ -303,3 +304,58 @@ Primary and the rest Secondary): `split` for Split, `combine` for Combine,
 `boxes` for Batch into (his own Batch icon). **There is no assign-to-sale icon
 in the set**, so Assign to sale wears `receipt-text` as the closest library
 icon - recorded here rather than drawn, per the no-invented-primitives rule.
+
+### The refiner lot
+
+**A refiner lot is a lot row like any other**, so it is a seventh state of the
+same screen rather than a different screen: `Admin / Lot 2493-A — Refiner lot`
+`736:26924`, mobile `736:27318`. Eyebrow `REFINER LOT` with the **settlement**
+badge in the badge slot (`Pending assay` / `Settled`), title the item, and the
+reference line `Lot 2493-A · SO-2493 · Elemetal · Dallas` with the refiner order
+as the link. The header offers **Combine only**.
+
+`Details` holds the refiner's own figures - post melt, purity, premium - with
+the same Edit toggle, and its computed rows are that lot's `Content` and
+`Payable content`. `Worth` is the same Totals instance: `Spot · locked`,
+`Premium`, `Payable content`, total `Est. value`. `Lineage` is two steps:
+`Created · from 2481-A · PO-2481` (or `from 2481-A + 2481-B` when the refiner
+lot was combined from several) and `Settled · 2.498 oz fine`. **No `Refiner`
+card** - it would point at itself - and **no `Photos`**.
+
+New variants for it: `Lot Header` `735:19471`, `Lot Header / Mobile`
+`735:19544`, `Lot Lineage` `735:19665`. The API must be able to return a lot
+whose owner is a refiner order rather than a customer order - today
+`orders.lots` assumes the customer side, so the `position` view (§5.1) needs a
+`refiner lot` value and `LotView` needs the refiner order as its parent
+reference. **New.**
+
+### Late changes, 2026-09-12
+
+- **`Details` is fields only.** The computed group moved out; `Details` ends at
+  its last field row. `Worth` - still a live instance of his `Totals` - now
+  reads `Spot · live` (or `· locked Aug 28`), `Content`, `Premium`,
+  `Payable content`, total `Est. value`; pooled swaps in `Settled fine oz` and
+  `Variance` with total `Settled value`, sold swaps in `Margin` with total
+  `Sale price`.
+- **`Lineage` is horizontal and sits at the top of the main column**, full
+  width, above `Details`. It is his `Tracker` `Orientation=Horizontal` with the
+  carrier `Tracking # / ETA` header hidden: each stage is the step name, its
+  fact line and its date, left to right, and **stages beyond what happened are
+  not drawn**. The aside keeps `Worth` and `Photos`. **Mobile falls back to his
+  `Tracker` vertical rail** (`Lot Lineage / Mobile` `694:64571`): five stages do
+  not fit 358, so the vertical variant is the honest mobile form.
+- **One badge on the screen.** The position badge beside the header eyebrow -
+  and on the refiner-lot state, the settlement badge in that same slot. Every
+  badge inside a card is gone, including the `Refiner` card's title-row badge:
+  `Pending assay` is conveyed by the em dashes in its fields.
+- **The header carries the same five Icon Buttons in every state**, in one
+  order - split, combine, assign to sale, batch, delete - with the variants read
+  off his `Lots` card instances rather than picked by name: batch is the one
+  **Primary** (white), split / combine / assign to sale are **Secondary**
+  outlined, delete is **Danger** outlined (`trash-2`, his remove button). Where
+  a position makes an action a data error it is his **Disabled** state, never
+  removed: split and batch on `Pooled`, `Sold` and `Consumed`; delete on
+  `Refiner lot` (its refiner order has settled). Are-you-sure is the frontend's
+  job. `Consumed` is my reading of the same rule Jacob gave for pooled and sold
+  - a consumed lot cannot be split or batched again - flagging it as the one
+  position he did not name.

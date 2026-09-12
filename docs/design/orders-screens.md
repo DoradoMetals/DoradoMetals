@@ -84,7 +84,27 @@ the badge: the aside `Settlement` card.
 
 | component | frame id | states | source | what the API must provide |
 |---|---|---|---|---|
-| `Settlement · proposed` | `718:38422` | `Pending` `718:38308` · `Settled` `718:38345` · `Disputed` `718:38384` | **apply at source** on `Settlement` `327:9783` | its one change is the title row: `Record settlement` (primary) in Pending and Disputed, `Dispute` (tertiary) in Settled, beside the badge it already carries. Behind it: `PATCH /api/refining/lots/:id { post_melt, purity }` writing the refiner's figures onto the lots already at the refiner, and `settled_at` / `disputed_at` on the order, which `refining/orders/sql/view_one.sql` already reads for the badge. |
+| `Settlement · proposed` | `742:20760` | `State=Pending\|Settled\|Disputed` × `Type=Paid\|Pooled` — `742:20483` `742:20529` `742:20573` `742:20621` `742:20667` `742:20714` | **apply at source** on `Settlement` `327:9783` | two changes: the title row gains `Record settlement` (primary) / `Dispute` (tertiary) beside the badge it already carries, and the body gains a `Settlement` row at the top — a Select reading `Paid at settlement` or `Pooled`, read-only once settled. Behind it: **`settlement_type` on the refiner order** (`paid` \| `pooled`), plus `PATCH /api/refining/lots/:id { post_melt, purity }` writing the refiner's figures and `settled_at` / `disputed_at` on the order, which `refining/orders/sql/view_one.sql` already reads for the badge. A pooled order reads `Credited to pool` in fine ounces instead of an expected settlement. |
+| `Settlement · proposed / Mobile` | `743:20841` | same six — `743:20563` `743:20610` `743:20656` `743:20703` `743:20749` `743:20795` | **new** | same |
+| `Lots / Refiner · proposed` | `741:47884` | `Settlement=Paid` `741:46679` · `Settlement=Pooled` `741:47290` | **apply at source** on `Lots / Refiner` `338:10143` | one read-only column after Premium, **`Spot`** — **`settled_spot` per refiner lot**, the spot at the moment that lot settled, `—` until recorded. |
+| `Item Row / Refiner · proposed` | `741:46678` | `Settlement=Paid` `741:46580` · `Settlement=Pooled` `741:46629` | **apply at source** on `Item Row / Refiner` `398:9871` | same |
+
+### 2.0 Paid at settlement, or pooled
+
+Jacob: a refiner sale order is either **`Paid at settlement`** or **`Pooled`**.
+Two consequences on the screen:
+
+- **His Spots card goes.** The spot that matters is the one at which each lot
+  settled, not a spot locked on the order, so the card has nothing to say here.
+- **The table gains a `Spot` column** after Premium, read-only. Paid orders
+  show the settled spot per lot and a Price; pooled orders show `—` for both,
+  because a pooled lot is credited to the pool as fine ounces and is not
+  priced at settlement.
+
+**API.** `settlement_type` on `refining.orders` (`paid` | `pooled`), set on the
+order and read-only once settled; `settled_spot` on `refining.lots`, stamped
+when the lot's line is recorded. Neither is computed on the client: the Spot
+column and the Price column both read what the settlement wrote.
 
 **The refiner-combined lot — API, new.** A combine allowed for lots already
 `at refiner`, recorded as lineage (`combined_into_id` on the parents, the
@@ -195,6 +215,7 @@ and nothing else, so `OrderListItem` needs neither `lots_by_position` nor
 |---|---|---|---|
 | `Sales Order (Refiner) · Settlement Pending` | `719:15329` | `320:2717` | his screen unchanged but for the four changes; refiner figures pre-filled from ours; aside Settlement badged `Pending assay` with `Record settlement` |
 | `Sales Order (Refiner) · Settlement Settled` | `719:16091` | `320:2717` | refiner figures settled; aside Settlement badged `Settled` with `Dispute`, settled fine oz and variance filled |
+| `Sales Order (Refiner) · Settlement Pooled` | `743:38918` | `320:2717` | the pooled case: `Spot` and `Price` read `—`, the aside reads `Pooled` and `Credited to pool` |
 | `Sales Order (Refiner) · Match lines open` | `719:16814` | `320:2717` | the dialog open over a scrim, centred in the first viewport |
 | `Admin / Orders · state chips` | `673:20375` | `620:5115` | the list with the state-chip row and six cards on six derived states |
 | `Purchase Order (Refiner) · Linked orders` | `729:34954` | `358:6416` | the Fulfillment card as a list of two customer sales orders with their shipment states |
@@ -208,6 +229,7 @@ and nothing else, so `OrderListItem` needs neither `lots_by_position` nor
 |---|---|
 | `Mobile · Settlement · Pending` | `721:17087` |
 | `Mobile · Settlement · Settled` | `721:17154` |
+| `Mobile · Settlement · Pooled` | `743:39626` |
 | `Mobile · Settlement · Match lines` | `721:17220` |
 | `Mobile · Order Cards` | `673:34763` |
 | `Mobile · Linked orders` | `729:36214` |
@@ -236,6 +258,8 @@ Notes on canvas: `Draft note` `673:35312`, `Held · library limits` `673:35313`.
 6. `Lots` `170:2260` gains an `Adopt refiner assay` tertiary in its title row.
 7. `Linked Fulfillment` `371:8332` / `371:8408` becomes a list of the customer
    sales orders the refiner purchase order feeds.
+8. `Lots / Refiner` `338:10143` and `Item Row / Refiner` `398:9871` gain the
+   read-only `Spot` column; the refiner sale order drops his `Spots` card.
 
 ---
 
@@ -248,6 +272,9 @@ Notes on canvas: `Draft note` `673:35312`, `Held · library limits` `673:35313`.
 - **A mobile refiner lots card.** He has no mobile twin of `Lots / Refiner`,
   and nothing was invented to stand in for one; the mobile frames say so.
 - **A mobile Order Card.** He has none; the 358 twin here is new.
+- **A read-only Select.** The library `Select` has no `ReadOnly` state the way
+  `Input` does, so the settled settlement-type Select uses `Disabled`. If
+  read-only selects recur, the state belongs in the library.
 - Everything else is a library instance (Badge, Button, Icon Button, Input,
   Select, Checkbox, Radio Chip, Accordion) on bound tokens. No raw hex.
 
