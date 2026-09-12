@@ -1,4 +1,4 @@
-# Orders screens: intake, settlement, and the derived order state
+# Orders screens: settlement, and the derived order state
 
 Drafted 2026-09-11 for Jacob's approval (ruling 96: no frontend component
 without a Figma design he approved; ruling 103: an agent may draft, he
@@ -8,160 +8,219 @@ Figma file **Orders** `ymmNlCDLVIfanpRQ7QHMIs`. Two draft sections:
 
 | section | page | id |
 |---|---|---|
-| `Draft · for review · 2026-09-11` (screens, mobile frames, notes) | Orders | `664:11578` |
+| `Draft · for review · 2026-09-11` (screen copies, mobile frames, notes) | Orders | `664:11578` |
 | `Draft · Orders · 2026-09-11` (new local components) | Components | `664:11577` |
 
 **Not one node of his was modified, renamed or moved.** Every proposal is a
-COPY built from library instances and tokens. His source sets were re-read
-after the pass and are unchanged: `292:5060` `292:5098` `170:2260` `170:2421`
-`152:548` `158:1175` `327:9783` `626:11861` `618:4776` `640:13045`.
-
-What it answers: the "received" gap that `docs/design/statuses.md` §2/Q3 names
-(nothing records receipt, so `on hand` is underivable and the `on_assay`
-payout policy has nothing to gate on), the per-lot settlement variance that
-`orders-notes-2026-09-05.md` §7 left open, and the derived display state that
-`statuses.md` §3 proposes.
+COPY built from library instances and tokens.
 
 ---
 
-## 1. Components
+## 1. Intake — nothing to draw
 
-### Intake
+An earlier pass drew a `Received` axis on the Lots card (Awaiting / Receiving
+/ Received, a `Mark received` button, a Variance column, position badges).
+**Jacob cut all of it.** The rulings, in his words:
 
-| component | frame id | states | source | what the API must provide |
-|---|---|---|---|---|
-| `Lots · proposed` | `668:15298` | `Kind=Scrap\|Bullion` × `Received=Awaiting\|Receiving\|Received` — `668:13913` `668:14215` `668:14493` `668:14768` `668:14944` `668:15122` | **apply at source** on `Lots` `170:2260` | `received_at` + `received_by` on the INBOUND fulfillment (statuses.md §4 recommends the fulfillment, not the lot or the order). Card reads it three ways: absent + parcel undelivered → Awaiting; absent + delivered → Receiving; present → Received. Needs `POST /api/fulfillments/:id/receive { lot_ids[] }`. |
-| `Lots · proposed / Mobile` | `670:14936` | same six — `670:13658` `670:13898` `670:14117` `670:14336` `670:14536` `670:14736` | **apply at source** on `Lots / Mobile` `170:2421` | same |
-| `Lots Row · proposed` | `665:11605` | `Type=Scrap\|Bullion` × `Received=Awaiting\|Receiving\|Received` — `665:11606` `667:11657` `667:11673` `665:11621` `667:11689` `667:11705` | **apply at source** on `Lots Row` `152:548` | per-lot in-house assay write: `PATCH /api/lots/:id { pre_melt, post_melt, purity }` with a `received` flag, plus `LotView.position` (inventory-model §1) for the Position badge and `LotView.declared_*` for the Variance figure. Variance is COMPUTED server-side, not typed. |
-| `Lots Row · proposed / Mobile` | `670:13183` | same six — `670:13184` `670:13471` `670:13481` `670:13193` `670:13491` `670:13500` | **apply at source** on `Lots Row / Mobile` `158:1175` | same |
+- *"I don't think we'll ever need this mark received button."* Arrival is
+  already recorded by the fulfillment card's own actions and the carrier
+  scans; the in-house assay is the employee editing the fields his Lots card
+  already has.
+- *"I feel assaulted by the number of badges."* No position badge and no
+  Variance column on the order screen.
+- *"Variance belongs on the Lot screen, maybe too much on the orders screen."*
 
-**What changes in the card.** The title row gains one control per state:
-`Awaiting delivery` (Badge, Warning Soft) → `Mark received` (Button, Primary)
-→ `Received · Sep 11 · Dana` (Badge, Success Soft). The head's last two
-columns, `Premium` and `Price`, become `Variance` and `Position` — intake is
-an assay, not a price, and the swap is column-for-column so the table geometry
-is untouched (872 wide either way). Rows carry a per-row check in `Receiving`,
-read-only inputs otherwise, and a position badge that reads `Incoming` before
-receipt and `On Hand` after. A Variance beyond tolerance is `text/danger`.
+So **his `Lots` card stands as it is on the order**, and intake needs no new
+component. Variance against the customer's declaration is shown on the **lot**
+screen (Lineage and the Refiner card), not here.
 
-### Settlement
-
-| component | frame id | states | source | what the API must provide |
-|---|---|---|---|---|
-| `Settlement · proposed` | `671:16072` | `Pending` `671:14414` · `Imported` `671:14832` · `Settled` `671:15247` · `Disputed` `671:15660` | **new** (replaces the order-level `Settlement` `327:9783` on the refiner sale order) | per-lot settlement write: `PATCH /api/refining/lots/:id { settled_weight, settled_purity }` (settled fine oz is generated, like `content`), plus `refining.orders.refiner_reported_content` for the footer input and a rules check that raises when our sum and the refiner's differ. `Import settlement` = `POST /api/refining/orders/:id/settlement-import` (PDF in, inputs pre-filled, employee confirms — the write happens on `Record settlement`, never on import). `Dispute` = the existing `disputed_at`. |
-| `Settlement · proposed / Mobile` | `671:23784` | `671:22415` `671:22760` `671:23105` `671:23445` | **new** | same |
-| `Settlement Row · proposed` | `670:18873` | `Pending` `670:18663` · `Imported` `670:18732` · `Settled` `670:18779` · `Disputed` `670:18826` | **new** | `RefiningLotView` needs `sent_weight`, `est_purity`, `est_fine_oz`, `settled_weight`, `settled_purity`, `settled_fine_oz`, `variance`. Six of the seven already exist on `refining.lots` (`pre_melt`/`post_melt`/`purity`); the settled trio and the variance are the addition. |
-| `Settlement Row · proposed / Mobile` | `671:22180` | `671:21986` `671:22045` `671:22102` `671:22141` | **new** | same |
-
-**What changes.** The card moves from the 400-wide **aside** to the 952-wide
-**main** column — nine columns cannot live in the aside, and the aside keeps
-Totals and Documents. Columns: `Lot · Item · Sent weight · Est. purity ·
-Est. fine oz · Settled weight (input) · Settled purity (input) · Settled fine
-oz (computed) · Variance`. Footer: our total fine oz, the refiner-reported
-input, and a match check that reads `Totals differ by 0.12 oz` in Danger when
-they disagree and `Totals match` in Success when they do. Title row: badge
-`Pending assay` / `Settled` / `Disputed`, with `Import settlement`
-(secondary), `Record settlement` (primary) and `Dispute` (tertiary, Danger).
-`Imported` adds one banner line, `Imported from Elemetal PDF · confirm`.
-
-### Derived order state
-
-| component | frame id | states | source | what the API must provide |
-|---|---|---|---|---|
-| `Order State` | `664:12789` | 14, one axis. Purchase: `Awaiting Receipt` `664:12714` → `Awaiting Payout` `664:12720` → `At Refiner` `664:12725` → `Ready to Pay` `664:12731` → `Completed` `664:12767`. Sale: `Awaiting Payment` `664:12736` → `Preparing` `664:12741` → `In Transit` `664:12746` → `Completed`. Refiner sale: `Pending Assay` `664:12751` → `Settled` `664:12761` / `Disputed` `664:12772`. Refiner purchase: `Awaiting Delivery` `664:12756` → `Awaiting Payment` → `Completed`. All: `Draft` `664:12783`, `Cancelled` `664:12778`. | **new** | the derived state view (statuses.md §3): `orders.orders.status` narrows to `draft \| open \| cancelled` and one SQL `CASE` — on the model of `refining/orders/sql/view_one.sql` — projects the display state from payout/charge `state`, fulfillment state and lot positions. One expression, one place; `OrderView.state` and `OrderListItem.state` both read it. `OrderActions.statuses` is dropped (nothing reads it). |
-| `Order Header · proposed` | `671:26494` | `Audience=Admin, Party=Customer` `671:26436` · `Audience=External, Party=Customer` `671:26457` · `Audience=Admin, Party=Refiner` `671:26472` | **apply at source** on `Order Header` `292:5060` | `OrderView.state` |
-| `Order Header · proposed / Mobile` | `671:28373` | `671:28323` `671:28340` `671:28354` | **apply at source** on `Order Header / Mobile` `292:5098` | same |
-| `Order Card · proposed` | `671:28586` | `Selected=false\|true` × `Direction=Purchase\|Sale` — `671:28446` `671:28470` `671:28494` `671:28518` | **apply at source** on `Order Card (proposal)` `640:13045` | `OrderListItem.state` |
-| `Order Card · proposed / Mobile` | `671:28777` | `Direction=Purchase` `671:28731` · `Direction=Sale` `671:28754` | **new** (he has no mobile twin of the card) | same |
-| `Filter Bar · proposed` | `672:16525` | `Set=Purchases` `672:16460` · `Set=Sales` `672:16494` | **apply at source** on `Filter Bar (proposal A)` `626:11861` | `GET /api/orders?state=` (repeatable) over the derived state, and a count per chip. Indexable — the state is derived, so the filter is a `WHERE` with no `exchange` index behind it; `audit:query-paths` is the guard. |
-
-**What changes in the header.** The `State=Active/Cancelled/Sent` axis goes
-away. The eyebrow row always carries one `Order State` instance, and the
-existing Cancelled badge becomes one of its fourteen variants — which is what
-lets one component say `Cancelled`, `Draft` and every derived rung without a
-new axis per kind. **What changes in the card.** The separate `Payment` and
-`Fulfillment` badges collapse into the one derived state they are already a
-projection of; the parts stay on the order screen, where they are actionable.
+What the API still needs underneath is unchanged and still missing
+(`docs/design/statuses.md` §2/Q3): a **`received_at` on the inbound
+fulfillment**, because without it `on hand` is underivable and the `on_assay`
+payout policy has nothing to gate on. That is an API fact with no screen of
+its own.
 
 ---
 
-## 2. Screen copies
+## 2. Settlement — his own cards, four changes
 
-Each is a full copy of his screen with the proposed cards instanced, so the
-whole page reads correctly.
+Jacob: *"this should all look EXTREMELY similar to the lots on the customer
+orders."* An earlier pass drew a settlement grid with appended refiner
+columns, a footer, a title-row badge and parent/child sub-rows. **All of it is
+deleted.** The refiner sale order is his `Sales Order (Refiner)` `320:2717`,
+same card order, with an exhaustive four changes and no others.
 
-| screen copy | frame id | copy of | what it shows | what the API must provide |
+1. **The lots card's title reads `Settlement`.** Its columns stay HIS — `Item`
+   · `Order` · `Qty` · `Post Melt` · `Purity` · `Premium` · `Price`. On this
+   card Post Melt and Purity **are the refiner's figures**, pre-filled from
+   ours until settled, and editable. No extra columns, no footer, no badge in
+   its title row. His three icon buttons stay: add item, combine, remove.
+2. **Row sub-label is `Lot 2481-A` only**; the order number lives in the Order
+   column, where it already did.
+3. **A refiner-combined lot is ONE row** — item `14K / 18K Gold`, sub-label
+   `Combined · 2481-A + 2481-B`. No child rows.
+4. **The header** carries the Order State badge beside the eyebrow and the
+   refiner-name title fix (§3).
+
+The settlement state and its actions live where his own card already carries
+the badge: the aside `Settlement` card.
+
+| component | frame id | states | source | what the API must provide |
 |---|---|---|---|---|
-| `PO-2481 · Lots · Awaiting` | `672:25133` | `168:2022` | parcel not delivered: rows read-only, badge `Awaiting delivery`, header `Awaiting Receipt` | `received_at` absent, inbound fulfillment not delivered |
-| `PO-2481 · Lots · Receiving` | `672:25846` | `168:2022` | parcel delivered: `Mark received`, per-row check, assay inputs live, per-row Variance (one Danger) | the receive call, the assay patch, the computed variance |
-| `PO-2481 · Lots · Received` | `672:26464` | `168:2022` | receipt recorded: `Received · Sep 11 · Dana`, inputs read-only, rows read `On Hand`, header `Awaiting Payout` | `received_at` + `received_by`; `LotView.position` flips to `on hand`, which is what unlocks the `on_assay` payout policy |
-| `Purchase Order (Refiner) · Receiving` | `672:32698` | `358:6416` | bullion arriving from a refiner, same intake card, `Kind=Bullion`; variance is a count check (`Qty −1`, Danger) | same receive call against the refiner purchase order's inbound fulfillment |
-| `Sales Order (Refiner) · Settlement Pending` | `672:33471` | `320:2717` | settlement grid in the main column, inputs pre-filled with estimates in placeholder style, footer `Awaiting assay` | the per-lot settlement read |
-| `Sales Order (Refiner) · Settlement Settled` | `672:34316` | `320:2717` | read-only, Success, `Totals match`, header `Settled` | the per-lot settlement write and `settled_at` |
-| `Admin / Orders · state chips` | `673:20375` | `620:5115` | the list with the state-chip row and six cards on six different derived states | `OrderListItem.state`, `?state=` filter |
+| `Settlement · proposed` | `718:38422` | `Pending` `718:38308` · `Settled` `718:38345` · `Disputed` `718:38384` | **apply at source** on `Settlement` `327:9783` | its one change is the title row: `Record settlement` (primary) in Pending and Disputed, `Dispute` (tertiary) in Settled, beside the badge it already carries. Behind it: `PATCH /api/refining/lots/:id { post_melt, purity }` writing the refiner's figures onto the lots already at the refiner, and `settled_at` / `disputed_at` on the order, which `refining/orders/sql/view_one.sql` already reads for the badge. |
+
+**The refiner-combined lot — API, new.** A combine allowed for lots already
+`at refiner`, recorded as lineage (`combined_into_id` on the parents, the
+column `orders-lots-proposal.md` §5.5 flags as undecided), with the settled
+content allocated back to each parent's customer order **pro rata by our
+estimated fine oz**. Pro rata matters because each parent lot belongs to a
+different customer purchase order and its payout is computed from its own
+content. The screen shows the result as one row; the allocation is the
+server's, not a control.
+
+`Settlement · proposed / Mobile` **`722:46038`** (`Pending` `722:45922` ·
+`Settled` `722:45961` · `Disputed` `722:46000`) is the Mobile twin: the badge
+stays in the title row and the action goes full width at the foot, the way his
+other Mobile twins already do it.
+
+### 2.1 Import never fills anything by itself
+
+Jacob: *"they may not always put the correct lot ids on the invoices, so we
+can't fully rely on PDF imports"* and *"when we upload the refiner
+settlement/invoice to Documents, that's when it populates, a dialog with the
+user's choice."*
+
+| component | frame id | states | source | what the API must provide |
+|---|---|---|---|---|
+| `Match settlement lines` | `710:49549` | `Layout=Desktop` `710:49333` · `Layout=Mobile` `710:49442` | **new** | `POST /api/refining/orders/:id/settlement-import` parses the PDF and **returns lines**: `{ reference, weight, purity, fine_oz }[]` plus a suggested lot per line. **It writes nothing.** Applying fills the lots card; the employee still presses `Record settlement`. |
+
+It opens from the **Documents** card's `Settlement` row, whose Unavailable
+state already carries `Import` (library change, `orders-notes-2026-09-05.md`
+§2), and is centred in the first viewport over a scrim.
+
+Its body is four labelled sections with a hairline between them and **no
+badges** — Jacob: *"stop with the badges, they should be used sparsely. These
+can just be sections."*
+
+| section | what is in it | control |
+|---|---|---|
+| `MATCHED` | invoice line left, our lot right, pre-selected by nearest weight | Select, never auto-confirmed |
+| `UNMATCHED` | invoice lines we could not place | Select, empty |
+| `NOT ON INVOICE` | our lots with no line | Select, to attach a line or leave |
+| `EXTRA ON INVOICE` | invoice lines that resolve to nothing of ours | none, shown for the record |
+
+A section with nothing in it is omitted. `Apply matches` primary, `Cancel`.
+
+**Badge rule, applied throughout.** A badge appears only where his own cards
+use one — a state in a title row, and the Order State in a header. Every other
+badge drawn in earlier passes has been removed.
+
+---
+
+## 3. Derived order state
+
+| component | frame id | states | source | what the API must provide |
+|---|---|---|---|---|
+| `Order State` | `664:12789` | 14, one axis. Purchase: `Awaiting Receipt` `664:12714` → `Awaiting Payout` `664:12720` → `At Refiner` `664:12725` → `Ready to Pay` `664:12731` → `Completed` `664:12767`. Sale: `Awaiting Payment` `664:12736` → `Preparing` `664:12741` → `In Transit` `664:12746` → `Completed`. Refiner sale: `Pending Assay` `664:12751` → `Settled` `664:12761` / `Disputed` `664:12772`. Refiner purchase: `Awaiting Delivery` `664:12756` → `Awaiting Payment` → `Completed`. All: `Draft` `664:12783`, `Cancelled` `664:12778`. | **new** | the derived state view (`statuses.md` §3): `orders.orders.status` narrows to `draft \| open \| cancelled` and one SQL `CASE` — on the model of `refining/orders/sql/view_one.sql` — projects the display state from payout/charge `state`, fulfillment state and lot positions. `OrderView.state` and `OrderListItem.state` both read it. `OrderActions.statuses` is dropped (nothing reads it). |
+| `Order Header · proposed` | `671:26494` | `Admin, Customer, View` `671:26436` · `External, Customer, View` `671:26457` · `Admin, Refiner, View` `712:19520` · `Admin, Refiner, Editing` `712:19550` | **apply at source** on `Order Header` `292:5060` | `OrderView.state` |
+| `Order Header · proposed / Mobile` | `671:28373` | `671:28323` · `671:28340` · `712:19585` · `712:19615` | **apply at source** on `Order Header / Mobile` `292:5098` | same |
+| `Order Card · proposed` | `671:28586` | `Selected=false\|true` × `Direction=Purchase\|Sale` — `671:28446` `671:28470` `671:28494` `671:28518` | **apply at source** on `Order Card (proposal)` `640:13045` | `OrderListItem.state`, plus the lot count and estimated value already on the card |
+| `Order Card · proposed / Mobile` | `671:28777` | `Direction=Purchase` `671:28731` · `Direction=Sale` `671:28754` | **new** (he has no mobile twin) | same |
+| `Filter Bar · proposed` | `715:38985` | `Set=Purchases` `715:38920` · `Set=Sales` `715:38954` | **apply at source** on `Filter Bar (proposal A)` `626:11861` | `GET /api/orders?state=` (repeatable) over the derived state, and a count per chip. The state is derived, so the filter is a `WHERE` with no `exchange` index behind it — `audit:query-paths` is the guard. |
+
+**Header.** The `State=Active/Cancelled/Sent` axis goes away; the eyebrow row
+always carries one `Order State` instance, and the Cancelled badge becomes one
+of its fourteen variants.
+
+**The refiner order's title.** Jacob: *"once the order is no longer a draft,
+just have a normal title like the others instead of the dropdowns; we can add
+an edit button in the header."* So the Refiner and Location Selects appear
+only on his Draft screens. A placed refiner order reads like every other
+order — eyebrow `PURCHASE ORDER` / `SALES ORDER` with the Order State badge
+beside it, title `Elemetal Refining`, `PO-2493 · Dallas, TX`, `12 orders to
+date` — and gains an `Edit` tertiary at the left of the Cancel / Finalize row.
+`Mode=Editing` swaps the Selects back in and replaces `Edit` with `Save` and
+`Discard`.
+
+**API for Edit.** `PATCH /api/refining/orders/:id { refiner_id, location_id }`
+while the order is editable; the header is the only place either is changed
+after placement.
+
+**Card footer.** Jacob cut both of the proposal's footer lines — the payout
+gate reason and the lots-by-position summary. The footer is now one line:
+`5 lots · $18,420 est.` left, the date right (`Received Sep 2` for purchases,
+`Placed Sep 2` for sales). The derived state is the badge in the card header
+and nothing else, so `OrderListItem` needs neither `lots_by_position` nor
+`payout_blocked_by` for this screen.
+
+---
+
+## 4. Screen copies
+
+| screen copy | frame id | copy of | what it shows |
+|---|---|---|---|
+| `Sales Order (Refiner) · Settlement Pending` | `719:15329` | `320:2717` | his screen unchanged but for the four changes; refiner figures pre-filled from ours; aside Settlement badged `Pending assay` with `Record settlement` |
+| `Sales Order (Refiner) · Settlement Settled` | `719:16091` | `320:2717` | refiner figures settled; aside Settlement badged `Settled` with `Dispute`, settled fine oz and variance filled |
+| `Sales Order (Refiner) · Match lines open` | `719:16814` | `320:2717` | the dialog open over a scrim, centred in the first viewport |
+| `Admin / Orders · state chips` | `673:20375` | `620:5115` | the list with the state-chip row and six cards on six derived states |
 
 ### Mobile
 
-390 viewport, 358 content, following his Mobile twins. There are no mobile
-screens in the file, so these are viewport frames holding the mobile twins.
+390 viewport, 358 content.
 
 | frame | id |
 |---|---|
-| `Mobile · PO-2481 · Awaiting` | `673:33662` |
-| `Mobile · PO-2481 · Receiving` | `673:33854` |
-| `Mobile · PO-2481 · Received` | `673:34046` |
-| `Mobile · PO Refiner · Receiving` | `673:34238` |
-| `Mobile · Settlement · Pending` | `673:34391` |
-| `Mobile · Settlement · Settled` | `673:34579` |
+| `Mobile · Settlement · Pending` | `721:17087` |
+| `Mobile · Settlement · Settled` | `721:17154` |
+| `Mobile · Settlement · Match lines` | `721:17220` |
 | `Mobile · Order Cards` | `673:34763` |
+
+His `Lots / Refiner` has no mobile twin, so the mobile frames carry the header
+and the aside Settlement card only; the note frame on each says so.
 
 Notes on canvas: `Draft note` `673:35312`, `Held · library limits` `673:35313`.
 
 ---
 
-## 3. Apply at source — the list for Jacob
+## 5. Apply at source — the list for Jacob
 
-1. `Lots` `170:2260` and `Lots / Mobile` `170:2421` gain a `Received` axis.
-2. `Lots Row` `152:548` and `Lots Row / Mobile` `158:1175` gain the same axis;
-   `Premium` and `Price` give their columns to `Variance` and `Position`.
+1. `Lots / Refiner` `338:10143` on the refiner sale order is titled
+   `Settlement`; its Post Melt and Purity are the refiner's figures; the row
+   sub-label drops the order number; a combined lot is one row.
+2. `Settlement` `327:9783` gains `Record settlement` / `Dispute` in its title
+   row beside the badge it already carries.
 3. `Order Header` `292:5060` and `Order Header / Mobile` `292:5098` lose the
-   `State` axis; the eyebrow row carries an `Order State` instance.
+   `State` axis, carry an `Order State` instance, and gain `Edit` /
+   `Mode=Editing` for refiner orders.
 4. `Order Card (proposal)` `640:13045` swaps its two component badges for one
-   `Order State`.
-5. `Filter Bar (proposal A)` `626:11861` gains a state-chip row above the
-   controls.
-6. `Settlement` `327:9783` is superseded on the refiner sale order by the
-   per-lot grid, and the card moves from the aside to the main column.
+   `Order State` and drops both extra footer lines.
+5. `Filter Bar (proposal A)` `626:11861` gains a state-chip row.
 
 ---
 
-## 4. What the library could not draw
+## 6. What the library could not draw
 
-- **An in-card banner.** The library `Banner` (`bf0ba82b…`) is a full-bleed
-  128px page band. The `Imported from Elemetal PDF · confirm` strip is
-  composed from `status/info-soft` + `text/info` + `radius/md` instead. If
-  that strip earns a place, it wants a small `Callout` component in the
-  library rather than a one-off.
-- **Bullion assay columns.** His `Lots` card hides `Pre Melt`, `Post Melt` and
-  `Purity` on `Kind=Bullion`, so the refiner-purchase intake reads as a count
-  check only. That may be right (the purity is stamped) — but if an inbound
-  bullion weight check is wanted, those columns have to be unhidden at source.
-- **A mobile Order Card.** He has none; the 358 twin here is new, and its foot
-  wraps where his 336 desktop card does not.
-- No other element is hand-made: every control is a library instance (Badge,
-  Button, Input, Checkbox, Radio Chip, Select, Accordion) and every colour,
-  radius and space is a bound token.
+- **A dialog.** There is no dialog or scrim component in Themes and
+  Components. `Match settlement lines` follows the pattern the Inventory draft
+  established (scrim rectangle on `surface/background` at 70%, panel centred).
+  If dialogs keep appearing, the shell belongs in the library.
+- **A mobile refiner lots card.** He has no mobile twin of `Lots / Refiner`,
+  and nothing was invented to stand in for one; the mobile frames say so.
+- **A mobile Order Card.** He has none; the 358 twin here is new.
+- Everything else is a library instance (Badge, Button, Icon Button, Input,
+  Select, Checkbox, Radio Chip, Accordion) on bound tokens. No raw hex.
 
 ---
 
-## 5. Still Jacob's
+## 7. Still Jacob's
 
 - **Approval.** Nothing is built from this until he says so.
-- Whether the payout policy switch (`after_settlement` → `on_assay`,
-  inventory-model §3) flips the moment `Received` exists, or waits.
-- Whether `Variance` tolerance is a setting per metal, per lot kind, or a flat
-  percent. The screens draw the Danger state; nothing draws the threshold.
-- Whether `Import settlement` accepts only Elemetal's PDF shape at first, or
-  a generic CSV beside it.
-- Whether the derived `Completed` for a customer purchase waits on every lot
-  reaching `pooled`/`sold` (statuses.md §2/Q2) or only on the payout.
+- The combine lineage column (`combined_into_id`), still open from
+  `orders-lots-proposal.md` §5.5 and now load-bearing for the one-row
+  combined lot.
+- Whether a refiner-combined group may span two customer purchase orders, or
+  only lots from one.
+- What "past tolerance" is, and whether it earns any treatment on the order
+  screen at all — today it does not; variance lives on the lot screen.
+- Whether `Record settlement` should refuse while our total and the refiner's
+  differ, or only warn.

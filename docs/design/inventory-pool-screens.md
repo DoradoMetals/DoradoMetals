@@ -77,7 +77,7 @@ hand shows `Split` `Combine` `Assign to sale` (tertiary) and `Batch into`
 | On hand | `Kind=Scrap, State=ReadOnly` | absent | `PO-2481` . `Received` . **Open PO-2481** | `Spot . live` (the order's spots are usually still unlocked) | Created . Received . Assayed |
 | At refiner | `Kind=Scrap, State=Locked` | `State=Pending assay` | adds `SO-2493` . `Pending assay` . Open, and the refiner | `Spot . locked Aug 28` / Premium / Est. fine oz, total `Est. value` | adds Batched |
 | Pooled | `Kind=Scrap, State=Locked` | `State=Settled` | adds `SO-2493` . `Settled` . Open, and the refiner | `Spot . locked Aug 28` / Premium / Settled fine oz / Variance, total `Settled value` | adds Settled |
-| Sold | `Kind=Scrap, State=Locked` | `State=Settled` | adds `SO-2488` . `In Transit` . Open | `Spot . locked Aug 28` / Premium / Margin, total `Sale price` | Created . Received . Assayed . Sold |
+| Sold | `Kind=Scrap, State=Locked` | absent | adds `SO-2488` . `In Transit` . Open | `Spot . locked Aug 28` / Premium / Margin, total `Sale price` | Created . Received . Assayed . Sold |
 | Consumed | `Kind=Scrap, State=Locked` | absent | customer order only | `Spot . locked Aug 28` / Premium / Est. fine oz, total `Est. value` | adds Split and Combined |
 
 `Kind=Bullion`, `State=Editing` and `Photos State=Empty` are drawn on the
@@ -93,9 +93,9 @@ header, and the Where card's Customer order row carries a **Secondary**
 |---|---|---|---|
 | `Lot Header` | `690:36760` | `Position` x6 | `LotView.position` (**new**, §5.1). Eyebrow needs the lot kind; title the item name; line 2 the lot number, its customer order and the customer. `Assigned to` at the **lot** grain is **new**. Buttons map to `POST /api/lots/split` (exists), `POST /api/lots/combine` (**new**, §5.5), `POST /api/orders/lots/:id/assign` (**new**, §5.4), `POST /api/refining/orders/batch` (**new**, §5.5). |
 | `Lot Header / Mobile` | `690:37145` | `Position` x6 | same; the button row wraps. |
-| `Lot Details` | `694:62669` | `Kind=Scrap \| Bullion` x `State=ReadOnly \| Editing \| Locked` | `lots.items`, three equal columns per row and no holes. **Editable** (Edit -> Save / Discard): item, metal, kind, qty, pre melt, post melt, purity, premium - all through **`PATCH /api/orders/lots/:id`**. **A premium change retiers the order's sibling lots**, so that endpoint must reprice siblings and return them, not just the patched row. **Always read-only**: purity label (no column - `products.purities.label` or **new**) and fine content (`content` is generated). `Locked` is every position the lot has left the customer order in; its `Edit on SO-2493` link points at the owning order. Lots are editable here and on the order screen, from the same endpoint. |
-| `Lot Refiner` | `696:31958` (mobile `696:55876`) | `State=Pending assay \| Settled \| Disputed` | A duplicate of his `Settlement` frame `327:9722`, so the title row, badge slot and body container are his. Fields from `refining.orders`: refiner, location, `sent_at`, `settled_at`, and the refiner order id for the `SO-2493` link and `Open SO-2493`. The `OURS · REFINER` table compares our figures against **`refining.lots`** - `pre_melt`, `post_melt` and `purity` on that table are the **refiner's** assay, ours are the lot's own - with the variance per metric; the variance turns `text/danger` only past tolerance, and **tolerance is a new setting** (no column defines it). `Settled value` is a pricing read; it is hidden until the refiner order settles. Mobile stacks the comparison three lines per metric. |
-| `Lot Where` | `694:63984` | `Position` x6 | `orders.lots`, `refining.lots` + `refining.orders` (`sent_at`/`settled_at` -> the badge), `refiners` and location. Each badge is the derived order display state (`statuses.md` §3 - **new** as a view field); each `Open` needs the order id, which `orders.lots` carries. |
+| `Lot Details` | `697:25304` | `Kind=Scrap \| Bullion` x `State=ReadOnly \| Editing \| Locked` | Three equal columns, no holes. Scrap: `Kind` and `Metal` are library **Selects**, then `Purity`, `Pre melt`, `Post melt`, `Premium` as Inputs. Bullion: `Kind` and `Product` Selects, `Qty`, `Premium` editable, `Purity` and `Weight` read-only from the product. `Item`, `Purity label` and `Fine content` are gone - the name is derived from metal and purity and already sits in the header. Below a rule, a computed group in his Totals rows: `Content` and `Payable content` (content x premium), never editable. Everything editable writes through **`PATCH /api/orders/lots/:id`**, and **a premium change retiers the order's sibling lots**, so that endpoint must reprice siblings and return them. `Locked` carries `Edit on SO-2493` pointing at the owning order. |
+| `Lot Refiner` | `698:43517` (mobile `698:43966`) | `State=Pending assay \| Settled \| Disputed` | A duplicate of his `Settlement` frame `327:9722`, so the title row, badge slot and body container are his. Its top group is **label/value rows, not fields** - a fact is never an Input. Rows from `refining.orders`: refiner, location, `sent_at`, `settled_at`, and the refiner order id for the `SO-2493` link and `Open SO-2493`. The `OURS · REFINER` table compares our figures against **`refining.lots`** - `pre_melt`, `post_melt` and `purity` on that table are the **refiner's** assay, ours are the lot's own - with the variance per metric; the variance turns `text/danger` only past tolerance, and **tolerance is a new setting** (no column defines it). `Settled value` is a pricing read; it is hidden until the refiner order settles. Mobile stacks the comparison three lines per metric. |
+| `Lot Where` | `697:25794` | `Position` x6 | `orders.lots`, `refining.lots` + `refining.orders` (`sent_at`/`settled_at` -> the badge), `refiners` and location. Each badge is the derived order display state (`statuses.md` §3 - **new** as a view field); each `Open` needs the order id, which `orders.lots` carries. |
 | `Worth` (no local component) | instance of `170:2346` | rows swapped per position | **The spot row follows the ORDER's spot state, never the lot's position**: `orders.orders.spots_locked` (exists) picks the label - `Spot . live` while unlocked, `Spot . locked <date>` once frozen - and the lock date needs a timestamp beside that boolean, which is **new**. There is no "spot at purchase": an incoming lot has not been priced against a frozen spot yet. Premium per lot is today on the order item / `order_metals`, not on the lot; exposing it on `LotView` is **new**. Estimate is `content` at the current spot; Settled is `refining.lots.post_melt`/`purity` with `refining.orders.settled_at`; Sold is the sale line and its margin. Every figure is a pricing read - the screen computes nothing. |
 | `Lot Lineage` | `694:64571` | `Position` x6 | The lot's story, and only what has happened - no "Pending" rows, no employee names, no fulfillment steps (those live on the order); the position badge says where it is. Created `from PO-2481 . Marguerite Whitfield`: `orders.lots` plus the customer. Received `139.22 g . matches declared`: **gap** - nothing marks arrival or compares against the declared weight (`statuses.md` §Q3 recommends `received_at` on the inbound fulfillment). Assayed `56.3% . 2.505 oz fine`: **gap** - no inbound-assay column. Batched: `refining.orders.sent_at` + `refiners`. Settled: `settled_at` and the settled-vs-estimate delta. Sold: the sale `orders.lots` row. Split / Combined: `split_from_id` (exists) and the **undecided** combine column (`statuses.md` §4 recommends `combined_into_id`). |
 | `Lot Photos` | `694:64781` | `State=Filled \| Empty` | The media domain's image routes: `POST /api/images` to upload, `GET /api/images/:id/url` to render. **A lot-to-image link is new** - images hang off accounts and orders today, and nothing associates one with a lot. |
@@ -231,10 +231,32 @@ redrawn. Only what it lacked was added, as copies in the draft section.
     `Charges` and `Spots` instances (`Trailing=Label`, `Trailing label` = `$`).
     The library's `Show leading label` slot is not used anywhere here.
 
-### Open question on the Refiner card
+### Where the Refiner card appears, and why not on Sold
 
-It is placed on `At refiner`, `Pooled` and `Sold`, as asked. On `Sold` that sits
-oddly beside the `Where` card, which shows a sale order and **no** refiner order:
-a bullion lot sold straight from stock never went to a refiner. Either the Sold
-state should lose the Refiner card, or its `Where` should also carry the refiner
-order it passed through. **Jacob's call.**
+It is drawn on `At refiner` (`State=Pending assay`) and `Pooled`
+(`State=Settled`) only. **Not on Sold**: a lot in the Sold position left on a
+sale order out of stock and never went to a refiner - pooled scrap is drawn down
+as ounces, not sold as a lot - so there is no refiner engagement to show.
+Decided 2026-09-12.
+
+**Variance tolerance is a new setting.** The comparison table turns a variance
+`text/danger` only past tolerance, and no column defines that threshold today;
+it needs one before the `Disputed` state can be derived rather than typed.
+
+### Two rules applied across the whole lot screen
+
+1. **A fact is a row; only what an employee edits is an Input.** Dates, refiner
+   figures, computed content and every dialog preview are `Totals`-style
+   label-left value-right rows. 32 read-only Inputs across the five dialogs were
+   converted. Where a date is genuinely edited it is the library **Datepicker**,
+   not a text Input - none of the drawn states edits a date, so none appears.
+   The one deliberate exception is `Details`: its editable fields stay Inputs in
+   `ReadOnly` too, because the Edit toggle flips the same control in place.
+2. **An order reference is one Link and nothing else.** `PO-2481`, `SO-2493` and
+   `SO-2488` are Link-styled references on the header line, the `Where` rows, the
+   `Refiner` card and the `Lineage` steps. There are no `Open …` buttons
+   anywhere; the `Where` row keeps its state badge right-aligned.
+
+`Worth` rows are now `Spot · live` (or `· locked <date>`), `Premium`,
+`Payable content`, total `Est. value`; pooled swaps in `Settled fine oz` /
+`Variance` / `Settled value` and sold swaps in `Margin` / `Sale price`.
