@@ -135,7 +135,8 @@ INSERT INTO fulfillments.fulfillments (
 SELECT DISTINCT ON (coalesce(e.purchase_order_id, e.sales_order_id))
   coalesce(e.purchase_order_id, e.sales_order_id),
   m.id,
-  CASE WHEN e.shipping_status = 'Delivered' THEN 'COMPLETED' ELSE 'PENDING' END,
+  (CASE WHEN e.shipping_status = 'Delivered' THEN 'COMPLETED' ELSE 'PENDING' END)
+    ::fulfillments.fulfillment_status,
   NULL, NULL,
   e.created_at, e.created_at
 FROM exchange.shipments e
