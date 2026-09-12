@@ -302,7 +302,6 @@ if (isMain) {
     : {
         'POST /api/orders': 'requireUser',
         'POST /api/orders/admin': 'requireAdmin',
-        'POST /api/orders/:id/review': 'requireUser',
         'GET /api/payments/details/:id/bank': 'requireAdmin',
         'GET /api/sms': 'requireAdmin',
         'GET /api/sms/:id': 'requireAdmin',

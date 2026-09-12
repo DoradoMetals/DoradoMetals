@@ -17,25 +17,6 @@ const admin = {
 const asAdmin = <T>(fn: () => Promise<T> | T) => as(admin, fn)
 const ID = '12345678-1234-4234-8234-123456789abc'
 
-test('POST /fulfillments/methods/update refuses an unknown key', async () => {
-  await asAdmin(async () => {
-    const res = await request(app)
-      .post('/api/fulfillments/methods/update')
-      .send({ id: ID, method: { label: 'New', category: 'SHIPMENT' } })
-    assert.equal(res.status, 400, JSON.stringify(res.body))
-    assert.match(res.body?.error?.message ?? '', /category/)
-  })
-})
-
-test('POST /fulfillments/methods/update refuses a wrong type', async () => {
-  await asAdmin(async () => {
-    const res = await request(app)
-      .post('/api/fulfillments/methods/update')
-      .send({ id: ID, method: { enabled: 'yes' } })
-    assert.equal(res.status, 400, JSON.stringify(res.body))
-  })
-})
-
 test('POST /fulfillments/cancel_schedule refuses an unknown key', async () => {
   await asAdmin(async () => {
     const res = await request(app)

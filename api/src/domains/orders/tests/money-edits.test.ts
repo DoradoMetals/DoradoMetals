@@ -36,13 +36,13 @@ afterAll(async () => {
   await pool.end()
 })
 
-test("shipping_charge writes net_charge on the order's shipment", async () => {
+test("charge writes net_charge on the order's shipment", async () => {
   await inPinnedTransaction(
     async (client: PoolClient) => {
       const { shipment } = await money(client)
       await asAdmin(admin, async () => {
         const res = await request(app)
-          .patch(`/api/shipments/${shipment.id}`)
+          .post(`/api/shipments/${shipment.id}/charge`)
           .send({ shipping_charge: 45.67 })
 
         assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`)
@@ -57,13 +57,13 @@ test("shipping_charge writes net_charge on the order's shipment", async () => {
   )
 })
 
-test("shipping_actual lands on the shipment's order", async () => {
+test("actual_cost lands on the shipment's order", async () => {
   await inPinnedTransaction(
     async (client: PoolClient) => {
       const { shipment } = await money(client)
       await asAdmin(admin, async () => {
         const res = await request(app)
-          .patch(`/api/shipments/${shipment.id}`)
+          .post(`/api/shipments/${shipment.id}/actual_cost`)
           .send({ shipping_actual: 12.34 })
 
         assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`)
@@ -136,7 +136,7 @@ test('an unknown field refuses by name on both endpoints', async () => {
       const { shipment, payout } = await money(client)
       await asAdmin(admin, async () => {
         const ship = await request(app)
-          .patch(`/api/shipments/${shipment.id}`)
+          .post(`/api/shipments/${shipment.id}/charge`)
           .send({ shipping_charge: 11.11, pool_oz_deducted: 9 })
         assert.equal(ship.status, 400, `answered ${ship.status}`)
         assert.match(ship.body?.error?.message ?? '', /"pool_oz_deducted"/)

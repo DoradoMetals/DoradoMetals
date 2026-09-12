@@ -30,11 +30,3 @@ export const FulfillmentDropoffPatchColumns = FulfillmentDropoffPatch.omit({
   fulfillment_id: true,
 })
 export type FulfillmentDropoffPatchColumns = z.infer<typeof FulfillmentDropoffPatchColumns>
-
-export const FulfillmentScheduleDropoffBody = z
-  .object({
-    fulfillment_id: FulfillmentDropoff.shape.fulfillment_id,
-    dropoff: FulfillmentDropoffPatchColumns.strict(),
-  })
-  .strict()
-export type FulfillmentScheduleDropoffBody = z.infer<typeof FulfillmentScheduleDropoffBody>

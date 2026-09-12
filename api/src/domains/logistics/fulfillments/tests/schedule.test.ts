@@ -56,33 +56,6 @@ afterAll(async () => {
   await pool.end()
 })
 
-test("methods/update writes the method's flags", async () => {
-  await inPinnedTransaction(
-    async (client: PoolClient) => {
-      const pickupMethodId = await aPickupMethodId(client)
-      await as({ ...admin, role: 'admin' }, async () => {
-        const before = await client.query(
-          `SELECT id, hidden FROM fulfillments.methods WHERE id = $1`,
-          [pickupMethodId]
-        )
-        const flipped = !before.rows[0].hidden
-
-        const res = await request(app)
-          .post('/api/fulfillments/methods/update')
-          .send({ id: pickupMethodId, method: { hidden: flipped } })
-
-        assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`)
-
-        const after = await client.query(`SELECT hidden FROM fulfillments.methods WHERE id = $1`, [
-          pickupMethodId,
-        ])
-        assert.equal(after.rows[0].hidden, flipped, "the method's hidden flag did not change")
-      })
-    },
-    { actor: TEST_ACTOR.id, lock: [LOCKS.ORDERS, LOCKS.FULFILLMENTS] }
-  )
-})
-
 test("set_status writes the fulfillment's status", async () => {
   await inPinnedTransaction(
     async (client: PoolClient) => {

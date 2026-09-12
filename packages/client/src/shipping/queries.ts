@@ -5,7 +5,10 @@ import type {
   CarrierHandoff,
   CarrierServiceRead,
   PackageRead,
+  ShipmentActualCostBody,
+  ShipmentChargeBody,
   ShipmentPatch,
+  ShipmentTrackingBody,
   ShipmentView,
   ShippingCancelLabelBody,
   TrackingScan,
@@ -67,6 +70,30 @@ export function usePatchShipment(orderId: string) {
     orderId,
     ({ shipment_id, patch }: { shipment_id: string; patch: ShipmentPatch }) =>
       apiRequest<ShipmentView>('PATCH', `/shipments/${shipment_id}`, patch)
+  )
+}
+
+export function useChargeShipment(orderId: string) {
+  return useShipmentWrite(
+    orderId,
+    ({ shipment_id, ...body }: { shipment_id: string } & ShipmentChargeBody) =>
+      apiRequest<ShipmentView>('POST', `/shipments/${shipment_id}/charge`, body)
+  )
+}
+
+export function useRecordShipmentActualCost(orderId: string) {
+  return useShipmentWrite(
+    orderId,
+    ({ shipment_id, ...body }: { shipment_id: string } & ShipmentActualCostBody) =>
+      apiRequest<ShipmentView>('POST', `/shipments/${shipment_id}/actual_cost`, body)
+  )
+}
+
+export function useRecordShipmentTracking(orderId: string) {
+  return useShipmentWrite(
+    orderId,
+    ({ shipment_id, ...body }: { shipment_id: string } & ShipmentTrackingBody) =>
+      apiRequest<ShipmentView>('POST', `/shipments/${shipment_id}/tracking`, body)
   )
 }
 

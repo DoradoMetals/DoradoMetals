@@ -3,10 +3,9 @@ import { CarrierServiceDeleteBody, CarrierServicePatch } from '@dorado/contracts
 import { asyncHandler } from '#shared/middleware/asyncHandler.ts'
 import * as servicesService from '#logistics/shipping/services/service.ts'
 import { oneString } from '#shared/http/query.ts'
-import { parseStrict } from '#shared/http/validate.ts'
+import { parseStrict, uuidParam } from '#shared/http/validate.ts'
 
 const CreateBody = z.object({ service: CarrierServicePatch }).strict()
-const UpdateBody = z.object({ service: CarrierServicePatch }).strict()
 
 export const getAll = asyncHandler(async (req, res) => {
   const result = await servicesService.getAllServices()
@@ -42,9 +41,14 @@ export const create = asyncHandler(async (req, res) => {
   return res.status(201).json(result)
 })
 
-export const update = asyncHandler(async (req, res) => {
-  const body = parseStrict(UpdateBody, req.body, 'carrier_services/update body')
-  const result = await servicesService.updateService(body.service)
+export const patchService = asyncHandler(async (req, res) => {
+  const id = uuidParam(req, 'id')
+  const changes = parseStrict(
+    CarrierServicePatch.omit({ id: true }),
+    req.body,
+    'carrier_services PATCH body'
+  )
+  const result = await servicesService.updateService({ ...changes, id })
   return res.status(200).json(result)
 })
 

@@ -52,11 +52,3 @@ export const FulfillmentMethodPatch = FulfillmentMethod.pick({
   })
   .partial()
 export type FulfillmentMethodPatch = z.infer<typeof FulfillmentMethodPatch>
-
-export const FulfillmentMethodUpdateBody = z
-  .object({
-    id: FulfillmentMethod.shape.id,
-    method: FulfillmentMethodPatch.strict(),
-  })
-  .strict()
-export type FulfillmentMethodUpdateBody = z.infer<typeof FulfillmentMethodUpdateBody>

@@ -37,6 +37,10 @@ import type {
 
 export async function patch(order_id: string, changes: OrderPatch): Promise<OrderView> {
   rules.assertNamesAField(changes)
+  if (changes.cancelled_at !== undefined) {
+    rules.assertClearsCancellation(changes.cancelled_at)
+    rules.assertReopenable(await viewOf(order_id))
+  }
   const written = await withTransaction((tx) => ordersRepo.update(order_id, changes, {}, tx))
   rules.assertOrder(written || null, order_id)
   return await viewOf(order_id)
@@ -142,13 +146,6 @@ export async function finalize(order_id: string): Promise<OrderView> {
     await orderTransactions.update(order_id, { total: priced.total }, {}, tx)
   })
 
-  return await viewOf(order_id)
-}
-
-export async function reopen(order_id: string): Promise<OrderView> {
-  const order = await viewOf(order_id)
-  rules.assertReopenable(order)
-  await withTransaction((tx) => ordersRepo.update(order_id, { cancelled_at: null }, {}, tx))
   return await viewOf(order_id)
 }
 

@@ -35,13 +35,11 @@ test('POST /carrier_services/create refuses a wrong type', async () => {
   })
 })
 
-test('POST /carrier_services/update refuses an unknown key (price)', async () => {
+test('PATCH /carrier_services/:id refuses an unknown key (price)', async () => {
   await asAdmin(async () => {
     const res = await request(app)
-      .post('/api/carrier_services/update')
-      .send({
-        service: { id: '12345678-1234-4234-8234-123456789abc', name: 'Ground', price: 12.5 },
-      })
+      .patch('/api/carrier_services/12345678-1234-4234-8234-123456789abc')
+      .send({ name: 'Ground', price: 12.5 })
     assert.equal(res.status, 400, JSON.stringify(res.body))
     assert.match(res.body?.error?.message ?? '', /price/)
   })

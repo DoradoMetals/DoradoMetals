@@ -24,12 +24,6 @@ export const SendPayoutBody = z
   .strict()
 export type SendPayoutBody = z.infer<typeof SendPayoutBody>
 
-export const MarkSentBody = z.object({ reference: z.string().min(1).max(120) }).strict()
-export type MarkSentBody = z.infer<typeof MarkSentBody>
-
-export const FailTransferBody = z.object({ reason: z.string().min(1).max(400) }).strict()
-export type FailTransferBody = z.infer<typeof FailTransferBody>
-
 export const OpenChargeBody = z
   .object({
     order_id: Transfer.shape.order_id,

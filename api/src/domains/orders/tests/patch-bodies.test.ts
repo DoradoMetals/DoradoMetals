@@ -7,6 +7,7 @@ import {
   PaymentDetailsPatch,
   RefinerItemPatch,
   RefinerOrderPatch,
+  ShipmentChargeBody,
   ShipmentPatch,
 } from '@dorado/contracts'
 
@@ -14,10 +15,22 @@ afterAll(async () => {
   await pool.end()
 })
 
-test('a shipment PATCH refuses a null shipping charge, by name', () => {
-  refusesField(ShipmentPatch, { shipping_charge: null }, 'shipping_charge')
-  assert.equal(ShipmentPatch.safeParse({ shipping_charge: 0 }).success, true)
-  assert.equal(ShipmentPatch.safeParse({ shipping_charge: 45.67 }).success, true)
+test('the shipment charge action refuses a null shipping charge, by name', () => {
+  refusesField(ShipmentChargeBody, { shipping_charge: null }, 'shipping_charge')
+  assert.equal(ShipmentChargeBody.safeParse({ shipping_charge: 0 }).success, true)
+  assert.equal(ShipmentChargeBody.safeParse({ shipping_charge: 45.67 }).success, true)
+})
+
+test('the shipment PATCH takes only carrier_service_id now that charge, actual cost and tracking are actions', () => {
+  assert.equal(
+    ShipmentPatch.safeParse({
+      carrier_service_id: '00000000-0000-4000-8000-000000000000',
+    }).success,
+    true
+  )
+  refusesField(ShipmentPatch, { shipping_charge: 1 }, 'shipping_charge')
+  refusesField(ShipmentPatch, { shipping_actual: 1 }, 'shipping_actual')
+  refusesField(ShipmentPatch, { tracking_number: 'TRK-1' }, 'tracking_number')
 })
 
 test('a refiner order PATCH refuses a null on each of the three money fields', () => {
@@ -72,7 +85,7 @@ const refusesField = (
   assert.match(said, new RegExp(named), `the refusal does not name ${named}`)
 }
 
-test('the order PATCH is notes and assigned_to_id only - status is gone (ruling 112) and the four actions are not among them', () => {
+test('the order PATCH is notes, assigned_to_id, cancelled_at and review_created - status is gone (ruling 112) and the four actions are not among them', () => {
   assert.equal(OrderPatch.safeParse({ notes: 'left on the porch' }).success, true)
   assert.equal(OrderPatch.safeParse({ notes: null }).success, true)
   assert.equal(
@@ -80,6 +93,8 @@ test('the order PATCH is notes and assigned_to_id only - status is gone (ruling 
     true
   )
   assert.equal(OrderPatch.safeParse({ assigned_to_id: null }).success, true)
+  assert.equal(OrderPatch.safeParse({ cancelled_at: null }).success, true)
+  assert.equal(OrderPatch.safeParse({ review_created: true }).success, true)
   refusesField(OrderPatch, { status: 'Received' }, 'status')
   for (const action of ['add_funds', 'finalize', 'cancel', 'supplier']) {
     refusesField(OrderPatch, { [action]: true }, action)

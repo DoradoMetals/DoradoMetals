@@ -5,13 +5,11 @@ import {
   adminCreateOrder,
   cancelOrder,
   createOrder,
-  createOrderReview,
   finalizeOrder,
   getOrder,
   getOrderDocuments,
   listOrders,
   patchOrder,
-  reopenOrder,
 } from '#orders/controller.ts'
 
 import lotRoutes from '#orders/lots/routes.ts'
@@ -57,12 +55,9 @@ router.get('/:orderId/directs', requireAdmin, getDirectsByOrder)
 router.get('/:orderId/dropoffs', requireAdmin, getDropoffsByOrder)
 router.get('/:orderId/payment-details', requireUser, requireOwnOrderParam, getOrderPaymentDetails)
 
-router.post('/:id/review', requireUser, requireOwnOrderParam, createOrderReview)
-
 router.post('/:id/add_funds', requireAdmin, addFundsToOrder)
 router.post('/:id/finalize', requireAdmin, finalizeOrder)
 router.post('/:id/cancel', requireAdmin, cancelOrder)
-router.post('/:id/reopen', requireAdmin, reopenOrder)
 router.post('/:id/supply', requireAdmin, supplyOrder)
 router.post('/:id/refining-sale', requireAdmin, sellToRefiner)
 

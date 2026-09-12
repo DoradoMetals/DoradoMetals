@@ -71,9 +71,8 @@ test('a refiner order takes a Drop-off, schedules it, and walks its two states',
       const employees = await request(app).get('/api/employees')
       const offices = await request(app).get('/api/locations')
       const booked = await request(app)
-        .post('/api/fulfillments/schedule_dropoff')
+        .patch(`/api/fulfillments/${made.body.fulfillment.id}`)
         .send({
-          fulfillment_id: made.body.fulfillment.id,
           dropoff: {
             refiner_id: await refinerId(c),
             location_id: offices.body[0].id,
@@ -264,9 +263,8 @@ test('a drop-off PATCHed after cancel_schedule creates its row instead of silent
       const employees = await request(app).get('/api/employees')
       const offices = await request(app).get('/api/locations')
       await request(app)
-        .post('/api/fulfillments/schedule_dropoff')
+        .patch(`/api/fulfillments/${made.body.fulfillment.id}`)
         .send({
-          fulfillment_id: made.body.fulfillment.id,
           dropoff: {
             refiner_id,
             location_id: offices.body[0].id,

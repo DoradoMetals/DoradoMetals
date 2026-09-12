@@ -1,12 +1,7 @@
 import * as methods from '#db/fulfillments/methods/repo.ts'
 import * as rules from '#logistics/fulfillments/rules.ts'
 import type { Executor } from '#shared/db/executor.ts'
-import type {
-  Direction,
-  FulfillmentCategory,
-  FulfillmentMethodPatch,
-  FulfillmentMethodRead,
-} from '@dorado/contracts'
+import type { Direction, FulfillmentCategory, FulfillmentMethodRead } from '@dorado/contracts'
 
 export async function listAvailable(
   direction: Direction,
@@ -48,14 +43,4 @@ export async function assertOffered(
   executor?: Executor
 ): Promise<void> {
   rules.assertOffered(await methods.getAvailable(direction, executor), method_id, direction)
-}
-
-export async function update(
-  id: string,
-  patch: FulfillmentMethodPatch,
-  tx: Executor
-): Promise<FulfillmentMethodRead | null> {
-  const changed = await methods.update(id, patch, tx)
-  if (!changed) return null
-  return (await methods.getOne(id, tx)) ?? null
 }
