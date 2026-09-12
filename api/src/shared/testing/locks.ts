@@ -5,6 +5,7 @@ export const LOCKS = {
   ADDRESSES: 4214,
   USERS: 4215,
   RATES: 4216,
+  SPOTS_SETTINGS: 4217,
 }
 
 import { appendFileSync } from 'node:fs'

@@ -32,6 +32,35 @@ const aRateRow = async (c: PoolClient) =>
     c
   )
 
+test('updating a rate writes one history row per changed column', async () => {
+  await inRollback(
+    async (c: PoolClient) => {
+      const id = await aRateRow(c)
+
+      const changed = await rates.update(id, { scrap_pct: 0.5, bullion_pct: 0.5 }, c)
+      assert.equal(changed, true)
+
+      const untouched = await rates.update(id, { scrap_pct: 0.5 }, c)
+      assert.equal(untouched, true, 'a no-op patch should still report the row present')
+
+      const history = await rates.history(c)
+      const forThisRate = history.filter((h) => h.rate_id === id)
+      const fields = forThisRate.map((h) => h.field).sort()
+      assert.deepEqual(
+        fields,
+        ['bullion_pct', 'scrap_pct'],
+        'setting scrap_pct to its own value logged a spurious row, or a real change went unlogged'
+      )
+
+      const scrapEntry = forThisRate.find((h) => h.field === 'scrap_pct')
+      assert.equal(Number(scrapEntry?.old_value), 0.9)
+      assert.equal(Number(scrapEntry?.new_value), 0.5)
+      assert.ok(scrapEntry?.changed_at, 'the history row carries no changed_at')
+    },
+    { lock: LOCKS.RATES }
+  )
+})
+
 test('update writes a real rate band and answers true', async () => {
   await inRollback(
     async (c: PoolClient) => {

@@ -33,3 +33,7 @@ export const deleteRate = asyncHandler(async (req, res) => {
   await rateService.deleteRate(uuidParam(req, 'id'))
   res.status(204).end()
 })
+
+export const getHistory = asyncHandler(async (_req, res) => {
+  res.status(200).json(await rateService.getHistory())
+})
