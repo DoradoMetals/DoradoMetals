@@ -7,6 +7,10 @@ const ROOT = process.env.LINT_TYPE_HOMES_ROOT ?? path.resolve(import.meta.dirnam
 const SRC_ROOT = sourceRoot(ROOT)
 const ROOTS = ['db', ...domainDirs(ROOT)]
 
+const MANIFEST_PROPS =
+  'the props of the one component the four band documents share - it carries a ReactNode for ' +
+  'the middle band, so it cannot be a contract; every value in it is already parsed from one ' +
+  'SQL read by the caller'
 const SMALL_FEATURES =
   'the small-features lane owns this file (refiners, leads, reviews, media, ' +
   'sales-tax, transactions); its declarations are its own pass to remove'
@@ -21,6 +25,7 @@ const PROVIDER_MOVE =
   'adapter, not domain logic; the move was a pure rename, conformance is a separate pass'
 
 const ACCEPTED: Record<string, { count: number; why: string }> = {
+  'domains/documents/pdfs/render/documents/manifest.ts': { count: 1, why: MANIFEST_PROPS },
   'db/media/emails/repo.ts': { count: 1, why: SMALL_FEATURES },
   'db/media/images/repo.ts': { count: 1, why: SMALL_FEATURES },
   'db/media/pdfs/repo.ts': { count: 2, why: SMALL_FEATURES },
@@ -29,10 +34,7 @@ const ACCEPTED: Record<string, { count: number; why: string }> = {
   // Was 2. `TemplateVars` went with the three password-era renderers when the
   // passwordless-auth lane deleted them; only the refiner's own input is left.
   'domains/documents/emails/utils/renderEmail.ts': { count: 1, why: SMALL_FEATURES },
-  'domains/documents/pdfs/render/layout.ts': { count: 1, why: SMALL_FEATURES },
-  'domains/documents/pdfs/render/sections.ts': { count: 1, why: SMALL_FEATURES },
   'domains/documents/pdfs/serve.ts': { count: 3, why: SMALL_FEATURES },
-  'domains/documents/pdfs/service.ts': { count: 3, why: SMALL_FEATURES },
   'domains/documents/pdfs/store.ts': { count: 1, why: SMALL_FEATURES },
   'domains/documents/pdfs/render/puppeteer.ts': { count: 1, why: PROVIDER_MOVE },
 }

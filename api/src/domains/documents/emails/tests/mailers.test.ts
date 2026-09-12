@@ -1,4 +1,4 @@
-import { test } from 'vitest'
+import { test, expect } from 'vitest'
 import assert from 'node:assert/strict'
 
 import * as signInCode from '#documents/emails/templates/sign-in-code.ts'
@@ -51,6 +51,8 @@ function wearsTheShell(html: string, what: string): void {
   assert.ok(html.includes('Unsubscribe'), `${what} has no unsubscribe`)
   assert.ok(!/display:\s*(flex|grid)/.test(html), `${what} uses a layout Outlook cannot render`)
   assert.ok(!html.includes('<link'), `${what} pulls in a stylesheet a client will strip`)
+  const hairlines = html.match(/background-color:#2c2f35/g) ?? []
+  assert.ok(hairlines.length >= 2, `${what} is missing the header or footer hairline`)
 }
 
 test('the sign-in code mailer prints the code as text and the design its copy', () => {
@@ -73,7 +75,11 @@ test('the account created mailer carries its sign-in link', () => {
   isClean(html, 'account created')
   wearsTheShell(html, 'account created')
   assert.ok(html.includes('Welcome to Dorado Metals Exchange'), 'the heading is missing')
-  assert.ok(html.includes("there's no password to remember"), 'the lede is missing')
+  assert.ok(
+    html.includes('there&#x27;s no password to remember') ||
+      html.includes("there's no password to remember"),
+    'the lede is missing'
+  )
   assert.ok(html.includes('Finish signing in'), 'the button label is missing')
   assert.ok(html.includes('verify-login?token=t'), 'the link is missing')
 })
@@ -91,7 +97,7 @@ test('the details changed mailer masks both addresses and prints neither in full
   wearsTheShell(html, 'details changed')
   assert.ok(html.includes('Your sign-in details changed'), 'the heading is missing')
   assert.ok(html.includes('Sep 3 at 4:18 PM CT'), 'the moment is missing')
-  assert.ok(html.includes('This wasn&#039;t me') || html.includes("This wasn't me"), 'no button')
+  assert.ok(html.includes('This wasn&#x27;t me') || html.includes("This wasn't me"), 'no button')
   assert.ok(html.includes(maskEmail(previous)), 'the previous address is not shown masked')
   assert.ok(html.includes(maskEmail(next)), 'the new address is not shown masked')
   assert.ok(!html.includes(previous), 'THE RAW PREVIOUS ADDRESS REACHED THE PAGE')
@@ -114,7 +120,7 @@ test('order received is direction-aware and says the same heading either way', (
   ] as const) {
     isClean(html, what)
     wearsTheShell(html, what)
-    assert.ok(html.includes('We&#039;ve got your order') || html.includes("We've got your order"))
+    assert.ok(html.includes('We&#x27;ve got your order') || html.includes("We've got your order"))
     assert.ok(html.includes('Gold, 14K'), `${what} lost a card row`)
     assert.ok(html.includes('182.4 g'), `${what} lost a card figure`)
     assert.ok(html.includes('Track this order'), `${what} lost its button`)
@@ -238,7 +244,7 @@ test('the appointment mailers link to a real calendar and to real directions', (
   })
   isClean(booked, 'appointment booked')
   wearsTheShell(booked, 'appointment booked')
-  assert.ok(booked.includes('You&#039;re booked') || booked.includes("You're booked"))
+  assert.ok(booked.includes('You&#x27;re booked') || booked.includes("You're booked"))
   assert.ok(booked.includes('Bring your items and a photo ID'), 'the lede is missing')
   assert.ok(booked.includes('Add to calendar'), 'the button label is missing')
   assert.ok(
@@ -334,4 +340,9 @@ test('a card value carrying HTML is escaped rather than rendered', () => {
   })
   assert.ok(!html.includes('<script>x</script>'), 'a row value reached the page as markup')
   assert.ok(html.includes('&lt;script&gt;'), 'the value was dropped instead of escaped')
+})
+
+test('order received renders a stable snapshot', () => {
+  const html = orderReceived.render({ ...onOrder, direction: 'purchase', rows })
+  expect(html).toMatchSnapshot()
 })

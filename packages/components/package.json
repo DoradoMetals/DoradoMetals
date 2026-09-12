@@ -8,6 +8,14 @@
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./email": {
+      "types": "./src/email/index.ts",
+      "default": "./src/email/index.ts"
+    },
+    "./document": {
+      "types": "./src/document/index.ts",
+      "default": "./src/document/index.ts"
     }
   },
   "scripts": {
@@ -44,10 +52,12 @@
     "react-chartjs-2": "^5.3.1",
     "react-day-picker": "^9.14.0",
     "react-hook-form": "^7.87.0",
-    "tailwind-merge": "^3.6.0"
+    "tailwind-merge": "^3.6.0",
+    "@dorado/theme": "workspace:*"
   },
   "devDependencies": {
     "@testing-library/react": "^16.3.3",
+    "@types/node": "^22.20.1",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
     "axe-core": "^4.13.0",

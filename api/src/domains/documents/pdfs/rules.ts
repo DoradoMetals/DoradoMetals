@@ -40,7 +40,10 @@ export function assertDocumentAvailable(
   }
 }
 
-export function assertRendered(bytes: Uint8Array | null, name: string): asserts bytes is Uint8Array {
+export function assertRendered(
+  bytes: Uint8Array | null,
+  name: string
+): asserts bytes is Uint8Array {
   if (!bytes) throw new NotFound(`the ${name} could not be produced`)
 }
 
@@ -48,4 +51,11 @@ export function assertUpload(bytes: Uint8Array | null | undefined): asserts byte
   if (!bytes || bytes.length === 0) {
     throw new Invalid('the request carries no file - send it as multipart/form-data')
   }
+}
+
+export function assertAssayResults<T>(
+  doc: T | null | undefined,
+  order_id: string
+): asserts doc is T {
+  if (!doc) throw new NotFound(`no assay results for order ${order_id}`)
 }

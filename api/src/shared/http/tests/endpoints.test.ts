@@ -27,6 +27,8 @@ const PUBLIC = new Set([
   'GET /api/products/:slug',
   'GET /api/rates/',
   'GET /api/rates/tiers',
+  // A public rate sheet PDF, unguarded like the rates it reads.
+  'GET /api/rates/sheet.pdf',
   'GET /api/reviews/public',
   'GET /api/spots/',
   'POST /api/quotes/catalog',
@@ -200,7 +202,7 @@ test('public reads return JSON', async () => {
 
 import fs from 'node:fs'
 import path from 'node:path'
-import { domainDirs, sourceRoot } from '../../../../scripts/lib/layout.ts'
+import { domainDirs, sourceRoot, wildcardRoots } from '../../../../scripts/lib/layout.ts'
 
 const API_ROOT = path.join(import.meta.dirname, '..', '..', '..', '..')
 const API = sourceRoot(API_ROOT)
@@ -306,6 +308,19 @@ test('the unrouted check can actually fail', () => {
 })
 
 test('no public endpoint reads a user id from the request', () => {
+  const resolveImportDir = (src: string, name: string): string | null => {
+    const importLine = src.split('\n').find((l) => l.includes(name) && /from ['"]#/.test(l))
+    const spec = importLine?.match(/from ['"](#[^'"]+)['"]/)?.[1]
+    if (!spec) return null
+    for (const [alias, dir] of Object.entries(wildcardRoots(API_ROOT))) {
+      if (spec === `#${alias}` || spec.startsWith(`#${alias}/`)) {
+        const rest = spec.slice(`#${alias}`.length + 1)
+        return path.join(API, dir, path.dirname(rest))
+      }
+    }
+    return null
+  }
+
   const handlerFor = (key: string): { name: string; dir: string } | null => {
     const [method, full] = key.split(' ')
     const tail = full.replace(/^\/api\/[^/]+/, '')
@@ -321,7 +336,11 @@ test('no public endpoint reads a user id from the request', () => {
           )
         if (!line) continue
         const name = line.match(/,\s*([A-Za-z0-9_]+)\s*\)\s*;?\s*$/)?.[1]
-        if (name) return { name, dir: path.dirname(file) }
+        if (!name) continue
+        const localDir = path.dirname(file)
+        if (bodyOf(localDir, name) !== null) return { name, dir: localDir }
+        const importedDir = resolveImportDir(src, name)
+        return { name, dir: importedDir ?? localDir }
       }
     const segments = full
       .replace(/^\/api\//, '')

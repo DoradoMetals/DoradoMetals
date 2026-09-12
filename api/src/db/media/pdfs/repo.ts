@@ -1,6 +1,15 @@
 import query from '#shared/db/query.ts'
 import { sqlFrom } from '#shared/db/sql.ts'
-import type { Pdf, StoredDocument } from '@dorado/contracts'
+import type {
+  AssayResultsDocument,
+  Pdf,
+  RateSheetDocument,
+  StoredDocument,
+} from '@dorado/contracts'
+import {
+  AssayResultsDocument as AssayResults,
+  RateSheetDocument as RateSheet,
+} from '@dorado/contracts'
 import type { Executor } from '#shared/db/executor.ts'
 
 const sql = sqlFrom(import.meta.dirname)
@@ -30,7 +39,11 @@ export async function latestForRefining(
   refining_order_id: string,
   executor?: Executor
 ): Promise<PdfRow | null> {
-  const { rows } = await query<PdfRow>(sql('latest_for_refining'), [refining_order_id, kind], executor)
+  const { rows } = await query<PdfRow>(
+    sql('latest_for_refining'),
+    [refining_order_id, kind],
+    executor
+  )
   return rows[0] ?? null
 }
 
@@ -54,4 +67,22 @@ export async function create(row: NewPdf, executor?: Executor): Promise<{ id: st
     executor
   )
   return rows[0]
+}
+
+async function contentOf(name: string, params: unknown[], executor?: Executor): Promise<unknown> {
+  const { rows } = await query<{ content: unknown }>(sql(name), params, executor)
+  return rows[0]?.content
+}
+
+export async function assayResults(
+  order_id: string,
+  executor?: Executor
+): Promise<AssayResultsDocument | null> {
+  const row = await contentOf('content_assay_results', [order_id], executor)
+  return row === undefined ? null : AssayResults.parse(row)
+}
+
+export async function rateSheet(executor?: Executor): Promise<RateSheetDocument> {
+  const row = await contentOf('content_rate_sheet', [], executor)
+  return RateSheet.parse(row)
 }

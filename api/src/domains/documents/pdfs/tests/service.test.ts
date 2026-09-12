@@ -5,7 +5,7 @@ import * as pdf from '#documents/pdfs/service.ts'
 import { closeBrowser } from '#documents/pdfs/render/puppeteer.ts'
 import * as orderRead from '#orders/read.ts'
 import * as inputs from '#documents/pdfs/order-inputs.ts'
-import * as pricing from '#pricing/index.ts'
+import { documentRows } from '#documents/pdfs/render/documents/rows.ts'
 import { formatCurrency } from '#documents/pdfs/render/format.ts'
 import { LOCKS } from '#shared/testing/locks.ts'
 import { inRollback } from '#shared/testing/rollback.ts'
@@ -48,16 +48,12 @@ afterAll(async () => {
   await pool.end()
 })
 
-// A packing list and a return packing list embed the FedEx label as a base64
-// PNG inside an <img> tag. Base64 is 64 arbitrary characters per byte-and-a-
-// bit of binary pixel data - a 13KB label has good odds of containing "NaN"
-// as pure coincidence somewhere in that noise, with no numeric column, no
-// arithmetic and no rendering defect behind it (verified against a rebuilt
-// production copy: orders 259, 272 and 328 each carry a label whose base64
-// happens to contain "NaN" inside the <img> tag, and NOWHERE ELSE in any of
-// the 72 orders' rendered text). A bare `.includes("NaN")` cannot tell that
-// apart from an actual broken number, so it must not look inside the image.
-const hasNaN = (html: string): boolean => html.replace(/<img\b[^>]*>/g, '').includes('NaN')
+// Fonts and the logo are inlined as base64, and base64 noise can spell NaN.
+const hasNaN = (html: string): boolean =>
+  html
+    .replace(/<style[\s\S]*?<\/style>/g, '')
+    .replace(/<img[^>]*>/g, '')
+    .includes('NaN')
 
 const isPdf = (buf: Uint8Array, what: string) => {
   assert.ok(buf instanceof Uint8Array, `${what} did not return bytes`)
@@ -88,23 +84,20 @@ test('a packing list renders with no package details', async () => {
   isPdf(await pdf.generatePackingList(own), 'packing list without package details')
 })
 
-test('a sales order invoice renders', async () => {
+test('a sale order renders its invoice', async () => {
   const order = salesOrders.find((o) => o.lots.length > 0) ?? salesOrders[0]
   assert.ok(order, 'dev has no sales orders to render')
-  isPdf(
-    await pdf.generateSalesOrderInvoice(await inputs.salesOrderInvoiceInputs(order.order.id)),
-    'sales order invoice'
-  )
+  isPdf(await pdf.generateInvoice(await inputs.invoiceInputs(order.order.id)), 'sale invoice')
 })
 
-test('every purchase order in dev builds both documents', async () => {
+test('every purchase order in dev builds its documents', async () => {
   const failures: string[] = []
   for (const order of orders) {
     const own = await inputsFor(order)
     const documents: Array<[string, () => string]> = [
-      ['packing list', () => pdf.buildPackingListHtml(own)],
+      ['packing list', () => pdf.buildPackingListHtml({ ...own, package: null })],
       ['invoice', () => pdf.buildInvoiceHtml(own)],
-      ['return packing list', () => pdf.buildReturnPackingListHtml(own)],
+      ['return packing list', () => pdf.buildReturnPackingListHtml({ ...own, package: null })],
     ]
     for (const [name, build] of documents) {
       try {
@@ -127,59 +120,62 @@ test('an order with no address still builds, with the address left blank', async
   const order = orders.find((o) => !o.address)
   assert.ok(order, 'dev no longer has an order without an address - the case is untested')
 
-  const html = pdf.buildPackingListHtml(await inputsFor(order!))
+  const html = pdf.buildPackingListHtml({ ...(await inputsFor(order!)), package: null })
   assert.ok(html.includes('<html') || html.includes('<!DOCTYPE'), 'did not build a document')
   assert.ok(!html.includes('undefined'), "an unset address field reached the page as 'undefined'")
 })
 
-test('a packing list with no package details draws no box, rather than a broken one', async () => {
-  const order = orders.find((o) => o.shipments.every((s) => !s.package_id)) ?? orders[0]
+test('a package fact appears only when real dimensions are known', async () => {
+  const order = orders.find((o) => o.lots.length > 0) ?? orders[0]
   const own = await inputsFor(order)
 
-  const html = pdf.buildPackingListHtml(own)
-  assert.ok(!hasNaN(html), 'the packing list contains NaN')
-  assert.ok(!html.includes('<svg'), 'a box was drawn from dimensions that do not exist')
+  const withoutBox = pdf.buildPackingListHtml({ ...own, package: null })
+  assert.ok(!hasNaN(withoutBox), 'the packing list contains NaN')
+  assert.ok(!/\(NaN×/.test(withoutBox), 'a box fact was drawn from dimensions that do not exist')
 
-  const withBox = pdf.buildPackingListHtml(
-    Object.assign({ package: { label: 'Small Box', length: 9, width: 6, height: 2 } }, own)
-  )
-  assert.ok(withBox.includes('<svg'), 'no box was drawn for a real package')
-  assert.ok(!hasNaN(withBox), 'a real package produced NaN coordinates')
-  assert.ok(withBox.includes('Length: 9 in'), 'the dimensions are not printed')
+  const withBox = pdf.buildPackingListHtml({
+    ...own,
+    package: { label: 'Small Box', length: 9, width: 6, height: 2 },
+  })
+  assert.ok(!hasNaN(withBox), 'a real package produced NaN')
+  assert.ok(withBox.includes('Small Box (9×6×2 in)'), 'the dimensions are not printed')
 })
 
-test('a sales order invoice builds with no spot prices at all', async () => {
-  const order = salesOrders.find((o) => o.lots.length > 0) ?? salesOrders[0]
-  assert.ok(order, 'dev has no sales order')
-  const salePricing = await pricing.priceOrder(order.order.id)
+test('an unpriced lot shows a dash spot fact, not NaN or null', () => {
+  const line = {
+    id: 'line-1',
+    order_id: 'order-1',
+    lot_id: 'lot-1',
+    price: null,
+    premium: 0.1,
+    lot: {
+      id: 'lot-1',
+      bullion_id: 'bullion-1',
+      metal_id: 'Silver',
+      quantity: 2,
+      content: 1,
+      product_name: 'Silver Round',
+    },
+  } as unknown as import('@dorado/contracts').OrderLotView
 
+  const pricing = { items: [], spots: [] } as unknown as OrderPricing
+  const [row] = documentRows([line], pricing)
+
+  assert.ok(!row.facts.join(' ').includes('NaN'), 'the spot fact contains NaN')
   assert.ok(
-    salePricing.spots.length > 0,
-    'the sales order prices no metal at all - this case is untested'
+    row.facts.some((f) => f === '- spot'),
+    'the unpriced metal did not show a dash spot'
   )
 
-  const asked = (ask: (index: number) => number | null): OrderPricing => ({
-    ...salePricing,
-    spots: salePricing.spots.map((spot, index) => ({
-      metal_id: spot.metal_id,
-      bid: spot.bid,
-      ask: ask(index),
-    })),
-  })
-
-  const html = pdf.buildSalesOrderInvoiceHtml({ order, pricing: asked(() => null) })
-  assert.ok(html.length > 500, 'no document was produced')
-  assert.ok(!html.includes('NaN'), 'the invoice contains NaN')
-  assert.ok(html.includes('&mdash;'), 'a missing spot rendered as nothing at all')
-
-  const partial = pdf.buildSalesOrderInvoiceHtml({
-    order,
-    pricing: asked((index) => (index === 0 ? 4000 : null)),
-  })
-  assert.ok(partial.includes('$4,000.00'), 'the quoted metal is missing')
-  if (salePricing.spots.length > 1) {
-    assert.ok(partial.includes('&mdash;'), 'the unquoted metals rendered as nothing at all')
-  }
+  const priced = {
+    items: [],
+    spots: [{ metal_id: 'Silver', bid: 30, ask: 31 }],
+  } as unknown as OrderPricing
+  const [pricedRow] = documentRows([line], priced)
+  assert.ok(
+    pricedRow.facts.includes(`${formatCurrency(30)} spot`),
+    'the priced metal is missing its spot'
+  )
 })
 
 test('the packing list and the invoice report the same total', async () => {
@@ -189,7 +185,7 @@ test('the packing list and the invoice report the same total', async () => {
     if (!Number.isFinite(total)) continue
 
     const money = formatCurrency(total)
-    const packing = pdf.buildPackingListHtml(own)
+    const packing = pdf.buildPackingListHtml({ ...own, package: null })
     assert.ok(
       packing.includes(money),
       `order ${order.order.number}: the packing list does not show ${money}`
@@ -201,13 +197,12 @@ test('every order item appears as a row in the packing list', async () => {
   const missing: string[] = []
   for (const order of orders) {
     if (!order.lots.length) continue
-
     const own = await inputsFor(order)
-    const html = pdf.buildPackingListHtml(own)
-    const rows = (html.match(/<tr>/g) ?? []).length
-
-    if (rows < order.lots.length) {
-      missing.push(`order ${order.order.number}: ${order.lots.length} items but only ${rows} rows`)
+    const rows = documentRows(order.lots, own.pricing)
+    if (rows.length < order.lots.length) {
+      missing.push(
+        `order ${order.order.number}: ${order.lots.length} items but only ${rows.length} rows`
+      )
     }
   }
   assert.deepEqual(missing, [])
@@ -232,44 +227,15 @@ test('a scrap line with no recorded weight, purity or quantity shows a dash, nev
 
     const own = await inputs.invoiceInputs(order.id, c)
     const documents: Array<[string, string]> = [
-      ['packing list', pdf.buildPackingListHtml(own)],
+      ['packing list', pdf.buildPackingListHtml({ ...own, package: null })],
       ['invoice', pdf.buildInvoiceHtml(own)],
-      ['return packing list', pdf.buildReturnPackingListHtml(own)],
+      ['return packing list', pdf.buildReturnPackingListHtml({ ...own, package: null })],
     ]
 
     for (const [name, html] of documents) {
       assert.ok(!hasNaN(html), `${name} contains NaN for a null-shaped scrap line`)
       assert.ok(!/>\s*null\s*</.test(html), `${name} prints the literal word "null"`)
+      assert.ok(html.includes('- g post melt'), `${name} does not show the weight as a dash`)
     }
-
-    assert.ok(
-      documents[0][1].includes('<td>- g</td>'),
-      'the packing list does not show the declared weight as a dash'
-    )
-    assert.ok(
-      documents[1][1].includes('>- g</td>'),
-      'the invoice does not show pre-melt and post-melt as dashes'
-    )
   })
-})
-
-// The check itself is what let 259/272/328 go unnoticed as false positives:
-// a bare substring scan cannot tell a coincidental "NaN" inside a base64
-// label from a genuinely broken number.
-test('the NaN detector ignores base64 image bytes but still catches a broken number', () => {
-  const withCoincidentalLabel = `
-    <html><body>
-      <table><tr><td>$1,234.00</td></tr></table>
-      <div style="page-break-before: always;">
-        <img src="data:image/png;base64,aGVsbG9NaNvd29ybGQ=" alt="Shipping Label" />
-      </div>
-    </body></html>
-  `
-  assert.ok(
-    !hasNaN(withCoincidentalLabel),
-    'a coincidental NaN inside a base64 label falsely failed the check'
-  )
-
-  const withRealBug = withCoincidentalLabel.replace('$1,234.00', '$NaN')
-  assert.ok(hasNaN(withRealBug), 'a genuine NaN in rendered text was not caught')
 })

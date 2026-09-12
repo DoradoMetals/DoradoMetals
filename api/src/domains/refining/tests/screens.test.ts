@@ -254,7 +254,7 @@ test('a refiner order has a Payment card of its own, and a payout can be opened 
   })
 })
 
-test('a refiner order names its documents, and the settlement statement is imported', async () => {
+test('a refiner order names its one document, and an imported file is what makes it available', async () => {
   await inRefining(async (c) => {
     await asAdmin(TEST_ACTOR, async () => {
       const made = await request(app)
@@ -265,15 +265,12 @@ test('a refiner order names its documents, and the settlement statement is impor
       assert.equal(listed.status, 200, listed.text)
       assert.deepEqual(
         listed.body.map((row: { name: string }) => row.name),
-        ['Invoice', 'Settlement', 'Lot Manifest']
+        ['Invoice']
       )
-      assert.equal(
-        listed.body.find((r: { kind: string }) => r.kind === 'settlement').available,
-        false
-      )
+      assert.equal(listed.body.find((r: { kind: string }) => r.kind === 'invoice').available, false)
 
       const imported = await request(app)
-        .post(`/api/refining/orders/${made.body.id}/documents/settlement`)
+        .post(`/api/refining/orders/${made.body.id}/documents/invoice`)
         .set('content-type', `multipart/form-data; boundary=${BOUNDARY}`)
         .send(upload('statement.pdf', '%PDF-1.4 statement'))
       assert.equal(imported.status, 201, imported.text)
@@ -281,7 +278,7 @@ test('a refiner order names its documents, and the settlement statement is impor
 
       const after = await request(app).get(`/api/refining/orders/${made.body.id}/documents`)
       assert.equal(
-        after.body.find((r: { kind: string }) => r.kind === 'settlement').pdf_id,
+        after.body.find((r: { kind: string }) => r.kind === 'invoice').pdf_id,
         imported.body.pdf_id
       )
     })

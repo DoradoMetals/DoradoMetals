@@ -2,6 +2,9 @@ import { z } from 'zod/v4'
 import { Order } from '../orders/orders.js'
 import { Direction } from '../orders/enums.js'
 import { User } from '../auth/users.js'
+import { OrderView } from '../orders/orders.js'
+import { OrderPricing } from '../pricing/quotes.js'
+import { Package } from '../shipping/packages.js'
 
 // One line of a mailer's summary card - the Email Row symbol. Label left,
 // figure right. The rows come out of the mailer's own SQL read as jsonb, so a
@@ -99,3 +102,54 @@ export const VoicemailReceivedMail = MailerAddressee.extend({
   recording_url: z.string().nullable(),
 })
 export type VoicemailReceivedMail = z.infer<typeof VoicemailReceivedMail>
+
+// One row of a document's Table symbol - name, headline figure, dotted facts.
+export const DocumentTableRow = z.object({
+  name: z.string(),
+  figure: z.string(),
+  facts: z.array(z.string()),
+})
+export type DocumentTableRow = z.infer<typeof DocumentTableRow>
+
+export const AssayResultsDocument = z.object({
+  order_id: Order.shape.id,
+  reference: z.string(),
+  total_fine: z.string(),
+  lots: z.array(DocumentTableRow),
+  by_metal: z.array(MailerRow),
+})
+export type AssayResultsDocument = z.infer<typeof AssayResultsDocument>
+
+export const RateSheetMetal = z.object({
+  name: z.string(),
+  columns: z.array(z.string()),
+  rows: z.array(z.object({ label: z.string(), values: z.array(z.string()) })),
+})
+export type RateSheetMetal = z.infer<typeof RateSheetMetal>
+
+export const RateSheetDocument = z.object({
+  issued: z.string(),
+  metals: z.array(RateSheetMetal),
+})
+export type RateSheetDocument = z.infer<typeof RateSheetDocument>
+
+// What a paper document is rendered from: the order view plus what pricing
+// answered for it. Both are one SQL read parsed by its own contract.
+export const DocumentInput = z.object({
+  order: OrderView,
+  pricing: OrderPricing,
+})
+export type DocumentInput = z.infer<typeof DocumentInput>
+
+export const DocumentPackage = z.object({
+  label: Package.shape.label.nullable(),
+  length: Package.shape.length.nullable(),
+  width: Package.shape.width.nullable(),
+  height: Package.shape.height.nullable(),
+})
+export type DocumentPackage = z.infer<typeof DocumentPackage>
+
+export const ShipmentManifestInput = DocumentInput.extend({
+  package: DocumentPackage.nullable().optional(),
+})
+export type ShipmentManifestInput = z.infer<typeof ShipmentManifestInput>

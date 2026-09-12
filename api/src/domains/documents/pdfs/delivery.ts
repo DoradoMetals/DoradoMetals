@@ -17,11 +17,26 @@ async function rendered(kind: PdfKind, order_id: string): Promise<Uint8Array | n
       await inputs.returnPackingListInputs(order_id)
     )
   }
-  if (kind === 'invoice') {
+  if (kind === 'invoice' || kind === 'sales_order_invoice') {
     return await pdfService.generateInvoice(await inputs.invoiceInputs(order_id))
   }
-  if (kind === 'sales_order_invoice') {
-    return await pdfService.generateSalesOrderInvoice(await inputs.salesOrderInvoiceInputs(order_id))
+  if (kind === 'pickup_manifest') {
+    return await pdfService.generatePickupManifest(await inputs.pickupManifestInputs(order_id))
+  }
+  if (kind === 'intake_receipt') {
+    return await pdfService.generateIntakeReceipt(await inputs.intakeReceiptInputs(order_id))
+  }
+  if (kind === 'shipping_instructions') {
+    return await pdfService.generateShippingInstructions(await inputs.referenceInputs(order_id))
+  }
+  if (kind === 'pickup_instructions') {
+    return await pdfService.generatePickupInstructions(await inputs.referenceInputs(order_id))
+  }
+  if (kind === 'appointment_instructions') {
+    return await pdfService.generateAppointmentInstructions(await inputs.referenceInputs(order_id))
+  }
+  if (kind === 'assay_results') {
+    return await pdfService.generateAssayResults(await inputs.assayResultsInputs(order_id))
   }
   return null
 }
@@ -30,7 +45,8 @@ async function rendered(kind: PdfKind, order_id: string): Promise<Uint8Array | n
 // us, and for the six kinds with no renderer it is the only copy there is.
 async function bytesForOrder(order_id: string, document: OrderDocument): Promise<Uint8Array> {
   const stored = document.pdf_id ? await latestPdf(document.kind, order_id) : null
-  const bytes = (stored ? await storedBytes(stored) : null) ?? (await rendered(document.kind, order_id))
+  const bytes =
+    (stored ? await storedBytes(stored) : null) ?? (await rendered(document.kind, order_id))
   rules.assertRendered(bytes, document.name)
   return bytes
 }

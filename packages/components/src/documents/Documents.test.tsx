@@ -7,8 +7,8 @@ import { axeViolations } from '../test/axe'
 
 const documents: DocumentRow[] = [
   { id: '1', name: 'Invoice', meta: 'PDF · 48 KB · Sep 1, 2026', state: 'available' },
-  { id: '2', name: 'Packing List', meta: 'PDF · 31 KB · Sep 1, 2026', state: 'available' },
-  { id: '3', name: 'Return Packing List', state: 'unavailable' },
+  { id: '2', name: 'Shipment Manifest', meta: 'PDF · 31 KB · Sep 1, 2026', state: 'available' },
+  { id: '3', name: 'Return Shipment Manifest', state: 'unavailable' },
 ]
 
 describe('Documents', () => {
@@ -28,15 +28,15 @@ describe('Documents', () => {
   it('the ten canonical names are the union, in the Media file order', () => {
     expect([...DOCUMENT_NAMES]).toEqual([
       'Invoice',
-      'Packing List',
-      'Return Packing List',
+      'Shipment Manifest',
+      'Return Shipment Manifest',
       'Shipping Instructions',
       'Pickup Manifest',
       'Pickup Instructions',
       'Intake Receipt',
       'Appointment Instructions',
-      'Settlement',
-      'Lot Manifest',
+      'Assay Results',
+      'Rate Sheet',
     ])
   })
 
@@ -53,9 +53,7 @@ describe('Documents', () => {
     const onSend = vi.fn()
     const onDelete = vi.fn()
     const { getByRole } = render(
-      <Documents
-        documents={[{ id: '1', name: 'Invoice', state: 'available', onSend, onDelete }]}
-      />
+      <Documents documents={[{ id: '1', name: 'Invoice', state: 'available', onSend, onDelete }]} />
     )
     fireEvent.click(getByRole('button', { name: 'Send Invoice' }))
     fireEvent.click(getByRole('button', { name: 'Delete Invoice' }))
@@ -95,7 +93,9 @@ describe('Documents', () => {
 
   it('unavailable shows no download button at all - a customer cannot force a document that does not exist', () => {
     const { getByText, queryByRole } = render(
-      <Documents documents={[{ id: '1', name: 'Return Packing List', state: 'unavailable' }]} />
+      <Documents
+        documents={[{ id: '1', name: 'Return Shipment Manifest', state: 'unavailable' }]}
+      />
     )
     expect(getByText('Not yet available')).toBeTruthy()
     expect(queryByRole('button', { name: /download/i })).toBeNull()
@@ -105,17 +105,17 @@ describe('Documents', () => {
     const onImport = vi.fn()
     const onGenerate = vi.fn()
     const { queryByRole, rerender, getByRole } = render(
-      <Documents documents={[{ id: '1', name: 'Settlement', state: 'unavailable' }]} />
+      <Documents documents={[{ id: '1', name: 'Assay Results', state: 'unavailable' }]} />
     )
-    expect(queryByRole('button', { name: 'Import Settlement' })).toBeNull()
-    expect(queryByRole('button', { name: 'Generate Settlement' })).toBeNull()
+    expect(queryByRole('button', { name: 'Import Assay Results' })).toBeNull()
+    expect(queryByRole('button', { name: 'Generate Assay Results' })).toBeNull()
 
     rerender(
       <Documents
         documents={[
           {
             id: '1',
-            name: 'Settlement',
+            name: 'Assay Results',
             state: 'unavailable',
             showImport: true,
             showGenerate: true,
@@ -125,8 +125,8 @@ describe('Documents', () => {
         ]}
       />
     )
-    fireEvent.click(getByRole('button', { name: 'Import Settlement' }))
-    fireEvent.click(getByRole('button', { name: 'Generate Settlement' }))
+    fireEvent.click(getByRole('button', { name: 'Import Assay Results' }))
+    fireEvent.click(getByRole('button', { name: 'Generate Assay Results' }))
     expect(onImport).toHaveBeenCalled()
     expect(onGenerate).toHaveBeenCalled()
   })

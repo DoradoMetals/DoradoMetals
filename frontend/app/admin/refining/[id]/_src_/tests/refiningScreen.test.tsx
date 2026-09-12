@@ -36,9 +36,13 @@ vi.mock('@dorado/client', () => ({
   useLocations: () => query([aLocation()]),
   useEmployees: () => query([anEmployee()]),
   useRefiningSpots: () => query([aRefiningSpot('Gold', 2411.2)]),
-  useRefiningPayment: () => query(aPaymentView({ order_id: null, refining_order_id: state.order.id })),
+  useRefiningPayment: () =>
+    query(aPaymentView({ order_id: null, refining_order_id: state.order.id })),
   useRefiningDocuments: () =>
-    query([aDocument('invoice', 'Invoice', true), aDocument('settlement', 'Settlement', false)]),
+    query([
+      aDocument('invoice', 'Invoice', true),
+      aDocument('assay_results', 'Assay Results', false),
+    ]),
   useLotSearch: () => query([]),
   usePayTo: () => query([]),
   usePatchRefiningOrder: mutation,
