@@ -181,10 +181,16 @@ DO $$ BEGIN
     ALTER TABLE lots.items ADD CONSTRAINT a_product_lot_is_not_melted
       CHECK (bullion_id IS NULL OR post_melt IS NULL);
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'a_snapshot_belongs_to_a_product') THEN
-    ALTER TABLE lots.items ADD CONSTRAINT a_snapshot_belongs_to_a_product
-      CHECK (content_snapshot IS NULL OR bullion_id IS NOT NULL);
-  END IF;
+  -- `a_snapshot_belongs_to_a_product` used to stand here, CHECKing
+  -- `content_snapshot IS NULL OR bullion_id IS NOT NULL`. It is GONE, and 173
+  -- drops it from any database this file already ran on: a snapshot is content
+  -- that was FIXED at a moment, and a settled scrap lot has one too - the fine
+  -- weight its payout was computed from (161). A CHECK cannot see whether a
+  -- lot's order has been finalized, so the rule it protected lives where it can
+  -- be read instead: no live path writes a scrap lot's snapshot - `create.sql`
+  -- never sets it, `split.sql` inherits it only for a product lot, and
+  -- `LotPatch` does not carry it - and `db/lots/items/tests/repo.test.ts` pins
+  -- all three.
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'a_lot_is_not_its_own_parent') THEN
     ALTER TABLE lots.items ADD CONSTRAINT a_lot_is_not_its_own_parent
       CHECK (split_from_id IS DISTINCT FROM id);

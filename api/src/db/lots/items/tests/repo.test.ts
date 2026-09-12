@@ -102,6 +102,7 @@ test('a split mints children carrying split_from_id and leaves the parent alone'
     for (const child of children) {
       assert.equal(child.split_from_id, parent.id)
       assert.equal(child.metal_id, 'Silver')
+      assert.equal(child.content_snapshot, null, 'a scrap child must stay derivable')
     }
     assert.deepEqual(
       children.map((child) => Number(child.content)).sort((a, b) => a - b),
@@ -113,6 +114,28 @@ test('a split mints children carrying split_from_id and leaves the parent alone'
       'the parent was rewritten by its own split'
     )
     assert.deepEqual(await lots.splitOff(parent.id, [], c), [])
+  })
+})
+
+// `a_snapshot_belongs_to_a_product` was the CHECK that said only a catalogue
+// lot has a fixed content. 161 gives a SETTLED scrap lot one too - the fine
+// weight its payout was computed from - and a CHECK cannot see whether a lot's
+// order has been finalized, so 173 drops it. The half that is still true is
+// that no LIVE path writes a scrap lot's snapshot, and these are the three
+// places one could come from.
+test('no live path can snapshot a scrap lot', async () => {
+  await inLots(async (c) => {
+    const lot = await lots.create({ metal_id: 'Gold', pre_melt: 10, purity: 0.9 }, c)
+    assert.equal(lot.content_snapshot, null, 'create.sql set one')
+
+    await assert.rejects(
+      lots.update(lot.id, { content_snapshot: 9 } as never, c),
+      /content_snapshot/,
+      'LotPatch let a snapshot through'
+    )
+
+    const [child] = await lots.splitOff(lot.id, [{ pre_melt: 10, purity: 0.9 }], c)
+    assert.equal(child?.content_snapshot, null, 'split.sql inherited one')
   })
 })
 
