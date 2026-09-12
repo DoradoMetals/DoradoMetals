@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type {
+  Lot,
   OrderDocument,
   PaymentView,
   RefinerView,
@@ -134,7 +135,7 @@ export function useAssignRefiningLots(id: string) {
 
 export function usePatchRefiningLot() {
   return useRefiningWrite(({ lot_id, patch }: { lot_id: string; patch: RefiningLotPatch }) =>
-    apiRequest<RefiningLot>('PATCH', `/refining/lots/${lot_id}`, patch)
+    apiRequest<Lot>('PATCH', `/refining/lots/${lot_id}`, patch)
   )
 }
 

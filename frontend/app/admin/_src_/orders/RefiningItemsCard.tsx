@@ -44,7 +44,7 @@ export function RefiningItemsCard({
   onAdd,
   pending = false,
 }: RefiningItemsCardProps) {
-  const total = lots.reduce((sum, lot) => sum + (lot.content ?? 0), 0)
+  const total = lots.reduce((sum, lot) => sum + (lot.lot.content ?? 0), 0)
   const [chosen, setChosen] = React.useState<string | null>(null)
 
   const items: AutocompleteItem[] = found.map((lot) => ({
@@ -120,21 +120,21 @@ export function RefiningItemsCard({
                 <TableCell>{lot.order_reference ?? DASH}</TableCell>
                 <TableCell>
                   <NumberCell
-                    value={lot.post_melt ?? lot.pre_melt}
+                    value={lot.lot.post_melt ?? lot.lot.pre_melt}
                     onCommit={(post_melt) => onEdit(lot.id, { post_melt })}
                   />
                 </TableCell>
                 <TableCell>
                   <NumberCell
-                    value={lot.purity}
-                    display={percent(lot.purity)}
+                    value={lot.lot.purity}
+                    display={percent(lot.lot.purity)}
                     onCommit={(purity) => onEdit(lot.id, { purity })}
                   />
                 </TableCell>
                 <TableCell>
                   <NumberCell
-                    value={lot.premium}
-                    display={asPremium(lot.premium)}
+                    value={lot.lot.premium}
+                    display={asPremium(lot.lot.premium)}
                     onCommit={(premium) => onEdit(lot.id, { premium })}
                   />
                 </TableCell>

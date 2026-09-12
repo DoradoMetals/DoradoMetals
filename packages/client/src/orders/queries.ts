@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type {
   Direction,
   FulfillmentDropoff,
+  Lot,
   LotSplit,
   OrderCancelBody,
   OrderDocument,
@@ -139,7 +140,7 @@ export function useCreateOrderLot(id: string) {
 
 export function usePatchOrderLot(id: string) {
   return useOrderWrite(id, ({ lot_id, patch }: { lot_id: string; patch: OrderLotPatch }) =>
-    apiRequest<OrderLotView>('PATCH', `/orders/lots/${lot_id}`, patch)
+    apiRequest<OrderLotView | Lot>('PATCH', `/orders/lots/${lot_id}`, patch)
   )
 }
 

@@ -213,7 +213,7 @@ export function AdminRefiningScreen({ id }: { id: string }) {
 
           {!draft && (
             <SpotsCard
-              spots={spots.data ?? []}
+              spots={(spots.data ?? []).map((row) => ({ metal_id: row.metal_id, bid: row.spot }))}
               live={[]}
               locked
               canToggle={false}

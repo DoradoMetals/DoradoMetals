@@ -858,7 +858,10 @@ describe('the states the API lane unblocked', () => {
   test('GAP 7: a refiner order draws its own frozen prices and no lock button', () => {
     render(
       <SpotsCard
-        spots={[aRefiningSpot('Gold', 2411.2), aRefiningSpot('Silver', 28.4)]}
+        spots={[aRefiningSpot('Gold', 2411.2), aRefiningSpot('Silver', 28.4)].map((row) => ({
+          metal_id: row.metal_id,
+          bid: row.spot,
+        }))}
         live={[]}
         locked
         canToggle={false}
