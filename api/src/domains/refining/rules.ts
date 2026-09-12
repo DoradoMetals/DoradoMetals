@@ -4,13 +4,18 @@ import type {
   Action,
   Direction,
   Lot,
+  LotPosition,
   OrderDocument,
   OrderRead,
   PdfKind,
+  RefiningBatch,
+  RefiningBatchResult,
   RefiningLot,
   RefiningLotPatch,
+  RefiningLotView,
   RefiningOrder,
   RefiningOrderActions,
+  RefiningOrderRead,
   RefiningOrderView,
   RefiningSettlementLot,
   StoredDocument,
@@ -41,12 +46,9 @@ export function assertLotsExist(found: Lot[], asked: string[]): void {
   }
 }
 
-export function assertUnassigned(taken: RefiningLot[], lot_ids: string[]): void {
-  const held = taken.filter((row) => lot_ids.includes(row.lot_id))
-  if (held.length > 0) {
-    throw new Conflict(
-      `lot ${held.map((row) => row.lot_id).join(', ')} is already on another refiner order`
-    )
+export function assertUnassigned(taken: string[], lot_ids: string[]): void {
+  if (taken.length > 0) {
+    throw new Conflict(`lot ${taken.join(', ')} is already on another refiner order`)
   }
 }
 
@@ -124,7 +126,7 @@ export function assertSettleable(order: RefiningOrder): void {
   }
 }
 
-export function assertWeighable(patch: RefiningLotPatch, current: RefiningLot): void {
+export function assertWeighable(patch: RefiningLotPatch, current: Lot): void {
   const unit = patch.unit !== undefined ? patch.unit : current.unit
   const weight =
     patch.post_melt !== undefined
@@ -149,11 +151,12 @@ export function assertSettling(held: RefiningLot[], named: RefiningSettlementLot
   if (stranger) {
     throw new Invalid(`lot ${stranger.lot_id} is not on this refiner order`)
   }
-  const spoken = new Set(named.map((line) => line.lot_id))
-  const missed = held.filter((lot) => !spoken.has(lot.lot_id))
-  if (missed.length > 0) {
-    throw new Invalid(`${missed.length} lot(s) on this order carry no assay in the settlement`)
-  }
+}
+
+export function settlementConfirm(lots: RefiningLotView[]): string | null {
+  const unsettled = lots.filter((lot) => lot.lot.settled_at === null).length
+  if (unsettled === 0) return null
+  return `${unsettled} of ${lots.length} lots are not settled`
 }
 
 export function assertEveryLotSettled(written: number, named: number, id: string): void {
@@ -171,25 +174,61 @@ export function assertLotRemoved(removed: boolean, id: string): void {
   }
 }
 
-export function assertSettlementPremiums(
-  held: RefiningLot[],
-  named: RefiningSettlementLot[]
-): void {
-  const bare = held.filter((lot) => {
-    const line = named.find((row) => row.lot_id === lot.lot_id)
-    return (line?.premium ?? lot.premium) === null
-  })
-  if (bare.length > 0) {
+export function premiumConfirm(lots: RefiningLotView[]): string | null {
+  const bare = lots.filter((lot) => lot.lot.premium === null).length
+  if (bare === 0) return null
+  return `${bare} lot(s) carry no premium, so what the refiner pays for them is unknown`
+}
+
+export function assertLockable(troy_oz: number): void {
+  if (troy_oz <= 0) throw new Invalid('a lock takes metal out, so it names a positive weight')
+}
+
+export function lockConfirm(available: number, troy_oz: number): string | null {
+  if (available - troy_oz >= 0) return null
+  return (
+    `locking ${troy_oz} draws the pool to ${available - troy_oz}, past what is available ` +
+    `(${available})`
+  )
+}
+
+export function assertPooledHasNoSpot(order: RefiningOrder, lots: RefiningSettlementLot[]): void {
+  if (order.settlement_type !== 'pooled') return
+  const spoken = lots.find((line) => line.settled_spot !== undefined && line.settled_spot !== null)
+  if (spoken) {
     throw new Invalid(
-      `${bare.length} lot(s) carry no premium, so what the refiner pays for them is unknown`
+      `refiner order ${order.number} is pooled - it never carries a spot, so lot ` +
+        `${spoken.lot_id} cannot settle with one`
     )
   }
 }
 
-export function assertLockable(balance: number, troy_oz: number): void {
-  if (troy_oz <= 0) throw new Invalid('a lock takes metal out, so it names a positive weight')
-  if (balance <= 0) {
-    throw new Invalid(`there is no metal in that pool to lock - the balance is ${balance}`)
+export function assertOnHandNamed(skipped: LotPosition[]): void {
+  if (skipped.length > 0) {
+    throw new Invalid(
+      `${skipped.length} named lot(s) are not on hand: ` +
+        skipped.map((s) => `${s.id} (${s.position})`).join(', ')
+    )
+  }
+}
+
+export function assertBatchGrain(body: RefiningBatch): void {
+  const hasLots = body.lot_ids !== undefined
+  const hasOrders = body.order_ids !== undefined
+  if (hasLots === hasOrders) {
+    throw new Invalid('a batch names exactly one of lot_ids or order_ids, never both or neither')
+  }
+}
+
+export function batchResult(
+  order: RefiningOrderRead,
+  taken: number,
+  skipped: LotPosition[]
+): RefiningBatchResult {
+  return {
+    order,
+    taken,
+    skipped: skipped.map((row) => ({ lot_id: row.id, position: row.position })),
   }
 }
 
@@ -208,7 +247,9 @@ export function actionsFor(view: RefiningOrderView): RefiningOrderActions {
   const open = view.cancelled_at === null && view.settled_at === null
   if (open) offered.push(offer('edit_lots', sentConfirm(view)))
   if (open && view.sent_at === null) offered.push(offer('send'))
-  if (open && view.sent_at !== null) offered.push(offer('settle'))
+  if (open && view.sent_at !== null) {
+    offered.push(offer('settle', settlementConfirm(view.lots) ?? premiumConfirm(view.lots)))
+  }
   if (open && view.sent_at !== null) offered.push(offer('dispute'))
   if (open) offered.push(offer('cancel'))
   if (view.settled_at !== null) offered.push(offer('lock_ounces'))

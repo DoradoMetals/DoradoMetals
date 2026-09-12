@@ -143,7 +143,7 @@ test("a visitor's writes are attributed to nobody", async () => {
       const { rows } = await c.query(
         `SELECT li.created_by_id, li.updated_by_id
          FROM checkout.lots cl
-         JOIN lots.items li ON li.id = cl.lot_id
+         JOIN inventory.lots li ON li.id = cl.lot_id
          JOIN checkout.checkouts ch ON ch.id = cl.checkout_id
         WHERE ch.user_id = $1`,
         [visitor.id]
@@ -172,7 +172,7 @@ test('a real customer is still stamped', async () => {
       const { rows } = await c.query(
         `SELECT u.name AS created_by
          FROM checkout.lots cl
-         JOIN lots.items li ON li.id = cl.lot_id
+         JOIN inventory.lots li ON li.id = cl.lot_id
          JOIN checkout.checkouts ch ON ch.id = cl.checkout_id
          LEFT JOIN auth.users u ON u.id = li.created_by_id
         WHERE ch.user_id = $1`,

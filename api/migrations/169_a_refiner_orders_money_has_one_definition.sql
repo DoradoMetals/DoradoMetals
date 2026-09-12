@@ -32,13 +32,13 @@ SELECT ro.id AS refining_order_id,
                         sum(COALESCE(rl.content, li.content)
                             * COALESCE(rl.premium, ol.premium) * li.quantity) AS oz
                    FROM refining.lots rl
-                   JOIN lots.items li ON li.id = rl.lot_id
+                   JOIN inventory.lots li ON li.id = rl.lot_id
                    LEFT JOIN orders.lots ol ON ol.lot_id = rl.lot_id
                   WHERE rl.refining_order_id = ro.id
                   GROUP BY li.metal_id) owed
            LEFT JOIN spots.spots sp ON sp.metal_id = owed.metal_id
            LEFT JOIN LATERAL (
-                  SELECT p.lock_price FROM refining.pool p
+                  SELECT p.lock_price FROM inventory.pool p
                    WHERE p.refiner_id = ro.refiner_id
                      AND p.metal_id = owed.metal_id
                      AND p.entry = 'lock'
@@ -47,7 +47,7 @@ SELECT ro.id AS refining_order_id,
        ) settle ON TRUE
   LEFT JOIN LATERAL (
          SELECT -sum(p.troy_oz * p.lock_price) AS remediation
-           FROM refining.pool p
+           FROM inventory.pool p
           WHERE p.refining_order_id = ro.id AND p.entry = 'lock'
             AND p.lock_price IS NOT NULL
        ) rem ON TRUE

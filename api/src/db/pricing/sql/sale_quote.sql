@@ -50,7 +50,7 @@ lines AS (
          b.domestic_tender,
          COALESCE(li.content, 0) * (COALESCE(s.ask, 0) * COALESCE(b.ask_premium, 0)) AS unit_ask
     FROM checkout.lots cl
-    JOIN lots.items li ON li.id = cl.lot_id
+    JOIN inventory.lots li ON li.id = cl.lot_id
     JOIN checkout ON checkout.id = cl.checkout_id
     LEFT JOIN products.bullion b ON b.id = li.bullion_id
     LEFT JOIN spots.spots s ON s.metal_id = li.metal_id

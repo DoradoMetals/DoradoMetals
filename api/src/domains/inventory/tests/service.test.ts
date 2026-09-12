@@ -7,6 +7,7 @@ import { TEST_ACTOR } from '#shared/testing/actor.ts'
 import { LOCKS } from '#shared/testing/locks.ts'
 import { aUser, anOrder } from '#shared/testing/builders/index.ts'
 import * as inventory from '#inventory/service.ts'
+import * as lotSources from '#db/inventory/lot-sources/repo.ts'
 import * as refiningOrdersRepo from '#db/refining/orders/repo.ts'
 import * as refiningLotsRepo from '#db/refining/lots/repo.ts'
 
@@ -40,9 +41,19 @@ test('an incoming lot can be split, and retiers the order it stays on', async ()
       { pre_melt: 6, purity: 0.9 },
       { pre_melt: 4, purity: 0.9 },
     ])
-    const children = view.filter((row) => row.lot.split_from_id === order.lots[0]!.lot_id)
     assert.equal(view.length, 3, 'the parent link plus its two children')
-    assert.equal(children.length, 2)
+
+    const childIds = view.map((row) => row.lot.id).filter((id) => id !== order.lots[0]!.lot_id)
+    assert.equal(childIds.length, 2)
+    for (const childId of childIds) {
+      const edges = await lotSources.getFor(childId, c)
+      assert.ok(
+        edges.some(
+          (edge) => edge.source_lot_id === order.lots[0]!.lot_id && edge.kind === 'split'
+        ),
+        `child ${childId} has no split edge to the parent`
+      )
+    }
   })
 })
 

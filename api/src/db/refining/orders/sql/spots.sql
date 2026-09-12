@@ -1,25 +1,26 @@
--- A refiner order's four frozen prices, one row per metal on it. A refiner
--- order has no orders.spots row and never gets one: the price its metal changed
--- hands at is the pool's last lock for that refiner and metal at or before the
--- settlement. `locked` says whether that lock exists - when it does not, the
--- live bid stands in and the card can say so.
-SELECT owed.metal_id,
-       COALESCE(pl.lock_price, sp.bid) AS bid,
-       sp.ask,
-       pl.lock_price IS NOT NULL AS locked
-  FROM (SELECT DISTINCT li.metal_id
-          FROM refining.lots rl
-          JOIN lots.items li ON li.id = rl.lot_id
-         WHERE rl.refining_order_id = $1) owed
-  JOIN refining.orders ro ON ro.id = $1
-  LEFT JOIN spots.spots sp ON sp.metal_id = owed.metal_id
-  LEFT JOIN LATERAL (
-         SELECT p.lock_price FROM refining.pool p
-          WHERE p.refiner_id = ro.refiner_id
-            AND p.metal_id = owed.metal_id
-            AND p.entry = 'lock'
-            AND p.occurred_at <= COALESCE(ro.settled_at, now())
-          ORDER BY p.occurred_at DESC, p.id DESC LIMIT 1) pl ON TRUE
- ORDER BY array_position(ARRAY['Gold','Silver','Platinum','Palladium'], owed.metal_id)
-            NULLS LAST,
-          owed.metal_id ASC
+-- One row per metal on the order: how many refiner lots, how many of them
+-- are settled, and the spot those settled lots priced at. Spots are per
+-- pricing event, not per refiner order (ruling 121): `spot` reads the most
+-- recently settled lot's own settled_spot for that metal, and is NULL until
+-- something has settled and always NULL for a `pooled` order, which never
+-- carries one anywhere.
+SELECT li.metal_id,
+       CASE WHEN ro.settlement_type = 'pooled' THEN NULL
+            ELSE (SELECT s.settled_spot
+                    FROM refining.lots srl
+                    JOIN inventory.lots s ON s.id = srl.lot_id
+                   WHERE srl.refining_order_id = ro.id
+                     AND s.metal_id = li.metal_id
+                     AND s.settled_spot IS NOT NULL
+                   ORDER BY s.settled_at DESC NULLS LAST, s.id DESC
+                   LIMIT 1)
+       END AS spot,
+       count(*) AS lots,
+       count(*) FILTER (WHERE li.settled_at IS NOT NULL) AS settled_lots
+  FROM refining.orders ro
+  JOIN refining.lots rl ON rl.refining_order_id = ro.id
+  JOIN inventory.lots li ON li.id = rl.lot_id
+ WHERE ro.id = $1
+ GROUP BY ro.id, ro.settlement_type, li.metal_id
+ ORDER BY array_position(ARRAY['Gold','Silver','Platinum','Palladium'], li.metal_id) NULLS LAST,
+          li.metal_id ASC

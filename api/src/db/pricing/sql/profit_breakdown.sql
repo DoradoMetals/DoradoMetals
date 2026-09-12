@@ -19,8 +19,10 @@
 -- r < d, and this is its closed form.
 --
 -- Dorado's and the refiner's ounces come off the refiner's ASSAY where there
--- is one (refining.lots), because that is the metal that actually arrived;
--- the customer was paid on the declared weight either way.
+-- is one - the refiner LOT, reached through the `batch` edge in
+-- inventory.lot_sources, because that is the metal that actually arrived;
+-- the customer was paid on the declared weight either way. `refining.lots` is
+-- now a pure link (ruling 120): its figures moved onto the minted refiner lot.
 WITH ord AS (
   SELECT o.id FROM orders.orders o WHERE o.id = $1::uuid
 ),
@@ -30,31 +32,36 @@ order_spot AS (
    WHERE s.order_id = $1::uuid
    ORDER BY s.metal_id, s.id
 ),
--- The refiner's assay, joined by the LOT. No foreign key ties a refining order
--- to a customer order; the lot is the join and it is one hop.
+-- The refiner's assay, joined by the LOT and its `batch` edge. No foreign key
+-- ties a refining order to a customer order; the lot lineage is the join and
+-- it is two hops - the customer's lot to the refiner's minted lot, and the
+-- refiner's minted lot to the refining order that holds it.
 assay AS (
-  SELECT rl.lot_id, rl.content, rl.premium, rl.refining_order_id
-    FROM refining.lots rl
-    JOIN orders.lots ol ON ol.lot_id = rl.lot_id
+  SELECT ol.lot_id, rlot.content, rlot.premium, rlot.settled_spot, rl.refining_order_id
+    FROM orders.lots ol
+    JOIN inventory.lot_sources ls ON ls.source_lot_id = ol.lot_id AND ls.kind = 'batch'
+    JOIN inventory.lots rlot ON rlot.id = ls.lot_id
+    JOIN refining.lots rl ON rl.lot_id = rlot.id
    WHERE ol.order_id = $1::uuid
 ),
--- The refiner's feed: the most recent lock for that refiner and metal at or before the
--- settlement - the price the metal actually changed hands at - falling back to
--- the live bid when there has been no lock.
+-- The refiner's feed: the refiner lot's own settled spot where Record
+-- settlement stamped one, else the most recent lock for that refiner and
+-- metal at or before the settlement - the price the metal actually changed
+-- hands at - falling back to the live bid when there has been neither.
 refiner_spot AS (
   SELECT DISTINCT ON (li.metal_id)
          li.metal_id,
-         COALESCE(p.lock_price, s.bid) AS bid
+         COALESCE(a.settled_spot, p.lock_price, s.bid) AS bid
     FROM assay a
-    JOIN lots.items li ON li.id = a.lot_id
+    JOIN inventory.lots li ON li.id = a.lot_id
     JOIN refining.orders ro ON ro.id = a.refining_order_id
-    LEFT JOIN refining.pool p
+    LEFT JOIN inventory.pool p
            ON p.refiner_id = ro.refiner_id
           AND p.metal_id = li.metal_id
           AND p.entry = 'lock'
           AND p.occurred_at <= COALESCE(ro.settled_at, now())
     LEFT JOIN spots.spots s ON s.metal_id = li.metal_id
-   ORDER BY li.metal_id, p.occurred_at DESC NULLS LAST, p.id DESC
+   ORDER BY li.metal_id, a.settled_spot DESC NULLS LAST, p.occurred_at DESC NULLS LAST, p.id DESC
 ),
 -- A line's declared content: scrap is weighed once, a product is per-unit.
 -- The join to metals.metals is what used to be a hardcoded four-name list.
@@ -65,11 +72,11 @@ lines AS (
          CASE WHEN li.bullion_id IS NULL THEN COALESCE(li.content, 0)
               ELSE COALESCE(li.content, 0) * li.quantity END
            AS base_content,
-         ol.premium AS dorado_premium,
+         li.premium AS dorado_premium,
          a.premium  AS refiner_premium,
          CASE WHEN li.bullion_id IS NULL THEN a.content END AS assayed_content
     FROM orders.lots ol
-    JOIN lots.items li ON li.id = ol.lot_id
+    JOIN inventory.lots li ON li.id = ol.lot_id
     JOIN ord ON ord.id = ol.order_id
     JOIN metals.metals m ON m.id = li.metal_id
     LEFT JOIN assay a ON a.lot_id = ol.lot_id

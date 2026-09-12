@@ -132,7 +132,7 @@ test("basket, row, fulfillment, payout and placement agree on one order's money"
       const bullionLine = placed.lots.find((i) => i.lot.bullion_id === product.id)!
       assert.ok(bullionLine, 'the bullion line did not survive placement')
       assert.notEqual(
-        Number(bullionLine.premium),
+        Number(bullionLine.lot.premium),
         Number(product.bid_premium),
         "the placed bullion line kept the catalogue's own premium"
       )
@@ -154,9 +154,11 @@ test("basket, row, fulfillment, payout and placement agree on one order's money"
       )
 
       await c.query(`UPDATE orders.orders SET spots_locked = true WHERE id = $1`, [placed.order.id])
-      await c.query(`UPDATE orders.lots SET confirmed = true WHERE order_id = $1`, [
-        placed.order.id,
-      ])
+      await c.query(
+        `UPDATE inventory.lots li SET confirmed_at = now()
+           FROM orders.lots ol WHERE ol.lot_id = li.id AND ol.order_id = $1`,
+        [placed.order.id]
+      )
       const priced = await asAdmin(admin, () =>
         request(app).post(`/api/orders/${placed.order.id}/finalize`)
       )

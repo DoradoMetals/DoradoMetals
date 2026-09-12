@@ -1,6 +1,8 @@
+import { AdoptAssayBody, AdoptAssayProposal } from '@dorado/contracts'
 import * as ordersRepo from '#db/orders/repo.ts'
 import * as orderLots from '#db/orders/lots/repo.ts'
-import * as lotsRepo from '#db/lots/items/repo.ts'
+import * as lotsRepo from '#db/inventory/lots/repo.ts'
+import * as lotSourcesRepo from '#db/inventory/lot-sources/repo.ts'
 import * as orderSpots from '#db/orders/spots/repo.ts'
 import * as orderTransactions from '#db/orders/transactions/repo.ts'
 import * as orderTransactionsService from '#orders/transactions/service.ts'
@@ -20,6 +22,8 @@ import * as rules from '#orders/rules.ts'
 import * as shippingRules from '#logistics/shipping/rules.ts'
 import * as pricing from '#pricing/index.ts'
 import * as accounts from '#accounts/auth/step-up.ts'
+import * as refiningService from '#refining/service.ts'
+import * as inventoryService from '#inventory/service.ts'
 
 import withTransaction from '#shared/db/withTransaction.ts'
 import type { Executor } from '#shared/db/executor.ts'
@@ -33,6 +37,7 @@ import type {
   OrderPatch,
   OrderView,
   LotView,
+  Lot,
 } from '@dorado/contracts'
 
 export async function patch(order_id: string, changes: OrderPatch): Promise<OrderView> {
@@ -56,8 +61,10 @@ export async function retierPremiums(order_id: string, executor?: Executor): Pro
   if ((await ordersRepo.directionOf(order_id, executor)) !== 'purchase') return
   for (const line of (await pricing.priceOrder(order_id, executor)).items) {
     if (line.retier_premium === null) continue
+    const link = await orderLots.getOne(line.id, executor)
+    rules.assertLot(link, line.id)
     rules.assertRepriced(
-      await orderLots.update(line.id, { premium: line.retier_premium }, executor),
+      await lotsRepo.update(link.lot_id, { premium: line.retier_premium }, executor),
       order_id,
       line.id
     )
@@ -91,33 +98,86 @@ async function mintFromCatalogue(bullion_id: string, quantity: number | null, tx
   return created
 }
 
-export async function editLot(id: string, changes: OrderLotPatch): Promise<OrderLotView> {
+export async function editLot(id: string, changes: OrderLotPatch): Promise<OrderLotView | Lot> {
   rules.assertNamesAField(changes)
   const link = await orderLots.getOne(id)
-  rules.assertLot(link, id)
+  if (!link) return await refiningService.recordAssay(id, changes)
+
   const lot = await lotsRepo.getOne(link.lot_id)
   rules.assertLot(lot, link.lot_id)
-
-  const money = rules.lotMoney(changes)
-  const facts = rules.lotFacts(changes)
   rules.assertWeighable(
-    facts.bullion_id ?? lot.bullion_id,
-    facts.unit ?? lot.unit,
-    facts.post_melt ?? facts.pre_melt ?? lot.post_melt ?? lot.pre_melt,
-    facts.purity ?? lot.purity
+    changes.bullion_id ?? lot.bullion_id,
+    changes.unit ?? lot.unit,
+    changes.post_melt ?? changes.pre_melt ?? lot.post_melt ?? lot.pre_melt,
+    changes.purity ?? lot.purity
   )
 
   await withTransaction(async (tx) => {
-    if (rules.namesAnyOf(money)) rules.assertLot(await orderLots.update(id, money, tx), id)
-    if (rules.namesAnyOf(facts)) {
-      rules.assertLot(await lotsRepo.update(link.lot_id, facts, tx), link.lot_id)
-    }
+    rules.assertLot(await lotsRepo.update(link.lot_id, changes, tx), link.lot_id)
     if (rules.retiersAfterEdit(changes)) await retierPremiums(link.order_id, tx)
   })
 
   const written = (await orderLots.viewFor(link.order_id)).find((row) => row.id === id)
   rules.assertLot(written, id)
   return written
+}
+
+export async function assignStockLot(order_id: string, lot_id: string): Promise<OrderLotView> {
+  rules.assertDirection(await ordersRepo.directionOf(order_id), 'sale', 'assigning a stock lot')
+  const positions = await lotsRepo.positionsOf([lot_id])
+  rules.assertOnHand(positions[0]?.position, lot_id)
+
+  const minted = await withTransaction((tx) => orderLots.mintFromStock(order_id, lot_id, tx))
+
+  const written = (await orderLots.viewFor(order_id)).find((row) => row.id === minted.id)
+  rules.assertLot(written, minted.id)
+  return written
+}
+
+export async function adoptAssayProposal(order_id: string): Promise<AdoptAssayProposal> {
+  return AdoptAssayProposal.parse(await orderLots.adoptAssayProposal(order_id))
+}
+
+export async function adoptAssay(order_id: string, body: AdoptAssayBody): Promise<OrderLotView[]> {
+  rules.assertDirection(await ordersRepo.directionOf(order_id), 'purchase', 'adopting an assay')
+  const links = await orderLots.getFor(order_id)
+  for (const entry of body.lots) {
+    rules.assertLot(
+      links.find((row) => row.id === entry.id),
+      entry.id
+    )
+  }
+
+  await withTransaction(async (tx) => {
+    for (const entry of body.lots) {
+      const link = links.find((row) => row.id === entry.id)!
+      rules.assertLot(await lotsRepo.update(link.lot_id, entry.figures, tx), link.lot_id)
+    }
+  })
+
+  if (body.combine !== false) {
+    const lot_ids = body.lots.map((entry) => links.find((row) => row.id === entry.id)!.lot_id)
+    const edges = await lotSourcesRepo.sourcesOf(lot_ids)
+    const refinerLotIds = new Set(
+      edges.filter((edge) => edge.kind === 'batch').map((edge) => edge.lot_id)
+    )
+    for (const refinerLotId of refinerLotIds) {
+      const group = edges
+        .filter((edge) => edge.kind === 'batch' && edge.lot_id === refinerLotId)
+        .map((edge) => edge.source_lot_id)
+        .filter((source_lot_id) => lot_ids.includes(source_lot_id))
+      if (group.length <= 1) continue
+
+      const combined = await inventoryService.combine(group)
+      const groupLinks = links.filter((row) => group.includes(row.lot_id))
+      await withTransaction(async (tx) => {
+        for (const groupLink of groupLinks) await orderLots.remove(groupLink.id, tx)
+        await orderLots.link(order_id, combined.id, tx)
+      })
+    }
+  }
+
+  return await orderLots.viewFor(order_id)
 }
 
 export async function removeLot(id: string): Promise<void> {
@@ -140,9 +200,6 @@ export async function finalize(order_id: string): Promise<OrderView> {
     await ordersRepo.update(order_id, { spots_locked: true }, {}, tx)
 
     const priced = await pricing.priceOrder(order_id, tx)
-    for (const line of priced.items) {
-      await orderLots.update(line.id, { price: line.unit_price }, tx)
-    }
     await orderTransactions.update(order_id, { total: priced.total }, {}, tx)
   })
 

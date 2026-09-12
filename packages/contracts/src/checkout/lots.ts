@@ -17,7 +17,7 @@ export const CheckoutLot = z.object({
 export type CheckoutLot = z.infer<typeof CheckoutLot>
 // generated:end
 
-import { Lot } from '../lots/items.js'
+import { Lot } from '../inventory/lots.js'
 
 export const CheckoutBullionLot = Lot.pick({ bullion_id: true, quantity: true })
   .extend({

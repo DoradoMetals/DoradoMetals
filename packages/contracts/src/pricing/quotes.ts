@@ -2,9 +2,9 @@ import { z } from 'zod/v4'
 import { Direction } from '../orders/enums.js'
 import { Bullion } from '../products/bullion.js'
 import { Checkout } from '../checkout/checkouts.js'
-import { CheckoutItem } from '../checkout/items.js'
+import { Lot } from '../inventory/lots.js'
 import { Order } from '../orders/orders.js'
-import { OrderItem } from '../orders/items.js'
+import { OrderLot } from '../orders/lots.js'
 import { OrderSpot } from '../orders/spots.js'
 import { Metal } from '../metals/metals.js'
 
@@ -40,7 +40,7 @@ export const ProductQuoteBody = z
 export type ProductQuoteBody = z.infer<typeof ProductQuoteBody>
 
 export const PurchaseQuoteLine = z.object({
-  id: CheckoutItem.shape.id,
+  id: Lot.shape.id,
   kind: PriceKind,
   metal_id: Metal.shape.id.nullable(),
   content: z.number(),
@@ -56,7 +56,7 @@ export const PurchaseQuote = z.object({
   checkout_id: Checkout.shape.id,
   spots_at: z.string(),
   items: z.array(PurchaseQuoteLine),
-  unpriceable: z.array(CheckoutItem.shape.id),
+  unpriceable: z.array(Lot.shape.id),
   scrap_total: z.number(),
   bullion_total: z.number(),
   total: z.number(),
@@ -68,7 +68,7 @@ export const PurchaseQuote = z.object({
 export type PurchaseQuote = z.infer<typeof PurchaseQuote>
 
 export const SaleQuoteLine = z.object({
-  id: CheckoutItem.shape.id,
+  id: Lot.shape.id,
   kind: PriceKind,
   bullion_id: Bullion.shape.id.nullable(),
   metal_id: Metal.shape.id.nullable(),
@@ -87,7 +87,7 @@ export const SaleQuote = z.object({
   checkout_id: Checkout.shape.id,
   spots_at: z.string(),
   items: z.array(SaleQuoteLine),
-  unpriceable: z.array(CheckoutItem.shape.id),
+  unpriceable: z.array(Lot.shape.id),
   item_total: z.number(),
   shipping_charge: z.number(),
   shipping_service: z.string().nullable(),
@@ -109,9 +109,8 @@ export const CheckoutQuote = z.discriminatedUnion('direction', [PurchaseQuote, S
 export type CheckoutQuote = z.infer<typeof CheckoutQuote>
 
 export const OrderPricingLine = z.object({
-  id: OrderItem.shape.id,
+  id: OrderLot.shape.id,
   kind: PriceKind,
-  source: z.enum(['stored', 'quoted']),
   metal_id: Metal.shape.id,
   content: z.number(),
   quantity: z.number(),
@@ -136,7 +135,7 @@ export const OrderPricing = z.object({
   spots_locked: z.boolean(),
   items: z.array(OrderPricingLine),
   spots: z.array(OrderPricingSpot),
-  unpriceable: z.array(OrderItem.shape.id),
+  unpriceable: z.array(OrderLot.shape.id),
   scrap_total: z.number(),
   bullion_total: z.number(),
   items_total: z.number(),

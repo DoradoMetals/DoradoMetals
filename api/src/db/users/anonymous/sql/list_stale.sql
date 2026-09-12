@@ -11,9 +11,9 @@ SELECT u.id,
      WHERE s."userId" = u.id
   ) s ON true
   LEFT JOIN LATERAL (
-    SELECT max(i.updated_at) AS last_item
+    SELECT max(cl.updated_at) AS last_item
       FROM checkout.checkouts c
-      JOIN checkout.items i ON i.checkout_id = c.id
+      JOIN checkout.lots cl ON cl.checkout_id = c.id
      WHERE c.user_id = u.id
   ) i ON true
  WHERE u."isAnonymous"

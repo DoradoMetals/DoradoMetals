@@ -2,7 +2,7 @@ import { test, afterAll } from 'vitest'
 import assert from 'node:assert/strict'
 import pool from '#pool'
 import {
-  OrderItemPatch,
+  OrderLotPatch,
   OrderPatch,
   PaymentDetailsPatch,
   RefinerItemPatch,
@@ -101,28 +101,31 @@ test('the order PATCH is notes, assigned_to_id, cancelled_at and review_created 
   }
 })
 
-test('an order item PATCH takes confirmed both ways, and has no `reset`', () => {
-  assert.equal(OrderItemPatch.safeParse({ confirmed: true }).success, true)
-  assert.equal(OrderItemPatch.safeParse({ confirmed: false }).success, true)
-  refusesField(OrderItemPatch, { reset: true }, 'reset')
+test('a lot PATCH confirms with a timestamp, clears with a null, and has no `reset`', () => {
+  assert.equal(OrderLotPatch.safeParse({ confirmed_at: new Date().toISOString() }).success, true)
+  assert.equal(OrderLotPatch.safeParse({ confirmed_at: null }).success, true)
+  refusesField(OrderLotPatch, { confirmed: true }, 'confirmed')
+  refusesField(OrderLotPatch, { reset: true }, 'reset')
 })
 
-test('an order item PATCH writes only what it names, so a partial is legal', () => {
-  assert.equal(OrderItemPatch.safeParse({ premium: 1.02 }).success, true)
-  assert.equal(OrderItemPatch.safeParse({ quantity: 2 }).success, true)
-  assert.equal(OrderItemPatch.safeParse({ quantity: 2, premium: 1.02 }).success, true)
-  assert.equal(OrderItemPatch.safeParse({ quantity: null, premium: null }).success, true)
+test('a lot PATCH writes only what it names, so a partial is legal', () => {
+  assert.equal(OrderLotPatch.safeParse({ premium: 1.02 }).success, true)
+  assert.equal(OrderLotPatch.safeParse({ quantity: 2 }).success, true)
+  assert.equal(OrderLotPatch.safeParse({ quantity: 2, premium: 1.02 }).success, true)
+  assert.equal(OrderLotPatch.safeParse({ premium: null, sales_tax_rate: null }).success, true)
 })
 
-test('an order item PATCH is flat - the scrap and bullion documents are gone', () => {
+test('a lot PATCH is flat, and neither price nor content is a field', () => {
   assert.equal(
-    OrderItemPatch.safeParse({ pre_melt: 3, post_melt: 2.8, purity: 0.585, unit: 'g' }).success,
+    OrderLotPatch.safeParse({ pre_melt: 3, post_melt: 2.8, purity: 0.585, unit: 'g' }).success,
     true
   )
-  refusesField(OrderItemPatch, { scrap: { premium: 0.9, scrap: { pre_melt: 3 } } }, 'scrap')
-  refusesField(OrderItemPatch, { bullion: { quantity: 2, premium: 1.02 } }, 'bullion')
-  refusesField(OrderItemPatch, { content: 4 }, 'content')
-  refusesField(OrderItemPatch, { purity_actual: 0.5 }, 'purity_actual')
+  refusesField(OrderLotPatch, { scrap: { premium: 0.9, scrap: { pre_melt: 3 } } }, 'scrap')
+  refusesField(OrderLotPatch, { bullion: { quantity: 2, premium: 1.02 } }, 'bullion')
+  refusesField(OrderLotPatch, { content: 4 }, 'content')
+  refusesField(OrderLotPatch, { price: 100 }, 'price')
+  refusesField(OrderLotPatch, { sales_tax_charged: 0.06 }, 'sales_tax_charged')
+  refusesField(OrderLotPatch, { purity_actual: 0.5 }, 'purity_actual')
 })
 
 test('a payout PATCH takes the waive flag both ways, and refuses a non-boolean', () => {
@@ -134,7 +137,7 @@ test('a payout PATCH takes the waive flag both ways, and refuses a non-boolean',
 
 test('an unknown field is refused by name on every one of the six', () => {
   refusesField(OrderPatch, { nope: 1 }, 'nope')
-  refusesField(OrderItemPatch, { nope: 1 }, 'nope')
+  refusesField(OrderLotPatch, { nope: 1 }, 'nope')
   refusesField(ShipmentPatch, { nope: 1 }, 'nope')
   refusesField(RefinerOrderPatch, { nope: 1 }, 'nope')
   refusesField(RefinerItemPatch, { nope: 1 }, 'nope')

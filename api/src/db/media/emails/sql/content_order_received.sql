@@ -12,7 +12,7 @@ scrap AS (
          trim(to_char(SUM(i.pre_melt), 'FM999,999,990.0')) || ' ' || i.unit AS value,
          SUM(i.pre_melt) AS weight
     FROM orders.lots ol
-    JOIN lots.items i ON i.id = ol.lot_id
+    JOIN inventory.lots i ON i.id = ol.lot_id
     JOIN ord ON ord.id = ol.order_id
    WHERE i.bullion_id IS NULL
      AND i.pre_melt IS NOT NULL
@@ -23,11 +23,18 @@ bought AS (
   SELECT COALESCE(b.name, i.metal_id) AS label,
          i.quantity::bigint::text
            || CASE WHEN i.quantity = 1 THEN ' unit' ELSE ' units' END AS value,
-         COALESCE(ol.price, 0) * i.quantity AS weight
+         COALESCE(i.content, 0)
+           * COALESCE(i.premium, 0)
+           * COALESCE(CASE WHEN ord.direction = 'sale' THEN os.ask ELSE os.bid END,
+                      CASE WHEN ord.direction = 'sale' THEN sp.ask ELSE sp.bid END,
+                      0)
+           * i.quantity AS weight
     FROM orders.lots ol
-    JOIN lots.items i ON i.id = ol.lot_id
+    JOIN inventory.lots i ON i.id = ol.lot_id
     JOIN ord ON ord.id = ol.order_id
     LEFT JOIN products.bullion b ON b.id = i.bullion_id
+    LEFT JOIN orders.spots os ON os.order_id = ol.order_id AND os.metal_id = i.metal_id
+    LEFT JOIN spots.spots sp ON sp.metal_id = i.metal_id
    WHERE i.bullion_id IS NOT NULL
 ),
 lines AS (

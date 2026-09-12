@@ -1,12 +1,12 @@
 -- The Intake design draws a VARIANCE per lot: what we measured against what the
--- customer declared. Today a lot has one set of weights - `lots.items.pre_melt`,
+-- customer declared. Today a lot has one set of weights - `inventory.lots.pre_melt`,
 -- `post_melt`, `purity`, `unit`, `quantity` - and the admin's in-house assay
 -- OVERWRITES the declaration through `PATCH /api/orders/lots/:id`. The
 -- declaration is then gone and no variance can be computed.
 --
 -- THE SHAPE: the declaration is frozen beside the measurement, on the same row,
 -- and `assayed_at` records when a measured column last moved. Both live on
--- `lots.items` because the lot is the physical thing that was weighed; the
+-- `inventory.lots` because the lot is the physical thing that was weighed; the
 -- order line (`orders.lots`) carries the money.
 --
 -- `declared_content` is generated the way `content` already is, so the variance
@@ -30,7 +30,7 @@
 --
 -- Additive and idempotent. `exchange` is neither read nor written.
 
-ALTER TABLE lots.items
+ALTER TABLE inventory.lots
   ADD COLUMN IF NOT EXISTS declared_unit text,
   ADD COLUMN IF NOT EXISTS declared_quantity numeric,
   ADD COLUMN IF NOT EXISTS declared_pre_melt numeric,
@@ -38,13 +38,13 @@ ALTER TABLE lots.items
   ADD COLUMN IF NOT EXISTS declared_purity numeric,
   ADD COLUMN IF NOT EXISTS assayed_at timestamp with time zone;
 
-ALTER TABLE lots.items
+ALTER TABLE inventory.lots
   ADD COLUMN IF NOT EXISTS declared_content numeric GENERATED ALWAYS AS (
     metals.fine_content(COALESCE(declared_post_melt, declared_pre_melt),
                         declared_unit, declared_purity)
   ) STORED;
 
-CREATE OR REPLACE FUNCTION lots.declare_stamp() RETURNS trigger
+CREATE OR REPLACE FUNCTION inventory.declare_stamp() RETURNS trigger
 LANGUAGE plpgsql
 AS $function$
 BEGIN
@@ -56,7 +56,7 @@ BEGIN
   RETURN NEW;
 END $function$;
 
-CREATE OR REPLACE FUNCTION lots.assay_stamp() RETURNS trigger
+CREATE OR REPLACE FUNCTION inventory.assay_stamp() RETURNS trigger
 LANGUAGE plpgsql
 AS $function$
 BEGIN
@@ -69,13 +69,13 @@ BEGIN
   RETURN NEW;
 END $function$;
 
-CREATE OR REPLACE TRIGGER declare_stamp BEFORE INSERT ON lots.items
-  FOR EACH ROW EXECUTE FUNCTION lots.declare_stamp();
+CREATE OR REPLACE TRIGGER declare_stamp BEFORE INSERT ON inventory.lots
+  FOR EACH ROW EXECUTE FUNCTION inventory.declare_stamp();
 
-CREATE OR REPLACE TRIGGER assay_stamp BEFORE UPDATE ON lots.items
-  FOR EACH ROW EXECUTE FUNCTION lots.assay_stamp();
+CREATE OR REPLACE TRIGGER assay_stamp BEFORE UPDATE ON inventory.lots
+  FOR EACH ROW EXECUTE FUNCTION inventory.assay_stamp();
 
-UPDATE lots.items
+UPDATE inventory.lots
    SET declared_unit = COALESCE(declared_unit, unit),
        declared_quantity = COALESCE(declared_quantity, quantity),
        declared_pre_melt = COALESCE(declared_pre_melt, pre_melt),
@@ -93,7 +93,7 @@ DECLARE
   declared bigint;
 BEGIN
   SELECT count(*), count(*) FILTER (WHERE declared_unit IS NOT NULL)
-    INTO total, declared FROM lots.items;
+    INTO total, declared FROM inventory.lots;
   RAISE NOTICE 'lots: % of % lot(s) carry a frozen declaration; no lot has been assayed yet (assayed_at is null everywhere a measured column has not moved since)',
     declared, total;
 END $$;

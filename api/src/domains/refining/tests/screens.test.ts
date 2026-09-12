@@ -154,7 +154,7 @@ test('cancelling releases the lots and frees the refiner for a new sell order', 
   })
 })
 
-test('the spots read answers a row per metal, and says whether the price is a lock', async () => {
+test('the spots read answers a row per metal, and reports settlement counts before anything settles', async () => {
   await inRefining(async (c) => {
     const order = await aFinalizedOrder(c)
     await asAdmin(TEST_ACTOR, async () => {
@@ -167,10 +167,11 @@ test('the spots read answers a row per metal, and says whether the price is a lo
         })
       const res = await request(app).get(`/api/refining/orders/${made.body.id}/spots`)
       assert.equal(res.status, 200, res.text)
-      assert.equal(res.body.length, 1, 'one metal on the order, one frozen price')
+      assert.equal(res.body.length, 1, 'one metal on the order, one row')
       assert.equal(res.body[0].metal_id, 'Gold')
-      assert.equal(res.body[0].locked, false, 'an unlocked pool reported a lock')
-      assert.ok(res.body[0].bid !== undefined)
+      assert.equal(res.body[0].lots, 2)
+      assert.equal(res.body[0].settled_lots, 0, 'nothing has settled yet')
+      assert.equal(res.body[0].spot, null, 'a pooled order carries no spot before anything settles')
     })
   })
 })

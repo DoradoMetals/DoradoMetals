@@ -50,7 +50,9 @@ CASE
       WHEN NOT /*__fulfillment_arrived__*/
       THEN 'Awaiting Receipt'
       WHEN EXISTS (SELECT 1 FROM orders.lots ol
-                     JOIN refining.lots rl ON rl.lot_id = ol.lot_id
+                     JOIN inventory.lot_sources ls ON ls.source_lot_id = ol.lot_id
+                                                   AND ls.kind = 'batch'
+                     JOIN refining.lots rl ON rl.lot_id = ls.lot_id
                      JOIN refining.orders ro ON ro.id = rl.refining_order_id
                     WHERE ol.order_id = o.id
                       AND ro.sent_at IS NOT NULL

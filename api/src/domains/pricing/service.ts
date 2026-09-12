@@ -1,6 +1,6 @@
 import * as pricing from '#db/pricing/repo.ts'
 import * as spotsRepo from '#db/spots/repo.ts'
-import * as lotsRepo from '#db/lots/items/repo.ts'
+import * as lotsRepo from '#db/inventory/lots/repo.ts'
 import * as rules from '#pricing/rules.ts'
 import type { Executor } from '#shared/db/executor.ts'
 import type {

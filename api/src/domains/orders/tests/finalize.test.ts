@@ -41,7 +41,7 @@ beforeAll(async () => {
   admin = TEST_ACTOR
 
   items = await outside<ItemFixture>(
-    `SELECT ol.id, li.quantity FROM orders.lots ol JOIN lots.items li ON li.id = ol.lot_id WHERE ol.order_id = $1`,
+    `SELECT ol.id, li.quantity FROM orders.lots ol JOIN inventory.lots li ON li.id = ol.lot_id WHERE ol.order_id = $1`,
     [order.id]
   )
   assert.ok(items.length > 0, 'the fixture order has no items')
@@ -104,14 +104,22 @@ test('a document claiming its own prices is refused by name, and the money does 
 })
 
 const confirmEveryLine = async (client: PoolClient) => {
-  await client.query(`UPDATE orders.lots SET confirmed = true WHERE order_id = $1`, [order.id])
+  await client.query(
+    `UPDATE inventory.lots li SET confirmed_at = now()
+       FROM orders.lots ol WHERE ol.lot_id = li.id AND ol.order_id = $1`,
+    [order.id]
+  )
 }
 
 test('finalizing an order with an unconfirmed line still succeeds, but the drawer was warned first', async () => {
   await inPinnedTransaction(
     async (client: PoolClient) => {
       await asAdmin(admin, async () => {
-        await client.query(`UPDATE orders.lots SET confirmed = false WHERE id = $1`, [items[0]!.id])
+        await client.query(
+          `UPDATE inventory.lots li SET confirmed_at = NULL
+             FROM orders.lots ol WHERE ol.id = $1 AND ol.lot_id = li.id`,
+          [items[0]!.id]
+        )
         const view = await orderRead.view(order.id)
         const finalizeAction = view?.actions.find((a) => a.name === 'finalize')
         assert.ok(finalizeAction, 'the action was not offered at all')
@@ -179,7 +187,10 @@ test("a clean finalize prices the order from the database's own rows", async () 
           "the stored total does not derive from the database's own rows"
         )
         for (const line of expected.items) {
-          assert.equal(line.source, 'stored', "finalizing writes every line's price")
+          assert.ok(
+            Number.isFinite(line.unit_price),
+            "finalizing prices every line from the database's own rows"
+          )
         }
       })
     },

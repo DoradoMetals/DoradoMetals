@@ -198,7 +198,6 @@ async function placeSale(checkout: Checkout, cart: Lot[], world: typeof LIVE): P
     lot_id: line.id,
     premium: line.premium,
     sales_tax: line.sales_tax_rate,
-    price: line.unit_ask,
   }))
 
   const order_id = await withTransaction(async (tx) => {

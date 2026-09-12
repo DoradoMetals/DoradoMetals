@@ -39,7 +39,7 @@ export async function create(
 ): Promise<RefiningOrder> {
   const { rows } = await query<RefiningOrder>(
     sql('create'),
-    [row.refiner_id, row.direction],
+    [row.refiner_id, row.direction, row.settlement_type ?? null],
     executor
   )
   return rows[0]

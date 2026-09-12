@@ -32,30 +32,59 @@ SELECT to_jsonb(o)
                                     -- to a refiner order because it is derived
                                     -- from where the lot CAME FROM.
                                     'reference', 'Lot ' || o.number || '-' || chr(64 + ol.seat::int)),
+                        -- PRICE IS DERIVED, NEVER STORED (ruling 120): content
+                        -- x premium x spot, spot being the order's own frozen
+                        -- bid (purchase) or ask (sale) once spots_locked, and
+                        -- the live feed until then - matching
+                        -- db/pricing/sql/order_pricing.sql exactly. `payable`
+                        -- never carried spot at all - it is content x premium
+                        -- alone.
                         'payable',
-                          CASE WHEN li.content IS NULL OR ol.premium IS NULL THEN NULL
-                               ELSE li.content * ol.premium END,
+                          CASE WHEN li.content IS NULL OR li.premium IS NULL THEN NULL
+                               ELSE li.content * li.premium END,
+                        'price', pr.price,
                         'line_total',
-                          CASE WHEN ol.price IS NULL THEN NULL
-                               WHEN li.bullion_id IS NULL THEN ol.price
-                               ELSE ol.price * li.quantity END,
+                          CASE WHEN pr.price IS NULL THEN NULL
+                               WHEN li.bullion_id IS NULL THEN pr.price
+                               ELSE pr.price * li.quantity END,
+                        -- A bullion lot is settled once an employee confirms
+                        -- it; a scrap lot is settled once the refiner lot it
+                        -- was batched into (inventory.lot_sources, kind
+                        -- 'batch') carries a settlement, because
+                        -- refining.lots is itself now a pure link.
                         'settled',
-                          CASE WHEN li.bullion_id IS NOT NULL THEN ol.confirmed
-                               ELSE EXISTS (SELECT 1 FROM refining.lots rl
-                                             WHERE rl.lot_id = ol.lot_id
-                                               AND rl.settled_at IS NOT NULL) END,
+                          CASE WHEN li.bullion_id IS NOT NULL THEN li.confirmed_at IS NOT NULL
+                               ELSE EXISTS (SELECT 1 FROM inventory.lot_sources ls
+                                             JOIN inventory.lots rlot ON rlot.id = ls.lot_id
+                                            WHERE ls.source_lot_id = ol.lot_id
+                                              AND ls.kind = 'batch'
+                                              AND rlot.settled_at IS NOT NULL) END,
                         'refining_order_number',
-                          (SELECT ro.number FROM refining.lots rl
+                          (SELECT ro.number FROM inventory.lot_sources ls
+                             JOIN refining.lots rl ON rl.lot_id = ls.lot_id
                              JOIN refining.orders ro ON ro.id = rl.refining_order_id
-                            WHERE rl.lot_id = ol.lot_id))
+                            WHERE ls.source_lot_id = ol.lot_id AND ls.kind = 'batch'
+                            LIMIT 1))
                    ORDER BY ol.seat ASC)
             FROM (SELECT l.*,
                          row_number() OVER (PARTITION BY l.order_id
                                                 ORDER BY l.created_at ASC, l.id ASC) AS seat
                     FROM orders.lots l
                    WHERE l.order_id = o.id) ol
-            JOIN lots.items li ON li.id = ol.lot_id
-            LEFT JOIN products.bullion b ON b.id = li.bullion_id),
+            JOIN inventory.lots li ON li.id = ol.lot_id
+            LEFT JOIN products.bullion b ON b.id = li.bullion_id
+            LEFT JOIN orders.spots os ON os.order_id = ol.order_id AND os.metal_id = li.metal_id
+            LEFT JOIN spots.spots sp ON sp.metal_id = li.metal_id
+            CROSS JOIN LATERAL (
+              SELECT CASE WHEN li.content IS NULL OR li.premium IS NULL THEN NULL
+                          ELSE li.content * li.premium
+                               * COALESCE(
+                                   CASE WHEN o.direction = 'sale'
+                                        THEN CASE WHEN o.spots_locked THEN COALESCE(os.ask, sp.ask) ELSE sp.ask END
+                                        ELSE CASE WHEN o.spots_locked THEN COALESCE(os.bid, sp.bid) ELSE sp.bid END END,
+                                   0)
+                     END AS price
+            ) pr),
          '[]'::jsonb) AS lots,
        (SELECT to_jsonb(a)
                || jsonb_build_object(

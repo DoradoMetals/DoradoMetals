@@ -33,9 +33,15 @@ const rename = (sql) =>
 // `last_four` comparison are null and it passes for the wrong reason. On a
 // rebuilt copy of production it is 14 rows. (2026-09-06, ruling 82 rehearsal.)
 const EXTRA_BACKFILLS = {
+  '027a_the_two_item_tables_are_staging.sql':
+    'creates orders.items and checkout.items, which genesis no longer does and ' +
+    'the chain from 031 to 173 still writes and reads on its way to lots',
   '114_the_payout_reads_leave_exchange.sql':
     'derives payments.details.last_four and routing_last_four from ' +
     'exchange.payouts, and its name says nothing about backfilling',
+  '159a_the_columns_the_rebuild_still_writes.sql':
+    're-adds the eleven columns 188, 190 and 191 drop, which 161, 163, 165 and ' +
+    '169 still write and read before they go',
 }
 
 const TABLES = [
@@ -364,30 +370,10 @@ const TABLES = [
     },
   },
   {
-    name: 'orders.items',
-    key: 'id',
-    cols: `id, order_id, bullion_id, metal_id, pre_melt, post_melt, content,
-           premium, quantity, confirmed, sales_tax_charged, unit,
-           price`,
-    population: {
-      sql: `SELECT poi.id FROM exchange.purchase_order_items poi
-             WHERE EXISTS (SELECT 1 FROM exchange.purchase_orders p WHERE p.id = poi.purchase_order_id)
-            UNION ALL
-            SELECT soi.id FROM exchange.sales_order_items soi
-             JOIN exchange.products pr ON pr.id = soi.product_id
-             WHERE EXISTS (SELECT 1 FROM exchange.sales_orders o WHERE o.id = soi.sales_order_id)`,
-      why: 'a line added after the pivot writes orders.items only',
-    },
-    native: {
-      confirmed: 'the admin drawer confirms a line once the parcel is opened',
-      unit: 'the drawer re-states the weight unit natively',
-    },
-  },
-  {
-    name: 'lots.items',
+    name: 'inventory.lots',
     key: 'id',
     cols: `id, bullion_id, metal_id, unit, quantity, pre_melt, post_melt, purity,
-           content_snapshot`,
+           content_snapshot, premium, sales_tax_rate`,
     population: {
       sql: `SELECT poi.id FROM exchange.purchase_order_items poi
              WHERE EXISTS (SELECT 1 FROM exchange.purchase_orders p WHERE p.id = poi.purchase_order_id)
@@ -395,18 +381,20 @@ const TABLES = [
             SELECT soi.id FROM exchange.sales_order_items soi
              JOIN exchange.products pr ON pr.id = soi.product_id
              WHERE EXISTS (SELECT 1 FROM exchange.sales_orders o WHERE o.id = soi.sales_order_id)`,
-      why: '161 mints one lot per orders.items row, KEEPING ITS ID, so the population is the one orders.items has; a lot minted natively after the pivot, and the three that came out of a basket, are outside it',
+      why: '161 mints one lot per staged order line, KEEPING ITS ID, so the population is the one that chain had; a lot minted natively after the pivot, the three that came out of a basket, and every refiner lot 190 minted, are outside it',
     },
     native: {
       unit: 'the admin drawer re-states the weight unit on the lot itself',
       post_melt: 'the drawer records the post-melt weight once the parcel is opened',
       purity: 'the drawer corrects the declared purity after testing',
+      premium: "placement re-tiers the premium by the whole order's ounces, and the drawer edits it after",
+      sales_tax_rate: 'a sale line freezes the rate it was taxed at; a purchase line has none',
     },
   },
   {
     name: 'orders.lots',
     key: 'lot_id',
-    cols: 'lot_id, order_id, premium, price, sales_tax_charged, confirmed',
+    cols: 'lot_id, order_id',
     population: {
       sql: `SELECT poi.id AS lot_id FROM exchange.purchase_order_items poi
              WHERE EXISTS (SELECT 1 FROM exchange.purchase_orders p WHERE p.id = poi.purchase_order_id)
@@ -414,12 +402,7 @@ const TABLES = [
             SELECT soi.id FROM exchange.sales_order_items soi
              JOIN exchange.products pr ON pr.id = soi.product_id
              WHERE EXISTS (SELECT 1 FROM exchange.sales_orders o WHERE o.id = soi.sales_order_id)`,
-      why: 'the link row carries the id of the line it came from, so it has the same population orders.items has',
-    },
-    native: {
-      confirmed: 'the admin drawer confirms a lot once the parcel is opened',
-      premium: 'placement re-tiers the premium by the whole order\'s ounces, and the drawer edits it after',
-      price: 'finalize writes the frozen unit price; exchange has no value to carry',
+      why: 'the link row carries the id of the line it came from, so it has the same population that chain had',
     },
   },
   {
@@ -471,7 +454,21 @@ const NOT_REBUILT = {
   'refining.lots':
     'the assays go with the engagement they were reported against, and ' +
     'refining.orders is not rebuilt from exchange either',
-  'refining.pool':
+  'inventory.lot_sources':
+    'every edge in it is minted by 190 from refining.lots, which is NOT_REBUILT ' +
+    'for the same reason refining.orders is. exchange recorded no lineage of ' +
+    'its own: no split, no combine and no batch column exists anywhere in it, ' +
+    'so there is nothing for a backfill to derive an edge from.',
+  'spots.overrides':
+    'a manual spot override, created after the pivot by the lane that added ' +
+    'spots.settings; exchange never recorded one',
+  'spots.settings':
+    'the one row that says how stale a spot may be, created after the pivot by ' +
+    'another lane; exchange has no such setting',
+  'rates.rate_history':
+    'an append-only log of rate edits, written by a trigger created after the ' +
+    'pivot by another lane; exchange never logged a rate change',
+  'inventory.pool':
     'two entries derived by 165 from refiners.orders.pool_oz_deducted and ' +
     '.pool_remediation - one legacy column each, on a table exchange does not ' +
     'back; the ledger is append-only afterwards and nothing re-derives it',
@@ -505,7 +502,6 @@ const NOT_REBUILT = {
   'places.location_hours': 'seed data, no exchange source',
 
   'checkout.checkouts': 'cart contents are transient and deliberately not carried across',
-  'checkout.items': 'a cart line is as transient as the cart holding it',
   'checkout.lots': 'a basket link is as transient as the cart holding it',
   'shipping.services': 'seed data from 047, no exchange source',
   'shipping.packages': 'seed data from 047, no exchange source',
@@ -947,8 +943,8 @@ try {
     .filter(
       (f) =>
         f.endsWith('.sql') &&
-        (f.includes('backfill') || f.includes('seed') || f in EXTRA_BACKFILLS) &&
-        f.slice(0, 3) > '028'
+        (f in EXTRA_BACKFILLS ||
+          ((f.includes('backfill') || f.includes('seed')) && f.slice(0, 3) > '028'))
     )
     .sort()
 

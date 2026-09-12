@@ -19,6 +19,7 @@ import type {
   OrderView,
   OrderViewFacts,
   PdfKind,
+  Position,
   StoredDocument,
   PaymentIntentFacts,
   PaymentMethod,
@@ -55,20 +56,6 @@ export function declaredLot(declared: OrderLotPatch): LotPatch {
     purity: declared.purity,
     quantity: declared.quantity,
   }
-}
-
-export function lotMoney(changes: OrderLotPatch): OrderLotPatch {
-  const { premium, price, sales_tax_charged, confirmed } = changes
-  return { premium, price, sales_tax_charged, confirmed }
-}
-
-export function lotFacts(changes: OrderLotPatch): LotPatch {
-  const { bullion_id, metal_id, pre_melt, post_melt, purity, unit, quantity } = changes
-  return { bullion_id, metal_id, pre_melt, post_melt, purity, unit, quantity }
-}
-
-export function namesAnyOf(patch: object): boolean {
-  return Object.values(patch).some((value) => value !== undefined)
 }
 
 export function assertWeighable(
@@ -134,8 +121,8 @@ export function payoutFeeOf(methods: PaymentMethod[], payment_method_id: string 
   return Number(methods.find((m) => m.id === payment_method_id)?.flat_fee ?? 0)
 }
 
-export function allLotsConfirmed(lots: Pick<OrderLotView, 'confirmed'>[]): boolean {
-  return lots.length > 0 && lots.every((lot) => lot.confirmed === true)
+export function allLotsConfirmed(lots: Pick<OrderLotView, 'lot'>[]): boolean {
+  return lots.length > 0 && lots.every((lot) => lot.lot.confirmed_at !== null)
 }
 
 export function finalizeBlockedBy(view: OrderViewFacts): string[] {
@@ -146,7 +133,7 @@ export function finalizeBlockedBy(view: OrderViewFacts): string[] {
 }
 
 export function finalizeConfirm(view: OrderViewFacts): string | null {
-  const unconfirmed = view.lots.filter((lot) => lot.confirmed !== true).length
+  const unconfirmed = view.lots.filter((lot) => lot.lot.confirmed_at === null).length
   const unpriced = view.lots.filter((lot) => lot.lot.content === null).length
   if (unpriced > 0) {
     return `${unpriced} of ${view.lots.length} lots have no fine weight, so they cannot be priced`
@@ -300,6 +287,13 @@ export function assertNamesASpotField(body: OrderSpotsPutBody): void {
 
 export function assertLot<T>(row: T | null | undefined, lot_id: string): asserts row is T {
   if (!row) throw new NotFound(`no order lot ${lot_id}`)
+}
+
+export function assertOnHand(position: Position | undefined, lot_id: string): void {
+  if (position === undefined) throw new NotFound(`no lot ${lot_id}`)
+  if (position !== 'on hand') {
+    throw new Invalid(`lot ${lot_id} is ${position}, so it cannot be assigned to a sale`)
+  }
 }
 
 export function assertCatalogueProduct<T>(

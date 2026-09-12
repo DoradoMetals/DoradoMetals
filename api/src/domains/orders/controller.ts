@@ -8,13 +8,7 @@ import * as rules from '#orders/rules.ts'
 import * as place from '#orders/place.ts'
 import * as checkoutService from '#checkout/service.ts'
 import { Forbidden, NotFound } from '#shared/errors.ts'
-import {
-  AdminOrderCreate,
-  OrderCancelBody,
-  OrderCreateBody,
-  OrderPatch,
-  OverrideBody,
-} from '@dorado/contracts'
+import { AdminOrderCreate, AdoptAssayBody, OrderCancelBody, OrderCreateBody, OrderPatch, OverrideBody } from '@dorado/contracts'
 
 export const listOrders = asyncHandler(async (req, res) => {
   const callerIdValue = callerId(req)
@@ -76,5 +70,14 @@ export const getOrderDocuments = asyncHandler(async (req, res) => {
 export const cancelOrder = asyncHandler(async (req, res) => {
   const input = strictBody(OrderCancelBody, req.body)
   return res.status(200).json(await orders.cancel(uuidParam(req, 'id'), input))
+})
+
+export const getAdoptAssayProposal = asyncHandler(async (req, res) => {
+  return res.json(await orders.adoptAssayProposal(uuidParam(req, 'id')))
+})
+
+export const adoptAssay = asyncHandler(async (req, res) => {
+  const body = strictBody(AdoptAssayBody, req.body)
+  return res.status(200).json(await orders.adoptAssay(uuidParam(req, 'id'), body))
 })
 

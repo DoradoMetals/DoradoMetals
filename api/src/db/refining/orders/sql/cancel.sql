@@ -14,4 +14,4 @@ RETURNING id, number, direction, refiner_id, assigned_to_id,
        assay_lab, fee, statement_reference,
        to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS created_at,
        to_char(updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS updated_at,
-       created_by_id, updated_by_id
+       created_by_id, updated_by_id, settlement_type

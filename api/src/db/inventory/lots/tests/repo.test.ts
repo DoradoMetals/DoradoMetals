@@ -1,0 +1,140 @@
+import { test, afterAll } from 'vitest'
+import assert from 'node:assert/strict'
+import type { PoolClient } from 'pg'
+import pool from '#pool'
+import { inRollback } from '#shared/testing/rollback.ts'
+import { TEST_ACTOR } from '#shared/testing/actor.ts'
+import { aProduct, anUnknownId } from '#shared/testing/builders/index.ts'
+import * as lots from '#db/inventory/lots/repo.ts'
+import * as lotSources from '#db/inventory/lot-sources/repo.ts'
+
+afterAll(async () => {
+  await pool.end()
+})
+
+const inLots = <T>(fn: (c: PoolClient) => Promise<T>) => inRollback(fn, { actor: TEST_ACTOR.id })
+
+test('a declared lot generates its fine content from its own weights', async () => {
+  await inLots(async (c) => {
+    const lot = await lots.create(
+      { metal_id: 'Gold', pre_melt: 10, purity: 0.9, unit: 't oz', quantity: 1 },
+      c
+    )
+    assert.equal(Number(lot.content), 9)
+    assert.equal(lot.bullion_id, null)
+    assert.equal(lot.content_snapshot, null)
+
+    const read = await lots.getOne(lot.id, c)
+    assert.equal(read?.id, lot.id)
+    assert.deepEqual(
+      (await lots.getByIds([lot.id], c)).map((l) => l.id),
+      [lot.id]
+    )
+    assert.deepEqual(await lots.getByIds([], c), [])
+    assert.equal(await lots.getOne(anUnknownId(), c), undefined)
+  })
+})
+
+test('a post-melt weight replaces the declared one in the generated content', async () => {
+  await inLots(async (c) => {
+    const lot = await lots.create(
+      { metal_id: 'Gold', pre_melt: 10, post_melt: 8, purity: 0.5, unit: 't oz' },
+      c
+    )
+    assert.equal(Number(lot.content), 4)
+
+    const edited = await lots.update(lot.id, { purity: 0.25 }, c)
+    assert.equal(Number(edited?.content), 2, 'the content did not follow the purity')
+
+    assert.equal((await lots.update(lot.id, {}, c))?.id, lot.id)
+  })
+})
+
+test('a catalogue lot snapshots the product and never re-derives', async () => {
+  await inLots(async (c) => {
+    const product = await aProduct(c, { gross: 1, content: 1, purity: 0.9167 })
+    const lot = await lots.createFromProduct(product.id, 3, false, c)
+    assert.ok(lot)
+    assert.equal(Number(lot.content_snapshot), Number(product.content))
+    assert.equal(
+      Number(lot.content),
+      Number(product.content),
+      'the purity was applied to a fine weight a second time'
+    )
+    assert.equal(lot.post_melt, null, 'a coin is not melted')
+    assert.equal(Number(lot.quantity), 3)
+
+    await c.query('UPDATE products.bullion SET content = 500, purity = 0.5 WHERE id = $1', [
+      product.id,
+    ])
+    assert.equal(Number((await lots.getOne(lot.id, c))?.content), Number(product.content))
+  })
+})
+
+test('a hidden product is refused to a buyer and allowed to a seller', async () => {
+  await inLots(async (c) => {
+    const hidden = await aProduct(c, { display: false })
+    assert.equal(await lots.createFromProduct(hidden.id, 1, true, c), undefined)
+    assert.ok(await lots.createFromProduct(hidden.id, 1, false, c))
+  })
+})
+
+test('a split mints children with a split edge to the parent and leaves the parent alone', async () => {
+  await inLots(async (c) => {
+    const parent = await lots.create(
+      { metal_id: 'Silver', pre_melt: 100, purity: 0.925, unit: 't oz' },
+      c
+    )
+    const children = await lots.splitOff(
+      parent.id,
+      [
+        { pre_melt: 60, purity: 0.925, unit: 't oz', quantity: 1 },
+        { pre_melt: 40, purity: 0.925, unit: 't oz', quantity: 1 },
+      ],
+      c
+    )
+    assert.equal(children.length, 2)
+    for (const child of children) {
+      const edges = await lotSources.getFor(child.id, c)
+      assert.equal(edges.length, 1)
+      assert.equal(edges[0]?.source_lot_id, parent.id)
+      assert.equal(edges[0]?.kind, 'split')
+      assert.equal(child.metal_id, 'Silver')
+      assert.equal(child.content_snapshot, null, 'a scrap child must stay derivable')
+    }
+    assert.deepEqual(
+      children.map((child) => Number(child.content)).sort((a, b) => a - b),
+      [37, 55.5]
+    )
+    assert.equal(
+      Number((await lots.getOne(parent.id, c))?.content),
+      92.5,
+      'the parent was rewritten by its own split'
+    )
+    assert.deepEqual(await lots.splitOff(parent.id, [], c), [])
+  })
+})
+
+test('no live path can snapshot a scrap lot', async () => {
+  await inLots(async (c) => {
+    const lot = await lots.create({ metal_id: 'Gold', pre_melt: 10, purity: 0.9 }, c)
+    assert.equal(lot.content_snapshot, null, 'create.sql set one')
+
+    await assert.rejects(
+      lots.update(lot.id, { content_snapshot: 9 } as never, c),
+      /content_snapshot/,
+      'LotPatch let a snapshot through'
+    )
+
+    const [child] = await lots.splitOff(lot.id, [{ pre_melt: 10, purity: 0.9 }], c)
+    assert.equal(child?.content_snapshot, null, 'split.sql inherited one')
+  })
+})
+
+test('a lot with no link is deletable, and an unknown one is not', async () => {
+  await inLots(async (c) => {
+    const lot = await lots.create({ metal_id: 'Gold', pre_melt: 1, purity: 1 }, c)
+    assert.equal(await lots.remove(lot.id, c), true)
+    assert.equal(await lots.remove(lot.id, c), false)
+  })
+})

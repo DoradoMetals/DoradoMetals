@@ -43,6 +43,7 @@ test('every refiner route is admin-only, and a customer is refused outright', as
       for (const [verb, url] of [
         ['get', '/api/refining/orders'],
         ['get', `/api/refining/orders/${anUnknownId()}`],
+        ['post', '/api/refining/orders/batch'],
         ['get', '/api/refining/pool'],
         ['get', '/api/refining/pool/entries'],
       ] as const) {
@@ -234,43 +235,48 @@ test('an order holding no lots cannot be sent', async () => {
   })
 })
 
-test('a settlement names every lot on the order, and no stranger', async () => {
+test('a settlement refuses a stranger, and a subset of the order still settles', async () => {
   await inRefining(async (c) => {
     const order = await anOrder(c, await aUser(c), { direction: 'purchase' }).withLots(2)
     await asAdmin(admin, async () => {
       const created = await opened(c, 'sell')
-      await request(app)
+      const assigned = await request(app)
         .post(`/api/refining/orders/${created.id}/lots`)
         .send({ lot_ids: order.lots.map((l) => l.lot_id) })
       await request(app).post(`/api/refining/orders/${created.id}/send`)
-
-      const short = await request(app)
-        .post(`/api/refining/orders/${created.id}/settle`)
-        .send({ lots: [{ lot_id: order.lots[0]!.lot_id, premium: 0.9 }] })
-      assert.equal(short.status, 422, `answered ${short.status}`)
-      assert.match(short.body?.error?.message ?? '', /carry no assay in the settlement/)
 
       const stranger = await request(app)
         .post(`/api/refining/orders/${created.id}/settle`)
         .send({
           lots: [
-            ...order.lots.map((l) => ({ lot_id: l.lot_id, premium: 0.9 })),
+            { lot_id: assigned.body[0].lot_id, premium: 0.9 },
             { lot_id: anUnknownId(), premium: 0.9 },
           ],
         })
       assert.equal(stranger.status, 422, `answered ${stranger.status}`)
       assert.match(stranger.body?.error?.message ?? '', /is not on this refiner order/)
 
-      const bare = await request(app)
+      const partial = await request(app)
         .post(`/api/refining/orders/${created.id}/settle`)
-        .send({ lots: order.lots.map((l) => ({ lot_id: l.lot_id })) })
-      assert.equal(bare.status, 422, `answered ${bare.status}`)
-      assert.match(bare.body?.error?.message ?? '', /carry no premium/)
+        .send({ lots: [{ lot_id: assigned.body[0].lot_id }] })
+      assert.equal(partial.status, 200, partial.text)
+      const named = (id: string) =>
+        partial.body.lots.find((l: { lot_id: string }) => l.lot_id === id)
+      assert.notEqual(
+        named(assigned.body[0].lot_id).lot.settled_at,
+        null,
+        'settling without a premium still writes the settlement'
+      )
+      assert.equal(
+        named(assigned.body[1].lot_id).lot.settled_at,
+        null,
+        'a subset settlement left the other lot alone'
+      )
     })
   })
 })
 
-test('a pool lock is refused where there is no metal, and taken where there is', async () => {
+test('a pool lock names a positive weight, and locking past what is available still succeeds', async () => {
   await inRefining(async (c) => {
     const order = await anOrder(c, await aUser(c), { direction: 'purchase' }).withLots(1, {
       metal_id: 'Gold',
@@ -282,23 +288,35 @@ test('a pool lock is refused where there is no metal, and taken where there is',
       const refiner_id = await refinerId(c)
       const created = await opened(c, 'sell')
 
+      const notPositive = await request(app).post('/api/refining/pool/locks').send({
+        refiner_id,
+        metal_id: 'Gold',
+        troy_oz: 0,
+        lock_price: 2450,
+        refining_order_id: created.id,
+        purpose: 'Sell to refiner',
+      })
+      assert.equal(notPositive.status, 422, `answered ${notPositive.status}`)
+      assert.match(notPositive.body?.error?.message ?? '', /positive weight/)
+
       const dry = await request(app).post('/api/refining/pool/locks').send({
         refiner_id,
         metal_id: 'Gold',
         troy_oz: 1,
         lock_price: 2450,
         refining_order_id: created.id,
+        purpose: 'Sell to refiner',
       })
-      assert.equal(dry.status, 422, `answered ${dry.status}`)
-      assert.match(dry.body?.error?.message ?? '', /no metal in that pool/)
+      assert.equal(dry.status, 201, dry.text)
+      assert.equal(Number(dry.body.troy_oz), -1, 'a lock is allowed against a pool with no metal yet')
 
-      await request(app)
+      const assigned = await request(app)
         .post(`/api/refining/orders/${created.id}/lots`)
         .send({ lot_ids: [order.lots[0]!.lot_id] })
       await request(app).post(`/api/refining/orders/${created.id}/send`)
       const settled = await request(app)
         .post(`/api/refining/orders/${created.id}/settle`)
-        .send({ lots: [{ lot_id: order.lots[0]!.lot_id, premium: 0.95 }] })
+        .send({ lots: [{ lot_id: assigned.body[0].lot_id, premium: 0.95 }] })
       assert.equal(settled.status, 200, settled.text)
 
       const taken = await request(app).post('/api/refining/pool/locks').send({
@@ -307,6 +325,7 @@ test('a pool lock is refused where there is no metal, and taken where there is',
         troy_oz: 1,
         lock_price: 2450,
         refining_order_id: created.id,
+        purpose: 'Sell to refiner',
       })
       assert.equal(taken.status, 201, taken.text)
       assert.equal(Number(taken.body.troy_oz), -1)
@@ -317,6 +336,7 @@ test('a pool lock is refused where there is no metal, and taken where there is',
         troy_oz: -5,
         lock_price: 2450,
         refining_order_id: created.id,
+        purpose: 'Sell to refiner',
       })
       assert.equal(negative.status, 422, `answered ${negative.status}`)
 
@@ -327,9 +347,26 @@ test('a pool lock is refused where there is no metal, and taken where there is',
       assert.ok(entries.body.some((e: { entry: string }) => e.entry === 'lock'))
       assert.ok(entries.body.some((e: { entry: string }) => e.entry === 'credit'))
 
+      const lockOnly = await request(app)
+        .get('/api/refining/pool/entries')
+        .query({ refiner_id, metal_id: 'Gold', entry: 'lock' })
+      assert.equal(lockOnly.status, 200, lockOnly.text)
+      assert.ok(lockOnly.body.length > 0)
+      assert.ok(lockOnly.body.every((e: { entry: string }) => e.entry === 'lock'))
+
+      const badEntry = await request(app)
+        .get('/api/refining/pool/entries')
+        .query({ refiner_id, entry: 'sideways' })
+      assert.equal(badEntry.status, 400, `answered ${badEntry.status}`)
+
       const balances = await request(app).get('/api/refining/pool').query({ refiner_id })
       assert.equal(balances.status, 200, balances.text)
-      assert.ok(balances.body.length > 0, 'the pool answered no balance at all')
+      const gold = balances.body.find((b: { metal_id: string }) => b.metal_id === 'Gold')
+      assert.ok(gold, 'the pool answered no Gold balance at all')
+      assert.ok(
+        Math.abs(Number(gold.available) - (Number(gold.balance) - Number(gold.locked))) < 1e-6,
+        'available nets balance and locked'
+      )
     })
   })
 })
@@ -345,6 +382,7 @@ test('a lock cites an order that must exist, and the suppliers list is admin-onl
           troy_oz: 1,
           lock_price: 2450,
           refining_order_id: anUnknownId(),
+          purpose: 'Sell to refiner',
         })
       assert.equal(res.status, 404, `answered ${res.status}`)
 

@@ -97,7 +97,7 @@ const formatFile = async (text) =>
 // only made the flat namespace collide with itself.
 const DEFAULT_SCHEMAS = [
   'leads',
-  'lots',
+  'inventory',
   'reviews',
   'rates',
   'spots',
@@ -201,7 +201,6 @@ const ENTITY = {
   'auth.verification': 'Verification',
 
   'checkout.checkouts': 'Checkout',
-  'checkout.items': 'CheckoutItem',
   'checkout.lots': 'CheckoutLot',
 
   'crm.calls': 'Call',
@@ -216,7 +215,6 @@ const ENTITY = {
 
   'leads.leads': 'Lead',
 
-  'lots.items': 'Lot',
 
   'media.emails': 'Email',
   'media.images': 'Image',
@@ -226,7 +224,6 @@ const ENTITY = {
   'metals.purity_labels': 'PurityLabel',
 
   'orders.addresses': 'OrderAddressLink',
-  'orders.items': 'OrderItem',
   'orders.lots': 'OrderLot',
   'orders.orders': 'Order',
   'orders.spots': 'OrderSpot',
@@ -263,9 +260,11 @@ const ENTITY = {
   'refiners.refiners': 'Refiner',
   'refiners.spots': 'RefinerSpot',
 
+  'inventory.lots': 'Lot',
+  'inventory.lot_sources': 'LotSource',
+  'inventory.pool': 'PoolEntry',
   'refining.orders': 'RefiningOrder',
   'refining.lots': 'RefiningLot',
-  'refining.pool': 'PoolEntry',
 
   'reviews.reviews': 'Review',
 
@@ -298,7 +297,11 @@ const ENUM_NAME = {
   'crm.sms_status': 'SmsDeliveryStatus',
   'crm.call_status': 'CallState',
   'refining.direction': 'RefiningDirection',
-  'refining.pool_entry': 'PoolEntryKind',
+  'inventory.pool_entry': 'PoolEntryKind',
+  'inventory.lot_source_kind': 'LotSourceKind',
+  'inventory.lock_purpose': 'LockPurpose',
+  'inventory.lot_source': 'LotSourceChoice',
+  'refining.settlement_type': 'SettlementType',
 }
 
 const entityName = (schema, table) => {
