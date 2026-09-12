@@ -469,11 +469,30 @@ list and cannot be.
 MIGRATE_ALLOW_DB=uat pnpm --filter @dorado/api migrate
 ```
 
-Expect `applied 139 migration(s)` and, on the genesis line,
-`(baseline 002-133: stamped 74 DDL, 63 carry data and still run)`.
+Expect `applied <every file in api/migrations> migration(s)` — 139 when this
+was first measured at head 133, 167 at head 173 — and, on the genesis line,
+`(baseline 002-133: stamped 74 DDL, 63 carry data and still run)`, which does
+not move as the head advances: everything above 133 runs in its own place.
+
+**Read the indented NOTICE lines.** The runner prints them now (phones lane),
+and two migrations report facts the operator is meant to see:
+
+- **161** — `N open lot(s) regenerated their content` and `N settled scrap
+  lot(s) keep what was paid … N beyond 1e-3: <ids>`. On production data that
+  last number is **1**, and the id is
+  `2f531d4a-b9f0-40d1-b536-21322d2e5544` on purchase order 270. **That is
+  expected, documented and not a stop** — see
+  `docs/waves/lots-backfill-production.md`. 161 still ABORTS if an OPEN
+  order's lot disagrees with its derivation by more than 1e-3, because that
+  one can still be re-priced.
+- **172** — how many customers got a sign-in number, and the ids of any two
+  who would have shared one. Those two need a human, not a re-run.
 
 **If it stops, do not stamp past it.** Every stop the rehearsal met is fixed at
 source. A new one is a new finding.
+
+Measured again 2026-09-11 (lot161 lane) on a `createdb -T chain6` copy, which
+starts at head 133: **134 → 173, 28 migrations, one run, zero aborts.**
 
 > The old step 6 — running the nine baseline-stamped backfills by hand — **is
 > gone**. They carry rows, so the baseline no longer stamps them and they run

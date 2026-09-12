@@ -2662,16 +2662,6 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
-    WHERE con.conname = 'a_snapshot_belongs_to_a_product' AND c.relname = 'items' AND n.nspname = 'lots'
-  ) THEN
-    ALTER TABLE lots.items ADD CONSTRAINT a_snapshot_belongs_to_a_product CHECK (((content_snapshot IS NULL) OR (bullion_id IS NOT NULL)));
-  END IF;
-END $$;
-DO $$ BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint con
-    JOIN pg_class c ON c.oid = con.conrelid
-    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'lot_purity_is_a_fraction' AND c.relname = 'items' AND n.nspname = 'lots'
   ) THEN
     ALTER TABLE lots.items ADD CONSTRAINT lot_purity_is_a_fraction CHECK (((purity IS NULL) OR ((purity > (0)::numeric) AND (purity <= (1)::numeric))));

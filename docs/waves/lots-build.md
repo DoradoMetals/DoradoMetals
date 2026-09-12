@@ -58,21 +58,29 @@ question 12's value change.
 Measured after 161 ran: **81 of 81 catalogue lots reproduce their content
 exactly**; 7 of 22 scrap lots do; the other 15 move by rounding only, the
 largest by 4.75e-4 t oz, because their stored content had been rounded to three
-decimals at write time. 161 refuses to commit if any lot moves by more than
-1e-3 t oz.
+decimals at write time.
+
+**That last sentence used to end "161 refuses to commit if any lot moves by
+more than 1e-3 t oz", and on PRODUCTION data it did** — one line moves by
+2.010e-3 and stopped the whole chain. The rule is now narrower and has a third
+case: a lot on an order that has already been SETTLED carries the content it
+was paid on, as a snapshot, because re-deriving it re-prices history; only an
+OPEN lot derives, and only an open lot is gated. `docs/waves/lots-backfill-production.md`
+carries the offending row, its cause and the rehearsal counts.
 
 ## Migrations
 
 | # | what |
 |---|---|
 | 160 | `lots` and `refining` schemas, six tables, two enums, the sequence, the checks, the indexes, the `audit_stamp` triggers |
-| 161 | every `orders.items` row becomes a lot KEEPING ITS ID, plus its `orders.lots` link; asserts the whole population's content |
+| 161 | every `orders.items` row becomes a lot KEEPING ITS ID, plus its `orders.lots` link; snapshots a settled lot's content and asserts the open ones |
 | 162 | the same for `checkout.items` |
 | 163 | the 31 engagements that name a refiner become `refining.orders`, KEEPING THE ENGAGEMENT'S ID, and their `refiners.items` become `refining.lots` |
 | 164 | 163's corrected body, guarded, because 163 had already run on dev when its linkage was fixed |
 | 165 | `pool_oz_deducted` / `pool_remediation` become a `lock` and a `credit` entry citing their order |
 | 166 | `orders.assigned_to_id`, the `DROPOFF` fulfillment category and `fulfillments.dropoffs`, `fulfillments.refining_order_id`, and the seven new `media.pdf_kind` labels |
 | 167 | the Drop-off method row (its own file: Postgres refuses to USE an enum label in the transaction that added it) |
+| 173 | 161's corrected rule applied to a database 161 has already run on, and `a_snapshot_belongs_to_a_product` dropped with it |
 
 Every one is additive. `exchange` is untouched throughout, and `lint:migrations`
 is green. Genesis and the contracts are regenerated; `verify:genesis` builds all
