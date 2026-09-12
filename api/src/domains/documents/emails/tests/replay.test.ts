@@ -119,7 +119,7 @@ test('an unknown or missing order id is refused before anything is built', async
 })
 
 test('no real mail transport is reachable during this run', async () => {
-  const { sendEmail } = await import('#providers/communications/email/index.ts')
+  const { sendEmail } = await import('#providers/resend/index.ts')
   const result = (await sendEmail({ to: ATTACKER_ADDRESS, subject: 'x', html: 'x' })) as {
     messageId: string
   }

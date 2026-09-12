@@ -1,4 +1,4 @@
-import type { Delivery, ResendEventOutcome } from '#providers/communications/email/index.ts'
+import type { Delivery, ResendEventOutcome } from '#providers/resend/index.ts'
 import type { EmailOutcome } from '#documents/emails/record.ts'
 import type { Direction, EmailKind, MailerRow } from '@dorado/contracts'
 import { maskEmail, maskPhone } from '#shared/text/mask.ts'

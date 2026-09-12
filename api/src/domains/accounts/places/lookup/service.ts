@@ -1,4 +1,4 @@
-import * as provider from '#providers/places/google/google.ts'
+import * as provider from '#providers/google/google.ts'
 import * as rules from '#accounts/places/addresses/rules.ts'
 import type { PlaceLookup, PlaceSuggestion } from '@dorado/contracts'
 

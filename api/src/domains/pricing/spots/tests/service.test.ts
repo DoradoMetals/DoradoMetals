@@ -4,9 +4,9 @@ import pool from '#pool'
 import { TEST_ACTOR } from '#shared/testing/actor.ts'
 import { inPinnedTransaction, outside } from '#shared/testing/pinned-pool.ts'
 
-vi.mock('#providers/market/nfusion/feed.ts', () => ({ fetchQuotes: vi.fn() }))
+vi.mock('#providers/nfusion/feed.ts', () => ({ fetchQuotes: vi.fn() }))
 
-import { fetchQuotes } from '#providers/market/nfusion/feed.ts'
+import { fetchQuotes } from '#providers/nfusion/feed.ts'
 import * as service from '#pricing/spots/service.ts'
 
 afterAll(async () => {

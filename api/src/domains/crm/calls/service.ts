@@ -1,7 +1,7 @@
 import withTransaction from '#shared/db/withTransaction.ts'
 import { attempt } from '#shared/attempt.ts'
 import * as callsRepo from '#db/crm/calls/repo.ts'
-import * as voice from '#providers/communications/twilio/voice.ts'
+import * as voice from '#providers/twilio/voice.ts'
 import * as rules from '#crm/calls/rules.ts'
 import * as presence from '#crm/calls/presence.ts'
 import * as emails from '#documents/emails/service.ts'

@@ -368,7 +368,7 @@ if (process.argv.includes('--self-test')) {
         env: { LINT_TYPE_HOMES_FLOOR: '0' },
         files: {
           ...manifest,
-          'providers/carriers/fedex/adapters/fedex.ts': 'type AddressLike = { city?: string };\n',
+          'providers/fedex/adapters/fedex.ts': 'type AddressLike = { city?: string };\n',
           'db/orders/repo.ts': 'export type { Order } from "@dorado/contracts";\n',
         },
         mustPrint: '0 misplaced',

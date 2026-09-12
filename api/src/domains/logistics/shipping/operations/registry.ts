@@ -1,4 +1,4 @@
-import * as fedex from '#providers/carriers/fedex/fedex.ts'
+import * as fedex from '#providers/fedex/fedex.ts'
 
 export const PROVIDERS = {
   fedex,

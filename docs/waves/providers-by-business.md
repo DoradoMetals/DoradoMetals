@@ -10,7 +10,47 @@ its adapter. `#providers/*` stays the alias (`providers/` is still the
 infrastructure root `scripts/lib/layout.ts` excludes from `domainDirs()`) -
 only what lives under it changed shape.
 
-## The map
+## Superseded: flat layout, no categories (2026-09-11)
+
+Jacob reversed the category grouping this same wave introduced: no category
+folder until several businesses actually share one. The category directories
+below (`payments/`, `communications/`, `carriers/`, `places/`, `storage/`,
+`market/`, `security/`) are gone; every business folder sits directly under
+`providers/`. Current layout:
+
+| business | path |
+|---|---|
+| FedEx | `providers/fedex/` |
+| Stripe | `providers/stripe/` |
+| Moov | `providers/moov/` |
+| Plaid | `providers/plaid/` |
+| Twilio (sms + voice) | `providers/twilio/` |
+| Resend | `providers/resend/` |
+| Cloudflare (Turnstile) | `providers/cloudflare/` |
+| Google (places) | `providers/google/` |
+| MinIO | `providers/s3/` |
+| nFusion Solutions (spots) | `providers/nfusion/` |
+
+Two changes rode along with the flattening, both same wave:
+
+- **The SMTP adapter is deleted.** `providers/communications/email/`'s
+  `nodemailer.ts` and its dedicated test are gone, and the folder is named
+  `providers/resend/` rather than `providers/emails/` or
+  `providers/communications/email/` - there is only one real adapter now, so
+  the "interface's home with three adapters underneath" reasoning in the
+  section below no longer applies. Selection is two-way: a test run or no
+  `RESEND_API_KEY` gets the fake, `RESEND_API_KEY` gets Resend. The
+  `EMAIL_HOST`/`EMAIL_PORT`/`EMAIL_USER`/`EMAIL_PASSWORD` env vars are gone
+  from `.env.example` and `docker-compose.yml`.
+- **`market/nfusion/` and `security/turnstile/`** become `providers/nfusion/`
+  and `providers/cloudflare/` - the business is Cloudflare, Turnstile is its
+  product, so the file `turnstile.ts` keeps its name inside the renamed folder.
+
+The map and reasoning below describe the category-grouped layout as it stood
+between the two rulings - kept as the historical record of that intermediate
+step, same as the rest of this file.
+
+## The map (superseded - see above for current layout)
 
 | old | new |
 |---|---|

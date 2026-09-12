@@ -1,8 +1,8 @@
 import test, { before, after } from 'node:test'
 import assert from 'node:assert/strict'
 import '#env'
-import * as stripe from '#providers/payments/stripe/stripe.ts'
-import stripeClient from '#providers/payments/stripe/stripe-client.ts'
+import * as stripe from '#providers/stripe/stripe.ts'
+import stripeClient from '#providers/stripe/stripe-client.ts'
 
 const created: string[] = []
 

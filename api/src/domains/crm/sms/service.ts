@@ -2,11 +2,11 @@ import withTransaction from '#shared/db/withTransaction.ts'
 import { attempt } from '#shared/attempt.ts'
 import * as smsRepo from '#db/crm/sms-messages/repo.ts'
 import * as users from '#db/auth/users/repo.ts'
-import * as sms from '#providers/communications/twilio/index.ts'
+import * as sms from '#providers/twilio/index.ts'
 import * as rules from '#crm/sms/rules.ts'
 import { SmsDeliveryStatus } from '@dorado/contracts'
 import type { SmsMedia, SmsMessage, SmsSendBody } from '@dorado/contracts'
-import type { SmsInbound, SmsStatusUpdate } from '#providers/communications/twilio/index.ts'
+import type { SmsInbound, SmsStatusUpdate } from '#providers/twilio/index.ts'
 
 function providerName(): string {
   return sms.isFake() ? 'fake' : 'twilio'

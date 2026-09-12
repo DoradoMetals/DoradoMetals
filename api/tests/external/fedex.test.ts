@@ -1,7 +1,7 @@
 import test, { before } from 'node:test'
 import assert from 'node:assert/strict'
 import '#env'
-import { accountNumber, activeEnvironment, apiBase } from '#providers/carriers/fedex/endpoints.ts'
+import { accountNumber, activeEnvironment, apiBase } from '#providers/fedex/endpoints.ts'
 
 before(() => {
   for (const name of [
@@ -32,8 +32,8 @@ test('refuses to run against a live-shaped FedEx configuration', () => {
   )
 })
 
-const fedex = await import('#providers/carriers/fedex/fedex.ts')
-const adapters = await import('#providers/carriers/fedex/adapters/fedex.ts')
+const fedex = await import('#providers/fedex/fedex.ts')
+const adapters = await import('#providers/fedex/adapters/fedex.ts')
 
 const CUSTOMER_ADDRESS = {
   line_1: '6100 Main St',

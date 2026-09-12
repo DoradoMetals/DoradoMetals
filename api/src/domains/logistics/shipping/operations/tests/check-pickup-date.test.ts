@@ -37,7 +37,7 @@ const check = (
     .send({ carrier_id, address_id, code: 'FDXE', readyDate })
 
 test('the payload builder needs a Date, which is why the controller converts', async () => {
-  const payloads = await import('#providers/carriers/fedex/payloads.ts')
+  const payloads = await import('#providers/fedex/payloads.ts')
   const address = { streetLines: ['1 Test St'], city: 'Dallas' }
 
   assert.throws(

@@ -12,7 +12,7 @@ import * as pickupsRepo from '#db/fulfillments/pickups/repo.ts'
 import * as directsRepo from '#db/fulfillments/directs/repo.ts'
 import * as shipmentsRepo from '#db/shipping/shipments/repo.ts'
 import * as emails from '#documents/emails/service.ts'
-import type { Transport } from '#providers/communications/email/index.ts'
+import type { Transport } from '#providers/resend/index.ts'
 
 type Message = Parameters<Transport['sendMail']>[0]
 

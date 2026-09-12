@@ -12,8 +12,8 @@ import {
   verifyCode,
 } from '#accounts/auth/controller.ts'
 import { requireUser } from '#shared/middleware/authMiddleware.ts'
-import { isFake as smsIsFake } from '#providers/communications/twilio/index.ts'
-import { isFake as emailIsFake } from '#providers/communications/email/index.ts'
+import { isFake as smsIsFake } from '#providers/twilio/index.ts'
+import { isFake as emailIsFake } from '#providers/resend/index.ts'
 
 const router = express.Router()
 

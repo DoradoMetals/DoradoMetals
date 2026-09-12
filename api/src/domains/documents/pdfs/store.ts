@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import minio from '#providers/storage/s3/minio.ts'
+import minio from '#providers/s3/minio.ts'
 import { isTestRun } from '#shared/testing/is-test-run.ts'
 import { linkableOrderId } from '#documents/emails/record.ts'
 import * as pdfs from '#db/media/pdfs/repo.ts'
