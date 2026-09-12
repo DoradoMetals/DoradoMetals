@@ -473,7 +473,18 @@ const NOT_REBUILT = {
     'two entries derived by 165 from refiners.orders.pool_oz_deducted and ' +
     '.pool_remediation - one legacy column each, on a table exchange does not ' +
     'back; the ledger is append-only afterwards and nothing re-derives it',
-  'auth.users': 'backfilled by 029 but compared per-column there, not row-wise',
+  'auth.users':
+    'backfilled by 029 but compared per-column there, not row-wise. 172 also ' +
+    'runs here - it is named `backfill` so the rebuild picks it up, and it ' +
+    'fills phone_number from the address book exactly as it will on ' +
+    'production day (ruling 108). It is deliberately NOT row-compared against ' +
+    "dev: dev's two phone numbers were set NATIVELY through the passwordless " +
+    'sign-in flow, so a rebuild deriving them from addresses would differ for ' +
+    'a legitimate reason, and declaring phone_number `native` to silence that ' +
+    'would make the comparison assert nothing. What the rebuild does prove is ' +
+    'that 172 runs to completion against a schema built from exchange alone, ' +
+    'and that a second and third run change no row - which is the property ' +
+    'ruling 82 replays depend on.',
   'auth.employees': 'seed data, no exchange source',
   'auth.account': 'better-auth owns these tables; auth is not migrated',
   'auth.sessions': 'better-auth owns it; a stale session is a re-login, not lost data',
