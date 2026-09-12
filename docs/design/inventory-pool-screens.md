@@ -27,12 +27,12 @@ viewport with 358 of content. Card chrome — `surface/card`, `border/default`,
 
 ## 1. Lot screen
 
-Breadcrumb `Admin › Inventory › Lot 2481-A`. Header eyebrow `LOT`, title
-`Lot 2481-A · 14 Karat Gold`, the position badge, the `Assigned to` Select, and
-the position-dependent actions. Six states, one per position; every state is the
-same screen with the six card instances swapped to that position's variant.
+Breadcrumb `Admin > Inventory > Lot 2481-A`. Six states, one per position; each
+is the same screen with its card instances swapped. Main column: `Details`, `Refiner`
+(from At refiner onward), `Where`. Aside: `Worth`, `Lineage`, `Photos`. There is no Documents card on a lot
+- documents belong to the order.
 
-### Screens
+### Screens (frame ids unchanged through every rebuild)
 
 | state | desktop | mobile |
 |---|---|---|
@@ -43,33 +43,63 @@ same screen with the six card instances swapped to that position's variant.
 | Sold | `671:21190` | `671:25666` |
 | Consumed | `671:21596` | `671:26046` |
 
+### How the cards are built
+
+Every card frame is a **duplicate of one of Jacob's own card frames**, with only
+the body content and the title text replaced - the outer frame, the title row and
+the body container are his, byte for byte:
+
+- no controls in the title row -> duplicate of `Totals` `152:1187`
+- a control in the title row -> duplicate of `Spots` `269:8922` (his `Title row`
+  + `Right`, paddingRight `spacing/sm`, paddingTop `spacing/sm`)
+- `Worth` is not a duplicate at all: it is a **live instance of his `Totals`**
+  `170:2346` with the row text swapped, so its chrome can never drift.
+
+Proof frame `694:76319` on the Components page places his `Totals` beside my
+`Lineage` at the same 400 width; the title rows are indistinguishable.
+
+### Header
+
+A duplicate of `Order Header` `292:5060` / `292:5098`, text changed only. Three
+lines: eyebrow `SCRAP LOT` (or `BULLION LOT`, mirroring PURCHASE ORDER / SALES
+ORDER) with the position badge immediately beside it at his eyebrow-to-badge gap;
+the item `14 Karat Gold` as the big title; and
+`Lot 2481-A . PO-2481 . Marguerite Whitfield`, where `PO-2481` wears the library
+Link. The right block is his: `Assigned to` on top, the button row under it. On
+hand shows `Split` `Combine` `Assign to sale` (tertiary) and `Batch into`
+(primary); every other position shows the select alone.
+
 ### Which card state each position shows
 
-| position | Lot Header | Details | Where | Worth | Lineage | Timeline | Documents |
-|---|---|---|---|---|---|---|---|
-| Incoming | `Position=Incoming`, no actions | `Kind=Scrap` | `Position=Incoming` — position + PO-2481 `In Transit` | `Stage=Estimate` | `State=Empty` | `Position=Incoming` — Received current, rest upcoming | 3 · Settlement unavailable |
-| On hand | `Position=On hand`, **Split · Combine · Assign to sale · Batch into** | `Kind=Scrap` | `Position=On hand` — position + PO-2481 `Received` | `Stage=Estimate` | `State=Empty` | `Position=On hand` — Received, Assayed complete | 3 · Settlement unavailable |
-| At refiner | `Position=At refiner`, no actions | `Kind=Scrap` | adds SO-2493 `Pending assay` + `Elemetal · Dallas` | `Stage=Estimate` | `State=Empty` | Sent current | 3 · Settlement unavailable |
-| Pooled | `Position=Pooled`, no actions | `Kind=Scrap` | adds SO-2493 `Settled` + `Elemetal · Dallas` | `Stage=Settled` | `State=Empty` | all complete | 4 · Settlement available |
-| Sold | `Position=Sold`, no actions | `Kind=Scrap` | adds sale SO-2488 `In Transit` | `Stage=Settled` | `State=Empty` | Received · Assayed · Sold | 4 · Settlement available |
-| Consumed | `Position=Consumed`, no actions | `Kind=Scrap` | adds `Split into` Lot 2481-A1, Lot 2481-A2 | `Stage=Estimate` | `State=Filled` | Received · Assayed · Split | 3 · Settlement unavailable |
+| position | Details | Refiner | Where | Worth (Totals instance) | Lineage |
+|---|---|---|---|---|---|
+| Incoming | `Kind=Scrap, State=ReadOnly` | absent | `PO-2481` . `In Transit` . **Open PO-2481** | `Spot . live` / Premium / Est. fine oz, total `Est. value` | Created |
+| On hand | `Kind=Scrap, State=ReadOnly` | absent | `PO-2481` . `Received` . **Open PO-2481** | `Spot . live` (the order's spots are usually still unlocked) | Created . Received . Assayed |
+| At refiner | `Kind=Scrap, State=Locked` | `State=Pending assay` | adds `SO-2493` . `Pending assay` . Open, and the refiner | `Spot . locked Aug 28` / Premium / Est. fine oz, total `Est. value` | adds Batched |
+| Pooled | `Kind=Scrap, State=Locked` | `State=Settled` | adds `SO-2493` . `Settled` . Open, and the refiner | `Spot . locked Aug 28` / Premium / Settled fine oz / Variance, total `Settled value` | adds Settled |
+| Sold | `Kind=Scrap, State=Locked` | `State=Settled` | adds `SO-2488` . `In Transit` . Open | `Spot . locked Aug 28` / Premium / Margin, total `Sale price` | Created . Received . Assayed . Sold |
+| Consumed | `Kind=Scrap, State=Locked` | absent | customer order only | `Spot . locked Aug 28` / Premium / Est. fine oz, total `Est. value` | adds Split and Combined |
 
-`Kind=Bullion` is the Details card's other state (Qty shown, melt weights `—`);
-it is drawn on the component, not on a screen, because the worked example lot is
-scrap throughout.
+`Kind=Bullion`, `State=Editing` and `Photos State=Empty` are drawn on the
+components, not on a screen.
+
+**The way out of the lot is the customer order.** `PO-2481` is a link in the
+header, and the Where card's Customer order row carries a **Secondary**
+`Open PO-2481`; refiner and sale rows keep a Tertiary `Open`.
 
 ### Local components
 
 | component | id | states | what the API must provide |
 |---|---|---|---|
-| `Lot Header` | `668:11954` | `Position` ×6 | `LotView.position` (**new** — the derived view, `orders-lots-proposal.md` §5.1). Title needs the lot number + item name (`lots.items`); the sub-line needs fine content and post melt (`lots.items.content`, generated). `Assigned to` at the **lot** grain is **new** — today only the order carries an assignee (`Order Header` `292:5060`). The four actions map to `POST /api/lots/split` (exists), `POST /api/lots/combine` (**new**, §5.5), `POST /api/orders/lots/:id/assign` (**new**, §5.4), `POST /api/refining/orders/batch` (**new**, §5.5). |
-| `Lot Header / Mobile` | `671:24137` | `Position` ×6 | same |
-| `Lot Details` | `669:14919` | `Kind=Scrap \| Bullion` | `lots.items`: metal, kind, item, qty, `pre_melt`, `post_melt`, `purity`, `content`. Purity **label** (`14K`) has no column — either `products.purities.label` or **new**. |
-| `Lot Where` | `670:17861` | `Position` ×6 | `orders.lots` (customer order + direction), `refining.lots` + `refining.orders` (refiner order, `sent_at`/`settled_at` → the `Pending assay`/`Settled` badge), `refiners` + location for `Elemetal · Dallas`, `split_from_id` for the children. The customer-order badge is the derived order display state (`statuses.md` §3 — **new** as a view field; `orders.orders.status` today is free text). |
-| `Lot Worth` | `669:15179` | `Stage=Estimate \| Settled` | Paid: spot at purchase and premium per lot — today these live on the order item / `order_metals`, not on the lot; exposing them on `LotView` is **new**. Assay: `refining.lots.post_melt`/`purity` and `refining.orders.settled_at` give settled fine oz; variance vs estimate is the Settlement card's existing arithmetic (`Settlement` `327:9783`). Every figure is priced by the pricing domain — the screen computes nothing. |
-| `Lot Lineage` | `669:15240` | `State=Filled \| Empty` | `split_from_id` (exists) gives parent and children. **Combined into has no column** — `orders-lots-proposal.md` §5.5 leaves it open and `statuses.md` §4 recommends `combined_into_id` on the parents. The Empty state is the honest default until that lands. |
-| `Lot Timeline` | `670:18326` | `Position` ×6 | Received: **gap** — nothing marks a purchase order's metal as arrived (`statuses.md` §Q3; the recommendation is `received_at` on the inbound fulfillment). Assayed: **gap** — no inbound-assay column exists at all. Batched / Sent: `refining.orders.sent_at`. Settled: `refining.orders.settled_at`. Sold: the sale `orders.lots` row. Split: `split_from_id`. "Who" per step is the audit actor (`audit_stamp` fills `created_by`) — reading it back is **new**. |
-| `Lot Card / Mobile` | `671:29223` | `Position` ×5 | `GET /api/lots` — the mobile grain of `Lot Row (proposal)` `639:13959`, which has no mobile twin. |
+| `Lot Header` | `690:36760` | `Position` x6 | `LotView.position` (**new**, §5.1). Eyebrow needs the lot kind; title the item name; line 2 the lot number, its customer order and the customer. `Assigned to` at the **lot** grain is **new**. Buttons map to `POST /api/lots/split` (exists), `POST /api/lots/combine` (**new**, §5.5), `POST /api/orders/lots/:id/assign` (**new**, §5.4), `POST /api/refining/orders/batch` (**new**, §5.5). |
+| `Lot Header / Mobile` | `690:37145` | `Position` x6 | same; the button row wraps. |
+| `Lot Details` | `694:62669` | `Kind=Scrap \| Bullion` x `State=ReadOnly \| Editing \| Locked` | `lots.items`, three equal columns per row and no holes. **Editable** (Edit -> Save / Discard): item, metal, kind, qty, pre melt, post melt, purity, premium - all through **`PATCH /api/orders/lots/:id`**. **A premium change retiers the order's sibling lots**, so that endpoint must reprice siblings and return them, not just the patched row. **Always read-only**: purity label (no column - `products.purities.label` or **new**) and fine content (`content` is generated). `Locked` is every position the lot has left the customer order in; its `Edit on SO-2493` link points at the owning order. Lots are editable here and on the order screen, from the same endpoint. |
+| `Lot Refiner` | `696:31958` (mobile `696:55876`) | `State=Pending assay \| Settled \| Disputed` | A duplicate of his `Settlement` frame `327:9722`, so the title row, badge slot and body container are his. Fields from `refining.orders`: refiner, location, `sent_at`, `settled_at`, and the refiner order id for the `SO-2493` link and `Open SO-2493`. The `OURS · REFINER` table compares our figures against **`refining.lots`** - `pre_melt`, `post_melt` and `purity` on that table are the **refiner's** assay, ours are the lot's own - with the variance per metric; the variance turns `text/danger` only past tolerance, and **tolerance is a new setting** (no column defines it). `Settled value` is a pricing read; it is hidden until the refiner order settles. Mobile stacks the comparison three lines per metric. |
+| `Lot Where` | `694:63984` | `Position` x6 | `orders.lots`, `refining.lots` + `refining.orders` (`sent_at`/`settled_at` -> the badge), `refiners` and location. Each badge is the derived order display state (`statuses.md` §3 - **new** as a view field); each `Open` needs the order id, which `orders.lots` carries. |
+| `Worth` (no local component) | instance of `170:2346` | rows swapped per position | **The spot row follows the ORDER's spot state, never the lot's position**: `orders.orders.spots_locked` (exists) picks the label - `Spot . live` while unlocked, `Spot . locked <date>` once frozen - and the lock date needs a timestamp beside that boolean, which is **new**. There is no "spot at purchase": an incoming lot has not been priced against a frozen spot yet. Premium per lot is today on the order item / `order_metals`, not on the lot; exposing it on `LotView` is **new**. Estimate is `content` at the current spot; Settled is `refining.lots.post_melt`/`purity` with `refining.orders.settled_at`; Sold is the sale line and its margin. Every figure is a pricing read - the screen computes nothing. |
+| `Lot Lineage` | `694:64571` | `Position` x6 | The lot's story, and only what has happened - no "Pending" rows, no employee names, no fulfillment steps (those live on the order); the position badge says where it is. Created `from PO-2481 . Marguerite Whitfield`: `orders.lots` plus the customer. Received `139.22 g . matches declared`: **gap** - nothing marks arrival or compares against the declared weight (`statuses.md` §Q3 recommends `received_at` on the inbound fulfillment). Assayed `56.3% . 2.505 oz fine`: **gap** - no inbound-assay column. Batched: `refining.orders.sent_at` + `refiners`. Settled: `settled_at` and the settled-vs-estimate delta. Sold: the sale `orders.lots` row. Split / Combined: `split_from_id` (exists) and the **undecided** combine column (`statuses.md` §4 recommends `combined_into_id`). |
+| `Lot Photos` | `694:64781` | `State=Filled \| Empty` | The media domain's image routes: `POST /api/images` to upload, `GET /api/images/:id/url` to render. **A lot-to-image link is new** - images hang off accounts and orders today, and nothing associates one with a lot. |
+| `Lot Card / Mobile` | `671:29223` | `Position` x5 | `GET /api/lots` - the mobile grain of `Lot Row (proposal)` `639:13959`, which has no mobile twin. |
 
 ---
 
@@ -190,3 +220,21 @@ redrawn. Only what it lacked was added, as copies in the draft section.
 9. **`Stat/Small` is 30px in this file, not 18px.** The Pool metal-card figures
    therefore use `size/h4` + `line-height/h4` + `weight/semibold`, which are the
    exact tokens on Jacob's inventory card `Count` `642:12667`.
+12. **The library Accordion ships its own stroke and a sample content panel.**
+    Both have to be cleared on every instance (`strokes = []`, `Content`
+    hidden) to match Jacob's order cards. A card-header variant of Accordion
+    that does neither would remove the footgun.
+13. **The Thumbnail component is 32/40px only.** The Photos card's hero image
+    and its four thumbnails are Thumbnail instances resized to 240 and 64 tall;
+    there is no image/media frame component in the library.
+14. **Every Input adornment is trailing, including currency**, matching his
+    `Charges` and `Spots` instances (`Trailing=Label`, `Trailing label` = `$`).
+    The library's `Show leading label` slot is not used anywhere here.
+
+### Open question on the Refiner card
+
+It is placed on `At refiner`, `Pooled` and `Sold`, as asked. On `Sold` that sits
+oddly beside the `Where` card, which shows a sale order and **no** refiner order:
+a bullion lot sold straight from stock never went to a refiner. Either the Sold
+state should lose the Refiner card, or its `Where` should also carry the refiner
+order it passed through. **Jacob's call.**
