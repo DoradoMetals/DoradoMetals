@@ -192,7 +192,7 @@ test('the lot search finds a lot by its order number and hides the batched ones'
   })
 })
 
-test('a document with no renderer is unavailable until one is imported, then it sends', async () => {
+test('a document that waits for finalization is unavailable until a file exists, then it sends', async () => {
   await inOrders(async (c) => {
     const seller = await aUser(c)
     const order = await anOrder(c, seller, { direction: 'purchase' })
@@ -202,19 +202,19 @@ test('a document with no renderer is unavailable until one is imported, then it 
     await asAdmin(TEST_ACTOR, async () => {
       const before = await request(app).get(`/api/orders/${order.id}/documents`)
       assert.equal(before.status, 200, before.text)
+      const invoice = before.body.find((row: { kind: string }) => row.kind === 'invoice')
+      assert.equal(invoice.available, false, 'an invoice was offered before finalization')
+      assert.equal(invoice.pdf_id, null)
       const instructions = before.body.find(
         (row: { kind: string }) => row.kind === 'shipping_instructions'
       )
-      assert.equal(instructions.available, false, 'a document with no renderer was offered')
-      assert.equal(instructions.pdf_id, null)
+      assert.equal(instructions.available, true, 'a document with a renderer was withheld')
 
-      const refused = await request(app).post(
-        `/api/orders/${order.id}/documents/shipping_instructions/send`
-      )
+      const refused = await request(app).post(`/api/orders/${order.id}/documents/invoice/send`)
       assert.equal(refused.status, 422, refused.text)
 
       const imported = await request(app)
-        .post(`/api/orders/${order.id}/documents/shipping_instructions`)
+        .post(`/api/orders/${order.id}/documents/invoice`)
         .set('content-type', `multipart/form-data; boundary=${BOUNDARY}`)
         .send(upload('instructions.pdf', '%PDF-1.4 imported'))
       assert.equal(imported.status, 201, imported.text)
@@ -222,12 +222,31 @@ test('a document with no renderer is unavailable until one is imported, then it 
       assert.ok(imported.body.pdf_id, 'the import recorded no file')
 
       const after = await request(app).get(`/api/orders/${order.id}/documents`)
-      const row = after.body.find((r: { kind: string }) => r.kind === 'shipping_instructions')
+      const row = after.body.find((r: { kind: string }) => r.kind === 'invoice')
       assert.equal(row.available, true)
       assert.equal(row.pdf_id, imported.body.pdf_id)
     })
   })
 })
+
+test('each renderable kind sends the document its own renderer built', async () => {
+  await inOrders(async (c) => {
+    const seller = await aUser(c)
+    const address = await anAddress(c, seller)
+    const order = await anOrder(c, seller, { direction: 'purchase' })
+      .withLots(1)
+      .withAddress(address)
+      .withFulfillment('CARRIER DROPOFF')
+
+    await asAdmin(TEST_ACTOR, async () => {
+      for (const kind of ['packing_list', 'return_packing_list', 'shipping_instructions']) {
+        const sent = await request(app).post(`/api/orders/${order.id}/documents/${kind}/send`)
+        assert.equal(sent.status, 200, `${kind}: ${sent.text}`)
+        assert.equal(sent.body.kind, kind)
+      }
+    })
+  })
+}, 120_000)
 
 test('an import with no file, and an unknown kind, are both refused', async () => {
   await inOrders(async (c) => {
@@ -236,7 +255,7 @@ test('an import with no file, and an unknown kind, are both refused', async () =
 
     await asAdmin(TEST_ACTOR, async () => {
       const empty = await request(app)
-        .post(`/api/orders/${order.id}/documents/settlement`)
+        .post(`/api/orders/${order.id}/documents/assay_results`)
         .set('content-type', 'multipart/form-data; boundary=Z')
         .send('--Z--\r\n')
       assert.equal(empty.status, 422, empty.text)

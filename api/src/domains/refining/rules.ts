@@ -96,7 +96,9 @@ export function assertCancellable(order: RefiningOrder): void {
 
 export function assertSuppliable(lot_ids: string[], order_id: string): void {
   if (lot_ids.length === 0) {
-    throw new Invalid(`order ${order_id} holds no lots, so there is nothing to order from a supplier`)
+    throw new Invalid(
+      `order ${order_id} holds no lots, so there is nothing to order from a supplier`
+    )
   }
 }
 
@@ -168,9 +170,7 @@ export function assertSettling(held: RefiningLot[], named: RefiningSettlementLot
   const spoken = new Set(named.map((line) => line.lot_id))
   const missed = held.filter((lot) => !spoken.has(lot.lot_id))
   if (missed.length > 0) {
-    throw new Invalid(
-      `${missed.length} lot(s) on this order carry no assay in the settlement`
-    )
+    throw new Invalid(`${missed.length} lot(s) on this order carry no assay in the settlement`)
   }
 }
 
@@ -212,14 +212,8 @@ export function assertLockable(balance: number, troy_oz: number): void {
 }
 
 // A refiner order has no handover category, so its documents are named here
-// rather than looked up by one. Only the Invoice has a renderer; the Settlement
-// statement and the Lot Manifest are available once a file is imported for them
-// (GAP 23/26).
-const REFINING_DOCUMENTS: { kind: PdfKind; name: string }[] = [
-  { kind: 'invoice', name: 'Invoice' },
-  { kind: 'settlement', name: 'Settlement' },
-  { kind: 'lot_manifest', name: 'Lot Manifest' },
-]
+// rather than looked up by one.
+const REFINING_DOCUMENTS: { kind: PdfKind; name: string }[] = [{ kind: 'invoice', name: 'Invoice' }]
 
 export function documentsFor(sent: boolean, stored: StoredDocument[]): OrderDocument[] {
   return REFINING_DOCUMENTS.map((row) => {

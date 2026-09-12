@@ -20,6 +20,12 @@ const ROUTES = [
   'generate_return_packing_list',
   'generate_invoice',
   'generate_sales_order_invoice',
+  'generate_pickup_manifest',
+  'generate_intake_receipt',
+  'generate_shipping_instructions',
+  'generate_pickup_instructions',
+  'generate_appointment_instructions',
+  'generate_assay_results',
 ]
 
 type UserFixture = { id: string; name: string | null; email: string | null }
@@ -63,6 +69,12 @@ const RENDERS = [
   ['generate_return_packing_list', 'return-packing-list.pdf', 'purchase'],
   ['generate_invoice', 'invoice.pdf', 'purchase'],
   ['generate_sales_order_invoice', 'invoice.pdf', 'sale'],
+  ['generate_pickup_manifest', 'pickup-manifest.pdf', 'purchase'],
+  ['generate_intake_receipt', 'intake-receipt.pdf', 'purchase'],
+  ['generate_shipping_instructions', 'shipping-instructions.pdf', 'purchase'],
+  ['generate_pickup_instructions', 'pickup-instructions.pdf', 'purchase'],
+  ['generate_appointment_instructions', 'appointment-instructions.pdf', 'purchase'],
+  ['generate_assay_results', 'assay-results.pdf', 'purchase'],
 ]
 
 for (const [route, filename, direction] of RENDERS as Array<

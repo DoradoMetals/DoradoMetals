@@ -9,12 +9,14 @@ import {
   listTiers,
   updateRate,
 } from '#pricing/rates/controller.ts'
+import { generateRateSheet } from '#documents/pdfs/controller.ts'
 import { requireAdmin } from '#shared/middleware/authMiddleware.ts'
 
 const router = express.Router()
 
 router.get('/tiers', listTiers)
 router.get('/admin', requireAdmin, listAdminRates)
+router.get('/sheet.pdf', generateRateSheet)
 router.get('/', listRates)
 router.get('/:id', requireAdmin, getRate)
 

@@ -41,5 +41,7 @@ export const PdfKind = z.enum([
   'appointment_instructions',
   'settlement',
   'lot_manifest',
+  'rate_sheet',
+  'assay_results',
 ])
 export type PdfKind = z.infer<typeof PdfKind>

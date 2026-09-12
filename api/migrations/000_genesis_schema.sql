@@ -192,7 +192,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
     WHERE t.typname = 'pdf_kind' AND n.nspname = 'media'
   ) THEN
-    CREATE TYPE media.pdf_kind AS ENUM ('packing_list', 'return_packing_list', 'invoice', 'sales_order_invoice', 'shipping_instructions', 'pickup_manifest', 'pickup_instructions', 'intake_receipt', 'appointment_instructions', 'settlement', 'lot_manifest');
+    CREATE TYPE media.pdf_kind AS ENUM ('packing_list', 'return_packing_list', 'invoice', 'sales_order_invoice', 'shipping_instructions', 'pickup_manifest', 'pickup_instructions', 'intake_receipt', 'appointment_instructions', 'settlement', 'lot_manifest', 'rate_sheet', 'assay_results');
   END IF;
 END $$;
 
@@ -997,6 +997,29 @@ CREATE TABLE IF NOT EXISTS metals.metals (
   id text NOT NULL
 );
 ALTER TABLE metals.metals ADD COLUMN IF NOT EXISTS id text;
+
+CREATE TABLE IF NOT EXISTS metals.purity_labels (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  metal_id text NOT NULL,
+  label text NOT NULL,
+  purity numeric NOT NULL,
+  sort_order integer NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  created_by_id uuid,
+  updated_by_id uuid,
+  tolerance numeric DEFAULT 0.02 NOT NULL
+);
+ALTER TABLE metals.purity_labels ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE metals.purity_labels ADD COLUMN IF NOT EXISTS metal_id text;
+ALTER TABLE metals.purity_labels ADD COLUMN IF NOT EXISTS label text;
+ALTER TABLE metals.purity_labels ADD COLUMN IF NOT EXISTS purity numeric;
+ALTER TABLE metals.purity_labels ADD COLUMN IF NOT EXISTS sort_order integer;
+ALTER TABLE metals.purity_labels ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE metals.purity_labels ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE metals.purity_labels ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE metals.purity_labels ADD COLUMN IF NOT EXISTS updated_by_id uuid;
+ALTER TABLE metals.purity_labels ADD COLUMN IF NOT EXISTS tolerance numeric DEFAULT 0.02;
 
 CREATE TABLE IF NOT EXISTS orders.addresses (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -2752,6 +2775,36 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'purity_labels_pkey' AND c.relname = 'purity_labels' AND n.nspname = 'metals'
+  ) THEN
+    ALTER TABLE metals.purity_labels ADD CONSTRAINT purity_labels_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'purity_labels_range' AND c.relname = 'purity_labels' AND n.nspname = 'metals'
+  ) THEN
+    ALTER TABLE metals.purity_labels ADD CONSTRAINT purity_labels_range CHECK (((purity > (0)::numeric) AND (purity <= (1)::numeric)));
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'purity_labels_tolerance' AND c.relname = 'purity_labels' AND n.nspname = 'metals'
+  ) THEN
+    ALTER TABLE metals.purity_labels ADD CONSTRAINT purity_labels_tolerance CHECK (((tolerance > (0)::numeric) AND (tolerance <= 0.05)));
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'order_addresses_pkey' AND c.relname = 'addresses' AND n.nspname = 'orders'
   ) THEN
     ALTER TABLE orders.addresses ADD CONSTRAINT order_addresses_pkey PRIMARY KEY (id);
@@ -4102,6 +4155,16 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'purity_labels_metal_fk' AND c.relname = 'purity_labels' AND n.nspname = 'metals'
+  ) THEN
+    ALTER TABLE metals.purity_labels ADD CONSTRAINT purity_labels_metal_fk FOREIGN KEY (metal_id) REFERENCES metals.metals(id) ON UPDATE CASCADE;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'order_addresses_address_id_fkey' AND c.relname = 'addresses' AND n.nspname = 'orders'
   ) THEN
     ALTER TABLE orders.addresses ADD CONSTRAINT order_addresses_address_id_fkey FOREIGN KEY (address_id) REFERENCES places.addresses(id);
@@ -5269,6 +5332,8 @@ CREATE INDEX IF NOT EXISTS idx_media_emails_pdf_id ON media.emails USING btree (
 CREATE INDEX IF NOT EXISTS idx_images_user_created ON media.images USING btree (user_id, created_at);
 CREATE INDEX IF NOT EXISTS pdfs_order_kind_idx ON media.pdfs USING btree (order_id, kind, created_at DESC);
 CREATE INDEX IF NOT EXISTS pdfs_refining_order_kind ON media.pdfs USING btree (refining_order_id, kind, created_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS purity_labels_metal_label ON metals.purity_labels USING btree (metal_id, label);
+CREATE INDEX IF NOT EXISTS purity_labels_metal_purity ON metals.purity_labels USING btree (metal_id, purity);
 CREATE UNIQUE INDEX IF NOT EXISTS addresses_one_per_order ON orders.addresses USING btree (order_id);
 CREATE INDEX IF NOT EXISTS idx_orders_addresses_source_address_id ON orders.addresses USING btree (source_address_id);
 CREATE INDEX IF NOT EXISTS order_addresses_address_idx ON orders.addresses USING btree (address_id);

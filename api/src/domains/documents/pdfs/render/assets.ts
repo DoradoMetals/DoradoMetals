@@ -35,3 +35,11 @@ export const ICON_EMAIL_SRC = dataUriFromAssets('email.svg', 'image/svg+xml')
 export const FONT_POPPINS_400_SRC = dataUriFromAssets('fonts/poppins-latin-400.woff2', 'font/woff2')
 export const FONT_POPPINS_600_SRC = dataUriFromAssets('fonts/poppins-latin-600.woff2', 'font/woff2')
 export const FONT_POPPINS_700_SRC = dataUriFromAssets('fonts/poppins-latin-700.woff2', 'font/woff2')
+
+export const DOCUMENT_FONT_FACES = `
+@font-face { font-family: 'Poppins'; font-style: normal; font-weight: 400; src: url(${FONT_POPPINS_400_SRC}) format('woff2'); }
+@font-face { font-family: 'Poppins'; font-style: normal; font-weight: 600; src: url(${FONT_POPPINS_600_SRC}) format('woff2'); }
+@font-face { font-family: 'Poppins'; font-style: normal; font-weight: 700; src: url(${FONT_POPPINS_700_SRC}) format('woff2'); }
+`
+
+export const DOCUMENT_FONT_FAMILY = 'Poppins, Arial, sans-serif'

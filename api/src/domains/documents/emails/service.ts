@@ -1,6 +1,6 @@
 import * as pdfService from '#documents/pdfs/service.ts'
 import * as inputs from '#documents/pdfs/order-inputs.ts'
-import type { PurchaseDocument, SalesDocument } from '#documents/pdfs/service.ts'
+import type { DocumentInput } from '@dorado/contracts'
 import type { Attachment, Transport } from '#providers/resend/index.ts'
 
 import * as mailers from '#db/media/emails/repo.ts'
@@ -86,7 +86,6 @@ async function sentAlready(
 // sales_order_created. One mailer, two kinds: the kind is what says which side
 // of the business the row belongs to.
 // ---------------------------------------------------------------------------
-
 export async function sendOrderPlacedConfirmation(
   order_id: string,
   transport?: Transport,
@@ -111,7 +110,7 @@ export async function sendOrderReceived(
   const isSale = mail.direction === 'sale'
   const input = await inputs.packingListInputs(order_id, executor)
   const bytes = isSale
-    ? await pdfService.generateSalesOrderInvoice(input)
+    ? await pdfService.generateInvoice(input)
     : await pdfService.generatePackingList(input)
   const pdf_id = await persistPdf(
     isSale ? 'sales_order_invoice' : 'packing_list',
@@ -146,7 +145,6 @@ export async function sendOrderReceived(
 // admin sends from an order goes out under this shell; the priced invoice keeps
 // its own kind, so the trail it has been writing since 090 stays continuous.
 // ---------------------------------------------------------------------------
-
 export async function sendDocument(
   order_id: string,
   label: string,
@@ -178,7 +176,7 @@ export async function sendDocument(
 }
 
 export async function sendPricedEmail(
-  input: PurchaseDocument,
+  input: DocumentInput,
   transport?: Transport,
   executor?: PoolClient
 ): Promise<void> {
@@ -199,7 +197,6 @@ export async function sendPricedEmail(
 // ---------------------------------------------------------------------------
 // Logistics (154:808, 154:881, 211:659, 211:704, 211:747, 211:790)
 // ---------------------------------------------------------------------------
-
 export async function sendShipmentSent(
   order_id: string,
   transport?: Transport,
@@ -350,7 +347,6 @@ export async function sendTomorrowsReminders(
 // ---------------------------------------------------------------------------
 // Payout sent (6:260) - the customer has been paid.
 // ---------------------------------------------------------------------------
-
 export async function sendPayoutSent(
   order_id: string,
   transport?: Transport,
@@ -395,7 +391,6 @@ export async function sendPayoutSent(
 // same as every other sender. Pass a transport in tests: nothing in a test run
 // may reach a real mailbox.
 // ---------------------------------------------------------------------------
-
 export async function sendSignInCode(
   mail: SignInCodeMail,
   transport?: Transport,
@@ -474,7 +469,6 @@ export async function recordDelivery(event: ResendEvent): Promise<void> {
 // ---------------------------------------------------------------------------
 // Not in the Figma page, and staying
 // ---------------------------------------------------------------------------
-
 // An internal notice to staff when a caller reaches nobody. No Figma mailer
 // exists for it; it wears the plain base layout.
 export async function sendVoicemailReceived(
@@ -497,13 +491,13 @@ export async function sendVoicemailReceived(
 // The refiner's copy of a sales order. It goes to a SUPPLIER, not a customer,
 // so it is not one of the customer mailers and keeps its own template.
 export async function sendSalesOrderToSupplier(
-  input: SalesDocument,
+  input: DocumentInput,
   email: string,
   transport?: Transport,
   executor?: PoolClient
 ): Promise<void> {
   const { order, pricing } = input
-  const pdfBuffer = await pdfService.generateSalesOrderInvoice(input)
+  const pdfBuffer = await pdfService.generateInvoice(input)
   const order_id = order.order.id
   const pdfId = await persistPdf('sales_order_invoice', order_id, pdfBuffer, executor)
 

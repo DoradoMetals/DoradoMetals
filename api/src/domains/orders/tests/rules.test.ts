@@ -273,10 +273,7 @@ test('cancelling needs somewhere to send the metal back to', () => {
   // Supplying no longer waits on an address: the parcel is the refiner's to
   // send, and what the action needs is lots to order.
   assert.equal(rules.actionsFor(facts(order({ direction: 'sale' }))).supply, true)
-  assert.equal(
-    rules.actionsFor({ ...facts(order({ direction: 'sale' })), lots: [] }).supply,
-    false
-  )
+  assert.equal(rules.actionsFor({ ...facts(order({ direction: 'sale' })), lots: [] }).supply, false)
 })
 
 test("payable and line_total are the view's SQL, not a rule", () => {
@@ -351,20 +348,36 @@ test('the documents a method prints, and the one that waits for finalization', (
   const shipment = rules.documentsFor('SHIPMENT', false, [])
   assert.deepEqual(
     shipment.map((d) => d.name),
-    ['Invoice', 'Packing List', 'Return Packing List', 'Shipping Instructions']
+    [
+      'Invoice',
+      'Shipment Manifest',
+      'Return Shipment Manifest',
+      'Shipping Instructions',
+      'Assay Results',
+    ]
   )
   assert.equal(shipment[0]!.available, false, 'an invoice was offered before finalization')
   assert.equal(rules.documentsFor('SHIPMENT', true, [])[0]!.available, true)
   assert.deepEqual(
     rules.documentsFor('PICKUP', true, []).map((d) => d.name),
-    ['Invoice', 'Pickup Manifest', 'Pickup Instructions']
+    ['Invoice', 'Pickup Manifest', 'Pickup Instructions', 'Assay Results']
   )
   assert.deepEqual(
     rules.documentsFor('DIRECT', true, []).map((d) => d.name),
-    ['Invoice', 'Intake Receipt', 'Appointment Instructions']
+    ['Invoice', 'Intake Receipt', 'Appointment Instructions', 'Assay Results']
   )
   assert.deepEqual(
     rules.documentsFor('DROPOFF', true, []).map((d) => d.name),
-    ['Invoice', 'Settlement', 'Lot Manifest']
+    ['Invoice', 'Assay Results']
+  )
+  const finalGated = rules.documentsFor('SHIPMENT', false, [])
+  assert.equal(
+    finalGated.find((d) => d.kind === 'assay_results')!.available,
+    false,
+    'assay results were offered before the lots were confirmed'
+  )
+  assert.equal(
+    rules.documentsFor('SHIPMENT', true, []).find((d) => d.kind === 'assay_results')!.available,
+    true
   )
 })

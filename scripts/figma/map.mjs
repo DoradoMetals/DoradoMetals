@@ -278,6 +278,9 @@ export const DIR_NOT_DRAWN = {
   hooks: 'useFocusTrap, useDebounce and useBreakpoint; behaviour, nothing to draw',
   text: 'the ramp is Foundations - Text renders the 16 text styles and adds no drawing of its own',
   rating: 'star rating lifted from the app 2026-09; no page has been drawn for it yet',
+  email: 'drawn in the Media file, not this library - the Mailers page (0:1) holds Email Header, Email Footer, Email Code, Email Row and Email Card, and this directory is those five as table-based, inline-styled React',
+  document:
+    'drawn in the Media file, not this library - the Documents page (31:212) holds Header, Footer, Hero, Table, Summary, Shipping, Payment, Pickup and Appointment, and this directory is those nine as print React',
 }
 
 // ---------------------------------------------------------------------------

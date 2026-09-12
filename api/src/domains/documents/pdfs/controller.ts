@@ -21,8 +21,11 @@ const sendPdf = (res: Response, pdf: Uint8Array, filename: string) => {
   res.end(pdf)
 }
 
+const orderId = (req: Request, label: string) =>
+  parseStrict(OrderIdBody, req.body, `media/pdfs/${label} body`).order_id
+
 export const generatePackingList = asyncHandler(async (req, res) => {
-  const { order_id } = parseStrict(OrderIdBody, req.body, 'media/pdfs/generate_packing_list body')
+  const order_id = orderId(req, 'generate_packing_list')
   const { bytes } = await serveOrderDocument({
     kind: 'packing_list',
     order_id,
@@ -33,11 +36,7 @@ export const generatePackingList = asyncHandler(async (req, res) => {
 })
 
 export const generateReturnPackingList = asyncHandler(async (req, res) => {
-  const { order_id } = parseStrict(
-    OrderIdBody,
-    req.body,
-    'media/pdfs/generate_return_packing_list body'
-  )
+  const order_id = orderId(req, 'generate_return_packing_list')
   const { bytes } = await serveOrderDocument({
     kind: 'return_packing_list',
     order_id,
@@ -49,7 +48,7 @@ export const generateReturnPackingList = asyncHandler(async (req, res) => {
 })
 
 export const generateInvoice = asyncHandler(async (req, res) => {
-  const { order_id } = parseStrict(OrderIdBody, req.body, 'media/pdfs/generate_invoice body')
+  const order_id = orderId(req, 'generate_invoice')
   const { bytes } = await serveOrderDocument({
     kind: 'invoice',
     order_id,
@@ -60,19 +59,90 @@ export const generateInvoice = asyncHandler(async (req, res) => {
 })
 
 export const generateSalesOrderInvoice = asyncHandler(async (req, res) => {
-  const { order_id } = parseStrict(
-    OrderIdBody,
-    req.body,
-    'media/pdfs/generate_sales_order_invoice body'
-  )
+  const order_id = orderId(req, 'generate_sales_order_invoice')
   const { bytes } = await serveOrderDocument({
     kind: 'sales_order_invoice',
     order_id,
     caller: req.user,
-    render: async () =>
-      pdfService.generateSalesOrderInvoice(await inputs.salesOrderInvoiceInputs(order_id)),
+    render: async () => pdfService.generateInvoice(await inputs.invoiceInputs(order_id)),
   })
   sendPdf(res, bytes, 'invoice.pdf')
+})
+
+export const generatePickupManifest = asyncHandler(async (req, res) => {
+  const order_id = orderId(req, 'generate_pickup_manifest')
+  const { bytes } = await serveOrderDocument({
+    kind: 'pickup_manifest',
+    order_id,
+    caller: req.user,
+    render: async () =>
+      pdfService.generatePickupManifest(await inputs.pickupManifestInputs(order_id)),
+  })
+  sendPdf(res, bytes, 'pickup-manifest.pdf')
+})
+
+export const generateIntakeReceipt = asyncHandler(async (req, res) => {
+  const order_id = orderId(req, 'generate_intake_receipt')
+  const { bytes } = await serveOrderDocument({
+    kind: 'intake_receipt',
+    order_id,
+    caller: req.user,
+    render: async () =>
+      pdfService.generateIntakeReceipt(await inputs.intakeReceiptInputs(order_id)),
+  })
+  sendPdf(res, bytes, 'intake-receipt.pdf')
+})
+
+export const generateShippingInstructions = asyncHandler(async (req, res) => {
+  const order_id = orderId(req, 'generate_shipping_instructions')
+  const { bytes } = await serveOrderDocument({
+    kind: 'shipping_instructions',
+    order_id,
+    caller: req.user,
+    render: async () =>
+      pdfService.generateShippingInstructions(await inputs.referenceInputs(order_id)),
+  })
+  sendPdf(res, bytes, 'shipping-instructions.pdf')
+})
+
+export const generatePickupInstructions = asyncHandler(async (req, res) => {
+  const order_id = orderId(req, 'generate_pickup_instructions')
+  const { bytes } = await serveOrderDocument({
+    kind: 'pickup_instructions',
+    order_id,
+    caller: req.user,
+    render: async () =>
+      pdfService.generatePickupInstructions(await inputs.referenceInputs(order_id)),
+  })
+  sendPdf(res, bytes, 'pickup-instructions.pdf')
+})
+
+export const generateAppointmentInstructions = asyncHandler(async (req, res) => {
+  const order_id = orderId(req, 'generate_appointment_instructions')
+  const { bytes } = await serveOrderDocument({
+    kind: 'appointment_instructions',
+    order_id,
+    caller: req.user,
+    render: async () =>
+      pdfService.generateAppointmentInstructions(await inputs.referenceInputs(order_id)),
+  })
+  sendPdf(res, bytes, 'appointment-instructions.pdf')
+})
+
+export const generateAssayResults = asyncHandler(async (req, res) => {
+  const order_id = orderId(req, 'generate_assay_results')
+  const { bytes } = await serveOrderDocument({
+    kind: 'assay_results',
+    order_id,
+    caller: req.user,
+    render: async () => pdfService.generateAssayResults(await inputs.assayResultsInputs(order_id)),
+  })
+  sendPdf(res, bytes, 'assay-results.pdf')
+})
+
+export const generateRateSheet = asyncHandler(async (_req, res) => {
+  const bytes = await pdfService.generateRateSheet(await inputs.rateSheetInputs())
+  sendPdf(res, bytes, 'rate-sheet.pdf')
 })
 
 const kindParam = (req: Request): PdfKind =>

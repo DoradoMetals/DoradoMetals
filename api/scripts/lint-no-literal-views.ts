@@ -22,6 +22,10 @@ const CRUD =
   'a wire-to-column re-spelling, not a view - it belongs in SQL and dies with the ' +
   'CRUD pass-through pass (ruling 66)'
 const RESULT = 'a small result record (counts, ids) a caller reads once - it names no table row'
+const PROPS =
+  "a document component's props - EndBlock, TableRow and LedgerLine are drawn by the Figma " +
+  'Documents page and declared in @dorado/components/document, so the shape is presentation, ' +
+  'not a table view; the values it carries all come from one SQL read already parsed'
 
 const ACCEPTED: Record<string, { count: number; why: string }> = {
   'domains/checkout/adopt.ts': { count: 2, why: RESULT },
@@ -34,7 +38,10 @@ const ACCEPTED: Record<string, { count: number; why: string }> = {
   },
   'domains/checkout/sweep.ts': { count: 2, why: RESULT },
   'domains/accounts/images/service.ts': { count: 1, why: RESULT },
-  'domains/documents/pdfs/order-inputs.ts': { count: 5, why: RESULT },
+  'domains/documents/pdfs/order-inputs.ts': { count: 3, why: RESULT },
+  'domains/documents/pdfs/render/documents/invoice.ts': { count: 2, why: PROPS },
+  'domains/documents/pdfs/render/documents/parties.ts': { count: 2, why: PROPS },
+  'domains/documents/pdfs/render/documents/rows.ts': { count: 2, why: PROPS },
   'domains/documents/pdfs/serve.ts': { count: 3, why: RESULT },
   'domains/orders/place.ts': { count: 3, why: RESULT },
   'domains/transactions/details/service.ts': { count: 2, why: CRUD },

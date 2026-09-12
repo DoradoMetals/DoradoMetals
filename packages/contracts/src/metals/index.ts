@@ -3,3 +3,4 @@
 //
 // Every entity of the `metals` schema, one namespace each.
 export * from './metals.js'
+export * from './purity_labels.js'

@@ -161,7 +161,7 @@ test("the refiner's copy goes to the address it was given, not the customer's", 
   const t = recorder()
 
   await emails.sendSalesOrderToSupplier(
-    await inputs.salesOrderInvoiceInputs(order.order.id),
+    await inputs.invoiceInputs(order.order.id),
     'refiner@example.com',
     t
   )

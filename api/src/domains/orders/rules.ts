@@ -240,35 +240,32 @@ export function actionsFor(view: OrderViewFacts): OrderActions {
   }
 }
 
-// The Documents card, by handover method. An Invoice is Unavailable until the
-// order is finalized. Six of the ten have no renderer and no Figma design to
-// build one from, so they are available only once a file has been IMPORTED
-// against the order - which is exactly what the card's Send/Import split means
-// (GAP 23/25).
-const RENDERED: PdfKind[] = ['invoice', 'packing_list', 'return_packing_list', 'sales_order_invoice']
+const FINALIZED: PdfKind[] = ['invoice', 'assay_results']
+
+const ASSAY = { kind: 'assay_results' as PdfKind, name: 'Assay Results' }
+const INVOICE = { kind: 'invoice' as PdfKind, name: 'Invoice' }
 
 const BY_CATEGORY: Record<string, { kind: PdfKind; name: string }[]> = {
   SHIPMENT: [
-    { kind: 'invoice', name: 'Invoice' },
-    { kind: 'packing_list', name: 'Packing List' },
-    { kind: 'return_packing_list', name: 'Return Packing List' },
+    INVOICE,
+    { kind: 'packing_list', name: 'Shipment Manifest' },
+    { kind: 'return_packing_list', name: 'Return Shipment Manifest' },
     { kind: 'shipping_instructions', name: 'Shipping Instructions' },
+    ASSAY,
   ],
   PICKUP: [
-    { kind: 'invoice', name: 'Invoice' },
+    INVOICE,
     { kind: 'pickup_manifest', name: 'Pickup Manifest' },
     { kind: 'pickup_instructions', name: 'Pickup Instructions' },
+    ASSAY,
   ],
   DIRECT: [
-    { kind: 'invoice', name: 'Invoice' },
+    INVOICE,
     { kind: 'intake_receipt', name: 'Intake Receipt' },
     { kind: 'appointment_instructions', name: 'Appointment Instructions' },
+    ASSAY,
   ],
-  DROPOFF: [
-    { kind: 'invoice', name: 'Invoice' },
-    { kind: 'settlement', name: 'Settlement' },
-    { kind: 'lot_manifest', name: 'Lot Manifest' },
-  ],
+  DROPOFF: [INVOICE, ASSAY],
 }
 
 export function documentsFor(
@@ -282,11 +279,7 @@ export function documentsFor(
       kind: row.kind,
       name: row.name,
       pdf_id: held?.id ?? null,
-      available: RENDERED.includes(row.kind)
-        ? row.kind === 'invoice'
-          ? finalized
-          : true
-        : held !== null,
+      available: FINALIZED.includes(row.kind) ? finalized || held !== null : true,
     }
   })
 }
@@ -411,9 +404,7 @@ export function assertNotAlreadyCredited(credited: boolean, number: string | num
 export function assertFinalizable(view: OrderViewFacts): void {
   const blocked = finalizeBlockedBy(view)
   if (blocked.length > 0) {
-    throw new Invalid(
-      `order ${view.order.number} cannot be finalized yet: ${blocked.join('; ')}`
-    )
+    throw new Invalid(`order ${view.order.number} cannot be finalized yet: ${blocked.join('; ')}`)
   }
 }
 

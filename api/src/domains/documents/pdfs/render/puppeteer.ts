@@ -31,15 +31,11 @@ function getBrowser(): Promise<Browser> {
 }
 
 const DEFAULT_PDF_OPTIONS: PDFOptions = {
-  format: 'A4',
+  width: '816px',
+  height: '1056px',
   printBackground: true,
-  displayHeaderFooter: true,
-  headerTemplate: `
-      <div style="font-size:10px; width:100%; text-align:right; padding-right:20px;">
-        Page <span class="pageNumber"></span> of <span class="totalPages"></span>
-      </div>`,
-  footerTemplate: `<div></div>`,
-  margin: { top: '20px', bottom: '20px', left: '15px', right: '15px' },
+  displayHeaderFooter: false,
+  margin: { top: '0', bottom: '0', left: '0', right: '0' },
 }
 
 export async function renderPdf(html: string, pdfOptions: PDFOptions = {}): Promise<Uint8Array> {

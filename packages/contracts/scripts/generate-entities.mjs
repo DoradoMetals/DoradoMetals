@@ -223,6 +223,7 @@ const ENTITY = {
   'media.pdfs': 'Pdf',
 
   'metals.metals': 'Metal',
+  'metals.purity_labels': 'PurityLabel',
 
   'orders.addresses': 'OrderAddressLink',
   'orders.items': 'OrderItem',

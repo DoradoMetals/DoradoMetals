@@ -9,15 +9,15 @@ import { cn } from '../cn'
 
 export const DOCUMENT_NAMES = [
   'Invoice',
-  'Packing List',
-  'Return Packing List',
+  'Shipment Manifest',
+  'Return Shipment Manifest',
   'Shipping Instructions',
   'Pickup Manifest',
   'Pickup Instructions',
   'Intake Receipt',
   'Appointment Instructions',
-  'Settlement',
-  'Lot Manifest',
+  'Assay Results',
+  'Rate Sheet',
 ] as const
 
 export type DocumentName = (typeof DOCUMENT_NAMES)[number]

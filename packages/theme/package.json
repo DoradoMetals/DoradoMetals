@@ -6,11 +6,14 @@
   "exports": {
     "./theme.css": "./theme.css",
     "./typography.css": "./typography.css",
-    "./base.css": "./base.css"
+    "./base.css": "./base.css",
+    "./tokens": "./tokens.ts"
   },
   "files": [
     "theme.css",
     "typography.css",
-    "base.css"
-  ]
+    "base.css",
+    "tokens.ts"
+  ],
+  "type": "module"
 }

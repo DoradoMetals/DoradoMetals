@@ -489,6 +489,11 @@ const NOT_REBUILT = {
   'auth.account': 'better-auth owns these tables; auth is not migrated',
   'auth.sessions': 'better-auth owns it; a stale session is a re-login, not lost data',
   'auth.verification': 'better-auth owns it; a verification token outlives nothing',
+  'metals.purity_labels':
+    'reference data seeded by 175 and 176 - the standard purities a metal is ' +
+    'named by, and how far from one a lot may sit and still take its label. ' +
+    'exchange never recorded a purity label, so there is nothing to rebuild ' +
+    'from: the migration IS the source, and it is idempotent.',
   'payments.methods': 'seed data from 047, no exchange source',
   'fulfillments.methods': 'seed data from 047, no exchange source',
 

@@ -69,3 +69,115 @@ test('latestOfKind answers null for an order with no document at all', async () 
     assert.equal(latest, null)
   })
 })
+
+const BOGUS = /\b(NaN|null|undefined|Infinity)\b/
+
+test('assayResults reads a purchase order lot by lot, with no bogus tokens', async () => {
+  await inRollback(async (c) => {
+    const user = await aUser(c)
+    const order = await anOrder(c, user, { direction: 'purchase' }).withLines(
+      { metal_id: 'Gold', pre_melt: 10, post_melt: 9.8, purity: 0.583, unit: 'g' },
+      { metal_id: 'Silver', pre_melt: 5, purity: 0.925, unit: 't oz' }
+    )
+
+    const doc = await repo.assayResults(order.id, c)
+    assert.ok(doc)
+    assert.ok(doc.lots.length >= 1)
+    for (const lot of doc.lots) {
+      assert.ok(lot.figure.length > 0)
+      for (const fact of lot.facts) assert.ok(fact.length > 0)
+    }
+    assert.doesNotMatch(JSON.stringify(doc), BOGUS)
+  })
+})
+
+test('a lot with no purity and no weight still gets a row, figure "-", no facts', async () => {
+  await inRollback(async (c) => {
+    const user = await aUser(c)
+    const order = await anOrder(c, user, { direction: 'purchase' }).withLines({
+      metal_id: 'Gold',
+    })
+
+    const doc = await repo.assayResults(order.id, c)
+    assert.ok(doc)
+    assert.equal(doc.lots.length, 1)
+    assert.equal(doc.lots[0]?.figure, '-')
+    assert.deepEqual(doc.lots[0]?.facts, [])
+    assert.doesNotMatch(JSON.stringify(doc), BOGUS)
+  })
+})
+
+const STANDARD_LABELS = [
+  '24K',
+  '22K',
+  '18K',
+  '14K',
+  '10K',
+  '.999',
+  '.925',
+  '.900',
+  '.800',
+  '.950',
+  '.500',
+]
+
+test('a lot far from every standard purity for its metal gets no label fact', async () => {
+  await inRollback(async (c) => {
+    const user = await aUser(c)
+    const order = await anOrder(c, user, { direction: 'purchase' }).withLines({
+      metal_id: 'Silver',
+      pre_melt: 10,
+      purity: 0.059,
+      unit: 'g',
+    })
+
+    const doc = await repo.assayResults(order.id, c)
+    assert.ok(doc)
+    assert.equal(doc.lots.length, 1)
+    const facts = doc.lots[0]?.facts ?? []
+    assert.ok(facts.some((f) => f.includes('% purity')))
+    for (const label of STANDARD_LABELS) assert.ok(!facts.includes(label))
+    assert.doesNotMatch(JSON.stringify(doc), BOGUS)
+  })
+})
+
+test('by_metal values sum to total_fine', async () => {
+  await inRollback(async (c) => {
+    const user = await aUser(c)
+    const order = await anOrder(c, user, { direction: 'purchase' }).withLines(
+      { metal_id: 'Gold', content: 3 },
+      { metal_id: 'Silver', content: 1.5 },
+      { metal_id: 'Gold', content: 0.5 }
+    )
+
+    const doc = await repo.assayResults(order.id, c)
+    assert.ok(doc)
+    const sum = doc.by_metal.reduce((acc, row) => acc + Number.parseFloat(row.value), 0)
+    assert.equal(sum.toFixed(3), Number.parseFloat(doc.total_fine).toFixed(3))
+  })
+})
+
+test('assayResults answers null for a sale order', async () => {
+  await inRollback(async (c) => {
+    const user = await aUser(c)
+    const order = await anOrder(c, user, { direction: 'sale' })
+    const doc = await repo.assayResults(order.id, c)
+    assert.equal(doc, null)
+  })
+})
+
+test('rateSheet parses with a Bullion and a Scrap row per metal', async () => {
+  await inRollback(async (c) => {
+    const doc = await repo.rateSheet(c)
+    assert.ok(doc.metals.length >= 1)
+    for (const metal of doc.metals) {
+      assert.deepEqual(
+        metal.rows.map((r) => r.label),
+        ['Bullion', 'Scrap']
+      )
+      for (const row of metal.rows) {
+        assert.equal(row.values.length, metal.columns.length)
+      }
+    }
+  })
+})
