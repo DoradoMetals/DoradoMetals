@@ -237,13 +237,24 @@ test('changing the method takes the booking with it', async () => {
 
 test('a fulfillment with a real shipment refuses to move off SHIPMENT', async () => {
   await inRollback(async (c: PoolClient) => {
+    // A SHIPMENT ROW IS NOT A SHIPPED PARCEL, and this query used to conflate
+    // them: `categoriesFor` locks the category on `tracking_number != null` -
+    // a label that was actually bought - so a fulfillment whose shipment has
+    // no tracking number is movable BY DESIGN. The join alone picked whatever
+    // row came first, which stopped meaning anything the moment the database
+    // held an unlabelled one (`seed:e2e:order` stubs `buyLabel` and mints
+    // exactly that). Ask for the tracking number the rule reads.
     const { rows } = await c.query(
       `SELECT f.id FROM fulfillments.fulfillments f
-        JOIN fulfillments.shipments s ON s.fulfillment_id = f.id
+        JOIN fulfillments.shipments fs ON fs.fulfillment_id = f.id
+        JOIN shipping.shipments s ON s.id = fs.shipment_id
         JOIN fulfillments.methods m ON m.id = f.method_id
-       WHERE m.direction = 'purchase' LIMIT 1`
+       WHERE m.direction = 'purchase'
+         AND s.direction <> 'Return'
+         AND s.tracking_number IS NOT NULL
+       LIMIT 1`
     )
-    assert.ok(rows.length, 'dev has no shipped fulfillment to check')
+    assert.ok(rows.length, 'there is no LABELLED purchase fulfillment to check')
     const pickup = await methodOf(c, 'PICKUP', 'purchase')
 
     await assert.rejects(() => repo.setMethod(rows[0].id, pickup.id, c), /already has a shipment/)
@@ -477,7 +488,8 @@ test("a patch cannot point a parcel at an address that is not the fulfillment ow
 
     const theirs = await anAddressId(c, stranger.id)
     await assert.rejects(
-      () => service.patchChoices(draft.fulfillment.id, { shipment: { shipper_address_id: theirs } }, c),
+      () =>
+        service.patchChoices(draft.fulfillment.id, { shipment: { shipper_address_id: theirs } }, c),
       /no address/,
       "a customer pointed their parcel at somebody else's address"
     )

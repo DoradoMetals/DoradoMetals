@@ -47,14 +47,32 @@ test('a body that is not the contract is refused before anything is minted', asy
     ['/api/account/send_code', {}],
     ['/api/account/send_code', { channel: 'carrier-pigeon', captcha_token: 't' }],
     ['/api/account/send_code', { channel: 'sms', phone_number: 5125550134, captcha_token: 't' }],
-    ['/api/account/send_code', { channel: 'sms', phone_number: '+15125550134' }],
-    ['/api/account/send_code', { channel: 'sms', phone_number: '+15125550134', captcha_token: 't', admin: true }],
+    // captcha_token is optional now (Jacob's amendment, 2026-09-11: no token on
+    // a pending resend) - a body with no token is a valid SHAPE, not a contract
+    // violation, so it belongs with send-code.test.ts's captchaRequired cases,
+    // not here.
+    [
+      '/api/account/send_code',
+      { channel: 'sms', phone_number: '+15125550134', captcha_token: 't', admin: true },
+    ],
     ['/api/account/verify_code', {}],
     ['/api/account/verify_code', { channel: 'sms', phone_number: '+15125550134' }],
     ['/api/account/verify_code', { channel: 'sms', phone_number: '+15125550134', code: 418209 }],
     ['/api/account/sign_up', {}],
-    ['/api/account/sign_up', { name: 'A', email: 'a@dorado.test', phone_number: '+15125550134', captcha_token: 't' }],
-    ['/api/account/sign_up', { name: 'A', email: 'a@dorado.test', phone_number: '+15125550134', accepted_terms: false, captcha_token: 't' }],
+    [
+      '/api/account/sign_up',
+      { name: 'A', email: 'a@dorado.test', phone_number: '+15125550134', captcha_token: 't' },
+    ],
+    [
+      '/api/account/sign_up',
+      {
+        name: 'A',
+        email: 'a@dorado.test',
+        phone_number: '+15125550134',
+        accepted_terms: false,
+        captcha_token: 't',
+      },
+    ],
   ] as const
 
   for (const [path, payload] of cases) {
@@ -65,15 +83,13 @@ test('a body that is not the contract is refused before anything is minted', asy
 })
 
 test('terms are a literal true, so an omitted tick cannot be a sign-up', async () => {
-  const res = await request(app)
-    .post('/api/account/sign_up')
-    .send({
-      name: 'A',
-      email: 'a@dorado.test',
-      phone_number: '+15125550134',
-      accepted_terms: 'yes',
-      captcha_token: 't',
-    })
+  const res = await request(app).post('/api/account/sign_up').send({
+    name: 'A',
+    email: 'a@dorado.test',
+    phone_number: '+15125550134',
+    accepted_terms: 'yes',
+    captcha_token: 't',
+  })
   assert.equal(res.status, 400)
 })
 

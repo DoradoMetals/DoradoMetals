@@ -20,6 +20,7 @@ import {
 } from '@dorado/components'
 
 import { useGetSession, useSignOut } from '@/shared/hooks/auth/queries'
+import { signInHref } from '@/shared/utils/returnTo'
 
 // The auth screens draw their own full-bleed panel (AuthShell), so they wear no
 // chrome. Everything else does.
@@ -58,6 +59,8 @@ type Entry = { href: string; label: string }
 
 function useAccountEntries(): { entries: Entry[]; signedIn: boolean; label: string } {
   const { user } = useGetSession()
+  // Signing in from the nav returns to the page it was clicked on.
+  const pathname = usePathname() ?? '/'
   const signedIn = Boolean(user)
   const isAdmin = user?.role === 'admin'
 
@@ -67,7 +70,7 @@ function useAccountEntries(): { entries: Entry[]; signedIn: boolean; label: stri
         ...(isAdmin ? [{ href: '/admin/orders', label: 'Admin' }] : []),
       ]
     : [
-        { href: '/auth/sign-in', label: 'Sign in' },
+        { href: signInHref(pathname), label: 'Sign in' },
         { href: '/auth/sign-up', label: 'Create an account' },
       ]
 
@@ -77,11 +80,12 @@ function useAccountEntries(): { entries: Entry[]; signedIn: boolean; label: stri
 function AccountMenu() {
   const { entries, signedIn, label } = useAccountEntries()
   const { mutate: signOut } = useSignOut()
+  const pathname = usePathname() ?? '/'
 
   if (!signedIn) {
     return (
       <UILink asChild variant="nav">
-        <NextLink href="/auth/sign-in">Sign in</NextLink>
+        <NextLink href={signInHref(pathname)}>Sign in</NextLink>
       </UILink>
     )
   }

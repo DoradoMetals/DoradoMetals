@@ -254,7 +254,10 @@ export function AuthForm(props: AuthFormProps) {
             resendIn={secondsUntil(view.resend_at)}
             onResend={onResend}
           />
-          {props.captcha}
+          {/* NO CAPTCHA SLOT HERE. The widget renders where a verification is
+              STARTED - sign-in, sign-up and the two factor changes. A resend
+              from this screen is a send inside the pending window, which
+              `send_code` accepts without a token. */}
           <Button type="submit" className="w-full" disabled={pending} aria-busy={pending}>
             Verify
           </Button>

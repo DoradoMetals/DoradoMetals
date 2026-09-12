@@ -265,6 +265,21 @@
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;
   --animate-marquee: marquee 30s linear infinite;
+  /* The OTP cell's drawn caret (Figma 96:11). A text cursor that does not
+     blink does not read as a text cursor, which is what Jacob was missing. */
+  --animate-caret-blink: caret-blink 1.2s steps(1) infinite;
+
+  @keyframes caret-blink {
+    0%,
+    70%,
+    100% {
+      opacity: 1;
+    }
+    20%,
+    50% {
+      opacity: 0;
+    }
+  }
 
   @keyframes marquee {
     from {

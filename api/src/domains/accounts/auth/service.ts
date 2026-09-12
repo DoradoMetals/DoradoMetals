@@ -13,7 +13,11 @@ import * as users from '#db/auth/users/repo.ts'
 import * as authSessions from '#db/auth/sessions/repo.ts'
 import * as rules from '#accounts/auth/rules.ts'
 import { auth } from '#accounts/auth/client.ts'
-import { sendAccountCreated, sendDetailsChanged, sendSignInCode } from '#documents/emails/service.ts'
+import {
+  sendAccountCreated,
+  sendDetailsChanged,
+  sendSignInCode,
+} from '#documents/emails/service.ts'
 import { detailsChangedRows } from '#documents/emails/rules.ts'
 import type {
   AuthOtpThrottle,
@@ -66,11 +70,7 @@ async function reserveSend(
 
     const counted = await throttles.update(subject, rules.nextSend(own, now, windowSeconds), tx)
     if (byIp) {
-      await throttles.update(
-        byIp.subject,
-        rules.nextSend(byIp, now, rules.IP_WINDOW_SECONDS),
-        tx
-      )
+      await throttles.update(byIp.subject, rules.nextSend(byIp, now, rules.IP_WINDOW_SECONDS), tx)
     }
     return [counted ?? own, true]
   })
@@ -123,7 +123,6 @@ async function deliverCode(
 
 export async function sendCode(body: SendCodeBody, ip: string | null): Promise<VerificationView> {
   const started = Date.now()
-  rules.assertCaptcha(await captcha.verify(body.captcha_token, ip))
 
   const destination = rules.destinationOf(
     body.channel,
@@ -131,11 +130,22 @@ export async function sendCode(body: SendCodeBody, ip: string | null): Promise<V
     body.email ?? null
   )
   const kind = rules.kindOf(body.channel)
+  const subject = rules.subjectOf(kind, destination)
+
+  // A token is asked for only when there is no live pending send (Jacob's
+  // amendment, 2026-09-11) - read off the throttle row, never auth.verification;
+  // see rules.captchaRequired. Peeked outside any transaction: captcha.verify
+  // is a network call and must never sit inside one.
+  const throttleRow = await throttles.getOne(subject)
+  if (rules.captchaRequired(throttleRow, Date.now())) {
+    rules.assertCaptcha(await captcha.verify(body.captcha_token ?? '', ip))
+  }
+
   const known =
     body.channel === 'sms' ? await users.byPhone(destination) : await users.byEmail(destination)
 
   const [row, may] = await reserveSend(
-    rules.subjectOf(kind, destination),
+    subject,
     kind,
     ip,
     rules.SENDS_PER_NUMBER,
@@ -293,7 +303,10 @@ export async function verifyCode(
     }
   }
 
-  return [rules.verificationView(purpose, body.channel, destination, row, status, Date.now()), cookies]
+  return [
+    rules.verificationView(purpose, body.channel, destination, row, status, Date.now()),
+    cookies,
+  ]
 }
 
 // The code has already been checked against our own throttle; better-auth

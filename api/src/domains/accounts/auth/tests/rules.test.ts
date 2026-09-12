@@ -90,7 +90,10 @@ test('the destination comes from the channel the caller picked', () => {
   assert.equal(rules.destinationOf('sms', '+15125550134', null), '+15125550134')
   assert.equal(rules.destinationOf('email', null, 'Jacob@Example.COM'), 'jacob@example.com')
   assert.throws(() => rules.destinationOf('sms', null, 'a@b.com'), /phone number is required/)
-  assert.throws(() => rules.destinationOf('email', '+15125550134', null), /email address is required/)
+  assert.throws(
+    () => rules.destinationOf('email', '+15125550134', null),
+    /email address is required/
+  )
 })
 
 // RULE 1: the server picks the channel for a change, and picks the OTHER one.
@@ -132,7 +135,10 @@ test('a session is fresh for five minutes from whichever proof is later', () => 
     true,
     'a step-up is what makes a stale session fresh again'
   )
-  assert.throws(() => rules.assertFresh(aSession({ createdAt: secondsAgo(301) }), NOW), /step_up_required/)
+  assert.throws(
+    () => rules.assertFresh(aSession({ createdAt: secondsAgo(301) }), NOW),
+    /step_up_required/
+  )
   rules.assertFresh(aSession(), NOW)
 })
 
@@ -205,12 +211,23 @@ test('the ip subject and the identity subject can never share a row', () => {
 })
 
 test('a code matches only while it is the minted one and has not expired', () => {
-  const row = { id: 'v', identifier: 'i', value: '418209:0', expiresAt: secondsAway(60), createdAt: secondsAgo(0), updatedAt: secondsAgo(0) }
+  const row = {
+    id: 'v',
+    identifier: 'i',
+    value: '418209:0',
+    expiresAt: secondsAway(60),
+    createdAt: secondsAgo(0),
+    updatedAt: secondsAgo(0),
+  }
   assert.equal(rules.codeMatches(row, '418209', NOW), true)
   assert.equal(rules.codeMatches(row, '418208', NOW), false)
   assert.equal(rules.codeMatches({ ...row, expiresAt: secondsAgo(1) }, '418209', NOW), false)
   assert.equal(rules.codeMatches(undefined, '418209', NOW), false)
-  assert.equal(rules.codeMatches({ ...row, value: ':0' }, '', NOW), false, 'an empty code is not a code')
+  assert.equal(
+    rules.codeMatches({ ...row, value: ':0' }, '', NOW),
+    false,
+    'an empty code is not a code'
+  )
 })
 
 // RULE 8: masking everywhere, and the ONE unmasked value.
@@ -224,7 +241,14 @@ test('every view masks, and only the confirmed view carries the new value in ful
   assert.equal(view.locked_until, null)
   assert.equal(view.status, 'sent')
 
-  const email = rules.verificationView('sign_in', 'email', 'jacob@doradometals.com', aThrottle(), 'sent', NOW)
+  const email = rules.verificationView(
+    'sign_in',
+    'email',
+    'jacob@doradometals.com',
+    aThrottle(),
+    'sent',
+    NOW
+  )
   assert.equal(email.destination, 'j•••@doradometals.com')
 
   const confirmed = rules.changeConfirmedView('email', 'new@doradometals.com', true)
@@ -259,9 +283,19 @@ test('the constants are the ones the design names', () => {
 })
 
 test('the identifier a code is stored under is the value it was sent to', () => {
-  assert.equal(rules.identifierFor(rules.CHANGE_OTP_TYPE, 'Jacob@Example.com'), 'change-email-otp-jacob@example.com')
-  assert.equal(rules.identifierFor(rules.STEP_UP_OTP_TYPE, '+15125550134'), 'email-verification-otp-+15125550134')
-  assert.notEqual(rules.STEP_UP_OTP_TYPE, rules.CHANGE_OTP_TYPE, 'a step-up code must not open a change')
+  assert.equal(
+    rules.identifierFor(rules.CHANGE_OTP_TYPE, 'Jacob@Example.com'),
+    'change-email-otp-jacob@example.com'
+  )
+  assert.equal(
+    rules.identifierFor(rules.STEP_UP_OTP_TYPE, '+15125550134'),
+    'email-verification-otp-+15125550134'
+  )
+  assert.notEqual(
+    rules.STEP_UP_OTP_TYPE,
+    rules.CHANGE_OTP_TYPE,
+    'a step-up code must not open a change'
+  )
   assert.notEqual(rules.SIGN_IN_OTP_TYPE, rules.STEP_UP_OTP_TYPE)
 })
 
@@ -301,7 +335,10 @@ test('an expired or absent change cannot be confirmed', () => {
   }
   rules.assertOpenChange(open, NOW)
   assert.throws(() => rules.assertOpenChange(undefined, NOW), /no change waiting/)
-  assert.throws(() => rules.assertOpenChange({ ...open, expires_at: secondsAgo(1) }, NOW), /expired/)
+  assert.throws(
+    () => rules.assertOpenChange({ ...open, expires_at: secondsAgo(1) }, NOW),
+    /expired/
+  )
 })
 
 test('the confirmed patch writes one factor and proves it in the same statement', () => {
@@ -318,4 +355,37 @@ test('the confirmed patch writes one factor and proves it in the same statement'
 test('the captcha is a refusal, not a warning', () => {
   rules.assertCaptcha(true)
   assert.throws(() => rules.assertCaptcha(false), /captcha did not pass/)
+})
+
+// Jacob's amendment, 2026-09-11: no token while a send is still pending.
+test('captchaRequired is true with no row and true again once the pending code expires', () => {
+  assert.equal(rules.captchaRequired(undefined, NOW), true, 'a first send always needs a token')
+
+  const justSent = aThrottle({ last_sent_at: secondsAgo(0) })
+  assert.equal(
+    rules.captchaRequired(justSent, NOW),
+    false,
+    'a resend inside the pending window needs none'
+  )
+
+  const almostExpired = aThrottle({ last_sent_at: secondsAgo(rules.OTP_EXPIRES_SECONDS - 1) })
+  assert.equal(
+    rules.captchaRequired(almostExpired, NOW),
+    false,
+    'one second inside the window is still pending'
+  )
+
+  const atBoundary = aThrottle({ last_sent_at: secondsAgo(rules.OTP_EXPIRES_SECONDS) })
+  assert.equal(
+    rules.captchaRequired(atBoundary, NOW),
+    true,
+    'the expiry instant itself counts as expired'
+  )
+
+  const expired = aThrottle({ last_sent_at: secondsAgo(rules.OTP_EXPIRES_SECONDS + 1) })
+  assert.equal(
+    rules.captchaRequired(expired, NOW),
+    true,
+    'a resend after the code has expired needs one again'
+  )
 })

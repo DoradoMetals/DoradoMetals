@@ -1065,7 +1065,7 @@
     },
     {
       "id": "14:3",
-      "name": "———  COMPONENTS  ———"
+      "name": "\u2014\u2014\u2014  COMPONENTS  \u2014\u2014\u2014"
     },
     {
       "id": "163:2",
@@ -1289,7 +1289,7 @@
     }
   ],
   "hygiene": {
-    "scanned": 3520,
+    "scanned": 3521,
     "totals": {
       "color": 0,
       "spacing": 24,

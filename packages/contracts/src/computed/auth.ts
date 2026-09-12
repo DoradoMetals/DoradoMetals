@@ -19,7 +19,9 @@ export const SendCodeBody = z
     channel: OtpChannel,
     phone_number: User.shape.phone_number.unwrap().optional(),
     email: User.shape.email.optional(),
-    captcha_token: z.string(),
+    // Optional: the Turnstile widget never appears on the OTP screen, so a
+    // resend inside the pending window (rules.captchaRequired) carries none.
+    captcha_token: z.string().optional(),
   })
   .strict()
 export type SendCodeBody = z.infer<typeof SendCodeBody>

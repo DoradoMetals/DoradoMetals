@@ -235,6 +235,140 @@ test('a locked number answers the Locked screen and nothing is sent', async () =
   )
 })
 
+// Jacob's amendment, 2026-09-11: the Turnstile widget never appears on the
+// OTP screen, so a token is asked for only when there is no live pending send.
+test('a first send with no token is refused, and nothing is sent', async () => {
+  await inPinnedTransaction(
+    async (c: PoolClient) => {
+      stubAuthApi(c)
+      await aUser(c, { phone_number: KNOWN })
+      captcha.next(false)
+
+      await assert.rejects(
+        () => service.sendCode({ channel: 'sms', phone_number: KNOWN }, IP),
+        /captcha did not pass/
+      )
+      assert.deepEqual(dispatched, [], 'a refused first send must not reach the provider')
+      assert.equal(
+        captcha.lastCheck()?.token,
+        '',
+        'an absent token reaches the provider as an empty string, never undefined'
+      )
+    },
+    { actor: TEST_ACTOR.id, lock: LOCKS.USERS }
+  )
+})
+
+test('a resend inside the pending window needs no token, and is still counted', async () => {
+  await inPinnedTransaction(
+    async (c: PoolClient) => {
+      stubAuthApi(c)
+      await aUser(c, { phone_number: KNOWN })
+
+      const subject = rules.subjectOf('phone', KNOWN)
+      await throttles.create(subject, 'phone', c)
+      await throttles.update(
+        subject,
+        {
+          sends: 1,
+          window_started_at: new Date().toISOString(),
+          last_sent_at: new Date().toISOString(),
+        },
+        c
+      )
+
+      const view = await service.sendCode({ channel: 'sms', phone_number: KNOWN }, IP)
+      assert.equal(view.status, 'sent')
+      assert.deepEqual(
+        dispatched,
+        [{ channel: 'sms', to: KNOWN }],
+        'the tokenless resend is still sent'
+      )
+
+      // still counted against the per-number limit: the row already carries
+      // one send, so two more tokenless resends reach the limit of three and
+      // a fourth is refused.
+      dispatched.length = 0
+      await service.sendCode({ channel: 'sms', phone_number: KNOWN }, IP)
+      dispatched.length = 0
+      const limited = await service.sendCode({ channel: 'sms', phone_number: KNOWN }, IP)
+
+      assert.deepEqual(dispatched, [], 'the per-number limit still applies with no token')
+      assert.equal(limited.status, 'sent', 'and the answer says nothing about why')
+      assert.equal(captcha.checked().length, 0, 'no pending resend above ever asked the provider')
+    },
+    { actor: TEST_ACTOR.id, lock: LOCKS.USERS }
+  )
+})
+
+test('a resend after the pending code has expired needs a token again', async () => {
+  await inPinnedTransaction(
+    async (c: PoolClient) => {
+      stubAuthApi(c)
+      await aUser(c, { phone_number: KNOWN })
+
+      const subject = rules.subjectOf('phone', KNOWN)
+      await throttles.create(subject, 'phone', c)
+      const stale = new Date(Date.now() - (rules.OTP_EXPIRES_SECONDS + 1) * 1000).toISOString()
+      await throttles.update(
+        subject,
+        { sends: 1, window_started_at: stale, last_sent_at: stale },
+        c
+      )
+
+      captcha.next(false)
+      await assert.rejects(
+        () => service.sendCode({ channel: 'sms', phone_number: KNOWN }, IP),
+        /captcha did not pass/
+      )
+      assert.deepEqual(dispatched, [], 'an expired pending window is treated as a first send')
+    },
+    { actor: TEST_ACTOR.id, lock: LOCKS.USERS }
+  )
+})
+
+// RULE 6, extended: enumeration-safety must hold for the captcha gate too -
+// an unknown identity is throttled off the same row shape as a known one.
+test('an unknown identity is gated by the same captcha rule as a known one', async () => {
+  await inPinnedTransaction(
+    async (c: PoolClient) => {
+      stubAuthApi(c)
+
+      captcha.next(false)
+      await assert.rejects(
+        () => service.sendCode({ channel: 'sms', phone_number: UNKNOWN }, IP),
+        /captcha did not pass/,
+        'a first send for an unknown number still needs a token'
+      )
+
+      const subject = rules.subjectOf('phone', UNKNOWN)
+      await throttles.create(subject, 'phone', c)
+      await throttles.update(
+        subject,
+        {
+          sends: 0,
+          window_started_at: new Date().toISOString(),
+          last_sent_at: new Date().toISOString(),
+        },
+        c
+      )
+      const view = await service.sendCode({ channel: 'sms', phone_number: UNKNOWN }, IP)
+      assert.equal(view.status, 'sent', 'an unknown identity answers exactly like a known one')
+      assert.deepEqual(dispatched, [], 'an unknown number is never texted, token or not')
+
+      const stale = new Date(Date.now() - (rules.OTP_EXPIRES_SECONDS + 1) * 1000).toISOString()
+      await throttles.update(subject, { last_sent_at: stale }, c)
+      captcha.next(false)
+      await assert.rejects(
+        () => service.sendCode({ channel: 'sms', phone_number: UNKNOWN }, IP),
+        /captcha did not pass/,
+        'an expired pending window needs a token again, unknown or not'
+      )
+    },
+    { actor: TEST_ACTOR.id, lock: LOCKS.USERS }
+  )
+})
+
 // RULE 8: nothing in the answer is a full value.
 test('the view never carries a full number or a full address', async () => {
   await inPinnedTransaction(
