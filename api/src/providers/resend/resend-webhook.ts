@@ -1,8 +1,13 @@
 import crypto from 'node:crypto'
+import {
+  RESEND_ID_HEADER,
+  RESEND_TIMESTAMP_HEADER,
+  RESEND_SIGNATURE_HEADER,
+} from '#providers/resend/constants.ts'
 
-export const ID_HEADER = 'svix-id'
-export const TIMESTAMP_HEADER = 'svix-timestamp'
-export const SIGNATURE_HEADER = 'svix-signature'
+export const ID_HEADER = RESEND_ID_HEADER
+export const TIMESTAMP_HEADER = RESEND_TIMESTAMP_HEADER
+export const SIGNATURE_HEADER = RESEND_SIGNATURE_HEADER
 
 const TOLERANCE_SECONDS = 5 * 60
 

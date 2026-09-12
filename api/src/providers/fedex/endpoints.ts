@@ -1,6 +1,7 @@
 import { requiredEnv } from '#shared/env/required.ts'
 import axios from 'axios'
 import { isTestRun } from '#shared/testing/is-test-run.ts'
+import { FEDEX_OAUTH_TOKEN_PATH } from '#providers/fedex/constants.ts'
 
 const sandbox = () => process.env.FEDEX_ENV === 'sandbox'
 
@@ -28,7 +29,7 @@ async function fetchOAuthToken({
   clientSecret: string
 }) {
   const response = await axios.post(
-    base() + '/oauth/token',
+    base() + FEDEX_OAUTH_TOKEN_PATH,
     new URLSearchParams({
       grant_type: 'client_credentials',
       client_id: clientId,

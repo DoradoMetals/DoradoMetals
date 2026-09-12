@@ -1,7 +1,8 @@
 import crypto from 'node:crypto'
 import type { PlaidVerificationKey } from '#providers/plaid/types.ts'
+import { PLAID_VERIFICATION_HEADER } from '#providers/plaid/constants.ts'
 
-export const VERIFICATION_HEADER = 'plaid-verification'
+export const VERIFICATION_HEADER = PLAID_VERIFICATION_HEADER
 
 const TOLERANCE_SECONDS = 5 * 60
 

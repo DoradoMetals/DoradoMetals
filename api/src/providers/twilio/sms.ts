@@ -1,6 +1,11 @@
 import axios from 'axios'
 import { requiredEnv } from '#shared/env/required.ts'
 import * as signature from '#providers/twilio/signature.ts'
+import {
+  TWILIO_API_BASE,
+  TWILIO_API_VERSION,
+  TWILIO_MESSAGES_RESOURCE,
+} from '#providers/twilio/constants.ts'
 import type {
   SmsInbound,
   SmsMedia,
@@ -46,7 +51,7 @@ export async function send(
   for (const attachment of media) form.append('MediaUrl', attachment.url)
 
   const response = await axios.post(
-    `https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(account_sid)}/Messages.json`,
+    `${TWILIO_API_BASE}/${TWILIO_API_VERSION}/Accounts/${encodeURIComponent(account_sid)}/${TWILIO_MESSAGES_RESOURCE}`,
     form,
     {
       auth: { username: account_sid, password: auth_token },
