@@ -1,5 +1,16 @@
 export const FEDEX_CARRIER_ID = '30179428-b311-4873-8d08-382901c581d8'
 
+export const FEDEX_OAUTH_TOKEN_PATH = '/oauth/token'
+export const FEDEX_ADDRESS_VALIDATION_PATH = '/address/v1/addresses/resolve'
+export const FEDEX_RATE_QUOTES_PATH = '/rate/v1/comprehensiverates/quotes'
+export const FEDEX_CREATE_SHIPMENT_PATH = '/ship/v1/shipments'
+export const FEDEX_CANCEL_SHIPMENT_PATH = '/ship/v1/shipments/cancel'
+export const FEDEX_PICKUP_AVAILABILITY_PATH = '/pickup/v1/pickups/availabilities'
+export const FEDEX_CREATE_PICKUP_PATH = '/pickup/v1/pickups'
+export const FEDEX_CANCEL_PICKUP_PATH = '/pickup/v1/pickups/cancel'
+export const FEDEX_LOCATIONS_PATH = '/location/v1/locations'
+export const FEDEX_TRACKING_PATH = '/track/v1/trackingnumbers'
+
 export const DORADO_ADDRESS = {
   streetLines: [process.env.FEDEX_RETURN_ADDRESS_LINE_1, process.env.FEDEX_RETURN_ADDRESS_LINE_2],
   city: process.env.FEDEX_RETURN_CITY,

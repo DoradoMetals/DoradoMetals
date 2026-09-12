@@ -9,6 +9,17 @@ import {
   parseTracking,
   parseCreateShipment,
 } from '#providers/fedex/utils/parsing.ts'
+import {
+  FEDEX_ADDRESS_VALIDATION_PATH,
+  FEDEX_RATE_QUOTES_PATH,
+  FEDEX_CREATE_SHIPMENT_PATH,
+  FEDEX_CANCEL_SHIPMENT_PATH,
+  FEDEX_PICKUP_AVAILABILITY_PATH,
+  FEDEX_CREATE_PICKUP_PATH,
+  FEDEX_CANCEL_PICKUP_PATH,
+  FEDEX_LOCATIONS_PATH,
+  FEDEX_TRACKING_PATH,
+} from '#providers/fedex/constants.ts'
 
 export async function validateAddress(address: Record<string, unknown> | null | undefined) {
   if (!address) {
@@ -21,7 +32,7 @@ export async function validateAddress(address: Record<string, unknown> | null | 
 
   const data = await endpoints.fedexPost({
     token,
-    path: '/address/v1/addresses/resolve',
+    path: FEDEX_ADDRESS_VALIDATION_PATH,
     payload,
   })
 
@@ -34,7 +45,7 @@ export async function getRates(input: any) {
 
   const data = await endpoints.fedexPost({
     token,
-    path: '/rate/v1/comprehensiverates/quotes',
+    path: FEDEX_RATE_QUOTES_PATH,
     payload,
   })
 
@@ -47,7 +58,7 @@ export async function createLabel(input: any) {
 
   const data = await endpoints.fedexPost({
     token,
-    path: '/ship/v1/shipments',
+    path: FEDEX_CREATE_SHIPMENT_PATH,
     payload,
   })
 
@@ -71,7 +82,7 @@ export async function cancelLabel({
 
   await endpoints.fedexPut({
     token,
-    path: '/ship/v1/shipments/cancel',
+    path: FEDEX_CANCEL_SHIPMENT_PATH,
     payload,
   })
 
@@ -104,7 +115,7 @@ export async function checkPickup({
 
   const data = await endpoints.fedexPost({
     token,
-    path: '/pickup/v1/pickups/availabilities',
+    path: FEDEX_PICKUP_AVAILABILITY_PATH,
     payload,
   })
 
@@ -117,7 +128,7 @@ export async function createPickup(input: any) {
 
   const data = await endpoints.fedexPost({
     token,
-    path: '/pickup/v1/pickups',
+    path: FEDEX_CREATE_PICKUP_PATH,
     payload,
   })
 
@@ -149,7 +160,7 @@ export async function cancelPickup({
 
   await endpoints.fedexPut({
     token,
-    path: '/pickup/v1/pickups/cancel',
+    path: FEDEX_CANCEL_PICKUP_PATH,
     payload,
   })
 
@@ -181,7 +192,7 @@ export async function getLocations({
 
   const data = await endpoints.fedexPost({
     token,
-    path: '/location/v1/locations',
+    path: FEDEX_LOCATIONS_PATH,
     payload,
   })
 
@@ -194,7 +205,7 @@ export async function getTracking(input: any) {
 
   const data = await endpoints.fedexPost({
     token,
-    path: '/track/v1/trackingnumbers',
+    path: FEDEX_TRACKING_PATH,
     payload,
   })
 

@@ -1,7 +1,14 @@
 import { requiredEnv } from '#shared/env/required.ts'
 import type { PlaceLookup, PlaceSuggestion } from '@dorado/contracts'
+import {
+  GOOGLE_PLACES_HOST,
+  GOOGLE_PLACES_AUTOCOMPLETE_PATH,
+  GOOGLE_PLACES_PATH,
+  GOOGLE_API_KEY_HEADER,
+  GOOGLE_FIELD_MASK_HEADER,
+} from '#providers/google/constants.ts'
 
-const HOST = 'https://places.googleapis.com'
+const HOST = GOOGLE_PLACES_HOST
 
 type Prediction = {
   placeId?: string
@@ -22,8 +29,8 @@ async function ask<T>(path: string, body: unknown, mask: string): Promise<T> {
     method: body === undefined ? 'GET' : 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'X-Goog-Api-Key': key(),
-      'X-Goog-FieldMask': mask,
+      [GOOGLE_API_KEY_HEADER]: key(),
+      [GOOGLE_FIELD_MASK_HEADER]: mask,
     },
     body: body === undefined ? undefined : JSON.stringify(body),
   })
@@ -55,7 +62,7 @@ export async function suggest(
   sessionToken: string | null
 ): Promise<PlaceSuggestion[]> {
   const body = await ask<{ suggestions?: { placePrediction?: Prediction }[] }>(
-    '/v1/places:autocomplete',
+    GOOGLE_PLACES_AUTOCOMPLETE_PATH,
     { input, includedRegionCodes: ['us'], sessionToken: sessionToken ?? undefined },
     'suggestions.placePrediction.placeId,suggestions.placePrediction.text,' +
       'suggestions.placePrediction.structuredFormat'
@@ -80,7 +87,7 @@ export async function lookup(place_id: string): Promise<PlaceLookup> {
     addressComponents?: Component[]
     location?: LatLng
   }>(
-    `/v1/places/${encodeURIComponent(place_id)}`,
+    `${GOOGLE_PLACES_PATH}/${encodeURIComponent(place_id)}`,
     undefined,
     'formattedAddress,addressComponents,location'
   )

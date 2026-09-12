@@ -2,6 +2,7 @@ import '#env'
 import http from 'node:http'
 import https from 'node:https'
 import { isTestRun } from '#shared/testing/is-test-run.ts'
+import { STRIPE_API_VERSION } from '#providers/stripe/constants.ts'
 import Stripe from 'stripe'
 
 const key = process.env.STRIPE_SECRET_KEY ?? ''
@@ -68,10 +69,8 @@ const immediateWriteHttpClient: Stripe.HttpClient = {
   },
 }
 
-const API_VERSION: Stripe.LatestApiVersion = '2026-08-26.dahlia'
-
 const stripeClient = new Stripe(key, {
-  apiVersion: API_VERSION,
+  apiVersion: STRIPE_API_VERSION,
   ...(isTestRun() ? { httpClient: immediateWriteHttpClient } : {}),
 })
 

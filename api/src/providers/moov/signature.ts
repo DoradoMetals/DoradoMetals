@@ -1,9 +1,15 @@
 import crypto from 'node:crypto'
+import {
+  MOOV_SIGNATURE_HEADER,
+  MOOV_TIMESTAMP_HEADER,
+  MOOV_NONCE_HEADER,
+  MOOV_WEBHOOK_ID_HEADER,
+} from '#providers/moov/constants.ts'
 
-export const SIGNATURE_HEADER = 'x-signature'
-export const TIMESTAMP_HEADER = 'x-timestamp'
-export const NONCE_HEADER = 'x-nonce'
-export const WEBHOOK_ID_HEADER = 'x-webhook-id'
+export const SIGNATURE_HEADER = MOOV_SIGNATURE_HEADER
+export const TIMESTAMP_HEADER = MOOV_TIMESTAMP_HEADER
+export const NONCE_HEADER = MOOV_NONCE_HEADER
+export const WEBHOOK_ID_HEADER = MOOV_WEBHOOK_ID_HEADER
 
 const TOLERANCE_MS = 5 * 60 * 1000
 

@@ -4,10 +4,21 @@ import type {
   PlaidFeedTransaction,
   PlaidVerificationKey,
 } from '#providers/plaid/types.ts'
+import {
+  PLAID_SANDBOX_HOST,
+  PLAID_PRODUCTION_HOST,
+  PLAID_LINK_TOKEN_CREATE_PATH,
+  PLAID_PUBLIC_TOKEN_EXCHANGE_PATH,
+  PLAID_PROCESSOR_TOKEN_CREATE_PATH,
+  PLAID_TRANSACTIONS_SYNC_PATH,
+  PLAID_WEBHOOK_VERIFICATION_KEY_PATH,
+  PLAID_CLIENT_ID_HEADER,
+  PLAID_SECRET_HEADER,
+} from '#providers/plaid/constants.ts'
 
 const HOSTS = new Map([
-  ['sandbox', 'https://sandbox.plaid.com'],
-  ['production', 'https://production.plaid.com'],
+  ['sandbox', PLAID_SANDBOX_HOST],
+  ['production', PLAID_PRODUCTION_HOST],
 ])
 
 const host = (): string => {
@@ -22,8 +33,8 @@ async function ask<T>(path: string, body: Record<string, unknown>): Promise<T> {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'PLAID-CLIENT-ID': requiredEnv('PLAID_CLIENT_ID'),
-      'PLAID-SECRET': requiredEnv('PLAID_SECRET'),
+      [PLAID_CLIENT_ID_HEADER]: requiredEnv('PLAID_CLIENT_ID'),
+      [PLAID_SECRET_HEADER]: requiredEnv('PLAID_SECRET'),
     },
     body: JSON.stringify(body),
   })
@@ -43,7 +54,7 @@ const transactionOf = (raw: PlaidFeedTransaction): PlaidFeedTransaction => ({
 })
 
 export const createLinkToken: PlaidData['createLinkToken'] = async (client_user_id) =>
-  await ask('/link/token/create', {
+  await ask(PLAID_LINK_TOKEN_CREATE_PATH, {
     user: { client_user_id },
     client_name: 'Dorado Metals Exchange',
     products: ['auth'],
@@ -52,12 +63,12 @@ export const createLinkToken: PlaidData['createLinkToken'] = async (client_user_
   })
 
 export const exchangePublicToken: PlaidData['exchangePublicToken'] = async (public_token) =>
-  await ask('/item/public_token/exchange', { public_token })
+  await ask(PLAID_PUBLIC_TOKEN_EXCHANGE_PATH, { public_token })
 
 export const createProcessorToken: PlaidData['createProcessorToken'] = async (
   access_token,
   account_id
-) => await ask('/processor/token/create', { access_token, account_id, processor: 'moov' })
+) => await ask(PLAID_PROCESSOR_TOKEN_CREATE_PATH, { access_token, account_id, processor: 'moov' })
 
 export const syncTransactions: PlaidData['syncTransactions'] = async (access_token, cursor) => {
   const raw = await ask<{
@@ -66,7 +77,7 @@ export const syncTransactions: PlaidData['syncTransactions'] = async (access_tok
     removed?: { transaction_id: string }[]
     next_cursor?: string
     has_more?: boolean
-  }>('/transactions/sync', cursor ? { access_token, cursor } : { access_token })
+  }>(PLAID_TRANSACTIONS_SYNC_PATH, cursor ? { access_token, cursor } : { access_token })
 
   return {
     added: (raw.added ?? []).map(transactionOf),
@@ -78,7 +89,9 @@ export const syncTransactions: PlaidData['syncTransactions'] = async (access_tok
 }
 
 export const verificationKey: PlaidData['verificationKey'] = async (key_id) => {
-  const raw = await ask<{ key?: PlaidVerificationKey }>('/webhook_verification_key/get', { key_id })
+  const raw = await ask<{ key?: PlaidVerificationKey }>(PLAID_WEBHOOK_VERIFICATION_KEY_PATH, {
+    key_id,
+  })
   if (!raw.key) throw new Error('plaid returned no webhook verification key')
   return raw.key
 }

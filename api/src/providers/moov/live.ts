@@ -9,9 +9,22 @@ import type {
   MoovTransferRequest,
   MoovWallet,
 } from '#providers/moov/types.ts'
+import {
+  MOOV_DEFAULT_HOST,
+  MOOV_API_VERSION,
+  MOOV_OAUTH_TOKEN_PATH,
+  MOOV_ACCOUNTS_PATH,
+  MOOV_BANK_ACCOUNTS_SEGMENT,
+  MOOV_MICRO_DEPOSITS_SEGMENT,
+  MOOV_PAYMENT_METHODS_SEGMENT,
+  MOOV_TRANSFERS_SEGMENT,
+  MOOV_WALLETS_SEGMENT,
+  MOOV_VERSION_HEADER,
+  MOOV_IDEMPOTENCY_KEY_HEADER,
+} from '#providers/moov/constants.ts'
 
-const HOST = process.env.MOOV_HOST ?? 'https://api.moov.io'
-const VERSION = 'v2024.01.00'
+const HOST = process.env.MOOV_HOST ?? MOOV_DEFAULT_HOST
+const VERSION = MOOV_API_VERSION
 
 type TokenResponse = { access_token?: string; expires_in?: number }
 
@@ -24,9 +37,9 @@ async function accessToken(now = Date.now()): Promise<string> {
     grant_type: 'client_credentials',
     client_id: requiredEnv('MOOV_PUBLIC_KEY'),
     client_secret: requiredEnv('MOOV_SECRET_KEY'),
-    scope: `/accounts.read /accounts.write /transfers.read /transfers.write /accounts/${requiredEnv('MOOV_ACCOUNT_ID')}/bank-accounts.read /accounts/${requiredEnv('MOOV_ACCOUNT_ID')}/bank-accounts.write`,
+    scope: `${MOOV_ACCOUNTS_PATH}.read ${MOOV_ACCOUNTS_PATH}.write /${MOOV_TRANSFERS_SEGMENT}.read /${MOOV_TRANSFERS_SEGMENT}.write ${MOOV_ACCOUNTS_PATH}/${requiredEnv('MOOV_ACCOUNT_ID')}/${MOOV_BANK_ACCOUNTS_SEGMENT}.read ${MOOV_ACCOUNTS_PATH}/${requiredEnv('MOOV_ACCOUNT_ID')}/${MOOV_BANK_ACCOUNTS_SEGMENT}.write`,
   })
-  const response = await fetch(`${HOST}/oauth2/token`, {
+  const response = await fetch(`${HOST}${MOOV_OAUTH_TOKEN_PATH}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: body.toString(),
@@ -48,11 +61,11 @@ async function ask<T>(
 ): Promise<T> {
   const headers = new Headers({
     Authorization: `Bearer ${await accessToken()}`,
-    'x-moov-version': VERSION,
+    [MOOV_VERSION_HEADER]: VERSION,
     Accept: 'application/json',
   })
   if (body !== undefined) headers.set('Content-Type', 'application/json')
-  if (idempotencyKey) headers.set('X-Idempotency-Key', idempotencyKey)
+  if (idempotencyKey) headers.set(MOOV_IDEMPOTENCY_KEY_HEADER, idempotencyKey)
 
   const response = await fetch(`${HOST}${path}`, {
     method,
@@ -101,7 +114,7 @@ const transferOf = (raw: RawTransfer): MoovTransfer => ({
 })
 
 export const createAccount: MoovRails['createAccount'] = async (displayName, email) => {
-  const raw = await ask<{ accountID?: string; displayName?: string }>('POST', '/accounts', {
+  const raw = await ask<{ accountID?: string; displayName?: string }>('POST', MOOV_ACCOUNTS_PATH, {
     accountType: 'individual',
     profile: { individual: { name: { firstName: displayName, lastName: '' }, email } },
   })
@@ -113,29 +126,40 @@ export const linkByProcessorToken: MoovRails['linkByProcessorToken'] = async (
   processorToken
 ) =>
   bankAccountOf(
-    await ask<RawBankAccount>('POST', `/accounts/${accountID}/bank-accounts`, {
-      plaid: { token: processorToken },
-    })
+    await ask<RawBankAccount>(
+      'POST',
+      `${MOOV_ACCOUNTS_PATH}/${accountID}/${MOOV_BANK_ACCOUNTS_SEGMENT}`,
+      {
+        plaid: { token: processorToken },
+      }
+    )
   )
 
 export const linkByNumbers: MoovRails['linkByNumbers'] = async (accountID, numbers) =>
   bankAccountOf(
-    await ask<RawBankAccount>('POST', `/accounts/${accountID}/bank-accounts`, {
-      account: {
-        holderName: numbers.holderName,
-        holderType: 'individual',
-        accountNumber: numbers.accountNumber,
-        routingNumber: numbers.routingNumber,
-        bankAccountType: numbers.accountType,
-      },
-    })
+    await ask<RawBankAccount>(
+      'POST',
+      `${MOOV_ACCOUNTS_PATH}/${accountID}/${MOOV_BANK_ACCOUNTS_SEGMENT}`,
+      {
+        account: {
+          holderName: numbers.holderName,
+          holderType: 'individual',
+          accountNumber: numbers.accountNumber,
+          routingNumber: numbers.routingNumber,
+          bankAccountType: numbers.accountType,
+        },
+      }
+    )
   )
 
 export const startMicroDeposits: MoovRails['startMicroDeposits'] = async (
   accountID,
   bankAccountID
 ) => {
-  await ask('POST', `/accounts/${accountID}/bank-accounts/${bankAccountID}/micro-deposits`)
+  await ask(
+    'POST',
+    `${MOOV_ACCOUNTS_PATH}/${accountID}/${MOOV_BANK_ACCOUNTS_SEGMENT}/${bankAccountID}/${MOOV_MICRO_DEPOSITS_SEGMENT}`
+  )
 }
 
 export const confirmMicroDeposits: MoovRails['confirmMicroDeposits'] = async (
@@ -146,13 +170,16 @@ export const confirmMicroDeposits: MoovRails['confirmMicroDeposits'] = async (
   bankAccountOf(
     await ask<RawBankAccount>(
       'PUT',
-      `/accounts/${accountID}/bank-accounts/${bankAccountID}/micro-deposits`,
+      `${MOOV_ACCOUNTS_PATH}/${accountID}/${MOOV_BANK_ACCOUNTS_SEGMENT}/${bankAccountID}/${MOOV_MICRO_DEPOSITS_SEGMENT}`,
       { amounts }
     )
   )
 
 export const paymentMethods: MoovRails['paymentMethods'] = async (accountID) => {
-  const raw = await ask<RawPaymentMethod[]>('GET', `/accounts/${accountID}/payment-methods`)
+  const raw = await ask<RawPaymentMethod[]>(
+    'GET',
+    `${MOOV_ACCOUNTS_PATH}/${accountID}/${MOOV_PAYMENT_METHODS_SEGMENT}`
+  )
   return (raw ?? []).map((method) => ({
     paymentMethodID: method.paymentMethodID ?? '',
     paymentMethodType: method.paymentMethodType ?? '',
@@ -167,7 +194,7 @@ export const createTransfer: MoovRails['createTransfer'] = async (
   transferOf(
     await ask<RawTransfer>(
       'POST',
-      `/accounts/${platform()}/transfers`,
+      `${MOOV_ACCOUNTS_PATH}/${platform()}/${MOOV_TRANSFERS_SEGMENT}`,
       {
         source: { paymentMethodID: request.sourcePaymentMethodID },
         destination: { paymentMethodID: request.destinationPaymentMethodID },
@@ -179,12 +206,17 @@ export const createTransfer: MoovRails['createTransfer'] = async (
   )
 
 export const getTransfer: MoovRails['getTransfer'] = async (transferID) =>
-  transferOf(await ask<RawTransfer>('GET', `/accounts/${platform()}/transfers/${transferID}`))
+  transferOf(
+    await ask<RawTransfer>(
+      'GET',
+      `${MOOV_ACCOUNTS_PATH}/${platform()}/${MOOV_TRANSFERS_SEGMENT}/${transferID}`
+    )
+  )
 
 export const walletBalance: MoovRails['walletBalance'] = async (accountID) => {
   const raw = await ask<{ walletID?: string; availableBalance?: { value?: number } }[]>(
     'GET',
-    `/accounts/${accountID}/wallets`
+    `${MOOV_ACCOUNTS_PATH}/${accountID}/${MOOV_WALLETS_SEGMENT}`
   )
   const first = (raw ?? [])[0]
   return {

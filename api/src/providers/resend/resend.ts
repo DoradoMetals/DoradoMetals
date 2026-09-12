@@ -1,4 +1,8 @@
 import type { Attachment, Message, MessageTag, Transport } from '#providers/resend/types.ts'
+import {
+  RESEND_DEFAULT_HOST,
+  RESEND_SEND_EMAIL_PATH,
+} from '#providers/resend/constants.ts'
 
 export type ResendAttachment = {
   filename: string
@@ -94,11 +98,11 @@ export function refusalFrom(status: number, payload: unknown): string {
 export function transport(): Transport {
   assertSendable()
   const key = (process.env.RESEND_API_KEY ?? '').trim()
-  const host = process.env.RESEND_HOST ?? 'https://api.resend.com'
+  const host = process.env.RESEND_HOST ?? RESEND_DEFAULT_HOST
 
   return {
     sendMail: async (message: Message) => {
-      const response = await fetch(`${host}/emails`, {
+      const response = await fetch(`${host}${RESEND_SEND_EMAIL_PATH}`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${key}`,
