@@ -264,3 +264,137 @@ be preserved — ruling: the frontend follows the API (CLAUDE.md, 2026-09-02).
 - The combine lineage column (§5.5).
 - Whether an order-grain Batch should offer to include a partly-received order's lots as they arrive, or make the operator come back.
 - Whether `Consumed` earns a chip on the Inventory position filter (drawn, at 0).
+
+---
+
+## Revision 2026-09-11 — Jacob's five critiques
+
+Second pass on the **Proposal · positions** section only. Nothing of his was
+touched, and the Source Control (`643:12678`) and Payout Timing (`643:12699`)
+frames are unchanged — no critique reached them. Every new part is a library
+instance (Themes and Components / Icons); no raw hex, no invented component.
+
+### 1 · "Little too wordy in places"
+
+Every helper line, note and subtitle is now at most a short phrase plus its
+figures.
+
+| Where | Was | Is | Frame |
+|---|---|---|---|
+| Section note | 24 paragraphs of rationale | heading + one 33-word paragraph; the rationale is this doc | `638:13011` |
+| Selection Bar | a third "Reason" line on all five variants | gone; one helper line survives, on `Mixed` only | `641:14984` |
+| Inventory card, All | "pooled — see each metal" | line deleted | `642:12663` / `642:12669` |
+| Inventory card, metals | "fine, at 2 refiners" | "2 refiners" / "1 refiner" / "nothing pooled" | `642:12675`–`642:12705` |
+| Inventory subtitle | "What we hold — 23 lots on hand across 3 metals, plus the fine ounces the refiners owe us" | "23 lots on hand · 3 metals · 193.0 oz pooled" | `656:15122` |
+| Order Card gate | "Payout waits on refiner settlement · 2 of 3 refinable lots are still at a refiner" | "Waiting on settlement · 2 of 3 lots" | `640:13045` |
+| Order Card gate, sale | "Charge must be received before we source · $8,410 due from the customer" | "Charge due · $8,410" | `640:13045` |
+| Order cards on screen | "Payable now · every lot received and assayed, and none of them needs a refiner" | "Payable now" | `644:12702` |
+
+### 2 · "Cards should expand across screen"
+
+The per-metal Inventory cards now **fill** the content width as four equal
+columns — `Metals` (`645:13397`) is `FILL`, every card instance is `FILL`, and
+each lands at 326 wide with no trailing gap. The lot table was already `FILL` at
+1376.
+
+The order-card grid (`644:12702`) stays a fixed 332-wide tile rather than `FILL`
+children, and that is deliberate: it is a **wrapped** auto-layout, and a `FILL`
+child in a wrapped row has a zero minimum width, so all six cards collapse onto
+one line. 4 × 332 + 3 × 16 = 1376 exactly, so the row already reaches both
+edges of the content width. If the card count per row ever has to change, the
+card width changes with it — there is no Figma construct that gives equal
+wrapped columns.
+
+### 3 · "Scrap vs. bullion filter"
+
+A `All · Scrap · Bullion` group, built from the **Radio Chip** the position
+chips already use (library key `fe8e5177…`), on both screens:
+
+- **Inventory** — beside the position chips, in a new `Filters` row that holds
+  the two groups 32 apart: `656:15180` (group `656:15181`).
+- **Orders** — its own row under the filter bar: `656:15194`.
+
+It is a sibling row rather than an edit to `Filter Bar (proposal A)`
+(`626:11861`), which is his and stays untouched.
+
+### 4 · "Make sure the headers of the pages are equal"
+
+One local component, **`Page Header` `656:15023`**, placed on both screens, so
+they cannot drift:
+
+```
+Breadcrumb  Admin › … › …
+Title  +  selectable chips (same row)            [ search, far right ]
+one-line description
+```
+
+Properties: `Title`, `Description`, `Show chip 3`, `Show chip 4` (Orders hides
+chips 3 and 4). Chip labels, chip `Selected`, the crumbs and the search
+placeholder are per-instance overrides. Built by cloning the breadcrumb, H2,
+subtitle, chips and search field that were already on the screens, so every
+token binding came with them; the ground is the screen's own bound fill.
+
+- Orders instance `656:15024` — `Admin › Orders › Purchases`, title **Orders**,
+  chips `Purchases · Sales`, "6 orders open · 18 lots on hand".
+- Inventory instance `656:15122` — `Admin › Inventory › Gold`, title
+  **Inventory**, chips `All · Gold · Silver · Platinum`, "23 lots on hand ·
+  3 metals · 193.0 oz pooled".
+
+Breadcrumb on **both**. The screens' own title rows (`644:12693`, `645:13073`)
+and the loose breadcrumb (`645:13072`) are deleted — the instance replaces them.
+
+### 5 · "What's going on with the bottom batching toolbar?"
+
+**The bar shows only the actions that apply to the selection's grain. There is
+no disabled trio.** `Clear` is gone as a text button; deselect is now an
+icon-only ✕ — the library **Icon Button** (`d01ef6d6…`, Tertiary / Neutral /
+Default) with the Icons `x` glyph — sitting to the left of the summary.
+
+The Select reads **`Elemetal · Dallas`**; the "new draft" wording moved into its
+label, which is now `Batch into new draft`. Two lines of summary, never three.
+
+The set (`641:14984`) is down from five variants to three:
+
+| Variant | id | Actions |
+|---|---|---|
+| `Selection=Orders` | `649:13427` | ✕ · **Batch into new draft** [Elemetal · Dallas] · **Batch** |
+| `Selection=On hand` | `641:14854` | ✕ · Combine · Assign to sale · [Elemetal · Dallas] · **Batch** |
+| `Selection=Mixed positions` | `641:14880` | ✕ only, plus one line: "Only on-hand lots can be batched" |
+
+`Selection=Across orders` and `Selection=Pooled or sold` are **deleted**. Both
+existed only to draw a greyed button with a reason beside it, which is the thing
+the new rule removes: across orders, Combine is simply absent; pooled or sold is
+a mixed selection and reads as `Mixed`. Two lot-grain states, as asked.
+
+### Unchanged, and why
+
+- **Badge colour language** — untouched. Warning → Info → Success for pre → mid
+  → post, Danger for problems, Neutral Outline for not set / draft.
+- **Lot Row (proposal) `639:13959`** — nothing in it was wordy; the columns
+  already fill 1376.
+- **Source Control `643:12678`, Payout Timing `643:12699`** — no critique
+  reached them.
+
+### Nothing was invented, one thing could not be expressed
+
+Every new element is a library instance or a variant of one: Icon Button, Radio
+Chip, Chip, Input, Breadcrumb, Select, Button. The only thing the library could
+not express is **equal wrapped columns for the order-card grid** (§2) — that is
+a Figma auto-layout limit, not a missing component, and the fixed 332 tile
+reaches both edges anyway. No new component was drawn.
+
+### Frame ids added this pass
+
+| Frame | id |
+|---|---|
+| `Page Header` (local component) | `656:15023` |
+| — instance on `Admin / Orders` | `656:15024` |
+| — instance on `Admin / Inventory` | `656:15122` |
+| `Filters` row on Inventory | `656:15180` |
+| — `Form filter` group (All · Scrap · Bullion) | `656:15181` |
+| `Form filter` row on Orders | `656:15194` |
+| Deselect ✕, per Selection Bar variant | `655:13500` · `655:15000` · `656:13490` |
+
+Deleted this pass: `641:14920`, `641:14947` (Selection Bar variants),
+`644:12693`, `645:13072`, `645:13073` (the screens' old header parts), and 22
+paragraphs from the note frame `638:13011`.
