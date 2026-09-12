@@ -139,8 +139,9 @@ SELECT to_jsonb(o)
           FROM auth.users u
          WHERE u.id = o.user_id) AS "user",
        -- The header's PO-2481 / SO-2481. The prefix is a label, and deciding it
-       -- in the browser is deciding it in three browsers (ruling 83).
-       CASE WHEN o.direction = 'sale' THEN 'SO-' ELSE 'PO-' END || o.number AS reference,
+       -- in the browser is deciding it in three browsers (ruling 83). Shared
+       -- with list.sql via order_reference.sql so the two cannot drift.
+       /*__order_reference__*/ AS reference,
        -- Whether this order's payout has already been credited to the
        -- customer's balance. The add_funds action turns itself off from it, and
        -- the endpoint refuses on it (MP F4).

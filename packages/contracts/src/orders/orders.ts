@@ -42,9 +42,18 @@ import { CarrierService } from '../shipping/services.js'
 import { Package } from '../shipping/packages.js'
 import { Refiner } from '../refiners/refiners.js'
 import { OrderActions, OrderViewUser } from '../computed/orders.js'
+import { UserSummary } from '../auth/users.js'
 
 export const OrderRead = Order.extend({ totals: OrderTotals.nullable() })
 export type OrderRead = z.infer<typeof OrderRead>
+
+// GET /api/orders' row: the header's reference and who the order belongs to,
+// same as the single view (ruling 83 - no browser decides either).
+export const OrderListItem = OrderRead.extend({
+  reference: z.string(),
+  customer: UserSummary.nullable(),
+})
+export type OrderListItem = z.infer<typeof OrderListItem>
 
 // A shipment as an order shows it: the row, plus the two labels a document
 // prints instead of an id. Both are scalar subselects in `db/orders/sql/view.sql`

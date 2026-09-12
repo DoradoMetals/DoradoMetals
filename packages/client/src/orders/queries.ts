@@ -7,10 +7,10 @@ import type {
   LotSplit,
   OrderCancelBody,
   OrderDocument,
+  OrderListItem,
   OrderLotPatch,
   OrderLotView,
   OrderPatch,
-  OrderRead,
   OrderSpot,
   OrderSpotsPutBody,
   OrderSupplyBody,
@@ -34,10 +34,10 @@ export function useOrders(
 ) {
   const direction = filters.direction ?? null
   const user_id = filters.user_id ?? null
-  return useQuery<OrderRead[]>({
+  return useQuery<OrderListItem[]>({
     queryKey: keys.orders.list(direction, user_id),
     enabled: options.enabled ?? true,
-    queryFn: () => apiRequest<OrderRead[]>('GET', '/orders', undefined, { direction, user_id }),
+    queryFn: () => apiRequest<OrderListItem[]>('GET', '/orders', undefined, { direction, user_id }),
   })
 }
 

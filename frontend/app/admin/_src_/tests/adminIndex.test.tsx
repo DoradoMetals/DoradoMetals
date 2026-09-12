@@ -8,10 +8,10 @@
 // "PO-" back in.
 import { describe, expect, test, vi, beforeEach } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
-import type { OrderRead, RefiningOrderView } from '@dorado/contracts'
+import type { OrderListItem, RefiningOrderView } from '@dorado/contracts'
 
 const state = {
-  orders: { data: [] as OrderRead[], isPending: false, isError: false },
+  orders: { data: [] as OrderListItem[], isPending: false, isError: false },
   refining: { data: [] as RefiningOrderView[], isPending: false, isError: false },
 }
 
@@ -22,7 +22,7 @@ vi.mock('@dorado/client', () => ({
 
 const { AdminIndex } = await import('../AdminIndex')
 
-const anOrder = (over: Partial<OrderRead> = {}): OrderRead =>
+const anOrder = (over: Partial<OrderListItem> = {}): OrderListItem =>
   ({
     id: '11111111-1111-4111-8111-111111111111',
     user_id: '22222222-2222-4222-8222-222222222222',
@@ -32,8 +32,14 @@ const anOrder = (over: Partial<OrderRead> = {}): OrderRead =>
     created_at: '2026-09-04T15:30:00.000Z',
     spots_locked: false,
     totals: null,
+    reference: 'PO-16286',
+    customer: {
+      id: '22222222-2222-4222-8222-222222222222',
+      name: 'Test Person',
+      email: 'test@dorado.test',
+    },
     ...over,
-  }) as OrderRead
+  }) as OrderListItem
 
 const aRefiningOrder = (over: Partial<RefiningOrderView> = {}): RefiningOrderView =>
   ({
@@ -88,6 +94,28 @@ describe('the admin index', () => {
     const row = link.closest('tr') as HTMLElement
     expect(within(row).getByText('purchase')).toBeTruthy()
     expect(within(row).getByText('In Transit')).toBeTruthy()
+    expect(within(row).getByText('PO-16286')).toBeTruthy()
+    expect(within(row).getByText('Test Person')).toBeTruthy()
+  })
+
+  test('the reference and customer come off the row, never composed on screen', () => {
+    state.orders = {
+      data: [
+        anOrder({
+          reference: 'SO-9001',
+          customer: { id: 'u1', name: 'Ada Lovelace', email: 'ada@dorado.test' },
+        }),
+      ],
+      isPending: false,
+      isError: false,
+    }
+    render(<AdminIndex />)
+
+    const row = within(tableFor('Orders'))
+      .getByRole('link', { name: '16286' })
+      .closest('tr') as HTMLElement
+    expect(within(row).getByText('SO-9001')).toBeTruthy()
+    expect(within(row).getByText('Ada Lovelace')).toBeTruthy()
   })
 
   test('each refiner order links to the refining screen and names its refiner', () => {

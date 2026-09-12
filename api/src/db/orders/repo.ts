@@ -6,6 +6,7 @@ import type {
   Direction,
   Order,
   OrderGuard,
+  OrderListItem,
   OrderRead,
   OrderViewFacts,
   OrderWrite,
@@ -15,11 +16,15 @@ import type { Executor } from '#shared/db/executor.ts'
 import { columnsOf } from '#shared/db/columns.ts'
 import {
   OrderGuard as Guard,
+  OrderListItem as ListItem,
   OrderViewFacts as Facts,
   OrderWrite as Write,
 } from '@dorado/contracts'
 
 const sql = sqlFrom(import.meta.dirname)
+const ORDER_REFERENCE = sql('order_reference').trim()
+const LIST_SQL = sql('list').replace('/*__order_reference__*/', ORDER_REFERENCE)
+const VIEW_SQL = sql('view').replace('/*__order_reference__*/', ORDER_REFERENCE)
 
 export async function exists(id: string, executor?: Executor): Promise<boolean> {
   const { rows } = await query<{ present: boolean }>(sql('exists'), [id], executor)
@@ -35,9 +40,9 @@ export async function list(
   direction: Direction | null,
   user_id: string | null,
   executor?: Executor
-): Promise<OrderRead[]> {
-  const { rows } = await query<OrderRead>(sql('list'), [direction, user_id], executor)
-  return rows
+): Promise<OrderListItem[]> {
+  const { rows } = await query<{ view: unknown }>(LIST_SQL, [direction, user_id], executor)
+  return rows.map((row) => ListItem.parse(row.view))
 }
 
 export async function getOne(id: string, executor?: Executor): Promise<OrderRead | undefined> {
@@ -46,7 +51,7 @@ export async function getOne(id: string, executor?: Executor): Promise<OrderRead
 }
 
 export async function view(id: string, executor?: Executor): Promise<OrderViewFacts | undefined> {
-  const { rows } = await query(sql('view'), [id], executor)
+  const { rows } = await query(VIEW_SQL, [id], executor)
   return rows[0] === undefined ? undefined : Facts.parse(rows[0])
 }
 

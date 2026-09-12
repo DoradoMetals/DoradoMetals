@@ -112,7 +112,7 @@ add('GET /rates/tiers', c.RateTier, () => ratesService.listTiers())
 
 const orderRead = await import('#orders/read.ts')
 const orders = await orderRead.list('purchase', null)
-add('GET /orders', c.OrderRead, () => orderRead.list(null, null))
+add('GET /orders', c.OrderListItem, () => orderRead.list(null, null))
 
 const orderSpotsRepo = await import('#db/orders/spots/repo.ts')
 add('GET /orders/:id/spots', c.OrderSpot, async () => {

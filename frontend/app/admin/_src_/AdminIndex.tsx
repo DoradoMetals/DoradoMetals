@@ -3,7 +3,7 @@
 import * as React from 'react'
 import NextLink from 'next/link'
 import { useOrders, useRefiningOrders } from '@dorado/client'
-import type { OrderRead, RefiningOrderView } from '@dorado/contracts'
+import type { OrderListItem, RefiningOrderView } from '@dorado/contracts'
 import {
   DataTable,
   EmptyState,
@@ -20,21 +20,15 @@ import { DASH, when } from './orders/format'
 // refiner order, each row a way into the screen that already exists.
 //
 // NOTHING HERE IS COMPUTED. A cell is a field of the row the API answered with,
-// spelled by `format.ts` where it is a timestamp. No status is derived, no
-// total is summed, no name is joined - which is also why two columns the
-// drawing would want are absent, and that is recorded rather than faked:
-//
-//   `GET /api/orders` answers `OrderRead[]` - the row plus its totals. It
-//   carries NO `reference` ("PO-2481" is built in `db/orders/sql/view.sql`, for
-//   the single-order view only) and NO customer name, only `user_id`. Ruling 83
-//   says the browser does not decide that prefix, and a uuid is not a customer,
-//   so the table shows the order NUMBER and leaves the customer out until the
-//   list route serves them. `docs/waves/navigation.md` carries the gap.
+// spelled by `format.ts` where it is a timestamp. `GET /api/orders` answers
+// `OrderListItem[]` - the row plus `reference` (the same "PO-2481"/"SO-2481"
+// expression the single view builds) and `customer` (id, name, email), so
+// neither is composed here (ruling 83).
 //
 // The refiner list has no such gap: `GET /api/refining/orders` answers the same
 // `RefiningOrderView` the screen reads, refiner and state included.
 
-const ordersColumns: DataTableColumn<OrderRead>[] = [
+const ordersColumns: DataTableColumn<OrderListItem>[] = [
   {
     accessorKey: 'number',
     header: 'Order',
@@ -44,6 +38,16 @@ const ordersColumns: DataTableColumn<OrderRead>[] = [
         <NextLink href={`/admin/orders/${row.original.id}`}>{row.original.number}</NextLink>
       </UILink>
     ),
+  },
+  {
+    accessorKey: 'reference',
+    header: 'Reference',
+    cell: ({ row }) => row.original.reference,
+  },
+  {
+    id: 'customer',
+    header: 'Customer',
+    cell: ({ row }) => row.original.customer?.name ?? DASH,
   },
   {
     accessorKey: 'direction',

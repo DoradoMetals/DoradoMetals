@@ -80,6 +80,8 @@ test('the admin list has the fields the drawer destructures', async () => {
           'direction',
           'user_id',
           'totals',
+          'reference',
+          'customer',
         ]) {
           assert.ok(field in o, `the admin sales list is missing ${field}`)
         }
