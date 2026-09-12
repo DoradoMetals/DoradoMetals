@@ -12,6 +12,10 @@ export const keys = {
   },
   orders: {
     all: () => ['orders'] as const,
+    // The admin index's table. The filters are the route's own query
+    // parameters, so a key is what was asked for, not what came back.
+    list: (direction: string | null, userId: string | null) =>
+      ['orders', 'list', direction, userId] as const,
     view: (id: string) => ['orders', 'view', id] as const,
     spots: (id: string) => ['orders', 'spots', id] as const,
     documents: (id: string) => ['orders', 'documents', id] as const,
@@ -22,6 +26,8 @@ export const keys = {
   },
   refining: {
     all: () => ['refining'] as const,
+    list: (refinerId: string | null, direction: string | null, state: string | null) =>
+      ['refining', 'list', refinerId, direction, state] as const,
     view: (id: string) => ['refining', 'view', id] as const,
     lots: (id: string) => ['refining', 'lots', id] as const,
     refiners: () => ['refining', 'refiners'] as const,

@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type {
+  Direction,
   FulfillmentDropoff,
   LotSplit,
   OrderCancelBody,
@@ -9,6 +10,7 @@ import type {
   OrderLotPatch,
   OrderLotView,
   OrderPatch,
+  OrderRead,
   OrderSpot,
   OrderSpotsPutBody,
   OrderSupplyBody,
@@ -20,6 +22,24 @@ import type {
 
 import { apiRequest, apiRequestForm } from '../fetch'
 import { keys } from '../keys'
+
+// EVERY ORDER THE CALLER MAY SEE - the admin index's table. The route decides
+// the scope, not this hook: an admin with no `user_id` gets all of them, a
+// customer gets their own whatever they ask for. The filters are the route's
+// own query parameters and go through `apiRequest`'s `params`, so the URL here
+// stays the literal the route census reads.
+export function useOrders(
+  filters: { direction?: Direction | null; user_id?: string | null } = {},
+  options: { enabled?: boolean } = {}
+) {
+  const direction = filters.direction ?? null
+  const user_id = filters.user_id ?? null
+  return useQuery<OrderRead[]>({
+    queryKey: keys.orders.list(direction, user_id),
+    enabled: options.enabled ?? true,
+    queryFn: () => apiRequest<OrderRead[]>('GET', '/orders', undefined, { direction, user_id }),
+  })
+}
 
 export function useOrder(id: string, options: { enabled?: boolean } = {}) {
   return useQuery<OrderView>({
@@ -142,9 +162,7 @@ export function usePatchOrderLot(id: string) {
 }
 
 export function useDeleteOrderLot(id: string) {
-  return useOrderWrite(id, (lot_id: string) =>
-    apiRequest<null>('DELETE', `/orders/lots/${lot_id}`)
-  )
+  return useOrderWrite(id, (lot_id: string) => apiRequest<null>('DELETE', `/orders/lots/${lot_id}`))
 }
 
 export function useSplitOrderLot(id: string) {

@@ -9,6 +9,7 @@ import type {
   RefiningLotPatch,
   RefiningLotsBody,
   RefiningOrder,
+  RefiningDirection,
   RefiningOrderCreate,
   RefiningOrderPatch,
   RefiningOrderView,
@@ -18,6 +19,32 @@ import type {
 
 import { apiRequest, apiRequestForm } from '../fetch'
 import { keys } from '../keys'
+
+// EVERY REFINER ORDER - the admin index's second table. `GET /refining/orders`
+// is admin-only and answers the same view the screen reads, so a row here
+// carries its refiner and its state without a second call.
+export function useRefiningOrders(
+  filters: {
+    refiner_id?: string | null
+    direction?: RefiningDirection | null
+    state?: string | null
+  } = {},
+  options: { enabled?: boolean } = {}
+) {
+  const refiner_id = filters.refiner_id ?? null
+  const direction = filters.direction ?? null
+  const state = filters.state ?? null
+  return useQuery<RefiningOrderView[]>({
+    queryKey: keys.refining.list(refiner_id, direction, state),
+    enabled: options.enabled ?? true,
+    queryFn: () =>
+      apiRequest<RefiningOrderView[]>('GET', '/refining/orders', undefined, {
+        refiner_id,
+        direction,
+        state,
+      }),
+  })
+}
 
 export function useRefiningOrder(id: string, options: { enabled?: boolean } = {}) {
   return useQuery<RefiningOrderView>({

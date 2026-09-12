@@ -13,6 +13,7 @@ import {
   Menu,
   MenuContent,
   MenuItem,
+  MenuLabel,
   MenuSeparator,
   MenuTrigger,
   Text,
@@ -56,26 +57,59 @@ function initials(name?: string | null, email?: string | null) {
 
 type Entry = { href: string; label: string }
 
-function useAccountEntries(): { entries: Entry[]; signedIn: boolean; label: string } {
+// EVERY LINK IN THE CHROME RESOLVES TO A ROUTE THAT EXISTS, and that is the
+// whole rule of this file. Figma's Header draws How It Works / Pricing / About
+// / Contact and the Footer draws Company and Legal columns; none of those
+// routes was rebuilt after the nuke, so none of them is drawn here. A nav entry
+// or a footer column appears the day its page does.
+//
+//   nav      Home, and Admin for a signed-in admin.
+//   account  the two Settings screens, or the two ways in when signed out.
+const HOME: Entry = { href: '/', label: 'Home' }
+const ADMIN: Entry = { href: '/admin', label: 'Admin' }
+
+const SIGNED_IN_ACCOUNT: Entry[] = [
+  { href: '/settings/email', label: 'Email' },
+  { href: '/settings/phone', label: 'Phone' },
+]
+
+const SIGNED_OUT_ACCOUNT: Entry[] = [
+  { href: '/auth/sign-in', label: 'Sign in' },
+  { href: '/auth/sign-up', label: 'Create an account' },
+]
+
+function useChrome() {
   const { user } = useGetSession()
   const signedIn = Boolean(user)
   const isAdmin = user?.role === 'admin'
 
-  const entries: Entry[] = signedIn
-    ? [
-        { href: '/settings/email', label: 'Account' },
-        ...(isAdmin ? [{ href: '/admin/orders', label: 'Admin' }] : []),
-      ]
-    : [
-        { href: '/auth/sign-in', label: 'Sign in' },
-        { href: '/auth/sign-up', label: 'Create an account' },
-      ]
+  return {
+    signedIn,
+    nav: signedIn && isAdmin ? [HOME, ADMIN] : [HOME],
+    account: signedIn ? SIGNED_IN_ACCOUNT : SIGNED_OUT_ACCOUNT,
+    // The account's own name, as the menu says it. It is the session's field,
+    // not a greeting this component composes.
+    who: user?.name || user?.email || '',
+    initials: initials(user?.name, user?.email),
+  }
+}
 
-  return { entries, signedIn, label: initials(user?.name, user?.email) }
+function NavLinks({ pathname }: { pathname: string }) {
+  const { nav } = useChrome()
+
+  return (
+    <>
+      {nav.map((entry) => (
+        <UILink key={entry.href} asChild variant="nav" active={pathname === entry.href}>
+          <NextLink href={entry.href}>{entry.label}</NextLink>
+        </UILink>
+      ))}
+    </>
+  )
 }
 
 function AccountMenu() {
-  const { entries, signedIn, label } = useAccountEntries()
+  const { signedIn, account, who, initials: label } = useChrome()
   const { mutate: signOut } = useSignOut()
 
   if (!signedIn) {
@@ -92,7 +126,15 @@ function AccountMenu() {
         <Avatar size="sm" fallback={label} />
       </MenuTrigger>
       <MenuContent align="end">
-        {entries.map((entry) => (
+        <MenuLabel>Account</MenuLabel>
+        {who && (
+          <Text variant="small" emphasis="subtle" className="px-2 pb-1">
+            {who}
+          </Text>
+        )}
+        <MenuSeparator />
+        <MenuLabel>Settings</MenuLabel>
+        {account.map((entry) => (
           <MenuItem key={entry.href} asChild>
             <NextLink href={entry.href}>{entry.label}</NextLink>
           </MenuItem>
@@ -106,14 +148,17 @@ function AccountMenu() {
   )
 }
 
-function MenuPanel({ onNavigate }: { onNavigate: () => void }) {
-  const { entries, signedIn } = useAccountEntries()
+// The Drawer carries the same links the desktop bar does - the nav entries and
+// the account entries - because the mobile bar is brand and hamburger only
+// (Figma 51:57) and this is where the rest of the header goes.
+function MenuPanel({ pathname, onNavigate }: { pathname: string; onNavigate: () => void }) {
+  const { signedIn, nav, account } = useChrome()
   const { mutate: signOut } = useSignOut()
 
   return (
     <nav aria-label="Menu" className="flex flex-col gap-lg p-lg">
-      {entries.map((entry) => (
-        <UILink key={entry.href} asChild variant="nav">
+      {[...nav, ...account].map((entry) => (
+        <UILink key={entry.href} asChild variant="nav" active={pathname === entry.href}>
           <NextLink href={entry.href} onClick={onNavigate}>
             {entry.label}
           </NextLink>
@@ -137,8 +182,12 @@ function MenuPanel({ onNavigate }: { onNavigate: () => void }) {
 }
 
 function SiteFooter() {
-  const { entries } = useAccountEntries()
+  const { account } = useChrome()
 
+  // ONE COLUMN, AND THAT IS NOT AN OVERSIGHT. `Footer` renders whatever columns
+  // it is handed, so a Company column is one array entry away - but About,
+  // Contact and Careers do not exist as routes, and a footer link that 404s is
+  // worse than a footer that is short.
   return (
     <Footer
       brand={<BrandMark />}
@@ -146,7 +195,7 @@ function SiteFooter() {
       columns={[
         {
           heading: 'Account',
-          links: entries.map((entry) => (
+          links: account.map((entry) => (
             <UILink key={entry.href} asChild>
               <NextLink href={entry.href}>{entry.label}</NextLink>
             </UILink>
@@ -175,6 +224,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen flex-col">
       <Header
         brand={<BrandMark />}
+        nav={<NavLinks pathname={pathname} />}
         trailing={<AccountMenu />}
         drawerOpen={drawerOpen}
         onDrawerToggle={() => setDrawerOpen((open) => !open)}
@@ -184,7 +234,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <Text variant="h6" emphasis="subtlest" className="px-lg pt-lg">
           Menu
         </Text>
-        <MenuPanel onNavigate={() => setDrawerOpen(false)} />
+        <MenuPanel pathname={pathname} onNavigate={() => setDrawerOpen(false)} />
       </Drawer>
 
       <main className="flex-1">{children}</main>
