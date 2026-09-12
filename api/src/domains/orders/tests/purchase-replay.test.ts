@@ -66,6 +66,8 @@ test('a customer sees only their own rows, and the admin list is served whole', 
           'user_id',
           'spots_locked',
           'totals',
+          'reference',
+          'customer',
         ]) {
           assert.ok(field in order, `the admin list is missing ${field}`)
         }

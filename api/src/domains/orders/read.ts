@@ -1,14 +1,14 @@
 import * as ordersRepo from '#db/orders/repo.ts'
 import * as rules from '#orders/rules.ts'
 import { withDecisions } from '#shared/views.ts'
-import type { Direction, OrderRead, OrderView } from '@dorado/contracts'
+import type { Direction, OrderListItem, OrderRead, OrderView } from '@dorado/contracts'
 import type { Executor } from '#shared/db/executor.ts'
 
 export async function list(
   direction: Direction | null,
   user_id: string | null,
   executor?: Executor
-): Promise<OrderRead[]> {
+): Promise<OrderListItem[]> {
   return await ordersRepo.list(direction, user_id, executor)
 }
 
