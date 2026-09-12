@@ -5,6 +5,7 @@ import type {
   InboundTransaction,
   PaymentView,
   Rail,
+  RefiningDirection,
   Transfer,
   TransferKind,
   TransferState,
@@ -71,8 +72,8 @@ export function referenceFor(direction: Direction | null, number: number): strin
   return `${direction === 'sale' ? 'SO' : 'PO'}-${number}`
 }
 
-export function refiningReferenceFor(number: number): string {
-  return `RO-${number}`
+export function refiningReferenceFor(direction: RefiningDirection, number: number): string {
+  return `${direction === 'buy' ? 'RP' : 'RS'}-${number}`
 }
 
 export function assertOneOrder(

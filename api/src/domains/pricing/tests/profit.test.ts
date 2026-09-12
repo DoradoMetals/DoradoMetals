@@ -1,5 +1,6 @@
 import { test, afterAll } from 'vitest'
 import assert from 'node:assert/strict'
+import type { PoolClient } from 'pg'
 import pool from '#pool'
 import { LOCKS } from '#shared/testing/locks.ts'
 import { TEST_ACTOR } from '#shared/testing/actor.ts'
@@ -18,6 +19,7 @@ import * as refiningOrdersRepo from '#db/refining/orders/repo.ts'
 import * as refiningLotsRepo from '#db/refining/lots/repo.ts'
 import * as lotSourcesRepo from '#db/inventory/lot-sources/repo.ts'
 import { profitBreakdown } from '#pricing/service.ts'
+import * as refining from '#refining/service.ts'
 import type { ProfitBreakdown } from '@dorado/contracts'
 
 const EXACT = 1e-9
@@ -89,6 +91,9 @@ test('a purchase order splits every line three ways, per metal and per category'
 
       assert.equal(b.order_id, order.id)
       assert.ok(!Number.isNaN(Date.parse(b.spots_at)), 'spots_at is not a timestamp')
+      assert.equal(b.total_lots, 2, 'both lots went to a refiner')
+      assert.equal(b.settled_lots, 0, 'neither refiner lot carries a settled_spot')
+      assert.equal(b.basis, 'estimated', 'an unsettled lot makes the whole order estimated')
       assert.equal(b.shares.length, 9, 'three parties x three categories, one metal')
       assert.equal(b.parties.length, 3)
       assert.deepEqual(
@@ -213,6 +218,10 @@ test('a sale has no refiner: the customer owns all of it and Dorado keeps the ca
 
       const b = await profitBreakdown(order.id)
 
+      assert.equal(b.total_lots, 0, 'a sale with no refiner lot has nothing pending')
+      assert.equal(b.settled_lots, 0)
+      assert.equal(b.basis, 'realized', 'nothing outstanding is realized by default')
+
       close(shareOf(b, 'total', 'customer', 'Gold')?.content, 2, 'customer content')
       close(shareOf(b, 'total', 'customer', 'Gold')?.percentage, 100, 'customer percentage')
       close(shareOf(b, 'total', 'customer', 'Gold')?.profit, 200, 'customer profit')
@@ -238,6 +247,45 @@ test('an order that does not exist is refused, not answered with zeros', async (
         /nothing to price/,
         'a missing order was priced instead of refused'
       )
+    },
+    { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS }
+  )
+})
+
+const setSpot = async (c: PoolClient, metal_id: string, bid: number, ask: number): Promise<void> => {
+  await c.query(
+    `INSERT INTO spots.spots (metal_id, bid, ask) VALUES ($1, $2, $3)
+       ON CONFLICT (metal_id) DO UPDATE SET bid = EXCLUDED.bid, ask = EXCLUDED.ask`,
+    [metal_id, bid, ask]
+  )
+}
+
+test('a pooled order settled through the real flow prices off its own settled_spot, and is realized', async () => {
+  await inPinnedTransaction(
+    async (c) => {
+      const { rows } = await c.query<{ id: string }>(
+        'SELECT id FROM refiners.refiners ORDER BY id LIMIT 1'
+      )
+      const refiner_id = rows[0]!.id
+      const seller = await aUser(c)
+      const order = await anOrder(c, seller, { direction: 'purchase' })
+        .withLines({ metal_id: 'Gold', pre_melt: 10, purity: 0.9, unit: 't oz', premium: 0.9 })
+        .withSpots({ bid: 2300, ask: 2310 })
+        .withTotals({})
+      await c.query('UPDATE orders.orders SET spots_locked = true WHERE id = $1', [order.id])
+
+      const engagement = await refining.create({ refiner_id, direction: 'sell' })
+      const assigned = await refining.assignLots(engagement.id, [order.lots[0]!.lot_id])
+      await refining.send(engagement.id)
+      await setSpot(c, 'Gold', 2400, 2410)
+      await refining.settle(engagement.id, { lots: [{ lot_id: assigned[0]!.lot_id }] })
+
+      const b = await profitBreakdown(order.id)
+      assert.equal(b.total_lots, 1)
+      assert.equal(b.settled_lots, 1, 'a pooled lot now settles with its own spot too')
+      assert.equal(b.basis, 'realized')
+      close(shareOf(b, 'total', 'customer', 'Gold')?.profit, 8.1 * 2300, "customer prices off the order's own spot")
+      close(shareOf(b, 'total', 'refiner', 'Gold')?.profit, 0.9 * 2400, "the refiner's share prices off the pooled lot's own settled_spot")
     },
     { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS }
   )

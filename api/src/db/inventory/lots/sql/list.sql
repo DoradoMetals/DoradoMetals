@@ -37,7 +37,9 @@ SELECT li.id, li.bullion_id, li.metal_id, li.unit, li.quantity,
        od.direction::text AS order_direction,
        ro.id AS refining_order_id,
        ro.number AS refining_order_number,
-       CASE WHEN ro.number IS NULL THEN NULL ELSE 'RO-' || ro.number END AS refining_order_reference,
+       CASE WHEN ro.number IS NULL THEN NULL
+            ELSE (CASE ro.direction WHEN 'buy' THEN 'RP-' ELSE 'RS-' END) || ro.number
+       END AS refining_order_reference,
        ro.refiner_id AS refiner_id,
        org.name AS refiner_name,
        CASE WHEN li.content IS NULL OR li.declared_content IS NULL THEN NULL

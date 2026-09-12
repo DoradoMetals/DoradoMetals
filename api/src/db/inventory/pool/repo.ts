@@ -1,6 +1,6 @@
 import query from '#shared/db/query.ts'
 import { sqlFrom } from '#shared/db/sql.ts'
-import { PoolBalance, PoolEntry, PoolLockCreate } from '@dorado/contracts'
+import { PoolBalance, PoolEntry, PoolEntryView, PoolLockCreate } from '@dorado/contracts'
 import type { PoolEntryKind } from '@dorado/contracts'
 import type { Executor } from '#shared/db/executor.ts'
 
@@ -20,8 +20,12 @@ export async function entries(
   metal_id: string | null,
   entry: PoolEntryKind | null,
   executor?: Executor
-): Promise<PoolEntry[]> {
-  const { rows } = await query<PoolEntry>(sql('entries'), [refiner_id, metal_id, entry], executor)
+): Promise<PoolEntryView[]> {
+  const { rows } = await query<PoolEntryView>(
+    sql('entries'),
+    [refiner_id, metal_id, entry],
+    executor
+  )
   return rows
 }
 

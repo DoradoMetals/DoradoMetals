@@ -247,7 +247,8 @@ test('a refiner order has a Payment card of its own, and a payout can be opened 
       assert.equal(opened.status, 201, opened.text)
       assert.equal(opened.body.refining_order_id, made.body.id)
       assert.equal(opened.body.order_id, null)
-      assert.equal(opened.body.reference, `RO-${made.body.number}`)
+      assert.match(made.body.number, /^RP-\d+$/)
+      assert.equal(opened.body.reference, made.body.number)
 
       const view = await request(app).get(`/api/refining/orders/${made.body.id}/payment`)
       assert.equal(view.body.state, 'Not sent')

@@ -17,6 +17,7 @@ import type {
   PoolBalance,
   PoolEntry,
   PoolEntryKind,
+  PoolEntryView,
   PoolLockCreate,
   RefinerView,
   RefiningBatch,
@@ -226,7 +227,7 @@ export async function entries(
   refiner_id: string | null,
   metal_id: string | null,
   entry: PoolEntryKind | null
-): Promise<PoolEntry[]> {
+): Promise<PoolEntryView[]> {
   return await pool.entries(refiner_id, metal_id, entry)
 }
 

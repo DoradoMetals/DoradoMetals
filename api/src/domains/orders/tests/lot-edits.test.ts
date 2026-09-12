@@ -113,7 +113,8 @@ test('an unassigned lot names no refiner order, and an assigned one names it', a
 
         const after = await request(app).get(`/api/orders/${item.order_id}/lots`)
         const moved = after.body.find((row: { id: string }) => row.id === scrapItem.id)
-        assert.equal(moved.refining_order_number, created.body.number)
+        assert.match(created.body.number, /^RS-\d+$/, 'a sell order takes the RS- prefix')
+        assert.equal(moved.refining_order_number, Number(created.body.number.split('-')[1]))
       })
     },
     { actor: TEST_ACTOR.id }

@@ -330,10 +330,11 @@ test('settled_spot is stamped server-side from the live spot on a paid order', a
   })
 })
 
-test('a pooled order never carries a spot, and refuses one on a settlement line', async () => {
+test('a pooled order takes the market spot automatically, and refuses one entered by hand', async () => {
   await inOrders(async (c) => {
     const { order } = await aMixedOrder(c)
     const [r1] = await refinerIds(c)
+    await setSpot(c, 'Gold', 2405, 2415)
     const engagement = await refining.create({ refiner_id: r1!, direction: 'sell' })
     assert.equal(engagement.settlement_type, 'pooled', 'pooled is the default settlement type')
     const assigned = await refining.assignLots(engagement.id, [order.lots[0]!.lot_id])
@@ -344,16 +345,20 @@ test('a pooled order never carries a spot, and refuses one on a settlement line'
         refining.settle(engagement.id, {
           lots: [{ lot_id: assigned[0]!.lot_id, premium: 0.95, settled_spot: 2400 }],
         }),
-      /never carries a spot/
+      /cannot name its own/
     )
 
     const settled = await refining.settle(engagement.id, {
       lots: [{ lot_id: assigned[0]!.lot_id, premium: 0.95 }],
     })
-    assert.equal(settled.lots[0]!.lot.settled_spot, null, 'a pooled order stamped a spot anyway')
+    close(
+      settled.lots[0]!.lot.settled_spot,
+      2405,
+      'a pooled order takes the live bid on settlement, the same as a paid one'
+    )
 
     const spots = await refining.spotsFor(engagement.id)
-    assert.equal(spots[0]!.spot, null, 'the spots read reported one for a pooled order')
+    close(spots[0]!.spot, 2405, 'the spots read answers the settled spot of a pooled order too')
   })
 })
 

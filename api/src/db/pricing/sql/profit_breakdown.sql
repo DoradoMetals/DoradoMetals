@@ -218,10 +218,22 @@ parties AS (
    CROSS JOIN fees f
    CROSS JOIN spot_net sn
     LEFT JOIN metals_profit mp ON mp.party = w.party
+),
+-- basis is 'realized' once every refiner-assayed lot on the order carries
+-- its own settled_spot (ruling 123); one unsettled lot, priced off the live
+-- feed in refiner_spot above, makes the whole order 'estimated'.
+lot_status AS (
+  SELECT count(*) AS total_lots,
+         count(*) FILTER (WHERE a.settled_spot IS NOT NULL) AS settled_lots
+    FROM assay a
 )
 SELECT jsonb_build_object(
          'order_id', ord.id,
          'spots_at', to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+         'basis', CASE WHEN ls.total_lots = 0 OR ls.settled_lots = ls.total_lots
+                       THEN 'realized' ELSE 'estimated' END,
+         'settled_lots', ls.settled_lots,
+         'total_lots', ls.total_lots,
          'shares', COALESCE(
            (SELECT jsonb_agg(
                      jsonb_build_object(
@@ -245,4 +257,4 @@ SELECT jsonb_build_object(
                        ORDER BY p.party)
                        FROM parties p)
        ) AS breakdown
-  FROM ord
+  FROM ord CROSS JOIN lot_status ls

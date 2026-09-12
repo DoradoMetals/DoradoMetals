@@ -5,10 +5,16 @@
 -- by its settled spots and paid directly, so it never enters the pool.
 -- content and premium are the REFINER lot's own (ruling 120), read off
 -- inventory.lots through the link, not off refining.lots, which no longer
--- carries them.
-INSERT INTO inventory.pool (refiner_id, metal_id, entry, troy_oz, refining_order_id)
+-- carries them. spot is the fine-ounce-weighted average of those same lots'
+-- own settled_spot (ruling 123) - the assay-day price this credit is fixed
+-- at forever.
+INSERT INTO inventory.pool (refiner_id, metal_id, entry, troy_oz, spot, refining_order_id)
 SELECT ro.refiner_id, li.metal_id, 'credit',
        sum(li.content * li.premium * li.quantity),
+       sum(li.content * li.premium * li.quantity * li.settled_spot)
+         FILTER (WHERE li.settled_spot IS NOT NULL)
+         / NULLIF(sum(li.content * li.premium * li.quantity)
+                    FILTER (WHERE li.settled_spot IS NOT NULL), 0),
        ro.id
   FROM refining.orders ro
   JOIN refining.lots rl ON rl.refining_order_id = ro.id
@@ -23,4 +29,4 @@ HAVING sum(li.content * li.premium * li.quantity) > 0
 RETURNING id, refiner_id, metal_id, entry, troy_oz, lock_price, refining_order_id,
           to_char(occurred_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS occurred_at,
           to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS created_at,
-          created_by_id, purpose, lot_id
+          created_by_id, purpose, lot_id, spot, basis_spot

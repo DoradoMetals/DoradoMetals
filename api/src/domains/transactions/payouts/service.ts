@@ -106,7 +106,7 @@ async function openRefiningPayout(
         bank_link_id: body.bank_link_id ?? null,
         provider: null,
         provider_ref: null,
-        reference: refiningReferenceFor(order?.number ?? 0),
+        reference: order?.number ?? refiningReferenceFor('sell', 0),
         idempotency_key: null,
         override_reason: null,
       },
