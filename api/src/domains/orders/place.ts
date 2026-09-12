@@ -22,6 +22,7 @@ import * as sweeps from '#transactions/sweeps.ts'
 import * as stripeProvider from '#providers/stripe/stripe.ts'
 import * as orderRead from '#orders/read.ts'
 import * as rules from '#orders/rules.ts'
+import * as orderSpotsService from '#orders/spots/service.ts'
 import * as shippingLabels from '#logistics/shipping/labels.ts'
 import * as pricing from '#pricing/index.ts'
 import { retierPremiums } from '#orders/service.ts'
@@ -97,12 +98,11 @@ async function buildFor(order: AdminOrderCreate, tx: PoolClient): Promise<string
 
 async function writeOrder(
   checkout: Checkout,
-  status: string,
   cart: Lot[],
   lines: (order_id: string, tx: PoolClient) => Promise<OrderLot[]>,
   tx: PoolClient
 ): Promise<string> {
-  const order = await ordersRepo.createForCheckout(checkout.id, status, tx)
+  const order = await ordersRepo.createForCheckout(checkout.id, tx)
   rules.assertPlacedOrder(order, checkout.id)
   const order_id = order.id
 
@@ -156,7 +156,6 @@ async function placePurchase(checkout: Checkout, cart: Lot[], world: typeof LIVE
   const placed = await withTransaction(async (tx) => {
     const order_id = await writeOrder(
       checkout,
-      'In Transit',
       cart,
       (id, client) => orderLots.createBought(id, checkout.id, client),
       tx
@@ -165,6 +164,7 @@ async function placePurchase(checkout: Checkout, cart: Lot[], world: typeof LIVE
       await orderTransactions.createForCheckout(order_id, checkout.id, payout_fee, tx),
       order_id
     )
+    await orderSpotsService.applyLock(order_id, true, tx)
 
     if (shipment_id) {
       await shippingLabels.sealForPlacement(shipment_id, checkout.id, draft.method.type, tx)
@@ -192,19 +192,17 @@ async function placeSale(checkout: Checkout, cart: Lot[], world: typeof LIVE): P
 
   const cents = rules.chargeCents(quote.post_charges_amount)
   const intent = cents > 0 ? await openIntentFor(checkout.user_id, cents) : null
-  const status = rules.statusAtPlacement(cents, intent?.settled === true)
+  const settled = rules.settlesAtPlacement(cents, intent?.settled === true)
 
   const lines: SoldLotPrice[] = quote.items.map((line) => ({
     lot_id: line.id,
     premium: line.premium,
     sales_tax: line.sales_tax_rate,
-    price: line.unit_ask,
   }))
 
   const order_id = await withTransaction(async (tx) => {
     const id = await writeOrder(
       checkout,
-      status,
       cart,
       (order, client) => orderLots.createSold(order, checkout.id, lines, client),
       tx
@@ -233,7 +231,7 @@ async function placeSale(checkout: Checkout, cart: Lot[], world: typeof LIVE): P
         quote.pre_charges_amount
       )
       await credit.reserve(checkout.user_id, quote.pre_charges_amount, id, tx)
-      if (rules.settlesAtPlacement(cents, intent?.settled === true)) {
+      if (settled) {
         await credit.settleReservation(id, tx)
       }
     }
@@ -244,7 +242,7 @@ async function placeSale(checkout: Checkout, cart: Lot[], world: typeof LIVE): P
   })
 
   if (intent && !intent.settled) await world.authorize(intent.payment_intent_id, cents)
-  if (rules.confirmsAtPlacement(status)) await world.confirm(order_id)
+  if (settled) await world.confirm(order_id)
   return order_id
 }
 

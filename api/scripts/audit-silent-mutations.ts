@@ -76,6 +76,14 @@ const FAIL_ON_FINDINGS = process.env.AUDIT_SILENT_ROOT != null
 const ACCEPTED: Record<string, string> = {
   'domains/checkout/service.ts::checkouts.clearFor':
     'a user with no basket in that direction has nothing to clear, and sql/clear_for.sql keys on (user_id, direction) precisely so the read-then-branch this replaced is gone: zero rows is the correct outcome, exactly as the early return it replaced was.',
+  'domains/crm/inbox/service.ts::smsRepo.markRead':
+    'marking a conversation read that already had nothing unread is not an error - the inbox list is what a caller checks afterward, not this call.',
+  'domains/crm/inbox/service.ts::callsRepo.markRead':
+    'same as smsRepo.markRead beside it: zero unread call rows is a normal outcome, not a failure to observe.',
+  'domains/crm/leads/service.ts::smsRepo.attachToUser':
+    "a lead that never texted or was texted has nothing to attach - convert still succeeds, and the customer's own timeline read is the observation, not this write.",
+  'domains/crm/leads/service.ts::callsRepo.attachToUser':
+    'same as smsRepo.attachToUser beside it: zero prior calls on that number is a normal outcome for a fresh lead.',
 }
 const acceptedHit = new Set<string>()
 

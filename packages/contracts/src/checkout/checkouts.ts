@@ -19,7 +19,7 @@ export type Checkout = z.infer<typeof Checkout>
 // generated:end
 import { FulfillmentStep } from '../fulfillments/fulfillments.js'
 import { PaymentDetails } from '../payments/details.js'
-import { Lot } from '../lots/items.js'
+import { Lot } from '../inventory/lots.js'
 
 export const CheckoutPatch = Checkout.pick({
   payment_method_id: true,

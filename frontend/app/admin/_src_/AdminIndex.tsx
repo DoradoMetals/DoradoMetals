@@ -5,6 +5,7 @@ import NextLink from 'next/link'
 import { useOrders, useRefiningOrders } from '@dorado/client'
 import type { OrderListItem, RefiningOrderView } from '@dorado/contracts'
 import {
+  Badge,
   DataTable,
   EmptyState,
   Link as UILink,
@@ -13,6 +14,8 @@ import {
   type DataTableColumn,
 } from '@dorado/components'
 import { Inbox, TriangleAlert } from '@dorado/icons'
+
+import { orderStateBadge } from '@/shared/utils/orderState'
 
 import { DASH, when } from './orders/format'
 
@@ -43,9 +46,11 @@ const ordersColumns: DataTableColumn<OrderListItem>[] = [
     cell: ({ row }) => row.original.direction ?? DASH,
   },
   {
-    accessorKey: 'status',
-    header: 'Status',
-    cell: ({ row }) => row.original.status ?? DASH,
+    accessorKey: 'state',
+    header: 'State',
+    cell: ({ row }) => (
+      <Badge {...orderStateBadge(row.original.state)}>{row.original.state}</Badge>
+    ),
   },
   {
     accessorKey: 'created_at',

@@ -21,7 +21,7 @@
 --
 -- Additive. Six tables, two schemas, nothing dropped, exchange untouched.
 
-CREATE SCHEMA IF NOT EXISTS lots;
+CREATE SCHEMA IF NOT EXISTS inventory;
 CREATE SCHEMA IF NOT EXISTS refining;
 
 DO $$ BEGIN
@@ -31,16 +31,23 @@ DO $$ BEGIN
   END IF;
 END $$;
 
+-- EDITED 2026-09-12 (uat2 lane, from-nothing rebuild finding). The guard
+-- checked `refining.pool_entry`, but the type this creates is
+-- `inventory.pool_entry` - a copy-paste leftover from the `refining.direction`
+-- guard just above. Invisible on dev, where the very first run found neither
+-- name and created the type either way; fatal on a from-genesis rebuild, where
+-- genesis already has `inventory.pool_entry` and the guard's wrong namespace
+-- reports "not exists" anyway.
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
-                  WHERE t.typname = 'pool_entry' AND n.nspname = 'refining') THEN
-    CREATE TYPE refining.pool_entry AS ENUM ('credit', 'lock');
+                  WHERE t.typname = 'pool_entry' AND n.nspname = 'inventory') THEN
+    CREATE TYPE inventory.pool_entry AS ENUM ('credit', 'lock');
   END IF;
 END $$;
 
 CREATE SEQUENCE IF NOT EXISTS refining.order_number_seq AS bigint START WITH 1001;
 
-CREATE TABLE IF NOT EXISTS lots.items (
+CREATE TABLE IF NOT EXISTS inventory.lots (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
   bullion_id uuid,
   metal_id text NOT NULL,
@@ -124,11 +131,11 @@ CREATE TABLE IF NOT EXISTS refining.lots (
   updated_by_id uuid
 );
 
-CREATE TABLE IF NOT EXISTS refining.pool (
+CREATE TABLE IF NOT EXISTS inventory.pool (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
   refiner_id uuid NOT NULL,
   metal_id text NOT NULL,
-  entry refining.pool_entry NOT NULL,
+  entry inventory.pool_entry NOT NULL,
   troy_oz numeric NOT NULL,
   lock_price numeric,
   refining_order_id uuid NOT NULL,
@@ -140,8 +147,8 @@ CREATE TABLE IF NOT EXISTS refining.pool (
 -- Keys and constraints ------------------------------------------------------
 
 DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'lots_items_pkey') THEN
-    ALTER TABLE lots.items ADD CONSTRAINT lots_items_pkey PRIMARY KEY (id);
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'lots_pkey') THEN
+    ALTER TABLE inventory.lots ADD CONSTRAINT lots_pkey PRIMARY KEY (id);
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'checkout_lots_pkey') THEN
     ALTER TABLE checkout.lots ADD CONSTRAINT checkout_lots_pkey PRIMARY KEY (id);
@@ -155,30 +162,30 @@ DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'refining_lots_pkey') THEN
     ALTER TABLE refining.lots ADD CONSTRAINT refining_lots_pkey PRIMARY KEY (id);
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'refining_pool_pkey') THEN
-    ALTER TABLE refining.pool ADD CONSTRAINT refining_pool_pkey PRIMARY KEY (id);
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'pool_pkey') THEN
+    ALTER TABLE inventory.pool ADD CONSTRAINT pool_pkey PRIMARY KEY (id);
   END IF;
 END $$;
 
 DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'lots_items_bullion_fk') THEN
-    ALTER TABLE lots.items ADD CONSTRAINT lots_items_bullion_fk
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'lots_bullion_fk') THEN
+    ALTER TABLE inventory.lots ADD CONSTRAINT lots_bullion_fk
       FOREIGN KEY (bullion_id) REFERENCES products.bullion (id);
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'lots_items_metal_fk') THEN
-    ALTER TABLE lots.items ADD CONSTRAINT lots_items_metal_fk
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'lots_metal_fk') THEN
+    ALTER TABLE inventory.lots ADD CONSTRAINT lots_metal_fk
       FOREIGN KEY (metal_id) REFERENCES metals.metals (id) ON UPDATE CASCADE;
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'lots_items_image_fk') THEN
-    ALTER TABLE lots.items ADD CONSTRAINT lots_items_image_fk
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'lots_image_fk') THEN
+    ALTER TABLE inventory.lots ADD CONSTRAINT lots_image_fk
       FOREIGN KEY (image_id) REFERENCES media.images (id) ON DELETE SET NULL;
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'lots_items_split_fk') THEN
-    ALTER TABLE lots.items ADD CONSTRAINT lots_items_split_fk
-      FOREIGN KEY (split_from_id) REFERENCES lots.items (id);
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'lots_split_fk') THEN
+    ALTER TABLE inventory.lots ADD CONSTRAINT lots_split_fk
+      FOREIGN KEY (split_from_id) REFERENCES inventory.lots (id);
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'a_product_lot_is_not_melted') THEN
-    ALTER TABLE lots.items ADD CONSTRAINT a_product_lot_is_not_melted
+    ALTER TABLE inventory.lots ADD CONSTRAINT a_product_lot_is_not_melted
       CHECK (bullion_id IS NULL OR post_melt IS NULL);
   END IF;
   -- `a_snapshot_belongs_to_a_product` used to stand here, CHECKing
@@ -192,15 +199,15 @@ DO $$ BEGIN
   -- `LotPatch` does not carry it - and `db/lots/items/tests/repo.test.ts` pins
   -- all three.
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'a_lot_is_not_its_own_parent') THEN
-    ALTER TABLE lots.items ADD CONSTRAINT a_lot_is_not_its_own_parent
+    ALTER TABLE inventory.lots ADD CONSTRAINT a_lot_is_not_its_own_parent
       CHECK (split_from_id IS DISTINCT FROM id);
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'lot_weights_are_positive') THEN
-    ALTER TABLE lots.items ADD CONSTRAINT lot_weights_are_positive
+    ALTER TABLE inventory.lots ADD CONSTRAINT lot_weights_are_positive
       CHECK (COALESCE(pre_melt, 1) > 0 AND COALESCE(post_melt, 1) > 0 AND quantity > 0);
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'lot_purity_is_a_fraction') THEN
-    ALTER TABLE lots.items ADD CONSTRAINT lot_purity_is_a_fraction
+    ALTER TABLE inventory.lots ADD CONSTRAINT lot_purity_is_a_fraction
       CHECK (purity IS NULL OR (purity > 0 AND purity <= 1));
   END IF;
 END $$;
@@ -212,7 +219,7 @@ DO $$ BEGIN
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'checkout_lots_lot_fk') THEN
     ALTER TABLE checkout.lots ADD CONSTRAINT checkout_lots_lot_fk
-      FOREIGN KEY (lot_id) REFERENCES lots.items (id) ON DELETE CASCADE;
+      FOREIGN KEY (lot_id) REFERENCES inventory.lots (id) ON DELETE CASCADE;
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'a_lot_sits_in_one_basket') THEN
     ALTER TABLE checkout.lots ADD CONSTRAINT a_lot_sits_in_one_basket UNIQUE (lot_id);
@@ -223,7 +230,7 @@ DO $$ BEGIN
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'orders_lots_lot_fk') THEN
     ALTER TABLE orders.lots ADD CONSTRAINT orders_lots_lot_fk
-      FOREIGN KEY (lot_id) REFERENCES lots.items (id);
+      FOREIGN KEY (lot_id) REFERENCES inventory.lots (id);
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'a_lot_sits_on_one_order') THEN
     ALTER TABLE orders.lots ADD CONSTRAINT a_lot_sits_on_one_order UNIQUE (lot_id);
@@ -256,7 +263,7 @@ DO $$ BEGIN
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'refining_lots_lot_fk') THEN
     ALTER TABLE refining.lots ADD CONSTRAINT refining_lots_lot_fk
-      FOREIGN KEY (lot_id) REFERENCES lots.items (id);
+      FOREIGN KEY (lot_id) REFERENCES inventory.lots (id);
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'a_lot_goes_to_one_refiner') THEN
     ALTER TABLE refining.lots ADD CONSTRAINT a_lot_goes_to_one_refiner UNIQUE (lot_id);
@@ -268,33 +275,33 @@ DO $$ BEGIN
 END $$;
 
 DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'refining_pool_refiner_fk') THEN
-    ALTER TABLE refining.pool ADD CONSTRAINT refining_pool_refiner_fk
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'pool_refiner_fk') THEN
+    ALTER TABLE inventory.pool ADD CONSTRAINT pool_refiner_fk
       FOREIGN KEY (refiner_id) REFERENCES refiners.refiners (id);
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'refining_pool_metal_fk') THEN
-    ALTER TABLE refining.pool ADD CONSTRAINT refining_pool_metal_fk
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'pool_metal_fk') THEN
+    ALTER TABLE inventory.pool ADD CONSTRAINT pool_metal_fk
       FOREIGN KEY (metal_id) REFERENCES metals.metals (id) ON UPDATE CASCADE;
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'refining_pool_order_fk') THEN
-    ALTER TABLE refining.pool ADD CONSTRAINT refining_pool_order_fk
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'pool_order_fk') THEN
+    ALTER TABLE inventory.pool ADD CONSTRAINT pool_order_fk
       FOREIGN KEY (refining_order_id) REFERENCES refining.orders (id);
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'a_lock_has_a_price') THEN
-    ALTER TABLE refining.pool ADD CONSTRAINT a_lock_has_a_price
+    ALTER TABLE inventory.pool ADD CONSTRAINT a_lock_has_a_price
       CHECK (entry <> 'lock' OR lock_price IS NOT NULL);
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'a_credit_adds_and_a_lock_takes') THEN
-    ALTER TABLE refining.pool ADD CONSTRAINT a_credit_adds_and_a_lock_takes
+    ALTER TABLE inventory.pool ADD CONSTRAINT a_credit_adds_and_a_lock_takes
       CHECK ((entry = 'credit' AND troy_oz > 0) OR (entry = 'lock' AND troy_oz < 0));
   END IF;
 END $$;
 
 -- Indexes -------------------------------------------------------------------
 
-CREATE INDEX IF NOT EXISTS lots_items_bullion ON lots.items (bullion_id);
-CREATE INDEX IF NOT EXISTS lots_items_metal ON lots.items (metal_id);
-CREATE INDEX IF NOT EXISTS lots_items_split ON lots.items (split_from_id);
+CREATE INDEX IF NOT EXISTS lots_bullion ON inventory.lots (bullion_id);
+CREATE INDEX IF NOT EXISTS lots_metal ON inventory.lots (metal_id);
+CREATE INDEX IF NOT EXISTS lots_split ON inventory.lots (split_from_id);
 CREATE INDEX IF NOT EXISTS checkout_lots_checkout ON checkout.lots (checkout_id);
 CREATE INDEX IF NOT EXISTS orders_lots_order ON orders.lots (order_id);
 CREATE INDEX IF NOT EXISTS refining_orders_refiner
@@ -302,14 +309,14 @@ CREATE INDEX IF NOT EXISTS refining_orders_refiner
 CREATE UNIQUE INDEX IF NOT EXISTS one_open_sell_order_per_refiner
   ON refining.orders (refiner_id) WHERE sent_at IS NULL AND direction = 'sell';
 CREATE INDEX IF NOT EXISTS refining_lots_order ON refining.lots (refining_order_id);
-CREATE INDEX IF NOT EXISTS pool_balance ON refining.pool (refiner_id, metal_id, occurred_at);
+CREATE INDEX IF NOT EXISTS pool_balance ON inventory.pool (refiner_id, metal_id, occurred_at);
 
 -- The stamps ----------------------------------------------------------------
 --
 -- 116's insert branch COALESCEs created_at/updated_at rather than assigning
 -- them, so the backfills that follow supply both and they survive.
 
-CREATE OR REPLACE TRIGGER audit_stamp BEFORE INSERT OR UPDATE ON lots.items
+CREATE OR REPLACE TRIGGER audit_stamp BEFORE INSERT OR UPDATE ON inventory.lots
   FOR EACH ROW EXECUTE FUNCTION public.audit_stamp();
 CREATE OR REPLACE TRIGGER audit_stamp BEFORE INSERT OR UPDATE ON checkout.lots
   FOR EACH ROW EXECUTE FUNCTION public.audit_stamp();
@@ -319,5 +326,5 @@ CREATE OR REPLACE TRIGGER audit_stamp BEFORE INSERT OR UPDATE ON refining.orders
   FOR EACH ROW EXECUTE FUNCTION public.audit_stamp();
 CREATE OR REPLACE TRIGGER audit_stamp BEFORE INSERT OR UPDATE ON refining.lots
   FOR EACH ROW EXECUTE FUNCTION public.audit_stamp();
-CREATE OR REPLACE TRIGGER audit_stamp BEFORE INSERT OR UPDATE ON refining.pool
+CREATE OR REPLACE TRIGGER audit_stamp BEFORE INSERT OR UPDATE ON inventory.pool
   FOR EACH ROW EXECUTE FUNCTION public.audit_stamp();

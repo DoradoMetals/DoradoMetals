@@ -20,7 +20,7 @@ const admin: UserFixture = TEST_ACTOR
 const lines = async (c: PoolClient) => {
   const customer = await aUser(c)
   const product = await aProduct(c)
-  const order = await anOrder(c, customer, { direction: 'purchase', status: 'Pending' })
+  const order = await anOrder(c, customer, { direction: 'purchase' })
     .withBullion(product, 1)
     .withLots(1, { metal_id: 'Gold', pre_melt: 10, purity: 0.585 })
     .withSpots()
@@ -40,46 +40,47 @@ afterAll(async () => {
   await pool.end()
 })
 
-test('confirmed: true confirms the line', async () => {
+const confirmedAtFor = async (c: PoolClient, order_lot_id: string) => {
+  const { rows } = await c.query(
+    `SELECT li.confirmed_at FROM orders.lots ol
+       JOIN inventory.lots li ON li.id = ol.lot_id WHERE ol.id = $1`,
+    [order_lot_id]
+  )
+  return rows[0].confirmed_at
+}
+
+test('confirmed_at: a timestamp confirms the line', async () => {
   await inPinnedTransaction(
     async (client: PoolClient) => {
       const { item } = await lines(client)
       await asAdmin(admin, async () => {
-        await client.query(`UPDATE orders.lots SET confirmed = false WHERE id = $1`, [item.id])
-
         const res = await request(app)
           .patch(`/api/orders/lots/${item.id}`)
-          .send({ confirmed: true })
+          .send({ confirmed_at: new Date().toISOString() })
 
         assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`)
-
-        const { rows } = await client.query(`SELECT confirmed FROM orders.lots WHERE id = $1`, [
-          item.id,
-        ])
-        assert.equal(rows[0].confirmed, true, 'the line was not confirmed')
+        assert.notEqual(await confirmedAtFor(client, item.id), null, 'the line was not confirmed')
       })
     },
     { actor: TEST_ACTOR.id }
   )
 })
 
-test('confirmed: false unconfirms the line', async () => {
+test('confirmed_at: null unconfirms the line', async () => {
   await inPinnedTransaction(
     async (client: PoolClient) => {
       const { item } = await lines(client)
       await asAdmin(admin, async () => {
-        await client.query(`UPDATE orders.lots SET confirmed = true WHERE id = $1`, [item.id])
+        await request(app)
+          .patch(`/api/orders/lots/${item.id}`)
+          .send({ confirmed_at: new Date().toISOString() })
 
         const res = await request(app)
           .patch(`/api/orders/lots/${item.id}`)
-          .send({ confirmed: false })
+          .send({ confirmed_at: null })
 
         assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`)
-
-        const { rows } = await client.query(`SELECT confirmed FROM orders.lots WHERE id = $1`, [
-          item.id,
-        ])
-        assert.equal(rows[0].confirmed, false, 'the line was not reset')
+        assert.equal(await confirmedAtFor(client, item.id), null, 'the line was not reset')
       })
     },
     { actor: TEST_ACTOR.id }
@@ -135,8 +136,8 @@ test("the line's own columns are the body, and content is derived from them", as
         assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`)
 
         const line = await client.query(
-          `SELECT ol.premium, li.pre_melt, li.purity, li.content
-             FROM orders.lots ol JOIN lots.items li ON li.id = ol.lot_id
+          `SELECT li.premium, li.pre_melt, li.purity, li.content
+             FROM orders.lots ol JOIN inventory.lots li ON li.id = ol.lot_id
             WHERE ol.id = $1`,
           [scrapItem.id]
         )
@@ -146,7 +147,7 @@ test("the line's own columns are the body, and content is derived from them", as
         assert.equal(
           Number(line.rows[0].purity),
           0.9167,
-          'the scrap purity was rounded - lots.items.purity has narrowed'
+          'the scrap purity was rounded - inventory.lots.purity has narrowed'
         )
 
         assert.ok(
@@ -187,7 +188,7 @@ test('DELETE removes the link and the lot together', async () => {
         const link = await client.query(`SELECT 1 FROM orders.lots WHERE id = $1`, [scrapItem.id])
         assert.equal(link.rows.length, 0, 'the order link survived')
 
-        const lot = await client.query(`SELECT 1 FROM lots.items WHERE id = $1`, [scrapItem.lot_id])
+        const lot = await client.query(`SELECT 1 FROM inventory.lots WHERE id = $1`, [scrapItem.lot_id])
         assert.equal(lot.rows.length, 0, 'the physical lot survived its only link')
       })
     },

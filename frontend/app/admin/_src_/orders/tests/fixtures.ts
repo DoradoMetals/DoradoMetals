@@ -28,22 +28,37 @@ import type {
 
 const ID = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
 
-export const anActions = (over: Partial<OrderActions> = {}): OrderActions => ({
+type ActionOverride = boolean | { confirm?: string | null; override?: string | null }
+
+const ACTION_DEFAULTS: Record<string, boolean> = {
   cancel: true,
   reopen: false,
   finalize: true,
   add_funds: false,
+  send_payment: true,
   supply: false,
+  refining_sale: false,
   buy_label: false,
   update_tracking: false,
   edit_lots: true,
   assign_lots: true,
   lock_spots: true,
   unlock_spots: false,
-  statuses: [],
-  finalize_blocked_by: [],
-  ...over,
-})
+}
+
+export const anActions = (over: Record<string, ActionOverride> = {}): OrderActions => {
+  const merged: Record<string, ActionOverride> = { ...ACTION_DEFAULTS, ...over }
+  const offered: OrderActions = []
+  for (const [name, value] of Object.entries(merged)) {
+    if (value === false) continue
+    offered.push({
+      name,
+      confirm: value === true ? null : (value.confirm ?? null),
+      override: value === true ? null : (value.override ?? null),
+    })
+  }
+  return offered
+}
 
 export const aTotals = (over: Partial<OrderTotals> = {}): OrderTotals =>
   ({
@@ -83,10 +98,6 @@ export const aLot = (over: Partial<OrderLotView> = {}): OrderLotView =>
     id: ID(20),
     order_id: ID(1),
     lot_id: ID(21),
-    premium: 96,
-    price: 5102.4,
-    sales_tax_charged: 0,
-    confirmed: false,
     created_at: '2026-09-01T12:00:00.000Z',
     updated_at: '2026-09-01T12:00:00.000Z',
     created_by_id: null,
@@ -103,16 +114,29 @@ export const aLot = (over: Partial<OrderLotView> = {}): OrderLotView =>
       content_snapshot: null,
       content: 0.786,
       image_id: null,
-      split_from_id: null,
       created_at: '2026-09-01T12:00:00.000Z',
       updated_at: '2026-09-01T12:00:00.000Z',
       created_by_id: null,
       updated_by_id: null,
+      declared_unit: 'g',
+      declared_quantity: 1,
+      declared_pre_melt: 42.1,
+      declared_post_melt: 41.8,
+      declared_purity: 0.585,
+      assayed_at: null,
+      declared_content: 0.786,
+      premium: 96,
+      sales_tax_rate: 0,
+      confirmed_at: null,
+      settled_at: null,
+      settled_spot: null,
+      source: null,
       product_name: null,
       form: 'Scrap',
       reference: 'Lot 2481-A',
     },
     payable: 0.786,
+    price: 5102.4,
     line_total: 5102.4,
     settled: false,
     refining_order_number: null,
@@ -142,7 +166,6 @@ export const anOrderView = (over: Partial<OrderView> = {}): OrderView =>
       id: ID(1),
       user_id: ID(2),
       direction: 'purchase',
-      status: 'In Transit',
       number: 2481,
       notes: null,
       review_created: null,
@@ -156,7 +179,9 @@ export const anOrderView = (over: Partial<OrderView> = {}): OrderView =>
       tracking_updated: null,
       spots_locked: false,
       assigned_to_id: ID(3),
+      cancelled_at: null,
     },
+    state: 'Awaiting Receipt',
     totals: aTotals(),
     lots: [aLot()],
     address: {
@@ -268,6 +293,8 @@ export const aLiveSpot = (id: string, bid: number): SpotPrice => ({
   bid,
   percent_change: 0.4,
   dollar_change: 9.1,
+  updated_at: '2026-09-01T12:00:00.000Z',
+  source: 'live',
 })
 
 export const aDocument = (
@@ -323,6 +350,7 @@ export const aFulfillment = (over: Partial<FulfillmentView> = {}): FulfillmentVi
       cancel_schedule: true,
       categories: [],
       transitions: [],
+      moves: [],
     },
     ...over,
   }) satisfies FulfillmentView
@@ -405,18 +433,12 @@ export const aRefiningLot = (over: Partial<RefiningLotView> = {}): RefiningLotVi
     id: ID(100),
     refining_order_id: ID(101),
     lot_id: ID(21),
-    unit: 'g',
-    pre_melt: 42.1,
-    post_melt: 41.8,
-    purity: 0.585,
-    content: 0.786,
-    premium: 88,
-    settled_at: null,
     created_at: '2026-09-01T12:00:00.000Z',
     updated_at: '2026-09-01T12:00:00.000Z',
     created_by_id: null,
     updated_by_id: null,
     lot: aLot().lot,
+    sources: [],
     order_id: ID(1),
     order_number: 2481,
     order_direction: 'purchase',
@@ -445,6 +467,7 @@ export const aRefiningOrder = (over: Partial<RefiningOrderView> = {}): RefiningO
     updated_by_id: null,
     location_id: null,
     cancelled_at: null,
+    settlement_type: 'pooled',
     state: 'Pending assay',
     refiner: {
       id: ID(102),
@@ -468,6 +491,7 @@ export const aRefiningOrder = (over: Partial<RefiningOrderView> = {}): RefiningO
     totals: { fee: 20, pool_remediation: 7.24, payment_charge: 20, total: 41871.4 },
     expected_settlement: 41871.4,
     orders_to_date: 12,
+    linked_orders: [],
     ...over,
   }) satisfies RefiningOrderView
 
@@ -481,9 +505,18 @@ export const anAdmin = (): AdminUser => ({
   phone_number: '+15125550100',
   isAnonymous: false,
   phone_number_verified: true,
+  deletion_requested_at: null,
   created_at: '2026-01-01T00:00:00.000Z',
   updated_at: '2026-01-01T00:00:00.000Z',
   email_verified: true,
+  assigned_to_id: null,
+  notes: null,
+  banned: false,
+  ban_reason: null,
+  ban_expires: null,
+  orders_count: 0,
+  open_orders_count: 0,
+  last_contact: null,
 })
 
 export const aMessage = (over: Partial<SmsMessage> = {}): SmsMessage => ({
@@ -504,6 +537,7 @@ export const aMessage = (over: Partial<SmsMessage> = {}): SmsMessage => ({
   updated_at: '2026-09-03T13:00:00.000Z',
   created_by_id: null,
   updated_by_id: null,
+  read_at: null,
   ...over,
 })
 
@@ -551,9 +585,9 @@ export const aFoundLot = (over: Partial<LotView> = {}): LotView => ({
   ...over,
 })
 
-export const aRefiningSpot = (metal_id: string, bid: number): RefiningSpot => ({
+export const aRefiningSpot = (metal_id: string, spot: number): RefiningSpot => ({
   metal_id,
-  ask: bid + 8,
-  bid,
-  locked: true,
+  spot,
+  lots: 1,
+  settled_lots: 0,
 })

@@ -1,6 +1,7 @@
 import { Conflict, Forbidden, Invalid, NotFound } from '#shared/errors.ts'
 import { maskEmail, maskPhone } from '#shared/text/mask.ts'
 import type {
+  AccountProfile,
   AuthOtpThrottle,
   AuthPendingChange,
   ChangeConfirmedView,
@@ -63,6 +64,14 @@ export function assertCaptcha(passed: boolean): void {
 
 export function assertUser(row: User | undefined): asserts row is User {
   if (!row) throw new NotFound('no such account')
+}
+
+export function assertProfile(
+  user_id: string,
+  row: AccountProfile | undefined
+): AccountProfile {
+  if (!row) throw new NotFound(`no such account ${user_id}`)
+  return row
 }
 
 export function assertThrottle(row: AuthOtpThrottle | undefined): asserts row is AuthOtpThrottle {
@@ -215,6 +224,12 @@ export function assertSession(session: Session | undefined): asserts session is 
   if (!session) throw new Forbidden('this session no longer exists')
 }
 
+export function assertSessionNamed(
+  session_id: string | null | undefined
+): asserts session_id is string {
+  if (!session_id) throw new Forbidden('step_up_required')
+}
+
 export function assertOtherFactorVerified(user: User, changing: Factor): void {
   if (changing === 'email') {
     if (!user.phone_number || !user.phone_number_verified) {
@@ -268,7 +283,7 @@ export const detailsChangedLabel = (factor: Factor): string =>
   factor === 'email' ? 'Email address' : 'Phone number'
 
 export const stepUpChannel = (user: User): OtpChannel =>
-  user.phone_number && user.phone_number_verified ? 'sms' : 'email'
+  user.emailVerified ? 'email' : 'sms'
 
 export function stepUpDestination(user: User): string {
   const value = stepUpChannel(user) === 'sms' ? user.phone_number : user.email

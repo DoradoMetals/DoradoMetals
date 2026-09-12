@@ -117,14 +117,14 @@ async function primeCheckout(
   }
 
   await c.query(
-    `DELETE FROM lots.items li USING checkout.lots cl
+    `DELETE FROM inventory.lots li USING checkout.lots cl
       WHERE cl.lot_id = li.id AND cl.checkout_id = $1`,
     [co.id]
   )
   for (const item of items) {
     await c.query(
       `WITH lot AS (
-         INSERT INTO lots.items
+         INSERT INTO inventory.lots
                 (bullion_id, metal_id, pre_melt, post_melt, purity, unit, quantity)
          VALUES (NULL, $2, $3, $4, $5, COALESCE($6, 't oz'), COALESCE($7, 1))
          RETURNING id
@@ -144,7 +144,7 @@ async function primeCheckout(
   for (const product of products) {
     await c.query(
       `WITH lot AS (
-         INSERT INTO lots.items
+         INSERT INTO inventory.lots
                 (bullion_id, metal_id, pre_melt, post_melt, purity, content_snapshot,
                  unit, quantity)
          SELECT b.id, b.metal_id, b.gross, NULL, b.purity, b.content, 't oz', $3
@@ -167,13 +167,13 @@ test('a checkout becomes an order with its items and its fulfillment', async () 
     const order = await place.place(await primeCheckout(c), carrierAnswers())
 
     assert.equal(order.order.direction, 'purchase')
-    assert.equal(order.order.status, 'In Transit')
+    assert.equal(order.state, 'Awaiting Receipt', 'a freshly placed purchase awaits its parcel')
     assert.ok(Number(order.order.number) > 0)
     assert.equal(order.order.user_id, customer)
 
     const { rows: items } = await c.query(
-      `SELECT li.purity, li.content, ol.premium, li.unit, li.quantity, li.metal_id
-         FROM orders.lots ol JOIN lots.items li ON li.id = ol.lot_id
+      `SELECT li.purity, li.content, li.premium, li.unit, li.quantity, li.metal_id
+         FROM orders.lots ol JOIN inventory.lots li ON li.id = ol.lot_id
         WHERE ol.order_id = $1`,
       [order.order.id]
     )
@@ -185,7 +185,7 @@ test('a checkout becomes an order with its items and its fulfillment', async () 
     )
     assert.notEqual(Number(items[0].premium), 0.8, "the browser's premium survived")
     assert.ok(Number(items[0].premium) > 0, 'the line was left with no premium at all')
-    assert.ok(items[0].metal_id, 'lots.items.metal_id is NOT NULL')
+    assert.ok(items[0].metal_id, 'inventory.lots.metal_id is NOT NULL')
 
     const { rows: f } = await c.query(
       `SELECT m.type, m.category FROM fulfillments.fulfillments fu
@@ -199,7 +199,8 @@ test('a checkout becomes an order with its items and its fulfillment', async () 
     const { rows: unassigned } = await c.query(
       `SELECT count(*)::int n FROM orders.lots ol
         WHERE ol.order_id = $1
-          AND EXISTS (SELECT 1 FROM refining.lots rl WHERE rl.lot_id = ol.lot_id)`,
+          AND EXISTS (SELECT 1 FROM inventory.lot_sources ls
+                       WHERE ls.source_lot_id = ol.lot_id AND ls.kind = 'batch')`,
       [order.order.id]
     )
     assert.equal(unassigned[0].n, 0, 'placement assigned a lot to a refiner by itself')
@@ -274,6 +275,20 @@ test('spots are frozen per metal the order actually contains', async () => {
     )
     assert.ok(Number(rows[0].ask) > 0, 'a frozen spot with no price is not frozen')
     assert.equal(rows.length, 2)
+  })
+})
+
+test('placing a purchase order locks its spots as the price the customer was shown', async () => {
+  await inPinned(async (c: PoolClient) => {
+    await aWorld(c)
+    const order = await place.place(await primeCheckout(c), carrierAnswers())
+
+    const { rows } = await c.query(
+      `SELECT spots_locked FROM orders.orders WHERE id = $1`,
+      [order.order.id]
+    )
+    assert.equal(rows[0].spots_locked, true, 'the customer never locked their own quote')
+    assert.equal(order.order.spots_locked, true, 'the placed order does not report itself locked')
   })
 })
 
@@ -354,8 +369,8 @@ test('a placed bullion line takes the rate band, not the premium the cart carrie
     )
 
     const { rows: items } = await c.query(
-      `SELECT li.bullion_id, ol.premium
-         FROM orders.lots ol JOIN lots.items li ON li.id = ol.lot_id
+      `SELECT li.bullion_id, li.premium
+         FROM orders.lots ol JOIN inventory.lots li ON li.id = ol.lot_id
         WHERE ol.order_id = $1`,
       [order.order.id]
     )

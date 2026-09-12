@@ -23,9 +23,9 @@ export const FEATURES: FeatureMap = {
   orders: {
     'exchange.purchase_orders': ['orders.orders', 'orders.transactions'],
     'exchange.sales_orders': ['orders.orders', 'orders.transactions', 'refiners.orders'],
-    'exchange.purchase_order_items': ['orders.items', 'refiners.items', 'lots.items', 'orders.lots', 'refining.lots'],
-    'exchange.sales_order_items': ['orders.items', 'lots.items', 'orders.lots'],
-    'exchange.scrap': ['orders.items', 'refiners.items', 'lots.items', 'orders.lots', 'refining.lots'],
+    'exchange.purchase_order_items': ['refiners.items', 'inventory.lots', 'orders.lots', 'refining.lots'],
+    'exchange.sales_order_items': ['inventory.lots', 'orders.lots'],
+    'exchange.scrap': ['refiners.items', 'inventory.lots', 'orders.lots', 'refining.lots'],
     'exchange.order_metals': ['orders.spots'],
     'exchange.addresses': ['places.addresses', 'orders.addresses'],
   },
@@ -45,16 +45,16 @@ export const FEATURES: FeatureMap = {
     ],
   },
   refiners: {
-    'exchange.refiner_metals': ['refiners.spots', 'refiners.items', 'refining.lots', 'refining.pool'],
+    'exchange.refiner_metals': ['refiners.spots', 'refiners.items', 'refining.lots', 'inventory.pool'],
     'exchange.purchase_orders': ['refiners.orders'],
   },
   users: { 'exchange.users': ['auth.users'], 'exchange.session': ['auth.sessions'] },
   transactions: { 'exchange.account_transactions': ['payments.ledger'] },
   checkout: {
     'exchange.carts': ['checkout.checkouts'],
-    'exchange.cart_items': ['checkout.items', 'lots.items', 'checkout.lots'],
+    'exchange.cart_items': ['inventory.lots', 'checkout.lots'],
     'exchange.sell_carts': ['checkout.checkouts'],
-    'exchange.sell_cart_items': ['checkout.items', 'lots.items', 'checkout.lots'],
+    'exchange.sell_cart_items': ['inventory.lots', 'checkout.lots'],
   },
 }
 
@@ -69,13 +69,13 @@ export const RENAMES: RenameMap = {
   'exchange.suppliers': { is_active: 'enabled' },
   'exchange.carriers': { is_active: 'enabled' },
   'exchange.purchase_orders': {
-    purchase_order_status: 'status',
+    purchase_order_status: 'cancelled_at',
     order_number: 'number',
     total_price: 'total',
     address_id: '-',
   },
   'exchange.sales_orders': {
-    sales_order_status: 'status',
+    sales_order_status: 'cancelled_at',
     order_number: 'number',
     supplier_id: 'refiner_id',
     order_total: 'total',
@@ -90,11 +90,12 @@ export const RENAMES: RenameMap = {
     product_id: 'bullion_id',
     scrap_id: '-',
     refiner_premium: 'premium',
+    confirmed: 'confirmed_at',
   },
   'exchange.sales_order_items': {
     sales_order_id: 'order_id',
     product_id: 'bullion_id',
-    sales_tax_rate: 'sales_tax_charged',
+    sales_tax_rate: 'sales_tax_rate',
   },
   'exchange.scrap': {
     gross_unit: 'unit',
@@ -190,6 +191,11 @@ export const DELIBERATE: Record<string, string> = {
   'exchange.metals.scrap_percentage':
     'rate tiering moved to rates.rates, which supersedes a single percentage per metal',
   'exchange.metals.bullion_percentage': 'same',
+  'exchange.purchase_order_items.price':
+    'price is derived and never stored since rulings 120-121 - content x the ' +
+    "order's locked spot x the lot's premium, one definition in " +
+    'db/pricing/sql/order_pricing.sql. The exchange value stays frozen where it is',
+  'exchange.sales_order_items.price': 'same',
   'exchange.products.sell_display':
     'dropped from products.bullion by migration 119; the sell tab lists every ' +
     'product and `display` gates the buy side only (Jacob, 2026-09-03, ruling 49)',
@@ -200,27 +206,22 @@ export const BLOCKED: Record<string, string> = {}
 export const FLOWS: FlowMap = {
   checkout: {
     'exchange.scrap': {
-      'checkout.items': {
+      'inventory.lots': {
         pre_melt: 'pre_melt',
         post_melt: 'post_melt',
         purity: 'purity',
-        content: 'content',
+        content: 'content_snapshot',
         gross_unit: 'unit',
       },
     },
   },
   orders: {
     'exchange.products': {
-      'orders.items': {
-        gross: 'pre_melt',
-        content: ['post_melt', 'content'],
-        purity: 'purity',
-      },
       // A lot's `content` is GENERATED, so nothing flows into it. A catalogue
       // lot's fine content is snapshotted once, into a column of its own, and
       // `post_melt` stays null: a fine weight in a gross-weight column is what
       // made a derived content apply purity twice.
-      'lots.items': {
+      'inventory.lots': {
         gross: 'pre_melt',
         content: 'content_snapshot',
         purity: 'purity',

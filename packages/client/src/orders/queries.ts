@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type {
   Direction,
   FulfillmentDropoff,
+  Lot,
   LotSplit,
   OrderCancelBody,
   OrderDocument,
@@ -109,10 +110,6 @@ export function useFinalizeOrder(id: string) {
   return useOrderWrite(id, () => apiRequest<OrderView>('POST', `/orders/${id}/finalize`, {}))
 }
 
-export function useReopenOrder(id: string) {
-  return useOrderWrite(id, () => apiRequest<OrderView>('POST', `/orders/${id}/reopen`, {}))
-}
-
 export function useCancelOrder(id: string) {
   return useOrderWrite(id, (body: OrderCancelBody) =>
     apiRequest<OrderView>('POST', `/orders/${id}/cancel`, body)
@@ -143,7 +140,7 @@ export function useCreateOrderLot(id: string) {
 
 export function usePatchOrderLot(id: string) {
   return useOrderWrite(id, ({ lot_id, patch }: { lot_id: string; patch: OrderLotPatch }) =>
-    apiRequest<OrderLotView>('PATCH', `/orders/lots/${lot_id}`, patch)
+    apiRequest<OrderLotView | Lot>('PATCH', `/orders/lots/${lot_id}`, patch)
   )
 }
 

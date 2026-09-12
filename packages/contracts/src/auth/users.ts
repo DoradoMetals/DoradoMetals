@@ -22,6 +22,9 @@ export const User = z.object({
   'phone_number': z.string().nullable(),
   'isAnonymous': z.boolean(),
   'phone_number_verified': z.boolean(),
+  'assigned_to_id': z.string().uuid().nullable(),
+  'notes': z.string().nullable(),
+  'deletion_requested_at': z.string().nullable(),
 })
 export type User = z.infer<typeof User>
 // generated:end
@@ -40,8 +43,25 @@ export const AdminUser = User.omit({
   created_at: User.shape.createdAt.nullable(),
   updated_at: User.shape.updatedAt.nullable(),
   email_verified: User.shape.emailVerified.nullable(),
+  banned: User.shape.banned,
+  ban_reason: User.shape.banReason,
+  ban_expires: User.shape.banExpires,
+  orders_count: z.number().int(),
+  open_orders_count: z.number().int(),
+  last_contact: z.string().nullable(),
 })
 export type AdminUser = z.infer<typeof AdminUser>
+
+export const UserPatch = AdminUser.pick({
+  assigned_to_id: true,
+  notes: true,
+  banned: true,
+  ban_reason: true,
+  ban_expires: true,
+})
+  .partial()
+  .strict()
+export type UserPatch = z.infer<typeof UserPatch>
 
 export const UserCredit = User.pick({ id: true, dorado_funds: true })
 export type UserCredit = z.infer<typeof UserCredit>
@@ -56,3 +76,10 @@ export const UpdateCreditBody = z
   })
   .strict()
 export type UpdateCreditBody = z.infer<typeof UpdateCreditBody>
+
+export const UserCreateFacts = z.object({
+  name: User.shape.name,
+  phone_number: User.shape.phone_number,
+  email: User.shape.email,
+})
+export type UserCreateFacts = z.infer<typeof UserCreateFacts>

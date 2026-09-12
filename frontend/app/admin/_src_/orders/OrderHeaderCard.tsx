@@ -1,7 +1,9 @@
 'use client'
 
 import { Badge, Button, Select, Text } from '@dorado/components'
-import type { AdminUser, Location } from '@dorado/contracts'
+import type { AdminUser, Location, OrderState } from '@dorado/contracts'
+
+import { orderStateBadge } from '@/shared/utils/orderState'
 
 export type OrderHeaderParty =
   | { kind: 'customer'; name: string; place: string; ordersToDate: number | null }
@@ -33,6 +35,7 @@ export type OrderHeaderCardProps = {
   eyebrow: string
   reference: string
   party: OrderHeaderParty
+  state?: OrderState | 'Draft'
   cancelled?: boolean
   assignedToId: string | null
   admins: AdminUser[]
@@ -48,6 +51,7 @@ export function OrderHeaderCard({
   eyebrow,
   reference,
   party,
+  state,
   cancelled = false,
   assignedToId,
   admins,
@@ -71,10 +75,14 @@ export function OrderHeaderCard({
           <Text variant="eyebrow" emphasis="subtlest">
             {eyebrow}
           </Text>
-          {cancelled && (
-            <Badge intent="danger" variant="soft">
-              Cancelled
-            </Badge>
+          {state ? (
+            <Badge {...orderStateBadge(state)}>{state}</Badge>
+          ) : (
+            cancelled && (
+              <Badge intent="danger" variant="soft">
+                Cancelled
+              </Badge>
+            )
           )}
         </div>
 

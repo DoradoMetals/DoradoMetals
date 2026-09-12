@@ -3,15 +3,15 @@ import express from 'express'
 import {
   addFundsToOrder,
   adminCreateOrder,
+  adoptAssay,
   cancelOrder,
   createOrder,
-  createOrderReview,
   finalizeOrder,
+  getAdoptAssayProposal,
   getOrder,
   getOrderDocuments,
   listOrders,
   patchOrder,
-  reopenOrder,
 } from '#orders/controller.ts'
 
 import lotRoutes from '#orders/lots/routes.ts'
@@ -41,7 +41,7 @@ router.use('/', spotRoutes)
 router.use('/', addressRoutes)
 
 router.get('/:id', requireUser, requireOwnOrderParam, getOrder)
-router.get('/:id/documents', requireAdmin, getOrderDocuments)
+router.get('/:id/documents', requireUser, requireOwnOrderParam, getOrderDocuments)
 router.post('/:id/documents/:kind/send', requireAdmin, sendOrderDocument)
 router.post(
   '/:id/documents/:kind',
@@ -57,14 +57,13 @@ router.get('/:orderId/directs', requireAdmin, getDirectsByOrder)
 router.get('/:orderId/dropoffs', requireAdmin, getDropoffsByOrder)
 router.get('/:orderId/payment-details', requireUser, requireOwnOrderParam, getOrderPaymentDetails)
 
-router.post('/:id/review', requireUser, requireOwnOrderParam, createOrderReview)
-
 router.post('/:id/add_funds', requireAdmin, addFundsToOrder)
 router.post('/:id/finalize', requireAdmin, finalizeOrder)
 router.post('/:id/cancel', requireAdmin, cancelOrder)
-router.post('/:id/reopen', requireAdmin, reopenOrder)
 router.post('/:id/supply', requireAdmin, supplyOrder)
 router.post('/:id/refining-sale', requireAdmin, sellToRefiner)
+router.get('/:id/adopt_assay', requireAdmin, getAdoptAssayProposal)
+router.post('/:id/adopt_assay', requireAdmin, adoptAssay)
 
 router.patch('/:id', requireAdmin, patchOrder)
 

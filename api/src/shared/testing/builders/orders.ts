@@ -1,7 +1,7 @@
 import type { PoolClient } from 'pg'
 import { aTag } from '#shared/testing/builders/ids.ts'
 import * as ordersRepo from '#db/orders/repo.ts'
-import * as lotsRepo from '#db/lots/items/repo.ts'
+import * as lotsRepo from '#db/inventory/lots/repo.ts'
 import * as orderLots from '#db/orders/lots/repo.ts'
 import * as totalsRepo from '#db/orders/transactions/repo.ts'
 import * as orderAddresses from '#db/orders/addresses/repo.ts'
@@ -12,21 +12,21 @@ import { metalIds, type MetalName } from '#shared/testing/builders/reference.ts'
 import type { BuiltUser } from '#shared/testing/builders/users.ts'
 import type { BuiltProduct } from '#shared/testing/builders/products.ts'
 
-import type { Direction, Lot, OrderLot, OrderTotalsPatch } from '@dorado/contracts'
+import type { Direction, Lot, OrderTotalsPatch } from '@dorado/contracts'
 
 export type BuiltOrder = {
   id: string
   number: number
   user_id: string | null
   direction: Direction
-  status: string
+  cancelled_at: string | null
   checkout_id: string
   lots: { id: string; lot_id: string; bullion_id: string | null; metal_id: string }[]
 }
 
 export type OrderOptions = {
   direction?: Direction
-  status?: string
+  cancelled_at?: string | null
   notes?: string | null
 }
 
@@ -35,24 +35,25 @@ type LotOptions = {
   pre_melt?: number
   post_melt?: number | null
   purity?: number
-  price?: number | null
   confirmed?: boolean
   unit?: string
 }
 
 type BullionOptions = {
-  price?: number | null
   premium?: number | null
   confirmed?: boolean
-  sales_tax_charged?: number
+  sales_tax_rate?: number | null
   unit?: string
 }
 
 type LineSpec = Partial<Omit<Lot, 'id' | 'metal_id' | 'content'>> &
-  Pick<Lot, 'metal_id'> &
-  Partial<Pick<OrderLot, 'premium' | 'price' | 'confirmed' | 'sales_tax_charged'>> & {
+  Pick<Lot, 'metal_id'> & {
     content?: number | null
+    confirmed?: boolean
   }
+
+const confirmedAt = (confirmed: boolean | undefined): string | null =>
+  confirmed === true ? new Date().toISOString() : null
 
 type Totals = Omit<OrderTotalsPatch, 'order_id'>
 
@@ -84,12 +85,8 @@ class OrderPlan implements PromiseLike<BuiltOrder> {
           },
           c
         )
+        await lotsRepo.update(lot.id, { confirmed_at: confirmedAt(options.confirmed) }, c)
         const link = await orderLots.link(order.id, lot.id, c)
-        await orderLots.update(
-          link.id,
-          { confirmed: options.confirmed ?? false, price: options.price ?? null },
-          c
-        )
         order.lots.push({ id: link.id, lot_id: lot.id, bullion_id: null, metal_id })
       }
     })
@@ -100,18 +97,17 @@ class OrderPlan implements PromiseLike<BuiltOrder> {
     this.steps.push(async (c, order) => {
       const lot = await lotsRepo.createFromProduct(product.id, quantity, false, c)
       if (!lot) throw new Error(`products.bullion has no row ${product.id} to copy`)
-      if (options.unit) await lotsRepo.update(lot.id, { unit: options.unit }, c)
-      const link = await orderLots.link(order.id, lot.id, c)
-      await orderLots.update(
-        link.id,
+      await lotsRepo.update(
+        lot.id,
         {
+          unit: options.unit ?? lot.unit,
           premium: options.premium ?? product.bid_premium,
-          confirmed: options.confirmed ?? false,
-          sales_tax_charged: options.sales_tax_charged ?? 0,
-          price: options.price ?? null,
+          confirmed_at: confirmedAt(options.confirmed),
+          sales_tax_rate: options.sales_tax_rate ?? null,
         },
         c
       )
+      const link = await orderLots.link(order.id, lot.id, c)
       order.lots.push({
         id: link.id,
         lot_id: lot.id,
@@ -126,7 +122,7 @@ class OrderPlan implements PromiseLike<BuiltOrder> {
     this.steps.push(async (c, order) => {
       for (const line of lines) {
         const { rows } = await c.query<{ id: string; bullion_id: string | null; metal_id: string }>(
-          `INSERT INTO lots.items
+          `INSERT INTO inventory.lots
              (bullion_id, metal_id, pre_melt, post_melt, purity, content_snapshot,
               quantity, unit)
            VALUES ($1, $2, $3, $4, $5, $6, $7, COALESCE($8, 't oz'))
@@ -143,17 +139,16 @@ class OrderPlan implements PromiseLike<BuiltOrder> {
           ]
         )
         const row = rows[0]!
-        const link = await orderLots.link(order.id, row.id, c)
-        await orderLots.update(
-          link.id,
+        await lotsRepo.update(
+          row.id,
           {
             premium: line.premium ?? null,
-            confirmed: line.confirmed ?? false,
-            sales_tax_charged: line.sales_tax_charged ?? 0,
-            price: line.price ?? null,
+            confirmed_at: line.confirmed_at ?? confirmedAt(line.confirmed),
+            sales_tax_rate: line.sales_tax_rate ?? null,
           },
           c
         )
+        const link = await orderLots.link(order.id, row.id, c)
         order.lots.push({
           id: link.id,
           lot_id: row.id,
@@ -223,7 +218,7 @@ class OrderPlan implements PromiseLike<BuiltOrder> {
 
   private async run(): Promise<BuiltOrder> {
     const direction = this.options.direction ?? 'purchase'
-    const status = this.options.status ?? 'Pending'
+    const cancelled_at = this.options.cancelled_at ?? null
     if (!this.user) {
       throw new Error(
         'anOrder needs a user - orders.orders.createForCheckout copies its owner ' +
@@ -236,11 +231,14 @@ class OrderPlan implements PromiseLike<BuiltOrder> {
       (await checkoutsRepo.findFor(this.user.id, direction, this.c))
     if (!checkout) throw new Error('checkout.checkouts refused a new session')
 
-    const created = await ordersRepo.createForCheckout(checkout.id, status, this.c)
+    const created = await ordersRepo.createForCheckout(checkout.id, this.c)
     if (!created) throw new Error('orders.orders refused a new order')
 
     if (this.options.notes !== undefined) {
       await ordersRepo.update(created.id, { notes: this.options.notes }, {}, this.c)
+    }
+    if (cancelled_at !== null) {
+      await ordersRepo.update(created.id, { cancelled_at }, {}, this.c)
     }
 
     const order: BuiltOrder = {
@@ -248,7 +246,7 @@ class OrderPlan implements PromiseLike<BuiltOrder> {
       number: created.number,
       user_id: this.user.id,
       direction,
-      status,
+      cancelled_at,
       checkout_id: checkout.id,
       lots: [],
     }

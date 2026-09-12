@@ -31,3 +31,11 @@ export function sqlFrom(dir: string): (name: string) => string {
     return text
   }
 }
+
+export function expression(text: string): string {
+  return text
+    .split('\n')
+    .filter((line) => !line.trim().startsWith('--'))
+    .join('\n')
+    .trim()
+}

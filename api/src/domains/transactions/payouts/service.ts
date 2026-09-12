@@ -3,44 +3,72 @@ import { attempt } from '#shared/attempt.ts'
 import { orders, paymentTransfers as transfers, bankLinks, refiningOrders } from '#db'
 import * as moov from '#providers/moov/index.ts'
 import * as rails from '#transactions/rails/service.ts'
+import * as rules from '#transactions/payouts/rules.ts'
 import {
   assertKind,
   assertOpenable,
+  assertOverrideReason,
   assertPayable,
   assertOneOrder,
   assertRail,
-  assertSendable,
   assertTransfer,
   assertWalletMethod,
   assertWritten,
   centsOf,
   openingState,
+  overrideFor,
+  payoutOverrideFor,
   referenceFor,
   refiningReferenceFor,
   transferKeyFor,
 } from '#transactions/rails/rules.ts'
+import * as accounts from '#accounts/auth/step-up.ts'
 import { PayTo as PayToShape } from '@dorado/contracts'
-import type { BankLink, OpenPayoutBody, PayTo, Transfer } from '@dorado/contracts'
+import type {
+  BankLink,
+  OpenPayoutBody,
+  PayoutPatch,
+  PayTo,
+  SendPayoutBody,
+  Transfer,
+} from '@dorado/contracts'
 
 const MOOV = 'moov'
 const MANUAL = 'manual'
 
-export async function openPayout(body: OpenPayoutBody): Promise<Transfer> {
+export async function openPayout(
+  body: OpenPayoutBody,
+  session_id: string | null = null
+): Promise<Transfer> {
   assertOneOrder(body.order_id, body.refining_order_id)
   assertRail(body.rail, 'payout')
   if (body.refining_order_id) return await openRefiningPayout(body, body.refining_order_id)
-  return await withTransaction(async (tx) => {
-    const order = await orders.getOne(body.order_id as string, tx)
-    const owed = assertOpenable(body.order_id as string, order?.totals?.total)
 
+  const order_id = body.order_id as string
+  const order = await orders.getOne(order_id)
+  const owed = assertOpenable(order_id, order?.totals?.total)
+  const excess = payoutOverrideFor(owed, body.amount)
+  const standing = await transfers.getForOrder(order_id, 'payout')
+  const second =
+    standing && !['Not sent', 'Due'].includes(standing.state)
+      ? `order ${order?.number} already has a ${standing.state} payout`
+      : null
+  const reason = excess ?? second
+
+  if (reason !== null) {
+    assertOverrideReason(body.override_reason, reason)
+    await accounts.assertSteppedUp(session_id)
+  }
+
+  return await withTransaction(async (tx) => {
     const created = await transfers.create(
       {
-        order_id: body.order_id as string,
+        order_id,
         refining_order_id: null,
         kind: 'payout',
         rail: body.rail,
         state: openingState('payout'),
-        amount: owed,
+        amount: body.amount ?? owed,
         counterparty_user_id: order?.user_id ?? null,
         details_id: body.details_id ?? order?.totals?.payout_details_id ?? null,
         bank_link_id: body.bank_link_id ?? null,
@@ -48,14 +76,12 @@ export async function openPayout(body: OpenPayoutBody): Promise<Transfer> {
         provider_ref: null,
         reference: referenceFor(order?.direction ?? null, order?.number ?? 0),
         idempotency_key: null,
+        override_reason: reason === null ? null : (body.override_reason as string),
       },
       tx
     )
     if (created) return created
-    return assertTransfer(
-      body.order_id as string,
-      await transfers.getForOrder(body.order_id as string, 'payout', tx)
-    )
+    return assertTransfer(order_id, await transfers.getForOrder(order_id, 'payout', tx))
   })
 }
 
@@ -82,6 +108,7 @@ async function openRefiningPayout(
         provider_ref: null,
         reference: refiningReferenceFor(order?.number ?? 0),
         idempotency_key: null,
+        override_reason: null,
       },
       tx
     )
@@ -101,10 +128,26 @@ async function payoutAccount(transfer: Transfer): Promise<BankLink> {
   return assertPayable(transfer, named ?? fallback)
 }
 
-export async function sendPayout(transfer_id: string): Promise<Transfer> {
-  const opened = assertSendable(
-    assertKind(assertTransfer(transfer_id, await transfers.getOne(transfer_id)), 'payout')
+export async function sendPayout(
+  transfer_id: string,
+  body: SendPayoutBody = {},
+  session_id: string | null = null
+): Promise<Transfer> {
+  const opened = assertKind(
+    assertTransfer(transfer_id, await transfers.getOne(transfer_id)),
+    'payout'
   )
+  const reason = overrideFor(opened)
+  if (reason !== null) {
+    assertOverrideReason(body.override_reason, reason)
+    await accounts.assertSteppedUp(session_id)
+    await withTransaction(async (tx) => {
+      assertWritten(
+        transfer_id,
+        await transfers.update(transfer_id, { override_reason: body.override_reason }, {}, tx)
+      )
+    })
+  }
   const link = await payoutAccount(opened)
   const source = assertWalletMethod(process.env.MOOV_WALLET_PAYMENT_METHOD_ID)
 
@@ -171,6 +214,12 @@ export async function markSent(transfer_id: string, reference: string): Promise<
 export async function failPayout(transfer_id: string, reason: string): Promise<Transfer> {
   await rails.markFailed(transfer_id, reason)
   return await rails.getTransfer(transfer_id)
+}
+
+export async function patchPayout(transfer_id: string, changes: PayoutPatch): Promise<Transfer> {
+  rules.assertNamesExactlyOneField(changes)
+  if (changes.reference !== undefined) return await markSent(transfer_id, changes.reference)
+  return await failPayout(transfer_id, changes.failure_reason as string)
 }
 
 export async function payTo(user_id: string): Promise<PayTo[]> {

@@ -9,10 +9,6 @@ export const OrderLot = z.object({
   'id': z.string().uuid(),
   'order_id': z.string().uuid(),
   'lot_id': z.string().uuid(),
-  'premium': z.number().nullable(),
-  'price': z.number().nullable(),
-  'sales_tax_charged': z.number(),
-  'confirmed': z.boolean(),
   'created_at': z.string(),
   'updated_at': z.string(),
   'created_by_id': z.string().uuid().nullable(),
@@ -21,26 +17,23 @@ export const OrderLot = z.object({
 export type OrderLot = z.infer<typeof OrderLot>
 // generated:end
 
-import { Lot, LotView } from '../lots/items.js'
+import { Lot, LotPatch, LotView } from '../inventory/lots.js'
 import { RefiningOrder } from '../refining/orders.js'
 
-export const OrderLotPatch = OrderLot.pick({
+export const OrderLotPatch = Lot.pick({
+  bullion_id: true,
+  metal_id: true,
+  pre_melt: true,
+  post_melt: true,
+  purity: true,
+  unit: true,
+  quantity: true,
   premium: true,
-  price: true,
-  sales_tax_charged: true,
-  confirmed: true,
+  sales_tax_rate: true,
+  confirmed_at: true,
+  settled_spot: true,
+  source: true,
 })
-  .merge(
-    Lot.pick({
-      bullion_id: true,
-      metal_id: true,
-      pre_melt: true,
-      post_melt: true,
-      purity: true,
-      unit: true,
-      quantity: true,
-    })
-  )
   .partial()
   .strict()
 export type OrderLotPatch = z.infer<typeof OrderLotPatch>
@@ -48,8 +41,9 @@ export type OrderLotPatch = z.infer<typeof OrderLotPatch>
 export const OrderLotView = OrderLot.extend({
   lot: LotView,
   payable: Lot.shape.content,
-  line_total: OrderLot.shape.price,
-  settled: OrderLot.shape.confirmed,
+  price: Lot.shape.content,
+  line_total: Lot.shape.content,
+  settled: z.boolean(),
   refining_order_number: RefiningOrder.shape.number.nullable(),
 })
 export type OrderLotView = z.infer<typeof OrderLotView>
@@ -59,8 +53,36 @@ export type OrderLotLine = z.infer<typeof OrderLotLine>
 
 export const SoldLotPrice = z.object({
   lot_id: OrderLot.shape.lot_id,
-  premium: OrderLot.shape.premium.unwrap(),
-  sales_tax: OrderLot.shape.sales_tax_charged,
-  price: OrderLot.shape.price.unwrap(),
+  premium: Lot.shape.premium.unwrap(),
+  sales_tax: Lot.shape.sales_tax_rate,
 })
 export type SoldLotPrice = z.infer<typeof SoldLotPrice>
+
+export const AdoptAssayCandidate = z
+  .object({ id: OrderLot.shape.id, lot_id: OrderLot.shape.lot_id })
+  .extend({
+    current: LotPatch,
+    refiner: LotPatch.nullable(),
+    share: Lot.shape.content,
+    proposed: LotPatch,
+  })
+  .strict()
+export type AdoptAssayCandidate = z.infer<typeof AdoptAssayCandidate>
+
+export const AdoptAssayProposal = z.object({}).extend({
+  lots: z.array(AdoptAssayCandidate),
+})
+export type AdoptAssayProposal = z.infer<typeof AdoptAssayProposal>
+
+export const AdoptAssayLot = z
+  .object({ id: OrderLot.shape.id })
+  .extend({ figures: OrderLotPatch })
+  .strict()
+export type AdoptAssayLot = z.infer<typeof AdoptAssayLot>
+
+export const AdoptAssayBody = z
+  .object({})
+  .extend({ lots: z.array(AdoptAssayLot).min(1), combine: z.boolean() })
+  .partial({ combine: true })
+  .strict()
+export type AdoptAssayBody = z.infer<typeof AdoptAssayBody>

@@ -1,6 +1,6 @@
-import { FailTransferBody, OpenChargeBody, RequestChargeBody } from '@dorado/contracts'
+import { ChargePatch, OpenChargeBody, RequestChargeBody } from '@dorado/contracts'
 import { asyncHandler } from '#shared/middleware/asyncHandler.ts'
-import { parseStrict, uuidParam } from '#shared/http/validate.ts'
+import { parseStrict, strictBody, uuidParam } from '#shared/http/validate.ts'
 import * as charges from '#transactions/charges/service.ts'
 
 export const openCharge = asyncHandler(async (req, res) => {
@@ -17,7 +17,7 @@ export const requestCharge = asyncHandler(async (req, res) => {
   return res.json(await charges.requestCharge(uuidParam(req, 'id'), body.bank_link_id))
 })
 
-export const failCharge = asyncHandler(async (req, res) => {
-  const body = parseStrict(FailTransferBody, req.body, 'payments/charges fail body')
-  return res.json(await charges.failCharge(uuidParam(req, 'id'), body.reason))
+export const patchCharge = asyncHandler(async (req, res) => {
+  const changes = strictBody(ChargePatch, req.body)
+  return res.json(await charges.patchCharge(uuidParam(req, 'id'), changes))
 })

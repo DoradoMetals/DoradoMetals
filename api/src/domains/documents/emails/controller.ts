@@ -26,6 +26,13 @@ export const sendPricedEmail = asyncHandler(async (req, res) => {
   return res.status(200).json({ success: true })
 })
 
+export const sendPickupCompleteEmail = asyncHandler(async (req, res) => {
+  const { order_id } = strictBody(SendOrderEmailBody, req.body)
+  await assertTheirs(order_id, req.user)
+  await emailService.sendPickupComplete(order_id)
+  return res.status(200).json({ success: true })
+})
+
 export const handleResendWebhook = asyncHandler(async (req, res) => {
   const raw = Buffer.isBuffer(req.body) ? req.body.toString('utf8') : ''
   const id = oneString(req.headers[email.ID_HEADER])

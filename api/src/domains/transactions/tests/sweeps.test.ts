@@ -12,14 +12,14 @@ const NO_SUCH_INTENT = 'pi_cassette_no_such_intent'
 
 async function seedSale(
   c: PoolClient,
-  over: { status?: string; user_id?: string | null; ageHours?: number } = {}
+  over: { user_id?: string | null; ageHours?: number } = {}
 ): Promise<string> {
   const { rows } = await query<{ id: string }>(
-    `INSERT INTO orders.orders (direction, status, number, user_id, created_at)
-     VALUES ('sale', $1, nextval('orders.sale_number_seq'), $2,
-             now() - make_interval(hours => $3))
+    `INSERT INTO orders.orders (direction, number, user_id, created_at)
+     VALUES ('sale', nextval('orders.sale_number_seq'), $1,
+             now() - make_interval(hours => $2))
      RETURNING id`,
-    [over.status ?? 'Pending', over.user_id ?? null, over.ageHours ?? 0],
+    [over.user_id ?? null, over.ageHours ?? 0],
     c
   )
   return rows[0]!.id
@@ -45,9 +45,14 @@ async function seedIntent(
   )
 }
 
-const statusOf = async (c: PoolClient, id: string) =>
-  (await query<{ status: string }>(`SELECT status FROM orders.orders WHERE id = $1`, [id], c))
-    .rows[0]?.status
+const cancelledAtOf = async (c: PoolClient, id: string) =>
+  (
+    await query<{ cancelled_at: string | null }>(
+      `SELECT cancelled_at FROM orders.orders WHERE id = $1`,
+      [id],
+      c
+    )
+  ).rows[0]?.cancelled_at
 
 test('the settled sweep advances an order whose webhook went missing', async () => {
   await inPinnedTransaction(
@@ -72,7 +77,7 @@ test('the settled sweep advances an order whose webhook went missing', async () 
         results.some((r) => r.order_id === id && r.outcome === 'advanced'),
         'the missed-webhook order was not advanced'
       )
-      assert.equal(await statusOf(c, id), 'Preparing')
+      assert.equal(await cancelledAtOf(c, id), null, 'a settled sale should not be cancelled')
 
       const { rows: ledger } = await query<{ type: string }>(
         `SELECT type FROM payments.ledger WHERE order_id = $1`,
@@ -121,7 +126,7 @@ test('the abandonment sweep cancels a stale unpaid order and returns its reserva
       const mine = results.find((r) => r.order_id === id)
       assert.ok(mine, 'the stale order was not swept')
       assert.equal(mine.refunded, 125.5)
-      assert.equal(await statusOf(c, id), 'Cancelled')
+      assert.ok(await cancelledAtOf(c, id), 'the abandonment sweep did not stamp cancelled_at')
 
       const { rows: after } = await query<{ dorado_funds: number | null }>(
         `SELECT dorado_funds FROM auth.users WHERE id = $1`,
@@ -154,7 +159,7 @@ test('a YOUNG unpaid order is left alone', async () => {
     async (c: PoolClient) => {
       const id = await seedSale(c, { ageHours: 1 })
       await sweepAbandoned(24)
-      assert.equal(await statusOf(c, id), 'Pending', 'a fresh order was cancelled')
+      assert.equal(await cancelledAtOf(c, id), null, 'a fresh order was cancelled')
     },
     { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.ADDRESSES, LOCKS.USERS] }
   )
@@ -166,7 +171,11 @@ test('a PROCESSING intent protects its order from the abandonment sweep', async 
       const id = await seedSale(c, { ageHours: 72 })
       await seedIntent(c, `pi_rec_processing_${Date.now()}`, 'processing', id)
       await sweepAbandoned(24)
-      assert.equal(await statusOf(c, id), 'Pending', 'an order with money in flight was cancelled')
+      assert.equal(
+        await cancelledAtOf(c, id),
+        null,
+        'an order with money in flight was cancelled'
+      )
     },
     { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.ADDRESSES, LOCKS.USERS] }
   )

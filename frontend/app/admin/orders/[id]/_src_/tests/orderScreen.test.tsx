@@ -60,7 +60,6 @@ vi.mock('@dorado/client', () => ({
   useRefiners: () => query([aRefiner()]),
   usePatchOrder: mutation,
   useFinalizeOrder: mutation,
-  useReopenOrder: mutation,
   usePutOrderSpots: mutation,
   useCreateOrderLot: mutation,
   usePatchOrderLot: mutation,
@@ -76,12 +75,14 @@ vi.mock('@dorado/client', () => ({
   useSetFulfillmentStatus: mutation,
   useCancelSchedule: mutation,
   usePatchShipment: mutation,
+  useRecordShipmentTracking: mutation,
   useCancelLabel: mutation,
   useCancelOrder: mutation,
   useCreateRefiningOrder: mutation,
   useCreateRefiningSale: mutation,
+  useSupplyOrder: mutation,
+  useAddFunds: mutation,
   useCreateFulfillment: mutation,
-  useScheduleDropoff: mutation,
   useSendOrderDocument: mutation,
   useImportOrderDocument: mutation,
   useSendSms: mutation,
@@ -125,7 +126,8 @@ describe('a purchase order', () => {
 
   test('a cancelled order shows the badge, Reopen, and the return parcel', () => {
     state.order = anOrderView({
-      order: { ...anOrderView().order, status: 'Cancelled' },
+      order: { ...anOrderView().order, cancelled_at: '2026-09-04T10:00:00.000Z' },
+      state: 'Cancelled',
       actions: anActions({ cancel: false, reopen: true, finalize: false }),
     })
     state.shipments = [aShipment({ direction: 'Return' })]

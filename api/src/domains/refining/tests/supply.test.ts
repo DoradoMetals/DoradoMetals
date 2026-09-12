@@ -63,7 +63,8 @@ test('a refiner that does not exist is refused, and nothing is written', async (
       })
       const { rows } = await c.query(
         `SELECT count(*)::int n FROM refining.lots rl
-           JOIN orders.lots ol ON ol.lot_id = rl.lot_id
+           JOIN inventory.lot_sources s ON s.lot_id = rl.lot_id AND s.kind = 'batch'
+           JOIN orders.lots ol ON ol.lot_id = s.source_lot_id
           WHERE ol.order_id = $1`,
         [order.id]
       )
@@ -85,9 +86,11 @@ test('supplying a sales order opens a buy order over its own lots and sends it',
         assert.equal(res.body.direction, 'buy')
         assert.ok(res.body.sent_at, 'the supplier order was opened but never sent')
         assert.deepEqual(
-          res.body.lots.map((l: { lot_id: string }) => l.lot_id).sort(),
+          res.body.lots
+            .flatMap((l: { sources: { id: string }[] }) => l.sources.map((s) => s.id))
+            .sort(),
           order.lots.map((l) => l.lot_id).sort(),
-          'the lot ids did not survive from the customer order to the refiner order'
+          'the refiner lots do not source back to the customer order they came off'
         )
         assert.equal(
           res.body.lots[0].order_number,

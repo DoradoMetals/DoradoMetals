@@ -24,13 +24,7 @@ export async function sweepSettledIntents(tx: Executor): Promise<SettledSweepRes
       out.push({ order_id: c.order_id, outcome: 'held' })
       continue
     }
-    const advanced = await orders.update(
-      c.order_id,
-      { status: 'Preparing' },
-      { status: 'Pending' },
-      tx
-    )
-    if (advanced) await credit.settleReservation(c.order_id, tx)
+    const advanced = await credit.settleReservation(c.order_id, tx)
     out.push({ order_id: c.order_id, outcome: advanced ? 'advanced' : 'held' })
   }
   return out
@@ -48,7 +42,7 @@ export async function cancelPendingSale(
   order_id: string,
   client: Executor
 ): Promise<AbandonedSweepResult> {
-  await orders.update(order_id, { status: 'Cancelled' }, {}, client)
+  await orders.update(order_id, { cancelled_at: new Date().toISOString() }, {}, client)
   return { order_id, refunded: await credit.releaseReservation(order_id, client) }
 }
 

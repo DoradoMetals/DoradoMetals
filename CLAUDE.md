@@ -62,15 +62,28 @@ packages/components/  @dorado/components   the component library
 packages/icons/ packages/theme/            icons; CSS tokens
 ```
 
-The nine domains are `accounts`, `catalog`, `checkout`, `crm`, `documents`,
-`logistics`, `orders`, `pricing`, `transactions`. Under `db/` there are 21
-folders, one per table group, named for the schema they query — a few read a
-schema of another name (`db/sales-tax` queries `tax`, `db/mints` queries
-`products.mints`). Genesis creates 17 schemas: `auth`, `checkout`,
-`fulfillments`, `leads`, `media`, `metals`, `orders`, `organizations`,
-`payments`, `places`, `products`, `rates`, `refiners`, `reviews`, `shipping`,
-`spots`, `tax`. `exchange` is the eighteenth and is frozen. There is no `core`
-and no `auctions`. Database by schema, code by domain.
+The eleven domains are `accounts`, `catalog`, `checkout`, `crm`, `documents`,
+`inventory`, `logistics`, `orders`, `pricing`, `refining`, `transactions`.
+`inventory` owns the lot and the pool — `inventory.lots`, `inventory.lot_sources`
+and `inventory.pool` (rulings 113, 120); `refining` owns the refiner order, the
+batch and the settlement. Under `db/` there are 24 folders, one per table group,
+named for the schema they query — a few read a schema of another name
+(`db/sales-tax` queries `tax`, `db/mints` queries `products.mints`). Genesis
+creates 20 schemas: `auth`, `checkout`, `crm`, `fulfillments`, `inventory`,
+`leads`, `media`, `metals`, `orders`, `organizations`, `payments`, `places`,
+`products`, `rates`, `refiners`, `refining`, `reviews`, `shipping`, `spots`,
+`tax`. `exchange` is the twenty-first and is frozen. There is no `core`, no
+`auctions` and no `lots`. Database by schema, code by domain.
+
+**The lot model** (rulings 120 and 121). One lots table: `inventory.lots` holds
+every lot, ours and the refiner's copy of ours and the one we mint to sell. One
+lineage table: `inventory.lot_sources (lot_id, source_lot_id, kind)` with kind in
+`split` · `combine` · `batch` · `sale`, where `lot_id` is always the minted lot.
+`premium` lives on the lot; **price is never stored** — it is derived from the
+order's locked spot, the lot's content and its premium. `orders.lots` and
+`refining.lots` are pure links. There is no kind column: a lot on `refining.lots`
+is a refiner lot, and inventory never counts one. `docs/waves/lot-model.md` walks
+it.
 
 There is no `features/` folder on either side, no `api/legacy/`, and no
 `shared/wire/`.
@@ -328,7 +341,7 @@ designing anything. In summary:
 The `exchange` migration is finished in code: no application statement and no
 trigger touches it, and every domain reads and writes its own schema. The legacy
 machinery — dual writes, `*_SOURCE` switches, `api/legacy/`, `shared/wire/` — is
-deleted. The API is TypeScript end to end under nine domains in
+deleted. The API is TypeScript end to end under eleven domains in
 `api/src/domains/`, with its tables under `api/src/db/<schema>/`. The frontend
 has no `features/` folder: a route's code is `app/<route>/_src_/`, and what
 crosses routes is `shared/`. A four-reviewer API audit produced 63 findings and

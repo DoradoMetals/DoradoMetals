@@ -8,7 +8,6 @@ import type {
   FulfillmentMethodRead,
   FulfillmentPatchBody,
   FulfillmentScheduleDirectBody,
-  FulfillmentScheduleDropoffBody,
   FulfillmentSchedulePickupBody,
   FulfillmentSetMethodBody,
   FulfillmentSetStatusBody,
@@ -91,11 +90,5 @@ export function usePatchFulfillment(orderId: string) {
     orderId,
     ({ fulfillment_id, choices }: { fulfillment_id: string; choices: FulfillmentPatchBody }) =>
       apiRequest<FulfillmentView>('PATCH', `/fulfillments/${fulfillment_id}`, choices)
-  )
-}
-
-export function useScheduleDropoff(orderId: string) {
-  return useFulfillmentWrite(orderId, (body: FulfillmentScheduleDropoffBody) =>
-    apiRequest<FulfillmentView>('POST', '/fulfillments/schedule_dropoff', body)
   )
 }

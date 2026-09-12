@@ -147,6 +147,53 @@ test('a sign-up verify creates the account and writes the real name and email', 
   )
 })
 
+test('an email-only sign-up verify creates the account with no phone number', async () => {
+  await inPinnedTransaction(
+    async (c: PoolClient) => {
+      stubAuthApi(c)
+      const email = 'new-email-person@dorado.test'
+      await service.signUp(
+        { name: 'New Email Person', email, accepted_terms: true, captcha_token: 't' },
+        '203.0.113.9'
+      )
+      assert.ok(await pendingSignups.byEmail(email), 'the answers are held until the code is')
+
+      const [view] = await service.verifyCode({ channel: 'email', email, code: CODE }, null)
+      assert.equal(view.status, 'verified')
+      assert.equal(view.purpose, 'sign_up')
+
+      const made = await users.byEmail(email)
+      assert.ok(made, 'the verify is what creates the user')
+      assert.equal(made.name, 'New Email Person')
+      assert.equal(made.phone_number, null, 'a phone number is optional at sign-up')
+      assert.equal(made.emailVerified, true)
+      assert.equal(await pendingSignups.byEmail(email), undefined, 'the held answers are cleared')
+    },
+    { actor: TEST_ACTOR.id, lock: LOCKS.USERS }
+  )
+})
+
+test('an email-only sign-up for an address that is already an account tells nothing and says the same thing', async () => {
+  await inPinnedTransaction(
+    async (c: PoolClient) => {
+      stubAuthApi(c)
+      const email = 'impostor-email@dorado.test'
+      await aUser(c, { email })
+      const { dispatched } = await import('#accounts/auth/tests/harness.ts')
+      dispatched.length = 0
+
+      const view = await service.signUp(
+        { name: 'Impostor', email, accepted_terms: true, captcha_token: 't' },
+        '203.0.113.9'
+      )
+      assert.deepEqual(dispatched, [], 'a taken email must not be told it is taken')
+      assert.equal(view.status, 'sent')
+      assert.equal(view.purpose, 'sign_up')
+    },
+    { actor: TEST_ACTOR.id, lock: LOCKS.USERS }
+  )
+})
+
 test('a sign-up for a number that is already an account texts nothing and says the same thing', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {

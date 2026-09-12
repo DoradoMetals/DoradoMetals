@@ -4,6 +4,7 @@ import type { PoolClient } from 'pg'
 import pool from '#pool'
 import { LOCKS } from '#shared/testing/locks.ts'
 import * as orders from '#orders/service.ts'
+import { asOrderLot } from '#orders/tests/order-lot.ts'
 
 let client: PoolClient
 
@@ -31,33 +32,27 @@ const anOrderWithScrap = async (c: PoolClient) => {
   const {
     rows: [order],
   } = await c.query(
-    `INSERT INTO orders.orders (direction, status, number)
-     VALUES ('purchase', 'Pending', nextval('orders.purchase_number_seq'))
+    `INSERT INTO orders.orders (direction, number)
+     VALUES ('purchase', nextval('orders.purchase_number_seq'))
      RETURNING id`
   )
   const {
     rows: [lot],
   } = await c.query(
-    `INSERT INTO lots.items (metal_id, pre_melt, purity, quantity, unit)
-     VALUES ($1, 10, 0.9, 1, 't oz') RETURNING id`,
+    `INSERT INTO inventory.lots (metal_id, pre_melt, purity, quantity, unit, premium)
+     VALUES ($1, 10, 0.9, 1, 't oz', 0.75) RETURNING id`,
     [metal.id]
   )
   const {
     rows: [link],
-  } = await c.query(
-    `INSERT INTO orders.lots (order_id, lot_id, premium, confirmed)
-     VALUES ($1, $2, 0.75, false) RETURNING id`,
-    [order.id, lot.id]
-  )
+  } = await c.query(`INSERT INTO orders.lots (order_id, lot_id) VALUES ($1, $2) RETURNING id`, [
+    order.id,
+    lot.id,
+  ])
   return { orderId: order.id, itemId: link.id, lotId: lot.id }
 }
 
 const cleanup = async (c: PoolClient, { orderId }: { orderId: string }) => {
-  await c.query(
-    `DELETE FROM refining.lots rl
-      USING orders.lots ol WHERE ol.lot_id = rl.lot_id AND ol.order_id = $1`,
-    [orderId]
-  )
   const { rows: held } = await c.query<{ lot_id: string }>(
     'SELECT lot_id FROM orders.lots WHERE order_id = $1',
     [orderId]
@@ -66,7 +61,7 @@ const cleanup = async (c: PoolClient, { orderId }: { orderId: string }) => {
     await c.query(`DELETE FROM ${t} WHERE order_id = $1`, [orderId])
   }
   if (held.length > 0) {
-    await c.query('DELETE FROM lots.items WHERE id = ANY($1::uuid[])', [
+    await c.query('DELETE FROM inventory.lots WHERE id = ANY($1::uuid[])', [
       held.map((row) => row.lot_id),
     ])
   }
@@ -77,8 +72,8 @@ const anEmptyGoldOrder = async (c: PoolClient) => {
   const {
     rows: [order],
   } = await c.query(
-    `INSERT INTO orders.orders (direction, status, number)
-     VALUES ('purchase', 'Pending', nextval('orders.purchase_number_seq'))
+    `INSERT INTO orders.orders (direction, number)
+     VALUES ('purchase', nextval('orders.purchase_number_seq'))
      RETURNING id`
   )
   return { orderId: order.id }
@@ -127,19 +122,19 @@ test("a new bullion line is born at its rate band, not at the product's bid prem
     const created = await orders.addLot(fixture.orderId, { bullion_id: product.id })
 
     assert.equal(
-      Number(created.premium),
+      Number(created.lot.premium),
       Number(product.bullion_pct),
       'the new bullion line did not come back at its band'
     )
     assert.notEqual(
-      Number(created.premium),
+      Number(created.lot.premium),
       Number(product.bid_premium),
       "the product's own bid_premium reached the order"
     )
 
     const {
       rows: [stored],
-    } = await client.query('SELECT premium FROM orders.lots WHERE id = $1', [created.id])
+    } = await client.query('SELECT premium FROM inventory.lots WHERE id = $1', [created.lot_id])
     assert.equal(Number(stored.premium), Number(product.bullion_pct))
   } finally {
     await cleanup(client, fixture)
@@ -153,8 +148,8 @@ test("adding bullion re-tiers the order's scrap by their combined content", asyn
   const {
     rows: [order],
   } = await client.query(
-    `INSERT INTO orders.orders (direction, status, number)
-     VALUES ('purchase', 'Pending', nextval('orders.purchase_number_seq'))
+    `INSERT INTO orders.orders (direction, number)
+     VALUES ('purchase', nextval('orders.purchase_number_seq'))
      RETURNING id`
   )
   const fixture = { orderId: order.id }
@@ -162,17 +157,14 @@ test("adding bullion re-tiers the order's scrap by their combined content", asyn
     const {
       rows: [scrapLot],
     } = await client.query(
-      `INSERT INTO lots.items (metal_id, pre_melt, purity, quantity, unit)
-       VALUES ($1, 5, 0.9, 1, 't oz') RETURNING id`,
+      `INSERT INTO inventory.lots (metal_id, pre_melt, purity, quantity, unit, premium)
+       VALUES ($1, 5, 0.9, 1, 't oz', 0.75) RETURNING id`,
       [gold.id]
     )
-    const {
-      rows: [scrap],
-    } = await client.query(
-      `INSERT INTO orders.lots (order_id, lot_id, premium, confirmed)
-       VALUES ($1, $2, 0.75, false) RETURNING id`,
-      [order.id, scrapLot.id]
-    )
+    await client.query(`INSERT INTO orders.lots (order_id, lot_id) VALUES ($1, $2)`, [
+      order.id,
+      scrapLot.id,
+    ])
 
     const product = await aGoldProductOffItsBand(client)
     const created = await orders.addLot(order.id, { bullion_id: product.id })
@@ -182,14 +174,14 @@ test("adding bullion re-tiers the order's scrap by their combined content", asyn
 
     const {
       rows: [scrapNow],
-    } = await client.query('SELECT premium FROM orders.lots WHERE id = $1', [scrap.id])
+    } = await client.query('SELECT premium FROM inventory.lots WHERE id = $1', [scrapLot.id])
     assert.equal(
       Number(scrapNow.premium),
       Number(band.scrap_pct),
       'the scrap was not re-tiered by the total the bullion added to'
     )
     assert.equal(
-      Number(created.premium),
+      Number(created.lot.premium),
       Number(band.bullion_pct),
       "the bullion line did not take the same band's bullion column"
     )
@@ -204,7 +196,7 @@ test('deleting a link removes the lot with it', async () => {
     await orders.removeLot(fixture.itemId)
 
     const item = await client.query('SELECT 1 FROM orders.lots WHERE id = $1', [fixture.itemId])
-    const refiner = await client.query('SELECT 1 FROM lots.items WHERE id = $1', [fixture.lotId])
+    const refiner = await client.query('SELECT 1 FROM inventory.lots WHERE id = $1', [fixture.lotId])
     assert.equal(item.rows.length, 0, 'the order link survived')
     assert.equal(refiner.rows.length, 0, 'the refiner counterpart survived the cascade')
   } finally {
@@ -229,24 +221,25 @@ test('a line that does not exist is refused and nothing is deleted', async () =>
 test('editing a scrap line writes the weights it names and derives the content', async () => {
   const fixture = await anOrderWithScrap(client)
   try {
-    const edited = await orders.editLot(fixture.itemId, {
-      pre_melt: 10,
-      post_melt: 8,
-      purity: 0.5,
-      unit: 't oz',
-      premium: 0.82,
-    })
+    const edited = asOrderLot(
+      await orders.editLot(fixture.itemId, {
+        pre_melt: 10,
+        post_melt: 8,
+        purity: 0.5,
+        unit: 't oz',
+        premium: 0.82,
+      })
+    )
 
     assert.equal(Number(edited.lot.content), 4, '8 post-melt at 0.5 purity')
     assert.equal(Number(edited.lot.pre_melt), 10)
-    assert.equal(Number(edited.premium), 0.82)
+    assert.equal(Number(edited.lot.premium), 0.82)
 
     const {
       rows: [item],
-    } = await client.query(
-      'SELECT li.content, ol.premium FROM orders.lots ol JOIN lots.items li ON li.id = ol.lot_id WHERE ol.id = $1',
-      [fixture.itemId]
-    )
+    } = await client.query('SELECT content, premium FROM inventory.lots WHERE id = $1', [
+      fixture.lotId,
+    ])
     assert.equal(Number(item.content), 4)
     assert.equal(Number(item.premium), 0.82)
   } finally {
@@ -259,12 +252,12 @@ test("a weights-only edit re-tiers the order's lines", async () => {
   try {
     const {
       rows: [before],
-    } = await client.query('SELECT premium FROM orders.lots WHERE id = $1', [fixture.itemId])
-    const edited = await orders.editLot(fixture.itemId, { post_melt: 8, purity: 0.5 })
+    } = await client.query('SELECT premium FROM inventory.lots WHERE id = $1', [fixture.lotId])
+    const edited = asOrderLot(await orders.editLot(fixture.itemId, { post_melt: 8, purity: 0.5 }))
     const band = await bandFor(client, 'Gold', Number(edited.lot.content))
     assert.equal(
       Number(
-        (await client.query('SELECT premium FROM orders.lots WHERE id = $1', [fixture.itemId]))
+        (await client.query('SELECT premium FROM inventory.lots WHERE id = $1', [fixture.lotId]))
           .rows[0].premium
       ),
       Number(band.scrap_pct),
@@ -280,18 +273,17 @@ test('a partial edit leaves the columns it does not name alone', async () => {
   try {
     const {
       rows: [before],
-    } = await client.query(
-      'SELECT li.pre_melt, li.purity, li.unit FROM orders.lots ol JOIN lots.items li ON li.id = ol.lot_id WHERE ol.id = $1',
-      [fixture.itemId]
-    )
+    } = await client.query('SELECT pre_melt, purity, unit FROM inventory.lots WHERE id = $1', [
+      fixture.lotId,
+    ])
 
     await orders.editLot(fixture.itemId, { post_melt: 8 })
 
     const {
       rows: [after],
     } = await client.query(
-      'SELECT li.pre_melt, li.post_melt, li.purity, li.unit FROM orders.lots ol JOIN lots.items li ON li.id = ol.lot_id WHERE ol.id = $1',
-      [fixture.itemId]
+      'SELECT pre_melt, post_melt, purity, unit FROM inventory.lots WHERE id = $1',
+      [fixture.lotId]
     )
     assert.equal(Number(after.post_melt), 8)
     assert.equal(Number(after.pre_melt), Number(before.pre_melt), 'pre_melt was cleared')
@@ -308,10 +300,7 @@ test('an explicit null clears the column it names', async () => {
     await orders.editLot(fixture.itemId, { post_melt: null })
     const {
       rows: [after],
-    } = await client.query(
-      'SELECT li.post_melt FROM orders.lots ol JOIN lots.items li ON li.id = ol.lot_id WHERE ol.id = $1',
-      [fixture.itemId]
-    )
+    } = await client.query('SELECT post_melt FROM inventory.lots WHERE id = $1', [fixture.lotId])
     assert.equal(after.post_melt, null)
   } finally {
     await cleanup(client, fixture)
@@ -324,7 +313,7 @@ test('an empty patch is refused, and a line that does not exist is a 404', async
     await assert.rejects(() => orders.editLot(fixture.itemId, {}), /names no field/)
     await assert.rejects(
       () => orders.editLot('00000000-0000-4000-8000-000000000000', { premium: 1 }),
-      /no order lot/
+      (error: Error & { kind?: string }) => error.kind === 'not_found'
     )
   } finally {
     await cleanup(client, fixture)
@@ -359,7 +348,9 @@ test('confirming a catalogue line leaves its content alone - the purity is appli
       "the snapshot did not take the product's own fine content"
     )
 
-    const confirmed = await orders.editLot(created.id, { confirmed: true })
+    const confirmed = asOrderLot(
+      await orders.editLot(created.id, { confirmed_at: new Date().toISOString() })
+    )
     assert.equal(
       Number(confirmed.lot.content),
       Number(product.content),
@@ -367,8 +358,8 @@ test('confirming a catalogue line leaves its content alone - the purity is appli
         `to ${confirmed.lot.content} - the purity was applied twice`
     )
 
-    for (const patch of [{ premium: 1.02 }, { quantity: 2 }, { confirmed: false }]) {
-      const again = await orders.editLot(created.id, patch)
+    for (const patch of [{ premium: 1.02 }, { quantity: 2 }, { confirmed_at: null }]) {
+      const again = asOrderLot(await orders.editLot(created.id, patch))
       assert.equal(
         Number(again.lot.content),
         Number(product.content),
@@ -378,10 +369,9 @@ test('confirming a catalogue line leaves its content alone - the purity is appli
 
     const {
       rows: [stored],
-    } = await client.query(
-      'SELECT li.content, li.post_melt FROM orders.lots ol JOIN lots.items li ON li.id = ol.lot_id WHERE ol.id = $1',
-      [created.id]
-    )
+    } = await client.query('SELECT content, post_melt FROM inventory.lots WHERE id = $1', [
+      created.lot_id,
+    ])
     assert.equal(Number(stored.content), Number(product.content))
     assert.equal(stored.post_melt, null, 'a fine weight is sitting in the gross-weight column')
   } finally {
@@ -392,10 +382,12 @@ test('confirming a catalogue line leaves its content alone - the purity is appli
 test('a scrap line still derives its content, from the weights the row ends up with', async () => {
   const fixture = await anOrderWithScrap(client)
   try {
-    const confirmed = await orders.editLot(fixture.itemId, { confirmed: true })
+    const confirmed = asOrderLot(
+      await orders.editLot(fixture.itemId, { confirmed_at: new Date().toISOString() })
+    )
     assert.equal(Number(confirmed.lot.content), 9, 'confirming a scrap line moved its content')
 
-    const edited = await orders.editLot(fixture.itemId, { post_melt: 8, purity: 0.5 })
+    const edited = asOrderLot(await orders.editLot(fixture.itemId, { post_melt: 8, purity: 0.5 }))
     assert.equal(Number(edited.lot.content), 4, '8 post-melt at 0.5 purity')
   } finally {
     await cleanup(client, fixture)
@@ -412,10 +404,9 @@ test('a scrap line cannot be edited into a unit nobody quotes in', async () => {
     )
     const {
       rows: [after],
-    } = await client.query(
-      'SELECT li.unit, li.content FROM orders.lots ol JOIN lots.items li ON li.id = ol.lot_id WHERE ol.id = $1',
-      [fixture.itemId]
-    )
+    } = await client.query('SELECT unit, content FROM inventory.lots WHERE id = $1', [
+      fixture.lotId,
+    ])
     assert.equal(after.unit, 't oz', 'the refused edit still wrote the unit')
     assert.equal(Number(after.content), 9, 'the refused edit still moved the content')
   } finally {

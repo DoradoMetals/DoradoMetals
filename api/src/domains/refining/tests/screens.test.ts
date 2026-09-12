@@ -97,7 +97,7 @@ test('Create Sale wraps a finalized purchase order, and pools onto the open sell
   })
 })
 
-test('an unfinalized order, and a sales order, are both refused a Create Sale', async () => {
+test('an unfinalized order offers Create Sale with a reason; a sales order is refused', async () => {
   await inRefining(async (c) => {
     const seller = await aUser(c)
     const open = await anOrder(c, seller, { direction: 'purchase' }).withLots(1)
@@ -105,10 +105,18 @@ test('an unfinalized order, and a sales order, are both refused a Create Sale', 
     const refiner_id = await refinerId(c)
 
     await asAdmin(TEST_ACTOR, async () => {
+      const offered = await request(app).get(`/api/orders/${open.id}`)
+      assert.match(
+        offered.body.actions.find((a: { name: string }) => a.name === 'refining_sale')?.confirm ??
+          '',
+        /not finalized/,
+        'an unfinalized order offered Create Sale with no reason'
+      )
+
       const unfinalized = await request(app)
         .post(`/api/orders/${open.id}/refining-sale`)
         .send({ refiner_id })
-      assert.equal(unfinalized.status, 422, unfinalized.text)
+      assert.equal(unfinalized.status, 201, unfinalized.text)
 
       const wrongWay = await request(app)
         .post(`/api/orders/${sale.id}/refining-sale`)
@@ -146,7 +154,7 @@ test('cancelling releases the lots and frees the refiner for a new sell order', 
   })
 })
 
-test('the spots read answers a row per metal, and says whether the price is a lock', async () => {
+test('the spots read answers a row per metal, and reports settlement counts before anything settles', async () => {
   await inRefining(async (c) => {
     const order = await aFinalizedOrder(c)
     await asAdmin(TEST_ACTOR, async () => {
@@ -159,10 +167,11 @@ test('the spots read answers a row per metal, and says whether the price is a lo
         })
       const res = await request(app).get(`/api/refining/orders/${made.body.id}/spots`)
       assert.equal(res.status, 200, res.text)
-      assert.equal(res.body.length, 1, 'one metal on the order, one frozen price')
+      assert.equal(res.body.length, 1, 'one metal on the order, one row')
       assert.equal(res.body[0].metal_id, 'Gold')
-      assert.equal(res.body[0].locked, false, 'an unlocked pool reported a lock')
-      assert.ok(res.body[0].bid !== undefined)
+      assert.equal(res.body[0].lots, 2)
+      assert.equal(res.body[0].settled_lots, 0, 'nothing has settled yet')
+      assert.equal(res.body[0].spot, null, 'a pooled order carries no spot before anything settles')
     })
   })
 })

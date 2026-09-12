@@ -31,44 +31,45 @@ const anOrderFor = async (c: PoolClient): Promise<string> => {
 const orderRow = async (c: PoolClient, id: string) =>
   (
     await c.query(
-      `SELECT status, updated_by, updated_by_id, updated_at, created_at,
+      `SELECT cancelled_at, notes, updated_by, updated_by_id, updated_at, created_at,
             order_sent, tracking_updated, review_created
        FROM orders.orders WHERE id = $1`,
       [id]
     )
   ).rows[0] as Record<string, unknown>
 
-test('a status change records the status and its author', async () => {
+test('a cancelled_at write records the fact and its author', async () => {
   await inRollback(async (c: PoolClient) => {
     const id = await anOrderFor(c)
     const admin = await anAdmin(c)
-    const status = aStatus()
+    const cancelled_at = new Date().toISOString()
 
     await actingAs(c, admin.id)
-    const returned = await orders.update(id, { status }, {}, c)
+    const returned = await orders.update(id, { cancelled_at }, {}, c)
     assert.equal(returned, true, 'the write did not report the row it changed')
 
     const row = await orderRow(c, id)
-    assert.equal(row.status, status)
+    assert.ok(row.cancelled_at, 'cancelled_at was not written')
     assert.equal(row.updated_by_id, admin.id, 'the trigger did not stamp the actor')
     assert.equal(row.updated_by, admin.name, 'the legacy name column went unfilled')
   })
 })
 
-test('a status change with no actor keeps the previous author and still moves updated_at', async () => {
+test('a patch with no actor keeps the previous author and still moves updated_at', async () => {
   await inRollback(async (c: PoolClient) => {
     const id = await anOrderFor(c)
     const admin = await anAdmin(c)
 
     await actingAs(c, admin.id)
-    await orders.update(id, { status: 'Pending' }, {}, c)
+    await orders.update(id, { notes: aStatus() }, {}, c)
     const before = await orderRow(c, id)
 
     await actingAs(c, null)
-    await orders.update(id, { status: 'Preparing' }, {}, c)
+    const second = aStatus()
+    await orders.update(id, { notes: second }, {}, c)
     const after = await orderRow(c, id)
 
-    assert.equal(after.status, 'Preparing')
+    assert.equal(after.notes, second)
     assert.equal(after.updated_by_id, admin.id, 'an unattributed write erased the author')
     assert.equal(after.updated_by, admin.name)
     assert.ok(
@@ -106,25 +107,26 @@ test('each of the three flags sets its own column and no other', async () => {
 
 test('update answers false for an id that names nothing and true for a real one', async () => {
   await inRollback(async (c: PoolClient) => {
-    const missing = await orders.update(randomUUID(), { status: 'Pending' }, {}, c)
+    const missing = await orders.update(randomUUID(), { notes: aStatus() }, {}, c)
     assert.equal(missing, false, 'an update against no row reported success')
 
     const id = await anOrderFor(c)
-    assert.equal(await orders.update(id, { status: 'Pending' }, {}, c), true)
+    assert.equal(await orders.update(id, { notes: aStatus() }, {}, c), true)
   })
 })
 
 test('a guard that does not match writes nothing and says so', async () => {
   await inRollback(async (c: PoolClient) => {
     const id = await anOrderFor(c)
-    await orders.update(id, { status: 'Preparing' }, {}, c)
+    const note = aStatus()
 
-    const wrong = await orders.update(id, { status: 'Cancelled' }, { status: 'Pending' }, c)
+    const wrong = await orders.update(id, { notes: note }, { direction: 'sale' }, c)
     assert.equal(wrong, false, 'the guard let a mismatched row through')
-    assert.equal((await orderRow(c, id)).status, 'Preparing', 'the guarded write landed anyway')
+    assert.notEqual((await orderRow(c, id)).notes, note, 'the guarded write landed anyway')
 
-    const right = await orders.update(id, { status: 'Cancelled' }, { status: 'Preparing' }, c)
+    const right = await orders.update(id, { notes: note }, { direction: 'purchase' }, c)
     assert.equal(right, true)
+    assert.equal((await orderRow(c, id)).notes, note)
   })
 })
 

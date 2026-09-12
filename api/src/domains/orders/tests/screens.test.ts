@@ -82,21 +82,28 @@ test('lock_spots and unlock_spots are answered, and finalizing closes the unlock
       .withSpots()
       .withTotals({})
 
+    const hasAction = (body: { actions: { name: string }[] }, name: string) =>
+      body.actions.some((a) => a.name === name)
+
     await asAdmin(TEST_ACTOR, async () => {
       const open = await request(app).get(`/api/orders/${order.id}`)
-      assert.equal(open.body.actions.lock_spots, true)
-      assert.equal(open.body.actions.unlock_spots, false)
+      assert.equal(hasAction(open.body, 'lock_spots'), true)
+      assert.equal(hasAction(open.body, 'unlock_spots'), false)
 
       const locked = await request(app).put(`/api/orders/${order.id}/spots`).send({ lock: true })
       assert.equal(locked.status, 200, locked.text)
       const held = await request(app).get(`/api/orders/${order.id}`)
-      assert.equal(held.body.actions.lock_spots, false)
-      assert.equal(held.body.actions.unlock_spots, true, 'a locked, unpriced order cannot unlock')
+      assert.equal(hasAction(held.body, 'lock_spots'), false)
+      assert.equal(
+        hasAction(held.body, 'unlock_spots'),
+        true,
+        'a locked, unpriced order cannot unlock'
+      )
 
       const finalized = await request(app).post(`/api/orders/${order.id}/finalize`)
       assert.equal(finalized.status, 200, finalized.text)
       const done = await request(app).get(`/api/orders/${order.id}`)
-      assert.equal(done.body.actions.unlock_spots, false, 'a finalized order offered Unlock')
+      assert.equal(hasAction(done.body, 'unlock_spots'), false, 'a finalized order offered Unlock')
     })
   })
 })

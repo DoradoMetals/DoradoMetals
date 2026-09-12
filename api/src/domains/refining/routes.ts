@@ -2,6 +2,7 @@ import express from 'express'
 
 import {
   assignRefiningLots,
+  batchRefiningOrders,
   cancelRefiningOrder,
   createPoolLock,
   createRefiningOrder,
@@ -35,6 +36,7 @@ router.delete('/lots/:id', requireAdmin, deleteRefiningLot)
 
 router.get('/orders', requireAdmin, listRefiningOrders)
 router.post('/orders', requireAdmin, createRefiningOrder)
+router.post('/orders/batch', requireAdmin, batchRefiningOrders)
 router.get('/orders/:id', requireAdmin, getRefiningOrder)
 router.patch('/orders/:id', requireAdmin, patchRefiningOrder)
 router.post('/orders/:id/send', requireAdmin, sendRefiningOrder)

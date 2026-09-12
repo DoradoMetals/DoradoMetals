@@ -36,7 +36,7 @@ export const SignUpBody = z
   .object({
     name: AuthPendingSignup.shape.name,
     email: AuthPendingSignup.shape.email,
-    phone_number: AuthPendingSignup.shape.phone_number,
+    phone_number: AuthPendingSignup.shape.phone_number.unwrap().optional(),
     accepted_terms: z.literal(true),
     captcha_token: z.string(),
   })
@@ -82,3 +82,19 @@ export const SessionView = z.object({
   factor_changed: Session.shape.factor_changed,
 })
 export type SessionView = z.infer<typeof SessionView>
+
+export const AccountProfile = User.pick({
+  id: true,
+  name: true,
+  email: true,
+  phone_number: true,
+  phone_number_verified: true,
+  dorado_funds: true,
+  deletion_requested_at: true,
+}).extend({
+  email_verified: User.shape.emailVerified,
+})
+export type AccountProfile = z.infer<typeof AccountProfile>
+
+export const AccountProfilePatch = User.pick({ name: true }).partial().strict()
+export type AccountProfilePatch = z.infer<typeof AccountProfilePatch>

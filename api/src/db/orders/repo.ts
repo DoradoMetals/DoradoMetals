@@ -1,6 +1,7 @@
 import query from '#shared/db/query.ts'
 import { buildUpdate } from '#shared/db/patch.ts'
-import { sqlFrom } from '#shared/db/sql.ts'
+import { expression, sqlFrom } from '#shared/db/sql.ts'
+import { ARRIVED } from '#db/fulfillments/repo.ts'
 import type {
   AbandonedSale,
   Direction,
@@ -23,8 +24,16 @@ import {
 
 const sql = sqlFrom(import.meta.dirname)
 const ORDER_REFERENCE = sql('order_reference').trim()
-const LIST_SQL = sql('list').replace('/*__order_reference__*/', ORDER_REFERENCE)
-const VIEW_SQL = sql('view').replace('/*__order_reference__*/', ORDER_REFERENCE)
+export const ORDER_STATE = expression(sql('order_state')).replaceAll(
+  '/*__fulfillment_arrived__*/',
+  ARRIVED
+)
+const LIST_SQL = sql('list')
+  .replace('/*__order_reference__*/', ORDER_REFERENCE)
+  .replace('/*__order_state__*/', ORDER_STATE)
+const VIEW_SQL = sql('view')
+  .replace('/*__order_reference__*/', ORDER_REFERENCE)
+  .replace('/*__order_state__*/', ORDER_STATE)
 
 export async function exists(id: string, executor?: Executor): Promise<boolean> {
   const { rows } = await query<{ present: boolean }>(sql('exists'), [id], executor)
@@ -105,9 +114,8 @@ export async function findAbandonedSales(
 
 export async function createForCheckout(
   checkout_id: string,
-  status: string,
   executor?: Executor
 ): Promise<Order | undefined> {
-  const { rows } = await query<Order>(sql('create_from_checkout'), [status, checkout_id], executor)
+  const { rows } = await query<Order>(sql('create_from_checkout'), [checkout_id], executor)
   return rows[0]
 }

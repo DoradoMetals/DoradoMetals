@@ -51,7 +51,6 @@ const pricing = (ask: number | null = 4000) =>
       {
         id: 'line-1',
         kind: 'product',
-        source: 'stored',
         metal_id: GOLD,
         content: 1,
         quantity: 2,

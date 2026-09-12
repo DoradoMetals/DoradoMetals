@@ -34,6 +34,7 @@ export async function create(row: TransferWrite, executor?: Executor): Promise<T
       row.provider_ref ?? null,
       row.reference ?? null,
       row.idempotency_key ?? null,
+      row.override_reason ?? null,
     ],
     executor
   )

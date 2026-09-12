@@ -1,9 +1,11 @@
 import * as pricing from '#db/pricing/repo.ts'
 import * as spotsRepo from '#db/spots/repo.ts'
+import * as lotsRepo from '#db/inventory/lots/repo.ts'
 import * as rules from '#pricing/rules.ts'
 import type { Executor } from '#shared/db/executor.ts'
 import type {
   CheckoutQuote,
+  InventoryMetal,
   OrderPricing,
   PriceSide,
   ProductQuote,
@@ -13,6 +15,10 @@ import type {
 
 export async function spots(executor?: Executor): Promise<SpotPrice[]> {
   return await spotsRepo.list(executor)
+}
+
+export async function inventoryMetals(executor?: Executor): Promise<InventoryMetal[]> {
+  return await lotsRepo.inventoryByMetal(executor)
 }
 
 export async function priceProduct(

@@ -164,7 +164,7 @@ if (functions.length) {
   say('--')
   say('-- Before the tables, not after: a STORED generated column names a')
   say('-- function in its expression, and CREATE TABLE resolves it there and')
-  say('-- then. lots.items.content calls metals.fine_content.')
+  say('-- then. inventory.lots.content calls metals.fine_content.')
   say()
   for (const f of functions) say(qualify(f.def.trimEnd()) + ';\n')
 }

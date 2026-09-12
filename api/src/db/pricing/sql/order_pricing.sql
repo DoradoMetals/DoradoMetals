@@ -9,29 +9,34 @@ lines AS (
          li.metal_id,
          COALESCE(li.content, 0) AS content,
          li.quantity,
-         ol.premium AS stored_premium,
-         ol.price AS stored_price,
-         CASE WHEN ord.spots_locked THEN os.bid ELSE s.bid END AS bid,
+         li.premium AS stored_premium,
+         -- PRICE IS NEVER STORED (ruling 120). Every line prices off the
+         -- order's own frozen spot for that metal - bid for a purchase, ask
+         -- for a sale - falling back to the live feed while the order has not
+         -- frozen one yet.
+         CASE WHEN ord.direction = 'sale'
+              THEN CASE WHEN ord.spots_locked THEN COALESCE(os.ask, s.ask) ELSE s.ask END
+              ELSE CASE WHEN ord.spots_locked THEN COALESCE(os.bid, s.bid) ELSE s.bid END END AS spot,
          CASE WHEN li.bullion_id IS NULL
               THEN COALESCE(li.content, 0)
               ELSE COALESCE(li.content, 0) * li.quantity END AS weighed
     FROM orders.lots ol
-    JOIN lots.items li ON li.id = ol.lot_id
+    JOIN inventory.lots li ON li.id = ol.lot_id
     JOIN ord ON ord.id = ol.order_id
     LEFT JOIN orders.spots os ON os.order_id = ol.order_id AND os.metal_id = li.metal_id
     LEFT JOIN spots.spots s ON s.metal_id = li.metal_id
 ),
 -- The bid and ask each of the order's metals is priced at, resolved exactly as
--- `lines` resolves a line's bid: the frozen orders.spots row when the order is
+-- `lines` resolves a line's spot: the frozen orders.spots row when the order is
 -- locked, the live feed when it is not. A metal appears only when the order has
 -- a lot in it, so a document prints the order's metals and no others.
 metal_spots AS (
   SELECT DISTINCT ON (li.metal_id)
          li.metal_id,
-         CASE WHEN ord.spots_locked THEN os.bid ELSE s.bid END AS bid,
-         CASE WHEN ord.spots_locked THEN os.ask ELSE s.ask END AS ask
+         CASE WHEN ord.spots_locked THEN COALESCE(os.bid, s.bid) ELSE s.bid END AS bid,
+         CASE WHEN ord.spots_locked THEN COALESCE(os.ask, s.ask) ELSE s.ask END AS ask
     FROM orders.lots ol
-    JOIN lots.items li ON li.id = ol.lot_id
+    JOIN inventory.lots li ON li.id = ol.lot_id
    CROSS JOIN ord
     LEFT JOIN orders.spots os ON os.order_id = ol.order_id AND os.metal_id = li.metal_id
     LEFT JOIN spots.spots s ON s.metal_id = li.metal_id
@@ -70,19 +75,16 @@ tiered AS (
 priced AS (
   SELECT t.id,
          CASE WHEN t.bullion_id IS NULL THEN 'scrap' ELSE 'product' END AS kind,
-         CASE WHEN t.stored_price IS NULL THEN 'quoted' ELSE 'stored' END AS source,
+         -- Price is always quoted, never stored - there is no other source
+         -- left to distinguish here.
          t.bullion_id,
          t.metal_id,
          t.content,
          t.quantity,
          COALESCE(t.stored_premium, t.retier_premium, 0) AS premium,
          t.retier_premium,
-         t.bid,
-         t.stored_price,
-         COALESCE(
-           t.stored_price,
-           t.content * (COALESCE(t.bid, 0) * COALESCE(t.stored_premium, t.retier_premium, 0))
-         ) AS unit_price
+         t.spot,
+         t.content * (COALESCE(t.spot, 0) * COALESCE(t.stored_premium, t.retier_premium, 0)) AS unit_price
     FROM tiered t
 ),
 lined AS (
@@ -124,7 +126,6 @@ SELECT jsonb_build_object(
                      jsonb_build_object(
                        'id', l.id,
                        'kind', l.kind,
-                       'source', l.source,
                        'metal_id', l.metal_id,
                        'content', l.content,
                        'quantity', l.quantity,
@@ -148,7 +149,7 @@ SELECT jsonb_build_object(
          'unpriceable', COALESCE(
            (SELECT jsonb_agg(l.id ORDER BY l.id ASC)
               FROM lined l
-             WHERE l.stored_price IS NULL AND l.bid IS NULL),
+             WHERE l.spot IS NULL),
            '[]'::jsonb),
          'scrap_total', totals.scrap_total,
          'bullion_total', totals.bullion_total,

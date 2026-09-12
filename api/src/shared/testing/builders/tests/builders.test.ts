@@ -107,7 +107,7 @@ test('an order builds with its lines, its money row and its address snapshot', a
 
       const { rows: lines } = await c.query(
         `SELECT li.bullion_id, li.quantity, li.pre_melt
-           FROM orders.lots ol JOIN lots.items li ON li.id = ol.lot_id
+           FROM orders.lots ol JOIN inventory.lots li ON li.id = ol.lot_id
           WHERE ol.order_id = $1
           ORDER BY li.bullion_id NULLS FIRST`,
         [order.id]

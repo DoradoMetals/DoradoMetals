@@ -16,6 +16,7 @@ import {
 import * as totalsRepo from '#db/orders/transactions/repo.ts'
 import * as refiningOrdersRepo from '#db/refining/orders/repo.ts'
 import * as refiningLotsRepo from '#db/refining/lots/repo.ts'
+import * as lotSourcesRepo from '#db/inventory/lot-sources/repo.ts'
 import { profitBreakdown } from '#pricing/service.ts'
 import type { ProfitBreakdown } from '@dorado/contracts'
 
@@ -66,8 +67,17 @@ test('a purchase order splits every line three ways, per metal and per category'
       })
       await refiningOrdersRepo.update(engagement.id, { fee: 7 }, c)
       const assayed = await refiningLotsRepo.getFor(engagement.id, c)
-      const scrapAssay = assayed.find((row) => row.lot_id === scrapLine!.lot_id)!
-      const bullionAssay = assayed.find((row) => row.lot_id === bullionLine!.lot_id)!
+      const edges = await lotSourcesRepo.sourcesOf(
+        [scrapLine!.lot_id, bullionLine!.lot_id],
+        c
+      )
+      const refinerLotFor = (customerLotId: string) =>
+        edges.find((edge) => edge.source_lot_id === customerLotId && edge.kind === 'batch')!
+          .lot_id
+      const scrapAssay = assayed.find((row) => row.lot_id === refinerLotFor(scrapLine!.lot_id))!
+      const bullionAssay = assayed.find(
+        (row) => row.lot_id === refinerLotFor(bullionLine!.lot_id)
+      )!
       await refiningLotsRepo.update(
         scrapAssay.id,
         { post_melt: 10.5, purity: 1, unit: 't oz', premium: 0.94 },

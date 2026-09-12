@@ -74,7 +74,7 @@ export const auth = betterAuth({
       otpLength: rules.OTP_LENGTH,
       expiresIn: rules.OTP_EXPIRES_SECONDS,
       allowedAttempts: rules.PLUGIN_ALLOWED_ATTEMPTS,
-      disableSignUp: true,
+      disableSignUp: false,
       sendVerificationOTP: async ({ email, otp }) => {
         await sendSignInCode({
           order_id: null,

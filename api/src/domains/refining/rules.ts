@@ -1,14 +1,23 @@
 import { Conflict, Invalid, NotFound } from '#shared/errors.ts'
 import { WeightUnit } from '@dorado/contracts'
 import type {
+  Action,
   Direction,
   Lot,
+  LotPosition,
   OrderDocument,
   OrderRead,
+  PaymentView,
   PdfKind,
+  RefiningBatch,
+  RefiningBatchResult,
   RefiningLot,
   RefiningLotPatch,
+  RefiningLotView,
   RefiningOrder,
+  RefiningOrderActions,
+  RefiningOrderRead,
+  RefiningOrderView,
   RefiningSettlementLot,
   StoredDocument,
 } from '@dorado/contracts'
@@ -38,12 +47,9 @@ export function assertLotsExist(found: Lot[], asked: string[]): void {
   }
 }
 
-export function assertUnassigned(taken: RefiningLot[], lot_ids: string[]): void {
-  const held = taken.filter((row) => lot_ids.includes(row.lot_id))
-  if (held.length > 0) {
-    throw new Conflict(
-      `lot ${held.map((row) => row.lot_id).join(', ')} is already on another refiner order`
-    )
+export function assertUnassigned(taken: string[], lot_ids: string[]): void {
+  if (taken.length > 0) {
+    throw new Conflict(`lot ${taken.join(', ')} is already on another refiner order`)
   }
 }
 
@@ -65,13 +71,8 @@ export function assertPurchaseOrder(direction: Direction | null, order_id: strin
   }
 }
 
-export function assertFinalizedOrder(order: OrderRead | undefined, order_id: string): void {
+export function assertOrderExists(order: OrderRead | undefined, order_id: string): void {
   if (!order) throw new NotFound(`no order ${order_id}`)
-  if (!order.spots_locked) {
-    throw new Invalid(
-      `order ${order.number} is not finalized, so its lots have no settled price to sell on`
-    )
-  }
 }
 
 export function assertCancellable(order: RefiningOrder): void {
@@ -101,10 +102,9 @@ export function assertNoOpenSellOrder(open: RefiningOrder | undefined): void {
   }
 }
 
-export function assertOpen(order: RefiningOrder): void {
-  if (order.sent_at !== null) {
-    throw new Conflict(`refiner order ${order.number} has been sent and its lots cannot change`)
-  }
+export function sentConfirm(order: RefiningOrder): string | null {
+  if (order.sent_at === null) return null
+  return `Refiner order ${order.number} has already been sent, so its metal has left`
 }
 
 export function assertSendable(order: RefiningOrder, lots: RefiningLot[]): void {
@@ -127,7 +127,7 @@ export function assertSettleable(order: RefiningOrder): void {
   }
 }
 
-export function assertWeighable(patch: RefiningLotPatch, current: RefiningLot): void {
+export function assertWeighable(patch: RefiningLotPatch, current: Lot): void {
   const unit = patch.unit !== undefined ? patch.unit : current.unit
   const weight =
     patch.post_melt !== undefined
@@ -152,11 +152,12 @@ export function assertSettling(held: RefiningLot[], named: RefiningSettlementLot
   if (stranger) {
     throw new Invalid(`lot ${stranger.lot_id} is not on this refiner order`)
   }
-  const spoken = new Set(named.map((line) => line.lot_id))
-  const missed = held.filter((lot) => !spoken.has(lot.lot_id))
-  if (missed.length > 0) {
-    throw new Invalid(`${missed.length} lot(s) on this order carry no assay in the settlement`)
-  }
+}
+
+export function settlementConfirm(lots: RefiningLotView[]): string | null {
+  const unsettled = lots.filter((lot) => lot.lot.settled_at === null).length
+  if (unsettled === 0) return null
+  return `${unsettled} of ${lots.length} lots are not settled`
 }
 
 export function assertEveryLotSettled(written: number, named: number, id: string): void {
@@ -174,29 +175,111 @@ export function assertLotRemoved(removed: boolean, id: string): void {
   }
 }
 
-export function assertSettlementPremiums(
-  held: RefiningLot[],
-  named: RefiningSettlementLot[]
-): void {
-  const bare = held.filter((lot) => {
-    const line = named.find((row) => row.lot_id === lot.lot_id)
-    return (line?.premium ?? lot.premium) === null
-  })
-  if (bare.length > 0) {
+export function premiumConfirm(lots: RefiningLotView[]): string | null {
+  const bare = lots.filter((lot) => lot.lot.premium === null).length
+  if (bare === 0) return null
+  return `${bare} lot(s) carry no premium, so what the refiner pays for them is unknown`
+}
+
+export function assertLockable(troy_oz: number): void {
+  if (troy_oz <= 0) throw new Invalid('a lock takes metal out, so it names a positive weight')
+}
+
+export function lockConfirm(available: number, troy_oz: number): string | null {
+  if (available - troy_oz >= 0) return null
+  return (
+    `locking ${troy_oz} draws the pool to ${available - troy_oz}, past what is available ` +
+    `(${available})`
+  )
+}
+
+export function assertPooledHasNoSpot(order: RefiningOrder, lots: RefiningSettlementLot[]): void {
+  if (order.settlement_type !== 'pooled') return
+  const spoken = lots.find((line) => line.settled_spot !== undefined && line.settled_spot !== null)
+  if (spoken) {
     throw new Invalid(
-      `${bare.length} lot(s) carry no premium, so what the refiner pays for them is unknown`
+      `refiner order ${order.number} is pooled - it never carries a spot, so lot ` +
+        `${spoken.lot_id} cannot settle with one`
     )
   }
 }
 
-export function assertLockable(balance: number, troy_oz: number): void {
-  if (troy_oz <= 0) throw new Invalid('a lock takes metal out, so it names a positive weight')
-  if (balance <= 0) {
-    throw new Invalid(`there is no metal in that pool to lock - the balance is ${balance}`)
+export function assertOnHandNamed(skipped: LotPosition[]): void {
+  if (skipped.length > 0) {
+    throw new Invalid(
+      `${skipped.length} named lot(s) are not on hand: ` +
+        skipped.map((s) => `${s.id} (${s.position})`).join(', ')
+    )
+  }
+}
+
+export function assertBatchGrain(body: RefiningBatch): void {
+  const hasLots = body.lot_ids !== undefined
+  const hasOrders = body.order_ids !== undefined
+  if (hasLots === hasOrders) {
+    throw new Invalid('a batch names exactly one of lot_ids or order_ids, never both or neither')
+  }
+}
+
+export function batchResult(
+  order: RefiningOrderRead,
+  taken: number,
+  skipped: LotPosition[]
+): RefiningBatchResult {
+  return {
+    order,
+    taken,
+    skipped: skipped.map((row) => ({ lot_id: row.id, position: row.position })),
   }
 }
 
 const REFINING_DOCUMENTS: { kind: PdfKind; name: string }[] = [{ kind: 'invoice', name: 'Invoice' }]
+
+export function sendPaymentConfirm(order: RefiningOrder): string | null {
+  if (order.settled_at !== null) return null
+  return `Refiner order ${order.number} has not been settled yet`
+}
+
+export function sendPaymentOverride(payment: PaymentView | null): string | null {
+  if (!payment || payment.state === null) return null
+  if (payment.state === 'Processing' || payment.state === 'Sent') {
+    return `This refiner order already has a ${payment.state} payout`
+  }
+  return null
+}
+
+export function offer(
+  name: string,
+  confirm: string | null = null,
+  override: string | null = null
+): Action {
+  return { name, confirm, override }
+}
+
+export function actionsFor(view: RefiningOrderView): RefiningOrderActions {
+  const offered: Action[] = []
+  const open = view.cancelled_at === null && view.settled_at === null
+  const notCancelled = view.cancelled_at === null
+  if (open) offered.push(offer('edit_lots', sentConfirm(view)))
+  if (open && view.sent_at === null) offered.push(offer('send'))
+  if (open && view.sent_at !== null) {
+    offered.push(offer('settle', settlementConfirm(view.lots) ?? premiumConfirm(view.lots)))
+  }
+  if (open && view.sent_at !== null) offered.push(offer('dispute'))
+  if (open) offered.push(offer('cancel'))
+  if (view.settled_at !== null) offered.push(offer('lock_ounces'))
+  if (notCancelled && view.direction === 'buy') {
+    offered.push(offer('send_payment', sendPaymentConfirm(view), sendPaymentOverride(view.payment)))
+  }
+  if (notCancelled && view.direction === 'sell' && view.payment !== null) {
+    const state = view.payment.state
+    if (state === null || state === 'Due') offered.push(offer('request_payment'))
+    if (view.payment.transfer_id !== null && state !== 'Received') {
+      offered.push(offer('mark_received'))
+    }
+  }
+  return offered
+}
 
 export function documentsFor(sent: boolean, stored: StoredDocument[]): OrderDocument[] {
   return REFINING_DOCUMENTS.map((row) => {

@@ -1,11 +1,12 @@
 import query from '#shared/db/query.ts'
 import { buildUpdate } from '#shared/db/patch.ts'
-import { sqlFrom } from '#shared/db/sql.ts'
+import { expression, sqlFrom } from '#shared/db/sql.ts'
 import type { Fulfillment, FulfillmentViewFacts } from '@dorado/contracts'
 import type { Executor } from '#shared/db/executor.ts'
 import { FulfillmentPatch, FulfillmentViewFacts as Facts } from '@dorado/contracts'
 
 const sql = sqlFrom(import.meta.dirname)
+export const ARRIVED = expression(sql('arrived'))
 
 export async function getOne(id: string, executor?: Executor): Promise<Fulfillment | undefined> {
   const { rows } = await query<Fulfillment>(sql('get_one'), [id], executor)

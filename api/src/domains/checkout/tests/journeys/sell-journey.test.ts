@@ -126,13 +126,13 @@ test("basket, row, fulfillment, payout and placement agree on one order's money"
 
       const placed = await place.place(checkout_id, stubWorld())
       assert.equal(placed.order.direction, 'purchase')
-      assert.equal(placed.order.status, 'In Transit')
+      assert.equal(placed.state, 'Awaiting Receipt', 'a freshly placed purchase awaits its parcel')
       assert.equal(placed.lots.length, 2, 'the order lost a line the checkout carried')
 
       const bullionLine = placed.lots.find((i) => i.lot.bullion_id === product.id)!
       assert.ok(bullionLine, 'the bullion line did not survive placement')
       assert.notEqual(
-        Number(bullionLine.premium),
+        Number(bullionLine.lot.premium),
         Number(product.bid_premium),
         "the placed bullion line kept the catalogue's own premium"
       )
@@ -154,9 +154,11 @@ test("basket, row, fulfillment, payout and placement agree on one order's money"
       )
 
       await c.query(`UPDATE orders.orders SET spots_locked = true WHERE id = $1`, [placed.order.id])
-      await c.query(`UPDATE orders.lots SET confirmed = true WHERE order_id = $1`, [
-        placed.order.id,
-      ])
+      await c.query(
+        `UPDATE inventory.lots li SET confirmed_at = now()
+           FROM orders.lots ol WHERE ol.lot_id = li.id AND ol.order_id = $1`,
+        [placed.order.id]
+      )
       const priced = await asAdmin(admin, () =>
         request(app).post(`/api/orders/${placed.order.id}/finalize`)
       )
@@ -164,7 +166,10 @@ test("basket, row, fulfillment, payout and placement agree on one order's money"
       const total = Number(priced.body.totals?.total)
       assert.ok(Number.isFinite(total), 'finalize wrote no readable total')
 
-      assert.equal(priced.body.actions.add_funds, false)
+      assert.ok(
+        !priced.body.actions.some((a: { name: string }) => a.name === 'add_funds'),
+        'an ACH payout should not offer add_funds at all'
+      )
       const funded = await asAdmin(admin, () =>
         request(app).post(`/api/orders/${placed.order.id}/add_funds`)
       )
@@ -177,14 +182,6 @@ test("basket, row, fulfillment, payout and placement agree on one order's money"
       )
       assert.equal(credits.n, 0, 'an ACH payout still credited a Dorado balance')
       assert.ok(total > 0, 'finalize wrote no positive total')
-
-      for (const status of ['Received', 'Cancelled']) {
-        const moved = await asAdmin(admin, () =>
-          request(app).patch(`/api/orders/${placed.order.id}`).send({ status })
-        )
-        assert.equal(moved.status, 200, moved.text)
-        assert.equal(moved.body.order.status, status)
-      }
     },
     { actor: TEST_ACTOR.id, lock: [LOCKS.ORDERS, LOCKS.ADDRESSES, LOCKS.FULFILLMENTS, LOCKS.USERS] }
   )

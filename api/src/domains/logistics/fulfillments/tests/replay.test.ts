@@ -107,7 +107,6 @@ test('a customer cannot reach any of the admin fulfillment routes', async () => 
           ['post', '/api/fulfillments/cancel_schedule', { fulfillment_id: null }],
           ['post', '/api/fulfillments/set_method', { fulfillment_id: null, method_id: null }],
           ['post', '/api/fulfillments/set_status', { fulfillment_id: null, status: 'COMPLETED' }],
-          ['post', '/api/fulfillments/methods/update', { method: {} }],
         ]
         for (const [verb, path, body] of calls as Array<
           ['get' | 'post', string, Record<string, unknown>]

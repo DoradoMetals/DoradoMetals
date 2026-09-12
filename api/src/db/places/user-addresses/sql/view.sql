@@ -14,7 +14,7 @@ SELECT to_jsonb(a)
                  JOIN orders.addresses oa ON oa.order_id = o.id
                 WHERE oa.source_address_id = a.id
                   AND o.user_id = ua.user_id
-                  AND o.status IS DISTINCT FROM 'Completed') AS locked
+                  AND /*__order_state__*/ <> 'Completed') AS locked
   FROM places.user_addresses ua
   JOIN places.addresses a ON a.id = ua.address_id
  WHERE ua.user_id = $1::uuid

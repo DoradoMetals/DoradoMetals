@@ -109,12 +109,40 @@ export function assertKind(transfer: Transfer, kind: TransferKind): Transfer {
 }
 
 export function assertSendable(transfer: Transfer): Transfer {
-  if (transfer.state !== openingState(transfer.kind)) {
+  if (!isOpening(transfer)) {
     throw new Conflict(
       `payment ${transfer.id} is ${transfer.state} - only a ${openingState(transfer.kind)} payment may be sent`
     )
   }
   return transfer
+}
+
+export function isOpening(transfer: Transfer): boolean {
+  return transfer.state === openingState(transfer.kind)
+}
+
+export function assertOverrideReason(
+  override_reason: string | null | undefined,
+  what: string
+): asserts override_reason is string {
+  if (!override_reason || override_reason.trim().length < 10) {
+    throw new Conflict(
+      `${what}. Money leaves twice or in excess here, so this needs a written ` +
+        `override_reason of at least 10 characters AND a session stepped up in the last ` +
+        `five minutes (POST /api/account/step_up)`
+    )
+  }
+}
+
+export function overrideFor(transfer: Transfer): string | null {
+  if (isOpening(transfer)) return null
+  return `This payment is ${transfer.state} - sending it again moves the money twice`
+}
+
+export function payoutOverrideFor(owed: number, amount: number | null | undefined): string | null {
+  if (amount == null) return null
+  if (Number(amount) <= Number(owed)) return null
+  return `${amount} is more than the ${owed} this order owes`
 }
 
 export function assertWritten(id: string, written: boolean): void {

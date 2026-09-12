@@ -1,6 +1,8 @@
+import { AdoptAssayBody, AdoptAssayProposal } from '@dorado/contracts'
 import * as ordersRepo from '#db/orders/repo.ts'
 import * as orderLots from '#db/orders/lots/repo.ts'
-import * as lotsRepo from '#db/lots/items/repo.ts'
+import * as lotsRepo from '#db/inventory/lots/repo.ts'
+import * as lotSourcesRepo from '#db/inventory/lot-sources/repo.ts'
 import * as orderSpots from '#db/orders/spots/repo.ts'
 import * as orderTransactions from '#db/orders/transactions/repo.ts'
 import * as orderTransactionsService from '#orders/transactions/service.ts'
@@ -19,22 +21,31 @@ import * as orderSpotsService from '#orders/spots/service.ts'
 import * as rules from '#orders/rules.ts'
 import * as shippingRules from '#logistics/shipping/rules.ts'
 import * as pricing from '#pricing/index.ts'
+import * as accounts from '#accounts/auth/step-up.ts'
+import * as refiningService from '#refining/service.ts'
+import * as inventoryService from '#inventory/service.ts'
 
 import withTransaction from '#shared/db/withTransaction.ts'
 import type { Executor } from '#shared/db/executor.ts'
 import type {
   LotSplitPart,
   OrderCancelBody,
+  OverrideBody,
   OrderDocument,
   OrderLotPatch,
   OrderLotView,
   OrderPatch,
   OrderView,
   LotView,
+  Lot,
 } from '@dorado/contracts'
 
 export async function patch(order_id: string, changes: OrderPatch): Promise<OrderView> {
   rules.assertNamesAField(changes)
+  if (changes.cancelled_at !== undefined) {
+    rules.assertClearsCancellation(changes.cancelled_at)
+    rules.assertReopenable(await viewOf(order_id))
+  }
   const written = await withTransaction((tx) => ordersRepo.update(order_id, changes, {}, tx))
   rules.assertOrder(written || null, order_id)
   return await viewOf(order_id)
@@ -50,8 +61,10 @@ export async function retierPremiums(order_id: string, executor?: Executor): Pro
   if ((await ordersRepo.directionOf(order_id, executor)) !== 'purchase') return
   for (const line of (await pricing.priceOrder(order_id, executor)).items) {
     if (line.retier_premium === null) continue
+    const link = await orderLots.getOne(line.id, executor)
+    rules.assertLot(link, line.id)
     rules.assertRepriced(
-      await orderLots.update(line.id, { premium: line.retier_premium }, executor),
+      await lotsRepo.update(link.lot_id, { premium: line.retier_premium }, executor),
       order_id,
       line.id
     )
@@ -60,10 +73,6 @@ export async function retierPremiums(order_id: string, executor?: Executor): Pro
 
 export async function lotsFor(order_id: string): Promise<OrderLotView[]> {
   return await orderLots.viewFor(order_id)
-}
-
-export async function searchLots(q: string | null, unassigned: boolean): Promise<LotView[]> {
-  return await lotsRepo.search(q, unassigned)
 }
 
 export async function addLot(order_id: string, input: OrderLotPatch): Promise<OrderLotView> {
@@ -89,33 +98,86 @@ async function mintFromCatalogue(bullion_id: string, quantity: number | null, tx
   return created
 }
 
-export async function editLot(id: string, changes: OrderLotPatch): Promise<OrderLotView> {
+export async function editLot(id: string, changes: OrderLotPatch): Promise<OrderLotView | Lot> {
   rules.assertNamesAField(changes)
   const link = await orderLots.getOne(id)
-  rules.assertLot(link, id)
+  if (!link) return await refiningService.recordAssay(id, changes)
+
   const lot = await lotsRepo.getOne(link.lot_id)
   rules.assertLot(lot, link.lot_id)
-
-  const money = rules.lotMoney(changes)
-  const facts = rules.lotFacts(changes)
   rules.assertWeighable(
-    facts.bullion_id ?? lot.bullion_id,
-    facts.unit ?? lot.unit,
-    facts.post_melt ?? facts.pre_melt ?? lot.post_melt ?? lot.pre_melt,
-    facts.purity ?? lot.purity
+    changes.bullion_id ?? lot.bullion_id,
+    changes.unit ?? lot.unit,
+    changes.post_melt ?? changes.pre_melt ?? lot.post_melt ?? lot.pre_melt,
+    changes.purity ?? lot.purity
   )
 
   await withTransaction(async (tx) => {
-    if (rules.namesAnyOf(money)) rules.assertLot(await orderLots.update(id, money, tx), id)
-    if (rules.namesAnyOf(facts)) {
-      rules.assertLot(await lotsRepo.update(link.lot_id, facts, tx), link.lot_id)
-    }
+    rules.assertLot(await lotsRepo.update(link.lot_id, changes, tx), link.lot_id)
     if (rules.retiersAfterEdit(changes)) await retierPremiums(link.order_id, tx)
   })
 
   const written = (await orderLots.viewFor(link.order_id)).find((row) => row.id === id)
   rules.assertLot(written, id)
   return written
+}
+
+export async function assignStockLot(order_id: string, lot_id: string): Promise<OrderLotView> {
+  rules.assertDirection(await ordersRepo.directionOf(order_id), 'sale', 'assigning a stock lot')
+  const positions = await lotsRepo.positionsOf([lot_id])
+  rules.assertOnHand(positions[0]?.position, lot_id)
+
+  const minted = await withTransaction((tx) => orderLots.mintFromStock(order_id, lot_id, tx))
+
+  const written = (await orderLots.viewFor(order_id)).find((row) => row.id === minted.id)
+  rules.assertLot(written, minted.id)
+  return written
+}
+
+export async function adoptAssayProposal(order_id: string): Promise<AdoptAssayProposal> {
+  return AdoptAssayProposal.parse(await orderLots.adoptAssayProposal(order_id))
+}
+
+export async function adoptAssay(order_id: string, body: AdoptAssayBody): Promise<OrderLotView[]> {
+  rules.assertDirection(await ordersRepo.directionOf(order_id), 'purchase', 'adopting an assay')
+  const links = await orderLots.getFor(order_id)
+  for (const entry of body.lots) {
+    rules.assertLot(
+      links.find((row) => row.id === entry.id),
+      entry.id
+    )
+  }
+
+  await withTransaction(async (tx) => {
+    for (const entry of body.lots) {
+      const link = links.find((row) => row.id === entry.id)!
+      rules.assertLot(await lotsRepo.update(link.lot_id, entry.figures, tx), link.lot_id)
+    }
+  })
+
+  if (body.combine !== false) {
+    const lot_ids = body.lots.map((entry) => links.find((row) => row.id === entry.id)!.lot_id)
+    const edges = await lotSourcesRepo.sourcesOf(lot_ids)
+    const refinerLotIds = new Set(
+      edges.filter((edge) => edge.kind === 'batch').map((edge) => edge.lot_id)
+    )
+    for (const refinerLotId of refinerLotIds) {
+      const group = edges
+        .filter((edge) => edge.kind === 'batch' && edge.lot_id === refinerLotId)
+        .map((edge) => edge.source_lot_id)
+        .filter((source_lot_id) => lot_ids.includes(source_lot_id))
+      if (group.length <= 1) continue
+
+      const combined = await inventoryService.combine(group)
+      const groupLinks = links.filter((row) => group.includes(row.lot_id))
+      await withTransaction(async (tx) => {
+        for (const groupLink of groupLinks) await orderLots.remove(groupLink.id, tx)
+        await orderLots.link(order_id, combined.id, tx)
+      })
+    }
+  }
+
+  return await orderLots.viewFor(order_id)
 }
 
 export async function removeLot(id: string): Promise<void> {
@@ -129,20 +191,6 @@ export async function removeLot(id: string): Promise<void> {
   })
 }
 
-export async function splitLot(id: string, parts: LotSplitPart[]): Promise<OrderLotView[]> {
-  const link = await orderLots.getOne(id)
-  rules.assertLot(link, id)
-
-  await withTransaction(async (tx) => {
-    for (const child of await lotsRepo.splitOff(link.lot_id, parts, tx)) {
-      await orderLots.link(link.order_id, child.id, tx)
-    }
-    await retierPremiums(link.order_id, tx)
-  })
-
-  return await orderLots.viewFor(link.order_id)
-}
-
 export async function finalize(order_id: string): Promise<OrderView> {
   const order = await viewOf(order_id)
   rules.assertFinalizable(order)
@@ -152,19 +200,9 @@ export async function finalize(order_id: string): Promise<OrderView> {
     await ordersRepo.update(order_id, { spots_locked: true }, {}, tx)
 
     const priced = await pricing.priceOrder(order_id, tx)
-    for (const line of priced.items) {
-      await orderLots.update(line.id, { price: line.unit_price }, tx)
-    }
     await orderTransactions.update(order_id, { total: priced.total }, {}, tx)
   })
 
-  return await viewOf(order_id)
-}
-
-export async function reopen(order_id: string): Promise<OrderView> {
-  const order = await viewOf(order_id)
-  rules.assertReopenable(order)
-  await withTransaction((tx) => ordersRepo.update(order_id, { status: 'Received' }, {}, tx))
   return await viewOf(order_id)
 }
 
@@ -177,7 +215,11 @@ export async function documentsFor(order_id: string): Promise<OrderDocument[]> {
   )
 }
 
-export async function addFunds(order_id: string): Promise<OrderView> {
+export async function addFunds(
+  order_id: string,
+  body: OverrideBody = {},
+  session_id: string | null = null
+): Promise<OrderView> {
   const order = await viewOf(order_id)
   rules.assertDirection(order.order.direction, 'purchase', 'adding funds')
 
@@ -185,8 +227,12 @@ export async function addFunds(order_id: string): Promise<OrderView> {
   rules.assertCreditable(amount, order.order.number)
   rules.assertPayableToAccount(order.payout?.method ?? null, order.order.number)
 
+  if (await ledger.hasCreditFor(order_id)) {
+    rules.assertCreditOverride(true, body.override_reason, order.order.number)
+    await accounts.assertSteppedUp(session_id)
+  }
+
   await withTransaction(async (tx) => {
-    rules.assertNotAlreadyCredited(await ledger.hasCreditFor(order_id, tx), order.order.number)
     await credit.addFunds(order.order.user_id, amount, tx)
     await ledger.addTransactionLog(
       { user_id: order.order.user_id, type: 'Credit', order_id, amount },
@@ -228,6 +274,7 @@ export async function cancel(
 
   const shipment_id = await withTransaction(async (tx) => {
     await orderSpotsService.applyLock(order_id, false, tx)
+    await ordersRepo.update(order_id, { cancelled_at: new Date().toISOString() }, {}, tx)
     return await shipmentService.returnLeg(
       order_id,
       {

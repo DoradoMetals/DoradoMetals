@@ -57,7 +57,8 @@ SELECT to_jsonb(f)
                  'carrier_service_id', s.carrier_service_id,
                  'pickup_date', s.pickup_date,
                  'pickup_time', s.pickup_time,
-                 'tracking_number', s.tracking_number)
+                 'tracking_number', s.tracking_number,
+                 'delivered_at', to_char(s.delivered_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'))
           FROM fulfillments.shipments fs
           JOIN shipping.shipments s ON s.id = fs.shipment_id
          WHERE fs.fulfillment_id = f.id
@@ -68,16 +69,19 @@ SELECT to_jsonb(f)
                'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS scheduled_at,
        -- THE DROP SHIP LINK. A refiner BUY order's parcel is posted straight
        -- to the customer whose sales order it fills. No foreign key joins the
-       -- two orders (ruling 42); the lot does, in one hop. A SELL order's lot
-       -- joins the same way to the PURCHASE order that fed it, but that is the
-       -- source, not a drop ship, so it is deliberately excluded here.
+       -- two orders (ruling 42); the lot does, in two hops now that the refiner
+       -- carries a lot of its own: refiner lot -> its source edge -> the
+       -- customer lot -> the order. A SELL order's lot joins the same way to
+       -- the PURCHASE order that fed it, but that is the source, not a drop
+       -- ship, so it is deliberately excluded here.
        (SELECT jsonb_build_object(
                  'id', od.id, 'number', od.number, 'direction', od.direction,
                  'reference', (CASE WHEN od.direction = 'sale' THEN 'SO-'
                                     ELSE 'PO-' END) || od.number)
           FROM refining.lots rl
           JOIN refining.orders ro ON ro.id = rl.refining_order_id
-          JOIN orders.lots ol ON ol.lot_id = rl.lot_id
+          JOIN inventory.lot_sources ls ON ls.lot_id = rl.lot_id
+          JOIN orders.lots ol ON ol.lot_id = ls.source_lot_id
           JOIN orders.orders od ON od.id = ol.order_id
          WHERE rl.refining_order_id = f.refining_order_id
            AND ro.direction = 'buy'

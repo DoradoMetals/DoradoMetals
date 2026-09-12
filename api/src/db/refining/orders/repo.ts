@@ -1,6 +1,6 @@
 import query from '#shared/db/query.ts'
 import { buildUpdate } from '#shared/db/patch.ts'
-import { sqlFrom } from '#shared/db/sql.ts'
+import { expression, sqlFrom } from '#shared/db/sql.ts'
 import { columnsOf, returningOf } from '#shared/db/columns.ts'
 import {
   RefiningOrder,
@@ -13,6 +13,9 @@ import type { RefiningDirection } from '@dorado/contracts'
 import type { Executor } from '#shared/db/executor.ts'
 
 const sql = sqlFrom(import.meta.dirname)
+const REFINING_STATE = expression(sql('refining_state'))
+const VIEW_ONE_SQL = sql('view_one').replaceAll('/*__refining_state__*/', REFINING_STATE)
+const VIEW_ALL_SQL = sql('view_all').replaceAll('/*__refining_state__*/', REFINING_STATE)
 
 export const PATCHABLE = columnsOf(RefiningOrderPatch)
 const RETURNING = returningOf(RefiningOrder)
@@ -36,7 +39,7 @@ export async function create(
 ): Promise<RefiningOrder> {
   const { rows } = await query<RefiningOrder>(
     sql('create'),
-    [row.refiner_id, row.direction],
+    [row.refiner_id, row.direction, row.settlement_type ?? null],
     executor
   )
   return rows[0]
@@ -46,7 +49,7 @@ export async function view(
   id: string,
   executor?: Executor
 ): Promise<RefiningOrderView | undefined> {
-  const { rows } = await query<{ view: unknown }>(sql('view_one'), [id], executor)
+  const { rows } = await query<{ view: unknown }>(VIEW_ONE_SQL, [id], executor)
   return rows[0] === undefined ? undefined : RefiningOrderView.parse(rows[0].view)
 }
 
@@ -57,7 +60,7 @@ export async function list(
   executor?: Executor
 ): Promise<RefiningOrderView[]> {
   const { rows } = await query<{ view: unknown }>(
-    sql('view_all'),
+    VIEW_ALL_SQL,
     [refiner_id, direction, state],
     executor
   )

@@ -1,7 +1,7 @@
 import query from '#shared/db/query.ts'
 import { buildUpdate } from '#shared/db/patch.ts'
 import { sqlFrom } from '#shared/db/sql.ts'
-import { RatePatch, type AdminRate, type RateRead } from '@dorado/contracts'
+import { RatePatch, type AdminRate, type RateChange, type RateRead } from '@dorado/contracts'
 import type { Executor } from '#shared/db/executor.ts'
 
 const sql = sqlFrom(import.meta.dirname)
@@ -47,4 +47,9 @@ export async function update(id: string, patch: RatePatch, executor?: Executor):
 export async function remove(id: string, executor?: Executor): Promise<boolean> {
   const { rowCount } = await query(sql('delete'), [id], executor)
   return rowCount === 1
+}
+
+export async function history(executor?: Executor): Promise<RateChange[]> {
+  const { rows } = await query<RateChange>(sql('get_history'), [], executor)
+  return rows
 }

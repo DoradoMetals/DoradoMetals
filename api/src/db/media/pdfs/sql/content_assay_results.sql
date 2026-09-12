@@ -16,7 +16,7 @@ lot AS (
          COALESCE(b.name, i.metal_id || ' scrap') AS name
     FROM ord
     JOIN orders.lots ol ON ol.order_id = ord.id
-    JOIN lots.items i ON i.id = ol.lot_id
+    JOIN inventory.lots i ON i.id = ol.lot_id
     LEFT JOIN products.bullion b ON b.id = i.bullion_id
 ),
 labeled AS (

@@ -49,7 +49,6 @@ vi.mock('@dorado/client', () => ({
   useImportRefiningDocument: mutation,
   useCreateFulfillment: handover,
   usePatchFulfillment: mutation,
-  useScheduleDropoff: mutation,
   useSetFulfillmentStatus: mutation,
   useCancelSchedule: mutation,
   useOpenPayout: mutation,

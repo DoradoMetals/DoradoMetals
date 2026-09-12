@@ -22,7 +22,7 @@ const aPurchaseOrderWithABullionLine = async (c: PoolClient) => {
   const order = await anOrder(c, customer, { direction: 'purchase' })
     .withBullion(product, 2, { premium: 12.5 })
     .withSpots()
-  return { customer, order, bullionItem: { id: order.lots[0]!.id } }
+  return { customer, order, bullionItem: { id: order.lots[0]!.id, lot_id: order.lots[0]!.lot_id } }
 }
 
 afterAll(async () => {
@@ -37,8 +37,8 @@ test('the quantity is written alone, and the premium beside it is untouched', as
       await asAdmin(admin, async () => {
         await request(app).patch(`/api/orders/lots/${bullionItem.id}`).send({ quantity: 2 })
 
-        const before = await client.query(`SELECT premium FROM orders.lots WHERE id = $1`, [
-          bullionItem.id,
+        const before = await client.query(`SELECT premium FROM inventory.lots WHERE id = $1`, [
+          bullionItem.lot_id,
         ])
         assert.notEqual(before.rows[0].premium, null, 'the fixture line has no premium to lose')
 
@@ -49,8 +49,8 @@ test('the quantity is written alone, and the premium beside it is untouched', as
         assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`)
 
         const { rows } = await client.query(
-          `SELECT li.quantity, ol.premium FROM orders.lots ol JOIN lots.items li ON li.id = ol.lot_id WHERE ol.id = $1`,
-          [bullionItem.id]
+          `SELECT quantity, premium FROM inventory.lots WHERE id = $1`,
+          [bullionItem.lot_id]
         )
         assert.equal(Number(rows[0].quantity), 7, 'the quantity did not change')
         assert.notEqual(rows[0].premium, null, 'the premium beside the quantity was nulled')

@@ -5,17 +5,13 @@ import {
   deleteOrderLot,
   getOrderLots,
   patchOrderLot,
-  searchLots,
-  splitOrderLot,
 } from '#orders/lots/controller.ts'
+import { splitOrderLot } from '#inventory/controller.ts'
 
 import { requireUser, requireAdmin } from '#shared/middleware/authMiddleware.ts'
 import { requireOwnOrderParam } from '#shared/middleware/ownership.ts'
 
 const router = express.Router()
-
-export const lotSearchRoutes = express.Router()
-lotSearchRoutes.get('/', requireAdmin, searchLots)
 
 router.patch('/lots/:id', requireAdmin, patchOrderLot)
 router.delete('/lots/:id', requireAdmin, deleteOrderLot)

@@ -51,15 +51,10 @@ test("the charge is in cents, and Stripe's floor is asked about separately", () 
   assert.equal(rules.belowStripeMinimum(0), false)
 })
 
-test('an order with nothing left to charge is born Preparing', () => {
-  assert.equal(rules.statusAtPlacement(0, false), 'Preparing')
-  assert.equal(rules.statusAtPlacement(12649, false), 'Pending')
-  assert.equal(rules.statusAtPlacement(12649, true), 'Preparing')
-})
-
-test('a sale confirms once paid, not while a card charge is still pending', () => {
-  assert.equal(rules.confirmsAtPlacement('Preparing'), true)
-  assert.equal(rules.confirmsAtPlacement('Pending'), false)
+test('an order settles at placement when nothing is owed, or when the intent already succeeded', () => {
+  assert.equal(rules.settlesAtPlacement(0, false), true)
+  assert.equal(rules.settlesAtPlacement(12649, false), false)
+  assert.equal(rules.settlesAtPlacement(12649, true), true)
 })
 
 test('an attached intent is a conflict when it settled and superseded when it did not', () => {
@@ -181,28 +176,40 @@ test('an operation of the wrong direction is refused, naming both', () => {
 
 type Facts = Parameters<typeof rules.actionsFor>[0]
 
-const aLot = (confirmed: boolean) => ({ confirmed, lot: { content: 1 } }) as Facts['lots'][number]
+const aLot = (confirmed: boolean, settled = true) =>
+  ({
+    settled,
+    lot: { content: 1, confirmed_at: confirmed ? '2024-01-01T00:00:00.000Z' : null },
+  }) as Facts['lots'][number]
 const parcel = (direction: string, tracking_number: string | null) =>
   ({ direction, tracking_number }) as Facts['shipments'][number]
 
-const facts = (over: Partial<Facts> = {}): Facts => ({
-  order: {
-    direction: 'purchase',
-    status: 'Received',
-    order_sent: null,
-    tracking_updated: null,
-  } as Facts['order'],
-  totals: { total: 1000 } as Facts['totals'],
-  lots: [aLot(true)],
-  address: {} as Facts['address'],
-  shipments: [],
-  pickup: null,
-  payout: null,
-  user: null,
-  credited: false,
-  reference: 'PO-1',
-  ...over,
-})
+type Actions = ReturnType<typeof rules.actionsFor>
+
+const hasAction = (actions: Actions, name: string): boolean =>
+  actions.some((a) => a.name === name)
+const actionNamed = (actions: Actions, name: string) => actions.find((a) => a.name === name)
+
+const facts = (over: Partial<Facts> = {}): Facts =>
+  ({
+    order: {
+      direction: 'purchase',
+      cancelled_at: null,
+      order_sent: null,
+      tracking_updated: null,
+    } as Facts['order'],
+    totals: { total: 1000 } as Facts['totals'],
+    lots: [aLot(true)],
+    address: {} as Facts['address'],
+    shipments: [],
+    pickup: null,
+    payout: null,
+    user: null,
+    credited: false,
+    reference: 'PO-1',
+    state: 'Awaiting Payout',
+    ...over,
+  }) as Facts
 
 const order = (over: Partial<Facts['order']>): Partial<Facts> => ({
   order: { ...facts().order, ...over },
@@ -214,72 +221,71 @@ const paidBy = (method: string | null): Partial<Facts> => ({
 
 test("an order with no lines is not confirmed, which the drawer's every() called true", () => {
   assert.equal(rules.allLotsConfirmed([]), false)
-  assert.equal(rules.allLotsConfirmed([{ confirmed: true }, { confirmed: false }]), false)
-  assert.equal(rules.allLotsConfirmed([{ confirmed: true }]), true)
-})
-
-test('a purchase reaches Payment Processing only once every line is confirmed', () => {
-  assert.deepEqual(rules.statusesFor(facts()), ['Payment Processing', 'In Transit', 'Cancelled'])
-  assert.deepEqual(rules.statusesFor(facts({ lots: [aLot(false)] })), ['In Transit', 'Cancelled'])
-})
-
-test('a sale reaches In Transit only once the refiner has it and it is tracked', () => {
-  const preparing = { direction: 'sale' as const, status: 'Preparing' }
-  assert.deepEqual(rules.statusesFor(facts(order(preparing))), ['Pending'])
-  assert.deepEqual(
-    rules.statusesFor(facts(order({ ...preparing, order_sent: true, tracking_updated: null }))),
-    ['Pending']
-  )
-  assert.deepEqual(
-    rules.statusesFor(facts(order({ ...preparing, order_sent: true, tracking_updated: true }))),
-    ['In Transit', 'Pending']
-  )
-})
-
-test('crediting an account is a payout fact, not a status', () => {
-  assert.equal(rules.actionsFor(facts(paidBy('DORADO_ACCOUNT'))).add_funds, true)
-  assert.equal(rules.actionsFor(facts(paidBy('ACH'))).add_funds, false)
   assert.equal(
-    rules.actionsFor(facts({ ...paidBy('DORADO_ACCOUNT'), totals: null })).add_funds,
+    rules.allLotsConfirmed([
+      { lot: { confirmed_at: '2024-01-01T00:00:00.000Z' } } as Facts['lots'][number],
+      { lot: { confirmed_at: null } } as Facts['lots'][number],
+    ]),
+    false
+  )
+  assert.equal(
+    rules.allLotsConfirmed([
+      { lot: { confirmed_at: '2024-01-01T00:00:00.000Z' } } as Facts['lots'][number],
+    ]),
+    true
+  )
+})
+
+test('crediting an account is a payout fact, read from the array of offered actions', () => {
+  assert.equal(hasAction(rules.actionsFor(facts(paidBy('DORADO_ACCOUNT'))), 'add_funds'), true)
+  assert.equal(hasAction(rules.actionsFor(facts(paidBy('ACH'))), 'add_funds'), false)
+  assert.equal(
+    hasAction(rules.actionsFor(facts({ ...paidBy('DORADO_ACCOUNT'), totals: null })), 'add_funds'),
     false
   )
 })
 
 test('the direction decides which half of the action surface exists', () => {
   const bought = rules.actionsFor(facts())
-  assert.equal(bought.finalize, true)
-  assert.equal(bought.edit_lots, true)
-  assert.equal(bought.supply, false)
+  assert.equal(hasAction(bought, 'finalize'), true)
+  assert.equal(hasAction(bought, 'edit_lots'), true)
+  assert.equal(hasAction(bought, 'supply'), false)
 
-  const sold = rules.actionsFor(facts(order({ direction: 'sale', status: 'Preparing' })))
-  assert.equal(sold.supply, true)
-  assert.equal(sold.finalize, false)
-  assert.equal(sold.edit_lots, false)
-  assert.equal(sold.cancel, false)
+  const sold = rules.actionsFor(facts(order({ direction: 'sale' })))
+  assert.equal(hasAction(sold, 'supply'), true)
+  assert.equal(hasAction(sold, 'finalize'), false)
+  assert.equal(hasAction(sold, 'edit_lots'), false)
+  assert.equal(hasAction(sold, 'cancel'), false)
 })
 
 test('a label is offered only while the inbound parcel has none', () => {
   const unlabelled = [parcel('Inbound', null)]
   const labelled = [parcel('Inbound', '794...')]
-  assert.equal(rules.actionsFor(facts({ shipments: unlabelled })).buy_label, true)
-  assert.equal(rules.actionsFor(facts({ shipments: labelled })).buy_label, false)
-  assert.equal(rules.actionsFor(facts()).buy_label, false)
-  assert.equal(rules.actionsFor(facts({ shipments: [parcel('Return', null)] })).buy_label, false)
+  assert.equal(hasAction(rules.actionsFor(facts({ shipments: unlabelled })), 'buy_label'), true)
+  assert.equal(hasAction(rules.actionsFor(facts({ shipments: labelled })), 'buy_label'), false)
+  assert.equal(hasAction(rules.actionsFor(facts()), 'buy_label'), false)
+  assert.equal(
+    hasAction(rules.actionsFor(facts({ shipments: [parcel('Return', null)] })), 'buy_label'),
+    false
+  )
 })
 
 test('cancelling needs somewhere to send the metal back to', () => {
-  assert.equal(rules.actionsFor(facts()).cancel, true)
-  assert.equal(rules.actionsFor(facts({ address: null })).cancel, false)
-  assert.equal(rules.actionsFor(facts(order({ direction: 'sale' }))).supply, true)
-  assert.equal(rules.actionsFor({ ...facts(order({ direction: 'sale' })), lots: [] }).supply, false)
+  assert.equal(hasAction(rules.actionsFor(facts()), 'cancel'), true)
+  assert.equal(hasAction(rules.actionsFor(facts({ address: null })), 'cancel'), false)
+  assert.equal(hasAction(rules.actionsFor(facts(order({ direction: 'sale' }))), 'supply'), true)
+  assert.equal(
+    hasAction(rules.actionsFor({ ...facts(order({ direction: 'sale' })), lots: [] }), 'supply'),
+    false
+  )
 })
 
 test("payable and line_total are the view's SQL, not a rule", () => {
   const view = readFileSync(new URL('../../../db/orders/sql/view.sql', import.meta.url), 'utf8')
-  assert.match(view, /'payable',\s*\n?\s*CASE WHEN li\.content IS NULL OR ol\.premium IS NULL/)
-  assert.match(view, /ELSE li\.content \* ol\.premium END/)
-  assert.match(view, /WHEN li\.bullion_id IS NULL THEN ol\.price/)
-  assert.match(view, /ELSE ol\.price \* li\.quantity END/)
+  assert.match(view, /'payable',\s*\n?\s*CASE WHEN li\.content IS NULL OR li\.premium IS NULL/)
+  assert.match(view, /ELSE li\.content \* li\.premium END/)
+  assert.match(view, /WHEN li\.bullion_id IS NULL THEN pr\.price/)
+  assert.match(view, /ELSE pr\.price \* li\.quantity END/)
 })
 
 test('a balance that no longer covers what the quote applied is refused', () => {
@@ -293,46 +299,97 @@ test('a balance that no longer covers what the quote applied is refused', () => 
   assert.throws(() => rules.assertCreditCovers(undefined, 1), Conflict)
 })
 
-test('add_funds is offered only for a DORADO_ACCOUNT payout that has not been credited', () => {
+test('add_funds is offered for any DORADO_ACCOUNT payout, and warns once already credited', () => {
   const payable = { payout: { method: 'DORADO_ACCOUNT' } as Facts['payout'] }
-  assert.equal(rules.actionsFor(facts(payable)).add_funds, true)
-  assert.equal(rules.actionsFor(facts({ ...payable, credited: true })).add_funds, false)
+  const notYetCredited = rules.actionsFor(facts(payable))
+  assert.equal(hasAction(notYetCredited, 'add_funds'), true)
+  assert.equal(actionNamed(notYetCredited, 'add_funds')?.override, null)
+
+  const alreadyCredited = rules.actionsFor(facts({ ...payable, credited: true }))
+  assert.equal(hasAction(alreadyCredited, 'add_funds'), true, 'the action disappeared (MP F4)')
+  assert.match(
+    actionNamed(alreadyCredited, 'add_funds')?.override ?? '',
+    /already been credited/
+  )
+
   assert.equal(
-    rules.actionsFor(facts({ payout: { method: 'WIRE' } as Facts['payout'] })).add_funds,
+    hasAction(rules.actionsFor(facts({ payout: { method: 'WIRE' } as Facts['payout'] })), 'add_funds'),
     false
   )
 
   assert.throws(() => rules.assertPayableToAccount('WIRE', 1), Invalid)
   assert.throws(() => rules.assertPayableToAccount(null, 1), Invalid)
   assert.doesNotThrow(() => rules.assertPayableToAccount('DORADO_ACCOUNT', 1))
-  assert.throws(() => rules.assertNotAlreadyCredited(true, 1), Conflict)
-  assert.doesNotThrow(() => rules.assertNotAlreadyCredited(false, 1))
+  assert.throws(() => rules.assertCreditOverride(true, null, 1), Conflict)
+  assert.throws(() => rules.assertCreditOverride(true, 'too short', 1), Conflict)
+  assert.doesNotThrow(() => rules.assertCreditOverride(true, 'a long enough override reason', 1))
+  assert.doesNotThrow(() => rules.assertCreditOverride(false, null, 1))
 })
 
-test('the finalize gate names what it is waiting on, and refuses on the same list', () => {
+test('the finalize gate only refuses a direction mismatch or an empty order - everything else is a confirm, not a block', () => {
   assert.deepEqual(rules.finalizeBlockedBy(facts()), [])
   assert.doesNotThrow(() => rules.assertFinalizable(facts()))
 
-  assert.deepEqual(rules.finalizeBlockedBy(facts({ lots: [aLot(false)] })), [
-    'every lot has to be confirmed',
-  ])
+  assert.deepEqual(
+    rules.finalizeBlockedBy(facts({ lots: [aLot(false)] })),
+    [],
+    'an unconfirmed lot is a confirm reason, not a block - it must not stop finalize'
+  )
   assert.deepEqual(rules.finalizeBlockedBy(facts({ lots: [] })), ['the order holds no lots'])
   assert.deepEqual(rules.finalizeBlockedBy(facts(order({ direction: 'sale' }))), [
     'this is not a purchase order',
   ])
-  assert.deepEqual(
-    rules.finalizeBlockedBy(
-      facts({ lots: [{ confirmed: true, lot: { content: null } } as Facts['lots'][number]] })
-    ),
-    ['a lot has no fine weight, so it cannot be priced']
+  assert.throws(() => rules.assertFinalizable(facts({ lots: [] })), Invalid)
+  assert.doesNotThrow(() => rules.assertFinalizable(facts({ lots: [aLot(false)] })))
+})
+
+test('finalizeConfirm names the missing fine weight before the missing confirmation', () => {
+  assert.equal(rules.finalizeConfirm(facts()), null)
+  assert.match(rules.finalizeConfirm(facts({ lots: [aLot(false)] })) ?? '', /1 of 1 lots are not confirmed/)
+  assert.match(
+    rules.finalizeConfirm(
+      facts({
+        lots: [{ lot: { content: null, confirmed_at: null } } as Facts['lots'][number]],
+      })
+    ) ?? '',
+    /1 of 1 lots have no fine weight/
   )
-  assert.throws(() => rules.assertFinalizable(facts({ lots: [aLot(false)] })), Invalid)
+})
+
+test('payoutConfirm names the unsettled lots, then falls back to "not finalized"', () => {
+  const finalized = facts({ order: order({ spots_locked: true }).order })
+  assert.equal(
+    rules.payoutConfirm(finalized),
+    null,
+    'every fixture lot is already settled and the order is finalized'
+  )
+  assert.match(
+    rules.payoutConfirm({ ...finalized, lots: [aLot(true, false)] }) ?? '',
+    /Refiner has not settled 1 of 1 lots/
+  )
+  assert.match(
+    rules.payoutConfirm(facts({ order: order({ spots_locked: false }).order, totals: null })) ?? '',
+    /has not been finalized/
+  )
+})
+
+test('shipConfirm speaks only for a sale, and only while payment is outstanding', () => {
+  assert.equal(rules.shipConfirm(facts()), null, 'a purchase order is not shipConfirm business')
+  assert.equal(rules.shipConfirm(facts(order({ direction: 'sale' }))), null)
+  assert.match(
+    rules.shipConfirm({
+      ...facts(order({ direction: 'sale' })),
+      state: 'Awaiting Payment',
+    }) ?? '',
+    /has not paid/
+  )
 })
 
 test('a cancelled order can be reopened, and only a cancelled one', () => {
-  assert.equal(rules.actionsFor(facts(order({ status: 'Cancelled' }))).reopen, true)
-  assert.equal(rules.actionsFor(facts()).reopen, false)
-  assert.doesNotThrow(() => rules.assertReopenable(facts(order({ status: 'Cancelled' }))))
+  const cancelled = facts(order({ cancelled_at: new Date().toISOString() }))
+  assert.equal(hasAction(rules.actionsFor(cancelled), 'reopen'), true)
+  assert.equal(hasAction(rules.actionsFor(facts()), 'reopen'), false)
+  assert.doesNotThrow(() => rules.assertReopenable(cancelled))
   assert.throws(() => rules.assertReopenable(facts()), Conflict)
 })
 

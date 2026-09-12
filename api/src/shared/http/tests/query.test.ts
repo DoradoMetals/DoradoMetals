@@ -1,6 +1,6 @@
 import { test } from 'vitest'
 import assert from 'node:assert/strict'
-import { oneString } from '#shared/http/query.ts'
+import { oneString, manyStrings } from '#shared/http/query.ts'
 
 test('a string passes through unchanged', () => {
   assert.equal(oneString('abc'), 'abc')
@@ -30,4 +30,22 @@ test('everything else that can arrive becomes undefined', () => {
 
 test('a boxed String is not treated as a string', () => {
   assert.equal(oneString(new String('abc')), undefined)
+})
+
+test('manyStrings passes a single repeated key through as one element', () => {
+  assert.deepEqual(manyStrings('a'), ['a'])
+})
+
+test('manyStrings keeps every element of a repeated query key', () => {
+  assert.deepEqual(manyStrings(['a', 'b']), ['a', 'b'])
+})
+
+test('manyStrings drops non-string elements and returns null when nothing is left', () => {
+  assert.deepEqual(manyStrings(['a', 1, null]), ['a'])
+  assert.equal(manyStrings([1, null]), null)
+})
+
+test('manyStrings is null when the key was never sent', () => {
+  assert.equal(manyStrings(undefined), null)
+  assert.equal(manyStrings([]), null)
 })

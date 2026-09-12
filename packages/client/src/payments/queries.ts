@@ -4,9 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type {
   ConfirmMatchBody,
   Direction,
-  FailTransferBody,
   InboundTransaction,
-  MarkSentBody,
   MatchCandidate,
   OpenChargeBody,
   OpenPayoutBody,
@@ -87,16 +85,16 @@ export function useSendPayout(orderId: string) {
 export function useMarkPayoutSent(orderId: string) {
   return usePaymentWrite(
     orderId,
-    ({ transfer_id, reference }: { transfer_id: string } & MarkSentBody) =>
-      apiRequest<Transfer>('POST', `/payments/payouts/${transfer_id}/mark_sent`, { reference })
+    ({ transfer_id, reference }: { transfer_id: string; reference: string }) =>
+      apiRequest<Transfer>('PATCH', `/payments/payouts/${transfer_id}`, { reference })
   )
 }
 
 export function useFailPayout(orderId: string) {
   return usePaymentWrite(
     orderId,
-    ({ transfer_id, reason }: { transfer_id: string } & FailTransferBody) =>
-      apiRequest<Transfer>('POST', `/payments/payouts/${transfer_id}/fail`, { reason })
+    ({ transfer_id, failure_reason }: { transfer_id: string; failure_reason: string }) =>
+      apiRequest<Transfer>('PATCH', `/payments/payouts/${transfer_id}`, { failure_reason })
   )
 }
 

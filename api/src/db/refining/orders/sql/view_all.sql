@@ -1,4 +1,6 @@
--- Every refiner order, filtered by counterparty, direction and state.
+-- Every refiner order, filtered by counterparty, direction and state. See
+-- view_one.sql for what each field means - the two stay in lockstep by hand
+-- since a view built once in TypeScript is what ruling 71 forbids.
 SELECT
        to_jsonb(ro)
        || jsonb_build_object(
@@ -9,10 +11,7 @@ SELECT
             'created_at', to_char(ro.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
             'updated_at', to_char(ro.updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
             'cancelled_at', to_char(ro.cancelled_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
-            'state', CASE WHEN ro.cancelled_at IS NOT NULL THEN 'Cancelled'
-                          WHEN ro.disputed_at IS NOT NULL THEN 'Disputed'
-                          WHEN ro.settled_at IS NOT NULL THEN 'Settled'
-                          ELSE 'Pending assay' END,
+            'state', /*__refining_state__*/,
             'orders_to_date',
               (SELECT count(*) FROM refining.orders peer
                 WHERE peer.refiner_id = ro.refiner_id),
@@ -28,80 +27,175 @@ SELECT
                  JOIN organizations.organizations og ON og.id = r.organization_id
                 WHERE r.id = ro.refiner_id),
             'lots', COALESCE((
-              SELECT jsonb_agg(
-                       to_jsonb(rl)
-                       || jsonb_build_object(
-                            'settled_at', to_char(rl.settled_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
-                            'created_at', to_char(rl.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
-                            'updated_at', to_char(rl.updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
-                            'lot', to_jsonb(li)
-                                   || jsonb_build_object(
-                                        'created_at', to_char(li.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
-                                        'updated_at', to_char(li.updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
-                                        'product_name', b.name,
-                                        'form', COALESCE(b.type, 'Scrap'),
-                                        'reference', CASE WHEN od.number IS NULL THEN NULL
-                                                          ELSE 'Lot ' || od.number || '-' || chr(64 + seat.n::int) END),
-                            'order_id', od.id,
-                            'order_number', od.number,
-                            'order_direction', od.direction,
-                            'order_reference',
-                              CASE WHEN od.number IS NULL THEN NULL
-                                   ELSE (CASE WHEN od.direction = 'sale' THEN 'SO-'
-                                              ELSE 'PO-' END) || od.number END,
-                            'customer_premium', ol.premium)
-                       ORDER BY li.metal_id ASC, rl.id ASC)
-                FROM refining.lots rl
-                JOIN lots.items li ON li.id = rl.lot_id
-                LEFT JOIN products.bullion b ON b.id = li.bullion_id
-                LEFT JOIN orders.lots ol ON ol.lot_id = rl.lot_id
-                LEFT JOIN orders.orders od ON od.id = ol.order_id
-                LEFT JOIN LATERAL (
-                       SELECT count(*) AS n FROM orders.lots peer
-                        WHERE peer.order_id = ol.order_id
-                          AND (peer.created_at, peer.id) <= (ol.created_at, ol.id)
-                     ) seat ON TRUE
-               WHERE rl.refining_order_id = ro.id), '[]'::jsonb),
+              SELECT jsonb_agg(lot_row ORDER BY (lot_row -> 'lot' ->> 'metal_id'),
+                                        (lot_row ->> 'id'))
+                FROM (
+                  SELECT jsonb_build_object(
+                           'id', rl.id, 'refining_order_id', rl.refining_order_id,
+                           'lot_id', rl.lot_id,
+                           'created_at', to_char(rl.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+                           'updated_at', to_char(rl.updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+                           'created_by_id', rl.created_by_id, 'updated_by_id', rl.updated_by_id,
+                           'lot', to_jsonb(li)
+                                  || jsonb_build_object(
+                                       'created_at', to_char(li.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+                                       'updated_at', to_char(li.updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+                                       'assayed_at', to_char(li.assayed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+                                       'confirmed_at', to_char(li.confirmed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+                                       'settled_at', to_char(li.settled_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+                                       'source', li.source::text,
+                                       'product_name', b.name, 'form', COALESCE(b.type, 'Scrap'),
+                                       'reference', 'RO-' || ro.number || '-' || chr(64 + rseat.n::int)),
+                           'sources', COALESCE(batch.edges, '[]'::jsonb),
+                           'order_id', (batch.edges -> 0 ->> 'order_id')::uuid,
+                           'order_number', (batch.edges -> 0 ->> 'order_number')::int,
+                           'order_direction', batch.edges -> 0 ->> 'order_direction',
+                           'order_reference', batch.edges -> 0 ->> 'order_reference',
+                           'customer_premium', (batch.edges -> 0 ->> 'premium')::numeric
+                         ) AS lot_row
+                    FROM refining.lots rl
+                    JOIN inventory.lots li ON li.id = rl.lot_id
+                    LEFT JOIN products.bullion b ON b.id = li.bullion_id
+                    LEFT JOIN LATERAL (
+                           SELECT count(*) AS n FROM refining.lots rpeer
+                            WHERE rpeer.refining_order_id = rl.refining_order_id
+                              AND (rpeer.created_at, rpeer.id) <= (rl.created_at, rl.id)
+                         ) rseat ON TRUE
+                    LEFT JOIN LATERAL (
+                           SELECT jsonb_agg(
+                                    jsonb_build_object(
+                                      'id', sl.id, 'reference', sref.reference,
+                                      'kind', src.kind::text, 'content', sl.content,
+                                      'share', CASE WHEN src.n > 1 AND src.total_content IS NOT NULL
+                                                          AND src.total_content <> 0
+                                                     THEN sl.content / src.total_content
+                                                     ELSE NULL END,
+                                      'order_id', sod.id, 'order_number', sod.number,
+                                      'order_direction', sod.direction::text,
+                                      'order_reference',
+                                        CASE WHEN sod.number IS NULL THEN NULL
+                                             ELSE (CASE WHEN sod.direction = 'sale' THEN 'SO-'
+                                                        ELSE 'PO-' END) || sod.number END,
+                                      'premium', sl.premium)
+                                    ORDER BY src.created_at, src.id) AS edges
+                             FROM (
+                               SELECT e.id, e.lot_id, e.source_lot_id, e.kind, e.created_at,
+                                      count(*) OVER () AS n,
+                                      sum(sl0.content) OVER () AS total_content
+                                 FROM inventory.lot_sources e
+                                 JOIN inventory.lots sl0 ON sl0.id = e.source_lot_id
+                                WHERE e.lot_id = li.id AND e.kind = 'batch'
+                             ) src
+                             JOIN inventory.lots sl ON sl.id = src.source_lot_id
+                             LEFT JOIN orders.lots sol ON sol.lot_id = sl.id
+                             LEFT JOIN orders.orders sod ON sod.id = sol.order_id
+                             LEFT JOIN LATERAL (
+                                    SELECT count(*) AS n FROM orders.lots speer
+                                     WHERE speer.order_id = sol.order_id
+                                       AND (speer.created_at, speer.id) <= (sol.created_at, sol.id)
+                                  ) sseat ON TRUE
+                             LEFT JOIN LATERAL (
+                                    SELECT CASE WHEN sod.number IS NULL THEN NULL
+                                                ELSE 'Lot ' || sod.number || '-'
+                                                     || chr(64 + sseat.n::int) END AS reference
+                                  ) sref ON TRUE
+                         ) batch ON TRUE
+                   WHERE rl.refining_order_id = ro.id
+                ) lots_agg), '[]'::jsonb),
             'pool', COALESCE((
               SELECT jsonb_agg(jsonb_build_object(
                        'refiner_id', bal.refiner_id, 'metal_id', bal.metal_id,
-                       'troy_oz', bal.troy_oz,
+                       'troy_oz', bal.troy_oz, 'balance', bal.troy_oz,
+                       'locked', bal.locked, 'available', bal.troy_oz - bal.locked,
                        'last_lock_price',
-                         (SELECT lk.lock_price FROM refining.pool lk
+                         (SELECT lk.lock_price FROM inventory.pool lk
                            WHERE lk.refiner_id = bal.refiner_id
                              AND lk.metal_id = bal.metal_id
                              AND lk.entry = 'lock'
                            ORDER BY lk.occurred_at DESC, lk.id DESC LIMIT 1))
                        ORDER BY bal.metal_id)
-                FROM (SELECT p.refiner_id, p.metal_id, sum(p.troy_oz) AS troy_oz
-                        FROM refining.pool p
+                FROM (SELECT p.refiner_id, p.metal_id, sum(p.troy_oz) AS troy_oz,
+                             COALESCE(sum(abs(p.troy_oz)) FILTER (WHERE p.entry = 'lock'), 0) AS locked
+                        FROM inventory.pool p
                        WHERE p.refiner_id = ro.refiner_id
                        GROUP BY p.refiner_id, p.metal_id) bal), '[]'::jsonb),
             'estimated_content', sums.estimated,
             'settled_content', sums.settled,
             'variance', CASE WHEN sums.settled IS NULL OR sums.estimated IS NULL THEN NULL
                              ELSE sums.settled - sums.estimated END,
-            'pool_oz', (SELECT sum(p.troy_oz) FROM refining.pool p
+            'pool_oz', (SELECT sum(p.troy_oz) FROM inventory.pool p
                          WHERE p.refining_order_id = ro.id),
             'expected_settlement', money.expected_settlement,
             'totals', jsonb_build_object(
               'fee', money.fee,
               'pool_remediation', money.pool_remediation,
               'payment_charge', money.payment_charge,
-              'total', money.total)) AS view
+              'total', money.total),
+            'linked_orders', COALESCE((
+              SELECT jsonb_agg(DISTINCT jsonb_build_object(
+                       'id', so.id, 'number', so.number, 'direction', so.direction::text,
+                       'reference', (CASE WHEN so.direction = 'sale' THEN 'SO-' ELSE 'PO-' END)
+                                    || so.number))
+                FROM refining.lots rl3
+                JOIN inventory.lot_sources sale_edge ON sale_edge.source_lot_id = rl3.lot_id
+                                                     AND sale_edge.kind = 'sale'
+                JOIN orders.lots sol3 ON sol3.lot_id = sale_edge.lot_id
+                JOIN orders.orders so ON so.id = sol3.order_id
+               WHERE rl3.refining_order_id = ro.id), '[]'::jsonb),
+            'payment', CASE WHEN ro.direction = 'sell' AND ro.settlement_type = 'pooled' THEN NULL
+              ELSE jsonb_build_object(
+                     'order_id', NULL,
+                     'refining_order_id', ro.id,
+                     'number', ro.number,
+                     'direction', ro.direction::text,
+                     'amount_due', money.total,
+                     'transfer_id', pmt.id,
+                     'kind', pmt.kind::text,
+                     'rail', pmt.rail::text,
+                     'state', pmt.state::text,
+                     'amount', pmt.amount,
+                     'reference', pmt.reference,
+                     'failure_reason', pmt.failure_reason,
+                     'provider', pmt.provider,
+                     'provider_ref', CASE WHEN pmt.provider_ref IS NULL THEN NULL
+                                          ELSE '****' || right(pmt.provider_ref, 4) END,
+                     'sent_at', to_char(pmt.sent_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+                     'completed_at', to_char(pmt.completed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+                     'pay_to',
+                       (SELECT jsonb_build_object(
+                                 'id', b.id, 'rail', b.rail, 'bank_name', b.bank_name,
+                                 'holder_name', b.holder_name, 'last_four', b.last_four,
+                                 'status', b.status, 'payment_method_id', b.payment_method_id)
+                          FROM payments.bank_links b WHERE b.id = pmt.bank_link_id),
+                     'payout_account',
+                       (SELECT jsonb_build_object(
+                                 'id', d.id, 'bank_name', d.bank_name, 'account_type', d.account_type,
+                                 'last_four', d.last_four, 'email_to', d.email_to, 'method', m.type)
+                          FROM payments.details d
+                          LEFT JOIN payments.methods m ON m.id = d.method_id
+                         WHERE d.id = pmt.details_id))
+              END) AS view
   FROM refining.orders ro
   LEFT JOIN LATERAL (
-         SELECT sum(li.content * li.quantity) AS estimated,
-                sum(rl.content * li.quantity) AS settled
-           FROM refining.lots rl
-           JOIN lots.items li ON li.id = rl.lot_id
-          WHERE rl.refining_order_id = ro.id
+         SELECT
+           (SELECT sum(sl.content * sl.quantity)
+              FROM refining.lots rl2
+              JOIN inventory.lot_sources e ON e.lot_id = rl2.lot_id AND e.kind = 'batch'
+              JOIN inventory.lots sl ON sl.id = e.source_lot_id
+             WHERE rl2.refining_order_id = ro.id) AS estimated,
+           (SELECT sum(li2.content * li2.quantity)
+              FROM refining.lots rl2
+              JOIN inventory.lots li2 ON li2.id = rl2.lot_id
+             WHERE rl2.refining_order_id = ro.id) AS settled
        ) sums ON TRUE
   LEFT JOIN refining.order_money money ON money.refining_order_id = ro.id
+  LEFT JOIN LATERAL (
+         SELECT * FROM payments.transfers pt
+          WHERE pt.refining_order_id = ro.id AND pt.state <> 'Failed'
+          ORDER BY pt.created_at DESC, pt.id DESC
+          LIMIT 1
+       ) pmt ON TRUE
  WHERE ($1::uuid IS NULL OR ro.refiner_id = $1::uuid)
    AND ($2::refining.direction IS NULL OR ro.direction = $2::refining.direction)
-   AND ($3::text IS NULL OR $3::text = CASE WHEN ro.cancelled_at IS NOT NULL THEN 'Cancelled'
-                                              WHEN ro.disputed_at IS NOT NULL THEN 'Disputed'
-                                              WHEN ro.settled_at IS NOT NULL THEN 'Settled'
-                                              ELSE 'Pending assay' END)
+   AND ($3::text IS NULL OR $3::text = /*__refining_state__*/)
  ORDER BY ro.number DESC

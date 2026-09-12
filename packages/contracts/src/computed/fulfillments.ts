@@ -1,4 +1,5 @@
 import { z } from 'zod/v4'
+import { Action } from './orders.js'
 import { Fulfillment } from '../fulfillments/fulfillments.js'
 import { FulfillmentMethodRead } from '../fulfillments/methods.js'
 import { FulfillmentPickup } from '../fulfillments/pickups.js'
@@ -20,7 +21,7 @@ export const FulfillmentActions = z
     cancel_schedule: z.boolean(),
     categories: z.array(FulfillmentCategory),
   })
-  .extend({ transitions: z.array(FulfillmentStatus) })
+  .extend({ transitions: z.array(FulfillmentStatus), moves: z.array(Action) })
 export type FulfillmentActions = z.infer<typeof FulfillmentActions>
 
 export const FulfillmentParcel = OrderViewShipment.pick({
@@ -33,6 +34,7 @@ export const FulfillmentParcel = OrderViewShipment.pick({
   pickup_date: true,
   pickup_time: true,
   tracking_number: true,
+  delivered_at: true,
 })
 export type FulfillmentParcel = z.infer<typeof FulfillmentParcel>
 

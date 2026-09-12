@@ -8,6 +8,9 @@ import { TEST_ACTOR } from '#shared/testing/actor.ts'
 import { inPinnedTransaction } from '#shared/testing/pinned-pool.ts'
 import { aUser, anOrder, aPayout } from '#shared/testing/builders/index.ts'
 import { LOCKS } from '#shared/testing/locks.ts'
+import { aSessionRow } from '#accounts/auth/tests/harness.ts'
+import * as authSessions from '#db/auth/sessions/repo.ts'
+import { STEP_UP_FRESH_SECONDS } from '#accounts/auth/rules.ts'
 
 const FUNDS_LOCKS = [LOCKS.USERS, LOCKS.ORDERS]
 
@@ -26,7 +29,7 @@ const anOrderWorthSomething = async (
   method = 'DORADO_ACCOUNT'
 ): Promise<OrderFixture> => {
   const customer = await aUser(c, { funds: 0 })
-  const order = await anOrder(c, customer, { direction: 'purchase', status: 'Pending' })
+  const order = await anOrder(c, customer, { direction: 'purchase' })
     .withLots(1)
     .withSpots()
     .withTotals({ total: TOTAL })
@@ -125,17 +128,20 @@ test('a spot write just before the credit does not reach the ledger', async () =
   )
 })
 
-test('a second add_funds is refused, and the action turns itself off', async () => {
+test('a second add_funds is refused, and the action names why', async () => {
   await inPinnedTransaction(
     async (client: PoolClient) => {
       const order = await anOrderWorthSomething(client)
       await asAdmin(admin, async () => {
+        const findAddFunds = (body: { actions: { name: string; override: string | null }[] }) =>
+          body.actions.find((a) => a.name === 'add_funds')
+
         const first = await request(app).post(`/api/orders/${order.id}/add_funds`).send({})
         assert.equal(first.status, 200, first.text)
         assert.equal(
-          first.body.actions.add_funds,
-          false,
-          'the drawer would still offer the button after the credit was paid'
+          findAddFunds(first.body)?.override,
+          'This order has already been credited to the customer balance',
+          'a freshly-credited order should already warn against crediting it again'
         )
 
         const again = await request(app).post(`/api/orders/${order.id}/add_funds`).send({})
@@ -155,6 +161,53 @@ test('a second add_funds is refused, and the action turns itself off', async () 
         )
         assert.equal(Number(balance.rows[0].funds).toFixed(2), TOTAL.toFixed(2))
       })
+    },
+    { actor: TEST_ACTOR.id, lock: FUNDS_LOCKS }
+  )
+})
+
+test('crediting an already-credited order needs a reason AND a fresh session', async () => {
+  await inPinnedTransaction(
+    async (client: PoolClient) => {
+      const order = await anOrderWorthSomething(client)
+      const fresh = await aSessionRow(client, admin.id, 0)
+      await asAdmin({ ...admin, session_id: fresh }, async () => {
+        const first = await request(app).post(`/api/orders/${order.id}/add_funds`).send({})
+        assert.equal(first.status, 200, first.text)
+      })
+
+      const stale = await aSessionRow(client, admin.id, STEP_UP_FRESH_SECONDS + 60)
+      await asAdmin({ ...admin, session_id: stale }, async () => {
+        const noReason = await request(app).post(`/api/orders/${order.id}/add_funds`).send({})
+        assert.equal(noReason.status, 409, 'a second credit with no reason was not refused')
+
+        const staleWithReason = await request(app)
+          .post(`/api/orders/${order.id}/add_funds`)
+          .send({ override_reason: 'confirmed twice with the customer over the phone' })
+        assert.equal(
+          staleWithReason.status,
+          403,
+          'a stale session with a reason still got through step_up_required'
+        )
+      })
+
+      await authSessions.update(stale, { stepped_up_at: new Date().toISOString() }, client)
+      await asAdmin({ ...admin, session_id: stale }, async () => {
+        const steppedUp = await request(app)
+          .post(`/api/orders/${order.id}/add_funds`)
+          .send({ override_reason: 'confirmed twice with the customer over the phone' })
+        assert.equal(
+          steppedUp.status,
+          200,
+          `a reason plus a stepped-up session was still refused: ${steppedUp.text}`
+        )
+      })
+
+      const { rows } = await client.query(
+        `SELECT count(*)::int AS n FROM payments.ledger WHERE order_id = $1 AND type = 'Credit'`,
+        [order.id]
+      )
+      assert.equal(rows[0].n, 2, 'the override should have credited the balance a second time')
     },
     { actor: TEST_ACTOR.id, lock: FUNDS_LOCKS }
   )

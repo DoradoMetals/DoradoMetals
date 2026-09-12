@@ -4,7 +4,10 @@ import {
   changeEmail,
   changePhone,
   confirmChange,
+  deleteAccount,
+  getAccount,
   lastCode,
+  patchAccount,
   sendCode,
   session,
   signUp,
@@ -25,6 +28,9 @@ router.post('/change_email', requireUser, changeEmail)
 router.post('/change_phone', requireUser, changePhone)
 router.post('/confirm_change', requireUser, confirmChange)
 router.get('/session', requireUser, session)
+router.get('/me', requireUser, getAccount)
+router.patch('/me', requireUser, patchAccount)
+router.delete('/', requireUser, deleteAccount)
 
 export const readsBackCodes =
   (smsIsFake() || emailIsFake()) && process.env.NODE_ENV !== 'production'

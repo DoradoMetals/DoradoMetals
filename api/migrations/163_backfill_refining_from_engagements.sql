@@ -50,5 +50,5 @@ SELECT ri.refiner_order_id,
        ro.updated_at
   FROM refiners.items ri
   JOIN refining.orders ro ON ro.id = ri.refiner_order_id
-  JOIN lots.items li ON li.id = ri.order_item_id
+  JOIN inventory.lots li ON li.id = ri.order_item_id
  WHERE NOT EXISTS (SELECT 1 FROM refining.lots rl WHERE rl.lot_id = ri.order_item_id);

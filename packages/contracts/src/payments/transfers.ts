@@ -29,6 +29,7 @@ export const Transfer = z.object({
   'created_by_id': z.string().uuid().nullable(),
   'updated_by_id': z.string().uuid().nullable(),
   'refining_order_id': z.string().uuid().nullable(),
+  'override_reason': z.string().nullable(),
 })
 export type Transfer = z.infer<typeof Transfer>
 // generated:end
@@ -59,6 +60,7 @@ export const TransferWrite = Transfer.pick({
   provider_ref: true,
   reference: true,
   idempotency_key: true,
+  override_reason: true,
 })
 export type TransferWrite = z.infer<typeof TransferWrite>
 
@@ -74,11 +76,30 @@ export const TransferPatch = Transfer.pick({
   failure_reason: true,
   sent_at: true,
   completed_at: true,
+  override_reason: true,
 }).partial()
 export type TransferPatch = z.infer<typeof TransferPatch>
 
 export const TransferGuard = Transfer.pick({ state: true, kind: true }).partial()
 export type TransferGuard = z.infer<typeof TransferGuard>
+
+export const ChargePatch = z
+  .object({
+    reference: Transfer.shape.reference.unwrap().min(1).max(120),
+    failure_reason: Transfer.shape.failure_reason.unwrap().min(1).max(400),
+  })
+  .partial()
+  .strict()
+export type ChargePatch = z.infer<typeof ChargePatch>
+
+export const PayoutPatch = z
+  .object({
+    reference: Transfer.shape.reference.unwrap().min(1).max(120),
+    failure_reason: Transfer.shape.failure_reason.unwrap().min(1).max(400),
+  })
+  .partial()
+  .strict()
+export type PayoutPatch = z.infer<typeof PayoutPatch>
 
 export const PayTo = BankLink.pick({
   id: true,

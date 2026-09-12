@@ -2,6 +2,7 @@ import type { Request } from 'express'
 import { z } from 'zod/v4'
 import { fromNodeHeaders } from 'better-auth/node'
 import {
+  AccountProfilePatch,
   ChangeEmailBody,
   ChangePhoneBody,
   ConfirmChangeBody,
@@ -75,4 +76,17 @@ export const session = asyncHandler(async (req, res) => {
 export const lastCode = asyncHandler(async (req, res) => {
   const query = parseStrict(LastCodeQuery, req.query, 'account/last_code query')
   return res.status(200).json({ code: service.lastCode(query.number, query.email) })
+})
+
+export const getAccount = asyncHandler(async (req, res) => {
+  return res.status(200).json(await service.profile(callerId(req)))
+})
+
+export const patchAccount = asyncHandler(async (req, res) => {
+  const body = strictBody(AccountProfilePatch, req.body)
+  return res.status(200).json(await service.updateProfile(callerId(req), body))
+})
+
+export const deleteAccount = asyncHandler(async (req, res) => {
+  return res.status(200).json(await service.requestDeletion(callerId(req)))
 })

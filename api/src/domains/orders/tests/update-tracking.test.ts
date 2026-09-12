@@ -27,7 +27,7 @@ const admin: AdminFixture = TEST_ACTOR
 const aSalesShipment = async (c: PoolClient) => {
   const customer = await aUser(c)
   const product = await aProduct(c)
-  const order = await anOrder(c, customer, { direction: 'sale', status: 'Pending' })
+  const order = await anOrder(c, customer, { direction: 'sale' })
     .withBullion(product, 1)
     .withTotals({ total: 500 })
   const parcel = await aShipment(c, order, { method: 'DROPSHIP' })
@@ -55,7 +55,9 @@ test('an admin can record a tracking number against a sales order', async () => 
     async (client: PoolClient) => {
       const { shipment } = await aSalesShipment(client)
       await asAdmin(admin, async () => {
-        const res = await request(app).patch(`/api/shipments/${shipment.id}`).send({ tracking_number: 'E2E-TRACK-000001' })
+        const res = await request(app)
+          .post(`/api/shipments/${shipment.id}/tracking`)
+          .send({ tracking_number: 'E2E-TRACK-000001' })
 
         assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`)
         assert.ok(
@@ -73,7 +75,9 @@ test('the tracking number actually lands on the shipment', async () => {
     async (client: PoolClient) => {
       const { shipment } = await aSalesShipment(client)
       await asAdmin(admin, async () => {
-        await request(app).patch(`/api/shipments/${shipment.id}`).send({ tracking_number: 'E2E-TRACK-000002' })
+        await request(app)
+          .post(`/api/shipments/${shipment.id}/tracking`)
+          .send({ tracking_number: 'E2E-TRACK-000002' })
 
         const { rows } = await client.query(
           `SELECT tracking_number FROM shipping.shipments WHERE id = $1`,
@@ -90,13 +94,13 @@ test('the tracking number actually lands on the shipment', async () => {
   )
 })
 
-test('the patch refuses a carrier_id - it decided nothing and is gone', async () => {
+test('the action refuses a carrier_id - it decided nothing and is gone', async () => {
   await inPinnedTransaction(
     async (client: PoolClient) => {
       const { shipment } = await aSalesShipment(client)
       await asAdmin(admin, async () => {
         const res = await request(app)
-          .patch(`/api/shipments/${shipment.id}`)
+          .post(`/api/shipments/${shipment.id}/tracking`)
           .send({ tracking_number: 'E2E-TRACK-000003', carrier_id: shipment.carrier_id })
         assert.equal(res.status, 400, `answered ${res.status}: ${JSON.stringify(res.body)}`)
       })

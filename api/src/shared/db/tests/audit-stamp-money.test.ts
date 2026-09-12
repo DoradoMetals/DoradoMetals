@@ -71,7 +71,7 @@ test('a money edit re-attributes the totals without rewriting their author', asy
 
       await actingAs(c, author.id)
       const order = await anOrder(c, customer, { direction: 'purchase' })
-        .withLots(1, { price: 100 })
+        .withLots(1)
         .withSpots()
         .withTotals({ total: 1000 })
 

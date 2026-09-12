@@ -10,7 +10,6 @@ export const Order = z.object({
   'id': z.string().uuid(),
   'user_id': z.string().uuid().nullable(),
   'direction': Direction.nullable(),
-  'status': z.string().nullable(),
   'number': z.number().int(),
   'notes': z.string().nullable(),
   'review_created': z.boolean().nullable(),
@@ -24,6 +23,7 @@ export const Order = z.object({
   'tracking_updated': z.boolean().nullable(),
   'spots_locked': z.boolean(),
   'assigned_to_id': z.string().uuid().nullable(),
+  'cancelled_at': z.string().nullable(),
 })
 export type Order = z.infer<typeof Order>
 // generated:end
@@ -41,7 +41,7 @@ import { FulfillmentPatchBody } from '../fulfillments/fulfillments.js'
 import { CarrierService } from '../shipping/services.js'
 import { Package } from '../shipping/packages.js'
 import { Refiner } from '../refiners/refiners.js'
-import { OrderActions, OrderViewUser } from '../computed/orders.js'
+import { OrderActions, OrderState, OrderViewUser } from '../computed/orders.js'
 import { UserSummary } from '../auth/users.js'
 
 export const OrderRead = Order.extend({ totals: OrderTotals.nullable() })
@@ -49,6 +49,7 @@ export type OrderRead = z.infer<typeof OrderRead>
 
 export const OrderListItem = OrderRead.extend({
   reference: z.string(),
+  state: OrderState,
   customer: UserSummary.nullable(),
 })
 export type OrderListItem = z.infer<typeof OrderListItem>
@@ -73,13 +74,19 @@ export const OrderViewFacts = z
   .extend({
     credited: z.boolean(),
     reference: z.string(),
+    state: OrderState,
   })
 export type OrderViewFacts = z.infer<typeof OrderViewFacts>
 
 export const OrderView = OrderViewFacts.extend({ actions: OrderActions })
 export type OrderView = z.infer<typeof OrderView>
 
-export const OrderPatch = Order.pick({ status: true, notes: true, assigned_to_id: true })
+export const OrderPatch = Order.pick({
+  notes: true,
+  assigned_to_id: true,
+  cancelled_at: true,
+  review_created: true,
+})
   .partial()
   .strict()
 export type OrderPatch = z.infer<typeof OrderPatch>
@@ -155,5 +162,5 @@ export const OrderWrite = Order.omit({
 }).partial()
 export type OrderWrite = z.infer<typeof OrderWrite>
 
-export const OrderGuard = Order.pick({ status: true, direction: true }).partial()
+export const OrderGuard = Order.pick({ cancelled_at: true, direction: true }).partial()
 export type OrderGuard = z.infer<typeof OrderGuard>

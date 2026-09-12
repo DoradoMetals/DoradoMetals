@@ -19,7 +19,6 @@ type Caller = UserFixture & { role: string }
 type SalesOrderFixture = {
   id: string
   user_id: string
-  status: string | null
   number: number | null
 }
 
@@ -29,11 +28,11 @@ const stranger: Caller = { ...TEST_CUSTOMER, role: 'user' }
 const aSalesOrder = async (c: PoolClient) => {
   const owner = await aUser(c, { name: 'The Buyer' })
   const product = await aProduct(c)
-  const built = await anOrder(c, owner, { direction: 'sale', status: 'Pending' })
-    .withBullion(product, 2, { price: 2600 })
+  const built = await anOrder(c, owner, { direction: 'sale' })
+    .withBullion(product, 2)
     .withTotals({ total: 5200, items: 5200 })
   return {
-    order: { id: built.id, user_id: owner.id, status: built.status, number: built.number },
+    order: { id: built.id, user_id: owner.id, number: built.number },
     owner: { ...owner, role: 'user' } as Caller,
   }
 }
@@ -75,7 +74,7 @@ test('the admin list has the fields the drawer destructures', async () => {
         for (const field of [
           'id',
           'number',
-          'status',
+          'state',
           'created_at',
           'direction',
           'user_id',
@@ -132,40 +131,20 @@ test("a stranger cannot read the spots frozen on somebody else's sales order", a
   )
 })
 
-test("a customer cannot move a sales order's status or send it to a refiner", async () => {
+test('a customer cannot patch a sales order or send it to a refiner', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
       const { order } = await aSalesOrder(c)
       await as(stranger, async () => {
         const moved = await request(app)
           .patch(`/api/orders/${order.id}`)
-          .send({ status: 'Completed' })
+          .send({ notes: 'nope' })
         assert.equal(moved.status, 403)
 
         const sent = await request(app)
           .patch(`/api/orders/${order.id}`)
           .send({ supplier: { supplier_id: null, send: true } })
         assert.equal(sent.status, 403, 'a customer reached the code that emails a refiner')
-      })
-    },
-    { actor: TEST_ACTOR.id, lock: ORDER_LOCK }
-  )
-})
-
-test("moving a sales order's status takes the document the drawer sends", async () => {
-  await inPinnedTransaction(
-    async (c: PoolClient) => {
-      const { order } = await aSalesOrder(c)
-      const MOVE_TO = 'Preparing'
-      assert.notEqual(order.status, MOVE_TO, 'the order is already there')
-
-      await as(admin, async () => {
-        const res = await request(app).patch(`/api/orders/${order.id}`).send({ status: MOVE_TO })
-        assert.equal(res.status, 200, JSON.stringify(res.body))
-
-        const list = await request(app).get('/api/orders?direction=sale')
-        const moved = list.body.find((o: { id: string; status: string }) => o.id === order.id)
-        assert.equal(moved.status, MOVE_TO)
       })
     },
     { actor: TEST_ACTOR.id, lock: ORDER_LOCK }

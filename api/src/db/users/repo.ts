@@ -1,23 +1,65 @@
 import query from '#shared/db/query.ts'
+import { buildUpdate } from '#shared/db/patch.ts'
 import { sqlFrom } from '#shared/db/sql.ts'
-import type { AdminUser, CreditOp, UserCredit } from '@dorado/contracts'
+import { ORDER_STATE } from '#db/orders/repo.ts'
+import type { AdminUser, CreditOp, UserCreateFacts, UserCredit, UserPatch } from '@dorado/contracts'
 import type { Executor } from '#shared/db/executor.ts'
 
 const sql = sqlFrom(import.meta.dirname)
 
+const GET_ONE_SQL = sql('get_one').replace('/*__order_state__*/', ORDER_STATE)
+const GET_ALL_SQL = sql('get_all').replace('/*__order_state__*/', ORDER_STATE)
+const GET_ADMINS_SQL = sql('get_admins').replace('/*__order_state__*/', ORDER_STATE)
+
+const BAN_REASON = '"banReason"'
+const BAN_EXPIRES = '"banExpires"'
+const PATCHABLE = ['assigned_to_id', 'notes', 'banned', BAN_REASON, BAN_EXPIRES] as const
+
 export async function getOne(id: string, executor?: Executor): Promise<AdminUser | undefined> {
-  const { rows } = await query<AdminUser>(sql('get_one'), [id], executor)
+  const { rows } = await query<AdminUser>(GET_ONE_SQL, [id], executor)
   return rows[0]
 }
 
 export async function list(executor?: Executor): Promise<AdminUser[]> {
-  const { rows } = await query<AdminUser>(sql('get_all'), [], executor)
+  const { rows } = await query<AdminUser>(GET_ALL_SQL, [], executor)
   return rows
 }
 
 export async function getAdmins(executor?: Executor): Promise<AdminUser[]> {
-  const { rows } = await query<AdminUser>(sql('get_admins'), [], executor)
+  const { rows } = await query<AdminUser>(GET_ADMINS_SQL, [], executor)
   return rows
+}
+
+export async function create(facts: UserCreateFacts, executor?: Executor): Promise<string> {
+  const { rows } = await query<{ id: string }>(
+    sql('create'),
+    [facts.email, facts.name, facts.phone_number],
+    executor
+  )
+  return rows[0]!.id
+}
+
+export async function updateFacts(
+  id: string,
+  patch: UserPatch,
+  executor?: Executor
+): Promise<boolean> {
+  const mapped: Record<string, unknown> = {}
+  if ('assigned_to_id' in patch) mapped.assigned_to_id = patch.assigned_to_id
+  if ('notes' in patch) mapped.notes = patch.notes
+  if ('banned' in patch) mapped.banned = patch.banned
+  if ('ban_reason' in patch) mapped[BAN_REASON] = patch.ban_reason
+  if ('ban_expires' in patch) mapped[BAN_EXPIRES] = patch.ban_expires
+
+  const built = buildUpdate({
+    table: 'auth.users',
+    allowed: PATCHABLE,
+    patch: mapped,
+    where: { id },
+  })
+  if (!built) return true
+  const { rowCount } = await query(built.text, built.values, executor)
+  return rowCount === 1
 }
 
 export async function adjustCredit(

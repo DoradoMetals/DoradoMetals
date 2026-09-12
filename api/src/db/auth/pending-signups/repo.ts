@@ -26,6 +26,14 @@ export async function byPhone(
   return rows[0]
 }
 
+export async function byEmail(
+  email: string,
+  executor?: Executor
+): Promise<AuthPendingSignup | undefined> {
+  const { rows } = await query<AuthPendingSignup>(sql('by_email'), [email], executor)
+  return rows[0]
+}
+
 export async function create(
   row: Omit<
     AuthPendingSignup,
@@ -33,6 +41,14 @@ export async function create(
   >,
   tx: PoolClient
 ): Promise<AuthPendingSignup> {
+  if (!row.phone_number) {
+    const { rows } = await query<AuthPendingSignup>(
+      sql('create_by_email'),
+      [row.email, row.name, row.expires_at],
+      tx
+    )
+    return rows[0]!
+  }
   const { rows } = await query<AuthPendingSignup>(
     sql('create'),
     [row.phone_number, row.email, row.name, row.expires_at],
@@ -60,5 +76,10 @@ export async function update(
 
 export async function remove(phone_number: string, tx: PoolClient): Promise<boolean> {
   const result = await query(sql('delete'), [phone_number], tx)
+  return (result.rowCount ?? 0) > 0
+}
+
+export async function removeByEmail(email: string, tx: PoolClient): Promise<boolean> {
+  const result = await query(sql('delete_by_email'), [email], tx)
   return (result.rowCount ?? 0) > 0
 }

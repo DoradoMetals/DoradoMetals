@@ -93,7 +93,7 @@ vi.mock('@/shared/hooks/auth/queries', () => ({
 }))
 
 import SignInPage from '@/app/auth/sign-in/page'
-import SignInEmailPage from '@/app/auth/sign-in/email/page'
+import SignInPhonePage from '@/app/auth/sign-in/phone/page'
 import SignUpPage from '@/app/auth/sign-up/page'
 import VerifyPage from '@/app/auth/verify/page'
 import StepUpPage from '@/app/auth/verify/step-up/page'
@@ -161,73 +161,9 @@ beforeEach(() => {
 })
 
 describe('/auth/sign-in', () => {
-  test('sends an sms code and moves to verify', async () => {
-    sendCodeMutateAsync.mockResolvedValueOnce(view({ status: 'sent' }))
-    renderPage(<SignInPage />)
-
-    fireEvent.change(screen.getByLabelText('Phone'), { target: { value: '2145550134' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
-
-    await waitFor(() =>
-      expect(sendCodeMutateAsync).toHaveBeenCalledWith({
-        channel: 'sms',
-        phone_number: '+12145550134',
-        captcha_token: 'captcha-token',
-      })
-    )
-    await waitFor(() => expect(push).toHaveBeenCalledWith('/auth/verify'))
-  })
-
-  test('a locked view is sent to /auth/locked instead', async () => {
-    sendCodeMutateAsync.mockResolvedValueOnce(view({ status: 'locked' }))
-    renderPage(<SignInPage />)
-
-    fireEvent.change(screen.getByLabelText('Phone'), { target: { value: '2145550134' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
-
-    await waitFor(() => expect(push).toHaveBeenCalledWith('/auth/locked'))
-  })
-
-  test('?next= travels in the verification, and a foreign one does not', async () => {
-    searchParams = new URLSearchParams('next=/admin/orders/abc-123')
-    sendCodeMutateAsync.mockResolvedValue(view({ status: 'sent' }))
-    const seen: { value: Verification | null } = { value: null }
-    const latest = () => seen.value
-    function Spy() {
-      seen.value = useVerification().verification
-      return null
-    }
-
-    const utils = render(
-      <VerificationProvider>
-        <SignInPage />
-        <Spy />
-      </VerificationProvider>
-    )
-    fireEvent.change(screen.getByLabelText('Phone'), { target: { value: '2145550134' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
-    await waitFor(() => expect(latest()?.next).toBe('/admin/orders/abc-123'))
-    utils.unmount()
-
-    searchParams = new URLSearchParams('next=https://evil.example')
-    seen.value = null
-    render(
-      <VerificationProvider>
-        <SignInPage />
-        <Spy />
-      </VerificationProvider>
-    )
-    fireEvent.change(screen.getByLabelText('Phone'), { target: { value: '2145550134' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
-    await waitFor(() => expect(latest()?.view).toBeTruthy())
-    expect(latest()?.next).toBe(undefined)
-  })
-})
-
-describe('/auth/sign-in/email', () => {
   test('sends an email code and moves to verify', async () => {
     sendCodeMutateAsync.mockResolvedValueOnce(view({ status: 'sent', channel: 'email' }))
-    renderPage(<SignInEmailPage />)
+    renderPage(<SignInPage />)
 
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'jacob@example.com' } })
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
@@ -244,9 +180,73 @@ describe('/auth/sign-in/email', () => {
 
   test('a locked view is sent to /auth/locked instead', async () => {
     sendCodeMutateAsync.mockResolvedValueOnce(view({ status: 'locked', channel: 'email' }))
-    renderPage(<SignInEmailPage />)
+    renderPage(<SignInPage />)
 
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'jacob@example.com' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/auth/locked'))
+  })
+
+  test('?next= travels in the verification, and a foreign one does not', async () => {
+    searchParams = new URLSearchParams('next=/admin/orders/abc-123')
+    sendCodeMutateAsync.mockResolvedValue(view({ status: 'sent', channel: 'email' }))
+    const seen: { value: Verification | null } = { value: null }
+    const latest = () => seen.value
+    function Spy() {
+      seen.value = useVerification().verification
+      return null
+    }
+
+    const utils = render(
+      <VerificationProvider>
+        <SignInPage />
+        <Spy />
+      </VerificationProvider>
+    )
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'jacob@example.com' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+    await waitFor(() => expect(latest()?.next).toBe('/admin/orders/abc-123'))
+    utils.unmount()
+
+    searchParams = new URLSearchParams('next=https://evil.example')
+    seen.value = null
+    render(
+      <VerificationProvider>
+        <SignInPage />
+        <Spy />
+      </VerificationProvider>
+    )
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'jacob@example.com' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+    await waitFor(() => expect(latest()?.view).toBeTruthy())
+    expect(latest()?.next).toBe(undefined)
+  })
+})
+
+describe('/auth/sign-in/phone', () => {
+  test('sends an sms code and moves to verify', async () => {
+    sendCodeMutateAsync.mockResolvedValueOnce(view({ status: 'sent' }))
+    renderPage(<SignInPhonePage />)
+
+    fireEvent.change(screen.getByLabelText('Phone'), { target: { value: '2145550134' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+
+    await waitFor(() =>
+      expect(sendCodeMutateAsync).toHaveBeenCalledWith({
+        channel: 'sms',
+        phone_number: '+12145550134',
+        captcha_token: 'captcha-token',
+      })
+    )
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/auth/verify'))
+  })
+
+  test('a locked view is sent to /auth/locked instead', async () => {
+    sendCodeMutateAsync.mockResolvedValueOnce(view({ status: 'locked' }))
+    renderPage(<SignInPhonePage />)
+
+    fireEvent.change(screen.getByLabelText('Phone'), { target: { value: '2145550134' } })
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
 
     await waitFor(() => expect(push).toHaveBeenCalledWith('/auth/locked'))
@@ -261,13 +261,14 @@ describe('/auth/sign-up', () => {
     )
   })
 
-  test('checking the box enables submit, which sends the full payload', async () => {
-    signUpMutateAsync.mockResolvedValueOnce(view({ status: 'sent' }))
+  test('the phone field is disabled, so sign-up sends name and email only', async () => {
+    signUpMutateAsync.mockResolvedValueOnce(view({ status: 'sent', channel: 'email' }))
     renderPage(<SignUpPage />)
+
+    expect(screen.getByLabelText('Phone').hasAttribute('disabled')).toBe(true)
 
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Jacob Johnson' } })
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'jacob@example.com' } })
-    fireEvent.change(screen.getByLabelText('Phone'), { target: { value: '2145550134' } })
     fireEvent.click(screen.getByRole('checkbox'))
 
     const submit = screen.getByRole('button', { name: 'Create account' })
@@ -278,7 +279,7 @@ describe('/auth/sign-up', () => {
       expect(signUpMutateAsync).toHaveBeenCalledWith({
         name: 'Jacob Johnson',
         email: 'jacob@example.com',
-        phone_number: '+12145550134',
+        phone_number: undefined,
         accepted_terms: true,
         captcha_token: 'captcha-token',
       })

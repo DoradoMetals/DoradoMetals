@@ -18,12 +18,12 @@
 -- lock_price is the refiner's price when metal came out and no legacy column
 -- ever held one, so the entries are written at the order's own frozen gold bid.
 
-INSERT INTO refining.pool
+INSERT INTO inventory.pool
        (refiner_id, metal_id, entry, troy_oz, lock_price, refining_order_id,
         occurred_at, created_at)
 SELECT nro.refiner_id,
        m.metal_id,
-       'lock'::refining.pool_entry,
+       'lock'::inventory.pool_entry,
        -ro.pool_oz_deducted,
        (SELECT os.bid FROM orders.spots os
          WHERE os.order_id = ro.order_id AND os.metal_id = m.metal_id),
@@ -35,7 +35,7 @@ SELECT nro.refiner_id,
   JOIN LATERAL (
          SELECT li.metal_id
            FROM refining.lots rl
-           JOIN lots.items li ON li.id = rl.lot_id
+           JOIN inventory.lots li ON li.id = rl.lot_id
           WHERE rl.refining_order_id = nro.id
           GROUP BY li.metal_id
          HAVING count(*) >= 0
@@ -43,17 +43,17 @@ SELECT nro.refiner_id,
  WHERE ro.pool_oz_deducted > 0
    AND 1 = (SELECT count(DISTINCT li.metal_id)
               FROM refining.lots rl
-              JOIN lots.items li ON li.id = rl.lot_id
+              JOIN inventory.lots li ON li.id = rl.lot_id
              WHERE rl.refining_order_id = nro.id)
-   AND NOT EXISTS (SELECT 1 FROM refining.pool p
+   AND NOT EXISTS (SELECT 1 FROM inventory.pool p
                     WHERE p.refining_order_id = nro.id AND p.entry = 'lock');
 
-INSERT INTO refining.pool
+INSERT INTO inventory.pool
        (refiner_id, metal_id, entry, troy_oz, refining_order_id,
         occurred_at, created_at)
 SELECT nro.refiner_id,
        m.metal_id,
-       'credit'::refining.pool_entry,
+       'credit'::inventory.pool_entry,
        ro.pool_remediation,
        nro.id,
        ro.updated_at,
@@ -63,16 +63,16 @@ SELECT nro.refiner_id,
   JOIN LATERAL (
          SELECT li.metal_id
            FROM refining.lots rl
-           JOIN lots.items li ON li.id = rl.lot_id
+           JOIN inventory.lots li ON li.id = rl.lot_id
           WHERE rl.refining_order_id = nro.id
           GROUP BY li.metal_id
        ) m ON TRUE
  WHERE ro.pool_remediation > 0
    AND 1 = (SELECT count(DISTINCT li.metal_id)
               FROM refining.lots rl
-              JOIN lots.items li ON li.id = rl.lot_id
+              JOIN inventory.lots li ON li.id = rl.lot_id
              WHERE rl.refining_order_id = nro.id)
-   AND NOT EXISTS (SELECT 1 FROM refining.pool p
+   AND NOT EXISTS (SELECT 1 FROM inventory.pool p
                     WHERE p.refining_order_id = nro.id AND p.entry = 'credit');
 
 DO $$
@@ -83,7 +83,7 @@ BEGIN
     FROM refiners.orders ro
     JOIN refining.orders nro ON nro.id = ro.id
    WHERE (ro.pool_oz_deducted > 0 OR ro.pool_remediation > 0)
-     AND NOT EXISTS (SELECT 1 FROM refining.pool p WHERE p.refining_order_id = nro.id);
+     AND NOT EXISTS (SELECT 1 FROM inventory.pool p WHERE p.refining_order_id = nro.id);
 
   IF unresolved > 0 THEN
     RAISE NOTICE

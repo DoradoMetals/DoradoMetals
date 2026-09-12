@@ -40,8 +40,8 @@ async function anOrderOf(
 ): Promise<[string, number]> {
   const sequence = direction === 'sale' ? 'orders.sale_number_seq' : 'orders.purchase_number_seq'
   const { rows } = await query<{ id: string; number: number }>(
-    `INSERT INTO orders.orders (direction, status, number, user_id)
-     VALUES ($1::orders.direction, 'Pending', nextval('${sequence}'), $2) RETURNING id, number`,
+    `INSERT INTO orders.orders (direction, number, user_id)
+     VALUES ($1::orders.direction, nextval('${sequence}'), $2) RETURNING id, number`,
     [direction, user_id],
     c
   )
@@ -117,7 +117,7 @@ test('an admin marks a wire Sent and fails a payout with a reason', async () => 
       )
       const marked = await asAdmin(() =>
         request(app)
-          .post(`/api/payments/payouts/${wire.body.id}/mark_sent`)
+          .patch(`/api/payments/payouts/${wire.body.id}`)
           .send({ reference: 'FEDWIRE-1' })
       )
       assert.equal(marked.status, 200, marked.text)
@@ -129,8 +129,8 @@ test('an admin marks a wire Sent and fails a payout with a reason', async () => 
       )
       const failed = await asAdmin(() =>
         request(app)
-          .post(`/api/payments/payouts/${opened.body.id}/fail`)
-          .send({ reason: 'the customer closed the account' })
+          .patch(`/api/payments/payouts/${opened.body.id}`)
+          .send({ failure_reason: 'the customer closed the account' })
       )
       assert.equal(failed.status, 200, failed.text)
       assert.equal(failed.body.state, 'Failed')
@@ -186,8 +186,8 @@ test('an admin opens, requests and fails a charge over HTTP', async () => {
 
       const failed = await asAdmin(() =>
         request(app)
-          .post(`/api/payments/charges/${opened.body.id}/fail`)
-          .send({ reason: 'R01 insufficient funds' })
+          .patch(`/api/payments/charges/${opened.body.id}`)
+          .send({ failure_reason: 'R01 insufficient funds' })
       )
       assert.equal(failed.status, 200, failed.text)
       assert.equal(failed.body.state, 'Failed')

@@ -50,12 +50,13 @@ test('what the cutover keeps is still mounted', () => {
   )
 })
 
-test('emailOTP refuses to mint an account for an unknown address', () => {
+test('emailOTP may mint an account for an unknown address - a sign-up may start from email', () => {
   assert.equal(
     optionsOf('email-otp').disableSignUp,
-    true,
-    'without it /sign-in/email-otp creates an account for any unknown email, which ' +
-      'both leaks whether the address is known and mints accounts with no phone'
+    false,
+    'a phone number is optional at sign-up (Twilio outage, 2026-09-11); an email code is only ' +
+      'ever actually sent through our own signUp/sendCode enumeration guard, so a legitimate ' +
+      'unknown address is exactly a new account, the same shape the phone plugin has always used'
   )
 })
 
