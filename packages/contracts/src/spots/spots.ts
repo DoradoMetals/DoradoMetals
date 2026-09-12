@@ -17,15 +17,22 @@ export const Spot = z.object({
 export type Spot = z.infer<typeof Spot>
 // generated:end
 import { Metal } from '../metals/metals.js'
+import { Order } from '../orders/orders.js'
+import { OrderSpot } from '../orders/spots.js'
+
+export const SpotSource = z.enum(['live', 'manual', 'stale'])
+export type SpotSource = z.infer<typeof SpotSource>
 
 export const SpotPrice = Spot.pick({
   ask: true,
   bid: true,
   percent_change: true,
   dollar_change: true,
+  updated_at: true,
 }).extend({
   id: Metal.shape.id,
   ask: Spot.shape.ask.nullable(),
+  source: SpotSource,
 })
 export type SpotPrice = z.infer<typeof SpotPrice>
 
@@ -42,3 +49,17 @@ export type SpotTrend = z.infer<typeof SpotTrend>
 
 export const SpotTicker = SpotPrice.extend({ direction: SpotTrend })
 export type SpotTicker = z.infer<typeof SpotTicker>
+
+export const SpotLock = z
+  .object({
+    order_id: Order.shape.id,
+    metal_id: OrderSpot.shape.metal_id,
+    bid: OrderSpot.shape.bid,
+    ask: OrderSpot.shape.ask,
+  })
+  .extend({
+    reference: z.string(),
+    locked_at: Order.shape.updated_at,
+    locked_by: Order.shape.updated_by,
+  })
+export type SpotLock = z.infer<typeof SpotLock>

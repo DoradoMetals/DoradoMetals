@@ -2,8 +2,9 @@ import { test, afterAll, beforeAll } from 'vitest'
 import assert from 'node:assert/strict'
 import request from 'supertest'
 import pool from '#pool'
-import { mockSessions, restoreSessions, anonymous } from '#shared/testing/session.ts'
+import { mockSessions, restoreSessions, anonymous, asAdmin, asUser } from '#shared/testing/session.ts'
 import { TEST_ACTOR } from '#shared/testing/actor.ts'
+import { LOCKS } from '#shared/testing/locks.ts'
 import { inPinnedTransaction, outside } from '#shared/testing/pinned-pool.ts'
 
 await mockSessions()
@@ -108,6 +109,8 @@ test('the public feed carries nothing beyond the quote fields', async () => {
           'dollar_change',
           'percent_change',
           'direction',
+          'updated_at',
+          'source',
         ])
         const unexpected = Object.keys(res.body[0] ?? {}).filter((k) => !allowed.has(k))
         assert.deepEqual(
@@ -140,5 +143,90 @@ test('the feed says which way each metal moved, and a flat day is flat', async (
       })
     },
     { actor: TEST_ACTOR.id }
+  )
+})
+
+test('every metal carries a source of live, manual or stale, and an updated_at', async () => {
+  await inPinnedTransaction(
+    async () => {
+      await anonymous(async () => {
+        const res = await request(app).get('/api/spots')
+        assert.ok(res.body.length > 0, 'the spot feed came back empty')
+        for (const spot of res.body) {
+          assert.ok(
+            ['live', 'manual', 'stale'].includes(spot.source),
+            `${spot.id} carries an unexpected source: ${spot.source}`
+          )
+          assert.ok(spot.updated_at, `${spot.id} carries no updated_at`)
+        }
+      })
+    },
+    { actor: TEST_ACTOR.id }
+  )
+})
+
+test('the locks read and the override write are admin-only', async () => {
+  await inPinnedTransaction(
+    async () => {
+      await anonymous(async () => {
+        assert.equal((await request(app).get('/api/spots/locks')).status, 401)
+        assert.equal(
+          (await request(app).post('/api/spots/Gold/override').send({})).status,
+          401
+        )
+      })
+      await asUser(TEST_ACTOR, async () => {
+        assert.equal((await request(app).get('/api/spots/locks')).status, 403)
+        assert.equal(
+          (await request(app).post('/api/spots/Gold/override').send({})).status,
+          403
+        )
+      })
+    },
+    { actor: TEST_ACTOR.id }
+  )
+})
+
+test('an admin can set an override, see it read back manual, then remove it', async () => {
+  await inPinnedTransaction(
+    async () => {
+      await asAdmin(TEST_ACTOR, async () => {
+        const set = await request(app)
+          .post('/api/spots/Silver/override')
+          .send({ bid: 30, ask: 31, reason: 'admin test override', expires_at: null })
+        assert.equal(set.status, 200, JSON.stringify(set.body))
+        assert.equal(set.body.metal_id, 'Silver')
+
+        const feed = await request(app).get('/api/spots')
+        const silver = feed.body.find((s: { id: string }) => s.id === 'Silver')
+        assert.equal(silver.source, 'manual')
+
+        const removed = await request(app).delete('/api/spots/Silver/override')
+        assert.equal(removed.status, 204)
+
+        const again = await request(app).delete('/api/spots/Silver/override')
+        assert.equal(again.status, 404)
+      })
+    },
+    { actor: TEST_ACTOR.id }
+  )
+})
+
+test('an admin reads the settings row and can patch the stale threshold', async () => {
+  await inPinnedTransaction(
+    async () => {
+      await asAdmin(TEST_ACTOR, async () => {
+        const before = await request(app).get('/api/spots/settings')
+        assert.equal(before.status, 200)
+        assert.ok(before.body.stale_after_seconds > 0)
+
+        const patched = await request(app)
+          .patch('/api/spots/settings')
+          .send({ stale_after_seconds: before.body.stale_after_seconds + 5 })
+        assert.equal(patched.status, 200)
+        assert.equal(patched.body.stale_after_seconds, before.body.stale_after_seconds + 5)
+      })
+    },
+    { actor: TEST_ACTOR.id, lock: LOCKS.SPOTS_SETTINGS }
   )
 })

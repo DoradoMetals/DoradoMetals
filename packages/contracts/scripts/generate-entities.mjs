@@ -256,6 +256,7 @@ const ENTITY = {
   'products.mints': 'Mint',
 
   'rates.rates': 'Rate',
+  'rates.rate_history': 'RateChange',
 
   'refiners.items': 'RefinerItem',
   'refiners.orders': 'RefinerOrder',
@@ -276,6 +277,8 @@ const ENTITY = {
   'shipping.tracking': 'TrackingRecord',
 
   'spots.spots': 'Spot',
+  'spots.overrides': 'SpotOverride',
+  'spots.settings': 'SpotSettings',
 
   'tax.sales_tax': 'SalesTax',
   'tax.sales_tax_rules': 'SalesTaxRule',

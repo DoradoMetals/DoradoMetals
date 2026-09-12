@@ -5,6 +5,7 @@ import request from 'supertest'
 import pool from '#pool'
 import { mockSessions, restoreSessions, as, anonymous } from '#shared/testing/session.ts'
 import { TEST_ACTOR, TEST_CUSTOMER } from '#shared/testing/actor.ts'
+import { LOCKS } from '#shared/testing/locks.ts'
 import { inPinnedTransaction, outside } from '#shared/testing/pinned-pool.ts'
 
 await mockSessions()
@@ -129,6 +130,49 @@ test('an anonymous caller is refused the admin read', async () => {
 test('the refused writes wrote nothing', async () => {
   const after = await outside(`SELECT count(*)::int AS n FROM rates.rates`)
   assert.equal(after[0].n, rateCountBefore, 'a route that answered 401/403 still changed the table')
+})
+
+test('an anonymous caller is refused the history read', async () => {
+  await inPinnedTransaction(
+    async () => {
+      await anonymous(async () => {
+        const res = await request(app).get('/api/rates/history')
+        assert.ok([401, 403].includes(res.status), `answered ${res.status}`)
+      })
+    },
+    { actor: TEST_ACTOR.id }
+  )
+})
+
+test('updating a rate writes a history row an admin can read back', async () => {
+  await inPinnedTransaction(
+    async () => {
+      await asAdmin(async () => {
+        const list = await request(app).get('/api/rates/admin')
+        const rate = list.body[0]
+        assert.ok(rate, 'dev has no rate to update')
+
+        const newPct = Number(rate.scrap_pct) === 0.5 ? 0.6 : 0.5
+        const updated = await request(app)
+          .patch(`/api/rates/${rate.id}`)
+          .send({ scrap_pct: newPct })
+        assert.equal(updated.status, 200, JSON.stringify(updated.body))
+
+        const history = await request(app).get('/api/rates/history')
+        assert.equal(history.status, 200)
+        const entry = history.body.find(
+          (h: { rate_id: string; field: string }) =>
+            h.rate_id === rate.id && h.field === 'scrap_pct'
+        )
+        assert.ok(entry, 'the rate change did not appear in the history read')
+        assert.equal(Number(entry.new_value), newPct)
+        assert.equal(Number(entry.old_value), Number(rate.scrap_pct))
+        assert.ok(entry.actor_name, 'the history row carries no actor name')
+        assert.ok(entry.changed_at, 'the history row carries no timestamp')
+      })
+    },
+    { actor: TEST_ACTOR.id, lock: LOCKS.RATES }
+  )
 })
 
 test('the tier table is public, labelled and banded', async () => {

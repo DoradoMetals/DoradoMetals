@@ -2,4 +2,5 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Every entity of the `rates` schema, one namespace each.
+export * from './rate_history.js'
 export * from './rates.js'
