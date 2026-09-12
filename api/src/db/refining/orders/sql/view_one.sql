@@ -152,7 +152,40 @@ SELECT
                                                      AND sale_edge.kind = 'sale'
                 JOIN orders.lots sol3 ON sol3.lot_id = sale_edge.lot_id
                 JOIN orders.orders so ON so.id = sol3.order_id
-               WHERE rl3.refining_order_id = ro.id), '[]'::jsonb)) AS view
+               WHERE rl3.refining_order_id = ro.id), '[]'::jsonb),
+            'payment', CASE WHEN ro.direction = 'sell' AND ro.settlement_type = 'pooled' THEN NULL
+              ELSE jsonb_build_object(
+                     'order_id', NULL,
+                     'refining_order_id', ro.id,
+                     'number', ro.number,
+                     'direction', ro.direction::text,
+                     'amount_due', money.total,
+                     'transfer_id', pmt.id,
+                     'kind', pmt.kind::text,
+                     'rail', pmt.rail::text,
+                     'state', pmt.state::text,
+                     'amount', pmt.amount,
+                     'reference', pmt.reference,
+                     'failure_reason', pmt.failure_reason,
+                     'provider', pmt.provider,
+                     'provider_ref', CASE WHEN pmt.provider_ref IS NULL THEN NULL
+                                          ELSE '****' || right(pmt.provider_ref, 4) END,
+                     'sent_at', to_char(pmt.sent_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+                     'completed_at', to_char(pmt.completed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+                     'pay_to',
+                       (SELECT jsonb_build_object(
+                                 'id', b.id, 'rail', b.rail, 'bank_name', b.bank_name,
+                                 'holder_name', b.holder_name, 'last_four', b.last_four,
+                                 'status', b.status, 'payment_method_id', b.payment_method_id)
+                          FROM payments.bank_links b WHERE b.id = pmt.bank_link_id),
+                     'payout_account',
+                       (SELECT jsonb_build_object(
+                                 'id', d.id, 'bank_name', d.bank_name, 'account_type', d.account_type,
+                                 'last_four', d.last_four, 'email_to', d.email_to, 'method', m.type)
+                          FROM payments.details d
+                          LEFT JOIN payments.methods m ON m.id = d.method_id
+                         WHERE d.id = pmt.details_id))
+              END) AS view
   FROM refining.orders ro
   LEFT JOIN LATERAL (
          SELECT
@@ -167,4 +200,10 @@ SELECT
              WHERE rl2.refining_order_id = ro.id) AS settled
        ) sums ON TRUE
   LEFT JOIN refining.order_money money ON money.refining_order_id = ro.id
+  LEFT JOIN LATERAL (
+         SELECT * FROM payments.transfers pt
+          WHERE pt.refining_order_id = ro.id AND pt.state <> 'Failed'
+          ORDER BY pt.created_at DESC, pt.id DESC
+          LIMIT 1
+       ) pmt ON TRUE
  WHERE ro.id = $1
