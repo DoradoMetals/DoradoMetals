@@ -39,7 +39,7 @@ router.use('/', spotRoutes)
 router.use('/', addressRoutes)
 
 router.get('/:id', requireUser, requireOwnOrderParam, getOrder)
-router.get('/:id/documents', requireAdmin, getOrderDocuments)
+router.get('/:id/documents', requireUser, requireOwnOrderParam, getOrderDocuments)
 router.post('/:id/documents/:kind/send', requireAdmin, sendOrderDocument)
 router.post(
   '/:id/documents/:kind',

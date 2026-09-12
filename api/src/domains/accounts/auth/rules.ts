@@ -1,6 +1,7 @@
 import { Conflict, Forbidden, Invalid, NotFound } from '#shared/errors.ts'
 import { maskEmail, maskPhone } from '#shared/text/mask.ts'
 import type {
+  AccountProfile,
   AuthOtpThrottle,
   AuthPendingChange,
   ChangeConfirmedView,
@@ -63,6 +64,14 @@ export function assertCaptcha(passed: boolean): void {
 
 export function assertUser(row: User | undefined): asserts row is User {
   if (!row) throw new NotFound('no such account')
+}
+
+export function assertProfile(
+  user_id: string,
+  row: AccountProfile | undefined
+): AccountProfile {
+  if (!row) throw new NotFound(`no such account ${user_id}`)
+  return row
 }
 
 export function assertThrottle(row: AuthOtpThrottle | undefined): asserts row is AuthOtpThrottle {

@@ -22,6 +22,7 @@ import * as sweeps from '#transactions/sweeps.ts'
 import * as stripeProvider from '#providers/stripe/stripe.ts'
 import * as orderRead from '#orders/read.ts'
 import * as rules from '#orders/rules.ts'
+import * as orderSpotsService from '#orders/spots/service.ts'
 import * as shippingLabels from '#logistics/shipping/labels.ts'
 import * as pricing from '#pricing/index.ts'
 import { retierPremiums } from '#orders/service.ts'
@@ -163,6 +164,7 @@ async function placePurchase(checkout: Checkout, cart: Lot[], world: typeof LIVE
       await orderTransactions.createForCheckout(order_id, checkout.id, payout_fee, tx),
       order_id
     )
+    await orderSpotsService.applyLock(order_id, true, tx)
 
     if (shipment_id) {
       await shippingLabels.sealForPlacement(shipment_id, checkout.id, draft.method.type, tx)

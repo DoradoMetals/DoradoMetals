@@ -4,6 +4,7 @@ import { refuseWith } from '#shared/http/refuse.ts'
 import { strictBody, uuidParam } from '#shared/http/validate.ts'
 import * as orders from '#orders/service.ts'
 import * as orderRead from '#orders/read.ts'
+import * as rules from '#orders/rules.ts'
 import * as place from '#orders/place.ts'
 import * as checkoutService from '#checkout/service.ts'
 import { Forbidden, NotFound } from '#shared/errors.ts'
@@ -27,14 +28,16 @@ export const listOrders = asyncHandler(async (req, res) => {
   const namedUser = isAdmin && typeof req.query.user_id === 'string' ? req.query.user_id : null
   const user_id = isAdmin && !namedUser ? null : (namedUser ?? callerIdValue)
 
-  return res.json(await orderRead.list(direction, user_id))
+  const list = await orderRead.list(direction, user_id)
+  return res.json(isAdmin ? list : rules.orderListForCustomer(list))
 })
 
 export const getOrder = asyncHandler(async (req, res) => {
   const id = uuidParam(req, 'id')
   const view = await orderRead.view(id)
   if (!view) throw new NotFound(`no order ${id}`)
-  return res.json(view)
+  const isAdmin = req.user?.role === 'admin'
+  return res.json(isAdmin ? view : rules.orderViewForCustomer(view))
 })
 
 export const patchOrder = asyncHandler(async (req, res) => {

@@ -277,6 +277,20 @@ test('spots are frozen per metal the order actually contains', async () => {
   })
 })
 
+test('placing a purchase order locks its spots as the price the customer was shown', async () => {
+  await inPinned(async (c: PoolClient) => {
+    await aWorld(c)
+    const order = await place.place(await primeCheckout(c), carrierAnswers())
+
+    const { rows } = await c.query(
+      `SELECT spots_locked FROM orders.orders WHERE id = $1`,
+      [order.order.id]
+    )
+    assert.equal(rows[0].spots_locked, true, 'the customer never locked their own quote')
+    assert.equal(order.order.spots_locked, true, 'the placed order does not report itself locked')
+  })
+})
+
 test('the parcel is sealed at placement holding what the customer chose', async () => {
   await inPinned(async (c: PoolClient) => {
     await aWorld(c)
