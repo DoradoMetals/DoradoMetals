@@ -123,6 +123,7 @@ export const stateMap: Record<string, string> = {
   CO: "Colorado",
   CT: "Connecticut",
   DE: "Delaware",
+  DC: "District of Columbia",
   FL: "Florida",
   GA: "Georgia",
   HI: "Hawaii",
