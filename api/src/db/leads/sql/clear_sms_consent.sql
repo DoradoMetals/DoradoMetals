@@ -1,6 +1,6 @@
-INSERT INTO leads.leads
-       (name, phone, email, priority, notes, last_contacted, source, assigned_to_id)
-VALUES ($1, $2, $3, COALESCE($4, 'Medium'), $5, NOW(), $6, $7)
+UPDATE leads.leads
+   SET sms_consent_at = NULL
+ WHERE id = $1
 RETURNING id, name, phone, email, created_at, updated_at, last_contacted,
           converted, contacted, responded, created_by, updated_by,
           notes, contact, priority,

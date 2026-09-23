@@ -130,6 +130,7 @@
   "POST /api/shipping/cancel_label",
   "POST /api/shipping/cancel_pickup",
   "POST /api/sms",
+  "POST /api/sms/consent_request",
   "POST /api/spots/:metal_id/override",
   "POST /api/stripe/cancel_payment_intent",
   "POST /api/users/:id/credit",

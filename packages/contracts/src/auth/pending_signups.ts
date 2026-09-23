@@ -15,6 +15,7 @@ export const AuthPendingSignup = z.object({
   'updated_at': z.string(),
   'created_by_id': z.string().uuid().nullable(),
   'updated_by_id': z.string().uuid().nullable(),
+  'sms_consent': z.boolean(),
 })
 export type AuthPendingSignup = z.infer<typeof AuthPendingSignup>
 // generated:end

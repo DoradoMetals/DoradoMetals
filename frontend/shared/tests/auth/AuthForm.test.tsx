@@ -77,7 +77,7 @@ describe('sign in by phone - parked coming soon, still fully wired', () => {
 })
 
 describe('sign up', () => {
-  const signUp = (acceptedTerms = false) =>
+  const signUp = (acceptedTerms = false, smsConsent = false) =>
     render(
       <AuthForm
         state="sign-up"
@@ -85,10 +85,12 @@ describe('sign up', () => {
         email=""
         phone=""
         acceptedTerms={acceptedTerms}
+        smsConsent={smsConsent}
         onNameChange={noop}
         onEmailChange={noop}
         onPhoneChange={noop}
         onTermsChange={noop}
+        onSmsConsentChange={noop}
         onSubmit={noop}
         onGoogle={noop}
       />
@@ -107,11 +109,11 @@ describe('sign up', () => {
     expect(screen.getByRole('link', { name: 'Sign in' }).getAttribute('href')).toBe('/auth/sign-in')
   })
 
-  test('the phone field is visible but disabled - text sign-in is coming soon', () => {
+  test('the phone field is enabled - phone is optional at sign-up', () => {
     signUp()
     const phone = screen.getByLabelText('Phone')
-    expect(phone.hasAttribute('disabled')).toBe(true)
-    expect(screen.getByText('Text sign-in coming soon')).toBeTruthy()
+    expect(phone.hasAttribute('disabled')).toBe(false)
+    expect(screen.queryByText('Text sign-in coming soon')).toBeNull()
   })
 
   test('will not submit until the terms are accepted', () => {
@@ -123,6 +125,22 @@ describe('sign up', () => {
 
   test('submits once they are', () => {
     signUp(true)
+    expect(screen.getByRole('button', { name: 'Create account' }).hasAttribute('disabled')).toBe(
+      false
+    )
+  })
+
+  test('offers the A2P sms consent checkbox, unchecked by default and optional', () => {
+    signUp(true)
+    const smsConsent = screen.getByRole('checkbox', {
+      name: /receive text messages from Dorado Metals/,
+    })
+    expect((smsConsent as HTMLElement).getAttribute('data-state')).toBe('unchecked')
+    expect(
+      screen.getByText(
+        'I agree to receive text messages from Dorado Metals about my account and orders. Message and data rates may apply. Message frequency varies. Reply STOP to cancel, HELP for help.'
+      )
+    ).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Create account' }).hasAttribute('disabled')).toBe(
       false
     )

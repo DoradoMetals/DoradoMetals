@@ -8,10 +8,20 @@ export function assertMessage(
   if (!row) throw new NotFound(`no sms message ${id}`)
 }
 
-export function assertTextable(phone_number: string | null, user_id: string): void {
+export function assertTextable(phone_number: string | null, subject_id: string): void {
   if (!phone_number) {
-    throw new Invalid(`customer ${user_id} has no phone number on file, so nothing can be sent`)
+    throw new Invalid(`${subject_id} has no phone number on file, so nothing can be sent`)
   }
+}
+
+const STOP_KEYWORDS = new Set(['STOP', 'UNSUBSCRIBE', 'CANCEL', 'END', 'QUIT'])
+const START_KEYWORDS = new Set(['START', 'YES', 'Y'])
+
+export function consentKeyword(body: string | null | undefined): 'stop' | 'start' | null {
+  const word = (body ?? '').trim().toUpperCase()
+  if (STOP_KEYWORDS.has(word)) return 'stop'
+  if (START_KEYWORDS.has(word)) return 'start'
+  return null
 }
 
 const RANK: Record<SmsDeliveryStatus, number> = {

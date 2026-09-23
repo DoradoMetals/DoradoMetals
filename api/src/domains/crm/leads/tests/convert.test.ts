@@ -8,6 +8,7 @@ import { LOCKS } from '#shared/testing/locks.ts'
 import { inPinnedTransaction } from '#shared/testing/pinned-pool.ts'
 import { aLead, aTag } from '#shared/testing/builders/index.ts'
 import * as smsRepo from '#db/crm/sms-messages/repo.ts'
+import query from '#shared/db/query.ts'
 
 await mockSessions()
 const { default: app } = await import('#app')
@@ -73,6 +74,67 @@ test('converting keeps the lead phone number timeline attached to the new custom
 
       const attached = await smsRepo.getOne(message.id, client)
       assert.equal(attached?.user_id, res.body.id, "the lead's message was not attached to the new customer")
+    },
+    { lock: LOCKS.USERS, actor: TEST_ACTOR.id }
+  )
+})
+
+test('converting carries the lead sms consent and its method onto the new customer', async () => {
+  await inPinnedTransaction(
+    async (client) => {
+      const tag = aTag()
+      const lead = await aLead(client, {
+        name: `Consent Fixture ${tag}`,
+        phone: '5125550097',
+        email: `${tag}@dorado.test`,
+      })
+      await client.query(
+        'UPDATE leads.leads SET sms_consent_at = now(), sms_consent_method = $2 WHERE id = $1',
+        [lead.id, 'verbal']
+      )
+
+      const res = await asAdmin(TEST_ACTOR, () =>
+        request(app).post(`/api/leads/${lead.id}/convert`).send({})
+      )
+      assert.equal(res.status, 201, JSON.stringify(res.body))
+
+      const { rows } = await client.query(
+        'SELECT sms_consent_at, sms_consent_method FROM auth.users WHERE id = $1',
+        [res.body.id]
+      )
+      assert.ok(rows[0]?.sms_consent_at, "the lead's consent did not carry onto the customer")
+      assert.equal(rows[0]?.sms_consent_method, 'verbal')
+
+      const { rows: welcome } = await query<{ body: string }>(
+        `SELECT body FROM crm.sms_messages WHERE direction = 'outbound' AND to_number = $1`,
+        ['5125550097']
+      )
+      assert.equal(welcome.length, 1, 'the opt-in welcome text was not sent on conversion')
+      assert.match(welcome[0].body, /Welcome to Dorado Metals/)
+    },
+    { lock: LOCKS.USERS, actor: TEST_ACTOR.id }
+  )
+})
+
+test('converting a lead with no consent carries none onto the new customer', async () => {
+  await inPinnedTransaction(
+    async (client) => {
+      const tag = aTag()
+      const lead = await aLead(client, {
+        name: `No Consent Fixture ${tag}`,
+        phone: '5125550096',
+        email: `${tag}@dorado.test`,
+      })
+
+      const res = await asAdmin(TEST_ACTOR, () =>
+        request(app).post(`/api/leads/${lead.id}/convert`).send({})
+      )
+      assert.equal(res.status, 201, JSON.stringify(res.body))
+
+      const { rows } = await client.query('SELECT sms_consent_at FROM auth.users WHERE id = $1', [
+        res.body.id,
+      ])
+      assert.equal(rows[0]?.sms_consent_at, null)
     },
     { lock: LOCKS.USERS, actor: TEST_ACTOR.id }
   )

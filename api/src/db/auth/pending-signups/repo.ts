@@ -37,21 +37,22 @@ export async function byEmail(
 export async function create(
   row: Omit<
     AuthPendingSignup,
-    'id' | 'created_at' | 'updated_at' | 'created_by_id' | 'updated_by_id'
-  >,
+    'id' | 'created_at' | 'updated_at' | 'created_by_id' | 'updated_by_id' | 'sms_consent'
+  > & { sms_consent?: boolean },
   tx: PoolClient
 ): Promise<AuthPendingSignup> {
+  const sms_consent = row.sms_consent ?? false
   if (!row.phone_number) {
     const { rows } = await query<AuthPendingSignup>(
       sql('create_by_email'),
-      [row.email, row.name, row.expires_at],
+      [row.email, row.name, row.expires_at, sms_consent],
       tx
     )
     return rows[0]!
   }
   const { rows } = await query<AuthPendingSignup>(
     sql('create'),
-    [row.phone_number, row.email, row.name, row.expires_at],
+    [row.phone_number, row.email, row.name, row.expires_at, sms_consent],
     tx
   )
   return rows[0]!

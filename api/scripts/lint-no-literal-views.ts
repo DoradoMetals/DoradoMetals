@@ -62,6 +62,20 @@ const ACCEPTED: Record<string, { count: number; why: string }> = {
       'already its own view - this pairs them for one response without joining, ' +
       'stitching or looking either up by the other',
   },
+  'domains/crm/leads/service.ts': {
+    count: 1,
+    why:
+      'the converted customer plus a boolean carried out of the transaction that ' +
+      'created it, so the opt-in welcome text sends after commit rather than inside ' +
+      'it - names no table row',
+  },
+  'domains/crm/sms/service.ts': {
+    count: 1,
+    why:
+      'the inbound message plus a boolean carried out of the transaction that ' +
+      'recorded it, so the opt-in welcome text sends after commit rather than ' +
+      'inside it - names no table row',
+  },
 }
 
 const acceptedHit = new Map<string, number>()

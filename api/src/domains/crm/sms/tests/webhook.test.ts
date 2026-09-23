@@ -262,3 +262,153 @@ test('a sent status arriving after delivered is ignored', async () => {
     { actor: TEST_ACTOR.id }
   )
 })
+
+test('an inbound STOP clears sms_consent_at for the matched number', async () => {
+  realSignature()
+  await inPinnedTransaction(
+    async (client) => {
+      const customer = await aUser(client, { phone_number: '+15125559101' })
+      await client.query(
+        'UPDATE auth.users SET sms_consent_at = now(), sms_consent_method = $2 WHERE id = $1',
+        [customer.id, 'web_form']
+      )
+
+      const form = inboundForm({ From: '+15125559101', Body: 'STOP' })
+      const res = await request(app)
+        .post('/api/sms/inbound')
+        .type('form')
+        .set('X-Twilio-Signature', sig('/api/sms/inbound', form))
+        .send(form)
+      assert.equal(res.status, 200, res.text)
+
+      const { rows } = await query<{ sms_consent_at: string | null; sms_consent_method: string }>(
+        'SELECT sms_consent_at, sms_consent_method FROM auth.users WHERE id = $1',
+        [customer.id],
+        client
+      )
+      assert.equal(rows[0].sms_consent_at, null, 'STOP did not clear consent')
+      assert.equal(rows[0].sms_consent_method, 'web_form', 'STOP erased how consent was first given')
+    },
+    { lock: LOCKS.USERS, actor: TEST_ACTOR.id }
+  )
+})
+
+test('STOP synonyms (UNSUBSCRIBE, CANCEL, END, QUIT) all clear consent the same way', async () => {
+  realSignature()
+  await inPinnedTransaction(
+    async (client) => {
+      const words = ['UNSUBSCRIBE', 'CANCEL', 'END', 'QUIT']
+      for (const [i, word] of words.entries()) {
+        const phone = `+1512555920${i}`
+        const customer = await aUser(client, { phone_number: phone })
+        await client.query('UPDATE auth.users SET sms_consent_at = now() WHERE id = $1', [
+          customer.id,
+        ])
+
+        const form = inboundForm({ From: phone, Body: word.toLowerCase() })
+        const res = await request(app)
+          .post('/api/sms/inbound')
+          .type('form')
+          .set('X-Twilio-Signature', sig('/api/sms/inbound', form))
+          .send(form)
+        assert.equal(res.status, 200, `${word}: ${res.text}`)
+
+        const { rows } = await query<{ sms_consent_at: string | null }>(
+          'SELECT sms_consent_at FROM auth.users WHERE id = $1',
+          [customer.id],
+          client
+        )
+        assert.equal(rows[0].sms_consent_at, null, `${word} did not clear consent`)
+      }
+    },
+    { lock: LOCKS.USERS, actor: TEST_ACTOR.id }
+  )
+})
+
+test('an inbound START re-sets sms_consent_at after a STOP', async () => {
+  realSignature()
+  await inPinnedTransaction(
+    async (client) => {
+      const customer = await aUser(client, { phone_number: '+15125559102' })
+
+      const stopForm = inboundForm({ From: '+15125559102', Body: 'STOP' })
+      await request(app)
+        .post('/api/sms/inbound')
+        .type('form')
+        .set('X-Twilio-Signature', sig('/api/sms/inbound', stopForm))
+        .send(stopForm)
+
+      const startForm = inboundForm({ From: '+15125559102', Body: 'START' })
+      const res = await request(app)
+        .post('/api/sms/inbound')
+        .type('form')
+        .set('X-Twilio-Signature', sig('/api/sms/inbound', startForm))
+        .send(startForm)
+      assert.equal(res.status, 200, res.text)
+
+      const { rows } = await query<{ sms_consent_at: string | null; sms_consent_method: string }>(
+        'SELECT sms_consent_at, sms_consent_method FROM auth.users WHERE id = $1',
+        [customer.id],
+        client
+      )
+      assert.ok(rows[0].sms_consent_at, 'START did not re-set consent')
+      assert.equal(rows[0].sms_consent_method, 'via_text')
+
+      const { rows: welcome } = await query<{ body: string }>(
+        `SELECT body FROM crm.sms_messages
+          WHERE direction = 'outbound' AND to_number = '+15125559102'`,
+        [],
+        client
+      )
+      assert.equal(welcome.length, 1, 'the welcome text was not recorded')
+      assert.match(welcome[0].body, /Welcome to Dorado Metals/)
+    },
+    { lock: LOCKS.USERS, actor: TEST_ACTOR.id }
+  )
+})
+
+test('an inbound Y from a phone matched to a lead (not a user) stamps the lead', async () => {
+  realSignature()
+  await inPinnedTransaction(
+    async (client) => {
+      const { rows: leadRows } = await client.query(
+        `INSERT INTO leads.leads (name, phone, email) VALUES ('Y Lead', '+15125559103', 'y-lead@dorado.test')
+         RETURNING id`
+      )
+      const leadId = leadRows[0].id
+
+      const form = inboundForm({ From: '+15125559103', Body: 'Y' })
+      const res = await request(app)
+        .post('/api/sms/inbound')
+        .type('form')
+        .set('X-Twilio-Signature', sig('/api/sms/inbound', form))
+        .send(form)
+      assert.equal(res.status, 200, res.text)
+
+      const { rows } = await query<{ sms_consent_at: string | null; sms_consent_method: string }>(
+        'SELECT sms_consent_at, sms_consent_method FROM leads.leads WHERE id = $1',
+        [leadId],
+        client
+      )
+      assert.ok(rows[0].sms_consent_at, 'Y did not stamp the lead')
+      assert.equal(rows[0].sms_consent_method, 'via_text')
+    },
+    { actor: TEST_ACTOR.id }
+  )
+})
+
+test('an ordinary inbound message from an unmatched number touches no consent column', async () => {
+  realSignature()
+  await inPinnedTransaction(
+    async () => {
+      const form = inboundForm({ From: '+15125559999', Body: 'hi there' })
+      const res = await request(app)
+        .post('/api/sms/inbound')
+        .type('form')
+        .set('X-Twilio-Signature', sig('/api/sms/inbound', form))
+        .send(form)
+      assert.equal(res.status, 200, res.text)
+    },
+    { actor: TEST_ACTOR.id }
+  )
+})

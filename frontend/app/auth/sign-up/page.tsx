@@ -19,6 +19,7 @@ function SignUp() {
   const [email, setEmail] = useState('')
   const [digits, setDigits] = useState('')
   const [acceptedTerms, setAcceptedTerms] = useState(false)
+  const [smsConsent, setSmsConsent] = useState(false)
   const signUp = useSignUp()
   const captcha = useCaptcha()
   const google = useGoogleSignIn()
@@ -34,12 +35,26 @@ function SignUp() {
         email,
         phone_number,
         accepted_terms: true,
+        sms_consent: smsConsent,
         captcha_token,
       })
+      const smsConsentPending = Boolean(smsConsent && phone_number)
       setVerification(
         phone_number
-          ? { view, channel: 'sms', phone_number, next: nextFrom(params) ?? undefined }
-          : { view, channel: 'email', email, next: nextFrom(params) ?? undefined }
+          ? {
+              view,
+              channel: 'sms',
+              phone_number,
+              next: nextFrom(params) ?? undefined,
+              smsConsentPending,
+            }
+          : {
+              view,
+              channel: 'email',
+              email,
+              next: nextFrom(params) ?? undefined,
+              smsConsentPending,
+            }
       )
       router.push(view.status === 'locked' ? '/auth/locked' : '/auth/verify')
     } finally {
@@ -54,10 +69,12 @@ function SignUp() {
       email={email}
       phone={formatPhoneNumber(digits)}
       acceptedTerms={acceptedTerms}
+      smsConsent={smsConsent}
       onNameChange={setName}
       onEmailChange={setEmail}
       onPhoneChange={(next) => setDigits(normalizePhone(next))}
       onTermsChange={setAcceptedTerms}
+      onSmsConsentChange={setSmsConsent}
       onSubmit={submit}
       captcha={captcha.widget}
       pending={signUp.isPending}

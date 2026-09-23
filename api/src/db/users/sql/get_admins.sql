@@ -14,6 +14,8 @@ SELECT u.id,
        u."banExpires" AS ban_expires,
        u.assigned_to_id,
        u.notes,
+       u.sms_consent_at,
+       u.sms_consent_method,
        (SELECT count(*) FROM orders.orders o WHERE o.user_id = u.id) AS orders_count,
        (SELECT count(*) FROM orders.orders o
          WHERE o.user_id = u.id

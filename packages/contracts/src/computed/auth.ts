@@ -38,6 +38,7 @@ export const SignUpBody = z
     email: AuthPendingSignup.shape.email,
     phone_number: AuthPendingSignup.shape.phone_number.unwrap().optional(),
     accepted_terms: z.literal(true),
+    sms_consent: AuthPendingSignup.shape.sms_consent.optional(),
     captcha_token: z.string(),
   })
   .strict()
@@ -91,6 +92,8 @@ export const AccountProfile = User.pick({
   phone_number_verified: true,
   dorado_funds: true,
   deletion_requested_at: true,
+  sms_consent_at: true,
+  sms_consent_method: true,
 }).extend({
   email_verified: User.shape.emailVerified,
 })

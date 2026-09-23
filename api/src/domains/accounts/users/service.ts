@@ -42,6 +42,11 @@ export async function createFromLead(facts: UserCreateFacts, tx: PoolClient): Pr
     rules.assertPhoneAvailable(byPhone, facts.phone_number)
   }
   const id = await users.create(facts, tx)
+  if (facts.sms_consent_at) {
+    const method = rules.smsConsentMethodOf(facts.sms_consent_method)
+    const consented = await authUsers.recordSmsConsent(id, facts.sms_consent_at, method, tx)
+    rules.assertApplied(consented, 'the sms consent stamp')
+  }
   const row = await users.getOne(id, tx)
   rules.assertUser(row, id)
   return row

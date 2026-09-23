@@ -62,12 +62,27 @@ export type CustomerTimeline = z.infer<typeof CustomerTimeline>
 
 export const SmsSendBody = z
   .object({
-    user_id: SmsMessage.shape.user_id.unwrap(),
+    user_id: SmsMessage.shape.user_id.unwrap().optional(),
+    lead_id: z.string().uuid().optional(),
     body: SmsMessage.shape.body.unwrap(),
   })
   .extend({ media: z.array(SmsMedia).optional() })
   .strict()
+  .refine((v) => Boolean(v.user_id) !== Boolean(v.lead_id), {
+    message: 'exactly one of user_id or lead_id is required',
+  })
 export type SmsSendBody = z.infer<typeof SmsSendBody>
+
+export const SmsConsentRequestBody = z
+  .object({
+    user_id: SmsMessage.shape.user_id.unwrap().optional(),
+    lead_id: z.string().uuid().optional(),
+  })
+  .strict()
+  .refine((v) => Boolean(v.user_id) !== Boolean(v.lead_id), {
+    message: 'exactly one of user_id or lead_id is required',
+  })
+export type SmsConsentRequestBody = z.infer<typeof SmsConsentRequestBody>
 
 export const LeadStage = z.enum(['New', 'Contacted', 'Responded', 'Converted'])
 export type LeadStage = z.infer<typeof LeadStage>

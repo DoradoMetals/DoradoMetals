@@ -4,4 +4,6 @@ SELECT id, name, phone, email, created_at, updated_at, last_contacted,
        assigned_to_id, source, sms_consent_at, sms_consent_method,
        /*__lead_stage__*/ AS lead_stage
   FROM leads.leads
- WHERE id = $1
+ WHERE phone = $1
+ ORDER BY created_at DESC, id DESC
+ LIMIT 1

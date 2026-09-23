@@ -3,6 +3,12 @@ import { withSentryConfig } from '@sentry/nextjs'
 
 const nextConfig: NextConfig = {
   transpilePackages: ['@dorado/client', '@dorado/components', '@dorado/icons'],
+  async redirects() {
+    return [
+      { source: '/privacy', destination: '/privacy-policy', permanent: true },
+      { source: '/terms', destination: '/terms-and-conditions', permanent: true },
+    ]
+  },
 }
 
 export default withSentryConfig(nextConfig, {

@@ -5,7 +5,7 @@ import type { ChangeConfirmedView, VerificationView } from '@dorado/contracts'
 import { Alert, Button, Checkbox, Divider, Input, Link, OTPInput } from '@dorado/components'
 import { GoogleLogo, Phone } from '@dorado/icons'
 
-import { PHONE_SIGN_IN_LIVE, minutesUntil, secondsUntil } from '@/shared/utils/authForm'
+import { minutesUntil, secondsUntil } from '@/shared/utils/authForm'
 
 const SUPPORT_HREF = 'mailto:support@doradometals.com'
 const TITLE_ID = 'auth-form-title'
@@ -34,16 +34,19 @@ export type AuthFormProps =
       email: string
       phone: string
       acceptedTerms: boolean
+      smsConsent: boolean
       onNameChange: (value: string) => void
       onEmailChange: (value: string) => void
       onPhoneChange: (value: string) => void
       onTermsChange: (value: boolean) => void
+      onSmsConsentChange: (value: boolean) => void
       onSubmit: () => void
     })
   | (Shared & {
       state: CodeState
       view: VerificationView
       code: string
+      smsConsentPending?: boolean
       onCodeChange: (code: string) => void
       onSubmit: () => void
       onResend: () => void
@@ -226,7 +229,8 @@ export function AuthForm(props: AuthFormProps) {
     props.state === 'otp-success' ||
     props.state === 'verify-its-you'
   ) {
-    const { state, view, code, onCodeChange, onResend, pending, message } = props
+    const { state, view, code, smsConsentPending, onCodeChange, onResend, pending, message } =
+      props
     const footer = codeFooter(view)
     const stepUp = view.purpose === 'step_up'
     return (
@@ -239,6 +243,11 @@ export function AuthForm(props: AuthFormProps) {
           {stepUp ? 'We sent a code to ' : `We sent a ${view.code_length}-digit code to `}
           <strong>{view.destination}</strong>.
         </Head>
+        {view.purpose === 'sign_up' && smsConsentPending && (
+          <p className="micro text-center">
+            You&apos;re opted in to texts. A confirmation text is on its way.
+          </p>
+        )}
         <div className="flex w-full flex-col gap-lg">
           <OTPInput
             length={view.code_length}
@@ -274,10 +283,12 @@ export function AuthForm(props: AuthFormProps) {
       email,
       phone,
       acceptedTerms,
+      smsConsent,
       onNameChange,
       onEmailChange,
       onPhoneChange,
       onTermsChange,
+      onSmsConsentChange,
       pending,
       message,
       onGoogle,
@@ -320,8 +331,6 @@ export function AuthForm(props: AuthFormProps) {
             type="tel"
             inputMode="numeric"
             autoComplete="tel"
-            disabled={!PHONE_SIGN_IN_LIVE}
-            message={PHONE_SIGN_IN_LIVE ? undefined : 'Text sign-in coming soon'}
           />
           <div className="flex w-full items-center gap-xs">
             <Checkbox
@@ -332,6 +341,18 @@ export function AuthForm(props: AuthFormProps) {
             <label htmlFor="accepted-terms" className="micro">
               I agree to the <NextLink href="/terms-and-conditions">Terms and Conditions</NextLink>{' '}
               and <NextLink href="/privacy-policy">Privacy Policy</NextLink>
+            </label>
+          </div>
+          <div className="flex w-full items-center gap-xs">
+            <Checkbox
+              id="sms-consent"
+              checked={smsConsent}
+              onCheckedChange={(next) => onSmsConsentChange(next === true)}
+            />
+            <label htmlFor="sms-consent" className="micro">
+              I agree to receive text messages from Dorado Metals about my account and orders.
+              Message and data rates may apply. Message frequency varies. Reply STOP to cancel,
+              HELP for help.
             </label>
           </div>
           {props.captcha}
