@@ -261,15 +261,15 @@ describe('/auth/sign-up', () => {
     )
   })
 
-  test('the phone field is disabled, so sign-up sends name and email only', async () => {
+  test('the phone field is enabled but optional, so sign-up works without it', async () => {
     signUpMutateAsync.mockResolvedValueOnce(view({ status: 'sent', channel: 'email' }))
     renderPage(<SignUpPage />)
 
-    expect(screen.getByLabelText('Phone').hasAttribute('disabled')).toBe(true)
+    expect(screen.getByLabelText('Phone').hasAttribute('disabled')).toBe(false)
 
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Jacob Johnson' } })
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'jacob@example.com' } })
-    fireEvent.click(screen.getByRole('checkbox'))
+    fireEvent.click(screen.getByRole('checkbox', { name: /Terms and Conditions/ }))
 
     const submit = screen.getByRole('button', { name: 'Create account' })
     expect(submit.hasAttribute('disabled')).toBe(false)
@@ -281,10 +281,57 @@ describe('/auth/sign-up', () => {
         email: 'jacob@example.com',
         phone_number: undefined,
         accepted_terms: true,
+        sms_consent: false,
         captcha_token: 'captcha-token',
       })
     )
     await waitFor(() => expect(push).toHaveBeenCalledWith('/auth/verify'))
+  })
+
+  test('filling in the phone field sends it as phone_number in E.164', async () => {
+    signUpMutateAsync.mockResolvedValueOnce(view({ status: 'sent', channel: 'sms' }))
+    renderPage(<SignUpPage />)
+
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Jacob Johnson' } })
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'jacob@example.com' } })
+    fireEvent.change(screen.getByLabelText('Phone'), { target: { value: '2145550134' } })
+    fireEvent.click(screen.getByRole('checkbox', { name: /Terms and Conditions/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }))
+
+    await waitFor(() =>
+      expect(signUpMutateAsync).toHaveBeenCalledWith({
+        name: 'Jacob Johnson',
+        email: 'jacob@example.com',
+        phone_number: '+12145550134',
+        accepted_terms: true,
+        sms_consent: false,
+        captcha_token: 'captcha-token',
+      })
+    )
+  })
+
+  test('checking the sms consent box sends sms_consent: true, and sign-up still works unchecked', async () => {
+    signUpMutateAsync.mockResolvedValueOnce(view({ status: 'sent', channel: 'email' }))
+    renderPage(<SignUpPage />)
+
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Jacob Johnson' } })
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'jacob@example.com' } })
+    fireEvent.click(screen.getByRole('checkbox', { name: /Terms and Conditions/ }))
+    fireEvent.click(
+      screen.getByRole('checkbox', { name: /receive text messages from Dorado Metals/ })
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }))
+
+    await waitFor(() =>
+      expect(signUpMutateAsync).toHaveBeenCalledWith({
+        name: 'Jacob Johnson',
+        email: 'jacob@example.com',
+        phone_number: undefined,
+        accepted_terms: true,
+        sms_consent: true,
+        captcha_token: 'captcha-token',
+      })
+    )
   })
 })
 

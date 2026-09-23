@@ -7,7 +7,7 @@ import { mockSessions, restoreSessions, as, asAdmin } from '#shared/testing/sess
 import { TEST_ACTOR } from '#shared/testing/actor.ts'
 import { inPinnedTransaction } from '#shared/testing/pinned-pool.ts'
 import { LOCKS } from '#shared/testing/locks.ts'
-import { aUser, aTag } from '#shared/testing/builders/index.ts'
+import { aUser, aTag, aLead } from '#shared/testing/builders/index.ts'
 
 await mockSessions()
 const { default: app } = await import('#app')
@@ -46,6 +46,86 @@ test('a customer with no number on file is refused rather than texted into space
     await asAdmin(TEST_ACTOR, async () => {
       const res = await request(app).post('/api/sms').send({ user_id: customer.id, body: 'hello' })
       assert.equal(res.status, 422, res.text)
+    })
+  })
+})
+
+test('ruling 112: a customer with no sms consent is still texted, not refused', async () => {
+  await inCrm(async (c) => {
+    const customer = await aUser(c, { phone_number: `+1512555${aTag().slice(-4)}` })
+    await asAdmin(TEST_ACTOR, async () => {
+      const res = await request(app)
+        .post('/api/sms')
+        .send({ user_id: customer.id, body: 'hello' })
+      assert.equal(res.status, 201, res.text)
+    })
+  })
+})
+
+test('a lead can be texted by lead_id whether or not it has consented', async () => {
+  await inCrm(async (c) => {
+    const consenting = await aLead(c, { phone: `+1512555${aTag().slice(-4)}` })
+    await c.query(
+      'UPDATE leads.leads SET sms_consent_at = now(), sms_consent_method = $2 WHERE id = $1',
+      [consenting.id, 'verbal']
+    )
+    const unconsenting = await aLead(c, { phone: `+1512555${aTag().slice(-4)}` })
+
+    await asAdmin(TEST_ACTOR, async () => {
+      const sent = await request(app)
+        .post('/api/sms')
+        .send({ lead_id: consenting.id, body: 'following up on your quote' })
+      assert.equal(sent.status, 201, sent.text)
+      assert.equal(sent.body.to_number, consenting.phone)
+
+      const alsoSent = await request(app)
+        .post('/api/sms')
+        .send({ lead_id: unconsenting.id, body: 'following up on your quote' })
+      assert.equal(alsoSent.status, 201, alsoSent.text)
+    })
+  })
+})
+
+test('POST /api/sms/consent_request sends the opt-in text and records it', async () => {
+  await inCrm(async (c) => {
+    const customer = await aUser(c, { phone_number: `+1512555${aTag().slice(-4)}` })
+    await asAdmin(TEST_ACTOR, async () => {
+      const res = await request(app)
+        .post('/api/sms/consent_request')
+        .send({ user_id: customer.id })
+      assert.equal(res.status, 201, res.text)
+      assert.equal(res.body.direction, 'outbound')
+      assert.match(res.body.body, /Reply YES/)
+      assert.match(res.body.body, /Reply STOP to opt out, HELP for help/)
+    })
+  })
+})
+
+test('POST /api/sms/consent_request works for a lead by lead_id too', async () => {
+  await inCrm(async (c) => {
+    const lead = await aLead(c, { phone: `+1512555${aTag().slice(-4)}` })
+    await asAdmin(TEST_ACTOR, async () => {
+      const res = await request(app).post('/api/sms/consent_request').send({ lead_id: lead.id })
+      assert.equal(res.status, 201, res.text)
+      assert.equal(res.body.to_number, lead.phone)
+    })
+  })
+})
+
+test('POST /api/sms/consent_request needs exactly one of user_id or lead_id', async () => {
+  await inCrm(async () => {
+    await asAdmin(TEST_ACTOR, async () => {
+      const neither = await request(app).post('/api/sms/consent_request').send({})
+      assert.equal(neither.status, 400, neither.text)
+    })
+  })
+})
+
+test('the composer needs exactly one of user_id or lead_id', async () => {
+  await inCrm(async () => {
+    await asAdmin(TEST_ACTOR, async () => {
+      const neither = await request(app).post('/api/sms').send({ body: 'hi' })
+      assert.equal(neither.status, 400, neither.text)
     })
   })
 })

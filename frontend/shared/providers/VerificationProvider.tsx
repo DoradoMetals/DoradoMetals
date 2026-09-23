@@ -9,6 +9,7 @@ export type Verification = {
   phone_number?: string
   email?: string
   next?: string
+  smsConsentPending?: boolean
 }
 
 type Value = {

@@ -1,7 +1,7 @@
 import type { PoolClient } from 'pg'
 import query from '#shared/db/query.ts'
 import { sqlFrom } from '#shared/db/sql.ts'
-import type { AccountProfile, User } from '@dorado/contracts'
+import type { AccountProfile, SmsConsentMethod, User } from '@dorado/contracts'
 import type { Executor } from '#shared/db/executor.ts'
 
 const sql = sqlFrom(import.meta.dirname)
@@ -60,5 +60,20 @@ export async function update(
     ],
     tx
   )
+  return rows[0]
+}
+
+export async function recordSmsConsent(
+  id: string,
+  at: string,
+  method: SmsConsentMethod | null,
+  executor?: Executor
+): Promise<User | undefined> {
+  const { rows } = await query<User>(sql('record_sms_consent'), [id, at, method], executor)
+  return rows[0]
+}
+
+export async function clearSmsConsent(id: string, executor?: Executor): Promise<User | undefined> {
+  const { rows } = await query<User>(sql('clear_sms_consent'), [id], executor)
   return rows[0]
 }

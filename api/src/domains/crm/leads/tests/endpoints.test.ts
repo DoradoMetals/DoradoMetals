@@ -107,6 +107,53 @@ test('update writes the row, and delete removes it', async () => {
   )
 })
 
+test('marking verbal consent on the PATCH server-stamps sms_consent_at', async () => {
+  await inPinnedTransaction(
+    async (client: PoolClient) => {
+      await asAdmin(async () => {
+        const created = (await request(app).post('/api/leads').send(NEW_LEAD)).body
+        assert.equal(created.sms_consent_at, null)
+
+        const upd = await request(app)
+          .patch(`/api/leads/${created.id}`)
+          .send({ sms_consent_method: 'verbal' })
+        assert.equal(upd.status, 200, JSON.stringify(upd.body))
+        assert.ok(upd.body.sms_consent_at, 'verbal consent did not stamp a timestamp')
+        assert.equal(upd.body.sms_consent_method, 'verbal')
+
+        const { rows } = await client.query(
+          `SELECT sms_consent_at, sms_consent_method FROM leads.leads WHERE id = $1`,
+          [created.id]
+        )
+        assert.ok(rows[0]?.sms_consent_at)
+        assert.equal(rows[0]?.sms_consent_method, 'verbal')
+
+        const cleared = await request(app)
+          .patch(`/api/leads/${created.id}`)
+          .send({ sms_consent_method: null })
+        assert.equal(cleared.status, 200, JSON.stringify(cleared.body))
+        assert.equal(cleared.body.sms_consent_at, null, 'clearing consent left the timestamp')
+      })
+    },
+    { actor: TEST_ACTOR.id }
+  )
+})
+
+test('an unknown sms_consent_method is refused', async () => {
+  await inPinnedTransaction(
+    async () => {
+      await asAdmin(async () => {
+        const created = (await request(app).post('/api/leads').send(NEW_LEAD)).body
+        const bad = await request(app)
+          .patch(`/api/leads/${created.id}`)
+          .send({ sms_consent_method: 'carrier_pigeon' })
+        assert.equal(bad.status, 400, JSON.stringify(bad.body))
+      })
+    },
+    { actor: TEST_ACTOR.id }
+  )
+})
+
 test('an id that names no lead is 404, not an empty 200', async () => {
   await inPinnedTransaction(
     async () => {

@@ -11,6 +11,7 @@ import * as pendingSignups from '#db/auth/pending-signups/repo.ts'
 import * as verifications from '#db/auth/verification/repo.ts'
 import * as users from '#db/auth/users/repo.ts'
 import * as authSessions from '#db/auth/sessions/repo.ts'
+import * as smsService from '#crm/sms/service.ts'
 import * as rules from '#accounts/auth/rules.ts'
 import { auth } from '#accounts/auth/client.ts'
 import {
@@ -180,6 +181,7 @@ export async function signUp(body: SignUpBody, ip: string | null): Promise<Verif
         email,
         name: body.name,
         expires_at: rules.otpExpiresAt(Date.now()),
+        sms_consent: body.sms_consent ?? false,
       },
       tx
     )
@@ -275,6 +277,15 @@ export async function verifyCode(
       body.channel === 'sms' ? await users.byPhone(destination) : await users.byEmail(destination)
     if (created) {
       await withTransaction(async (tx) => {
+        if (pending.sms_consent) {
+          const consented = await users.recordSmsConsent(
+            created.id,
+            rules.stamp(Date.now()),
+            'web_form',
+            tx
+          )
+          rules.assertApplied(consented, 'the sms consent stamp')
+        }
         if (body.channel === 'sms') {
           const named = await users.update(
             created.id,
@@ -298,6 +309,11 @@ export async function verifyCode(
           url: `${process.env.FRONTEND_URL ?? ''}/`,
         })
       )
+      if (pending.sms_consent && created.phone_number) {
+        await attempt('auth.smsConsentWelcome', () =>
+          smsService.sendConsentWelcome(created.phone_number!)
+        )
+      }
     }
   }
 

@@ -87,6 +87,7 @@ export default function Page() {
       state={shown}
       view={view}
       code={code}
+      smsConsentPending={verification.smsConsentPending}
       onCodeChange={setCode}
       onSubmit={submit}
       onResend={resend}

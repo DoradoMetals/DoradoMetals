@@ -25,6 +25,8 @@ export const User = z.object({
   'assigned_to_id': z.string().uuid().nullable(),
   'notes': z.string().nullable(),
   'deletion_requested_at': z.string().nullable(),
+  'sms_consent_at': z.string().nullable(),
+  'sms_consent_method': z.string().nullable(),
 })
 export type User = z.infer<typeof User>
 // generated:end
@@ -81,5 +83,7 @@ export const UserCreateFacts = z.object({
   name: User.shape.name,
   phone_number: User.shape.phone_number,
   email: User.shape.email,
+  sms_consent_at: User.shape.sms_consent_at.optional(),
+  sms_consent_method: User.shape.sms_consent_method.optional(),
 })
 export type UserCreateFacts = z.infer<typeof UserCreateFacts>

@@ -25,10 +25,15 @@ export const Lead = z.object({
   'updated_by_id': z.string().uuid().nullable(),
   'assigned_to_id': z.string().uuid().nullable(),
   'source': z.string().nullable(),
+  'sms_consent_at': z.string().nullable(),
+  'sms_consent_method': z.string().nullable(),
 })
 export type Lead = z.infer<typeof Lead>
 // generated:end
 import { LeadStage } from '../computed/crm.js'
+
+export const SmsConsentMethod = z.enum(['web_form', 'verbal', 'via_text'])
+export type SmsConsentMethod = z.infer<typeof SmsConsentMethod>
 
 export const LeadPatch = Lead.pick({
   name: true,
@@ -46,6 +51,7 @@ export const LeadPatch = Lead.pick({
 })
   .partial()
   .strict()
+  .extend({ sms_consent_method: SmsConsentMethod.nullable().optional() })
 export type LeadPatch = z.infer<typeof LeadPatch>
 
 export const LeadView = Lead.extend({ lead_stage: LeadStage })

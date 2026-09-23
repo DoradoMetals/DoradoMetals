@@ -2,6 +2,7 @@ import { test, afterAll } from 'vitest'
 import assert from 'node:assert/strict'
 
 import type { PoolClient } from 'pg'
+import query from '#shared/db/query.ts'
 import { inPinnedTransaction } from '#shared/testing/pinned-pool.ts'
 import { TEST_ACTOR } from '#shared/testing/actor.ts'
 import { LOCKS } from '#shared/testing/locks.ts'
@@ -168,6 +169,62 @@ test('an email-only sign-up verify creates the account with no phone number', as
       assert.equal(made.phone_number, null, 'a phone number is optional at sign-up')
       assert.equal(made.emailVerified, true)
       assert.equal(await pendingSignups.byEmail(email), undefined, 'the held answers are cleared')
+    },
+    { actor: TEST_ACTOR.id, lock: LOCKS.USERS }
+  )
+})
+
+test('checking the sms consent box at sign-up stamps sms_consent_at as web_form', async () => {
+  await inPinnedTransaction(
+    async (c: PoolClient) => {
+      stubAuthApi(c)
+      const number = '+15125552010'
+      await service.signUp(
+        {
+          name: 'Consenting Person',
+          email: 'consenting-person@dorado.test',
+          phone_number: number,
+          accepted_terms: true,
+          sms_consent: true,
+          captcha_token: 't',
+        },
+        '203.0.113.9'
+      )
+
+      await service.verifyCode({ channel: 'sms', phone_number: number, code: CODE }, null)
+
+      const made = await users.byPhone(number)
+      assert.ok(made, 'the verify is what creates the user')
+      assert.ok(made.sms_consent_at, 'the checkbox did not stamp a consent timestamp')
+      assert.equal(made.sms_consent_method, 'web_form')
+
+      const { rows: welcome } = await query<{ body: string }>(
+        `SELECT body FROM crm.sms_messages WHERE direction = 'outbound' AND to_number = $1`,
+        [number]
+      )
+      assert.equal(welcome.length, 1, 'the opt-in welcome text was not sent')
+      assert.match(welcome[0].body, /Welcome to Dorado Metals/)
+    },
+    { actor: TEST_ACTOR.id, lock: LOCKS.USERS }
+  )
+})
+
+test('an email-only sign-up with the box unchecked leaves sms_consent_at null', async () => {
+  await inPinnedTransaction(
+    async (c: PoolClient) => {
+      stubAuthApi(c)
+      const email = 'unconsenting-person@dorado.test'
+      await service.signUp(
+        { name: 'Unconsenting Person', email, accepted_terms: true, captcha_token: 't' },
+        '203.0.113.9'
+      )
+
+      await service.verifyCode({ channel: 'email', email, code: CODE }, null)
+
+      const made = await users.byEmail(email)
+      assert.ok(made, 'the verify is what creates the user')
+      assert.equal(made.sms_consent_at, null, 'sign-up proceeds without the optional checkbox')
+      assert.equal(made.sms_consent_method, null)
     },
     { actor: TEST_ACTOR.id, lock: LOCKS.USERS }
   )

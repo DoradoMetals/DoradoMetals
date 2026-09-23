@@ -7,7 +7,7 @@ import { oneString } from '#shared/http/query.ts'
 import type { WebhookForm } from '#shared/http/webhook-form.ts'
 import * as sms from '#providers/twilio/index.ts'
 import * as service from '#crm/sms/service.ts'
-import { SmsSendBody } from '@dorado/contracts'
+import { SmsConsentRequestBody, SmsSendBody } from '@dorado/contracts'
 import { strictBody } from '#shared/http/validate.ts'
 
 const EMPTY_TWIML = '<?xml version="1.0" encoding="UTF-8"?><Response/>'
@@ -46,6 +46,11 @@ export const getConversation = asyncHandler(async (req, res) => {
 
 export const send = asyncHandler(async (req, res) => {
   return res.status(201).json(await service.sendToCustomer(strictBody(SmsSendBody, req.body)))
+})
+
+export const requestConsent = asyncHandler(async (req, res) => {
+  const body = strictBody(SmsConsentRequestBody, req.body)
+  return res.status(201).json(await service.requestConsent(body))
 })
 
 export const getOne = asyncHandler(async (req, res) => {
