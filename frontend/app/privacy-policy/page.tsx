@@ -119,6 +119,28 @@ export default function PrivacyPolicy() {
             </Link>
             .
           </p>
+
+          <h2 className="text-lg text-neutral-800 font-semibold mt-6">
+            8. Text Messaging (SMS)
+          </h2>
+          <p className="text-sm text-neutral-600">
+            If you opt in to receive text messages from us, we collect your mobile phone number,
+            the date you gave consent, and the content of the messages exchanged with you. We use
+            this information to:
+          </p>
+          <ul className="list-disc ml-6 text-sm text-neutral-600 mt-2">
+            <li>Send one-time sign-in codes.</li>
+            <li>Send updates about your orders and account.</li>
+            <li>Reply to questions you send us by text.</li>
+          </ul>
+          <p className="text-sm text-neutral-600 mt-2">
+            We do not sell or share your SMS opt-in data or personal information with third
+            parties or affiliates for marketing or promotional purposes.
+          </p>
+          <p className="text-sm text-neutral-600 mt-2">
+            You can opt out of text messages at any time by replying STOP, or get help by replying
+            HELP. Message frequency varies. Message and data rates may apply.
+          </p>
         </ScrollArea>
       </div>
     </div>

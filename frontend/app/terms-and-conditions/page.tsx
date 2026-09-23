@@ -600,6 +600,44 @@ export default function TermsAndConditions() {
               , or address: 3198 Royal Lane Suite 209, Dallas, TX 75229
             </p>
           </div>
+
+          <div className="separator-inset" />
+
+          <div className="flex flex-col gap-3">
+            <h2 className="text-2xl text-neutral-900">Text Messaging Program</h2>
+            <p className="text-sm text-neutral-700">
+              <span className="font-medium font-semibold text-neutral-800">Program Name:</span>{' '}
+              Dorado Metals account and order texts.
+            </p>
+            <p className="text-sm text-neutral-700">
+              This program sends one-time sign-in codes, order and account updates, appointment
+              and pickup reminders, and replies to questions you text to our business number. We
+              do not send marketing messages through this program.
+            </p>
+            <p className="text-sm text-neutral-700">
+              Message and data rates may apply. Message frequency varies.
+            </p>
+            <p className="text-sm text-neutral-700">
+              For support, email us at{' '}
+              <Link href="mailto:exchange@doradometals.com" className="text-xs text-primary">
+                exchange@doradometals.com
+              </Link>
+              .
+            </p>
+            <p className="text-sm text-neutral-700 font-semibold">
+              Reply STOP to cancel at any time. Reply HELP for help.
+            </p>
+            <p className="text-sm text-neutral-700">
+              See our{' '}
+              <Link href="/privacy-policy" className="text-xs text-primary">
+                Privacy Policy
+              </Link>{' '}
+              for more information on how we handle your data.
+            </p>
+            <p className="text-sm text-neutral-700">
+              Carriers are not liable for delayed or undelivered messages.
+            </p>
+          </div>
         </ScrollArea>
       </div>
     </div>
