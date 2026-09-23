@@ -5,7 +5,8 @@ Answers to paste. Brand: Dorado Metals Exchange LLC (doradometals.com).
 ## Use case
 
 Low Volume Mixed (sign-in codes, account and order notifications, customer
-care replies). No marketing.
+care replies). No marketing. Legal name Dorado Metals Exchange LLC, operating
+as Dorado Metals: the description must say so (DBA rule).
 
 ## Campaign description
 
@@ -17,8 +18,9 @@ questions sent to our business number. No promotional or marketing content.
 
 ## How consumers consent (message flow)
 
-Customers opt in on doradometals.com when creating an account or placing an
-order: they enter their mobile number and check an unchecked-by-default box
+Opt-in methods: Web Form and Verbal consent. Customers opt in on
+doradometals.com when creating an account, placing an order, or requesting a
+quote (the lead form): they enter their mobile number and check an unchecked-by-default box
 reading "I agree to receive text messages from Dorado Metals about my
 account and orders. Message and data rates may apply. Message frequency
 varies. Reply STOP to cancel, HELP for help." The consent and its timestamp
@@ -65,3 +67,23 @@ Number pool: no.
   reject campaigns whose opt-in cannot be shown; attach a screenshot of the
   checkbox.
 - `docs/design/communications-plan.md` for what the number is used for.
+
+## Verbal consent script (phone leads)
+
+"Can we text you at this number about your quote and your order with Dorado
+Metals? Message frequency varies, message and data rates may apply, reply STOP
+at any time to opt out or HELP for help. Our terms and privacy policy are at
+doradometals.com/terms and /privacy. Is that a yes?" On a yes the lead record
+stores the consent (method verbal, timestamp) and the customer receives the
+opt-in confirmation text. A lead with neither web nor verbal consent gets a
+call, never a first text.
+
+## Form field answers (paste order)
+
+Use cases: Low Volume Mixed. Campaign description: the paragraph above with
+the DBA sentence. Message flow: the consent paragraph. Opt-in proof: public
+links to the sign-up form screenshot, the lead form screenshot, the
+post-submit confirmation, plus the verbal script. Links yes, phone numbers
+no, direct lending no, age-gated no. Samples 1-5, keywords and replies as
+above.
+
