@@ -459,3 +459,11 @@ Detail in `docs/waves/auth-passwordless.md`.
 - **`refining.lockConfirm` is written and not wired.** `assertLockable` keeps the `troy_oz <= 0` refusal BLOCKED and its balance check became a confirm - a pool balance is allowed to go negative, which the code's own comment already said. There is nowhere to put the reason: a pool lock is not an action on an order, so no `actions` array carries it. Wire it when the Lock ounces dialog gets its read.
 - **A locked order whose frozen spot is NULL now falls through to the live feed.** One purchase order on dev has `spots_locked` true and an `orders.spots` row with no bid for its metal; with the price column gone it became unpriceable, which is a 4xx on a read that used to work. `order_pricing.sql`, `orders/sql/view.sql` and `orders/lots/sql/view_for.sql` all `COALESCE` the frozen spot with the live one. That order should be looked at: either its lock is repaired or the row is evidence that `freeze.sql` can write a NULL side.
 - **`OrderPricingLine.source` is gone.** It said `stored` or `quoted`, and nothing is stored any more. If a sourcing signal is wanted on a priced line, the lot's own `source` column (`inventory` | `refiner` | `pool`) is the honest one.
+
+- **Scrap lot names are not identifiers (Jacob, 2026-09-22).** "14 Karat
+  Gold" is a display label derived from the purity label; many lots share it
+  and the karat can change after assay. Identity is the lot number (plus the
+  customer's description where there is one). Nothing may key on the derived
+  name or the purity label: not settlement matching, not lineage, not search.
+  Screens that show the derived name must show the lot number beside it.
+
