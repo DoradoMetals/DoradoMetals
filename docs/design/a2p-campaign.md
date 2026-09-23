@@ -26,7 +26,7 @@ account and orders. Message and data rates may apply. Message frequency
 varies. Reply STOP to cancel, HELP for help." The consent and its timestamp
 are stored on the account. Customers who text our business number first are
 replied to on that conversation only. Privacy policy:
-https://doradometals.com/privacy. Terms: https://doradometals.com/terms.
+https://doradometals.com/privacy-policy. Terms: https://doradometals.com/terms-and-conditions.
 
 ## Sample messages
 
@@ -73,7 +73,7 @@ Number pool: no.
 "Can we text you at this number about your quote and your order with Dorado
 Metals? Message frequency varies, message and data rates may apply, reply STOP
 at any time to opt out or HELP for help. Our terms and privacy policy are at
-doradometals.com/terms and /privacy. Is that a yes?" On a yes the lead record
+doradometals.com/terms-and-conditions and /privacy-policy. Is that a yes?" On a yes the lead record
 stores the consent (method verbal, timestamp) and the customer receives the
 opt-in confirmation text. A lead with neither web nor verbal consent gets a
 call, never a first text.
