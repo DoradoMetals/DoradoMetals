@@ -87,3 +87,14 @@ post-submit confirmation, plus the verbal script. Links yes, phone numbers
 no, direct lending no, age-gated no. Samples 1-5, keywords and replies as
 above.
 
+## Rejected 2026-09-23 (errors 30908, 30896, 30909); resubmit when the new site is live
+
+Reviewer notes: the live site (old app) has no phone field, no SMS
+disclosure; the Drive screenshot links did not open; the verbal script
+omitted the Privacy Policy and Terms URLs. Decision (Jacob, 2026-10-07):
+wait for the new site to be live, then resubmit with: the live sign-up URL
+as proof (no screenshots), the verbal script WITH both full URLs
+(https://doradometals.com/privacy-policy and
+https://doradometals.com/terms-and-conditions), and the legal pages
+deployed. Do not trim the URLs out of the 500-character proof field again.
+
