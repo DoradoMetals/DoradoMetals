@@ -554,7 +554,8 @@ CREATE TABLE IF NOT EXISTS auth.pending_signups (
   created_at timestamp with time zone DEFAULT now() NOT NULL,
   updated_at timestamp with time zone DEFAULT now() NOT NULL,
   created_by_id uuid,
-  updated_by_id uuid
+  updated_by_id uuid,
+  sms_consent boolean DEFAULT false NOT NULL
 );
 ALTER TABLE auth.pending_signups ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE auth.pending_signups ADD COLUMN IF NOT EXISTS phone_number text;
@@ -565,6 +566,7 @@ ALTER TABLE auth.pending_signups ADD COLUMN IF NOT EXISTS created_at timestamp w
 ALTER TABLE auth.pending_signups ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
 ALTER TABLE auth.pending_signups ADD COLUMN IF NOT EXISTS created_by_id uuid;
 ALTER TABLE auth.pending_signups ADD COLUMN IF NOT EXISTS updated_by_id uuid;
+ALTER TABLE auth.pending_signups ADD COLUMN IF NOT EXISTS sms_consent boolean DEFAULT false;
 
 CREATE TABLE IF NOT EXISTS auth.sessions (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -610,7 +612,9 @@ CREATE TABLE IF NOT EXISTS auth.users (
   phone_number_verified boolean DEFAULT false NOT NULL,
   assigned_to_id uuid,
   notes text,
-  deletion_requested_at timestamp with time zone
+  deletion_requested_at timestamp with time zone,
+  sms_consent_at timestamp with time zone,
+  sms_consent_method text
 );
 ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS email text;
@@ -631,6 +635,8 @@ ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS phone_number_verified boolean DE
 ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS assigned_to_id uuid;
 ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS notes text;
 ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS deletion_requested_at timestamp with time zone;
+ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS sms_consent_at timestamp with time zone;
+ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS sms_consent_method text;
 
 CREATE TABLE IF NOT EXISTS auth.verification (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -1031,7 +1037,9 @@ CREATE TABLE IF NOT EXISTS leads.leads (
   created_by_id uuid,
   updated_by_id uuid,
   assigned_to_id uuid,
-  source text
+  source text,
+  sms_consent_at timestamp with time zone,
+  sms_consent_method text
 );
 ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS name text;
@@ -1052,6 +1060,8 @@ ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS created_by_id uuid;
 ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS updated_by_id uuid;
 ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS assigned_to_id uuid;
 ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS source text;
+ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS sms_consent_at timestamp with time zone;
+ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS sms_consent_method text;
 
 CREATE TABLE IF NOT EXISTS media.emails (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -2553,6 +2563,16 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'users_sms_consent_method_is_known' AND c.relname = 'users' AND n.nspname = 'auth'
+  ) THEN
+    ALTER TABLE auth.users ADD CONSTRAINT users_sms_consent_method_is_known CHECK (((sms_consent_method IS NULL) OR (sms_consent_method = ANY (ARRAY['web_form'::text, 'verbal'::text, 'via_text'::text]))));
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'verification_pkey' AND c.relname = 'verification' AND n.nspname = 'auth'
   ) THEN
     ALTER TABLE auth.verification ADD CONSTRAINT verification_pkey PRIMARY KEY (id);
@@ -2906,6 +2926,16 @@ DO $$ BEGIN
     WHERE con.conname = 'leads_pkey' AND c.relname = 'leads' AND n.nspname = 'leads'
   ) THEN
     ALTER TABLE leads.leads ADD CONSTRAINT leads_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'leads_sms_consent_method_is_known' AND c.relname = 'leads' AND n.nspname = 'leads'
+  ) THEN
+    ALTER TABLE leads.leads ADD CONSTRAINT leads_sms_consent_method_is_known CHECK (((sms_consent_method IS NULL) OR (sms_consent_method = ANY (ARRAY['web_form'::text, 'verbal'::text, 'via_text'::text]))));
   END IF;
 END $$;
 DO $$ BEGIN
