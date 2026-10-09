@@ -1624,3 +1624,59 @@ current renders, delete the local `Estimator`, and report what moved.
 3. Pixel-diff `Admin / Lead — Dwight Okafor` and `Mobile · Lead — Dwight Okafor` against the
    current renders; expect exactly 1px of height per layout from the type style, nothing else.
 4. Delete the local `Estimator` set only once both diffs are accounted for.
+
+## The API audit pass (docs/design/api-gaps-people.md §2)
+
+Worked the seventeen §2 rows against the rulings handed down with the audit. Eleven changed
+something, two were already right, four are API fixes or deliberate keeps.
+
+**Built**
+
+| § | what changed | where |
+|---|---|---|
+| 1 | a **Ban dialog**, modelled on `Adjust credit`: required `Reason` with the helper *Kept on the customer record*, optional `Expires` with *Leave empty for a permanent ban*, danger confirm. The bare Danger button would have 400'd on every press — `assertBanReasonGiven` refuses a reason under three characters | new screen `Admin / Customer · Ban` (`264:7877`) |
+| 3 | **a debit now reads as a debit.** `Ledger Row` gained a `Kind` variant: `Credit` renders `+$50.00` in the normal colour, `Debit` renders `−$120.00` in `text/danger`. `Reserve` is a `Debit` whose reason reads *Hold for SO-####*, `Released` a `Credit` reading *Hold released* — the vocabulary is in the component, no hold row invented | `Ledger Row` (`262:8278`), five instances |
+| 4 | the Users list no longer claims states the table cannot hold: `Invited` → `Banned`, `Disabled` → `Deletion requested`, and the count line reads `383 users · 11 staff · 2 banned`. The banned row's last sign-in moved off *12 minutes ago*, which a banned account cannot have | `Admin / Users` (`73:2051`) |
+| 5 | **Dana's screen shows Dana's actions.** All six rows and all six avatars are hers; the verbs are unchanged, so the activity table still starts from the same six | `Employee Activity` on `78:2727` |
+| 6 | the Inbox glyph follows the row's channel — the voicemail row takes `phone-incoming`, the missed call takes `phone`, the rest stay `message-square`. Exposed as `Channel icon`, an instance-swap property, the way `Timeline Row` already exposes `Kind icon` | `Inbox Row` (`172:2701`) |
+| 7 | `Assigned to` is **`Owner`** on the Inbox filter and in the component's own property name. It is the person's owner, not the conversation's | `Admin / Inbox` (`37:2630`) |
+| 9 | a **consent line** on all four detail cards — `Texts · Opted in Mar 12, 2025 · Checkout` on the customer, `Texts · Opted in Sep 9, 2026 · Verbal` on the lead. Recorded, never enforced: `Message` and `Call` stay enabled (ruling 126) | `Customer Details`, `Lead Contact Info`, both layouts |
+| 10 | `Customer State` gained a third variant, `Deletion requested`. A customer who asked to be forgotten must not draw as `Active` | `Customer State` (`172:6159`) |
+| 11 | the lead reference reads `LEAD-4471` on all three screens; `L-004471` matched nothing else in the house | `34:2496` |
+| 12 | `Email (required)` on the Convert dialog, plus the error state the API actually produces, on its own screen | `Admin / Lead · Convert — no email` (`263:8085`) |
+
+**Already right when I looked** — §8, the lead `Documents` card holds only Rates Sheet, Quote Guide
+and Sell Form; there is no Intake Receipt row. §13, the employee header carries only `Edit` and
+`Disable`; `Message` and `Call` are already gone.
+
+**Left alone on purpose** — §2 (the Convert sentence stays; carrying the notes is the API's half),
+§14 (`Order State=Draft` keeps its variant, drafts exist in Orders), §16 and §17 (`last_contact`'s
+breadth and the note's date are API fixes).
+
+**One correction to the audit.** §1 row 14 and Q1 describe a `Platinum` tier chip beside
+`All · Active · Banned`. There is no such chip. Searched all three pages: every `Platinum` in the
+file is the Estimator's palladium-and-platinum metal chip. No tier is drawn, so none has to be
+deleted or declared.
+
+### Four standing hygiene checks, run after the fixes
+
+Adopted from the Pricing worker and run over all three pages.
+
+| check | found | done |
+|---|---|---|
+| collapsed text overrides (the `.clone()` trap — two main text nodes resolving to one) | **0** | the raw count of 67 "fewer text nodes than the main" is a false positive: hidden badge labels do not appear in `children`. Re-tested by looking for two text nodes in one component scope owning the same `characters` property — zero |
+
+**Detector replaced with the sentinel probe** (from the Pricing worker), which has no false
+positives: instantiate every local component off-canvas, write a unique sentinel into every text
+slot — the component's own properties *and* those of every nested instance — read them all back,
+and flag any slot whose sentinel lands in more than one node. The whole `.clone()` bug is exactly
+that signature. **112 components, 988 text slots, 0 collapsed.** 54 slots read back empty, which
+is the expected case rather than a fault: a hidden node (`Show message = false`, `Trailing =
+None`) is absent from `findAll`, so its sentinel has nowhere to appear. Counting those as faults
+is what made the first two detectors noisy. Probes are deleted in the same call.
+| stacked variants | **22 pairs across 12 sets** | every set relaid in a single row with an 80px gap and resized to fit |
+| clipped text | **0** | — |
+| section containment | **5 children outside, then 19 sibling overlaps the relayout caused** | grew six sections to contain their children and repacked all four `Components · *` sections into rows; re-ran to 0 |
+
+Re-rendered `37:2248`, `37:2558`, `37:2630` and `78:2727` after the relayout: **pixel-identical**.
+Only `73:2051` differs, in the one cell I meant to change.

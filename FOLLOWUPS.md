@@ -517,3 +517,26 @@ Detail in `docs/waves/auth-passwordless.md`.
   `pricing-resolver` (running), `crm-facts` and `orders-reads` (queued,
   specs in `docs/waves/`). Rulings waiting on Jacob are the §3 tables; each
   file worker has posted them as one Figma comment on its main screen.
+
+- **crm-facts lane leftovers (2026-10-09).** `media.emails` has no actor
+  column and no `lead_id`, so an email's actor is NULL in timelines and the
+  activity feed. `leads.leads.priority` keeps no history (no "raised to high
+  priority" activity). No read endpoints yet for `crm.assignments` or
+  `crm.sms_consent_events`. `GET /api/activity` pages by LIMIT only. The
+  three lead stage booleans and the two free-text `notes` columns stay until
+  their backfills are verified on a production-shaped copy, then drop. Two
+  pre-existing frontend typecheck errors remain in
+  `frontend/app/admin/_src_/orders/tests/fixtures.ts` (refining-profit
+  shapes).
+- **pricing-resolver leftovers.** `spots.sources.last_error` is never written
+  (`lint:one-catch` forbids the catch); `spots.spots` is still read raw by
+  three inventory statements, three refining statements and the
+  order-received email; `spots.overrides` stays until verified.
+
+- **orders-reads leftovers (2026-10-09).** Search is prefix-only: the app
+  role cannot create `pg_trgm`, so infix matching waits on Jacob granting
+  the extension. Frontend typecheck carries three pre-existing fixture
+  errors (`review_count`/`review_rating_avg`, `RefiningOrderView.number`,
+  `ProfitBreakdown` basis fields) under `frontend/app/admin/_src_/orders/`.
+  The sale's bottom line is `total`, direction-aware, not a second
+  `total_due` field.

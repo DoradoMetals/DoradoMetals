@@ -48,7 +48,8 @@ on hand          = Σ content of own lots in position On hand
 incoming         = Σ content of own lots Incoming
 at refiner       = Σ content of own lots At refiner
 pool(refiner)    = Σ credits − Σ |locks|            (refiner's ounces, not ours)
-movements        = arrived (+) · batched (−) · sold (−) · split/combine (±, net 0)
+movements        = arrived (+) · batched (−) · sold (−) · split/combine (±, net 0);
+                   a settlement moves no on-hand ounces
                    → running total equals on hand at every row
 ```
 
@@ -98,7 +99,8 @@ Orders. Badges sparse: title rows and header eyebrow only; never on table rows
   (Q2; this is a pricing read, never screen arithmetic). Zero state reads
   0 lots / 0.00 oz. Clicking a card opens 2.4.
 - Below: **Movements** card (accordion): Date · Movement (Arrived · Batched ·
-  Settled, paid · Settled, pooled · Sold · Split · Combined) · Lot (link) ·
+  Sold · Split · Combined; settlements move no on-hand ounces and live in the
+  Pool ledger) · Lot (link) ·
   Order or refiner order (link) · Metal · ± oz fine · Running on hand · By.
   Filter: Metal select, date range. This is the "past" of on hand.
 - States: default, empty, mobile.

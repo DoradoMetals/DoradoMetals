@@ -196,6 +196,10 @@ const TABLES = [
       created_by_id:
         'a lead captured natively leaves it null; 029 maps the legacy created_by name to a user id instead',
       updated_by_id: 'same, on the other half of the pair',
+      updated_at:
+        "251's backfill UPDATE sets contacted_at/responded_at/converted_at and " +
+        "116's audit trigger stamps updated_at to when THAT ran; dev's stamp is " +
+        "from the original run and the rebuild's is from replaying 251 just now",
     },
   },
   {
@@ -455,6 +459,10 @@ const NOT_REBUILT = {
   'refining.lots':
     'the assays go with the engagement they were reported against, and ' +
     'refining.orders is not rebuilt from exchange either',
+  'refining.documents':
+    'the four refiner document kinds, seeded by 264 to replace the ' +
+    'REFINING_DOCUMENTS TypeScript constant (ruling 116). Lookup rows with no ' +
+    'exchange source - exchange recorded no document kind.',
   'inventory.lot_sources':
     'every edge in it is minted by 190 from refining.lots, which is NOT_REBUILT ' +
     'for the same reason refining.orders is. exchange recorded no lineage of ' +
@@ -495,6 +503,10 @@ const NOT_REBUILT = {
     'order one opening event derived from its own frozen row, guarded by NOT ' +
     'EXISTS, and everything after it is written natively by ' +
     'orders/spots/service.ts applyLock.',
+  'orders.list_sorts':
+    "the order list's sort options, seeded by 260 (ruling 116: a picklist is " +
+    "rows, not an enum). Lookup rows with no exchange source - exchange's " +
+    'order list had one fixed ORDER BY.',
   'spots.settings':
     'the one row that says how stale a spot may be, created after the pivot by ' +
     'another lane; exchange has no such setting',
@@ -566,6 +578,13 @@ const NOT_REBUILT = {
 
   'crm.sms_messages': 'provider (Twilio) webhook rows, no exchange source',
   'crm.calls': 'provider webhook rows, no exchange source',
+  'crm.notes':
+    'backfilled by 252 from leads.leads.notes and auth.users.notes - both ' +
+    'native columns, not exchange - so a note captured after the pivot writes ' +
+    'crm.notes only and there is no exchange column left to rebuild from',
+  'crm.sms_consent_kinds':
+    'opt_in and opt_out, seeded by 254 beside crm.sms_consent_events. Lookup ' +
+    'rows with no exchange source - exchange recorded no sms consent at all.',
   'crm.targets':
     'the two lead-funnel targets, seeded by 236. Ruling 116 puts a business ' +
     'number in a row rather than a constant, and exchange never recorded a ' +

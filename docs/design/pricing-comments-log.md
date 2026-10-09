@@ -473,3 +473,570 @@ it with `createText` and copy typography plus the bound colour paint.
   line). Stroke stays bound to `text/success` / `text/danger`. The steeper path
   (travel 20 → 36 over the same 112) is in the library but not yet published
   into this file; nothing more to request.
+
+## 2026-10-09 — API audit pass (docs/design/api-gaps-pricing.md §2–§3)
+
+Applied every §2 item classed **small**; skipped the one **overhaul**; held two
+pending §3 answers. Snapshots of all eight touched surfaces written to
+`scratchpad/spots/audit-before/` first.
+
+**Applied (18).**
+- (b) adjustment-active screen now shows Gold's *adjusted* bid/ask.
+- (c) Platinum made consistent: Kitco serves it on Sources, Kitco is its active
+  source, and the Platinum · Kitco row exists.
+- (d) `Scope` reduced to one vocabulary, `Active` / `Dormant`; source status
+  stays on Sources.
+- (e) badge counts adjustments that exist (**5**), and mobile lists the same
+  eight pairs as desktop.
+- (f) global adjustment row and the bid/ask adjust columns removed from Sources
+  (coordinator rulings 2 and 4); Sources is now Source · Status · Last tick ·
+  Metals · enabled Switch.
+- (g) **Active source Select added per metal group header** in the Adjustments
+  card (coordinator ruling 3) — the control existed nowhere before.
+- (h)(i) lock states moved to **Unlocked · Locked · Finalized** per
+  `statuses.md`; `Unlock` only on Locked (coordinator ruling 1). This removed
+  the in-place Confirming step — flagged to Jacob.
+- (k) Lock log badge counts **events**, desktop and mobile.
+- (l) stale screen carries the live figures and directions; arithmetic errors
+  fixed across all **32** cards (Platinum was 0.50% where 12.10/978.30 = 1.24%).
+- (m) `Weight tiers · rates.rates` → `Weight tiers`.
+- (n) history drawer scope reads `All metals · last 30 days`.
+- (o)(q) `Top rate` and `Applies to` columns dropped from the tier row.
+- (t) Rates header is one chip row plus a `View` Select for Scrap / Bullion.
+
+**Skipped — overhaul (a).** An adjustment changes the admin screen and nothing
+else: only `get_all.sql` reads the override, all five pricing statements join
+the raw table, and the feed writer skips an overridden metal. API work; the
+drawing is correct as-is.
+
+**Held pending Jacob.** (r) the Bullion buy column and (s) the per-purity
+premium Input, because both depend on §3 Q12 and Q11. (p) kept both `Pay / g`
+and `Pay / ozt` on the audit's second option — the endpoint returns both and the
+client never multiplies.
+
+**Deviations from the doc, noted in the comment.** Badge reads `5 adjustments`
+rather than `5 active`, since `Active` now means a pair's scope.
+
+Posted one pinned comment on the live Spots screen (`1959460628`) covering the
+changes, the overhaul and §3 questions 1, 2, 3, 6, 9, 10, 11, 12, 16 with the
+default for each. Re-sweep after the pass: **17 screens, 0 clipped**, all frame
+heights fitting their content.
+
+- **Confirm step restored as its own axis.** Unlocked / Locked / Finalized is
+  what the lock *is*; confirming is what the row's *action* is doing. `Lock Row`
+  and `Lock Row / Mobile` now carry `State × Action`, with
+  `Action = Rest | Confirming` and Confirming present only on `State=Locked`:
+  Rest shows a Secondary/Neutral `Unlock`, Confirming shows the warning line
+  plus `Cancel` and a Primary/Danger `Unlock`, and the status text is unchanged
+  through the escalation. Four variants per set, laid out in a column —
+  **the clone landed on top of its source again**, which is the second time that
+  bug has bitten; always re-flow a set after appending a cloned variant. All
+  lock row instances re-pointed, **0 unresolved**. Added one line to the pinned
+  audit comment saying the confirm step is back.
+
+- **Quiet-cycle audit, now including a stacked-variant check.** Swept 14
+  component sets / 58 variants on both pages for variants overlapping each
+  other, for collapsed text overrides, and all 17 screens for clipped text.
+  Found **one** real overlap — the `Spot Locks` card's `State=Default` sitting
+  on top of `State=Confirming`, which predated tonight's work. Laid out and
+  re-swept: **0 overlaps, 0 collapsed, 0 clipped**.
+
+### Detectors worth keeping for this file
+1. **Collapsed text overrides** — instantiate every variant, flag two TEXT nodes
+   sharing one instance node id. Catches `.clone()` of a TEXT inside a
+   component.
+2. **Stacked variants** — pairwise bounding-box overlap of a set's children.
+   Catches `appendChild` of a cloned variant landing on its source.
+3. **Clipped text** — compare each TEXT's box against its nearest clipping
+   ancestor.
+4. **Section containment** — section children are positioned *relative to the
+   section*; verify every member sits inside its bounds.
+
+## 2026-10-09 — quiet cycle: mobile catches up with the Sources/Adjustments ruling
+
+No open Jacob thread; newest comment was still bot reply 1959463538. Used the
+cycle for the two queued items.
+
+1. **Mobile Adjustments group headers.** `Adjustments / Mobile` (113:4324) had a
+   flat list of eight metal-and-source rows while desktop (119:4547) had been
+   rebuilt into per-metal groups each carrying the Active source Select. Added
+   four group headers (129:5025 Gold, 129:5035 Silver, 129:5045 Platinum,
+   129:5055 Palladium): metal name 14 SemiBold on its own line, then an
+   "Active source" eyebrow hugging beside a Select filling the rest of the row
+   (one fills, one hugs — never both fixed). Active sources match desktop:
+   Gold nFusion, Silver nFusion, Platinum Kitco, Palladium nFusion.
+   Each row's primary dropped from "Gold · nFusion" to the bare source name,
+   since the group header now names the metal. Card 851 -> 1219 tall.
+   - *Trap hit:* a freshly created Select instance shows its "Unit" Label slot,
+     which the desktop instance hides by override. Hid the Label node on all
+     four. Detector note: after `main.createInstance()`, diff the new instance's
+     visible children against the donor instance's, not against the main.
+
+2. **Mobile Sources stripped to a pure feed list.** `Spot Source Row / Mobile`
+   (30:3404) lost the adjustment figure and the Adjust button; Line 1 is now
+   source name + enabled Switch (130:6013, same Switch the desktop row uses),
+   Meta is status · last tick · metals. `Spot Sources / Mobile` (30:3429) lost
+   the Global adjustment row and its hairline. Three rows: nFusion Live on,
+   Kitco Standby on, LBMA Off off. Card 455 -> 314 tall. This completes on
+   mobile the ruling already applied to desktop.
+
+3. **Placed instances.** All three mobile screens (1:600, 1:624, 28:3265) picked
+   both changes up with no stale overrides — verified by reading every Source,
+   Meta, Metal, Value text and every Switch prop out of the placed instances.
+
+4. **Reflow.** Growing the Adjustments card pushed `Components · Spots` into the
+   page note and the Draft section. Re-flowed all four nested sections, restacked
+   the parent (1648x11414) and moved it so its bottom sits at y=-400.
+   - *Pre-existing bug caught by the new sibling-overlap check:* the superseded
+     `Adjustments` (104:4266) sat at exactly the same 48,48 as its v2 (119:4547)
+     — perfectly stacked, invisible. Fifth detector added: **section sibling
+     overlap** (pairwise AABB over a section's direct children), alongside
+     collapsed text overrides, stacked variants, clipped text, containment.
+
+Verification: all 8 Spots screens — 0 clipped text, 0 nodes past the frame edge;
+all 4 sections — 0 overlaps, 0 out of bounds; page — 0 collisions.
+Held still, pending Jacob: Q11 per-purity premium, Q12 Bullion buy column.
+
+### Same cycle — detector sweep over the Rates page, and one detector corrected
+
+Rates page (9 screens, 7 component sets, 17 variants): 0 clipped text, 0 nodes
+past a frame edge, 0 sibling overlaps in `Components · Rates`, 0 out of bounds,
+0 overlapping variants in any set. Page-level: 0 collisions.
+
+**The collapsed-text-override detector was wrong and is replaced.** The old
+version keyed an override "slot" on the last segment of a nested node id
+(`I1:561;608:9;609:3` -> `609:3`). Two sibling instances of the same component —
+four Amount instances in a card, five tabs in a header — legitimately share that
+tail, so it reported 836 collapsed slots on Spots and 576 on Rates, all false.
+The real identity is the whole chain, which is unique by construction, so the
+id can never detect this bug at all.
+
+Replaced with a **sentinel probe**, which is definitive: instantiate the
+component off-canvas, write a unique sentinel into every TEXT in order, read
+them all back, and flag any that does not hold its own sentinel — a shared slot
+shows up as an earlier text carrying a later text's value. Delete the probes in
+the same call. Result: 41 Spots components / 608 text slots and 17 Rates
+components / 478 text slots, **0 collapsed overrides**, 0 strays left behind.
+This is the check that would have caught both the "Adjustment on" dialog and
+the Spot Metal Panel Bid-label bug on the pass that created them.
+
+Standing detectors for this file are now: sentinel text-override probe; stacked
+variants; clipped text; section containment; section sibling overlap.
+
+### Same cycle — cross-screen fact sweep found two real bugs
+
+Read the Sources and Adjustments cards out of all eight Spots screens and
+compared them. All eight agreed with each other, which is what the sweep was
+checking — but agreeing on a contradiction is still a contradiction.
+
+**1. Sources contradicted Adjustments.** Sources said nFusion serves
+"Gold · Silver · Palladium" and Kitco serves "Platinum", while the Adjustments
+card carries eight metal-and-source pairs including Platinum·nFusion,
+Gold·Kitco, Silver·Kitco and Palladium·Kitco. A feed that does not serve a
+metal cannot have an adjustment against that metal, so five of the eight rows
+asserted something Sources denied. I had half-fixed this in the audit pass
+(making Platinum consistent) and left the rest.
+
+Resolved by separating the two facts that had been conflated in one column:
+*what a feed serves* (both nFusion and Kitco serve all four; LBMA is off and
+serves none) now lives in the Metals column, and *which feed is authoritative
+for a metal* lives only in the Adjustments group header's Active source Select.
+Kitco stays Standby — a standby feed is still polled, still ticks, and can
+still be the chosen source for one metal; that is not a contradiction.
+Desktop lists the four metals, mobile reads "all four metals" to fit 326.
+Four text writes covered it: both row mains and the two desktop card rows;
+every placed instance inherited, no stale overrides anywhere.
+
+**2. The three enabled Switches were colliding.** The desktop Sources body had
+`itemSpacing = 0` with 20px rows, which reads fine for text baselines but makes
+three 20px pills abut into one blob at the right edge. Only visible in a render
+— no detector would have flagged it, since nothing clips or overflows. Set the
+body gap to 8, matching the Adjustments card. Card 156 -> 180.
+
+Scanned every component on both pages for the same shape — a zero-gap vertical
+stack of two or more instance rows each carrying a pill adornment. **No other
+card has it.** That scan is worth keeping as a sixth detector: *zero-gap row
+stacks with pill adornments*.
+
+Re-verified after: 4 sections 0 overlaps / 0 out of bounds, parent 1648x11438,
+0 page collisions, 8 screens 0 clipped / 0 overflow.
+
+### Same cycle — render review of the live desktop screen
+
+Rendered 1:556 in full, on the principle the Switch collision established: some
+bugs only a render shows. Found one.
+
+**The Active source Select sat inside the numeric columns.** The group header
+row was SPACE_BETWEEN across the full 1344, so the Select landed at x 1124-1344
+— on top of the Ask adjust column (1008-1188) and the Action column
+(1204-1344). Scanning the Ask adjust column top to bottom you hit a header, a
+Select, two percentages, a Select, two more, and so on. The numbers were fine;
+the column was not.
+
+Fixed by packing the group header left (MIN, gap 16) so the metal name and its
+Select both live inside the Source column (0-560), leaving Scope, Bid adjust,
+Ask adjust and Action clean from header to last row. Then gave the metal label
+a fixed 100 width so all four Selects start at the same x (199) instead of
+ragging with the name length — Gold 135, Silver 143, Platinum 168, Palladium
+175 before.
+
+Verified all five desktop screens inherited: 4 Selects each, all at x 215,
+values nFusion / nFusion / Kitco / nFusion. Sections reflowed, parent 1648x11438,
+0 collisions, 8 screens 0 clipped / 0 overflow.
+
+Note for the next pass: the mobile group header already stacks label over
+Select, so it never had this problem — the desktop table was the only place
+where a control could drift into a numeric column.
+
+### Same cycle — render review of the Rates page found an arithmetic contradiction
+
+Rendered 6:2429. Two defects, both invisible to every structural detector.
+
+**1. The scrap Pay columns ignored the Premium column beside them.** Solving
+backwards: every Gold row's Pay/ozt equalled spot x purity x 0.908 — one flat
+factor — while the Premium column read 88, 90, 91, 92, 92. Four of five rows
+contradicted the number sitting two columns to their left. Silver was worse:
+Pay/ozt equalled spot x purity with no premium applied at all, on all five rows.
+The Pay/g to Pay/ozt relationship was right throughout (/31.1035); only the
+premium was dropped.
+
+Recomputed all ten rows as `bid x purity x premium`, using the Spots page bid
+(Gold 2411.20, Silver 28.94) so the two pages agree on spot:
+
+| | purity | premium | Pay / g | Pay / ozt |
+|---|---|---|---|---|
+| 10K | 41.7% | 88 | $28.45 | $884.81 |
+| 14K | 58.5% | 90 | $40.82 | $1,269.50 |
+| 18K | 75.0% | 91 | $52.91 | $1,645.64 |
+| 22K | 91.7% | 92 | $65.40 | $2,034.18 |
+| 24K | 99.9% | 92 | $71.25 | $2,216.09 |
+| .999 fine | 99.9% | 80 | $0.74 | $23.13 |
+| Sterling .925 | 92.5% | 78 | $0.67 | $20.88 |
+| Coin .900 | 90.0% | 77 | $0.64 | $20.06 |
+| .958 Britannia | 95.8% | 79 | $0.70 | $21.90 |
+| Scrap mixed | 80.0% | 74 | $0.55 | $17.13 |
+
+**2. Desktop and mobile disagreed on Gold's weight tiers.** Desktop read
+90/98, 90/98, 90/98 — three identical rows, which makes the tier concept
+pointless — while mobile read 88/96, 90/98, 92/99. Took mobile's as the truth
+(a flat tier table is almost certainly the degenerate copy) and wrote it to
+desktop. Silver's tiers already agreed on both.
+
+*Trap:* the desktop purity and tier rows are component instances, but the
+**mobile** card's rows are plain frames inside the card component, so the first
+pass (keyed on instances) silently skipped all four mobile screens and left
+desktop and mobile disagreeing — the exact bug I had just fixed, re-created by
+the fix. Caught it by diffing desktop against mobile row by row rather than
+trusting the write count. 138 writes desktop, then 55 more mobile.
+
+Verified: every purity row and tier row now carries identical values on all
+eight screens that show them. The one deliberate difference is 6:2451 and
+6:2518, the error-on-save screens, where 14K reads 190% with "Must be between
+50 and 150." and the Pay figures hold the last good value — correct, since an
+invalid input should not produce a priced preview.
+
+**Left alone, and flagged instead:** the Bullion card prices from its own spot
+(Gold ~2415.80, Silver ~29.51 against the Spots page's 2411.20 and 28.94). It
+is internally consistent, the drift is ~0.2%, and ruling Q12 may delete the buy
+column entirely, so changing it now may be wasted. One row does not reconcile
+under any reading: 90% junk silver at $1 face, buy 96%, $21.23 — that implies
+0.749 ozt of silver per dollar face, where the standard content is 0.715.
+Asked rather than guessed.
+
+### Same cycle — render review of Spot Locks found the confirm fix was half done
+
+Rendered the Lock Row set. The four variants laid out correctly, but **there was
+no status column at all**. Reading the structure confirmed it: the row was
+Order | Metal | Locked spot | Locked | Action, and the word "Finalized" lived
+*inside the Action frame*. So:
+
+- Unlocked and Locked rows never showed their status anywhere.
+- "Finalized" was drawn as an action, which is exactly the conflation the
+  ruling called out ("the three words are the lock's status, the confirm
+  escalation is an interaction state of the row's action, not a status").
+
+I had added the Action axis and believed the job done because the axis was
+right. It was the other half of the same ruling that was missing, and only the
+render showed it.
+
+Fixed on both sets:
+- **Desktop** gained a real Status column (120, after Metal) reading Unlocked /
+  Locked / Locked / Finalized across the four variants — unchanged between
+  Rest and Confirming, which is the point. "Finalized" removed from the Action
+  frame; Unlocked and Finalized rows now carry no action at all. Both Spot Locks
+  head rows gained the matching Status label (Order shrank 520 -> 384).
+- **Mobile** carries the status as the first word of its meta line:
+  "Locked · Sep 10, 11:14 by Dana", "Finalized · Sep 9, 16:41 by Jacob". The
+  duplicated trailing "Finalized" chip is gone, and the Unlocked variant's
+  empty Action frame became a Meta line reading "Unlocked".
+- **Unlocked rows**: a lock that does not exist has no locked spot and no
+  locked-at time, so both read a bare em-dash now (desktop) and the mobile
+  trailing figure likewise — Jacob's never-applies rule.
+
+*Trap, again the same one:* the four placed rows in the mobile Spot Locks card
+carried per-instance text overrides, so the main's new wording reached only the
+rows that had no override. Two **Finalized** rows were left reading "Locked
+Sep 9..." — a status word contradicting the row's own variant. Fixed per row
+and verified each against its State property rather than eyeballing the render.
+
+Verified: 8 rows in the desktop card report a Status matching their State; 4
+mobile rows likewise. Sections reflowed, Spot Locks 1552x3164, parent
+1648x11218, 0 overlaps, 0 collisions.
+
+Noted but not changed: PO-2478's locked silver spot ($28.94 / $29.06) happens
+to equal today's live figure, which reads oddly for a Sep 10 lock. It is not
+wrong — a snapshot may coincide — so I left it rather than churn.
+
+### Same cycle — a sixth detector, and the market-closed screens contradicted themselves
+
+**New detector: text contradicting its own variant.** The override trap has now
+bitten three times (the "Adjustment on" labels, the Sources rows, the Finalized
+lock rows), always the same shape — an instance set to one variant value while
+its text still says another. Now checkable: for every instance whose main
+belongs to a component set, read the set's axis vocabulary from its variant
+names, then flag any text containing a *different* value of an axis the
+instance has, when it does not also contain its own value.
+
+Ran over both pages: 178 instances with variant axes, **2 hits, both false
+positives** — the Adjustment dialog at Expiry=Custom carries a Switch labelled
+"Expire at market open", which is correct (a control is labelled with what it
+would do, not with the state it is in). Worth remembering as the known
+false-positive class. No real contradictions remain, which also confirms the
+lock row fix landed.
+
+**Then the render of 1:588 showed the market-closed screens claiming a live
+feed.** The dialog said "Gold · market closed", while behind it the page
+eyebrow read "Live from the feed · last tick 14s ago", all four cards read
+"Live · tick 14s ago", and Sources showed ticks 14 and 9 seconds old. The whole
+background was the live screen untouched — the same defect class as the stale
+screen in the audit, which I had fixed without checking its sibling.
+
+Fixed on both market-closed screens (1:588 desktop, 1:624 mobile), 14 writes:
+eyebrow and all four card footers now read "Market closed · Fri 17:00 ET", and
+the Sources last-tick column reads "Fri 17:00 ET". Friday 17:00 because the
+dialog already says the market reopens Mon Jun 22 at 8:30 ET.
+
+Deliberately *not* invented: a fourth source status. A feed's connection can be
+live while the market is closed — it simply has no new tick — so nFusion stays
+Live and Kitco stays Standby, and the closure is carried by the last-tick
+figure. Adding a "Closed" status would have been a new word in Jacob's
+vocabulary without his say-so.
+
+Verified: 0 texts on either screen still claim a live feed or a seconds-ago
+tick; 0 clipped, 0 overflow.
+
+### Same cycle — the feed-stale screen told two stories, and one false alarm
+
+Swept every screen's state wording against its own name. Eight of nine Rates
+screens and six of eight Spots screens were consistent. One was not.
+
+**1:566 "Spots, feed stale" claimed both a whole-feed outage and a single stale
+metal.** The eyebrow said "Feed stale · last tick 6 min ago" and the banner
+"Feed stale · 6 min", implying everything was down; but only the Platinum card
+read Stale, the other three read "Live · tick 14s ago", and the Sources card
+had nFusion at 14s and Kitco at 9s — nothing stale anywhere in it.
+
+Resolved to the single-metal story, which the cards already told and which the
+model now supports: Platinum's active source is Kitco, so a stale Kitco affects
+Platinum alone. Eyebrow and banner now name Platinum, the banner body reads
+"Kitco last ticked 14:02. Orders still price Platinum from the last good tick.",
+and Kitco's last tick in Sources reads 6 min ago. Four writes. Every surface on
+the screen now agrees, and the three live metals are live because their source
+nFusion is.
+
+**The false alarm, worth recording.** Rendering the notice node *on its own*
+showed "Retry now" as near-invisible dark-on-pink, which looked like a real
+contrast bug. It is not: the notice fill is `status/destructive-soft` at 16%
+alpha, so exporting the node alone composites it over white instead of over the
+dark page. In context it is a dark red band with a white label that reads
+fine. Had I "fixed" it, I would have put dark text on a dark band on the real
+screen.
+
+**Rule: a node with a translucent fill must be judged in a full-screen render,
+never an isolated one.** An isolated export of any node whose background is
+alpha-composited is not what the viewer sees.
+
+Still open, asked rather than guessed: on 1:577 Gold's change figure reads
+$18.40 (0.76%) beside an *adjusted* bid of $2,406.38 — 0.76% is the move
+against the unadjusted $2,411.20. Whether "change today" describes the feed or
+the adjusted price is a modelling question, not a drawing one.
+
+*Note to self: the reply 1959497798 said "fourteen of the seventeen were consistent"; the sweep actually found sixteen of seventeen consistent and one not. Understated my own coverage — fold a one-line correction into the next reply rather than posting a standalone one.*
+
+### Same cycle — a seventh detector: every count checked against the rows beneath it
+
+Rendering the error-on-save screen turned up a Silver card subtitled
+"4 purities · 3 tiers" above five purity rows. That generalises, so I wrote the
+check rather than fixing the one instance: for every card with a numeric claim
+— a subtitle count or a badge — count the rows the card actually draws and
+compare.
+
+**Rates (16 cards checked, 4 wrong):** the Silver card on all four desktop
+screens said 4 purities and drew 5. Mobile already said 5. Corrected on
+6:2429, 6:2440, 6:2451 and 6:2462.
+
+**Spots (24 badges checked, 3 wrong):** the mobile Lock log badge said
+"5 events" over 4 rows, while desktop drew 5. The missing event was PO-2466,
+"Gold · unlocked by Dana, Sep 8 09:10" — and it is the only *unlock* in the
+log, so mobile was silently hiding the one event that shows the log is not
+just a list of locks. Added to 113:4496 and verified on all three mobile
+screens.
+
+The detector also learned something useful about which badges count what:
+"3 sources" and "5 events" count rows, while "5 adjustments" counts rows that
+carry figures (9 rows drawn, 5 with an actual adjustment — the dash rows are
+pairs with no adjustment standing). Both are legitimate, so the check accepts
+either reading and only fires when a claim matches neither.
+
+Standing detectors are now seven: sentinel text-override probe; stacked
+variants; clipped text; section containment; section sibling overlap; zero-gap
+row stacks with pill adornments; text contradicting its own variant; counts
+contradicting the rows beneath them.
+
+Re-verified after: 4 sections 0 overlaps / 0 out of bounds, parent 1648x11303,
+0 page collisions, all 17 screens 0 clipped / 0 overflow.
+
+### Same cycle — the logs audited against the state they claim to explain
+
+Having found the mobile Lock log short a row, I checked the other log the same
+way and then checked both against the state they describe.
+
+**Locked spots were placeholders on two of four rows.** PO-2478's silver lock
+read $28.94 / $29.06 and PO-2470's platinum lock read $978.30 / $981.10 —
+*exactly* today's live figures, on locks dated Sep 10 and Sep 8. One would be
+coincidence; two is data copied off the spot cards. Replaced with plausible
+history: silver $28.71 / $28.83 (below today), platinum $991.40 / $994.20
+(above today, which also agrees with Platinum's Down badge). Desktop and
+mobile both. Check added: no lock row may carry the current live figure for
+its metal — now 0.
+
+**The mobile Adjustment log was also a row short** — missing "Gold · Kitco ·
+bid back 0.10%", exactly the Lock log defect repeated. Its badge is "Last 30
+days" rather than a count, so the count detector could not see it; desktop-vs-
+mobile row diffing is what caught it. Added.
+
+**The desktop log was out of date order.** Sep 11, Sep 11, Sep 9, Sep 7, Sep 8
+— newest-first until the last two, which were swapped. Both logs now sort
+strictly newest-first.
+
+**Two entries recorded only half of what they did.** "Palladium · nFusion ·
+bid back 0.25%" and "Gold · Kitco · bid back 0.10%" each sit above a standing
+adjustment that moves *both* legs (−0.25/+0.25 and −0.10/+0.10). A log that
+records the bid and silently omits the ask misstates what the operator did.
+Both now name both legs.
+
+**Cross-check of log against standing state, all five entries:** Gold·nFusion
+−0.20/+0.20 matches its entry; Platinum active = Kitco matches Jacob's entry;
+Silver·nFusion has no standing adjustment, matching "adjustment cleared";
+Palladium·nFusion and Gold·Kitco match their now-complete entries. One standing
+adjustment has no entry — Silver·Kitco −0.05/+0.05 — which is consistent with
+a 30-day window if it was set earlier. Left alone, noted for Jacob.
+
+Full battery after: 4 sections 0 overlaps / 0 out of bounds, parent
+1648x11388, 0 collisions, 14 component sets 0 variant overlaps, 17 screens
+0 clipped / 0 overflow.
+
+### Reporting cadence changed
+
+Nine consecutive bot replies now sit on the audit thread with no response, and
+the timestamps say it is past 02:30 for Jacob. Posting a comment every five
+minutes builds a wall he has to read backwards. From here the work and the log
+continue at the same rate, but Figma comments are batched: I post when
+something needs his decision, or one consolidated note when he next appears.
+Nothing is withheld, only grouped.
+
+### Same cycle — eighth detector: desktop and mobile must assert the same facts
+
+The missing mobile log rows were found by diffing mobile against desktop by
+hand, twice. Generalised it: for each paired card, extract the distinctive
+tokens from all its text — order ids, source names, metals, timestamps, signed
+percentages, money, status words — and diff the two sets. Anything present on
+one side and absent on the other is either a deliberate abbreviation or a lost
+fact, and the check forces that question to be answered.
+
+Five pairs. Four identical. One real gap and one deliberate difference:
+
+**Lost fact (fixed):** the mobile Spot Locks card showed only the bid leg of
+each lock ($2,402.10) where desktop showed both ($2,402.10 / $2,403.60). A
+lock locks both sides, so mobile was dropping half of what the row is *for*.
+Measured first — the widest row needs 248 of 326 with both legs — then applied
+to all four rows and the three non-empty variant defaults. 0 clipped.
+
+**Deliberate (kept, with a warning):** mobile Sources says "all four metals"
+where desktop lists Gold · Silver · Platinum · Palladium. Correct today, and
+right for the width. But it is only correct *while* both feeds serve all four:
+the day Kitco serves two, that string silently becomes a lie, because it is a
+summary rather than the data. Recorded as a latent trap, not a bug.
+
+*Also learned:* the first run of this check reported the Lock log as differing
+on "Locked"/"Unlocked", which was my regex being case-sensitive against
+desktop's "Gold · locked by Dana" and mobile's "Locked by Dana". A detector
+that reports a phrasing difference as a missing fact wastes a cycle; it folds
+case now.
+
+After: 5 pairs, 4 identical, 1 differing by the documented abbreviation.
+
+### Same cycle — the rate history contradicted the rates it claims to have produced
+
+A history entry is a claim with a checkable consequence: "X went from a% to b%"
+means the card must now read b%. Checked all six entries against the cards.
+
+Four agreed — the three Gold tier changes land on 88, 90 and 92, which is what
+the Gold card now reads. **Two did not:**
+
+- "Silver · 0–100 ozt · bullion 112% → 118%" — the card reads 108. 118 is the
+  *500+* tier's value, so the entry had borrowed a figure from another row.
+- "Silver · 0–100 ozt · scrap 78% → 80%" — the card reads 78. 80 is the
+  *100–500* tier's value, the same borrowing one column over.
+
+Rewritten so each entry lands where the card actually is: bullion 104% → 108%,
+scrap 76% → 78%. Applied to both screens and the Rate History component itself
+(8 writes). Re-check: 10 entries verified against a drawn card, 0 mismatches,
+2 skipped because they describe Platinum, which has no card on this view.
+
+**Then the dates.** The Silver card said "updated Sep 11" while the newest
+Silver change in the history is Sep 4 — Sep 11 is Gold's date. Derived each
+metal's updated date from the history rather than assuming: Gold Sep 11,
+Silver Sep 4, Platinum Aug 28. Silver corrected on all eight screens that draw
+it. The page eyebrow "updated Sep 11 by Dana" is right, since it names the
+newest change overall, which is Gold's by Dana.
+
+Worth noting what this class of bug looks like: every wrong figure was a real
+figure from a neighbouring row or column. Nothing was invented — values were
+*borrowed*, which is why they all look plausible in isolation and only fail
+when checked against the thing they refer to.
+
+Rates after: 9 screens 0 clipped / 0 overflow, Components · Rates 0 overlaps.
+
+### Same cycle — the Adjustment dialog never said what it was adjusting
+
+Rendered all four variants and read every placed instance. Two problems, and
+they were mirror images of each other.
+
+**Neither form named the pair.** The component defaults read "nFusion · live
+bid $2,411.20 · ask $2,412.80" — the source, no metal. The two market-closed
+instances read "Gold · market closed · last bid $2,411.20 · ask $2,412.80" —
+the metal, no source. An adjustment is always a (metal, source) pair; that is
+the whole model the Adjustments card is built on. So the one dialog where you
+commit the adjustment was the only surface that never stated which pair it
+applied to, and it omitted a *different half* depending on where you opened it.
+
+All four variants and all four instances now lead with "Gold · nFusion · ".
+
+**Desktop and mobile carried different prose.** The Reason field read "Widen
+the spread while the feed is jumpy" on desktop and "Feed is jumpy today" on
+mobile — two different example reasons for the same dialog. Aligning them on
+the desktop wording clipped the mobile input, so both now read "Feed is jumpy,
+widen the spread", which fits at 338 and says the same thing on both.
+
+*Caught by the clipped-text detector on the first attempt*, which is the first
+time one of these checks has stopped a change of mine before it shipped rather
+than finding an old bug. Worth the note: the detectors earn their keep going
+forwards, not only backwards.
+
+Checked while there: the calendar is internally sound — Jun 18 2026 sits under
+Thursday and is the selected custom date, Jun 22 is a Monday, which is what
+"Mon Jun 22, 8:30 AM ET · when the market opens" claims on the market-open
+variant.
+
+After: 4 dialog screens and the component set, 0 clipped.
