@@ -467,3 +467,53 @@ Detail in `docs/waves/auth-passwordless.md`.
   name or the purity label: not settlement matching, not lineage, not search.
   Screens that show the derived name must show the lot number beside it.
 
+
+- **Spot sources with adjustments (Jacob, 2026-10-07/08, Pricing file).**
+  Jacob's model: "adjustments are per metal per source, active source spot per
+  metal". Spots need more than one source; each (metal, source) pair carries
+  its own bid and ask adjustment from the source figure; each metal has one
+  active source whose adjusted spot drives bid/ask/change. There is no global
+  adjustment in this model. Today `spots` carries one `source` column and one
+  override. Needs: a sources table (name, enabled, last tick), a
+  (metal, source) adjustments table, an active-source-per-metal fact, and the
+  pricing resolver reading the active source's adjusted spot. Adjustment unit
+  (dollars or percent) still open with Jacob. Design drawn at Pricing 97:4943.
+
+- **Lead sources (Figma People thread, 2026-10-07).** The Lead screen's Source
+  is a select, not free text. Proposed values: Sell form · Trade referral
+  (a fellow business hands over a customer it cannot serve) · Customer
+  referral · Self-created · Walk-in. `leads.leads.source` exists; the values
+  should be rows in a lookup table, not a TypeScript constant (ruling 116),
+  and each one implies a different first contact. Waiting on Jacob's list.
+
+- **Leads API gaps from the People designs (2026-10-07).** Detail in
+  `docs/design/people-comments-2026-10-07.md`, drawn-versus-exists. Headlines:
+  Source becomes a lookup and splits from contact preference (one free-text
+  `contact` column does both today); the lead estimate needs a per-item table
+  and a total the list reads; leads need a human-readable number (header
+  shows LEAD-4471, only a uuid exists; one shared sequence per ruling 125);
+  timeline rows name the acting employee and add estimate/note kinds;
+  documents and uploads against a lead (media keys on orders today); four
+  funnel metrics are new aggregates.
+
+- **Lead reads omit created_by_id / updated_by_id (leads-api lane,
+  2026-10-09).** `Lead`/`LeadView` declare both and `db/leads/repo.ts` omits
+  them via `ACTOR_IDS`; the omission is registered in `validate:wire` rather
+  than widened. `db/reviews/repo.ts` does the same. Decide whether the actor
+  ids belong on the wire (admin reads: yes) and widen both repos together.
+- **`exchange.leads.contact` holds an employee name on all 251 production
+  rows**, not a contact preference. The later drop wave routes it to
+  `assigned_to_id`, never to `contact_preference_id`. `source` is 100% NULL
+  on production (migration 208 added it and nothing wrote it).
+- **Lookup read endpoints** for `leads.estimate_kinds`, `weight_units`,
+  `sources`, `contact_preferences` and `metals.purity_labels` do not exist;
+  they ship with the screens that need them (ruling 99), as `@dorado/client`
+  modules.
+- **Two weight-unit vocabularies**: `inventory.lots.unit` (`'t oz'` spelling,
+  three domains) and `leads.weight_units` (`troy_oz`). Unify in one wave.
+
+- **Design-to-API audits (2026-10-09).** `docs/design/api-gaps-orders.md`,
+  `api-gaps-people.md`, `api-gaps-pricing.md`. Lanes: `leads-api` (merged),
+  `pricing-resolver` (running), `crm-facts` and `orders-reads` (queued,
+  specs in `docs/waves/`). Rulings waiting on Jacob are the §3 tables; each
+  file worker has posted them as one Figma comment on its main screen.

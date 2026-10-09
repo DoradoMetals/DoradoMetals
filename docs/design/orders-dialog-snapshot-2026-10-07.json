@@ -1,0 +1,70 @@
+{
+  "file": "ymmNlCDLVIfanpRQ7QHMIs",
+  "captured": "2026-10-07",
+  "purpose": "Pre-swap snapshot before rebuilding our dialogs on the library Dialog 41:55 body slot.",
+  "dialogs": [
+    {
+      "id": "710:49333",
+      "name": "Match settlement lines / Desktop",
+      "size": "760x637",
+      "title": "Match settlement lines",
+      "helper": "Elemetal PDF · confirm each",
+      "footer": ["Cancel", "Apply matches"],
+      "body_sections": [
+        "MATCHED (3 lines)",
+        "UNMATCHED (1)",
+        "NOT ON INVOICE (1)",
+        "EXTRA ON INVOICE (1)"
+      ]
+    },
+    {
+      "id": "710:49442",
+      "name": "Match settlement lines / Mobile",
+      "size": "358x829",
+      "title": "Match settlement lines",
+      "helper": "Elemetal PDF · confirm each",
+      "footer": ["Cancel", "Apply matches"],
+      "body_sections": [
+        "MATCHED (3 lines)",
+        "UNMATCHED (1)",
+        "NOT ON INVOICE (1)",
+        "EXTRA ON INVOICE (1)"
+      ]
+    },
+    {
+      "id": "729:17287",
+      "name": "Adopt refiner assay / Desktop",
+      "size": "880x415",
+      "title": "Adopt refiner assay",
+      "helper": "From RS-2493 · Elemetal",
+      "footer": ["Cancel", "Adopt"],
+      "body_sections": [
+        "FROM ITS OWN LINE (2 lots)",
+        "FROM A SHARED LINE (1 lot, subtitle 31% of ELM-88433)"
+      ]
+    },
+    {
+      "id": "729:17450",
+      "name": "Adopt refiner assay / Mobile",
+      "size": "358x695",
+      "title": "Adopt refiner assay",
+      "helper": "From RS-2493 · Elemetal",
+      "footer": ["Cancel", "Adopt"],
+      "body_sections": ["FROM ITS OWN LINE (2 lots)", "FROM A SHARED LINE (1 lot)"]
+    }
+  ],
+  "library_dialog": {
+    "key": "b5556ba180d0c8f4aebd7e12b046199a2564d8c6",
+    "set": "41:55",
+    "probe": "resizes to 880; child order Header | Body text | Body slot | Footer; footer labels overridable",
+    "props": [
+      "Title",
+      "Body",
+      "Show close",
+      "Body content (INSTANCE_SWAP)",
+      "Show body slot",
+      "Show body text",
+      "Size"
+    ]
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "file": "ymmNlCDLVIfanpRQ7QHMIs",
+  "captured": "2026-10-07",
+  "purpose": "Pre-swap snapshot of the 8 Page Header 656:15023 instances before replacing them with the library Admin Header 730:8 (ruling 124, Jacob go-ahead on thread 1957574897).",
+  "target_component": {
+    "name": "Admin Header",
+    "key": "75e3f5a3312c5851c39dca60175870b1ef86ae6e",
+    "id": "730:8",
+    "size": "1376x254"
+  },
+  "count": 8,
+  "rows": [
+    {
+      "id": "671:26932",
+      "page": "Inventory",
+      "crumb": ["Admin", "Inventory"],
+      "current": "Gold",
+      "title": "Inventory",
+      "chips": ["All", "Gold", "Silver", "Platinum"],
+      "desc": "23 lots on hand · 3 metals · 193.0 oz pooled",
+      "search": "Search lots, orders, customers…"
+    },
+    {
+      "id": "671:26985",
+      "page": "Inventory",
+      "crumb": ["Admin", "Inventory"],
+      "current": "Gold",
+      "title": "Inventory",
+      "chips": ["All", "Gold", "Silver", "Platinum"],
+      "desc": "23 lots on hand · 3 metals · 193.0 oz pooled",
+      "search": "Search lots, orders, customers…"
+    },
+    {
+      "id": "671:27038",
+      "page": "Inventory",
+      "crumb": ["Admin", "Inventory"],
+      "current": "Gold",
+      "title": "Inventory",
+      "chips": ["All", "Gold", "Silver", "Platinum"],
+      "desc": "0 lots on hand · 193.0 oz pooled",
+      "search": "Search lots, orders, customers…"
+    },
+    {
+      "id": "671:22206",
+      "page": "Pool",
+      "crumb": ["Admin", "Pool"],
+      "current": "All",
+      "title": "Pool",
+      "chips": ["All", "Gold", "Silver", "Platinum"],
+      "desc": "193.0 oz at 2 refiners · $412,300 est.",
+      "search": "Search refiners, orders…"
+    },
+    {
+      "id": "671:23788",
+      "page": "Pool",
+      "crumb": ["Admin", "Pool"],
+      "current": "All",
+      "title": "Pool",
+      "chips": ["All", "Gold", "Silver", "Platinum"],
+      "desc": "Nothing pooled",
+      "search": "Search refiners, orders…"
+    },
+    {
+      "id": "671:26526",
+      "page": "Pool",
+      "crumb": ["Admin", "Pool"],
+      "current": "Elemetal",
+      "title": "Elemetal",
+      "chips": ["All", "Gold", "Silver", "Platinum"],
+      "desc": "112.4 oz · 3 metals · $241,800 est.",
+      "search": "Search entries, orders…"
+    },
+    {
+      "id": "671:28863",
+      "page": "Pool",
+      "crumb": ["Admin", "Pool"],
+      "current": "Elemetal",
+      "title": "Elemetal",
+      "chips": ["All", "Gold", "Silver", "Platinum"],
+      "desc": "112.4 oz · 3 metals · $241,800 est.",
+      "search": "Search entries, orders…"
+    },
+    {
+      "id": "673:35317",
+      "page": "Pool",
+      "crumb": ["Admin", "Pool"],
+      "current": "Elemetal",
+      "title": "Elemetal",
+      "chips": ["All", "Gold", "Silver", "Platinum"],
+      "desc": "112.4 oz · 3 metals · $241,800 est.",
+      "search": "Search entries, orders…"
+    }
+  ]
+}

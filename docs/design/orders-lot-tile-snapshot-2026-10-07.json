@@ -1,0 +1,747 @@
+{
+  "file": "ymmNlCDLVIfanpRQ7QHMIs",
+  "component_set": "618:4497",
+  "captured": "2026-10-07",
+  "note": "Values REGENERATED after the originals were lost. Jacob approved made-up values on thread 1957425225. Destination tiles use the Destination part with Leading=Destination; weight and qty tiles put the leading token in the Name part because the library Leading axis does not suppress the first separator for Weight or Qty.",
+  "count": 123,
+  "rows": [
+    {
+      "id": "I620:5300;618:4525",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "139.2 g · 56.3%"
+    },
+    {
+      "id": "I620:5300;618:4533",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "60.9 g · 73.0%"
+    },
+    {
+      "id": "I620:5300;618:4541",
+      "variant": "State=Assigned",
+      "shape": "destination",
+      "rendered": "on RS-2493"
+    },
+    {
+      "id": "I620:5300;618:4549",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "92.4 g · 41.7%"
+    },
+    {
+      "id": "I620:5372;618:4595",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "640.0 g · 92.5%"
+    },
+    {
+      "id": "I620:5372;618:4603",
+      "variant": "State=Unassigned",
+      "shape": "qty",
+      "rendered": "Qty 3 · 91.67%"
+    },
+    {
+      "id": "I620:5372;618:4611",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "44.1 g · 75.0%"
+    },
+    {
+      "id": "I620:5455;618:4595",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "120.7 g · 95.0%"
+    },
+    {
+      "id": "I620:5455;618:4603",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "9.8 g · 99.95%"
+    },
+    {
+      "id": "I620:5455;618:4611",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "88.0 g · 33.0%"
+    },
+    {
+      "id": "I620:5455;618:4619",
+      "variant": "State=Unassigned",
+      "shape": "qty",
+      "rendered": "Qty 3 · 99.9%"
+    },
+    {
+      "id": "I620:5531;618:4525",
+      "variant": "State=Assigned",
+      "shape": "destination",
+      "rendered": "on RS-2488"
+    },
+    {
+      "id": "I620:5531;618:4533",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "12.4 g · 87.5%"
+    },
+    {
+      "id": "I620:5612;618:4525",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "210.5 g · 41.7%"
+    },
+    {
+      "id": "I620:5612;618:4533",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "316.9 g · 56.3%"
+    },
+    {
+      "id": "I620:5612;618:4541",
+      "variant": "State=Assigned",
+      "shape": "destination",
+      "rendered": "on SO-1112"
+    },
+    {
+      "id": "I620:5685;618:4525",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "1,198.6 g · 73.0%"
+    },
+    {
+      "id": "I620:5947;618:4662",
+      "variant": "State=Unassigned",
+      "shape": "qty",
+      "rendered": "Qty 3 · 99.95%"
+    },
+    {
+      "id": "I620:5947;618:4670",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "74.6 g · 92.5%"
+    },
+    {
+      "id": "I620:5947;618:4678",
+      "variant": "State=Assigned",
+      "shape": "destination",
+      "rendered": "on RS-2501"
+    },
+    {
+      "id": "I620:5947;618:4686",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "158.3 g · 58.3%"
+    },
+    {
+      "id": "I620:6020;618:4662",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "263.1 g · 75.0%"
+    },
+    {
+      "id": "I620:6020;618:4670",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "139.2 g · 95.0%"
+    },
+    {
+      "id": "I620:6093;618:4662",
+      "variant": "State=Unassigned",
+      "shape": "qty",
+      "rendered": "Qty 3 · 99.99%"
+    },
+    {
+      "id": "I634:12217;618:4525",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "92.4 g · 33.0%"
+    },
+    {
+      "id": "I634:12217;618:4533",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "640.0 g · 61.0%"
+    },
+    {
+      "id": "I634:12217;618:4541",
+      "variant": "State=Assigned",
+      "shape": "destination",
+      "rendered": "on SO-1118"
+    },
+    {
+      "id": "I634:12217;618:4549",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "31.2 g · 87.5%"
+    },
+    {
+      "id": "I634:12218;618:4525",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "44.1 g · 41.7%"
+    },
+    {
+      "id": "I634:12218;618:4533",
+      "variant": "State=Unassigned",
+      "shape": "qty",
+      "rendered": "Qty 3 · 91.67%"
+    },
+    {
+      "id": "I634:12218;618:4541",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "9.8 g · 73.0%"
+    },
+    {
+      "id": "I634:12219;618:4525",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "88.0 g · 41.7%"
+    },
+    {
+      "id": "I634:12219;618:4533",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "22.0 g · 92.5%"
+    },
+    {
+      "id": "I634:12219;618:4541",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "12.4 g · 58.3%"
+    },
+    {
+      "id": "I634:12219;618:4549",
+      "variant": "State=Unassigned",
+      "shape": "qty",
+      "rendered": "Qty 3 · 99.9%"
+    },
+    {
+      "id": "I634:12220;618:4525",
+      "variant": "State=Assigned",
+      "shape": "destination",
+      "rendered": "on RS-2493"
+    },
+    {
+      "id": "I634:12220;618:4533",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "316.9 g · 95.0%"
+    },
+    {
+      "id": "I634:13095;618:4525",
+      "variant": "State=Assigned",
+      "shape": "destination",
+      "rendered": "on RS-2488"
+    },
+    {
+      "id": "I634:13095;618:4533",
+      "variant": "State=Assigned",
+      "shape": "destination",
+      "rendered": "on SO-1112"
+    },
+    {
+      "id": "I634:13095;618:4541",
+      "variant": "State=Assigned",
+      "shape": "destination",
+      "rendered": "on RS-2501"
+    },
+    {
+      "id": "I634:13095;618:4549",
+      "variant": "State=Assigned",
+      "shape": "destination",
+      "rendered": "on SO-1118"
+    },
+    {
+      "id": "I634:13096;618:4525",
+      "variant": "State=Assigned",
+      "shape": "destination",
+      "rendered": "on RS-2493"
+    },
+    {
+      "id": "I634:13096;618:4533",
+      "variant": "State=Assigned",
+      "shape": "destination",
+      "rendered": "on RS-2488"
+    },
+    {
+      "id": "I634:13096;618:4541",
+      "variant": "State=Assigned",
+      "shape": "destination",
+      "rendered": "on SO-1112"
+    },
+    {
+      "id": "I634:13097;618:4525",
+      "variant": "State=Assigned",
+      "shape": "destination",
+      "rendered": "on RS-2501"
+    },
+    {
+      "id": "I634:13097;618:4533",
+      "variant": "State=Assigned",
+      "shape": "destination",
+      "rendered": "on SO-1118"
+    },
+    {
+      "id": "I634:13097;618:4541",
+      "variant": "State=Assigned",
+      "shape": "destination",
+      "rendered": "on RS-2493"
+    },
+    {
+      "id": "I634:13097;618:4549",
+      "variant": "State=Assigned",
+      "shape": "destination",
+      "rendered": "on RS-2488"
+    },
+    {
+      "id": "I634:13098;618:4525",
+      "variant": "State=Assigned",
+      "shape": "destination",
+      "rendered": "on SO-1112"
+    },
+    {
+      "id": "I634:13098;618:4533",
+      "variant": "State=Assigned",
+      "shape": "destination",
+      "rendered": "on RS-2501"
+    },
+    {
+      "id": "I917:13214;671:28743",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "1,198.6 g · 99.95%"
+    },
+    {
+      "id": "I917:13214;671:28744",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "41.2 g · 33.0%"
+    },
+    {
+      "id": "I917:13214;671:28745",
+      "variant": "State=Assigned",
+      "shape": "destination",
+      "rendered": "on SO-1118"
+    },
+    {
+      "id": "I917:13214;671:28746",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "74.6 g · 61.0%"
+    },
+    {
+      "id": "I917:13214;671:28747",
+      "variant": "State=Unassigned",
+      "shape": "qty",
+      "rendered": "Qty 3 · 99.95%"
+    },
+    {
+      "id": "I917:13318;671:28743",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "263.1 g · 41.7%"
+    },
+    {
+      "id": "I917:13318;671:28744",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "139.2 g · 56.3%"
+    },
+    {
+      "id": "I917:13318;671:28745",
+      "variant": "State=Assigned",
+      "shape": "destination",
+      "rendered": "on RS-2493"
+    },
+    {
+      "id": "I917:13318;671:28746",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "60.9 g · 73.0%"
+    },
+    {
+      "id": "I917:13318;671:28747",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "92.4 g · 41.7%"
+    },
+    {
+      "id": "I917:13381;671:28743",
+      "variant": "State=Unassigned",
+      "shape": "qty",
+      "rendered": "Qty 3 · 99.99%"
+    },
+    {
+      "id": "I917:13381;671:28744",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "31.2 g · 58.3%"
+    },
+    {
+      "id": "I917:13381;671:28745",
+      "variant": "State=Assigned",
+      "shape": "destination",
+      "rendered": "on RS-2488"
+    },
+    {
+      "id": "I917:13381;671:28746",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "44.1 g · 75.0%"
+    },
+    {
+      "id": "I917:13381;671:28747",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "120.7 g · 95.0%"
+    },
+    {
+      "id": "I917:13444;671:28743",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "9.8 g · 99.95%"
+    },
+    {
+      "id": "I917:13444;671:28744",
+      "variant": "State=Unassigned",
+      "shape": "qty",
+      "rendered": "Qty 3 · 91.67%"
+    },
+    {
+      "id": "I917:13444;671:28745",
+      "variant": "State=Assigned",
+      "shape": "destination",
+      "rendered": "on SO-1112"
+    },
+    {
+      "id": "I917:13444;671:28746",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "22.0 g · 61.0%"
+    },
+    {
+      "id": "I917:13444;671:28747",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "12.4 g · 87.5%"
+    },
+    {
+      "id": "I673:20388;671:28459",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "210.5 g · 41.7%"
+    },
+    {
+      "id": "I673:20388;671:28460",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "316.9 g · 56.3%"
+    },
+    {
+      "id": "I673:20388;671:28461",
+      "variant": "State=Assigned",
+      "shape": "destination",
+      "rendered": "on RS-2501"
+    },
+    {
+      "id": "I673:20389;671:28483",
+      "variant": "State=Unassigned",
+      "shape": "qty",
+      "rendered": "Qty 3 · 99.9%"
+    },
+    {
+      "id": "I673:20389;671:28484",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "41.2 g · 41.7%"
+    },
+    {
+      "id": "I673:20389;671:28485",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "74.6 g · 92.5%"
+    },
+    {
+      "id": "I673:20390;671:28483",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "158.3 g · 58.3%"
+    },
+    {
+      "id": "I673:20390;671:28484",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "263.1 g · 75.0%"
+    },
+    {
+      "id": "I673:20390;671:28485",
+      "variant": "State=Unassigned",
+      "shape": "qty",
+      "rendered": "Qty 3 · 99.95%"
+    },
+    {
+      "id": "I673:20391;671:28459",
+      "variant": "State=Assigned",
+      "shape": "destination",
+      "rendered": "on SO-1118"
+    },
+    {
+      "id": "I673:20391;671:28460",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "60.9 g · 99.95%"
+    },
+    {
+      "id": "I673:20392;671:28459",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "92.4 g · 33.0%"
+    },
+    {
+      "id": "I673:20392;671:28460",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "640.0 g · 61.0%"
+    },
+    {
+      "id": "I673:20392;671:28461",
+      "variant": "State=Assigned",
+      "shape": "destination",
+      "rendered": "on RS-2493"
+    },
+    {
+      "id": "I673:20393;671:28459",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "31.2 g · 87.5%"
+    },
+    {
+      "id": "618:4525",
+      "variant": "State=Unassigned",
+      "shape": "qty",
+      "rendered": "Qty 3 · 99.99%"
+    },
+    {
+      "id": "618:4533",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "120.7 g · 56.3%"
+    },
+    {
+      "id": "618:4541",
+      "variant": "State=Assigned",
+      "shape": "destination",
+      "rendered": "on RS-2488"
+    },
+    {
+      "id": "618:4549",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "9.8 g · 73.0%"
+    },
+    {
+      "id": "618:4595",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "88.0 g · 41.7%"
+    },
+    {
+      "id": "618:4603",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "22.0 g · 92.5%"
+    },
+    {
+      "id": "618:4611",
+      "variant": "State=Assigned",
+      "shape": "destination",
+      "rendered": "on SO-1112"
+    },
+    {
+      "id": "618:4619",
+      "variant": "State=Unassigned",
+      "shape": "qty",
+      "rendered": "Qty 3 · 91.67%"
+    },
+    {
+      "id": "618:4662",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "210.5 g · 75.0%"
+    },
+    {
+      "id": "618:4670",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "316.9 g · 95.0%"
+    },
+    {
+      "id": "618:4678",
+      "variant": "State=Assigned",
+      "shape": "destination",
+      "rendered": "on RS-2501"
+    },
+    {
+      "id": "618:4686",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "1,198.6 g · 99.95%"
+    },
+    {
+      "id": "618:4731",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "41.2 g · 33.0%"
+    },
+    {
+      "id": "618:4739",
+      "variant": "State=Unassigned",
+      "shape": "qty",
+      "rendered": "Qty 3 · 99.9%"
+    },
+    {
+      "id": "618:4747",
+      "variant": "State=Assigned",
+      "shape": "destination",
+      "rendered": "on SO-1118"
+    },
+    {
+      "id": "618:4755",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "158.3 g · 87.5%"
+    },
+    {
+      "id": "671:28459",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "263.1 g · 41.7%"
+    },
+    {
+      "id": "671:28460",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "139.2 g · 56.3%"
+    },
+    {
+      "id": "671:28461",
+      "variant": "State=Assigned",
+      "shape": "destination",
+      "rendered": "on RS-2493"
+    },
+    {
+      "id": "671:28483",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "60.9 g · 73.0%"
+    },
+    {
+      "id": "671:28484",
+      "variant": "State=Unassigned",
+      "shape": "qty",
+      "rendered": "Qty 3 · 99.95%"
+    },
+    {
+      "id": "671:28485",
+      "variant": "State=Assigned",
+      "shape": "destination",
+      "rendered": "on RS-2488"
+    },
+    {
+      "id": "671:28507",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "640.0 g · 92.5%"
+    },
+    {
+      "id": "671:28508",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "31.2 g · 58.3%"
+    },
+    {
+      "id": "671:28509",
+      "variant": "State=Assigned",
+      "shape": "destination",
+      "rendered": "on SO-1112"
+    },
+    {
+      "id": "671:28531",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "44.1 g · 75.0%"
+    },
+    {
+      "id": "671:28532",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "120.7 g · 95.0%"
+    },
+    {
+      "id": "671:28533",
+      "variant": "State=Assigned",
+      "shape": "destination",
+      "rendered": "on RS-2501"
+    },
+    {
+      "id": "671:28743",
+      "variant": "State=Unassigned",
+      "shape": "qty",
+      "rendered": "Qty 3 · 99.99%"
+    },
+    {
+      "id": "671:28744",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "88.0 g · 33.0%"
+    },
+    {
+      "id": "671:28745",
+      "variant": "State=Assigned",
+      "shape": "destination",
+      "rendered": "on SO-1118"
+    },
+    {
+      "id": "671:28746",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "22.0 g · 61.0%"
+    },
+    {
+      "id": "671:28747",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "12.4 g · 87.5%"
+    },
+    {
+      "id": "671:28766",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "210.5 g · 41.7%"
+    },
+    {
+      "id": "671:28767",
+      "variant": "State=Unassigned",
+      "shape": "qty",
+      "rendered": "Qty 3 · 91.67%"
+    },
+    {
+      "id": "671:28768",
+      "variant": "State=Assigned",
+      "shape": "destination",
+      "rendered": "on RS-2493"
+    },
+    {
+      "id": "671:28769",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "1,198.6 g · 73.0%"
+    },
+    {
+      "id": "671:28770",
+      "variant": "State=Unassigned",
+      "shape": "weight",
+      "rendered": "41.2 g · 41.7%"
+    }
+  ]
+}

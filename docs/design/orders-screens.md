@@ -35,7 +35,7 @@ tertiary button and nothing else (§1.1). Variance against the customer's declar
 screen (Lineage and the Refiner card), not here.
 
 What the API still needs underneath is unchanged and still missing
-(`docs/design/statuses.md` §2/Q3): a **`received_at` on the inbound
+(`docs/design/statuses.md` §2/Q3): a **`received_at (settled: ruling 117, `fulfillments.arrivals`, migrations 184/185 — arrival is the inbound fulfillment's done state)` on the inbound
 fulfillment**, because without it `on hand` is underivable and the `on_assay`
 payout policy has nothing to gate on. That is an API fact with no screen of
 its own.

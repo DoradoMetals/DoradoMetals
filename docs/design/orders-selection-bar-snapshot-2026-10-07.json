@@ -1,0 +1,100 @@
+{
+  "file": "ymmNlCDLVIfanpRQ7QHMIs",
+  "captured": "2026-10-07",
+  "purpose": "Pre-migration snapshot of all selection bars before moving onto the library Selection Bar 871:2335.",
+  "target": {
+    "set": "871:2335",
+    "key": "4f42484e026c31e718ef59579cbbcc7fe22a3a7f",
+    "variants": {
+      "Desktop": "160c2e1eb7857e9cb05baac0b7d0d681f4306ed5",
+      "Mobile": "063e5e3aa919b4fe29a9a2a8af7b70060e78e004"
+    },
+    "props": ["Show dismiss", "Show totals", "Actions (INSTANCE_SWAP)", "Layout"]
+  },
+  "note": "Action shapes differ: Orders = Select + Batch; Inventory = Combine + Assign to sale + Select + Batch; one Inventory bar has no actions, only a note.",
+  "count": 8,
+  "rows": [
+    {
+      "id": "620:5758",
+      "main": "619:4700",
+      "page": "Orders",
+      "summary": "2 orders selected · 10 lots",
+      "detail": "$15,532.70 est. · 6.18 oz fine gold · 0.31 oz fine platinum · 33.6 oz fine silver",
+      "select_label": "Batch into",
+      "select_value": "Elemetal · Dallas",
+      "button": "Batch"
+    },
+    {
+      "id": "620:6163",
+      "main": "619:4700",
+      "page": "Orders",
+      "summary": "Nothing selected",
+      "detail": "Select an order to source its bullion from a refinery",
+      "select_label": "Source from",
+      "select_value": "New purchase from Elemetal · Dallas",
+      "button": "Batch"
+    },
+    {
+      "id": "635:13849",
+      "main": "619:4700",
+      "page": "Orders",
+      "summary": "Nothing selected",
+      "detail": "Select orders to batch their lots into a refiner draft",
+      "select_label": "Batch into",
+      "select_value": "Elemetal · Dallas",
+      "button": "Batch"
+    },
+    {
+      "id": "673:20394",
+      "main": "619:4700",
+      "page": "Orders",
+      "summary": "2 orders selected · 10 lots",
+      "detail": "$15,532.70 est. · 6.18 oz fine gold · 0.31 oz fine platinum · 33.6 oz fine silver",
+      "select_label": "Send to",
+      "select_value": "Elemetal · Dallas",
+      "button": "Batch"
+    },
+    {
+      "id": "671:26981",
+      "main": "641:14984",
+      "page": "Inventory",
+      "summary": "3 lots · all on hand",
+      "detail": "$15,307 est. · 7.52 oz Au",
+      "buttons": ["Combine", "Assign to sale"],
+      "select_label": "Batch into new draft",
+      "select_value": "Elemetal · Dallas",
+      "button": "Batch"
+    },
+    {
+      "id": "671:27034",
+      "main": "641:14984",
+      "page": "Inventory",
+      "summary": "3 lots · 3 positions",
+      "detail": "$16,007 est. · 7.86 oz Au",
+      "note": "Only on-hand lots can be batched",
+      "actions": null
+    },
+    {
+      "id": "645:13746",
+      "main": "641:14984",
+      "page": "Inventory",
+      "summary": "4 lots · all on hand · 1 order",
+      "detail": "$15,096 est. · 7.44 oz Au",
+      "buttons": ["Combine", "Assign to sale"],
+      "select_label": "Batch into new draft",
+      "select_value": "Elemetal · Dallas",
+      "button": "Batch"
+    },
+    {
+      "id": "917:13507",
+      "main": "(hand-built frame)",
+      "page": "Orders",
+      "summary": "2 orders selected · 10 lots",
+      "detail": "$15,532.70 est. · 6.18 oz fine gold · 0.31 oz fine platinum",
+      "select_label": "Send to",
+      "select_value": "Elemetal · Dallas",
+      "button": "Batch",
+      "note": "mobile, stacked full width"
+    }
+  ]
+}
