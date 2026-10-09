@@ -74,7 +74,7 @@ SELECT to_jsonb(o)
             JOIN inventory.lots li ON li.id = ol.lot_id
             LEFT JOIN products.bullion b ON b.id = li.bullion_id
             LEFT JOIN orders.spots os ON os.order_id = ol.order_id AND os.metal_id = li.metal_id
-            LEFT JOIN spots.spots sp ON sp.metal_id = li.metal_id
+            LEFT JOIN spots.resolved sp ON sp.metal_id = li.metal_id
             CROSS JOIN LATERAL (
               SELECT CASE WHEN li.content IS NULL OR li.premium IS NULL THEN NULL
                           ELSE li.content * li.premium

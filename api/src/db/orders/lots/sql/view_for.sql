@@ -6,7 +6,7 @@
 -- PRICE IS DERIVED, NEVER STORED (ruling 120): content x premium x spot, where
 -- spot is the order's own frozen orders.spots row for that metal - bid for a
 -- purchase, ask for a sale - once the order's spots are locked, and the live
--- spots.spots feed until then. This mirrors db/pricing/sql/order_pricing.sql
+-- adjusted spots.resolved figure until then. This mirrors db/pricing/sql/order_pricing.sql
 -- exactly, so a read here and a priced quote never disagree. A scrap lot's
 -- `settled` and its refiner order number reach the refiner lot through the
 -- `batch` edge in inventory.lot_sources, because `refining.lots` is itself
@@ -48,7 +48,7 @@ SELECT to_jsonb(ol)
   JOIN orders.orders o ON o.id = ol.order_id
   LEFT JOIN products.bullion b ON b.id = li.bullion_id
   LEFT JOIN orders.spots os ON os.order_id = ol.order_id AND os.metal_id = li.metal_id
-  LEFT JOIN spots.spots sp ON sp.metal_id = li.metal_id
+  LEFT JOIN spots.resolved sp ON sp.metal_id = li.metal_id
   CROSS JOIN LATERAL (
     SELECT CASE WHEN li.content IS NULL OR li.premium IS NULL THEN NULL
                 ELSE li.content * li.premium

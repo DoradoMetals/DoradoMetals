@@ -60,7 +60,7 @@ refiner_spot AS (
           AND p.metal_id = li.metal_id
           AND p.entry = 'lock'
           AND p.occurred_at <= COALESCE(ro.settled_at, now())
-    LEFT JOIN spots.spots s ON s.metal_id = li.metal_id
+    LEFT JOIN spots.resolved s ON s.metal_id = li.metal_id
    ORDER BY li.metal_id, a.settled_spot DESC NULLS LAST, p.occurred_at DESC NULLS LAST, p.id DESC
 ),
 -- A line's declared content: scrap is weighed once, a product is per-unit.

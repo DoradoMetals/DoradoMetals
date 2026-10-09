@@ -363,6 +363,22 @@ CREATE SEQUENCE IF NOT EXISTS refining.order_number_seq AS bigint;
 -- function in its expression, and CREATE TABLE resolves it there and
 -- then. inventory.lots.content calls metals.fine_content.
 
+CREATE OR REPLACE FUNCTION spots.actor_now()
+ RETURNS uuid
+ LANGUAGE plpgsql
+ STABLE
+AS $function$
+DECLARE
+  raw text := nullif(current_setting('app.actor_id', true), '');
+  found uuid;
+BEGIN
+  IF raw ~ '^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$' THEN
+    SELECT u.id INTO found FROM auth.users u WHERE u.id = raw::uuid;
+  END IF;
+  RETURN found;
+END;
+$function$;
+
 CREATE OR REPLACE FUNCTION inventory.assay_stamp()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -419,6 +435,84 @@ BEGIN
 END;
 $function$;
 
+CREATE OR REPLACE FUNCTION spots.log_active_source()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+  metal  text;
+  before text;
+  after  text;
+  actor  uuid;
+  who    text;
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    metal  := OLD.metal_id;
+    before := OLD.source_id;
+    after  := NULL;
+    actor  := spots.actor_now();
+    SELECT u.name INTO who FROM auth.users u WHERE u.id = actor;
+  ELSE
+    metal  := NEW.metal_id;
+    before := CASE WHEN TG_OP = 'INSERT' THEN NULL ELSE OLD.source_id END;
+    after  := NEW.source_id;
+    actor  := NEW.updated_by_id;
+    who    := NEW.updated_by;
+  END IF;
+
+  IF before IS DISTINCT FROM after THEN
+    INSERT INTO spots.adjustment_history
+           (metal_id, source_id, field, old_value, new_value, actor_id, actor_name)
+    VALUES (metal, NULL, 'active_source', before, after, actor, who);
+  END IF;
+
+  RETURN NULL;
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION spots.log_adjustment()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+  cols      text[] := ARRAY['bid_amount', 'ask_amount', 'unit', 'reason',
+                            'expires_at', 'expires_at_market_open', 'enabled'];
+  before    jsonb;
+  after     jsonb;
+  metal     text;
+  source    text;
+  actor     uuid;
+  who       text;
+  col       text;
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    before := to_jsonb(OLD);
+    after  := '{}'::jsonb;
+    metal  := OLD.metal_id;
+    source := OLD.source_id;
+    actor  := spots.actor_now();
+    SELECT u.name INTO who FROM auth.users u WHERE u.id = actor;
+  ELSE
+    before := CASE WHEN TG_OP = 'INSERT' THEN '{}'::jsonb ELSE to_jsonb(OLD) END;
+    after  := to_jsonb(NEW);
+    metal  := NEW.metal_id;
+    source := NEW.source_id;
+    actor  := NEW.updated_by_id;
+    who    := NEW.updated_by;
+  END IF;
+
+  FOREACH col IN ARRAY cols LOOP
+    IF before -> col IS DISTINCT FROM after -> col THEN
+      INSERT INTO spots.adjustment_history
+             (metal_id, source_id, field, old_value, new_value, actor_id, actor_name)
+      VALUES (metal, source, col, before ->> col, after ->> col, actor, who);
+    END IF;
+  END LOOP;
+
+  RETURN NULL;
+END;
+$function$;
+
 CREATE OR REPLACE FUNCTION rates.log_change()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -436,6 +530,30 @@ BEGIN
     END IF;
   END LOOP;
   RETURN NEW;
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION spots.next_market_open(after timestamp with time zone)
+ RETURNS timestamp with time zone
+ LANGUAGE plpgsql
+ STABLE
+AS $function$
+DECLARE
+  instant timestamp with time zone;
+BEGIN
+  SELECT min(o.at) INTO instant
+    FROM (
+      SELECT ((d.day + ms.opens_at) AT TIME ZONE ms.tz) AS at
+        FROM generate_series((after AT TIME ZONE 'UTC')::date - 1,
+                             (after AT TIME ZONE 'UTC')::date + 21,
+                             interval '1 day') AS g(day)
+        CROSS JOIN LATERAL (SELECT g.day::date AS day) d
+        JOIN spots.market_sessions ms
+          ON ms.weekday = EXTRACT(DOW FROM d.day)::smallint
+       WHERE NOT EXISTS (SELECT 1 FROM spots.market_holidays h WHERE h.observed_on = d.day)
+    ) o
+   WHERE o.at > after;
+  RETURN instant;
 END;
 $function$;
 
@@ -688,6 +806,27 @@ ALTER TABLE checkout.lots ADD COLUMN IF NOT EXISTS updated_at timestamp with tim
 ALTER TABLE checkout.lots ADD COLUMN IF NOT EXISTS created_by_id uuid;
 ALTER TABLE checkout.lots ADD COLUMN IF NOT EXISTS updated_by_id uuid;
 
+CREATE TABLE IF NOT EXISTS crm.assignments (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  user_id uuid,
+  lead_id uuid,
+  assigned_to_id uuid,
+  assigned_at timestamp with time zone DEFAULT now() NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  created_by_id uuid,
+  updated_by_id uuid
+);
+ALTER TABLE crm.assignments ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE crm.assignments ADD COLUMN IF NOT EXISTS user_id uuid;
+ALTER TABLE crm.assignments ADD COLUMN IF NOT EXISTS lead_id uuid;
+ALTER TABLE crm.assignments ADD COLUMN IF NOT EXISTS assigned_to_id uuid;
+ALTER TABLE crm.assignments ADD COLUMN IF NOT EXISTS assigned_at timestamp with time zone DEFAULT now();
+ALTER TABLE crm.assignments ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE crm.assignments ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE crm.assignments ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE crm.assignments ADD COLUMN IF NOT EXISTS updated_by_id uuid;
+
 CREATE TABLE IF NOT EXISTS crm.calls (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
   provider text DEFAULT 'twilio'::text NOT NULL,
@@ -726,6 +865,67 @@ ALTER TABLE crm.calls ADD COLUMN IF NOT EXISTS updated_at timestamp with time zo
 ALTER TABLE crm.calls ADD COLUMN IF NOT EXISTS created_by_id uuid;
 ALTER TABLE crm.calls ADD COLUMN IF NOT EXISTS updated_by_id uuid;
 ALTER TABLE crm.calls ADD COLUMN IF NOT EXISTS read_at timestamp with time zone;
+
+CREATE TABLE IF NOT EXISTS crm.notes (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  user_id uuid,
+  lead_id uuid,
+  body text NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  created_by_id uuid,
+  updated_by_id uuid
+);
+ALTER TABLE crm.notes ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE crm.notes ADD COLUMN IF NOT EXISTS user_id uuid;
+ALTER TABLE crm.notes ADD COLUMN IF NOT EXISTS lead_id uuid;
+ALTER TABLE crm.notes ADD COLUMN IF NOT EXISTS body text;
+ALTER TABLE crm.notes ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE crm.notes ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE crm.notes ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE crm.notes ADD COLUMN IF NOT EXISTS updated_by_id uuid;
+
+CREATE TABLE IF NOT EXISTS crm.sms_consent_events (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  user_id uuid,
+  lead_id uuid,
+  kind_id uuid NOT NULL,
+  method text,
+  at timestamp with time zone DEFAULT now() NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  created_by_id uuid,
+  updated_by_id uuid
+);
+ALTER TABLE crm.sms_consent_events ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE crm.sms_consent_events ADD COLUMN IF NOT EXISTS user_id uuid;
+ALTER TABLE crm.sms_consent_events ADD COLUMN IF NOT EXISTS lead_id uuid;
+ALTER TABLE crm.sms_consent_events ADD COLUMN IF NOT EXISTS kind_id uuid;
+ALTER TABLE crm.sms_consent_events ADD COLUMN IF NOT EXISTS method text;
+ALTER TABLE crm.sms_consent_events ADD COLUMN IF NOT EXISTS at timestamp with time zone DEFAULT now();
+ALTER TABLE crm.sms_consent_events ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE crm.sms_consent_events ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE crm.sms_consent_events ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE crm.sms_consent_events ADD COLUMN IF NOT EXISTS updated_by_id uuid;
+
+CREATE TABLE IF NOT EXISTS crm.sms_consent_kinds (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  key text NOT NULL,
+  label text NOT NULL,
+  sort_order integer NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  created_by_id uuid,
+  updated_by_id uuid
+);
+ALTER TABLE crm.sms_consent_kinds ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE crm.sms_consent_kinds ADD COLUMN IF NOT EXISTS key text;
+ALTER TABLE crm.sms_consent_kinds ADD COLUMN IF NOT EXISTS label text;
+ALTER TABLE crm.sms_consent_kinds ADD COLUMN IF NOT EXISTS sort_order integer;
+ALTER TABLE crm.sms_consent_kinds ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE crm.sms_consent_kinds ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE crm.sms_consent_kinds ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE crm.sms_consent_kinds ADD COLUMN IF NOT EXISTS updated_by_id uuid;
 
 CREATE TABLE IF NOT EXISTS crm.sms_messages (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -991,7 +1191,8 @@ END) STORED,
   confirmed_at timestamp with time zone,
   settled_at timestamp with time zone,
   settled_spot numeric,
-  source inventory.lot_source
+  source inventory.lot_source,
+  line_reference text
 );
 ALTER TABLE inventory.lots ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE inventory.lots ADD COLUMN IF NOT EXISTS bullion_id uuid;
@@ -1025,6 +1226,7 @@ ALTER TABLE inventory.lots ADD COLUMN IF NOT EXISTS confirmed_at timestamp with 
 ALTER TABLE inventory.lots ADD COLUMN IF NOT EXISTS settled_at timestamp with time zone;
 ALTER TABLE inventory.lots ADD COLUMN IF NOT EXISTS settled_spot numeric;
 ALTER TABLE inventory.lots ADD COLUMN IF NOT EXISTS source inventory.lot_source;
+ALTER TABLE inventory.lots ADD COLUMN IF NOT EXISTS line_reference text;
 
 CREATE TABLE IF NOT EXISTS inventory.pool (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -1163,7 +1365,10 @@ CREATE TABLE IF NOT EXISTS leads.leads (
   sms_consent_method text,
   source_id uuid,
   contact_preference_id uuid,
-  number text DEFAULT ('LEAD-'::text || nextval('leads.number_seq'::regclass)) NOT NULL
+  number text DEFAULT ('LEAD-'::text || nextval('leads.number_seq'::regclass)) NOT NULL,
+  contacted_at timestamp with time zone,
+  responded_at timestamp with time zone,
+  converted_at timestamp with time zone
 );
 ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS name text;
@@ -1189,6 +1394,9 @@ ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS sms_consent_method text;
 ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS source_id uuid;
 ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS contact_preference_id uuid;
 ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS number text DEFAULT ('LEAD-'::text || nextval('leads.number_seq'::regclass));
+ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS contacted_at timestamp with time zone;
+ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS responded_at timestamp with time zone;
+ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS converted_at timestamp with time zone;
 
 CREATE TABLE IF NOT EXISTS leads.sources (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -1298,7 +1506,9 @@ CREATE TABLE IF NOT EXISTS media.pdfs (
   size_bytes bigint,
   checksum text,
   created_at timestamp with time zone DEFAULT now() NOT NULL,
-  refining_order_id uuid
+  refining_order_id uuid,
+  created_by_id uuid,
+  updated_by_id uuid
 );
 ALTER TABLE media.pdfs ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE media.pdfs ADD COLUMN IF NOT EXISTS kind media.pdf_kind;
@@ -1308,11 +1518,15 @@ ALTER TABLE media.pdfs ADD COLUMN IF NOT EXISTS size_bytes bigint;
 ALTER TABLE media.pdfs ADD COLUMN IF NOT EXISTS checksum text;
 ALTER TABLE media.pdfs ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
 ALTER TABLE media.pdfs ADD COLUMN IF NOT EXISTS refining_order_id uuid;
+ALTER TABLE media.pdfs ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE media.pdfs ADD COLUMN IF NOT EXISTS updated_by_id uuid;
 
 CREATE TABLE IF NOT EXISTS metals.metals (
-  id text NOT NULL
+  id text NOT NULL,
+  sort_order integer DEFAULT 999 NOT NULL
 );
 ALTER TABLE metals.metals ADD COLUMN IF NOT EXISTS id text;
+ALTER TABLE metals.metals ADD COLUMN IF NOT EXISTS sort_order integer DEFAULT 999;
 
 CREATE TABLE IF NOT EXISTS metals.purity_labels (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -1347,6 +1561,29 @@ ALTER TABLE orders.addresses ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random
 ALTER TABLE orders.addresses ADD COLUMN IF NOT EXISTS address_id uuid;
 ALTER TABLE orders.addresses ADD COLUMN IF NOT EXISTS order_id uuid;
 ALTER TABLE orders.addresses ADD COLUMN IF NOT EXISTS source_address_id uuid;
+
+CREATE TABLE IF NOT EXISTS orders.list_sorts (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  key text NOT NULL,
+  label text NOT NULL,
+  sort_field text NOT NULL,
+  descending boolean NOT NULL,
+  sort_order integer NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  created_by_id uuid,
+  updated_by_id uuid
+);
+ALTER TABLE orders.list_sorts ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE orders.list_sorts ADD COLUMN IF NOT EXISTS key text;
+ALTER TABLE orders.list_sorts ADD COLUMN IF NOT EXISTS label text;
+ALTER TABLE orders.list_sorts ADD COLUMN IF NOT EXISTS sort_field text;
+ALTER TABLE orders.list_sorts ADD COLUMN IF NOT EXISTS descending boolean;
+ALTER TABLE orders.list_sorts ADD COLUMN IF NOT EXISTS sort_order integer;
+ALTER TABLE orders.list_sorts ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE orders.list_sorts ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE orders.list_sorts ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE orders.list_sorts ADD COLUMN IF NOT EXISTS updated_by_id uuid;
 
 CREATE TABLE IF NOT EXISTS orders.lots (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -1401,6 +1638,33 @@ ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS tracking_updated boolean;
 ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS spots_locked boolean DEFAULT false;
 ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS assigned_to_id uuid;
 ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS cancelled_at timestamp with time zone;
+
+CREATE TABLE IF NOT EXISTS orders.spot_locks (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  order_id uuid NOT NULL,
+  metal_id text NOT NULL,
+  action text NOT NULL,
+  bid numeric,
+  ask numeric,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  created_by text DEFAULT ''::text NOT NULL,
+  updated_by text DEFAULT ''::text NOT NULL,
+  created_by_id uuid,
+  updated_by_id uuid
+);
+ALTER TABLE orders.spot_locks ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE orders.spot_locks ADD COLUMN IF NOT EXISTS order_id uuid;
+ALTER TABLE orders.spot_locks ADD COLUMN IF NOT EXISTS metal_id text;
+ALTER TABLE orders.spot_locks ADD COLUMN IF NOT EXISTS action text;
+ALTER TABLE orders.spot_locks ADD COLUMN IF NOT EXISTS bid numeric;
+ALTER TABLE orders.spot_locks ADD COLUMN IF NOT EXISTS ask numeric;
+ALTER TABLE orders.spot_locks ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE orders.spot_locks ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE orders.spot_locks ADD COLUMN IF NOT EXISTS created_by text DEFAULT ''::text;
+ALTER TABLE orders.spot_locks ADD COLUMN IF NOT EXISTS updated_by text DEFAULT ''::text;
+ALTER TABLE orders.spot_locks ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE orders.spot_locks ADD COLUMN IF NOT EXISTS updated_by_id uuid;
 
 CREATE TABLE IF NOT EXISTS orders.spots (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -1719,7 +1983,9 @@ CREATE TABLE IF NOT EXISTS payments.ledger (
   amount numeric NOT NULL,
   occurred_at timestamp with time zone DEFAULT now() NOT NULL,
   created_at timestamp with time zone DEFAULT now() NOT NULL,
-  updated_at timestamp with time zone DEFAULT now() NOT NULL
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  created_by_id uuid,
+  updated_by_id uuid
 );
 ALTER TABLE payments.ledger ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE payments.ledger ADD COLUMN IF NOT EXISTS user_id uuid;
@@ -1729,6 +1995,8 @@ ALTER TABLE payments.ledger ADD COLUMN IF NOT EXISTS amount numeric;
 ALTER TABLE payments.ledger ADD COLUMN IF NOT EXISTS occurred_at timestamp with time zone DEFAULT now();
 ALTER TABLE payments.ledger ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
 ALTER TABLE payments.ledger ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE payments.ledger ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE payments.ledger ADD COLUMN IF NOT EXISTS updated_by_id uuid;
 
 CREATE TABLE IF NOT EXISTS payments.methods (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -2219,6 +2487,27 @@ ALTER TABLE refiners.spots ADD COLUMN IF NOT EXISTS created_at timestamp with ti
 ALTER TABLE refiners.spots ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone;
 ALTER TABLE refiners.spots ADD COLUMN IF NOT EXISTS refiner_order_id uuid;
 
+CREATE TABLE IF NOT EXISTS refining.documents (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  kind media.pdf_kind NOT NULL,
+  name text NOT NULL,
+  renderable boolean DEFAULT false NOT NULL,
+  sort_order integer NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  created_by_id uuid,
+  updated_by_id uuid
+);
+ALTER TABLE refining.documents ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE refining.documents ADD COLUMN IF NOT EXISTS kind media.pdf_kind;
+ALTER TABLE refining.documents ADD COLUMN IF NOT EXISTS name text;
+ALTER TABLE refining.documents ADD COLUMN IF NOT EXISTS renderable boolean DEFAULT false;
+ALTER TABLE refining.documents ADD COLUMN IF NOT EXISTS sort_order integer;
+ALTER TABLE refining.documents ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE refining.documents ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE refining.documents ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE refining.documents ADD COLUMN IF NOT EXISTS updated_by_id uuid;
+
 CREATE TABLE IF NOT EXISTS refining.lots (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
   refining_order_id uuid NOT NULL,
@@ -2486,6 +2775,97 @@ ALTER TABLE shipping.tracking ADD COLUMN IF NOT EXISTS status text;
 ALTER TABLE shipping.tracking ADD COLUMN IF NOT EXISTS location text;
 ALTER TABLE shipping.tracking ADD COLUMN IF NOT EXISTS time timestamp with time zone;
 
+CREATE TABLE IF NOT EXISTS spots.active_sources (
+  metal_id text NOT NULL,
+  source_id text NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  created_by text DEFAULT ''::text NOT NULL,
+  updated_by text DEFAULT ''::text NOT NULL,
+  created_by_id uuid,
+  updated_by_id uuid
+);
+ALTER TABLE spots.active_sources ADD COLUMN IF NOT EXISTS metal_id text;
+ALTER TABLE spots.active_sources ADD COLUMN IF NOT EXISTS source_id text;
+ALTER TABLE spots.active_sources ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE spots.active_sources ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE spots.active_sources ADD COLUMN IF NOT EXISTS created_by text DEFAULT ''::text;
+ALTER TABLE spots.active_sources ADD COLUMN IF NOT EXISTS updated_by text DEFAULT ''::text;
+ALTER TABLE spots.active_sources ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE spots.active_sources ADD COLUMN IF NOT EXISTS updated_by_id uuid;
+
+CREATE TABLE IF NOT EXISTS spots.adjustment_history (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  metal_id text NOT NULL,
+  source_id text,
+  field text NOT NULL,
+  old_value text,
+  new_value text,
+  actor_id uuid,
+  actor_name text,
+  changed_at timestamp with time zone DEFAULT now() NOT NULL
+);
+ALTER TABLE spots.adjustment_history ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE spots.adjustment_history ADD COLUMN IF NOT EXISTS metal_id text;
+ALTER TABLE spots.adjustment_history ADD COLUMN IF NOT EXISTS source_id text;
+ALTER TABLE spots.adjustment_history ADD COLUMN IF NOT EXISTS field text;
+ALTER TABLE spots.adjustment_history ADD COLUMN IF NOT EXISTS old_value text;
+ALTER TABLE spots.adjustment_history ADD COLUMN IF NOT EXISTS new_value text;
+ALTER TABLE spots.adjustment_history ADD COLUMN IF NOT EXISTS actor_id uuid;
+ALTER TABLE spots.adjustment_history ADD COLUMN IF NOT EXISTS actor_name text;
+ALTER TABLE spots.adjustment_history ADD COLUMN IF NOT EXISTS changed_at timestamp with time zone DEFAULT now();
+
+CREATE TABLE IF NOT EXISTS spots.adjustments (
+  metal_id text NOT NULL,
+  source_id text NOT NULL,
+  bid_amount numeric DEFAULT 0 NOT NULL,
+  ask_amount numeric DEFAULT 0 NOT NULL,
+  unit text DEFAULT 'percent'::text NOT NULL,
+  reason text DEFAULT ''::text NOT NULL,
+  expires_at timestamp with time zone,
+  expires_at_market_open boolean DEFAULT false NOT NULL,
+  enabled boolean DEFAULT true NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  created_by text DEFAULT ''::text NOT NULL,
+  updated_by text DEFAULT ''::text NOT NULL,
+  created_by_id uuid,
+  updated_by_id uuid
+);
+ALTER TABLE spots.adjustments ADD COLUMN IF NOT EXISTS metal_id text;
+ALTER TABLE spots.adjustments ADD COLUMN IF NOT EXISTS source_id text;
+ALTER TABLE spots.adjustments ADD COLUMN IF NOT EXISTS bid_amount numeric DEFAULT 0;
+ALTER TABLE spots.adjustments ADD COLUMN IF NOT EXISTS ask_amount numeric DEFAULT 0;
+ALTER TABLE spots.adjustments ADD COLUMN IF NOT EXISTS unit text DEFAULT 'percent'::text;
+ALTER TABLE spots.adjustments ADD COLUMN IF NOT EXISTS reason text DEFAULT ''::text;
+ALTER TABLE spots.adjustments ADD COLUMN IF NOT EXISTS expires_at timestamp with time zone;
+ALTER TABLE spots.adjustments ADD COLUMN IF NOT EXISTS expires_at_market_open boolean DEFAULT false;
+ALTER TABLE spots.adjustments ADD COLUMN IF NOT EXISTS enabled boolean DEFAULT true;
+ALTER TABLE spots.adjustments ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE spots.adjustments ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE spots.adjustments ADD COLUMN IF NOT EXISTS created_by text DEFAULT ''::text;
+ALTER TABLE spots.adjustments ADD COLUMN IF NOT EXISTS updated_by text DEFAULT ''::text;
+ALTER TABLE spots.adjustments ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE spots.adjustments ADD COLUMN IF NOT EXISTS updated_by_id uuid;
+
+CREATE TABLE IF NOT EXISTS spots.market_holidays (
+  observed_on date NOT NULL,
+  name text NOT NULL
+);
+ALTER TABLE spots.market_holidays ADD COLUMN IF NOT EXISTS observed_on date;
+ALTER TABLE spots.market_holidays ADD COLUMN IF NOT EXISTS name text;
+
+CREATE TABLE IF NOT EXISTS spots.market_sessions (
+  weekday smallint NOT NULL,
+  opens_at time without time zone NOT NULL,
+  closes_at time without time zone NOT NULL,
+  tz text NOT NULL
+);
+ALTER TABLE spots.market_sessions ADD COLUMN IF NOT EXISTS weekday smallint;
+ALTER TABLE spots.market_sessions ADD COLUMN IF NOT EXISTS opens_at time without time zone;
+ALTER TABLE spots.market_sessions ADD COLUMN IF NOT EXISTS closes_at time without time zone;
+ALTER TABLE spots.market_sessions ADD COLUMN IF NOT EXISTS tz text;
+
 CREATE TABLE IF NOT EXISTS spots.overrides (
   metal_id text NOT NULL,
   bid numeric NOT NULL,
@@ -2513,10 +2893,39 @@ ALTER TABLE spots.overrides ADD COLUMN IF NOT EXISTS updated_by_id uuid;
 
 CREATE TABLE IF NOT EXISTS spots.settings (
   id boolean DEFAULT true NOT NULL,
-  stale_after_seconds integer DEFAULT 60 NOT NULL
+  stale_after_seconds integer DEFAULT 60 NOT NULL,
+  tick_seconds integer DEFAULT 30 NOT NULL
 );
 ALTER TABLE spots.settings ADD COLUMN IF NOT EXISTS id boolean DEFAULT true;
 ALTER TABLE spots.settings ADD COLUMN IF NOT EXISTS stale_after_seconds integer DEFAULT 60;
+ALTER TABLE spots.settings ADD COLUMN IF NOT EXISTS tick_seconds integer DEFAULT 30;
+
+CREATE TABLE IF NOT EXISTS spots.sources (
+  id text NOT NULL,
+  enabled boolean DEFAULT false NOT NULL,
+  sort_order integer DEFAULT 999 NOT NULL,
+  last_tick_at timestamp with time zone,
+  last_attempt_at timestamp with time zone,
+  last_error text,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  created_by text DEFAULT ''::text NOT NULL,
+  updated_by text DEFAULT ''::text NOT NULL,
+  created_by_id uuid,
+  updated_by_id uuid
+);
+ALTER TABLE spots.sources ADD COLUMN IF NOT EXISTS id text;
+ALTER TABLE spots.sources ADD COLUMN IF NOT EXISTS enabled boolean DEFAULT false;
+ALTER TABLE spots.sources ADD COLUMN IF NOT EXISTS sort_order integer DEFAULT 999;
+ALTER TABLE spots.sources ADD COLUMN IF NOT EXISTS last_tick_at timestamp with time zone;
+ALTER TABLE spots.sources ADD COLUMN IF NOT EXISTS last_attempt_at timestamp with time zone;
+ALTER TABLE spots.sources ADD COLUMN IF NOT EXISTS last_error text;
+ALTER TABLE spots.sources ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE spots.sources ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE spots.sources ADD COLUMN IF NOT EXISTS created_by text DEFAULT ''::text;
+ALTER TABLE spots.sources ADD COLUMN IF NOT EXISTS updated_by text DEFAULT ''::text;
+ALTER TABLE spots.sources ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE spots.sources ADD COLUMN IF NOT EXISTS updated_by_id uuid;
 
 CREATE TABLE IF NOT EXISTS spots.spots (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -2525,7 +2934,11 @@ CREATE TABLE IF NOT EXISTS spots.spots (
   bid numeric,
   percent_change numeric,
   dollar_change numeric,
-  updated_at timestamp with time zone DEFAULT now() NOT NULL
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  bid_dollar_change numeric,
+  bid_percent_change numeric,
+  ask_dollar_change numeric,
+  ask_percent_change numeric
 );
 ALTER TABLE spots.spots ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE spots.spots ADD COLUMN IF NOT EXISTS metal_id text;
@@ -2534,6 +2947,10 @@ ALTER TABLE spots.spots ADD COLUMN IF NOT EXISTS bid numeric;
 ALTER TABLE spots.spots ADD COLUMN IF NOT EXISTS percent_change numeric;
 ALTER TABLE spots.spots ADD COLUMN IF NOT EXISTS dollar_change numeric;
 ALTER TABLE spots.spots ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE spots.spots ADD COLUMN IF NOT EXISTS bid_dollar_change numeric;
+ALTER TABLE spots.spots ADD COLUMN IF NOT EXISTS bid_percent_change numeric;
+ALTER TABLE spots.spots ADD COLUMN IF NOT EXISTS ask_dollar_change numeric;
+ALTER TABLE spots.spots ADD COLUMN IF NOT EXISTS ask_percent_change numeric;
 
 CREATE TABLE IF NOT EXISTS tax.sales_tax (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -2780,6 +3197,26 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'assignments_one_subject' AND c.relname = 'assignments' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.assignments ADD CONSTRAINT assignments_one_subject CHECK (((user_id IS NULL) <> (lead_id IS NULL)));
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'assignments_pkey' AND c.relname = 'assignments' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.assignments ADD CONSTRAINT assignments_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'calls_pkey' AND c.relname = 'calls' AND n.nspname = 'crm'
   ) THEN
     ALTER TABLE crm.calls ADD CONSTRAINT calls_pkey PRIMARY KEY (id);
@@ -2793,6 +3230,76 @@ DO $$ BEGIN
     WHERE con.conname = 'calls_provider_sid_key' AND c.relname = 'calls' AND n.nspname = 'crm'
   ) THEN
     ALTER TABLE crm.calls ADD CONSTRAINT calls_provider_sid_key UNIQUE (provider_sid);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'notes_body_is_written' AND c.relname = 'notes' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.notes ADD CONSTRAINT notes_body_is_written CHECK ((btrim(body) <> ''::text));
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'notes_one_subject' AND c.relname = 'notes' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.notes ADD CONSTRAINT notes_one_subject CHECK (((user_id IS NULL) <> (lead_id IS NULL)));
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'notes_pkey' AND c.relname = 'notes' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.notes ADD CONSTRAINT notes_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'sms_consent_events_method_is_known' AND c.relname = 'sms_consent_events' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.sms_consent_events ADD CONSTRAINT sms_consent_events_method_is_known CHECK (((method IS NULL) OR (method = ANY (ARRAY['web_form'::text, 'verbal'::text, 'via_text'::text]))));
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'sms_consent_events_one_subject' AND c.relname = 'sms_consent_events' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.sms_consent_events ADD CONSTRAINT sms_consent_events_one_subject CHECK (((user_id IS NULL) <> (lead_id IS NULL)));
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'sms_consent_events_pkey' AND c.relname = 'sms_consent_events' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.sms_consent_events ADD CONSTRAINT sms_consent_events_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'sms_consent_kinds_pkey' AND c.relname = 'sms_consent_kinds' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.sms_consent_kinds ADD CONSTRAINT sms_consent_kinds_pkey PRIMARY KEY (id);
   END IF;
 END $$;
 DO $$ BEGIN
@@ -3340,6 +3847,26 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'orders_list_sorts_field' AND c.relname = 'list_sorts' AND n.nspname = 'orders'
+  ) THEN
+    ALTER TABLE orders.list_sorts ADD CONSTRAINT orders_list_sorts_field CHECK ((sort_field = ANY (ARRAY['created_at'::text, 'estimated_value'::text, 'lot_count'::text, 'arrived_at'::text])));
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'orders_list_sorts_pkey' AND c.relname = 'list_sorts' AND n.nspname = 'orders'
+  ) THEN
+    ALTER TABLE orders.list_sorts ADD CONSTRAINT orders_list_sorts_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'a_lot_sits_on_one_order' AND c.relname = 'lots' AND n.nspname = 'orders'
   ) THEN
     ALTER TABLE orders.lots ADD CONSTRAINT a_lot_sits_on_one_order UNIQUE (lot_id);
@@ -3373,6 +3900,26 @@ DO $$ BEGIN
     WHERE con.conname = 'orders_unique_type_number' AND c.relname = 'orders' AND n.nspname = 'orders'
   ) THEN
     ALTER TABLE orders.orders ADD CONSTRAINT orders_unique_type_number UNIQUE (direction, number);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'spot_locks_action' AND c.relname = 'spot_locks' AND n.nspname = 'orders'
+  ) THEN
+    ALTER TABLE orders.spot_locks ADD CONSTRAINT spot_locks_action CHECK ((action = ANY (ARRAY['lock'::text, 'unlock'::text])));
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'spot_locks_pkey' AND c.relname = 'spot_locks' AND n.nspname = 'orders'
+  ) THEN
+    ALTER TABLE orders.spot_locks ADD CONSTRAINT spot_locks_pkey PRIMARY KEY (id);
   END IF;
 END $$;
 DO $$ BEGIN
@@ -3820,6 +4367,16 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'refining_documents_pkey' AND c.relname = 'documents' AND n.nspname = 'refining'
+  ) THEN
+    ALTER TABLE refining.documents ADD CONSTRAINT refining_documents_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'a_lot_goes_to_one_refiner' AND c.relname = 'lots' AND n.nspname = 'refining'
   ) THEN
     ALTER TABLE refining.lots ADD CONSTRAINT a_lot_goes_to_one_refiner UNIQUE (lot_id);
@@ -3960,6 +4517,96 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'active_sources_pkey' AND c.relname = 'active_sources' AND n.nspname = 'spots'
+  ) THEN
+    ALTER TABLE spots.active_sources ADD CONSTRAINT active_sources_pkey PRIMARY KEY (metal_id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'adjustment_history_pkey' AND c.relname = 'adjustment_history' AND n.nspname = 'spots'
+  ) THEN
+    ALTER TABLE spots.adjustment_history ADD CONSTRAINT adjustment_history_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'adjustments_one_expiry' AND c.relname = 'adjustments' AND n.nspname = 'spots'
+  ) THEN
+    ALTER TABLE spots.adjustments ADD CONSTRAINT adjustments_one_expiry CHECK ((NOT (expires_at_market_open AND (expires_at IS NOT NULL))));
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'adjustments_pkey' AND c.relname = 'adjustments' AND n.nspname = 'spots'
+  ) THEN
+    ALTER TABLE spots.adjustments ADD CONSTRAINT adjustments_pkey PRIMARY KEY (metal_id, source_id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'adjustments_unit' AND c.relname = 'adjustments' AND n.nspname = 'spots'
+  ) THEN
+    ALTER TABLE spots.adjustments ADD CONSTRAINT adjustments_unit CHECK ((unit = ANY (ARRAY['percent'::text, 'dollars'::text])));
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'market_holidays_pkey' AND c.relname = 'market_holidays' AND n.nspname = 'spots'
+  ) THEN
+    ALTER TABLE spots.market_holidays ADD CONSTRAINT market_holidays_pkey PRIMARY KEY (observed_on);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'market_sessions_opens_before_closes' AND c.relname = 'market_sessions' AND n.nspname = 'spots'
+  ) THEN
+    ALTER TABLE spots.market_sessions ADD CONSTRAINT market_sessions_opens_before_closes CHECK ((opens_at < closes_at));
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'market_sessions_pkey' AND c.relname = 'market_sessions' AND n.nspname = 'spots'
+  ) THEN
+    ALTER TABLE spots.market_sessions ADD CONSTRAINT market_sessions_pkey PRIMARY KEY (weekday);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'market_sessions_weekday_range' AND c.relname = 'market_sessions' AND n.nspname = 'spots'
+  ) THEN
+    ALTER TABLE spots.market_sessions ADD CONSTRAINT market_sessions_weekday_range CHECK (((weekday >= 0) AND (weekday <= 6)));
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'overrides_pkey' AND c.relname = 'overrides' AND n.nspname = 'spots'
   ) THEN
     ALTER TABLE spots.overrides ADD CONSTRAINT overrides_pkey PRIMARY KEY (metal_id);
@@ -3990,9 +4637,29 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'spots_settings_positive_tick' AND c.relname = 'settings' AND n.nspname = 'spots'
+  ) THEN
+    ALTER TABLE spots.settings ADD CONSTRAINT spots_settings_positive_tick CHECK (((tick_seconds > 0) AND (tick_seconds <= 3600)));
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'spots_settings_singleton' AND c.relname = 'settings' AND n.nspname = 'spots'
   ) THEN
     ALTER TABLE spots.settings ADD CONSTRAINT spots_settings_singleton CHECK (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'sources_pkey' AND c.relname = 'sources' AND n.nspname = 'spots'
+  ) THEN
+    ALTER TABLE spots.sources ADD CONSTRAINT sources_pkey PRIMARY KEY (id);
   END IF;
 END $$;
 DO $$ BEGIN
@@ -4230,6 +4897,56 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'assignments_assignee_fk' AND c.relname = 'assignments' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.assignments ADD CONSTRAINT assignments_assignee_fk FOREIGN KEY (assigned_to_id) REFERENCES auth.users(id) ON DELETE SET NULL;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'assignments_created_by_id_fkey' AND c.relname = 'assignments' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.assignments ADD CONSTRAINT assignments_created_by_id_fkey FOREIGN KEY (created_by_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'assignments_lead_fk' AND c.relname = 'assignments' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.assignments ADD CONSTRAINT assignments_lead_fk FOREIGN KEY (lead_id) REFERENCES leads.leads(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'assignments_updated_by_id_fkey' AND c.relname = 'assignments' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.assignments ADD CONSTRAINT assignments_updated_by_id_fkey FOREIGN KEY (updated_by_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'assignments_user_fk' AND c.relname = 'assignments' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.assignments ADD CONSTRAINT assignments_user_fk FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'calls_created_by_id_fkey' AND c.relname = 'calls' AND n.nspname = 'crm'
   ) THEN
     ALTER TABLE crm.calls ADD CONSTRAINT calls_created_by_id_fkey FOREIGN KEY (created_by_id) REFERENCES auth.users(id);
@@ -4263,6 +4980,96 @@ DO $$ BEGIN
     WHERE con.conname = 'calls_user_id_fkey' AND c.relname = 'calls' AND n.nspname = 'crm'
   ) THEN
     ALTER TABLE crm.calls ADD CONSTRAINT calls_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'notes_created_by_id_fkey' AND c.relname = 'notes' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.notes ADD CONSTRAINT notes_created_by_id_fkey FOREIGN KEY (created_by_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'notes_lead_fk' AND c.relname = 'notes' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.notes ADD CONSTRAINT notes_lead_fk FOREIGN KEY (lead_id) REFERENCES leads.leads(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'notes_updated_by_id_fkey' AND c.relname = 'notes' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.notes ADD CONSTRAINT notes_updated_by_id_fkey FOREIGN KEY (updated_by_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'notes_user_fk' AND c.relname = 'notes' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.notes ADD CONSTRAINT notes_user_fk FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'sms_consent_events_created_by_id_fkey' AND c.relname = 'sms_consent_events' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.sms_consent_events ADD CONSTRAINT sms_consent_events_created_by_id_fkey FOREIGN KEY (created_by_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'sms_consent_events_kind_fk' AND c.relname = 'sms_consent_events' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.sms_consent_events ADD CONSTRAINT sms_consent_events_kind_fk FOREIGN KEY (kind_id) REFERENCES crm.sms_consent_kinds(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'sms_consent_events_lead_fk' AND c.relname = 'sms_consent_events' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.sms_consent_events ADD CONSTRAINT sms_consent_events_lead_fk FOREIGN KEY (lead_id) REFERENCES leads.leads(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'sms_consent_events_updated_by_id_fkey' AND c.relname = 'sms_consent_events' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.sms_consent_events ADD CONSTRAINT sms_consent_events_updated_by_id_fkey FOREIGN KEY (updated_by_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'sms_consent_events_user_fk' AND c.relname = 'sms_consent_events' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.sms_consent_events ADD CONSTRAINT sms_consent_events_user_fk FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
   END IF;
 END $$;
 DO $$ BEGIN
@@ -4780,6 +5587,16 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'pdfs_created_by_id_fkey' AND c.relname = 'pdfs' AND n.nspname = 'media'
+  ) THEN
+    ALTER TABLE media.pdfs ADD CONSTRAINT pdfs_created_by_id_fkey FOREIGN KEY (created_by_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'pdfs_order_id_fkey' AND c.relname = 'pdfs' AND n.nspname = 'media'
   ) THEN
     ALTER TABLE media.pdfs ADD CONSTRAINT pdfs_order_id_fkey FOREIGN KEY (order_id) REFERENCES orders.orders(id);
@@ -4793,6 +5610,16 @@ DO $$ BEGIN
     WHERE con.conname = 'pdfs_refining_order_fk' AND c.relname = 'pdfs' AND n.nspname = 'media'
   ) THEN
     ALTER TABLE media.pdfs ADD CONSTRAINT pdfs_refining_order_fk FOREIGN KEY (refining_order_id) REFERENCES refining.orders(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'pdfs_updated_by_id_fkey' AND c.relname = 'pdfs' AND n.nspname = 'media'
+  ) THEN
+    ALTER TABLE media.pdfs ADD CONSTRAINT pdfs_updated_by_id_fkey FOREIGN KEY (updated_by_id) REFERENCES auth.users(id);
   END IF;
 END $$;
 DO $$ BEGIN
@@ -4893,6 +5720,46 @@ DO $$ BEGIN
     WHERE con.conname = 'orders_user_id_fkey' AND c.relname = 'orders' AND n.nspname = 'orders'
   ) THEN
     ALTER TABLE orders.orders ADD CONSTRAINT orders_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'spot_locks_created_by_id_fkey' AND c.relname = 'spot_locks' AND n.nspname = 'orders'
+  ) THEN
+    ALTER TABLE orders.spot_locks ADD CONSTRAINT spot_locks_created_by_id_fkey FOREIGN KEY (created_by_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'spot_locks_metal_id_fkey' AND c.relname = 'spot_locks' AND n.nspname = 'orders'
+  ) THEN
+    ALTER TABLE orders.spot_locks ADD CONSTRAINT spot_locks_metal_id_fkey FOREIGN KEY (metal_id) REFERENCES metals.metals(id) ON UPDATE CASCADE;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'spot_locks_order_id_fkey' AND c.relname = 'spot_locks' AND n.nspname = 'orders'
+  ) THEN
+    ALTER TABLE orders.spot_locks ADD CONSTRAINT spot_locks_order_id_fkey FOREIGN KEY (order_id) REFERENCES orders.orders(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'spot_locks_updated_by_id_fkey' AND c.relname = 'spot_locks' AND n.nspname = 'orders'
+  ) THEN
+    ALTER TABLE orders.spot_locks ADD CONSTRAINT spot_locks_updated_by_id_fkey FOREIGN KEY (updated_by_id) REFERENCES auth.users(id);
   END IF;
 END $$;
 DO $$ BEGIN
@@ -5190,9 +6057,29 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'ledger_created_by_id_fkey' AND c.relname = 'ledger' AND n.nspname = 'payments'
+  ) THEN
+    ALTER TABLE payments.ledger ADD CONSTRAINT ledger_created_by_id_fkey FOREIGN KEY (created_by_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'ledger_order_id_fkey' AND c.relname = 'ledger' AND n.nspname = 'payments'
   ) THEN
     ALTER TABLE payments.ledger ADD CONSTRAINT ledger_order_id_fkey FOREIGN KEY (order_id) REFERENCES orders.orders(id) ON DELETE SET NULL;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'ledger_updated_by_id_fkey' AND c.relname = 'ledger' AND n.nspname = 'payments'
+  ) THEN
+    ALTER TABLE payments.ledger ADD CONSTRAINT ledger_updated_by_id_fkey FOREIGN KEY (updated_by_id) REFERENCES auth.users(id);
   END IF;
 END $$;
 DO $$ BEGIN
@@ -5850,6 +6737,116 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'active_sources_created_by_id_fkey' AND c.relname = 'active_sources' AND n.nspname = 'spots'
+  ) THEN
+    ALTER TABLE spots.active_sources ADD CONSTRAINT active_sources_created_by_id_fkey FOREIGN KEY (created_by_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'active_sources_metal_id_fkey' AND c.relname = 'active_sources' AND n.nspname = 'spots'
+  ) THEN
+    ALTER TABLE spots.active_sources ADD CONSTRAINT active_sources_metal_id_fkey FOREIGN KEY (metal_id) REFERENCES metals.metals(id) ON UPDATE CASCADE;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'active_sources_source_id_fkey' AND c.relname = 'active_sources' AND n.nspname = 'spots'
+  ) THEN
+    ALTER TABLE spots.active_sources ADD CONSTRAINT active_sources_source_id_fkey FOREIGN KEY (source_id) REFERENCES spots.sources(id) ON UPDATE CASCADE;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'active_sources_updated_by_id_fkey' AND c.relname = 'active_sources' AND n.nspname = 'spots'
+  ) THEN
+    ALTER TABLE spots.active_sources ADD CONSTRAINT active_sources_updated_by_id_fkey FOREIGN KEY (updated_by_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'adjustment_history_actor_id_fkey' AND c.relname = 'adjustment_history' AND n.nspname = 'spots'
+  ) THEN
+    ALTER TABLE spots.adjustment_history ADD CONSTRAINT adjustment_history_actor_id_fkey FOREIGN KEY (actor_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'adjustment_history_metal_id_fkey' AND c.relname = 'adjustment_history' AND n.nspname = 'spots'
+  ) THEN
+    ALTER TABLE spots.adjustment_history ADD CONSTRAINT adjustment_history_metal_id_fkey FOREIGN KEY (metal_id) REFERENCES metals.metals(id) ON UPDATE CASCADE;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'adjustment_history_source_id_fkey' AND c.relname = 'adjustment_history' AND n.nspname = 'spots'
+  ) THEN
+    ALTER TABLE spots.adjustment_history ADD CONSTRAINT adjustment_history_source_id_fkey FOREIGN KEY (source_id) REFERENCES spots.sources(id) ON UPDATE CASCADE;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'adjustments_created_by_id_fkey' AND c.relname = 'adjustments' AND n.nspname = 'spots'
+  ) THEN
+    ALTER TABLE spots.adjustments ADD CONSTRAINT adjustments_created_by_id_fkey FOREIGN KEY (created_by_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'adjustments_metal_id_fkey' AND c.relname = 'adjustments' AND n.nspname = 'spots'
+  ) THEN
+    ALTER TABLE spots.adjustments ADD CONSTRAINT adjustments_metal_id_fkey FOREIGN KEY (metal_id) REFERENCES metals.metals(id) ON UPDATE CASCADE;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'adjustments_source_id_fkey' AND c.relname = 'adjustments' AND n.nspname = 'spots'
+  ) THEN
+    ALTER TABLE spots.adjustments ADD CONSTRAINT adjustments_source_id_fkey FOREIGN KEY (source_id) REFERENCES spots.sources(id) ON UPDATE CASCADE;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'adjustments_updated_by_id_fkey' AND c.relname = 'adjustments' AND n.nspname = 'spots'
+  ) THEN
+    ALTER TABLE spots.adjustments ADD CONSTRAINT adjustments_updated_by_id_fkey FOREIGN KEY (updated_by_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'overrides_created_by_id_fkey' AND c.relname = 'overrides' AND n.nspname = 'spots'
   ) THEN
     ALTER TABLE spots.overrides ADD CONSTRAINT overrides_created_by_id_fkey FOREIGN KEY (created_by_id) REFERENCES auth.users(id);
@@ -5880,6 +6877,26 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'sources_created_by_id_fkey' AND c.relname = 'sources' AND n.nspname = 'spots'
+  ) THEN
+    ALTER TABLE spots.sources ADD CONSTRAINT sources_created_by_id_fkey FOREIGN KEY (created_by_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'sources_updated_by_id_fkey' AND c.relname = 'sources' AND n.nspname = 'spots'
+  ) THEN
+    ALTER TABLE spots.sources ADD CONSTRAINT sources_updated_by_id_fkey FOREIGN KEY (updated_by_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'current_spots_metal_id_fkey' AND c.relname = 'spots' AND n.nspname = 'spots'
   ) THEN
     ALTER TABLE spots.spots ADD CONSTRAINT current_spots_metal_id_fkey FOREIGN KEY (metal_id) REFERENCES metals.metals(id) ON UPDATE CASCADE;
@@ -5901,6 +6918,8 @@ CREATE INDEX IF NOT EXISTS session_impersonatedby_idx ON auth.sessions USING btr
 CREATE INDEX IF NOT EXISTS session_userid_idx ON auth.sessions USING btree ("userId");
 CREATE INDEX IF NOT EXISTS users_anonymous_stale_idx ON auth.users USING btree ("updatedAt") WHERE "isAnonymous";
 CREATE INDEX IF NOT EXISTS users_assigned ON auth.users USING btree (assigned_to_id);
+CREATE INDEX IF NOT EXISTS users_email_prefix ON auth.users USING btree (lower(email) text_pattern_ops);
+CREATE INDEX IF NOT EXISTS users_name_prefix ON auth.users USING btree (lower(name) text_pattern_ops);
 CREATE UNIQUE INDEX IF NOT EXISTS users_one_phone_number ON auth.users USING btree (phone_number) WHERE (phone_number IS NOT NULL);
 CREATE INDEX IF NOT EXISTS verification_expiresat_idx ON auth.verification USING btree ("expiresAt");
 CREATE INDEX IF NOT EXISTS verification_identifier_idx ON auth.verification USING btree (identifier);
@@ -5912,7 +6931,21 @@ CREATE INDEX IF NOT EXISTS idx_checkout_checkouts_payment_details_id ON checkout
 CREATE INDEX IF NOT EXISTS idx_checkout_checkouts_payment_method_id ON checkout.checkouts USING btree (payment_method_id);
 CREATE INDEX IF NOT EXISTS idx_checkout_checkouts_recipient_address_id ON checkout.checkouts USING btree (recipient_address_id);
 CREATE INDEX IF NOT EXISTS checkout_lots_checkout ON checkout.lots USING btree (checkout_id);
+CREATE INDEX IF NOT EXISTS assignments_assignee ON crm.assignments USING btree (assigned_to_id);
+CREATE INDEX IF NOT EXISTS assignments_created_by ON crm.assignments USING btree (created_by_id);
+CREATE INDEX IF NOT EXISTS assignments_lead ON crm.assignments USING btree (lead_id, assigned_at);
+CREATE INDEX IF NOT EXISTS assignments_user ON crm.assignments USING btree (user_id, assigned_at);
+CREATE INDEX IF NOT EXISTS calls_created_by ON crm.calls USING btree (created_by_id);
 CREATE INDEX IF NOT EXISTS calls_user_started ON crm.calls USING btree (user_id, started_at);
+CREATE INDEX IF NOT EXISTS notes_created_by ON crm.notes USING btree (created_by_id);
+CREATE INDEX IF NOT EXISTS notes_lead ON crm.notes USING btree (lead_id, created_at);
+CREATE INDEX IF NOT EXISTS notes_user ON crm.notes USING btree (user_id, created_at);
+CREATE INDEX IF NOT EXISTS sms_consent_events_created_by ON crm.sms_consent_events USING btree (created_by_id);
+CREATE INDEX IF NOT EXISTS sms_consent_events_kind ON crm.sms_consent_events USING btree (kind_id);
+CREATE INDEX IF NOT EXISTS sms_consent_events_lead ON crm.sms_consent_events USING btree (lead_id, at);
+CREATE INDEX IF NOT EXISTS sms_consent_events_user ON crm.sms_consent_events USING btree (user_id, at);
+CREATE UNIQUE INDEX IF NOT EXISTS sms_consent_kinds_key ON crm.sms_consent_kinds USING btree (key);
+CREATE INDEX IF NOT EXISTS sms_messages_created_by ON crm.sms_messages USING btree (created_by_id);
 CREATE INDEX IF NOT EXISTS sms_messages_from_created ON crm.sms_messages USING btree (from_number, created_at);
 CREATE INDEX IF NOT EXISTS sms_messages_to_created ON crm.sms_messages USING btree (to_number, created_at);
 CREATE INDEX IF NOT EXISTS sms_messages_user_created ON crm.sms_messages USING btree (user_id, created_at);
@@ -5945,6 +6978,7 @@ CREATE INDEX IF NOT EXISTS lot_sources_lot ON inventory.lot_sources USING btree 
 CREATE INDEX IF NOT EXISTS lot_sources_source ON inventory.lot_sources USING btree (source_lot_id, kind);
 CREATE UNIQUE INDEX IF NOT EXISTS one_edge_per_pair_and_kind ON inventory.lot_sources USING btree (lot_id, source_lot_id, kind);
 CREATE INDEX IF NOT EXISTS lots_bullion ON inventory.lots USING btree (bullion_id);
+CREATE INDEX IF NOT EXISTS lots_line_reference ON inventory.lots USING btree (line_reference) WHERE (line_reference IS NOT NULL);
 CREATE INDEX IF NOT EXISTS lots_metal ON inventory.lots USING btree (metal_id);
 CREATE INDEX IF NOT EXISTS lots_settled ON inventory.lots USING btree (settled_at) WHERE (settled_at IS NOT NULL);
 CREATE INDEX IF NOT EXISTS pool_balance ON inventory.pool USING btree (refiner_id, metal_id, occurred_at);
@@ -5959,8 +6993,11 @@ CREATE INDEX IF NOT EXISTS idx_leads_leads_created_by_id ON leads.leads USING bt
 CREATE INDEX IF NOT EXISTS idx_leads_leads_updated_by_id ON leads.leads USING btree (updated_by_id);
 CREATE INDEX IF NOT EXISTS leads_assigned ON leads.leads USING btree (assigned_to_id);
 CREATE INDEX IF NOT EXISTS leads_contact_preference_id ON leads.leads USING btree (contact_preference_id);
+CREATE INDEX IF NOT EXISTS leads_name_prefix ON leads.leads USING btree (lower(name) text_pattern_ops);
+CREATE INDEX IF NOT EXISTS leads_number_prefix ON leads.leads USING btree (lower(number) text_pattern_ops);
 CREATE UNIQUE INDEX IF NOT EXISTS leads_number_unique ON leads.leads USING btree (number);
 CREATE INDEX IF NOT EXISTS leads_source_id ON leads.leads USING btree (source_id);
+CREATE INDEX IF NOT EXISTS leads_stage_moments ON leads.leads USING btree (converted_at, contacted_at, responded_at);
 CREATE INDEX IF NOT EXISTS migration_leads_email_idx ON leads.leads USING btree (lower(email));
 CREATE INDEX IF NOT EXISTS migration_leads_phone_idx ON leads.leads USING btree (phone);
 CREATE INDEX IF NOT EXISTS migration_leads_status_idx ON leads.leads USING btree (converted, contacted, responded);
@@ -5972,6 +7009,7 @@ CREATE INDEX IF NOT EXISTS emails_provider_message_idx ON media.emails USING btr
 CREATE INDEX IF NOT EXISTS emails_user_idx ON media.emails USING btree (user_id, sent_at DESC);
 CREATE INDEX IF NOT EXISTS idx_media_emails_pdf_id ON media.emails USING btree (pdf_id);
 CREATE INDEX IF NOT EXISTS idx_images_user_created ON media.images USING btree (user_id, created_at);
+CREATE INDEX IF NOT EXISTS pdfs_created_by ON media.pdfs USING btree (created_by_id);
 CREATE INDEX IF NOT EXISTS pdfs_order_kind_idx ON media.pdfs USING btree (order_id, kind, created_at DESC);
 CREATE INDEX IF NOT EXISTS pdfs_refining_order_kind ON media.pdfs USING btree (refining_order_id, kind, created_at DESC);
 CREATE UNIQUE INDEX IF NOT EXISTS purity_labels_metal_label ON metals.purity_labels USING btree (metal_id, label);
@@ -5980,12 +7018,18 @@ CREATE UNIQUE INDEX IF NOT EXISTS addresses_one_per_order ON orders.addresses US
 CREATE INDEX IF NOT EXISTS idx_orders_addresses_source_address_id ON orders.addresses USING btree (source_address_id);
 CREATE INDEX IF NOT EXISTS order_addresses_address_idx ON orders.addresses USING btree (address_id);
 CREATE INDEX IF NOT EXISTS order_addresses_order_idx ON orders.addresses USING btree (order_id);
+CREATE UNIQUE INDEX IF NOT EXISTS orders_list_sorts_key ON orders.list_sorts USING btree (key);
+CREATE UNIQUE INDEX IF NOT EXISTS orders_list_sorts_order ON orders.list_sorts USING btree (sort_order);
 CREATE INDEX IF NOT EXISTS orders_lots_order ON orders.lots USING btree (order_id);
 CREATE INDEX IF NOT EXISTS idx_orders_orders_created_by_id ON orders.orders USING btree (created_by_id);
 CREATE INDEX IF NOT EXISTS idx_orders_orders_updated_by_id ON orders.orders USING btree (updated_by_id);
 CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders.orders USING btree (user_id);
 CREATE INDEX IF NOT EXISTS orders_assigned ON orders.orders USING btree (assigned_to_id);
 CREATE INDEX IF NOT EXISTS orders_cancelled_at_idx ON orders.orders USING btree (cancelled_at) WHERE (cancelled_at IS NOT NULL);
+CREATE INDEX IF NOT EXISTS orders_newest ON orders.orders USING btree (created_at DESC, id DESC);
+CREATE INDEX IF NOT EXISTS orders_number_prefix ON orders.orders USING btree (((number)::text) text_pattern_ops);
+CREATE INDEX IF NOT EXISTS spot_locks_created_at_idx ON orders.spot_locks USING btree (created_at DESC);
+CREATE INDEX IF NOT EXISTS spot_locks_order_id_idx ON orders.spot_locks USING btree (order_id);
 CREATE INDEX IF NOT EXISTS idx_order_spots_metal ON orders.spots USING btree (metal_id);
 CREATE INDEX IF NOT EXISTS idx_order_spots_order ON orders.spots USING btree (order_id);
 CREATE UNIQUE INDEX IF NOT EXISTS order_spots_one_per_order_metal ON orders.spots USING btree (order_id, metal_id);
@@ -6032,6 +7076,7 @@ CREATE INDEX IF NOT EXISTS intents_order_idx ON payments.intents USING btree (or
 CREATE INDEX IF NOT EXISTS intents_status_idx ON payments.intents USING btree (status);
 CREATE INDEX IF NOT EXISTS idx_ledger_order_id ON payments.ledger USING btree (order_id);
 CREATE INDEX IF NOT EXISTS idx_ledger_user_id ON payments.ledger USING btree (user_id);
+CREATE INDEX IF NOT EXISTS ledger_created_by ON payments.ledger USING btree (created_by_id);
 CREATE INDEX IF NOT EXISTS idx_payments_methods_created_by_id ON payments.methods USING btree (created_by_id);
 CREATE INDEX IF NOT EXISTS idx_payments_methods_image_id ON payments.methods USING btree (image_id);
 CREATE INDEX IF NOT EXISTS idx_payments_methods_updated_by_id ON payments.methods USING btree (updated_by_id);
@@ -6062,6 +7107,7 @@ CREATE INDEX IF NOT EXISTS locations_org_idx ON places.locations USING btree (or
 CREATE INDEX IF NOT EXISTS user_addresses_address_idx ON places.user_addresses USING btree (address_id);
 CREATE UNIQUE INDEX IF NOT EXISTS user_addresses_one_default_per_user ON places.user_addresses USING btree (user_id) WHERE default_shipping;
 CREATE INDEX IF NOT EXISTS user_addresses_user_idx ON places.user_addresses USING btree (user_id);
+CREATE INDEX IF NOT EXISTS bullion_name_prefix ON products.bullion USING btree (lower(name) text_pattern_ops);
 CREATE INDEX IF NOT EXISTS idx_bullion_metal_id ON products.bullion USING btree (metal_id);
 CREATE INDEX IF NOT EXISTS idx_bullion_mint_id ON products.bullion USING btree (mint_id);
 CREATE INDEX IF NOT EXISTS idx_bullion_slug ON products.bullion USING btree (slug, display);
@@ -6088,6 +7134,8 @@ CREATE INDEX IF NOT EXISTS idx_refiner_spots_metal ON refiners.spots USING btree
 CREATE INDEX IF NOT EXISTS idx_refiner_spots_order ON refiners.spots USING btree (order_id);
 CREATE INDEX IF NOT EXISTS idx_refiner_spots_refiner ON refiners.spots USING btree (refiner_id);
 CREATE INDEX IF NOT EXISTS refiners_spots_refiner_order_id_idx ON refiners.spots USING btree (refiner_order_id);
+CREATE UNIQUE INDEX IF NOT EXISTS refining_documents_kind ON refining.documents USING btree (kind);
+CREATE UNIQUE INDEX IF NOT EXISTS refining_documents_order ON refining.documents USING btree (sort_order);
 CREATE INDEX IF NOT EXISTS refining_lots_order ON refining.lots USING btree (refining_order_id);
 CREATE UNIQUE INDEX IF NOT EXISTS one_open_sell_order_per_refiner ON refining.orders USING btree (refiner_id) WHERE ((sent_at IS NULL) AND (cancelled_at IS NULL) AND (direction = 'sell'::refining.direction));
 CREATE INDEX IF NOT EXISTS refining_orders_refiner ON refining.orders USING btree (refiner_id, direction, sent_at DESC);
@@ -6117,6 +7165,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS shipments_tracking_number_unique ON shipping.s
 CREATE INDEX IF NOT EXISTS shipments_user_recipient_address_idx ON shipping.shipments USING btree (user_id, recipient_address_id);
 CREATE INDEX IF NOT EXISTS shipments_user_shipper_address_idx ON shipping.shipments USING btree (user_id, shipper_address_id);
 CREATE INDEX IF NOT EXISTS shipment_events_shipment_time_idx ON shipping.tracking USING btree (shipment_id, "time");
+CREATE INDEX IF NOT EXISTS active_sources_source_id_idx ON spots.active_sources USING btree (source_id);
+CREATE INDEX IF NOT EXISTS adjustment_history_changed_at_idx ON spots.adjustment_history USING btree (changed_at DESC);
+CREATE INDEX IF NOT EXISTS adjustment_history_metal_id_idx ON spots.adjustment_history USING btree (metal_id);
 CREATE INDEX IF NOT EXISTS idx_current_spots_metal ON spots.spots USING btree (metal_id);
 CREATE UNIQUE INDEX IF NOT EXISTS sales_tax_state_key ON tax.sales_tax USING btree (state);
 CREATE INDEX IF NOT EXISTS sales_tax_rules_lookup_idx ON tax.sales_tax_rules USING btree (state_code, metal_category, product_type);
@@ -6137,7 +7188,15 @@ CREATE OR REPLACE VIEW fulfillments.arrivals AS
                  JOIN shipping.shipments s ON s.id = fs.shipment_id
               WHERE fs.fulfillment_id = f.id AND s.direction = 'Inbound'::shipping.direction AND (s.delivered_at IS NOT NULL OR s.shipping_status = 'Delivered'::text)))
             ELSE f.status = ANY (ARRAY['PICKED_UP'::fulfillments.fulfillment_status, 'COMPLETED'::fulfillments.fulfillment_status, 'DROPPED_OFF'::fulfillments.fulfillment_status])
-        END AS arrived
+        END AS arrived,
+        CASE
+            WHEN m.category = 'SHIPMENT'::fulfillments.category THEN ( SELECT max(s.delivered_at) AS max
+               FROM fulfillments.shipments fs
+                 JOIN shipping.shipments s ON s.id = fs.shipment_id
+              WHERE fs.fulfillment_id = f.id AND s.direction = 'Inbound'::shipping.direction AND (s.delivered_at IS NOT NULL OR s.shipping_status = 'Delivered'::text))
+            WHEN f.status = ANY (ARRAY['PICKED_UP'::fulfillments.fulfillment_status, 'COMPLETED'::fulfillments.fulfillment_status, 'DROPPED_OFF'::fulfillments.fulfillment_status]) THEN f.updated_at
+            ELSE NULL::timestamp with time zone
+        END AS arrived_at
    FROM fulfillments.fulfillments f
      JOIN fulfillments.methods m ON m.id = f.method_id;
 
@@ -6182,9 +7241,11 @@ CREATE OR REPLACE VIEW refining.order_money AS
     rem.remediation AS pool_remediation,
     chg.charge AS payment_charge,
         CASE
-            WHEN ro.direction = 'sell'::refining.direction THEN COALESCE(settle.money, 0::numeric) - COALESCE(ro.fee, 0::numeric) - COALESCE(rem.remediation, 0::numeric) - COALESCE(chg.charge, 0::numeric)
-            ELSE COALESCE(settle.money, 0::numeric) + COALESCE(ro.fee, 0::numeric) + COALESCE(chg.charge, 0::numeric)
-        END AS total
+            WHEN ro.direction = 'sell'::refining.direction THEN COALESCE(settle.money, 0::numeric) - COALESCE(ro.fee, 0::numeric) - COALESCE(rem.remediation, 0::numeric) - COALESCE(chg.charge, 0::numeric) - COALESCE(frt.carriage, 0::numeric)
+            ELSE COALESCE(settle.money, 0::numeric) + COALESCE(ro.fee, 0::numeric) + COALESCE(chg.charge, 0::numeric) + COALESCE(frt.carriage, 0::numeric)
+        END AS total,
+    frt.carriage AS shipping,
+    rem.oz AS pool_oz_remediated
    FROM refining.orders ro
      LEFT JOIN LATERAL ( SELECT sum(rlot.content * rlot.quantity * COALESCE(rlot.premium, src.premium, 1::numeric) * COALESCE(rlot.settled_spot, sp.bid, sp.ask)) AS money
            FROM refining.lots rl
@@ -6197,13 +7258,21 @@ CREATE OR REPLACE VIEW refining.order_money AS
                  LIMIT 1) src ON true
              LEFT JOIN spots.spots sp ON sp.metal_id = rlot.metal_id
           WHERE rl.refining_order_id = ro.id AND (ro.direction <> 'sell'::refining.direction OR ro.settlement_type = 'paid'::refining.settlement_type)) settle ON true
-     LEFT JOIN LATERAL ( SELECT - sum(p.troy_oz * p.lock_price) AS remediation
+     LEFT JOIN LATERAL ( SELECT - sum(p.troy_oz * p.lock_price) AS remediation,
+            sum(p.troy_oz) AS oz
            FROM inventory.pool p
           WHERE p.refining_order_id = ro.id AND p.entry = 'lock'::inventory.pool_entry AND p.lock_price IS NOT NULL) rem ON true
      LEFT JOIN LATERAL ( SELECT max(m.flat_fee) AS charge
            FROM payments.transfers t
              JOIN payments.methods m ON m.type = t.rail::text AND m.enabled
-          WHERE t.refining_order_id = ro.id AND t.state <> 'Failed'::payments.transfer_state) chg ON true;
+          WHERE t.refining_order_id = ro.id AND t.state <> 'Failed'::payments.transfer_state) chg ON true
+     LEFT JOIN LATERAL ( SELECT sh.cost AS carriage
+           FROM fulfillments.fulfillments f
+             JOIN fulfillments.shipments fs ON fs.fulfillment_id = f.id
+             JOIN shipping.shipments sh ON sh.id = fs.shipment_id
+          WHERE f.refining_order_id = ro.id AND sh.direction <> 'Return'::shipping.direction
+          ORDER BY sh.created_at, sh.id
+         LIMIT 1) frt ON true;
 
 CREATE OR REPLACE VIEW shipping.carriers_exchange_compat AS
  SELECT c.id,
@@ -6216,3 +7285,40 @@ CREATE OR REPLACE VIEW shipping.carriers_exchange_compat AS
     o.updated_at
    FROM shipping.carriers c
      JOIN organizations.organizations o ON o.id = c.organization_id;
+
+CREATE OR REPLACE VIEW spots.resolved AS
+ SELECT s.metal_id,
+    src.id AS source_id,
+    s.bid AS feed_bid,
+    s.ask AS feed_ask,
+        CASE
+            WHEN src.id IS NULL THEN NULL::numeric
+            WHEN adj.metal_id IS NULL THEN s.bid
+            WHEN adj.unit = 'dollars'::text THEN s.bid + adj.bid_amount
+            ELSE s.bid * (1::numeric + adj.bid_amount / 100::numeric)
+        END AS bid,
+        CASE
+            WHEN src.id IS NULL THEN NULL::numeric
+            WHEN adj.metal_id IS NULL THEN s.ask
+            WHEN adj.unit = 'dollars'::text THEN s.ask + adj.ask_amount
+            ELSE s.ask * (1::numeric + adj.ask_amount / 100::numeric)
+        END AS ask,
+    s.percent_change,
+    s.dollar_change,
+    s.bid_dollar_change,
+    s.bid_percent_change,
+    s.ask_dollar_change,
+    s.ask_percent_change,
+    s.updated_at,
+        CASE
+            WHEN src.id IS NULL THEN 'stale'::text
+            WHEN adj.metal_id IS NOT NULL THEN 'manual'::text
+            WHEN s.updated_at < (now() - make_interval(secs => (( SELECT st.stale_after_seconds
+               FROM spots.settings st
+             LIMIT 1))::double precision)) THEN 'stale'::text
+            ELSE 'live'::text
+        END AS state
+   FROM spots.spots s
+     LEFT JOIN spots.active_sources a ON a.metal_id = s.metal_id
+     LEFT JOIN spots.sources src ON src.id = a.source_id AND src.enabled
+     LEFT JOIN spots.adjustments adj ON adj.metal_id = s.metal_id AND adj.source_id = src.id AND adj.enabled AND (adj.expires_at IS NULL OR adj.expires_at > now()) AND (NOT adj.expires_at_market_open OR COALESCE(spots.next_market_open(adj.updated_at), 'infinity'::timestamp with time zone) > now());

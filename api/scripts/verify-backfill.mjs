@@ -463,6 +463,38 @@ const NOT_REBUILT = {
   'spots.overrides':
     'a manual spot override, created after the pivot by the lane that added ' +
     'spots.settings; exchange never recorded one',
+  'spots.sources':
+    'the named spot feeds, seeded by 240 (docs/waves/pricing-resolver.md item 2). ' +
+    'exchange had no source column anywhere: the feed was an HTTP call written ' +
+    'straight into one quote per metal, so there is nothing to rebuild from and ' +
+    'the migration IS the source. It is idempotent.',
+  'spots.active_sources':
+    'which feed each metal reads, seeded by 240 to the one feed that exists. ' +
+    'exchange recorded no such fact, on spots.spots or anywhere else.',
+  'spots.adjustments':
+    'the signed per-(metal, source) adjustment added by 241. Migration 245 maps ' +
+    'any spots.overrides row into it as a dollar adjustment against the feed at ' +
+    'migration time, so the amount depends on the tick standing then and a ' +
+    'rebuild would legitimately compute a different one; ON CONFLICT DO NOTHING ' +
+    'makes the replay a no-op. exchange never recorded an adjustment.',
+  'spots.adjustment_history':
+    'an append-only log of adjustment edits and active-source switches, written ' +
+    'by the triggers 242 creates, exactly as rates.rate_history is. exchange ' +
+    'never logged either event.',
+  'spots.market_sessions':
+    'the COMEX regular session, seeded by 241 as rows rather than a constant ' +
+    '(ruling 116) so "expires at market open" is one SQL expression. Reference ' +
+    'data with no exchange source; the migration is idempotent.',
+  'spots.market_holidays':
+    'the exchange holiday calendar seeded beside spots.market_sessions by 241. ' +
+    'Reference data, no exchange source, idempotent.',
+  'orders.spot_locks':
+    'the append-only lock and unlock events added by 243. Before it, an unlock ' +
+    'cleared orders.spots.bid and .ask in place and the lock it replaced was ' +
+    'gone, so exchange holds no history of either - 243 gives an already-locked ' +
+    'order one opening event derived from its own frozen row, guarded by NOT ' +
+    'EXISTS, and everything after it is written natively by ' +
+    'orders/spots/service.ts applyLock.',
   'spots.settings':
     'the one row that says how stale a spot may be, created after the pivot by ' +
     'another lane; exchange has no such setting',

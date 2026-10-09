@@ -17,7 +17,7 @@ lines AS (
     FROM checkout.lots cl
     JOIN inventory.lots li ON li.id = cl.lot_id
     JOIN checkout ON checkout.id = cl.checkout_id
-    LEFT JOIN spots.spots s ON s.metal_id = li.metal_id
+    LEFT JOIN spots.resolved s ON s.metal_id = li.metal_id
 ),
 by_metal AS (
   SELECT metal_id, sum(weighed) AS total

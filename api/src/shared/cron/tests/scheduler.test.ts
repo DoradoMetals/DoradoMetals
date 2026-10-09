@@ -2,7 +2,7 @@ import { test } from 'vitest'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 
-import { jobs, setupScheduler } from '#shared/cron/scheduler.ts'
+import { everySeconds, jobs, setupScheduler } from '#shared/cron/scheduler.ts'
 
 const SCHEDULE_VARS: string[] = (() => {
   const source = fs.readFileSync(new URL('../scheduler.ts', import.meta.url), 'utf8')
@@ -33,39 +33,50 @@ const withEnv = <T>(values: Record<string, string | undefined>, fn: () => T): T 
 }
 
 test('the jobs are declared, and not invoked by reading them', () => {
-  const names = jobs().map((j) => j.name)
+  const names = jobs(30).map((j) => j.name)
   assert.deepEqual(names, [
     'spot prices',
     'anonymous visitors',
     'appointment reminders',
     'reconcile payments',
   ])
-  for (const job of jobs()) {
+  for (const job of jobs(30)) {
     assert.equal(typeof job.run, 'function', `${job.name} has something to run`)
   }
 })
 
 test('the schedule is read at CALL time, not at import time', () => {
-  const first = withEnv({ SPOT_UPDATE_SCHEDULE: '*/5 * * * *' }, () => jobs())
-  assert.equal(first[0].schedule, '*/5 * * * *')
+  const first = withEnv({ APPOINTMENT_REMINDER_SCHEDULE: '*/5 * * * *' }, () => jobs(30))
+  assert.equal(first[2].schedule, '*/5 * * * *')
 
-  const second = withEnv({ SPOT_UPDATE_SCHEDULE: undefined }, () => jobs())
+  const second = withEnv({ APPOINTMENT_REMINDER_SCHEDULE: undefined }, () => jobs(30))
   assert.equal(
-    second[0].schedule,
+    second[2].schedule,
     undefined,
     'a variable that has gone away must be seen - this is the case that would ' +
       'have left the process running with no cron at all'
   )
 })
 
+test('the spot tick interval comes from the caller, which reads spots.settings', () => {
+  assert.equal(jobs(30)[0].schedule, '*/30 * * * * *')
+  assert.equal(jobs(120)[0].schedule, '0 */2 * * * *')
+  assert.equal(
+    jobs(null)[0].schedule,
+    undefined,
+    'no row means no cron, not a cron built from a TypeScript default'
+  )
+  assert.equal(everySeconds(15), '*/15 * * * * *')
+})
+
 test('an unset schedule is undefined rather than a string', () => {
   assert.ok(
-    SCHEDULE_VARS.length >= jobs().length,
+    SCHEDULE_VARS.length >= jobs(null).length - 1,
     `found ${SCHEDULE_VARS.length} schedule variable(s) in scheduler.ts for ` +
-      `${jobs().length} job(s) - the discovery is wrong, and a scan that ` +
+      `${jobs(null).length} job(s) - the discovery is wrong, and a scan that ` +
       "clears nothing lets this test pass on the environment's say-so"
   )
-  const got = withEnv(cleared(), () => jobs())
+  const got = withEnv(cleared(), () => jobs(null))
   for (const job of got) {
     assert.equal(job.schedule, undefined, `${job.name} reports no schedule`)
     assert.notEqual(job.schedule, 'undefined')
@@ -80,7 +91,7 @@ test('nothing runs at boot - an unscheduled job stays unscheduled', () => {
   assert.ok(check >= 0 && call > check, 'runJob(job) fires above the schedule check')
 
   withEnv(cleared(), () => {
-    setupScheduler()
+    setupScheduler(null)
   })
 })
 

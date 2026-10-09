@@ -7,6 +7,7 @@ import { z } from 'zod/v4'
 
 export const Metal = z.object({
   'id': z.string(),
+  'sort_order': z.number().int(),
 })
 export type Metal = z.infer<typeof Metal>
 // generated:end

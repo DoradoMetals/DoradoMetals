@@ -1,6 +1,8 @@
 import axios from 'axios'
 import type { SpotPatch } from '@dorado/contracts'
 
+export const SOURCE_ID = 'nfusion'
+
 export async function fetchQuotes(): Promise<Map<string, SpotPatch>> {
   const response = await axios.get(process.env.SPOT_API_URL as string, {
     headers: { Accept: 'application/json', 'User-Agent': 'DoradoMetalsExchange/1.0' },

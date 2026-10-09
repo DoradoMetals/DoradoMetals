@@ -18,7 +18,7 @@ const router = express.Router()
 router.get('/tiers', listTiers)
 router.get('/admin', requireAdmin, listAdminRates)
 router.get('/history', requireAdmin, getHistory)
-router.get('/sheet.pdf', generateRateSheet)
+router.get('/sheet.pdf', requireAdmin, generateRateSheet)
 router.get('/', listRates)
 router.get('/:id', requireAdmin, getRate)
 

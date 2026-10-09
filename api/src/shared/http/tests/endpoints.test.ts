@@ -27,7 +27,6 @@ const PUBLIC = new Set([
   'GET /api/products/:slug',
   'GET /api/rates/',
   'GET /api/rates/tiers',
-  'GET /api/rates/sheet.pdf',
   'GET /api/reviews/public',
   'GET /api/spots/',
   'POST /api/quotes/catalog',
