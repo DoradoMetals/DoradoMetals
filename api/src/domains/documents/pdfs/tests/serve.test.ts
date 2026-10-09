@@ -17,7 +17,8 @@ let owner: { id: string; role: string }
 beforeAll(async () => {
   client = await pool.connect()
   await client.query('SELECT pg_advisory_lock($1)', [LOCKS.ORDERS])
-  const orders = (await orderRead.list('purchase', null)) as unknown as OrderFixture[]
+  const orders = (await orderRead.list({ direction: 'purchase' }))
+    .items as unknown as OrderFixture[]
   assert.ok(orders.length > 0, 'dev has no purchase orders')
 
   for (const o of orders) {

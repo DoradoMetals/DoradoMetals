@@ -14,12 +14,16 @@ import {
   scheduleFromPickup,
   scheduleOf,
   trackingStatus,
+  trackingTimeline,
+  TRACKING_STAGES,
   lowestCeiling,
   ceilingFor,
   returnDeclaredValue,
   pickupDateFor,
 } from '#logistics/shipping/rules.ts'
 import { Invalid } from '#shared/errors.ts'
+import { FEDEX_TRACKING_STATUS_MAP } from '#providers/fedex/constants.ts'
+import { anUnknownId } from '#shared/testing/builders/ids.ts'
 import type {
   CarrierHandoff,
   CarrierRateQuote,
@@ -27,6 +31,7 @@ import type {
   FulfillmentPickup,
   LabelService,
   Package,
+  TrackingScan,
   TrackingStep,
 } from '@dorado/contracts'
 
@@ -266,4 +271,39 @@ test("the pickup date FedEx is told to cancel is the parcel's own string", () =>
   assert.equal(pickupDateFor(null, '2026-09-06 19:00:00'), '2026-09-06')
   assert.equal(pickupDateFor(null, null), null)
   assert.equal(pickupDateFor(undefined, new Date('2026-09-07T00:00:00Z')), null)
+})
+
+// GAP 26: FedEx scans AR at the destination facility, and that scan was
+// labelled `In Transit` - so the tracker drew two consecutive In Transit rows
+// under the same words. `Arrived` is its own rung, between Picked Up and In
+// Transit.
+test('Arrived is a stage of its own, mapped from the FedEx AR scan', () => {
+  assert.deepEqual(
+    [...TRACKING_STAGES],
+    ['Picked Up', 'Arrived', 'In Transit', 'Out for Delivery', 'Delivered'],
+    'the stage ladder does not carry Arrived between Picked Up and In Transit'
+  )
+  assert.equal(FEDEX_TRACKING_STATUS_MAP.AR, 'Arrived', 'the AR scan still reads as In Transit')
+
+  const scan = (status: string, location: string, scan_time: string): TrackingScan => ({
+    id: anUnknownId(),
+    shipment_id: anUnknownId(),
+    status,
+    location,
+    scan_time,
+  })
+  const timeline = trackingTimeline([
+    scan('Picked Up', 'Dallas, TX', '2026-09-01T10:00:00Z'),
+    scan('Arrived', 'Memphis, TN', '2026-09-02T10:00:00Z'),
+  ])
+  assert.deepEqual(
+    timeline.map((step) => step.stage),
+    ['Picked Up', 'Arrived', 'In Transit', 'Out for Delivery', 'Delivered'],
+    'an Arrived scan did not take its own place in the drawn ladder'
+  )
+  assert.deepEqual(
+    timeline.filter((step) => step.reached).map((step) => step.stage),
+    ['Picked Up', 'Arrived'],
+    'the reached stages are not the two that were scanned'
+  )
 })

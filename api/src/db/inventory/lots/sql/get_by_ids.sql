@@ -9,7 +9,7 @@ SELECT id, bullion_id, metal_id, unit, quantity, pre_melt, post_melt, purity,
        premium, sales_tax_rate,
        to_char(confirmed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS confirmed_at,
        to_char(settled_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS settled_at,
-       settled_spot, source::text AS source
+       settled_spot, source::text AS source, line_reference
   FROM inventory.lots
  WHERE id = ANY($1::uuid[])
  ORDER BY id ASC

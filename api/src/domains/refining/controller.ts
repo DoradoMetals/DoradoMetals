@@ -3,6 +3,7 @@ import { refuseWith } from '#shared/http/refuse.ts'
 import { strictBody, uuidParam } from '#shared/http/validate.ts'
 import * as refining from '#refining/service.ts'
 import {
+  OrderState,
   PoolEntryKind,
   PoolLockCreate,
   RefiningBatch,
@@ -16,8 +17,6 @@ import {
 } from '@dorado/contracts'
 import type { Request } from 'express'
 
-const STATES = ['Pending assay', 'Settled', 'Disputed', 'Cancelled']
-
 const named = (req: Request, key: string): string | null =>
   typeof req.query[key] === 'string' ? (req.query[key] as string) : null
 
@@ -27,12 +26,10 @@ export const listRefiningOrders = asyncHandler(async (req, res) => {
     refuseWith(400, `"direction" is ${RefiningDirection.options.join(' or ')}`)
   }
   const state = named(req, 'state')
-  if (state !== null && !STATES.includes(state)) {
-    refuseWith(400, `"state" is one of ${STATES.join(', ')}`)
+  if (state !== null && !OrderState.safeParse(state).success) {
+    refuseWith(400, `"state" is one of ${OrderState.options.join(', ')}`)
   }
-  return res.json(
-    await refining.list(named(req, 'refiner_id'), direction as never, state)
-  )
+  return res.json(await refining.list(named(req, 'refiner_id'), direction as never, state as never))
 })
 
 export const getRefiningOrder = asyncHandler(async (req, res) => {
@@ -71,6 +68,10 @@ export const getRefiningSpots = asyncHandler(async (req, res) => {
 
 export const getRefiningDocuments = asyncHandler(async (req, res) => {
   return res.json(await refining.documentsFor(uuidParam(req, 'id')))
+})
+
+export const getRefiningSettlementLines = asyncHandler(async (req, res) => {
+  return res.json(await refining.settlementLinesFor(uuidParam(req, 'id')))
 })
 
 export const sellToRefiner = asyncHandler(async (req, res) => {

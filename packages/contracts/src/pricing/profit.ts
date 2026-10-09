@@ -31,12 +31,26 @@ export type ProfitPartyTotal = z.infer<typeof ProfitPartyTotal>
 export const ProfitBasis = z.enum(['realized', 'estimated'])
 export type ProfitBasis = z.infer<typeof ProfitBasis>
 
+export const ProfitLot = z.object({
+  lot_id: z.string().uuid(),
+  reference: z.string(),
+  metal_id: Metal.shape.id,
+  settled_at: z.string().nullable(),
+  settled_spot: z.number().nullable(),
+  value: z.number(),
+  estimated: z.boolean(),
+})
+export type ProfitLot = z.infer<typeof ProfitLot>
+
 export const ProfitBreakdown = z.object({
   order_id: Order.shape.id,
   spots_at: z.string(),
   basis: ProfitBasis,
   settled_lots: z.number().int(),
   total_lots: z.number().int(),
+  payout: z.number(),
+  fees: z.number(),
+  lots: z.array(ProfitLot),
   shares: z.array(ProfitShare),
   parties: z.array(ProfitPartyTotal),
 })

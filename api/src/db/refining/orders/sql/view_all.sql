@@ -143,17 +143,42 @@ SELECT
               'fee', money.fee,
               'pool_remediation', money.pool_remediation,
               'payment_charge', money.payment_charge,
+              'shipping', money.shipping,
+              'pool_oz_remediated', money.pool_oz_remediated,
               'total', money.total),
             'linked_orders', COALESCE((
               SELECT jsonb_agg(DISTINCT jsonb_build_object(
                        'id', so.id, 'number', so.number, 'direction', so.direction::text,
                        'reference', (CASE WHEN so.direction = 'sale' THEN 'SO-' ELSE 'PO-' END)
-                                    || so.number))
+                                    || so.number,
+                       'customer_name', bound.name,
+                       'city', bound.city,
+                       'stage', bound.stage))
                 FROM refining.lots rl3
                 JOIN inventory.lot_sources sale_edge ON sale_edge.source_lot_id = rl3.lot_id
                                                      AND sale_edge.kind = 'sale'
                 JOIN orders.lots sol3 ON sol3.lot_id = sale_edge.lot_id
                 JOIN orders.orders so ON so.id = sol3.order_id
+                LEFT JOIN LATERAL (
+                       SELECT bu.name,
+                              (SELECT ba.city
+                                 FROM orders.addresses boa
+                                 JOIN places.addresses ba ON ba.id = boa.address_id
+                                WHERE boa.order_id = so.id
+                                ORDER BY boa.id ASC
+                                LIMIT 1) AS city,
+                              (SELECT COALESCE(bsh.shipping_status, bf.status::text)
+                                 FROM fulfillments.fulfillments bf
+                                 LEFT JOIN fulfillments.shipments bfs ON bfs.fulfillment_id = bf.id
+                                 LEFT JOIN shipping.shipments bsh
+                                        ON bsh.id = bfs.shipment_id
+                                       AND bsh.direction <> 'Return'
+                                WHERE bf.order_id = so.id
+                                ORDER BY bsh.created_at ASC NULLS LAST, bf.id ASC
+                                LIMIT 1) AS stage
+                         FROM auth.users bu
+                        WHERE bu.id = so.user_id
+                     ) bound ON TRUE
                WHERE rl3.refining_order_id = ro.id), '[]'::jsonb),
             'payment', CASE WHEN ro.direction = 'sell' AND ro.settlement_type = 'pooled' THEN NULL
               ELSE jsonb_build_object(

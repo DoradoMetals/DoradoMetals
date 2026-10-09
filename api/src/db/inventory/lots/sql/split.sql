@@ -19,7 +19,8 @@ WITH children AS (
             content_snapshot, content, image_id, created_at, updated_at,
             created_by_id, updated_by_id, declared_unit, declared_quantity,
             declared_pre_melt, declared_post_melt, declared_purity, declared_content,
-            assayed_at, premium, sales_tax_rate, confirmed_at, settled_at, settled_spot, source
+            assayed_at, premium, sales_tax_rate, confirmed_at, settled_at, settled_spot, source,
+            line_reference
 ), edges AS (
   INSERT INTO inventory.lot_sources (lot_id, source_lot_id, kind)
   SELECT id, $1, 'split' FROM children
@@ -36,6 +37,6 @@ SELECT id, bullion_id, metal_id, unit, quantity, pre_melt, post_melt, purity,
        premium, sales_tax_rate,
        to_char(confirmed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS confirmed_at,
        to_char(settled_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS settled_at,
-       settled_spot, source::text AS source
+       settled_spot, source::text AS source, line_reference
   FROM children
  ORDER BY created_at ASC, id ASC

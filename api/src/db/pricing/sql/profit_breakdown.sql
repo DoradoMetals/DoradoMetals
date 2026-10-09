@@ -37,11 +37,23 @@ order_spot AS (
 -- it is two hops - the customer's lot to the refiner's minted lot, and the
 -- refiner's minted lot to the refining order that holds it.
 assay AS (
-  SELECT ol.lot_id, rlot.content, rlot.premium, rlot.settled_spot, rl.refining_order_id
+  SELECT ol.lot_id, rlot.content, rlot.premium, rlot.settled_spot, rl.refining_order_id,
+         rlot.settled_at, cli.metal_id, cli.bullion_id, cli.premium AS customer_premium,
+         CASE WHEN cli.bullion_id IS NULL THEN COALESCE(cli.content, 0)
+              ELSE COALESCE(cli.content, 0) * cli.quantity END AS declared,
+         'Lot ' || co.number || '-' || chr(64 + seat.n::int) AS reference
     FROM orders.lots ol
+    JOIN inventory.lots cli ON cli.id = ol.lot_id
+    JOIN orders.orders co ON co.id = ol.order_id
     JOIN inventory.lot_sources ls ON ls.source_lot_id = ol.lot_id AND ls.kind = 'batch'
     JOIN inventory.lots rlot ON rlot.id = ls.lot_id
     JOIN refining.lots rl ON rl.lot_id = rlot.id
+   CROSS JOIN LATERAL (
+          SELECT count(*) AS n
+            FROM orders.lots peer
+           WHERE peer.order_id = ol.order_id
+             AND (peer.created_at, peer.id) <= (ol.created_at, ol.id)
+        ) seat
    WHERE ol.order_id = $1::uuid
 ),
 -- The refiner's feed: the refiner lot's own settled spot where Record
@@ -226,6 +238,34 @@ lot_status AS (
   SELECT count(*) AS total_lots,
          count(*) FILTER (WHERE a.settled_spot IS NOT NULL) AS settled_lots
     FROM assay a
+),
+-- The rows the card LISTS, and therefore the rows `total_lots` counts (ruling
+-- 123, and the Q4 default: only refiner-assayed lots carry a settled spot, so
+-- only they can be valued against one). A lot the refiner has not settled is
+-- valued at the refiner's own live feed and says so through `estimated`.
+--
+-- The basis is the one the split already uses: a scrap lot is worth what the
+-- refiner assayed, a catalogue lot what it was declared to hold (a minted
+-- refiner lot carries no content_snapshot, so its `content` is NULL and the
+-- customer lot's own figure is the only one there is).
+lot_values AS (
+  SELECT a.lot_id, a.reference, a.metal_id, a.settled_at, a.settled_spot,
+         (CASE WHEN a.bullion_id IS NULL THEN COALESCE(a.content, a.declared)
+               ELSE a.declared END)
+           * COALESCE(a.premium, a.customer_premium, 1)
+           * COALESCE(a.settled_spot, rs.bid, 0) AS value,
+         a.settled_spot IS NULL AS estimated
+    FROM assay a
+    LEFT JOIN refiner_spot rs ON rs.metal_id = a.metal_id
+),
+-- What the customer was paid, and what it cost us to pay them. Both are
+-- already loaded: `payout` is the order's own transaction total and `fees` is
+-- the customer-side pair the `fees` CTE computes for the split.
+card AS (
+  SELECT COALESCE((SELECT t.total FROM orders.transactions t WHERE t.order_id = $1::uuid), 0)
+           AS payout,
+         f.customer_shipping + f.payout_fee AS fees
+    FROM fees f
 )
 SELECT jsonb_build_object(
          'order_id', ord.id,
@@ -234,6 +274,21 @@ SELECT jsonb_build_object(
                        THEN 'realized' ELSE 'estimated' END,
          'settled_lots', ls.settled_lots,
          'total_lots', ls.total_lots,
+         'payout', card.payout,
+         'fees', card.fees,
+         'lots', COALESCE(
+           (SELECT jsonb_agg(
+                     jsonb_build_object(
+                       'lot_id', v.lot_id,
+                       'reference', v.reference,
+                       'metal_id', v.metal_id,
+                       'settled_at', to_char(v.settled_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+                       'settled_spot', v.settled_spot,
+                       'value', v.value,
+                       'estimated', v.estimated)
+                     ORDER BY v.reference ASC)
+              FROM lot_values v),
+           '[]'::jsonb),
          'shares', COALESCE(
            (SELECT jsonb_agg(
                      jsonb_build_object(
@@ -257,4 +312,4 @@ SELECT jsonb_build_object(
                        ORDER BY p.party)
                        FROM parties p)
        ) AS breakdown
-  FROM ord CROSS JOIN lot_status ls
+  FROM ord CROSS JOIN lot_status ls CROSS JOIN card

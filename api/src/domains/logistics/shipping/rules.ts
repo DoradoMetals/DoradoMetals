@@ -238,7 +238,13 @@ export function assertLabelledOrder<T>(
   }
 }
 
-export const TRACKING_STAGES = ['Picked Up', 'In Transit', 'Out for Delivery', 'Delivered'] as const
+export const TRACKING_STAGES = [
+  'Picked Up',
+  'Arrived',
+  'In Transit',
+  'Out for Delivery',
+  'Delivered',
+] as const
 
 export function trackingTimeline(events: TrackingScan[]): TrackingStep[] {
   const seen = new Set<string>()

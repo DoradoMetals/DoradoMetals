@@ -2,7 +2,7 @@ import { z } from 'zod/v4'
 import { InventoryLotView, Lot } from '../inventory/lots.js'
 import { LotEdge } from '../inventory/lot_sources.js'
 import { PoolBalance } from '../inventory/pool.js'
-import { Action } from './orders.js'
+import { Action, OrderState } from './orders.js'
 
 export const LotActions = z.array(Action)
 export type LotActions = z.infer<typeof LotActions>
@@ -42,7 +42,7 @@ export const LotWhereRefiningOrder = z.object({
   id: Lot.shape.id,
   number: z.number().int(),
   reference: z.string(),
-  state: z.string(),
+  state: OrderState,
 })
 export type LotWhereRefiningOrder = z.infer<typeof LotWhereRefiningOrder>
 

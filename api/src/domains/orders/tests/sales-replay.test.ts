@@ -53,7 +53,7 @@ test('the list is refused to anonymous, and a customer sees only their own rows'
         const res = await request(app).get('/api/orders?direction=sale')
         assert.equal(res.status, 200, `answered ${res.status}`)
         assert.ok(
-          res.body.every((o: { user_id: string }) => o.user_id === stranger.id),
+          res.body.items.every((o: { user_id: string }) => o.user_id === stranger.id),
           "a customer's list carried somebody else's sales order"
         )
       })
@@ -68,9 +68,9 @@ test('the admin list has the fields the drawer destructures', async () => {
       await as(admin, async () => {
         const res = await request(app).get('/api/orders?direction=sale')
         assert.equal(res.status, 200)
-        assert.ok(Array.isArray(res.body) && res.body.length > 0)
+        assert.ok(Array.isArray(res.body.items) && res.body.items.length > 0)
 
-        const o = res.body[0]
+        const o = res.body.items[0]
         for (const field of [
           'id',
           'number',
@@ -103,7 +103,7 @@ test("a customer's own list is scoped to them, whatever they ask for", async () 
           .query({ direction: 'sale', user_id: stranger.id })
         assert.equal(res.status, 200)
         assert.ok(
-          res.body.every((o: { user_id: string }) => o.user_id === owner.id),
+          res.body.items.every((o: { user_id: string }) => o.user_id === owner.id),
           "asking for somebody else's id returned somebody else's orders"
         )
       })
@@ -136,9 +136,7 @@ test('a customer cannot patch a sales order or send it to a refiner', async () =
     async (c: PoolClient) => {
       const { order } = await aSalesOrder(c)
       await as(stranger, async () => {
-        const moved = await request(app)
-          .patch(`/api/orders/${order.id}`)
-          .send({ notes: 'nope' })
+        const moved = await request(app).patch(`/api/orders/${order.id}`).send({ notes: 'nope' })
         assert.equal(moved.status, 403)
 
         const sent = await request(app)

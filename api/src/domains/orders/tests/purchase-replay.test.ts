@@ -43,7 +43,7 @@ test('a customer sees only their own rows, and the admin list is served whole', 
         const res = await request(app).get('/api/orders?direction=purchase')
         assert.equal(res.status, 200, `answered ${res.status}`)
         assert.ok(
-          res.body.every((o: { user_id: string }) => o.user_id === customer.id),
+          res.body.items.every((o: { user_id: string }) => o.user_id === customer.id),
           "a customer's list carried somebody else's purchase order"
         )
       })
@@ -51,9 +51,9 @@ test('a customer sees only their own rows, and the admin list is served whole', 
       await as(admin, async () => {
         const res = await request(app).get('/api/orders?direction=purchase')
         assert.equal(res.status, 200)
-        assert.ok(Array.isArray(res.body) && res.body.length > 0)
+        assert.ok(Array.isArray(res.body.items) && res.body.items.length > 0)
 
-        const order = res.body[0]
+        const order = res.body.items[0]
         for (const field of [
           'id',
           'number',
@@ -118,9 +118,7 @@ test('a customer is refused the admin-only order patch', async () => {
     async (c: PoolClient) => {
       const order = await aBuiltOrder(c)
       await as(customer, async () => {
-        const res = await request(app)
-          .patch(`/api/orders/${order.id}`)
-          .send({ notes: 'nope' })
+        const res = await request(app).patch(`/api/orders/${order.id}`).send({ notes: 'nope' })
         assert.equal(res.status, 403, 'a customer patched their own order')
       })
     },
@@ -139,7 +137,8 @@ test('locking spots freezes them and unlocking releases them', async () => {
 
         const list = await request(app).get('/api/orders?direction=purchase')
         assert.equal(
-          list.body.find((o: { id: string; state: string }) => o.id === order.id).spots_locked,
+          list.body.items.find((o: { id: string; state: string }) => o.id === order.id)
+            .spots_locked,
           true,
           'the order does not report its spots as locked'
         )
@@ -150,7 +149,7 @@ test('locking spots freezes them and unlocking releases them', async () => {
         assert.equal(unlocked.status, 200, JSON.stringify(unlocked.body))
 
         const after = await request(app).get('/api/orders?direction=purchase')
-        const listed = after.body.find(
+        const listed = after.body.items.find(
           (o: { id: string; spots_locked: boolean }) => o.id === order.id
         )
         assert.ok(listed, `order ${order.id} is absent from the list after unlocking`)

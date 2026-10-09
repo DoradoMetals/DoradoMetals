@@ -10,6 +10,7 @@ import type {
   PriceSide,
   ProductQuote,
   ProfitBreakdown,
+  RefiningPricing,
   SpotPrice,
 } from '@dorado/contracts'
 
@@ -52,6 +53,15 @@ export async function priceOrder(order_id: string, executor?: Executor): Promise
   const pricingRow = await pricing.orderPricing(order_id, executor)
   rules.assertPriced(pricingRow, `order ${order_id}`)
   rules.assertPriceable(pricingRow.unpriceable, `order ${order_id}`)
+  return pricingRow
+}
+
+export async function priceRefiningOrder(
+  refining_order_id: string,
+  executor?: Executor
+): Promise<RefiningPricing> {
+  const pricingRow = await pricing.refiningPricing(refining_order_id, executor)
+  rules.assertPriced(pricingRow, `refiner order ${refining_order_id}`)
   return pricingRow
 }
 

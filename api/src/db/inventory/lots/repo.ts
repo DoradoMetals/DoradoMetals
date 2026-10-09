@@ -2,6 +2,7 @@ import query from '#shared/db/query.ts'
 import { buildUpdate } from '#shared/db/patch.ts'
 import { sqlFrom } from '#shared/db/sql.ts'
 import { ARRIVED } from '#db/fulfillments/repo.ts'
+import { REFINING_STATE } from '#db/refining/orders/repo.ts'
 import { columnsOf, returningOf } from '#shared/db/columns.ts'
 import {
   InventoryLotView,
@@ -20,15 +21,19 @@ const sql = sqlFrom(import.meta.dirname)
 export const PATCHABLE = columnsOf(LotPatch)
 const RETURNING = returningOf(Lot)
 
-const POSITION = sql('position').trim().replaceAll('/*__fulfillment_arrived__*/', ARRIVED)
+export const LOT_POSITION = sql('position')
+  .trim()
+  .replaceAll('/*__fulfillment_arrived__*/', ARRIVED)
 const OWN_LOT = sql('own_lot').trim()
 const LIST_SQL = sql('list')
-  .replaceAll('/*__lot_position__*/', POSITION)
+  .replaceAll('/*__lot_position__*/', LOT_POSITION)
   .replaceAll('/*__own_lot__*/', OWN_LOT)
-const VIEW_ONE_SQL = sql('view_one').replaceAll('/*__lot_position__*/', POSITION)
-const POSITION_OF_SQL = sql('position_of').replaceAll('/*__lot_position__*/', POSITION)
+const VIEW_ONE_SQL = sql('view_one')
+  .replaceAll('/*__lot_position__*/', LOT_POSITION)
+  .replaceAll('/*__refining_state__*/', REFINING_STATE)
+const POSITION_OF_SQL = sql('position_of').replaceAll('/*__lot_position__*/', LOT_POSITION)
 const INVENTORY_BY_METAL_SQL = sql('inventory_by_metal')
-  .replaceAll('/*__lot_position__*/', POSITION)
+  .replaceAll('/*__lot_position__*/', LOT_POSITION)
   .replaceAll('/*__own_lot__*/', OWN_LOT)
 
 export async function getOne(id: string, executor?: Executor): Promise<Lot | undefined> {
@@ -68,10 +73,7 @@ export async function list(filter: LotFilter, executor?: Executor): Promise<Inve
   return rows.map((row) => InventoryLotView.parse(row))
 }
 
-export async function detail(
-  id: string,
-  executor?: Executor
-): Promise<LotDetailFacts | undefined> {
+export async function detail(id: string, executor?: Executor): Promise<LotDetailFacts | undefined> {
   const { rows } = await query<{ view: unknown }>(VIEW_ONE_SQL, [id], executor)
   return rows[0] === undefined ? undefined : LotDetailFacts.parse(rows[0].view)
 }

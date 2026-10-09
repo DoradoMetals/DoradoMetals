@@ -991,7 +991,8 @@ END) STORED,
   confirmed_at timestamp with time zone,
   settled_at timestamp with time zone,
   settled_spot numeric,
-  source inventory.lot_source
+  source inventory.lot_source,
+  line_reference text
 );
 ALTER TABLE inventory.lots ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE inventory.lots ADD COLUMN IF NOT EXISTS bullion_id uuid;
@@ -1025,6 +1026,7 @@ ALTER TABLE inventory.lots ADD COLUMN IF NOT EXISTS confirmed_at timestamp with 
 ALTER TABLE inventory.lots ADD COLUMN IF NOT EXISTS settled_at timestamp with time zone;
 ALTER TABLE inventory.lots ADD COLUMN IF NOT EXISTS settled_spot numeric;
 ALTER TABLE inventory.lots ADD COLUMN IF NOT EXISTS source inventory.lot_source;
+ALTER TABLE inventory.lots ADD COLUMN IF NOT EXISTS line_reference text;
 
 CREATE TABLE IF NOT EXISTS inventory.pool (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -1347,6 +1349,29 @@ ALTER TABLE orders.addresses ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random
 ALTER TABLE orders.addresses ADD COLUMN IF NOT EXISTS address_id uuid;
 ALTER TABLE orders.addresses ADD COLUMN IF NOT EXISTS order_id uuid;
 ALTER TABLE orders.addresses ADD COLUMN IF NOT EXISTS source_address_id uuid;
+
+CREATE TABLE IF NOT EXISTS orders.list_sorts (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  key text NOT NULL,
+  label text NOT NULL,
+  sort_field text NOT NULL,
+  descending boolean NOT NULL,
+  sort_order integer NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  created_by_id uuid,
+  updated_by_id uuid
+);
+ALTER TABLE orders.list_sorts ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE orders.list_sorts ADD COLUMN IF NOT EXISTS key text;
+ALTER TABLE orders.list_sorts ADD COLUMN IF NOT EXISTS label text;
+ALTER TABLE orders.list_sorts ADD COLUMN IF NOT EXISTS sort_field text;
+ALTER TABLE orders.list_sorts ADD COLUMN IF NOT EXISTS descending boolean;
+ALTER TABLE orders.list_sorts ADD COLUMN IF NOT EXISTS sort_order integer;
+ALTER TABLE orders.list_sorts ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE orders.list_sorts ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE orders.list_sorts ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE orders.list_sorts ADD COLUMN IF NOT EXISTS updated_by_id uuid;
 
 CREATE TABLE IF NOT EXISTS orders.lots (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -2218,6 +2243,27 @@ ALTER TABLE refiners.spots ADD COLUMN IF NOT EXISTS bullion_percentage numeric;
 ALTER TABLE refiners.spots ADD COLUMN IF NOT EXISTS created_at timestamp with time zone;
 ALTER TABLE refiners.spots ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone;
 ALTER TABLE refiners.spots ADD COLUMN IF NOT EXISTS refiner_order_id uuid;
+
+CREATE TABLE IF NOT EXISTS refining.documents (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  kind media.pdf_kind NOT NULL,
+  name text NOT NULL,
+  renderable boolean DEFAULT false NOT NULL,
+  sort_order integer NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  created_by_id uuid,
+  updated_by_id uuid
+);
+ALTER TABLE refining.documents ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE refining.documents ADD COLUMN IF NOT EXISTS kind media.pdf_kind;
+ALTER TABLE refining.documents ADD COLUMN IF NOT EXISTS name text;
+ALTER TABLE refining.documents ADD COLUMN IF NOT EXISTS renderable boolean DEFAULT false;
+ALTER TABLE refining.documents ADD COLUMN IF NOT EXISTS sort_order integer;
+ALTER TABLE refining.documents ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE refining.documents ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE refining.documents ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE refining.documents ADD COLUMN IF NOT EXISTS updated_by_id uuid;
 
 CREATE TABLE IF NOT EXISTS refining.lots (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -3340,6 +3386,26 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'orders_list_sorts_field' AND c.relname = 'list_sorts' AND n.nspname = 'orders'
+  ) THEN
+    ALTER TABLE orders.list_sorts ADD CONSTRAINT orders_list_sorts_field CHECK ((sort_field = ANY (ARRAY['created_at'::text, 'estimated_value'::text, 'lot_count'::text, 'arrived_at'::text])));
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'orders_list_sorts_pkey' AND c.relname = 'list_sorts' AND n.nspname = 'orders'
+  ) THEN
+    ALTER TABLE orders.list_sorts ADD CONSTRAINT orders_list_sorts_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'a_lot_sits_on_one_order' AND c.relname = 'lots' AND n.nspname = 'orders'
   ) THEN
     ALTER TABLE orders.lots ADD CONSTRAINT a_lot_sits_on_one_order UNIQUE (lot_id);
@@ -3813,6 +3879,16 @@ DO $$ BEGIN
     WHERE con.conname = 'refiner_spots_pkey' AND c.relname = 'spots' AND n.nspname = 'refiners'
   ) THEN
     ALTER TABLE refiners.spots ADD CONSTRAINT refiner_spots_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'refining_documents_pkey' AND c.relname = 'documents' AND n.nspname = 'refining'
+  ) THEN
+    ALTER TABLE refining.documents ADD CONSTRAINT refining_documents_pkey PRIMARY KEY (id);
   END IF;
 END $$;
 DO $$ BEGIN
@@ -5901,6 +5977,8 @@ CREATE INDEX IF NOT EXISTS session_impersonatedby_idx ON auth.sessions USING btr
 CREATE INDEX IF NOT EXISTS session_userid_idx ON auth.sessions USING btree ("userId");
 CREATE INDEX IF NOT EXISTS users_anonymous_stale_idx ON auth.users USING btree ("updatedAt") WHERE "isAnonymous";
 CREATE INDEX IF NOT EXISTS users_assigned ON auth.users USING btree (assigned_to_id);
+CREATE INDEX IF NOT EXISTS users_email_prefix ON auth.users USING btree (lower(email) text_pattern_ops);
+CREATE INDEX IF NOT EXISTS users_name_prefix ON auth.users USING btree (lower(name) text_pattern_ops);
 CREATE UNIQUE INDEX IF NOT EXISTS users_one_phone_number ON auth.users USING btree (phone_number) WHERE (phone_number IS NOT NULL);
 CREATE INDEX IF NOT EXISTS verification_expiresat_idx ON auth.verification USING btree ("expiresAt");
 CREATE INDEX IF NOT EXISTS verification_identifier_idx ON auth.verification USING btree (identifier);
@@ -5945,6 +6023,7 @@ CREATE INDEX IF NOT EXISTS lot_sources_lot ON inventory.lot_sources USING btree 
 CREATE INDEX IF NOT EXISTS lot_sources_source ON inventory.lot_sources USING btree (source_lot_id, kind);
 CREATE UNIQUE INDEX IF NOT EXISTS one_edge_per_pair_and_kind ON inventory.lot_sources USING btree (lot_id, source_lot_id, kind);
 CREATE INDEX IF NOT EXISTS lots_bullion ON inventory.lots USING btree (bullion_id);
+CREATE INDEX IF NOT EXISTS lots_line_reference ON inventory.lots USING btree (line_reference) WHERE (line_reference IS NOT NULL);
 CREATE INDEX IF NOT EXISTS lots_metal ON inventory.lots USING btree (metal_id);
 CREATE INDEX IF NOT EXISTS lots_settled ON inventory.lots USING btree (settled_at) WHERE (settled_at IS NOT NULL);
 CREATE INDEX IF NOT EXISTS pool_balance ON inventory.pool USING btree (refiner_id, metal_id, occurred_at);
@@ -5959,6 +6038,8 @@ CREATE INDEX IF NOT EXISTS idx_leads_leads_created_by_id ON leads.leads USING bt
 CREATE INDEX IF NOT EXISTS idx_leads_leads_updated_by_id ON leads.leads USING btree (updated_by_id);
 CREATE INDEX IF NOT EXISTS leads_assigned ON leads.leads USING btree (assigned_to_id);
 CREATE INDEX IF NOT EXISTS leads_contact_preference_id ON leads.leads USING btree (contact_preference_id);
+CREATE INDEX IF NOT EXISTS leads_name_prefix ON leads.leads USING btree (lower(name) text_pattern_ops);
+CREATE INDEX IF NOT EXISTS leads_number_prefix ON leads.leads USING btree (lower(number) text_pattern_ops);
 CREATE UNIQUE INDEX IF NOT EXISTS leads_number_unique ON leads.leads USING btree (number);
 CREATE INDEX IF NOT EXISTS leads_source_id ON leads.leads USING btree (source_id);
 CREATE INDEX IF NOT EXISTS migration_leads_email_idx ON leads.leads USING btree (lower(email));
@@ -5980,12 +6061,16 @@ CREATE UNIQUE INDEX IF NOT EXISTS addresses_one_per_order ON orders.addresses US
 CREATE INDEX IF NOT EXISTS idx_orders_addresses_source_address_id ON orders.addresses USING btree (source_address_id);
 CREATE INDEX IF NOT EXISTS order_addresses_address_idx ON orders.addresses USING btree (address_id);
 CREATE INDEX IF NOT EXISTS order_addresses_order_idx ON orders.addresses USING btree (order_id);
+CREATE UNIQUE INDEX IF NOT EXISTS orders_list_sorts_key ON orders.list_sorts USING btree (key);
+CREATE UNIQUE INDEX IF NOT EXISTS orders_list_sorts_order ON orders.list_sorts USING btree (sort_order);
 CREATE INDEX IF NOT EXISTS orders_lots_order ON orders.lots USING btree (order_id);
 CREATE INDEX IF NOT EXISTS idx_orders_orders_created_by_id ON orders.orders USING btree (created_by_id);
 CREATE INDEX IF NOT EXISTS idx_orders_orders_updated_by_id ON orders.orders USING btree (updated_by_id);
 CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders.orders USING btree (user_id);
 CREATE INDEX IF NOT EXISTS orders_assigned ON orders.orders USING btree (assigned_to_id);
 CREATE INDEX IF NOT EXISTS orders_cancelled_at_idx ON orders.orders USING btree (cancelled_at) WHERE (cancelled_at IS NOT NULL);
+CREATE INDEX IF NOT EXISTS orders_newest ON orders.orders USING btree (created_at DESC, id DESC);
+CREATE INDEX IF NOT EXISTS orders_number_prefix ON orders.orders USING btree (((number)::text) text_pattern_ops);
 CREATE INDEX IF NOT EXISTS idx_order_spots_metal ON orders.spots USING btree (metal_id);
 CREATE INDEX IF NOT EXISTS idx_order_spots_order ON orders.spots USING btree (order_id);
 CREATE UNIQUE INDEX IF NOT EXISTS order_spots_one_per_order_metal ON orders.spots USING btree (order_id, metal_id);
@@ -6062,6 +6147,7 @@ CREATE INDEX IF NOT EXISTS locations_org_idx ON places.locations USING btree (or
 CREATE INDEX IF NOT EXISTS user_addresses_address_idx ON places.user_addresses USING btree (address_id);
 CREATE UNIQUE INDEX IF NOT EXISTS user_addresses_one_default_per_user ON places.user_addresses USING btree (user_id) WHERE default_shipping;
 CREATE INDEX IF NOT EXISTS user_addresses_user_idx ON places.user_addresses USING btree (user_id);
+CREATE INDEX IF NOT EXISTS bullion_name_prefix ON products.bullion USING btree (lower(name) text_pattern_ops);
 CREATE INDEX IF NOT EXISTS idx_bullion_metal_id ON products.bullion USING btree (metal_id);
 CREATE INDEX IF NOT EXISTS idx_bullion_mint_id ON products.bullion USING btree (mint_id);
 CREATE INDEX IF NOT EXISTS idx_bullion_slug ON products.bullion USING btree (slug, display);
@@ -6088,6 +6174,8 @@ CREATE INDEX IF NOT EXISTS idx_refiner_spots_metal ON refiners.spots USING btree
 CREATE INDEX IF NOT EXISTS idx_refiner_spots_order ON refiners.spots USING btree (order_id);
 CREATE INDEX IF NOT EXISTS idx_refiner_spots_refiner ON refiners.spots USING btree (refiner_id);
 CREATE INDEX IF NOT EXISTS refiners_spots_refiner_order_id_idx ON refiners.spots USING btree (refiner_order_id);
+CREATE UNIQUE INDEX IF NOT EXISTS refining_documents_kind ON refining.documents USING btree (kind);
+CREATE UNIQUE INDEX IF NOT EXISTS refining_documents_order ON refining.documents USING btree (sort_order);
 CREATE INDEX IF NOT EXISTS refining_lots_order ON refining.lots USING btree (refining_order_id);
 CREATE UNIQUE INDEX IF NOT EXISTS one_open_sell_order_per_refiner ON refining.orders USING btree (refiner_id) WHERE ((sent_at IS NULL) AND (cancelled_at IS NULL) AND (direction = 'sell'::refining.direction));
 CREATE INDEX IF NOT EXISTS refining_orders_refiner ON refining.orders USING btree (refiner_id, direction, sent_at DESC);
@@ -6137,7 +6225,15 @@ CREATE OR REPLACE VIEW fulfillments.arrivals AS
                  JOIN shipping.shipments s ON s.id = fs.shipment_id
               WHERE fs.fulfillment_id = f.id AND s.direction = 'Inbound'::shipping.direction AND (s.delivered_at IS NOT NULL OR s.shipping_status = 'Delivered'::text)))
             ELSE f.status = ANY (ARRAY['PICKED_UP'::fulfillments.fulfillment_status, 'COMPLETED'::fulfillments.fulfillment_status, 'DROPPED_OFF'::fulfillments.fulfillment_status])
-        END AS arrived
+        END AS arrived,
+        CASE
+            WHEN m.category = 'SHIPMENT'::fulfillments.category THEN ( SELECT max(s.delivered_at) AS max
+               FROM fulfillments.shipments fs
+                 JOIN shipping.shipments s ON s.id = fs.shipment_id
+              WHERE fs.fulfillment_id = f.id AND s.direction = 'Inbound'::shipping.direction AND (s.delivered_at IS NOT NULL OR s.shipping_status = 'Delivered'::text))
+            WHEN f.status = ANY (ARRAY['PICKED_UP'::fulfillments.fulfillment_status, 'COMPLETED'::fulfillments.fulfillment_status, 'DROPPED_OFF'::fulfillments.fulfillment_status]) THEN f.updated_at
+            ELSE NULL::timestamp with time zone
+        END AS arrived_at
    FROM fulfillments.fulfillments f
      JOIN fulfillments.methods m ON m.id = f.method_id;
 
@@ -6182,9 +6278,11 @@ CREATE OR REPLACE VIEW refining.order_money AS
     rem.remediation AS pool_remediation,
     chg.charge AS payment_charge,
         CASE
-            WHEN ro.direction = 'sell'::refining.direction THEN COALESCE(settle.money, 0::numeric) - COALESCE(ro.fee, 0::numeric) - COALESCE(rem.remediation, 0::numeric) - COALESCE(chg.charge, 0::numeric)
-            ELSE COALESCE(settle.money, 0::numeric) + COALESCE(ro.fee, 0::numeric) + COALESCE(chg.charge, 0::numeric)
-        END AS total
+            WHEN ro.direction = 'sell'::refining.direction THEN COALESCE(settle.money, 0::numeric) - COALESCE(ro.fee, 0::numeric) - COALESCE(rem.remediation, 0::numeric) - COALESCE(chg.charge, 0::numeric) - COALESCE(frt.carriage, 0::numeric)
+            ELSE COALESCE(settle.money, 0::numeric) + COALESCE(ro.fee, 0::numeric) + COALESCE(chg.charge, 0::numeric) + COALESCE(frt.carriage, 0::numeric)
+        END AS total,
+    frt.carriage AS shipping,
+    rem.oz AS pool_oz_remediated
    FROM refining.orders ro
      LEFT JOIN LATERAL ( SELECT sum(rlot.content * rlot.quantity * COALESCE(rlot.premium, src.premium, 1::numeric) * COALESCE(rlot.settled_spot, sp.bid, sp.ask)) AS money
            FROM refining.lots rl
@@ -6197,13 +6295,21 @@ CREATE OR REPLACE VIEW refining.order_money AS
                  LIMIT 1) src ON true
              LEFT JOIN spots.spots sp ON sp.metal_id = rlot.metal_id
           WHERE rl.refining_order_id = ro.id AND (ro.direction <> 'sell'::refining.direction OR ro.settlement_type = 'paid'::refining.settlement_type)) settle ON true
-     LEFT JOIN LATERAL ( SELECT - sum(p.troy_oz * p.lock_price) AS remediation
+     LEFT JOIN LATERAL ( SELECT - sum(p.troy_oz * p.lock_price) AS remediation,
+            sum(p.troy_oz) AS oz
            FROM inventory.pool p
           WHERE p.refining_order_id = ro.id AND p.entry = 'lock'::inventory.pool_entry AND p.lock_price IS NOT NULL) rem ON true
      LEFT JOIN LATERAL ( SELECT max(m.flat_fee) AS charge
            FROM payments.transfers t
              JOIN payments.methods m ON m.type = t.rail::text AND m.enabled
-          WHERE t.refining_order_id = ro.id AND t.state <> 'Failed'::payments.transfer_state) chg ON true;
+          WHERE t.refining_order_id = ro.id AND t.state <> 'Failed'::payments.transfer_state) chg ON true
+     LEFT JOIN LATERAL ( SELECT sh.cost AS carriage
+           FROM fulfillments.fulfillments f
+             JOIN fulfillments.shipments fs ON fs.fulfillment_id = f.id
+             JOIN shipping.shipments sh ON sh.id = fs.shipment_id
+          WHERE f.refining_order_id = ro.id AND sh.direction <> 'Return'::shipping.direction
+          ORDER BY sh.created_at, sh.id
+         LIMIT 1) frt ON true;
 
 CREATE OR REPLACE VIEW shipping.carriers_exchange_compat AS
  SELECT c.id,

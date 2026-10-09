@@ -28,7 +28,9 @@ export const Order = z.object({
 export type Order = z.infer<typeof Order>
 // generated:end
 import { OrderTotals } from './transactions.js'
-import { OrderLotView } from './lots.js'
+import { OrderLot, OrderLotView } from './lots.js'
+import { Lot } from '../inventory/lots.js'
+import { Bullion } from '../products/bullion.js'
 import { Address } from '../places/addresses.js'
 import { OrderViewShipment, Shipment } from '../shipping/shipments.js'
 import { ShipmentPickup } from '../shipping/pickups.js'
@@ -47,12 +49,62 @@ import { UserSummary } from '../auth/users.js'
 export const OrderRead = Order.extend({ totals: OrderTotals.nullable() })
 export type OrderRead = z.infer<typeof OrderRead>
 
+export const OrderCardLot = z
+  .object({
+    lot_id: OrderLot.shape.lot_id,
+    product_name: Bullion.shape.name.nullable(),
+    weight: Lot.shape.post_melt,
+    unit: Lot.shape.unit,
+    purity: Lot.shape.purity,
+  })
+  .extend({
+    reference: z.string(),
+    form: z.string(),
+    destination: z.string().nullable(),
+  })
+export type OrderCardLot = z.infer<typeof OrderCardLot>
+
 export const OrderListItem = OrderRead.extend({
   reference: z.string(),
   state: OrderState,
   customer: UserSummary.nullable(),
+}).extend({
+  lots: z.array(OrderCardLot),
+  lot_count: z.number().int(),
+  more_count: z.number().int(),
+  estimated_value: z.number(),
+  arrived_at: Order.shape.created_at,
+  placed_at: Order.shape.created_at,
 })
 export type OrderListItem = z.infer<typeof OrderListItem>
+
+export const OrderListCounts = z.object({}).extend({
+  orders: z.number().int(),
+  unassigned_lots: z.number().int(),
+})
+export type OrderListCounts = z.infer<typeof OrderListCounts>
+
+export const OrderList = z.object({ counts: OrderListCounts }).extend({
+  items: z.array(OrderListItem),
+})
+export type OrderList = z.infer<typeof OrderList>
+
+export const OrderFilter = z
+  .object({
+    direction: Order.shape.direction,
+    user_id: Order.shape.user_id,
+    assigned_to_id: Order.shape.assigned_to_id,
+  })
+  .extend({
+    states: z.array(OrderState).nullable(),
+    unassigned: z.boolean().nullable(),
+    has_unassigned_lots: z.boolean().nullable(),
+    sort: z.string().nullable(),
+    limit: z.number().int().positive().nullable(),
+    offset: z.number().int().nonnegative().nullable(),
+  })
+  .partial()
+export type OrderFilter = z.infer<typeof OrderFilter>
 
 export const OrderViewShipmentDetail = OrderViewShipment.extend({
   service_name: CarrierService.shape.name.nullable(),

@@ -14,8 +14,10 @@ import type {
   RefiningOrderCreate,
   RefiningOrderPatch,
   RefiningOrderView,
+  RefiningPricing,
   RefiningSettlement,
   RefiningSpot,
+  SettlementLine,
 } from '@dorado/contracts'
 
 import { apiRequest, apiRequestForm } from '../fetch'
@@ -49,6 +51,23 @@ export function useRefiningOrder(id: string, options: { enabled?: boolean } = {}
     queryKey: keys.refining.view(id),
     enabled: (options.enabled ?? true) && id.length > 0,
     queryFn: () => apiRequest<RefiningOrderView>('GET', `/refining/orders/${id}`),
+  })
+}
+
+export function useRefiningPricing(id: string, options: { enabled?: boolean } = {}) {
+  return useQuery<RefiningPricing>({
+    queryKey: keys.refining.pricing(id),
+    enabled: (options.enabled ?? true) && id.length > 0,
+    queryFn: () =>
+      apiRequest<RefiningPricing>('POST', '/quotes/refining_order', { refining_order_id: id }),
+  })
+}
+
+export function useSettlementLines(id: string, options: { enabled?: boolean } = {}) {
+  return useQuery<SettlementLine[]>({
+    queryKey: keys.refining.settlementLines(id),
+    enabled: (options.enabled ?? true) && id.length > 0,
+    queryFn: () => apiRequest<SettlementLine[]>('GET', `/refining/orders/${id}/settlement-lines`),
   })
 }
 

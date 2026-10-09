@@ -20,7 +20,7 @@ beforeAll(async () => {
   lockClient = await pool.connect()
   await lockClient.query('SELECT pg_advisory_lock($1)', [LOCKS.ORDERS])
 
-  const ids = (await orderRead.list('purchase', null)).map((o) => o.id)
+  const ids = (await orderRead.list({ direction: 'purchase' })).items.map((o) => o.id)
   orders = []
   for (const id of ids) {
     const view = await orderRead.view(id)
@@ -135,7 +135,7 @@ test("the purchase invoice's own lines add up to the Total it prints", async () 
 
 test('the sales invoice prints the tax that is part of its own total', async () => {
   const sales: OrderView[] = []
-  for (const row of await orderRead.list('sale', null)) {
+  for (const row of (await orderRead.list({ direction: 'sale' })).items) {
     const view = await orderRead.view(row.id)
     if (view) sales.push(view)
   }

@@ -9,7 +9,7 @@ SELECT li.id, li.bullion_id, li.metal_id, li.unit, li.quantity, li.pre_melt,
        li.premium, li.sales_tax_rate,
        to_char(li.confirmed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS confirmed_at,
        to_char(li.settled_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS settled_at,
-       li.settled_spot, li.source::text AS source
+       li.settled_spot, li.source::text AS source, li.line_reference
   FROM checkout.lots cl
   JOIN inventory.lots li ON li.id = cl.lot_id
  WHERE cl.checkout_id = $1

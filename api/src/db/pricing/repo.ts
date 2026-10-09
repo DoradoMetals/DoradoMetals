@@ -1,5 +1,5 @@
 import query from '#shared/db/query.ts'
-import { sqlFrom } from '#shared/db/sql.ts'
+import { expression, sqlFrom } from '#shared/db/sql.ts'
 import type { Executor } from '#shared/db/executor.ts'
 import {
   CheckoutQuote,
@@ -11,10 +11,13 @@ import {
   PriceSide,
   ProfitBreakdown,
   PurchaseQuote,
+  RefiningPricing,
   SaleQuote,
 } from '@dorado/contracts'
 
 const sql = sqlFrom(import.meta.dirname)
+
+export const ORDER_VALUE = expression(sql('order_value'))
 
 export async function directionOf(
   checkout_id: string,
@@ -72,6 +75,18 @@ export async function profitBreakdown(
     executor
   )
   return rows[0] ? ProfitBreakdown.parse(rows[0].breakdown) : undefined
+}
+
+export async function refiningPricing(
+  refining_order_id: string,
+  executor?: Executor
+): Promise<RefiningPricing | undefined> {
+  const { rows } = await query<{ pricing: unknown }>(
+    sql('refining_pricing'),
+    [refining_order_id],
+    executor
+  )
+  return rows[0] ? RefiningPricing.parse(rows[0].pricing) : undefined
 }
 
 export async function leadEstimate(

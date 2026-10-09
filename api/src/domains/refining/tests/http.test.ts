@@ -76,8 +76,8 @@ test('the list filters by counterparty, direction and state, and refuses a stran
 
       const pending = await request(app)
         .get('/api/refining/orders')
-        .query({ state: 'Pending assay' })
-      assert.ok(pending.body.every((row: { state: string }) => row.state === 'Pending assay'))
+        .query({ state: 'Pending Assay' })
+      assert.ok(pending.body.every((row: { state: string }) => row.state === 'Pending Assay'))
 
       const bad = await request(app).get('/api/refining/orders').query({ direction: 'sideways' })
       assert.equal(bad.status, 400, `answered ${bad.status}`)
@@ -94,7 +94,7 @@ test('a refiner order reads back by id, and an unknown one is a 404', async () =
       const read = await request(app).get(`/api/refining/orders/${created.id}`)
       assert.equal(read.status, 200, read.text)
       assert.equal(read.body.number, created.number)
-      assert.equal(read.body.state, 'Awaiting Delivery', 'a buy order waits on its delivery')
+      assert.equal(read.body.state, 'Draft', 'an unsent buy order is not a draft')
       assert.deepEqual(read.body.lots, [])
       assert.equal(read.body.variance, null, 'an order with no lots reported a variance')
 
@@ -308,7 +308,11 @@ test('a pool lock names a positive weight, and locking past what is available st
         purpose: 'Sell to refiner',
       })
       assert.equal(dry.status, 201, dry.text)
-      assert.equal(Number(dry.body.troy_oz), -1, 'a lock is allowed against a pool with no metal yet')
+      assert.equal(
+        Number(dry.body.troy_oz),
+        -1,
+        'a lock is allowed against a pool with no metal yet'
+      )
 
       const assigned = await request(app)
         .post(`/api/refining/orders/${created.id}/lots`)

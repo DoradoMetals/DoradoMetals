@@ -6,6 +6,9 @@
 -- Customer payout is always priced on OUR figures (never the refiner's), so
 -- nothing here writes anything: POST /api/orders/:id/adopt_assay takes the
 -- figures an employee confirms, never a recomputation of this read.
+--
+-- `product_name`, `form` and `metal_id` are derived the same way view.sql
+-- derives them, so the dialog names a lot exactly as the order screen does.
 WITH batched AS (
   SELECT ol.id, ol.lot_id, li.declared_content, ls.lot_id AS refiner_lot_id
     FROM orders.lots ol
@@ -38,6 +41,9 @@ SELECT jsonb_build_object(
                        'refiner', jsonb_build_object(
                          'pre_melt', rl.pre_melt, 'post_melt', rl.post_melt,
                          'purity', rl.purity, 'unit', rl.unit, 'premium', rl.premium),
+                       'product_name', b.name,
+                       'form', COALESCE(b.type, 'Scrap'),
+                       'metal_id', li.metal_id,
                        'share', s.share,
                        'proposed', jsonb_build_object(
                          'pre_melt', CASE WHEN rl.pre_melt IS NULL THEN NULL
@@ -50,6 +56,7 @@ SELECT jsonb_build_object(
                      ORDER BY s.id ASC)
               FROM shared s
               JOIN inventory.lots li ON li.id = s.lot_id
-              JOIN inventory.lots rl ON rl.id = s.refiner_lot_id),
+              JOIN inventory.lots rl ON rl.id = s.refiner_lot_id
+              LEFT JOIN products.bullion b ON b.id = li.bullion_id),
            '[]'::jsonb)
        ) AS proposal

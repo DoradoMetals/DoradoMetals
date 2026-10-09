@@ -66,6 +66,8 @@ const pricing = (ask: number | null = 4000) =>
     items_total: 200,
     shipping_charge: 0,
     payout_fee: 0,
+    sales_tax: 0,
+    credit_applied: 0,
     total: 200,
     declared_value: 200,
   }) as OrderPricing

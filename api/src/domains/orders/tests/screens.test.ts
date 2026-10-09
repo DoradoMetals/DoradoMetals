@@ -52,7 +52,7 @@ test('the list carries the same reference and customer as the single view', asyn
     await asAdmin(TEST_ACTOR, async () => {
       const list = await request(app).get('/api/orders').query({ direction: 'purchase' })
       assert.equal(list.status, 200, list.text)
-      const row = list.body.find((o: { id: string }) => o.id === order.id)
+      const row = list.body.items.find((o: { id: string }) => o.id === order.id)
       assert.ok(row, 'the built order is missing from the admin list')
 
       const single = await request(app).get(`/api/orders/${order.id}`)
@@ -66,7 +66,7 @@ test('the list carries the same reference and customer as the single view', asyn
     await as(buyer, async () => {
       const own = await request(app).get('/api/orders').query({ direction: 'purchase' })
       assert.equal(own.status, 200, own.text)
-      const row = own.body.find((o: { id: string }) => o.id === order.id)
+      const row = own.body.items.find((o: { id: string }) => o.id === order.id)
       assert.ok(row, "the customer's own list is missing their order")
       assert.equal(row.reference, `PO-${order.number}`)
       assert.equal(row.customer.id, buyer.id)

@@ -10,6 +10,7 @@ import {
   getAdoptAssayProposal,
   getOrder,
   getOrderDocuments,
+  listOrderSorts,
   listOrders,
   patchOrder,
 } from '#orders/controller.ts'
@@ -33,6 +34,7 @@ import { requireOwnOrderParam } from '#shared/middleware/ownership.ts'
 const router = express.Router()
 
 router.get('/', requireUser, listOrders)
+router.get('/sorts', requireAdmin, listOrderSorts)
 router.post('/', requireUser, createOrder)
 router.post('/admin', requireAdmin, adminCreateOrder)
 

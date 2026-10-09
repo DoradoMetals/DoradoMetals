@@ -3,5 +3,6 @@
 //
 // Every entity of the `refining` schema, one namespace each.
 export * from './enums.js'
+export * from './documents.js'
 export * from './lots.js'
 export * from './orders.js'

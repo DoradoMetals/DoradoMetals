@@ -18,6 +18,7 @@ export type OrderLot = z.infer<typeof OrderLot>
 // generated:end
 
 import { Lot, LotPatch, LotView } from '../inventory/lots.js'
+import { Bullion } from '../products/bullion.js'
 import { RefiningOrder } from '../refining/orders.js'
 
 export const OrderLotPatch = Lot.pick({
@@ -65,6 +66,9 @@ export const AdoptAssayCandidate = z
     refiner: LotPatch.nullable(),
     share: Lot.shape.content,
     proposed: LotPatch,
+    product_name: Bullion.shape.name.nullable(),
+    metal_id: Lot.shape.metal_id,
+    form: z.string(),
   })
   .strict()
 export type AdoptAssayCandidate = z.infer<typeof AdoptAssayCandidate>

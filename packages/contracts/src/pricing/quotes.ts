@@ -143,10 +143,51 @@ export const OrderPricing = z.object({
   items_total: z.number(),
   shipping_charge: z.number(),
   payout_fee: z.number(),
+  sales_tax: z.number(),
+  credit_applied: z.number(),
   total: z.number(),
   declared_value: z.number(),
 })
 export type OrderPricing = z.infer<typeof OrderPricing>
+
+export const RefiningPricingLine = z.object({
+  lot_id: Lot.shape.id,
+  reference: z.string(),
+  product_name: z.string().nullable(),
+  form: z.string(),
+  metal_id: Metal.shape.id,
+  line_reference: Lot.shape.line_reference,
+  content: z.number().nullable(),
+  quantity: z.number(),
+  premium: z.number().nullable(),
+  settled_spot: z.number().nullable(),
+  settled_at: z.string().nullable(),
+  price: z.number().nullable(),
+})
+export type RefiningPricingLine = z.infer<typeof RefiningPricingLine>
+
+export const RefiningPricing = z.object({
+  refining_order_id: z.string().uuid(),
+  direction: z.string(),
+  settlement_type: z.string(),
+  spots_at: z.string(),
+  lots: z.array(RefiningPricingLine),
+  expected_settlement: z.number().nullable(),
+  fee: z.number().nullable(),
+  shipping: z.number().nullable(),
+  payment_charge: z.number().nullable(),
+  pool_remediation: z.number().nullable(),
+  pool_oz_remediated: z.number().nullable(),
+  total: z.number().nullable(),
+})
+export type RefiningPricing = z.infer<typeof RefiningPricing>
+
+export const RefiningQuoteBody = z
+  .object({
+    refining_order_id: z.string().uuid(),
+  })
+  .strict()
+export type RefiningQuoteBody = z.infer<typeof RefiningQuoteBody>
 
 export const LeadEstimateLine = z.object({
   id: EstimateItem.shape.id,

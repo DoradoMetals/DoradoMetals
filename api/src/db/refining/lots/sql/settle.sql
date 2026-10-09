@@ -10,11 +10,16 @@
 -- refiner's own price on a `paid` order, the market's on a `pooled` one. The
 -- rules layer refuses a `pooled` line that tries to name its own spot, so
 -- `a.settled_spot` is always NULL there and the market read is what lands.
+--
+-- `line_reference` is the refiner's own invoice line for this lot (262). A
+-- settlement that does not name one leaves the one already there alone, the
+-- same way every other figure here does.
 WITH lines AS (
   SELECT * FROM unnest(
     $2::uuid[], $3::numeric[], $4::numeric[], $5::numeric[], $6::text[],
-    $7::numeric[], $8::numeric[]
-  ) AS t(lot_id, pre_melt, post_melt, purity, unit, premium, settled_spot)
+    $7::numeric[], $8::numeric[], $9::text[]
+  ) AS t(lot_id, pre_melt, post_melt, purity, unit, premium, settled_spot,
+         line_reference)
 )
 UPDATE inventory.lots li
    SET pre_melt = COALESCE(a.pre_melt, li.pre_melt),
@@ -27,6 +32,7 @@ UPDATE inventory.lots li
                 li.settled_spot,
                 (SELECT sp.bid FROM spots.spots sp WHERE sp.metal_id = li.metal_id),
                 (SELECT sp.ask FROM spots.spots sp WHERE sp.metal_id = li.metal_id)),
+       line_reference = COALESCE(a.line_reference, li.line_reference),
        settled_at = COALESCE(li.settled_at, now())
   FROM lines a
   JOIN refining.lots rl ON rl.lot_id = a.lot_id
