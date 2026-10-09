@@ -688,6 +688,27 @@ ALTER TABLE checkout.lots ADD COLUMN IF NOT EXISTS updated_at timestamp with tim
 ALTER TABLE checkout.lots ADD COLUMN IF NOT EXISTS created_by_id uuid;
 ALTER TABLE checkout.lots ADD COLUMN IF NOT EXISTS updated_by_id uuid;
 
+CREATE TABLE IF NOT EXISTS crm.assignments (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  user_id uuid,
+  lead_id uuid,
+  assigned_to_id uuid,
+  assigned_at timestamp with time zone DEFAULT now() NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  created_by_id uuid,
+  updated_by_id uuid
+);
+ALTER TABLE crm.assignments ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE crm.assignments ADD COLUMN IF NOT EXISTS user_id uuid;
+ALTER TABLE crm.assignments ADD COLUMN IF NOT EXISTS lead_id uuid;
+ALTER TABLE crm.assignments ADD COLUMN IF NOT EXISTS assigned_to_id uuid;
+ALTER TABLE crm.assignments ADD COLUMN IF NOT EXISTS assigned_at timestamp with time zone DEFAULT now();
+ALTER TABLE crm.assignments ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE crm.assignments ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE crm.assignments ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE crm.assignments ADD COLUMN IF NOT EXISTS updated_by_id uuid;
+
 CREATE TABLE IF NOT EXISTS crm.calls (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
   provider text DEFAULT 'twilio'::text NOT NULL,
@@ -726,6 +747,67 @@ ALTER TABLE crm.calls ADD COLUMN IF NOT EXISTS updated_at timestamp with time zo
 ALTER TABLE crm.calls ADD COLUMN IF NOT EXISTS created_by_id uuid;
 ALTER TABLE crm.calls ADD COLUMN IF NOT EXISTS updated_by_id uuid;
 ALTER TABLE crm.calls ADD COLUMN IF NOT EXISTS read_at timestamp with time zone;
+
+CREATE TABLE IF NOT EXISTS crm.notes (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  user_id uuid,
+  lead_id uuid,
+  body text NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  created_by_id uuid,
+  updated_by_id uuid
+);
+ALTER TABLE crm.notes ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE crm.notes ADD COLUMN IF NOT EXISTS user_id uuid;
+ALTER TABLE crm.notes ADD COLUMN IF NOT EXISTS lead_id uuid;
+ALTER TABLE crm.notes ADD COLUMN IF NOT EXISTS body text;
+ALTER TABLE crm.notes ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE crm.notes ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE crm.notes ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE crm.notes ADD COLUMN IF NOT EXISTS updated_by_id uuid;
+
+CREATE TABLE IF NOT EXISTS crm.sms_consent_events (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  user_id uuid,
+  lead_id uuid,
+  kind_id uuid NOT NULL,
+  method text,
+  at timestamp with time zone DEFAULT now() NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  created_by_id uuid,
+  updated_by_id uuid
+);
+ALTER TABLE crm.sms_consent_events ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE crm.sms_consent_events ADD COLUMN IF NOT EXISTS user_id uuid;
+ALTER TABLE crm.sms_consent_events ADD COLUMN IF NOT EXISTS lead_id uuid;
+ALTER TABLE crm.sms_consent_events ADD COLUMN IF NOT EXISTS kind_id uuid;
+ALTER TABLE crm.sms_consent_events ADD COLUMN IF NOT EXISTS method text;
+ALTER TABLE crm.sms_consent_events ADD COLUMN IF NOT EXISTS at timestamp with time zone DEFAULT now();
+ALTER TABLE crm.sms_consent_events ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE crm.sms_consent_events ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE crm.sms_consent_events ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE crm.sms_consent_events ADD COLUMN IF NOT EXISTS updated_by_id uuid;
+
+CREATE TABLE IF NOT EXISTS crm.sms_consent_kinds (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  key text NOT NULL,
+  label text NOT NULL,
+  sort_order integer NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  created_by_id uuid,
+  updated_by_id uuid
+);
+ALTER TABLE crm.sms_consent_kinds ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE crm.sms_consent_kinds ADD COLUMN IF NOT EXISTS key text;
+ALTER TABLE crm.sms_consent_kinds ADD COLUMN IF NOT EXISTS label text;
+ALTER TABLE crm.sms_consent_kinds ADD COLUMN IF NOT EXISTS sort_order integer;
+ALTER TABLE crm.sms_consent_kinds ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE crm.sms_consent_kinds ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE crm.sms_consent_kinds ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE crm.sms_consent_kinds ADD COLUMN IF NOT EXISTS updated_by_id uuid;
 
 CREATE TABLE IF NOT EXISTS crm.sms_messages (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -1163,7 +1245,10 @@ CREATE TABLE IF NOT EXISTS leads.leads (
   sms_consent_method text,
   source_id uuid,
   contact_preference_id uuid,
-  number text DEFAULT ('LEAD-'::text || nextval('leads.number_seq'::regclass)) NOT NULL
+  number text DEFAULT ('LEAD-'::text || nextval('leads.number_seq'::regclass)) NOT NULL,
+  contacted_at timestamp with time zone,
+  responded_at timestamp with time zone,
+  converted_at timestamp with time zone
 );
 ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS name text;
@@ -1189,6 +1274,9 @@ ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS sms_consent_method text;
 ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS source_id uuid;
 ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS contact_preference_id uuid;
 ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS number text DEFAULT ('LEAD-'::text || nextval('leads.number_seq'::regclass));
+ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS contacted_at timestamp with time zone;
+ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS responded_at timestamp with time zone;
+ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS converted_at timestamp with time zone;
 
 CREATE TABLE IF NOT EXISTS leads.sources (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -1298,7 +1386,9 @@ CREATE TABLE IF NOT EXISTS media.pdfs (
   size_bytes bigint,
   checksum text,
   created_at timestamp with time zone DEFAULT now() NOT NULL,
-  refining_order_id uuid
+  refining_order_id uuid,
+  created_by_id uuid,
+  updated_by_id uuid
 );
 ALTER TABLE media.pdfs ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE media.pdfs ADD COLUMN IF NOT EXISTS kind media.pdf_kind;
@@ -1308,6 +1398,8 @@ ALTER TABLE media.pdfs ADD COLUMN IF NOT EXISTS size_bytes bigint;
 ALTER TABLE media.pdfs ADD COLUMN IF NOT EXISTS checksum text;
 ALTER TABLE media.pdfs ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
 ALTER TABLE media.pdfs ADD COLUMN IF NOT EXISTS refining_order_id uuid;
+ALTER TABLE media.pdfs ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE media.pdfs ADD COLUMN IF NOT EXISTS updated_by_id uuid;
 
 CREATE TABLE IF NOT EXISTS metals.metals (
   id text NOT NULL
@@ -1719,7 +1811,9 @@ CREATE TABLE IF NOT EXISTS payments.ledger (
   amount numeric NOT NULL,
   occurred_at timestamp with time zone DEFAULT now() NOT NULL,
   created_at timestamp with time zone DEFAULT now() NOT NULL,
-  updated_at timestamp with time zone DEFAULT now() NOT NULL
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  created_by_id uuid,
+  updated_by_id uuid
 );
 ALTER TABLE payments.ledger ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE payments.ledger ADD COLUMN IF NOT EXISTS user_id uuid;
@@ -1729,6 +1823,8 @@ ALTER TABLE payments.ledger ADD COLUMN IF NOT EXISTS amount numeric;
 ALTER TABLE payments.ledger ADD COLUMN IF NOT EXISTS occurred_at timestamp with time zone DEFAULT now();
 ALTER TABLE payments.ledger ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
 ALTER TABLE payments.ledger ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE payments.ledger ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE payments.ledger ADD COLUMN IF NOT EXISTS updated_by_id uuid;
 
 CREATE TABLE IF NOT EXISTS payments.methods (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -2780,6 +2876,26 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'assignments_one_subject' AND c.relname = 'assignments' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.assignments ADD CONSTRAINT assignments_one_subject CHECK (((user_id IS NULL) <> (lead_id IS NULL)));
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'assignments_pkey' AND c.relname = 'assignments' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.assignments ADD CONSTRAINT assignments_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'calls_pkey' AND c.relname = 'calls' AND n.nspname = 'crm'
   ) THEN
     ALTER TABLE crm.calls ADD CONSTRAINT calls_pkey PRIMARY KEY (id);
@@ -2793,6 +2909,76 @@ DO $$ BEGIN
     WHERE con.conname = 'calls_provider_sid_key' AND c.relname = 'calls' AND n.nspname = 'crm'
   ) THEN
     ALTER TABLE crm.calls ADD CONSTRAINT calls_provider_sid_key UNIQUE (provider_sid);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'notes_body_is_written' AND c.relname = 'notes' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.notes ADD CONSTRAINT notes_body_is_written CHECK ((btrim(body) <> ''::text));
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'notes_one_subject' AND c.relname = 'notes' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.notes ADD CONSTRAINT notes_one_subject CHECK (((user_id IS NULL) <> (lead_id IS NULL)));
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'notes_pkey' AND c.relname = 'notes' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.notes ADD CONSTRAINT notes_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'sms_consent_events_method_is_known' AND c.relname = 'sms_consent_events' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.sms_consent_events ADD CONSTRAINT sms_consent_events_method_is_known CHECK (((method IS NULL) OR (method = ANY (ARRAY['web_form'::text, 'verbal'::text, 'via_text'::text]))));
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'sms_consent_events_one_subject' AND c.relname = 'sms_consent_events' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.sms_consent_events ADD CONSTRAINT sms_consent_events_one_subject CHECK (((user_id IS NULL) <> (lead_id IS NULL)));
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'sms_consent_events_pkey' AND c.relname = 'sms_consent_events' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.sms_consent_events ADD CONSTRAINT sms_consent_events_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'sms_consent_kinds_pkey' AND c.relname = 'sms_consent_kinds' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.sms_consent_kinds ADD CONSTRAINT sms_consent_kinds_pkey PRIMARY KEY (id);
   END IF;
 END $$;
 DO $$ BEGIN
@@ -4230,6 +4416,56 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'assignments_assignee_fk' AND c.relname = 'assignments' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.assignments ADD CONSTRAINT assignments_assignee_fk FOREIGN KEY (assigned_to_id) REFERENCES auth.users(id) ON DELETE SET NULL;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'assignments_created_by_id_fkey' AND c.relname = 'assignments' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.assignments ADD CONSTRAINT assignments_created_by_id_fkey FOREIGN KEY (created_by_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'assignments_lead_fk' AND c.relname = 'assignments' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.assignments ADD CONSTRAINT assignments_lead_fk FOREIGN KEY (lead_id) REFERENCES leads.leads(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'assignments_updated_by_id_fkey' AND c.relname = 'assignments' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.assignments ADD CONSTRAINT assignments_updated_by_id_fkey FOREIGN KEY (updated_by_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'assignments_user_fk' AND c.relname = 'assignments' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.assignments ADD CONSTRAINT assignments_user_fk FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'calls_created_by_id_fkey' AND c.relname = 'calls' AND n.nspname = 'crm'
   ) THEN
     ALTER TABLE crm.calls ADD CONSTRAINT calls_created_by_id_fkey FOREIGN KEY (created_by_id) REFERENCES auth.users(id);
@@ -4263,6 +4499,96 @@ DO $$ BEGIN
     WHERE con.conname = 'calls_user_id_fkey' AND c.relname = 'calls' AND n.nspname = 'crm'
   ) THEN
     ALTER TABLE crm.calls ADD CONSTRAINT calls_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'notes_created_by_id_fkey' AND c.relname = 'notes' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.notes ADD CONSTRAINT notes_created_by_id_fkey FOREIGN KEY (created_by_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'notes_lead_fk' AND c.relname = 'notes' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.notes ADD CONSTRAINT notes_lead_fk FOREIGN KEY (lead_id) REFERENCES leads.leads(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'notes_updated_by_id_fkey' AND c.relname = 'notes' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.notes ADD CONSTRAINT notes_updated_by_id_fkey FOREIGN KEY (updated_by_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'notes_user_fk' AND c.relname = 'notes' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.notes ADD CONSTRAINT notes_user_fk FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'sms_consent_events_created_by_id_fkey' AND c.relname = 'sms_consent_events' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.sms_consent_events ADD CONSTRAINT sms_consent_events_created_by_id_fkey FOREIGN KEY (created_by_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'sms_consent_events_kind_fk' AND c.relname = 'sms_consent_events' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.sms_consent_events ADD CONSTRAINT sms_consent_events_kind_fk FOREIGN KEY (kind_id) REFERENCES crm.sms_consent_kinds(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'sms_consent_events_lead_fk' AND c.relname = 'sms_consent_events' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.sms_consent_events ADD CONSTRAINT sms_consent_events_lead_fk FOREIGN KEY (lead_id) REFERENCES leads.leads(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'sms_consent_events_updated_by_id_fkey' AND c.relname = 'sms_consent_events' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.sms_consent_events ADD CONSTRAINT sms_consent_events_updated_by_id_fkey FOREIGN KEY (updated_by_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'sms_consent_events_user_fk' AND c.relname = 'sms_consent_events' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.sms_consent_events ADD CONSTRAINT sms_consent_events_user_fk FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
   END IF;
 END $$;
 DO $$ BEGIN
@@ -4780,6 +5106,16 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'pdfs_created_by_id_fkey' AND c.relname = 'pdfs' AND n.nspname = 'media'
+  ) THEN
+    ALTER TABLE media.pdfs ADD CONSTRAINT pdfs_created_by_id_fkey FOREIGN KEY (created_by_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'pdfs_order_id_fkey' AND c.relname = 'pdfs' AND n.nspname = 'media'
   ) THEN
     ALTER TABLE media.pdfs ADD CONSTRAINT pdfs_order_id_fkey FOREIGN KEY (order_id) REFERENCES orders.orders(id);
@@ -4793,6 +5129,16 @@ DO $$ BEGIN
     WHERE con.conname = 'pdfs_refining_order_fk' AND c.relname = 'pdfs' AND n.nspname = 'media'
   ) THEN
     ALTER TABLE media.pdfs ADD CONSTRAINT pdfs_refining_order_fk FOREIGN KEY (refining_order_id) REFERENCES refining.orders(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'pdfs_updated_by_id_fkey' AND c.relname = 'pdfs' AND n.nspname = 'media'
+  ) THEN
+    ALTER TABLE media.pdfs ADD CONSTRAINT pdfs_updated_by_id_fkey FOREIGN KEY (updated_by_id) REFERENCES auth.users(id);
   END IF;
 END $$;
 DO $$ BEGIN
@@ -5190,9 +5536,29 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'ledger_created_by_id_fkey' AND c.relname = 'ledger' AND n.nspname = 'payments'
+  ) THEN
+    ALTER TABLE payments.ledger ADD CONSTRAINT ledger_created_by_id_fkey FOREIGN KEY (created_by_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'ledger_order_id_fkey' AND c.relname = 'ledger' AND n.nspname = 'payments'
   ) THEN
     ALTER TABLE payments.ledger ADD CONSTRAINT ledger_order_id_fkey FOREIGN KEY (order_id) REFERENCES orders.orders(id) ON DELETE SET NULL;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'ledger_updated_by_id_fkey' AND c.relname = 'ledger' AND n.nspname = 'payments'
+  ) THEN
+    ALTER TABLE payments.ledger ADD CONSTRAINT ledger_updated_by_id_fkey FOREIGN KEY (updated_by_id) REFERENCES auth.users(id);
   END IF;
 END $$;
 DO $$ BEGIN
@@ -5912,7 +6278,21 @@ CREATE INDEX IF NOT EXISTS idx_checkout_checkouts_payment_details_id ON checkout
 CREATE INDEX IF NOT EXISTS idx_checkout_checkouts_payment_method_id ON checkout.checkouts USING btree (payment_method_id);
 CREATE INDEX IF NOT EXISTS idx_checkout_checkouts_recipient_address_id ON checkout.checkouts USING btree (recipient_address_id);
 CREATE INDEX IF NOT EXISTS checkout_lots_checkout ON checkout.lots USING btree (checkout_id);
+CREATE INDEX IF NOT EXISTS assignments_assignee ON crm.assignments USING btree (assigned_to_id);
+CREATE INDEX IF NOT EXISTS assignments_created_by ON crm.assignments USING btree (created_by_id);
+CREATE INDEX IF NOT EXISTS assignments_lead ON crm.assignments USING btree (lead_id, assigned_at);
+CREATE INDEX IF NOT EXISTS assignments_user ON crm.assignments USING btree (user_id, assigned_at);
+CREATE INDEX IF NOT EXISTS calls_created_by ON crm.calls USING btree (created_by_id);
 CREATE INDEX IF NOT EXISTS calls_user_started ON crm.calls USING btree (user_id, started_at);
+CREATE INDEX IF NOT EXISTS notes_created_by ON crm.notes USING btree (created_by_id);
+CREATE INDEX IF NOT EXISTS notes_lead ON crm.notes USING btree (lead_id, created_at);
+CREATE INDEX IF NOT EXISTS notes_user ON crm.notes USING btree (user_id, created_at);
+CREATE INDEX IF NOT EXISTS sms_consent_events_created_by ON crm.sms_consent_events USING btree (created_by_id);
+CREATE INDEX IF NOT EXISTS sms_consent_events_kind ON crm.sms_consent_events USING btree (kind_id);
+CREATE INDEX IF NOT EXISTS sms_consent_events_lead ON crm.sms_consent_events USING btree (lead_id, at);
+CREATE INDEX IF NOT EXISTS sms_consent_events_user ON crm.sms_consent_events USING btree (user_id, at);
+CREATE UNIQUE INDEX IF NOT EXISTS sms_consent_kinds_key ON crm.sms_consent_kinds USING btree (key);
+CREATE INDEX IF NOT EXISTS sms_messages_created_by ON crm.sms_messages USING btree (created_by_id);
 CREATE INDEX IF NOT EXISTS sms_messages_from_created ON crm.sms_messages USING btree (from_number, created_at);
 CREATE INDEX IF NOT EXISTS sms_messages_to_created ON crm.sms_messages USING btree (to_number, created_at);
 CREATE INDEX IF NOT EXISTS sms_messages_user_created ON crm.sms_messages USING btree (user_id, created_at);
@@ -5961,6 +6341,7 @@ CREATE INDEX IF NOT EXISTS leads_assigned ON leads.leads USING btree (assigned_t
 CREATE INDEX IF NOT EXISTS leads_contact_preference_id ON leads.leads USING btree (contact_preference_id);
 CREATE UNIQUE INDEX IF NOT EXISTS leads_number_unique ON leads.leads USING btree (number);
 CREATE INDEX IF NOT EXISTS leads_source_id ON leads.leads USING btree (source_id);
+CREATE INDEX IF NOT EXISTS leads_stage_moments ON leads.leads USING btree (converted_at, contacted_at, responded_at);
 CREATE INDEX IF NOT EXISTS migration_leads_email_idx ON leads.leads USING btree (lower(email));
 CREATE INDEX IF NOT EXISTS migration_leads_phone_idx ON leads.leads USING btree (phone);
 CREATE INDEX IF NOT EXISTS migration_leads_status_idx ON leads.leads USING btree (converted, contacted, responded);
@@ -5972,6 +6353,7 @@ CREATE INDEX IF NOT EXISTS emails_provider_message_idx ON media.emails USING btr
 CREATE INDEX IF NOT EXISTS emails_user_idx ON media.emails USING btree (user_id, sent_at DESC);
 CREATE INDEX IF NOT EXISTS idx_media_emails_pdf_id ON media.emails USING btree (pdf_id);
 CREATE INDEX IF NOT EXISTS idx_images_user_created ON media.images USING btree (user_id, created_at);
+CREATE INDEX IF NOT EXISTS pdfs_created_by ON media.pdfs USING btree (created_by_id);
 CREATE INDEX IF NOT EXISTS pdfs_order_kind_idx ON media.pdfs USING btree (order_id, kind, created_at DESC);
 CREATE INDEX IF NOT EXISTS pdfs_refining_order_kind ON media.pdfs USING btree (refining_order_id, kind, created_at DESC);
 CREATE UNIQUE INDEX IF NOT EXISTS purity_labels_metal_label ON metals.purity_labels USING btree (metal_id, label);
@@ -6032,6 +6414,7 @@ CREATE INDEX IF NOT EXISTS intents_order_idx ON payments.intents USING btree (or
 CREATE INDEX IF NOT EXISTS intents_status_idx ON payments.intents USING btree (status);
 CREATE INDEX IF NOT EXISTS idx_ledger_order_id ON payments.ledger USING btree (order_id);
 CREATE INDEX IF NOT EXISTS idx_ledger_user_id ON payments.ledger USING btree (user_id);
+CREATE INDEX IF NOT EXISTS ledger_created_by ON payments.ledger USING btree (created_by_id);
 CREATE INDEX IF NOT EXISTS idx_payments_methods_created_by_id ON payments.methods USING btree (created_by_id);
 CREATE INDEX IF NOT EXISTS idx_payments_methods_image_id ON payments.methods USING btree (image_id);
 CREATE INDEX IF NOT EXISTS idx_payments_methods_updated_by_id ON payments.methods USING btree (updated_by_id);

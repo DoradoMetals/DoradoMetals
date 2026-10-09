@@ -6,4 +6,5 @@ UPDATE payments.ledger
    SET type = $2
  WHERE order_id = $1
    AND type = 'Reserve'
-RETURNING id, user_id, type, order_id, amount, occurred_at, created_at, updated_at
+RETURNING id, user_id, type, order_id, amount, occurred_at, created_at, updated_at,
+          created_by_id, updated_by_id

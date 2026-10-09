@@ -5,7 +5,7 @@ import { sqlFrom } from '#shared/db/sql.ts'
 import { buildUpdate } from '#shared/db/patch.ts'
 import { PATCHABLE } from '#db/leads/repo.ts'
 
-const builtUpdate = (patch: Record<string, unknown> = { notes: 'n' }) =>
+const builtUpdate = (patch: Record<string, unknown> = { priority: 'High' }) =>
   buildUpdate({ table: 'leads.leads', allowed: PATCHABLE, patch, where: { id: 'x' } })!
 
 const sql = sqlFrom(path.join(import.meta.dirname, '..', '..', '..', '..', 'db', 'leads'))

@@ -6,7 +6,7 @@ import * as repo from '#db/users/repo.ts'
 import { takeLocks, LOCKS } from '#shared/testing/locks.ts'
 import { rollbackIn } from '#shared/testing/rollback.ts'
 import { TEST_ACTOR } from '#shared/testing/actor.ts'
-import { aUser as buildUser, aReview } from '#shared/testing/builders/index.ts'
+import { aUser as buildUser, aNote, aReview } from '#shared/testing/builders/index.ts'
 
 let client: PoolClient
 
@@ -163,5 +163,46 @@ test('the customer list carries the same two fields the read does', async () => 
     const listed = (await repo.list(c)).find((row) => row.id === user.id)
     assert.equal(listed?.review_count, 1)
     assert.equal(listed?.review_rating_avg, 2)
+  })
+})
+
+test('customer_state is derived, and a deletion request outranks a ban', async () => {
+  await inRollback(async (c: PoolClient) => {
+    const user = await buildUser(c, { funds: 0 })
+    assert.equal((await repo.getOne(user.id, c))?.customer_state, 'Active')
+
+    await c.query(`UPDATE auth.users SET banned = true WHERE id = $1`, [user.id])
+    assert.equal((await repo.getOne(user.id, c))?.customer_state, 'Banned')
+
+    await c.query(`UPDATE auth.users SET deletion_requested_at = now() WHERE id = $1`, [user.id])
+    const asked = await repo.getOne(user.id, c)
+    assert.equal(asked?.customer_state, 'Deletion requested')
+    assert.ok(asked?.deletion_requested_at, 'the read does not carry the request itself')
+
+    const listed = (await repo.list(c)).find((row) => row.id === user.id)
+    assert.equal(listed?.customer_state, 'Deletion requested', 'the list and the read disagree')
+  })
+})
+
+test('last_contact counts an email and a note, not only texts and calls', async () => {
+  await inRollback(async (c: PoolClient) => {
+    const user = await buildUser(c, { funds: 0 })
+    assert.equal((await repo.getOne(user.id, c))?.last_contact, null)
+
+    await c.query(
+      `INSERT INTO media.emails (kind, status, to_address, subject, user_id, sent_at)
+       VALUES ('account_created', 'sent', 'zz-last-contact@dorado.test', 'Welcome', $1,
+               now() - interval '2 hours')`,
+      [user.id]
+    )
+    const emailed = await repo.getOne(user.id, c)
+    assert.ok(emailed?.last_contact, 'an email did not count as contact')
+
+    await aNote(c, { user_id: user.id }, 'Called about a ring')
+    const noted = await repo.getOne(user.id, c)
+    assert.ok(
+      new Date(noted!.last_contact!).getTime() > new Date(emailed!.last_contact!).getTime(),
+      'a note did not count as contact'
+    )
   })
 })

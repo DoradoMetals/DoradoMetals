@@ -1,5 +1,6 @@
 import * as users from '#db/users/repo.ts'
 import * as authUsers from '#db/auth/users/repo.ts'
+import * as assignmentsService from '#crm/assignments/service.ts'
 import * as rules from '#accounts/users/rules.ts'
 import withTransaction from '#shared/db/withTransaction.ts'
 import type { AdminUser, UserCreateFacts, UserPatch } from '@dorado/contracts'
@@ -25,8 +26,16 @@ export async function exists(id: string, executor?: Executor): Promise<boolean> 
 export async function patch(id: string, body: UserPatch): Promise<AdminUser> {
   rules.assertBanReasonGiven(body)
   return withTransaction(async (tx) => {
+    const before = await users.getOne(id, tx)
+    rules.assertUser(before, id)
     const written = await users.updateFacts(id, body, tx)
     rules.assertWritten(written, id)
+    if (rules.assignmentMoved(before, body)) {
+      await assignmentsService.record(
+        { user_id: id, lead_id: null, assigned_to_id: body.assigned_to_id ?? null },
+        tx
+      )
+    }
     const row = await users.getOne(id, tx)
     rules.assertUser(row, id)
     return row

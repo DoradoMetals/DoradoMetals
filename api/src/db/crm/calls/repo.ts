@@ -1,10 +1,12 @@
 import type { PoolClient } from 'pg'
 import query from '#shared/db/query.ts'
-import { sqlFrom } from '#shared/db/sql.ts'
+import { expression, sqlFrom } from '#shared/db/sql.ts'
 import type { Executor } from '#shared/db/executor.ts'
 import type { Call, CallDirection, CallState } from '@dorado/contracts'
 
 const sql = sqlFrom(import.meta.dirname)
+
+export const DURATION_LABEL = expression(sql('duration_label'))
 
 export async function getOne(id: string, executor?: Executor): Promise<Call | undefined> {
   const { rows } = await query<Call>(sql('get_one'), [id], executor)
@@ -19,7 +21,10 @@ export async function getByProviderSid(
   return rows[0]
 }
 
-export async function getForUpdate(provider_sid: string, tx: PoolClient): Promise<Call | undefined> {
+export async function getForUpdate(
+  provider_sid: string,
+  tx: PoolClient
+): Promise<Call | undefined> {
   const { rows } = await query<Call>(sql('get_for_update'), [provider_sid], tx)
   return rows[0]
 }
@@ -79,7 +84,10 @@ export async function employeeIdForUser(
   return rows[0]
 }
 
-export async function phoneForUser(user_id: string, executor?: Executor): Promise<string | undefined> {
+export async function phoneForUser(
+  user_id: string,
+  executor?: Executor
+): Promise<string | undefined> {
   const { rows } = await query<{ phone_number: string }>(sql('phone_for_user'), [user_id], executor)
   return rows[0]?.phone_number
 }

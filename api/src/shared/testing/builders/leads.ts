@@ -17,7 +17,6 @@ export async function aLead(c: PoolClient, options: Partial<LeadPatch> = {}) {
       phone: options.phone ?? '2145550100',
       email: options.email ?? `${tag}@dorado.test`,
       priority: options.priority ?? 'Medium',
-      notes: options.notes ?? null,
       source: options.source ?? null,
       source_id: options.source_id ?? null,
       contact_preference_id: options.contact_preference_id ?? null,

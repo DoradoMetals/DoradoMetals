@@ -72,3 +72,20 @@ test('hasCreditFor ignores a non-Credit entry against the same order', async () 
     )
   })
 })
+
+test('the audit trigger stamps the actor on a credit movement', async () => {
+  await inRollback(async (c: PoolClient) => {
+    const user = await aUser(c)
+    await c.query(`SELECT set_config('app.actor_id', $1, true)`, [user.id])
+
+    const written = await ledger.create(
+      { user_id: user.id, type: 'Credit', order_id: null, amount: 25 },
+      c
+    )
+    assert.equal(
+      written.created_by_id,
+      user.id,
+      'payments.ledger carried the audit trigger with nowhere for it to write'
+    )
+  })
+})

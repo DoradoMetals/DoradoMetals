@@ -35,6 +35,9 @@ import { Review } from '../reviews/reviews.js'
 export const UserSummary = User.pick({ id: true, name: true, email: true })
 export type UserSummary = z.infer<typeof UserSummary>
 
+export const CustomerState = z.enum(['Active', 'Banned', 'Deletion requested'])
+export type CustomerState = z.infer<typeof CustomerState>
+
 export const AdminUser = User.omit({
   createdAt: true,
   updatedAt: true,
@@ -55,12 +58,12 @@ export const AdminUser = User.omit({
   last_contact: z.string().nullable(),
   review_count: z.number().int(),
   review_rating_avg: Review.shape.rating,
+  customer_state: CustomerState,
 })
 export type AdminUser = z.infer<typeof AdminUser>
 
 export const UserPatch = AdminUser.pick({
   assigned_to_id: true,
-  notes: true,
   banned: true,
   ban_reason: true,
   ban_expires: true,

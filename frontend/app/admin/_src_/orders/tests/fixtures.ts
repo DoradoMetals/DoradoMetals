@@ -519,6 +519,9 @@ export const anAdmin = (): AdminUser => ({
   orders_count: 0,
   open_orders_count: 0,
   last_contact: null,
+  review_count: 0,
+  review_rating_avg: null,
+  customer_state: 'Active',
 })
 
 export const aMessage = (over: Partial<SmsMessage> = {}): SmsMessage => ({
@@ -551,6 +554,10 @@ export const aTimelineCall = (over: Partial<CustomerTimeline> = {}): CustomerTim
   summary: '2m 14s',
   status: 'completed',
   call_kind: 'Outgoing',
+  duration_seconds: 134,
+  recording_url: null,
+  actor_id: null,
+  actor_name: null,
   ...over,
 })
 

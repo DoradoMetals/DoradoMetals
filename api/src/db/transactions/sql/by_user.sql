@@ -6,7 +6,9 @@ SELECT l.id,
        l.amount,
        l.occurred_at,
        l.created_at,
-       l.updated_at
+       l.updated_at,
+       l.created_by_id,
+       l.updated_by_id
   FROM payments.ledger l
   LEFT JOIN orders.orders o ON o.id = l.order_id
  WHERE l.user_id = $1

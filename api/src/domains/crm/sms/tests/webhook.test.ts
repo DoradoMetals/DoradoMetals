@@ -57,7 +57,8 @@ function inboundForm(over: Record<string, string> = {}): Record<string, string> 
   }
 }
 
-const sig = (path: string, form: Record<string, string>) => sign(`${PUBLIC_URL}${path}`, form, TOKEN)
+const sig = (path: string, form: Record<string, string>) =>
+  sign(`${PUBLIC_URL}${path}`, form, TOKEN)
 
 test('a bad signature is refused with 403 and writes no row', async () => {
   realSignature()
@@ -287,7 +288,24 @@ test('an inbound STOP clears sms_consent_at for the matched number', async () =>
         client
       )
       assert.equal(rows[0].sms_consent_at, null, 'STOP did not clear consent')
-      assert.equal(rows[0].sms_consent_method, 'web_form', 'STOP erased how consent was first given')
+      assert.equal(
+        rows[0].sms_consent_method,
+        'web_form',
+        'STOP erased how consent was first given'
+      )
+
+      const { rows: events } = await query<{ key: string; method: string }>(
+        `SELECT k.key, e.method
+           FROM crm.sms_consent_events e
+           JOIN crm.sms_consent_kinds k ON k.id = e.kind_id
+          WHERE e.user_id = $1
+          ORDER BY e.at DESC`,
+        [customer.id],
+        client
+      )
+      assert.equal(events.length, 1, 'STOP left no opt-out row, so it cannot be proved')
+      assert.equal(events[0].key, 'opt_out')
+      assert.equal(events[0].method, 'via_text')
     },
     { lock: LOCKS.USERS, actor: TEST_ACTOR.id }
   )
@@ -353,6 +371,21 @@ test('an inbound START re-sets sms_consent_at after a STOP', async () => {
       )
       assert.ok(rows[0].sms_consent_at, 'START did not re-set consent')
       assert.equal(rows[0].sms_consent_method, 'via_text')
+
+      const { rows: events } = await query<{ key: string }>(
+        `SELECT k.key
+           FROM crm.sms_consent_events e
+           JOIN crm.sms_consent_kinds k ON k.id = e.kind_id
+          WHERE e.user_id = $1
+          ORDER BY e.at ASC, e.created_at ASC`,
+        [customer.id],
+        client
+      )
+      assert.deepEqual(
+        events.map((e) => e.key),
+        ['opt_out', 'opt_in'],
+        'the consent record does not hold both decisions in order'
+      )
 
       const { rows: welcome } = await query<{ body: string }>(
         `SELECT body FROM crm.sms_messages

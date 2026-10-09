@@ -14,16 +14,15 @@ SELECT u.id,
        u."banExpires" AS ban_expires,
        u.assigned_to_id,
        u.notes,
+       u.deletion_requested_at,
        u.sms_consent_at,
        u.sms_consent_method,
+       /*__customer_state__*/ AS customer_state,
        (SELECT count(*) FROM orders.orders o WHERE o.user_id = u.id) AS orders_count,
        (SELECT count(*) FROM orders.orders o
          WHERE o.user_id = u.id
            AND /*__order_state__*/ NOT IN ('Completed', 'Cancelled')) AS open_orders_count,
-       greatest(
-         (SELECT max(m.created_at) FROM crm.sms_messages m WHERE m.user_id = u.id),
-         (SELECT max(c.started_at) FROM crm.calls c WHERE c.user_id = u.id)
-       ) AS last_contact,
+       /*__last_contact__*/ AS last_contact,
        (SELECT count(*) FROM reviews.reviews rv WHERE rv.user_id = u.id) AS review_count,
        (SELECT round(avg(rv.rating), 2) FROM reviews.reviews rv
          WHERE rv.user_id = u.id AND rv.rating IS NOT NULL) AS review_rating_avg

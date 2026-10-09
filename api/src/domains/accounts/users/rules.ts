@@ -1,6 +1,6 @@
 import { Conflict, Invalid, NotFound } from '#shared/errors.ts'
 import { SmsConsentMethod } from '@dorado/contracts'
-import type { User, UserPatch } from '@dorado/contracts'
+import type { AdminUser, User, UserPatch } from '@dorado/contracts'
 
 export function assertUser<T>(row: T | null | undefined, id: string): asserts row is T {
   if (!row) throw new NotFound(`no user ${id}`)
@@ -16,6 +16,11 @@ export function assertBanReasonGiven(patch: UserPatch): void {
   if (reason.length < 3) {
     throw new Invalid('banning a customer needs a written ban_reason')
   }
+}
+
+export function assignmentMoved(user: AdminUser, patch: UserPatch): boolean {
+  if (!('assigned_to_id' in patch)) return false
+  return (patch.assigned_to_id ?? null) !== user.assigned_to_id
 }
 
 export function assertEmailPresent(email: string | null | undefined): asserts email is string {

@@ -181,3 +181,32 @@ test('rateSheet parses with a Bullion and a Scrap row per metal', async () => {
     }
   })
 })
+
+test('the audit trigger stamps who uploaded a pdf', async () => {
+  await inRollback(async (c) => {
+    const orderId = await anOrderId(c)
+    const actor = await aUser(c)
+    await c.query(`SELECT set_config('app.actor_id', $1, true)`, [actor.id])
+
+    const written = await repo.create(
+      {
+        kind: 'intake_receipt',
+        order_id: orderId,
+        refining_order_id: null,
+        path: 'pdfs/audit-stamp-check.pdf',
+        size_bytes: 10,
+        checksum: 'audit-stamp-check',
+      },
+      c
+    )
+    const { rows } = await c.query<{ created_by_id: string | null }>(
+      `SELECT created_by_id FROM media.pdfs WHERE id = $1`,
+      [written.id]
+    )
+    assert.equal(
+      rows[0]!.created_by_id,
+      actor.id,
+      'media.pdfs carried the audit trigger with nowhere for it to write'
+    )
+  })
+})

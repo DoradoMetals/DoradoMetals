@@ -134,7 +134,7 @@ test('the payout account records the customer who entered it', async () => {
   )
 })
 
-test('a credit adjustment writes a stamped ledger row, and the ledger names no author', async () => {
+test('a credit adjustment writes a stamped ledger row, and the ledger names its author', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
       const admin = await anAdmin(c, { name: 'Crediting Admin' })
@@ -145,7 +145,8 @@ test('a credit adjustment writes a stamped ledger row, and the ledger names no a
       )
 
       const { rows } = await c.query(
-        `SELECT amount, type, created_at, updated_at FROM payments.ledger WHERE user_id = $1`,
+        `SELECT amount, type, created_at, updated_at, created_by_id, updated_by_id
+           FROM payments.ledger WHERE user_id = $1`,
         [customer.id]
       )
       assert.equal(rows.length, 1, 'the adjustment wrote no ledger row at all')
@@ -157,16 +158,13 @@ test('a credit adjustment writes a stamped ledger row, and the ledger names no a
         'a row that has never been edited must not claim to have been'
       )
 
-      const { rows: cols } = await c.query(
-        `SELECT count(*)::int n FROM information_schema.columns
-        WHERE table_schema = 'payments' AND table_name = 'ledger'
-          AND column_name IN ('created_by', 'created_by_id', 'updated_by', 'updated_by_id')`
-      )
       assert.equal(
-        cols[0].n,
-        0,
-        'payments.ledger has grown author columns - assert them here instead of this'
+        rows[0].created_by_id,
+        admin.id,
+        'the ledger did not name who moved the money - migration 116 stamped nothing ' +
+          'here until migration 250 gave it the columns'
       )
+      assert.equal(rows[0].updated_by_id, admin.id)
 
       const { rows: balance } = await c.query(`SELECT dorado_funds FROM auth.users WHERE id = $1`, [
         customer.id,

@@ -1,17 +1,13 @@
 import withTransaction from '#shared/db/withTransaction.ts'
 import { attempt } from '#shared/attempt.ts'
 import * as smsRepo from '#db/crm/sms-messages/repo.ts'
+import * as consentEvents from '#db/crm/consent-events/repo.ts'
 import * as users from '#db/auth/users/repo.ts'
 import * as leadsRepo from '#db/leads/repo.ts'
 import * as sms from '#providers/twilio/index.ts'
 import * as rules from '#crm/sms/rules.ts'
 import { SmsDeliveryStatus } from '@dorado/contracts'
-import type {
-  SmsConsentRequestBody,
-  SmsMedia,
-  SmsMessage,
-  SmsSendBody,
-} from '@dorado/contracts'
+import type { SmsConsentRequestBody, SmsMedia, SmsMessage, SmsSendBody } from '@dorado/contracts'
 import type { SmsInbound, SmsStatusUpdate } from '#providers/twilio/index.ts'
 
 const CONSENT_REQUEST_TEXT =
@@ -32,6 +28,7 @@ export async function receiveInbound(input: SmsInbound): Promise<SmsMessage> {
     const keyword = rules.consentKeyword(input.body)
     let welcome = false
     if (keyword) {
+      const kind = rules.consentDecisionOf(keyword)
       const matchedUser = await users.byPhone(input.from_number, tx)
       if (matchedUser) {
         const applied =
@@ -39,6 +36,10 @@ export async function receiveInbound(input: SmsInbound): Promise<SmsMessage> {
             ? await users.clearSmsConsent(matchedUser.id, tx)
             : await users.recordSmsConsent(matchedUser.id, new Date().toISOString(), 'via_text', tx)
         rules.assertApplied(applied, `sms consent ${keyword} for ${matchedUser.id}`)
+        await consentEvents.create(
+          { user_id: matchedUser.id, lead_id: null, kind, method: 'via_text' },
+          tx
+        )
         welcome = keyword === 'start'
       } else {
         const matchedLead = await leadsRepo.byPhone(input.from_number, tx)
@@ -53,6 +54,10 @@ export async function receiveInbound(input: SmsInbound): Promise<SmsMessage> {
                   tx
                 )
           rules.assertApplied(applied, `sms consent ${keyword} for lead ${matchedLead.id}`)
+          await consentEvents.create(
+            { user_id: null, lead_id: matchedLead.id, kind, method: 'via_text' },
+            tx
+          )
         }
       }
     }

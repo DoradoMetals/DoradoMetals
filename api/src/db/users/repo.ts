@@ -1,19 +1,28 @@
 import query from '#shared/db/query.ts'
 import { buildUpdate } from '#shared/db/patch.ts'
-import { sqlFrom } from '#shared/db/sql.ts'
+import { expression, sqlFrom } from '#shared/db/sql.ts'
 import { ORDER_STATE } from '#db/orders/repo.ts'
 import type { AdminUser, CreditOp, UserCreateFacts, UserCredit, UserPatch } from '@dorado/contracts'
 import type { Executor } from '#shared/db/executor.ts'
 
 const sql = sqlFrom(import.meta.dirname)
 
-const GET_ONE_SQL = sql('get_one').replace('/*__order_state__*/', ORDER_STATE)
-const GET_ALL_SQL = sql('get_all').replace('/*__order_state__*/', ORDER_STATE)
-const GET_ADMINS_SQL = sql('get_admins').replace('/*__order_state__*/', ORDER_STATE)
+const CUSTOMER_STATE = expression(sql('customer_state'))
+const LAST_CONTACT = expression(sql('last_contact'))
+
+const read = (name: string): string =>
+  sql(name)
+    .replace('/*__order_state__*/', ORDER_STATE)
+    .replace('/*__customer_state__*/', CUSTOMER_STATE)
+    .replace('/*__last_contact__*/', LAST_CONTACT)
+
+const GET_ONE_SQL = read('get_one')
+const GET_ALL_SQL = read('get_all')
+const GET_ADMINS_SQL = read('get_admins')
 
 const BAN_REASON = '"banReason"'
 const BAN_EXPIRES = '"banExpires"'
-const PATCHABLE = ['assigned_to_id', 'notes', 'banned', BAN_REASON, BAN_EXPIRES] as const
+const PATCHABLE = ['assigned_to_id', 'banned', BAN_REASON, BAN_EXPIRES] as const
 
 export async function getOne(id: string, executor?: Executor): Promise<AdminUser | undefined> {
   const { rows } = await query<AdminUser>(GET_ONE_SQL, [id], executor)
@@ -46,7 +55,6 @@ export async function updateFacts(
 ): Promise<boolean> {
   const mapped: Record<string, unknown> = {}
   if ('assigned_to_id' in patch) mapped.assigned_to_id = patch.assigned_to_id
-  if ('notes' in patch) mapped.notes = patch.notes
   if ('banned' in patch) mapped.banned = patch.banned
   if ('ban_reason' in patch) mapped[BAN_REASON] = patch.ban_reason
   if ('ban_expires' in patch) mapped[BAN_EXPIRES] = patch.ban_expires

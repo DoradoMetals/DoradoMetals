@@ -23,7 +23,13 @@ test('an unmatched inbound number appears in the inbox as unknown, and unread', 
       const tag = aTag()
       const number = `+1512555${String(Math.floor(1000 + Math.random() * 8999))}`
       await smsRepo.upsertInbound(
-        { provider_sid: `SMinbox${tag}`, from_number: number, to_number: '+15125550000', body: `hello ${tag}`, media: [] },
+        {
+          provider_sid: `SMinbox${tag}`,
+          from_number: number,
+          to_number: '+15125550000',
+          body: `hello ${tag}`,
+          media: [],
+        },
         'twilio',
         client
       )
@@ -62,6 +68,11 @@ test('a voicemail counts as a message and shows its own channel', async () => {
       const row = res.body.find((r: { phone: string }) => r.phone === number)
       assert.ok(row, 'the voicemail conversation is not in the inbox list')
       assert.equal(row.channel, 'voicemail')
+      assert.ok(
+        !row.preview.includes('twilio.com'),
+        'the inbox preview still renders the raw recording URL as the line a person reads'
+      )
+      assert.equal(row.preview, 'voicemail', 'a call with no length should preview its status')
     },
     { actor: TEST_ACTOR.id }
   )
@@ -72,7 +83,13 @@ test('marking a conversation read zeroes its unread count', async () => {
     async (client) => {
       const number = `+1512555${String(Math.floor(1000 + Math.random() * 8999))}`
       await smsRepo.upsertInbound(
-        { provider_sid: `SMread${aTag()}`, from_number: number, to_number: '+15125550000', body: 'read me', media: [] },
+        {
+          provider_sid: `SMread${aTag()}`,
+          from_number: number,
+          to_number: '+15125550000',
+          body: 'read me',
+          media: [],
+        },
         'twilio',
         client
       )
@@ -82,7 +99,9 @@ test('marking a conversation read zeroes its unread count', async () => {
       assert.equal(row.unread_count, 1)
 
       const marked = await asAdmin(TEST_ACTOR, () =>
-        request(app).patch(`/api/inbox/${encodeURIComponent(row.key)}/read`).send({})
+        request(app)
+          .patch(`/api/inbox/${encodeURIComponent(row.key)}/read`)
+          .send({})
       )
       assert.equal(marked.status, 200, JSON.stringify(marked.body))
 

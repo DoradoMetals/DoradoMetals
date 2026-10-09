@@ -14,6 +14,8 @@ export const LedgerEntry = z.object({
   'occurred_at': z.string(),
   'created_at': z.string(),
   'updated_at': z.string(),
+  'created_by_id': z.string().uuid().nullable(),
+  'updated_by_id': z.string().uuid().nullable(),
 })
 export type LedgerEntry = z.infer<typeof LedgerEntry>
 // generated:end
