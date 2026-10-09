@@ -205,6 +205,8 @@ const ENTITY = {
 
   'crm.calls': 'Call',
   'crm.sms_messages': 'SmsMessage',
+  'crm.targets': 'FunnelTarget',
+  'crm.timeline_kinds': 'TimelineKind',
 
   'fulfillments.directs': 'FulfillmentDirect',
   'fulfillments.dropoffs': 'FulfillmentDropoff',
@@ -213,8 +215,13 @@ const ENTITY = {
   'fulfillments.pickups': 'FulfillmentPickup',
   'fulfillments.shipments': 'FulfillmentShipment',
 
+  'leads.contact_preferences': 'ContactPreference',
+  'leads.documents': 'LeadDocument',
+  'leads.estimate_items': 'EstimateItem',
+  'leads.estimate_kinds': 'EstimateKind',
   'leads.leads': 'Lead',
-
+  'leads.sources': 'LeadSource',
+  'leads.weight_units': 'EstimateUnit',
 
   'media.emails': 'Email',
   'media.images': 'Image',

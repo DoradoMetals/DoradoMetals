@@ -5,3 +5,5 @@
 export * from './enums.js'
 export * from './calls.js'
 export * from './sms_messages.js'
+export * from './targets.js'
+export * from './timeline_kinds.js'

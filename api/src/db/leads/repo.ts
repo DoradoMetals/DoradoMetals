@@ -18,10 +18,7 @@ const RECORD_SMS_CONSENT_SQL = sql('record_sms_consent').replaceAll(
   '/*__lead_stage__*/',
   LEAD_STAGE
 )
-const CLEAR_SMS_CONSENT_SQL = sql('clear_sms_consent').replaceAll(
-  '/*__lead_stage__*/',
-  LEAD_STAGE
-)
+const CLEAR_SMS_CONSENT_SQL = sql('clear_sms_consent').replaceAll('/*__lead_stage__*/', LEAD_STAGE)
 
 export const PATCHABLE = columnsOf(LeadPatch)
 
@@ -49,7 +46,17 @@ export async function list(filter: LeadFilter, executor?: Executor): Promise<Lea
 export async function create(row: LeadPatch, executor?: Executor): Promise<LeadView> {
   const { rows } = await query<LeadView>(
     CREATE_SQL,
-    [row.name, row.phone, row.email, row.priority, row.notes, row.source, row.assigned_to_id],
+    [
+      row.name,
+      row.phone,
+      row.email,
+      row.priority,
+      row.notes,
+      row.source,
+      row.assigned_to_id,
+      row.source_id,
+      row.contact_preference_id,
+    ],
     executor
   )
   return rows[0]
@@ -87,7 +94,10 @@ export async function recordSmsConsent(
   return rows[0]
 }
 
-export async function clearSmsConsent(id: string, executor?: Executor): Promise<LeadView | undefined> {
+export async function clearSmsConsent(
+  id: string,
+  executor?: Executor
+): Promise<LeadView | undefined> {
   const { rows } = await query<LeadView>(CLEAR_SMS_CONSENT_SQL, [id], executor)
   return rows[0]
 }

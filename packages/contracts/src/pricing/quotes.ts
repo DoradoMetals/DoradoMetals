@@ -7,6 +7,8 @@ import { Order } from '../orders/orders.js'
 import { OrderLot } from '../orders/lots.js'
 import { OrderSpot } from '../orders/spots.js'
 import { Metal } from '../metals/metals.js'
+import { EstimateItem } from '../leads/estimate_items.js'
+import { Lead } from '../leads/leads.js'
 
 export const PriceSide = z.enum(['ask', 'bid'])
 export type PriceSide = z.infer<typeof PriceSide>
@@ -145,3 +147,29 @@ export const OrderPricing = z.object({
   declared_value: z.number(),
 })
 export type OrderPricing = z.infer<typeof OrderPricing>
+
+export const LeadEstimateLine = z.object({
+  id: EstimateItem.shape.id,
+  kind: z.string(),
+  metal_id: EstimateItem.shape.metal_id,
+  purity: z.number(),
+  content: z.number(),
+  premium: z.number(),
+  value: z.number(),
+})
+export type LeadEstimateLine = z.infer<typeof LeadEstimateLine>
+
+export const LeadEstimate = z.object({
+  lead_id: Lead.shape.id,
+  spots_at: z.string(),
+  items: z.array(LeadEstimateLine),
+  unpriceable: z.array(EstimateItem.shape.id),
+  total: z.number(),
+})
+export type LeadEstimate = z.infer<typeof LeadEstimate>
+
+export const LeadEstimateTotal = z.object({
+  lead_id: Lead.shape.id,
+  total: z.number(),
+})
+export type LeadEstimateTotal = z.infer<typeof LeadEstimateTotal>

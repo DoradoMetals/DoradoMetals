@@ -11,9 +11,11 @@ import { buildPickupInstructionsHtml } from '#documents/pdfs/render/documents/pi
 import { buildAppointmentInstructionsHtml } from '#documents/pdfs/render/documents/appointment-instructions.ts'
 import { buildRateSheetHtml } from '#documents/pdfs/render/documents/rate-sheet.ts'
 import { buildAssayResultsHtml } from '#documents/pdfs/render/documents/assay-results.ts'
+import { storeUpload } from '#documents/pdfs/store.ts'
 import type {
   AssayResultsDocument,
   DocumentInput,
+  PdfKind,
   RateSheetDocument,
   ShipmentManifestInput,
 } from '@dorado/contracts'
@@ -69,4 +71,8 @@ export async function generateRateSheet(input: RateSheetDocument): Promise<Uint8
 
 export async function generateAssayResults(input: AssayResultsDocument): Promise<Uint8Array> {
   return renderPdf(buildAssayResultsHtml(input))
+}
+
+export async function storeUnattachedUpload(kind: PdfKind, bytes: Uint8Array): Promise<string> {
+  return await storeUpload(kind, null, null, bytes)
 }

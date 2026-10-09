@@ -3,6 +3,9 @@ import { Employee } from '../auth/employees.js'
 import { Call } from '../crm/calls.js'
 import { CallState, SmsDeliveryStatus, SmsDirection } from '../crm/enums.js'
 import { SmsMessage } from '../crm/sms_messages.js'
+import { FunnelTarget } from '../crm/targets.js'
+import { TimelineKind } from '../crm/timeline_kinds.js'
+import { User } from '../auth/users.js'
 
 export const SmsMedia = z.object({
   url: z.string(),
@@ -42,8 +45,8 @@ export const CallToken = z.object({
 })
 export type CallToken = z.infer<typeof CallToken>
 
-export const TimelineKind = z.enum(['sms', 'call', 'email', 'order', 'note'])
-export type TimelineKind = z.infer<typeof TimelineKind>
+export const CustomerTimelineKind = z.enum(['sms', 'call', 'email', 'order', 'note'])
+export type CustomerTimelineKind = z.infer<typeof CustomerTimelineKind>
 
 export const CallKind = z.enum(['Outgoing', 'No answer', 'Incoming', 'Missed'])
 export type CallKind = z.infer<typeof CallKind>
@@ -51,7 +54,7 @@ export type CallKind = z.infer<typeof CallKind>
 export const CustomerTimeline = z
   .object({
     id: SmsMessage.shape.id,
-    kind: TimelineKind,
+    kind: CustomerTimelineKind,
     at: SmsMessage.shape.created_at,
     direction: SmsDirection,
     summary: z.string(),
@@ -111,3 +114,37 @@ export const InboxConversation = z.object({
   assigned_to_id: z.string().uuid().nullable(),
 })
 export type InboxConversation = z.infer<typeof InboxConversation>
+
+export const LeadTimeline = z.object({
+  at: SmsMessage.shape.created_at,
+  kind: TimelineKind.shape.key,
+  label: TimelineKind.shape.label,
+  actor_id: User.shape.id.nullable(),
+  actor_name: User.shape.name.nullable(),
+  summary: z.string(),
+  detail: z.string().nullable(),
+})
+export type LeadTimeline = z.infer<typeof LeadTimeline>
+
+export const LeadResponseRates = z.object({
+  text: z.number(),
+  call: z.number(),
+  email: z.number(),
+})
+export type LeadResponseRates = z.infer<typeof LeadResponseRates>
+
+export const LeadFunnel = z
+  .object({
+    open: z.number().int(),
+    unassigned: z.number().int(),
+    never_contacted: z.number().int(),
+    both: z.number().int(),
+    conversion_rate: z.number(),
+    median_hours_to_first_contact: z.number().nullable(),
+  })
+  .extend({
+    response_rate_by_channel: LeadResponseRates,
+    conversion_rate_target: FunnelTarget.shape.value.nullable(),
+    hours_to_first_contact_target: FunnelTarget.shape.value.nullable(),
+  })
+export type LeadFunnel = z.infer<typeof LeadFunnel>

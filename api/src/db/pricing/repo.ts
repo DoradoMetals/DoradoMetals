@@ -4,6 +4,8 @@ import type { Executor } from '#shared/db/executor.ts'
 import {
   CheckoutQuote,
   Direction,
+  LeadEstimate,
+  LeadEstimateTotal,
   OrderPricing,
   ProductQuote,
   PriceSide,
@@ -70,4 +72,20 @@ export async function profitBreakdown(
     executor
   )
   return rows[0] ? ProfitBreakdown.parse(rows[0].breakdown) : undefined
+}
+
+export async function leadEstimate(
+  lead_id: string,
+  executor?: Executor
+): Promise<LeadEstimate | undefined> {
+  const { rows } = await query<{ estimate: unknown }>(sql('lead_estimate'), [lead_id], executor)
+  return rows[0] ? LeadEstimate.parse(rows[0].estimate) : undefined
+}
+
+export async function leadEstimateTotals(
+  lead_ids: readonly string[],
+  executor?: Executor
+): Promise<LeadEstimateTotal[]> {
+  const { rows } = await query(sql('lead_estimate_totals'), [lead_ids], executor)
+  return rows.map((row) => LeadEstimateTotal.parse(row))
 }
