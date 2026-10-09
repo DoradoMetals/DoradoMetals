@@ -9,16 +9,19 @@ import { sendTomorrowsReminders } from '#documents/emails/service.ts'
 
 export const ABANDONED_AFTER_HOURS = 24
 
+export const everySeconds = (seconds: number): string =>
+  seconds < 60 ? `*/${seconds} * * * * *` : `0 */${Math.round(seconds / 60)} * * * *`
+
 type Job = {
   name: string
   schedule: string | undefined
   run: () => Promise<unknown>
 }
 
-export const jobs = (): Job[] => [
+export const jobs = (tick_seconds: number | null): Job[] => [
   {
     name: 'spot prices',
-    schedule: process.env.SPOT_UPDATE_SCHEDULE,
+    schedule: tick_seconds === null ? undefined : everySeconds(tick_seconds),
     run: updateSpotPrices,
   },
   {
@@ -60,8 +63,8 @@ async function runJob({ name, run }: Job): Promise<void> {
   }
 }
 
-export function setupScheduler(): void {
-  for (const job of jobs()) {
+export function setupScheduler(tick_seconds: number | null): void {
+  for (const job of jobs(tick_seconds)) {
     if (!job.schedule) {
       logger.warn(`[CRON] no schedule configured for ${job.name}, skipping`)
       continue

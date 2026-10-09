@@ -13,26 +13,34 @@ export const Spot = z.object({
   'percent_change': z.number().nullable(),
   'dollar_change': z.number().nullable(),
   'updated_at': z.string(),
+  'bid_dollar_change': z.number().nullable(),
+  'bid_percent_change': z.number().nullable(),
+  'ask_dollar_change': z.number().nullable(),
+  'ask_percent_change': z.number().nullable(),
 })
 export type Spot = z.infer<typeof Spot>
 // generated:end
 import { Metal } from '../metals/metals.js'
-import { Order } from '../orders/orders.js'
-import { OrderSpot } from '../orders/spots.js'
+import { Direction } from '../orders/enums.js'
+import { SpotLockAction, SpotLockEvent } from '../orders/spot_locks.js'
 
-export const SpotSource = z.enum(['live', 'manual', 'stale'])
-export type SpotSource = z.infer<typeof SpotSource>
+export const SpotState = z.enum(['live', 'manual', 'stale'])
+export type SpotState = z.infer<typeof SpotState>
 
 export const SpotPrice = Spot.pick({
   ask: true,
   bid: true,
   percent_change: true,
   dollar_change: true,
+  bid_dollar_change: true,
+  bid_percent_change: true,
+  ask_dollar_change: true,
+  ask_percent_change: true,
   updated_at: true,
 }).extend({
   id: Metal.shape.id,
   ask: Spot.shape.ask.nullable(),
-  source: SpotSource,
+  state: SpotState,
 })
 export type SpotPrice = z.infer<typeof SpotPrice>
 
@@ -41,6 +49,10 @@ export const SpotPatch = Spot.pick({
   bid: true,
   percent_change: true,
   dollar_change: true,
+  bid_dollar_change: true,
+  bid_percent_change: true,
+  ask_dollar_change: true,
+  ask_percent_change: true,
 }).partial()
 export type SpotPatch = z.infer<typeof SpotPatch>
 
@@ -50,16 +62,22 @@ export type SpotTrend = z.infer<typeof SpotTrend>
 export const SpotTicker = SpotPrice.extend({ direction: SpotTrend })
 export type SpotTicker = z.infer<typeof SpotTicker>
 
-export const SpotLock = z
-  .object({
-    order_id: Order.shape.id,
-    metal_id: OrderSpot.shape.metal_id,
-    bid: OrderSpot.shape.bid,
-    ask: OrderSpot.shape.ask,
-  })
-  .extend({
-    reference: z.string(),
-    locked_at: Order.shape.updated_at,
-    locked_by: Order.shape.updated_by,
-  })
+export const SpotLockState = z.enum(['Unlocked', 'Locked', 'Finalized'])
+export type SpotLockState = z.infer<typeof SpotLockState>
+
+export const SpotLock = SpotLockEvent.pick({
+  id: true,
+  order_id: true,
+  metal_id: true,
+  bid: true,
+  ask: true,
+}).extend({
+  action: SpotLockAction,
+  reference: z.string(),
+  direction: Direction,
+  state: SpotLockState,
+  occurred_at: SpotLockEvent.shape.created_at,
+  actor_id: SpotLockEvent.shape.created_by_id,
+  actor_name: SpotLockEvent.shape.created_by,
+})
 export type SpotLock = z.infer<typeof SpotLock>

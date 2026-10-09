@@ -1,3 +1,3 @@
-SELECT id
-  FROM metals.metals
- WHERE id = $1
+SELECT m.id, m.sort_order
+  FROM metals.metals m
+ WHERE m.id = $1

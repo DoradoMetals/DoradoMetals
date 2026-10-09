@@ -24,7 +24,7 @@ lines AS (
     JOIN inventory.lots li ON li.id = ol.lot_id
     JOIN ord ON ord.id = ol.order_id
     LEFT JOIN orders.spots os ON os.order_id = ol.order_id AND os.metal_id = li.metal_id
-    LEFT JOIN spots.spots s ON s.metal_id = li.metal_id
+    LEFT JOIN spots.resolved s ON s.metal_id = li.metal_id
 ),
 -- The bid and ask each of the order's metals is priced at, resolved exactly as
 -- `lines` resolves a line's spot: the frozen orders.spots row when the order is
@@ -39,7 +39,7 @@ metal_spots AS (
     JOIN inventory.lots li ON li.id = ol.lot_id
    CROSS JOIN ord
     LEFT JOIN orders.spots os ON os.order_id = ol.order_id AND os.metal_id = li.metal_id
-    LEFT JOIN spots.spots s ON s.metal_id = li.metal_id
+    LEFT JOIN spots.resolved s ON s.metal_id = li.metal_id
    WHERE ol.order_id = ord.id
    ORDER BY li.metal_id, ol.id
 ),
@@ -140,11 +140,9 @@ SELECT jsonb_build_object(
            (SELECT jsonb_agg(
                      jsonb_build_object(
                        'metal_id', ms.metal_id, 'bid', ms.bid, 'ask', ms.ask)
-                     ORDER BY array_position(
-                                ARRAY['Gold','Silver','Platinum','Palladium'],
-                                ms.metal_id) NULLS LAST,
-                              ms.metal_id ASC)
-              FROM metal_spots ms),
+                     ORDER BY mm.sort_order ASC, ms.metal_id ASC)
+              FROM metal_spots ms
+              JOIN metals.metals mm ON mm.id = ms.metal_id),
            '[]'::jsonb),
          'unpriceable', COALESCE(
            (SELECT jsonb_agg(l.id ORDER BY l.id ASC)

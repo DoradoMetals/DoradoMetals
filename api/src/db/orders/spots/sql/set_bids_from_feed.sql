@@ -9,10 +9,10 @@
 -- invoice, from a pair the contract says are "resolved the same way".
 UPDATE orders.spots os
    SET bid = CASE WHEN $2::boolean
-                  THEN (SELECT s.bid FROM spots.spots s WHERE s.metal_id = os.metal_id)
+                  THEN (SELECT s.bid FROM spots.resolved s WHERE s.metal_id = os.metal_id)
                   ELSE NULL END,
        ask = CASE WHEN $2::boolean
-                  THEN (SELECT s.ask FROM spots.spots s WHERE s.metal_id = os.metal_id)
+                  THEN (SELECT s.ask FROM spots.resolved s WHERE s.metal_id = os.metal_id)
                   ELSE NULL END
  WHERE os.order_id = $1
 RETURNING os.metal_id

@@ -20,21 +20,3 @@ export const SpotOverride = z.object({
 })
 export type SpotOverride = z.infer<typeof SpotOverride>
 // generated:end
-
-export const SpotOverrideRead = SpotOverride.omit({
-  created_at: true,
-  updated_at: true,
-  created_by: true,
-  updated_by: true,
-  created_by_id: true,
-  updated_by_id: true,
-})
-export type SpotOverrideRead = z.infer<typeof SpotOverrideRead>
-
-export const SpotOverridePatch = SpotOverride.pick({
-  bid: true,
-  ask: true,
-  reason: true,
-  expires_at: true,
-}).partial()
-export type SpotOverridePatch = z.infer<typeof SpotOverridePatch>

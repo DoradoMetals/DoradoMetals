@@ -215,7 +215,6 @@ const ENTITY = {
 
   'leads.leads': 'Lead',
 
-
   'media.emails': 'Email',
   'media.images': 'Image',
   'media.pdfs': 'Pdf',
@@ -227,6 +226,7 @@ const ENTITY = {
   'orders.lots': 'OrderLot',
   'orders.orders': 'Order',
   'orders.spots': 'OrderSpot',
+  'orders.spot_locks': 'SpotLockEvent',
   'orders.transactions': 'OrderTotals',
 
   'organizations.organizations': 'Organization',
@@ -278,6 +278,12 @@ const ENTITY = {
   'spots.spots': 'Spot',
   'spots.overrides': 'SpotOverride',
   'spots.settings': 'SpotSettings',
+  'spots.sources': 'SpotSource',
+  'spots.active_sources': 'ActiveSpotSource',
+  'spots.adjustments': 'SpotAdjustment',
+  'spots.adjustment_history': 'SpotAdjustmentChange',
+  'spots.market_sessions': 'MarketSession',
+  'spots.market_holidays': 'MarketHoliday',
 
   'tax.sales_tax': 'SalesTax',
   'tax.sales_tax_rules': 'SalesTaxRule',

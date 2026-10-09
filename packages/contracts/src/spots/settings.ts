@@ -8,9 +8,13 @@ import { z } from 'zod/v4'
 export const SpotSettings = z.object({
   'id': z.boolean(),
   'stale_after_seconds': z.number().int(),
+  'tick_seconds': z.number().int(),
 })
 export type SpotSettings = z.infer<typeof SpotSettings>
 // generated:end
 
-export const SpotSettingsPatch = SpotSettings.pick({ stale_after_seconds: true }).partial()
+export const SpotSettingsPatch = SpotSettings.pick({
+  stale_after_seconds: true,
+  tick_seconds: true,
+}).partial()
 export type SpotSettingsPatch = z.infer<typeof SpotSettingsPatch>

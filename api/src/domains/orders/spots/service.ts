@@ -1,6 +1,7 @@
 import { reportError } from '#shared/observability/report.ts'
 import * as ordersRepo from '#db/orders/repo.ts'
 import * as spotsRepo from '#db/orders/spots/repo.ts'
+import * as spotLocks from '#db/orders/spot-locks/repo.ts'
 import * as rules from '#orders/rules.ts'
 import withTransaction from '#shared/db/withTransaction.ts'
 import type { OrderSpot, OrderSpotsPutBody } from '@dorado/contracts'
@@ -26,8 +27,11 @@ export async function setSpots(orderId: string, body: OrderSpotsPutBody): Promis
 }
 
 export async function applyLock(orderId: string, locked: boolean, tx: Executor): Promise<void> {
+  if (!locked) await spotLocks.record(orderId, 'unlock', tx)
   await ordersRepo.update(orderId, { spots_locked: locked }, {}, tx)
-  if ((await spotsRepo.setBidsFromFeed(orderId, locked, tx)) === 0) {
+  const repriced = await spotsRepo.setBidsFromFeed(orderId, locked, tx)
+  if (locked) await spotLocks.record(orderId, 'lock', tx)
+  if (repriced === 0) {
     reportError({
       at: 'orders.spots.applyLock',
       message:

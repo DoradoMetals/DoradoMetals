@@ -48,12 +48,13 @@ lines AS (
          b.ask_premium,
          b.legal_tender,
          b.domestic_tender,
+         s.ask AS resolved_ask,
          COALESCE(li.content, 0) * (COALESCE(s.ask, 0) * COALESCE(b.ask_premium, 0)) AS unit_ask
     FROM checkout.lots cl
     JOIN inventory.lots li ON li.id = cl.lot_id
     JOIN checkout ON checkout.id = cl.checkout_id
     LEFT JOIN products.bullion b ON b.id = li.bullion_id
-    LEFT JOIN spots.spots s ON s.metal_id = li.metal_id
+    LEFT JOIN spots.resolved s ON s.metal_id = li.metal_id
 ),
 aggregate AS (
   SELECT COALESCE(sum(l.unit_ask * l.quantity), 0) AS item_total FROM lines l
@@ -157,7 +158,7 @@ SELECT jsonb_build_object(
          'unpriceable', COALESCE(
            (SELECT jsonb_agg(t.id ORDER BY t.id ASC)
               FROM taxed t
-             WHERE t.product_id IS NULL OR t.content IS NULL),
+             WHERE t.product_id IS NULL OR t.content IS NULL OR t.resolved_ask IS NULL),
            '[]'::jsonb),
          'item_total', charged.item_total,
          'shipping_charge', charged.shipping_charge,
