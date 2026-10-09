@@ -3,6 +3,16 @@
 -- conversation first. A conversation groups by user_id when a message
 -- carries one, else by the counterparty's own number - a lead has no
 -- user_id until it converts (crm/leads' convert action).
+--
+-- `channel` is sms | call | voicemail and is derived here, so the row says
+-- which glyph it is rather than leaving a browser to guess from the preview.
+--
+-- A CALL'S PREVIEW IS ITS LENGTH, NOT ITS RECORDING URL. This used to be
+-- coalesce(recording_url, status), so a recorded call rendered a raw provider
+-- URL as the line a person reads in the list. The length is what the design
+-- draws (`Voicemail 38s`), and it is formatted by
+-- db/crm/calls/sql/duration_label.sql - the same expression the customer
+-- timeline uses, so the two cannot disagree.
 WITH messages AS (
   SELECT id, 'sms'::text AS channel, direction::text AS direction, user_id,
          CASE WHEN direction = 'inbound' THEN from_number ELSE to_number END AS phone,
@@ -17,7 +27,7 @@ WITH messages AS (
          CASE WHEN status = 'voicemail' THEN 'voicemail' ELSE 'call' END AS channel,
          direction::text AS direction, user_id,
          CASE WHEN direction = 'inbound' THEN from_number ELSE to_number END AS phone,
-         coalesce(recording_url, status::text) AS preview,
+         /*__duration_label__*/ AS preview,
          started_at AS at,
          (direction = 'inbound' AND read_at IS NULL) AS unread
     FROM crm.calls

@@ -84,6 +84,8 @@ const ACCEPTED: Record<string, string> = {
     "a lead that never texted or was texted has nothing to attach - convert still succeeds, and the customer's own timeline read is the observation, not this write.",
   'domains/crm/leads/service.ts::callsRepo.attachToUser':
     'same as smsRepo.attachToUser beside it: zero prior calls on that number is a normal outcome for a fresh lead.',
+  'domains/crm/leads/service.ts::notes.repointLeadToUser':
+    "the third of the same shape, beside the two attachToUser calls: a lead nobody wrote a note about has nothing to hand over, convert still succeeds, and the customer's own GET /api/notes is the observation rather than this write.",
 }
 const acceptedHit = new Set<string>()
 

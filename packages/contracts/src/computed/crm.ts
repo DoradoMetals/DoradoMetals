@@ -60,7 +60,13 @@ export const CustomerTimeline = z
     summary: z.string(),
     status: z.string(),
   })
-  .extend({ call_kind: CallKind.nullable() })
+  .extend({
+    call_kind: CallKind.nullable(),
+    duration_seconds: Call.shape.duration_seconds,
+    recording_url: Call.shape.recording_url,
+    actor_id: User.shape.id.nullable(),
+    actor_name: User.shape.name,
+  })
 export type CustomerTimeline = z.infer<typeof CustomerTimeline>
 
 export const SmsSendBody = z
@@ -148,3 +154,28 @@ export const LeadFunnel = z
     hours_to_first_contact_target: FunnelTarget.shape.value.nullable(),
   })
 export type LeadFunnel = z.infer<typeof LeadFunnel>
+
+export const ActivitySubjectKind = z.enum(['customer', 'lead'])
+export type ActivitySubjectKind = z.infer<typeof ActivitySubjectKind>
+
+export const ActivityEntry = z.object({
+  at: SmsMessage.shape.created_at,
+  kind: TimelineKind.shape.key,
+  label: TimelineKind.shape.label,
+  actor_id: User.shape.id.nullable(),
+  actor_name: User.shape.name,
+  subject_kind: ActivitySubjectKind,
+  subject_id: User.shape.id,
+  subject_name: User.shape.name,
+  summary: z.string(),
+})
+export type ActivityEntry = z.infer<typeof ActivityEntry>
+
+export const ActivityFilter = z
+  .object({})
+  .extend({
+    employee_id: User.shape.id.optional(),
+    limit: z.coerce.number().int().positive().max(500).optional(),
+  })
+  .strict()
+export type ActivityFilter = z.infer<typeof ActivityFilter>

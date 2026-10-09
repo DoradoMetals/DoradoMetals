@@ -26,7 +26,7 @@ test('update writes a real lead and answers the written row', async () => {
 
     const written = await leads.update(lead.id, { name: 'Renamed Lead', contacted: true }, c)
     assert.equal(written?.name, 'Renamed Lead')
-    assert.equal(written?.contacted, true)
+    assert.ok(written?.contacted_at, 'the stage moment was not stamped')
     assert.deepEqual(written, await leads.getOne(lead.id, c))
   })
 })
@@ -51,19 +51,64 @@ test('remove deletes a real lead and answers false the second time', async () =>
   })
 })
 
-test('lead_stage climbs New -> Contacted -> Responded -> Converted as the booleans are set', async () => {
+test('lead_stage climbs New -> Contacted -> Responded -> Converted as the moments arrive', async () => {
   await inRollback(async (c: PoolClient) => {
     const lead = await aLead(c)
     assert.equal(lead.lead_stage, 'New')
+    assert.equal(lead.contacted_at, null)
 
     const contacted = await leads.update(lead.id, { contacted: true }, c)
     assert.equal(contacted?.lead_stage, 'Contacted')
+    assert.ok(contacted?.contacted_at, 'the database did not stamp contacted_at')
 
     const responded = await leads.update(lead.id, { responded: true }, c)
     assert.equal(responded?.lead_stage, 'Responded')
+    assert.ok(responded?.responded_at, 'the database did not stamp responded_at')
 
-    const converted = await leads.update(lead.id, { converted: true }, c)
+    const converted = await leads.markConverted(lead.id, c)
     assert.equal(converted?.lead_stage, 'Converted')
+    assert.ok(converted?.converted_at, 'markConverted did not stamp converted_at')
+  })
+})
+
+test('the stage moment and its legacy boolean are kept in step from either side', async () => {
+  await inRollback(async (c: PoolClient) => {
+    const lead = await aLead(c)
+
+    const raised = await leads.update(lead.id, { contacted: true }, c)
+    assert.ok(raised?.contacted_at, 'setting the boolean did not stamp the moment')
+
+    const cleared = await leads.update(lead.id, { contacted: false }, c)
+    assert.equal(cleared?.contacted_at, null, 'clearing the boolean did not clear the moment')
+    assert.equal(cleared?.lead_stage, 'New')
+
+    await c.query(`UPDATE leads.leads SET responded_at = now() WHERE id = $1`, [lead.id])
+    const stamped = await leads.getOne(lead.id, c)
+    assert.equal(stamped?.responded, true, 'writing the moment did not raise the boolean')
+    assert.equal(stamped?.lead_stage, 'Responded')
+
+    await c.query(`UPDATE leads.leads SET responded_at = NULL WHERE id = $1`, [lead.id])
+    const unstamped = await leads.getOne(lead.id, c)
+    assert.equal(unstamped?.responded, false, 'clearing the moment did not clear the boolean')
+  })
+})
+
+test('a lead is created with no stage moment on it at all', async () => {
+  await inRollback(async (c: PoolClient) => {
+    const lead = await aLead(c)
+    assert.deepEqual(
+      [lead.contacted_at, lead.responded_at, lead.converted_at],
+      [null, null, null],
+      'a brand-new lead came out already staged'
+    )
+    assert.deepEqual([lead.contacted, lead.responded, lead.converted], [false, false, false])
+  })
+})
+
+test('the free-text notes column is no longer written on create - a note is a row', async () => {
+  await inRollback(async (c: PoolClient) => {
+    const lead = await aLead(c)
+    assert.equal(lead.notes, null)
   })
 })
 

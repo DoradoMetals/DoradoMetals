@@ -47,6 +47,8 @@ import smsRoutes from '#crm/sms/routes.ts'
 import callsRoutes from '#crm/calls/routes.ts'
 import timelineRoutes from '#crm/timeline/routes.ts'
 import inboxRoutes from '#crm/inbox/routes.ts'
+import noteRoutes from '#crm/notes/routes.ts'
+import activityRoutes from '#crm/activity/routes.ts'
 
 import { toNodeHandler } from 'better-auth/node'
 import { auth } from '#accounts/auth/client.ts'
@@ -136,6 +138,8 @@ app.use('/api/sms', smsRoutes)
 app.use('/api/calls', callsRoutes)
 app.use('/api/customers', timelineRoutes)
 app.use('/api/inbox', inboxRoutes)
+app.use('/api/notes', noteRoutes)
+app.use('/api/activity', activityRoutes)
 
 app.use((req, res) => {
   res.status(404).json({ error: 'Not Found' })

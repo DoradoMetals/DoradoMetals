@@ -1,8 +1,11 @@
 import withTransaction from '#shared/db/withTransaction.ts'
 import { attempt } from '#shared/attempt.ts'
 import * as leads from '#db/leads/repo.ts'
+import * as notes from '#db/crm/notes/repo.ts'
+import * as consentEvents from '#db/crm/consent-events/repo.ts'
 import * as smsRepo from '#db/crm/sms-messages/repo.ts'
 import * as callsRepo from '#db/crm/calls/repo.ts'
+import * as assignmentsService from '#crm/assignments/service.ts'
 import * as usersService from '#accounts/users/service.ts'
 import * as smsService from '#crm/sms/service.ts'
 import * as rules from '#crm/leads/rules.ts'
@@ -20,14 +23,31 @@ export async function list(filter: LeadFilter): Promise<LeadView[]> {
 
 export async function create(lead: LeadPatch): Promise<LeadView> {
   return withTransaction(async (client) => {
-    return await leads.create(lead, client)
+    const row = await leads.create(lead, client)
+    if (row.assigned_to_id) {
+      await assignmentsService.record(
+        { user_id: null, lead_id: row.id, assigned_to_id: row.assigned_to_id },
+        client
+      )
+    }
+    return row
   })
 }
 
 export async function update(id: string, patch: LeadPatch): Promise<LeadView> {
   return withTransaction(async (client) => {
+    const before = await leads.getOne(id, client)
+    rules.assertLead(before, id)
     const row = await leads.update(id, patch, client)
     rules.assertLead(row, id)
+
+    if (rules.assignmentMoved(before, patch)) {
+      await assignmentsService.record(
+        { user_id: null, lead_id: id, assigned_to_id: patch.assigned_to_id ?? null },
+        client
+      )
+    }
+
     if (patch.sms_consent_method === undefined) return row
     const stamped =
       patch.sms_consent_method === null
@@ -39,6 +59,15 @@ export async function update(id: string, patch: LeadPatch): Promise<LeadView> {
             client
           )
     rules.assertLead(stamped, id)
+    await consentEvents.create(
+      {
+        user_id: null,
+        lead_id: id,
+        kind: patch.sms_consent_method === null ? 'opt_out' : 'opt_in',
+        method: patch.sms_consent_method,
+      },
+      client
+    )
     return stamped
   })
 }
@@ -75,8 +104,10 @@ export async function convert(id: string, body: LeadConvertBody): Promise<AdminU
       await smsRepo.attachToUser(phone_number, user.id, tx)
       await callsRepo.attachToUser(phone_number, user.id, tx)
     }
+    await notes.repointLeadToUser(id, user.id, tx)
 
-    await leads.update(id, { converted: true }, tx)
+    const converted = await leads.markConverted(id, tx)
+    rules.assertLead(converted, id)
     return { user, welcome: Boolean(lead.sms_consent_at && user.phone_number) }
   })
 

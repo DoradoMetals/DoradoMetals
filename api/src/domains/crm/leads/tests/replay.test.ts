@@ -34,7 +34,6 @@ const newLead = () => ({
   phone: '5550000000',
   email: `replay-${randomUUID().slice(0, 8)}@example.com`,
   priority: 'low',
-  notes: 'created by the leads replay suite',
 })
 
 const asAdmin = <T>(fn: () => Promise<T> | T) =>
@@ -129,15 +128,13 @@ test('updating a lead changes it and leaves the others alone', async () => {
         const target = before.body[0]
         const others = before.body.length
 
-        const res = await request(app)
-          .patch(`/api/leads/${target.id}`)
-          .send({ notes: 'touched by the replay suite' })
+        const res = await request(app).patch(`/api/leads/${target.id}`).send({ priority: 'urgent' })
         assert.equal(res.status, 200, JSON.stringify(res.body))
 
         const after = await request(app).get('/api/leads')
         assert.equal(after.body.length, others, 'an update changed how many leads exist')
         const updated = after.body.find((l: { id: string; name: string }) => l.id === target.id)
-        assert.equal(updated.notes, 'touched by the replay suite')
+        assert.equal(updated.priority, 'urgent')
       })
     },
     { actor: TEST_ACTOR.id }

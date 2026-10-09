@@ -4,7 +4,15 @@ import pool from '#pool'
 import { inPinnedTransaction } from '#shared/testing/pinned-pool.ts'
 import { TEST_ACTOR } from '#shared/testing/actor.ts'
 import { LOCKS } from '#shared/testing/locks.ts'
-import { aLead, aUser, anEstimateItem, aTag } from '#shared/testing/builders/index.ts'
+import {
+  aConsentEvent,
+  aLead,
+  aNote,
+  anAssignment,
+  anEstimateItem,
+  aTag,
+  aUser,
+} from '#shared/testing/builders/index.ts'
 import { inRollback } from '#shared/testing/rollback.ts'
 import * as leads from '#db/leads/repo.ts'
 import * as repo from '#db/crm/timeline/repo.ts'
@@ -54,7 +62,7 @@ test('the lead timeline merges every fact about a lead and labels each kind from
       const phone = `512555${tag.slice(-4).replace(/\D/g, '1')}`
       const email = `${tag}@dorado.test`
       const owner = await aUser(client)
-      const lead = await aLead(client, { phone, email, notes: 'Called about a ring' })
+      const lead = await aLead(client, { phone, email })
 
       await client.query(
         `INSERT INTO crm.sms_messages
@@ -76,8 +84,11 @@ test('the lead timeline merges every fact about a lead and labels each kind from
         [email]
       )
       await anEstimateItem(client, lead.id)
-      await leads.recordSmsConsent(lead.id, 'verbal', new Date().toISOString(), client)
-      await leads.update(lead.id, { assigned_to_id: owner.id, converted: true }, client)
+      await aNote(client, { lead_id: lead.id }, 'Called about a ring')
+      await aConsentEvent(client, { lead_id: lead.id })
+      await anAssignment(client, { lead_id: lead.id }, owner.id)
+      await leads.update(lead.id, { contacted: true, responded: true }, client)
+      await leads.markConverted(lead.id, client)
 
       const rows = await repo.forLead(lead.id, client)
       const kinds = new Set(rows.map((r) => r.kind))
@@ -90,6 +101,8 @@ test('the lead timeline merges every fact about a lead and labels each kind from
         'note',
         'consent',
         'estimate_item',
+        'contacted',
+        'responded',
         'converted',
       ]) {
         assert.ok(kinds.has(expected), `the timeline has no ${expected} row`)

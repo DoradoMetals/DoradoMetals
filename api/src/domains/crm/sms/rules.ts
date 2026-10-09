@@ -1,4 +1,4 @@
-import type { SmsDeliveryStatus, SmsMessage } from '@dorado/contracts'
+import type { SmsConsentDecision, SmsDeliveryStatus, SmsMessage } from '@dorado/contracts'
 import { Conflict, Invalid, NotFound } from '#shared/errors.ts'
 
 export function assertMessage(
@@ -22,6 +22,10 @@ export function consentKeyword(body: string | null | undefined): 'stop' | 'start
   if (STOP_KEYWORDS.has(word)) return 'stop'
   if (START_KEYWORDS.has(word)) return 'start'
   return null
+}
+
+export function consentDecisionOf(keyword: 'stop' | 'start'): SmsConsentDecision {
+  return keyword === 'stop' ? 'opt_out' : 'opt_in'
 }
 
 const RANK: Record<SmsDeliveryStatus, number> = {

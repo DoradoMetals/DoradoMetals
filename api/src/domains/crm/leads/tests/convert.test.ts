@@ -2,11 +2,18 @@ import { test, afterAll } from 'vitest'
 import assert from 'node:assert/strict'
 import request from 'supertest'
 import pool from '#pool'
-import { mockSessions, restoreSessions, asAdmin, asUser, anonymous } from '#shared/testing/session.ts'
+import {
+  mockSessions,
+  restoreSessions,
+  asAdmin,
+  asUser,
+  anonymous,
+} from '#shared/testing/session.ts'
 import { TEST_ACTOR } from '#shared/testing/actor.ts'
 import { LOCKS } from '#shared/testing/locks.ts'
 import { inPinnedTransaction } from '#shared/testing/pinned-pool.ts'
-import { aLead, aTag } from '#shared/testing/builders/index.ts'
+import { aLead, aNote, aTag } from '#shared/testing/builders/index.ts'
+import * as notes from '#db/crm/notes/repo.ts'
 import * as smsRepo from '#db/crm/sms-messages/repo.ts'
 import query from '#shared/db/query.ts'
 
@@ -35,10 +42,12 @@ test('converting a lead creates a customer, marks it converted, and refuses a re
       assert.equal(res.body.email, lead.email)
       assert.equal(res.body.name, lead.name)
 
-      const { rows } = await client.query('SELECT converted FROM leads.leads WHERE id = $1', [
-        lead.id,
-      ])
-      assert.equal(rows[0]?.converted, true, 'the lead was not marked converted')
+      const { rows } = await client.query(
+        'SELECT converted, converted_at FROM leads.leads WHERE id = $1',
+        [lead.id]
+      )
+      assert.ok(rows[0]?.converted_at, 'the lead was not stamped converted_at')
+      assert.equal(rows[0]?.converted, true, 'the trigger did not keep the boolean in step')
 
       const again = await asAdmin(TEST_ACTOR, () =>
         request(app).post(`/api/leads/${lead.id}/convert`).send({})
@@ -61,7 +70,13 @@ test('converting keeps the lead phone number timeline attached to the new custom
       })
 
       const message = await smsRepo.upsertInbound(
-        { provider_sid: `SMconv${tag}`, from_number: `+1${phone}`, to_number: '+15125550000', body: 'hi', media: [] },
+        {
+          provider_sid: `SMconv${tag}`,
+          from_number: `+1${phone}`,
+          to_number: '+15125550000',
+          body: 'hi',
+          media: [],
+        },
         'twilio',
         client
       )
@@ -73,7 +88,11 @@ test('converting keeps the lead phone number timeline attached to the new custom
       assert.equal(res.status, 201, JSON.stringify(res.body))
 
       const attached = await smsRepo.getOne(message.id, client)
-      assert.equal(attached?.user_id, res.body.id, "the lead's message was not attached to the new customer")
+      assert.equal(
+        attached?.user_id,
+        res.body.id,
+        "the lead's message was not attached to the new customer"
+      )
     },
     { lock: LOCKS.USERS, actor: TEST_ACTOR.id }
   )
@@ -169,6 +188,42 @@ test('a non-admin is refused', async () => {
         request(app).post(`/api/leads/${lead.id}/convert`).send({})
       )
       assert.ok([401, 403].includes(asAnon.status))
+    },
+    { lock: LOCKS.USERS, actor: TEST_ACTOR.id }
+  )
+})
+
+test('converting carries the notes the Convert dialog promises onto the new customer', async () => {
+  await inPinnedTransaction(
+    async (client) => {
+      const tag = aTag()
+      const lead = await aLead(client, {
+        name: `Notes Fixture ${tag}`,
+        phone: '5125550095',
+        email: `${tag}@dorado.test`,
+      })
+      const first = await aNote(client, { lead_id: lead.id }, 'Prefers a call before we ship')
+      const second = await aNote(client, { lead_id: lead.id }, 'Inherited the lot from an aunt')
+
+      const res = await asAdmin(TEST_ACTOR, () =>
+        request(app).post(`/api/leads/${lead.id}/convert`).send({})
+      )
+      assert.equal(res.status, 201, JSON.stringify(res.body))
+
+      const carried = await notes.forSubject({ user_id: res.body.id, lead_id: null }, client)
+      assert.deepEqual(
+        new Set(carried.map((n) => n.body)),
+        new Set([first.body, second.body]),
+        'the lead notes did not follow the lead onto the new customer'
+      )
+      for (const note of carried) {
+        assert.equal(note.lead_id, null, 'a carried note still points at the lead')
+      }
+      assert.deepEqual(
+        await notes.forSubject({ user_id: null, lead_id: lead.id }, client),
+        [],
+        'the lead kept a copy of the notes as well as handing them over'
+      )
     },
     { lock: LOCKS.USERS, actor: TEST_ACTOR.id }
   )

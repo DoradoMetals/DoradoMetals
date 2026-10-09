@@ -3,7 +3,11 @@
 //
 // Every entity of the `crm` schema, one namespace each.
 export * from './enums.js'
+export * from './assignments.js'
 export * from './calls.js'
+export * from './notes.js'
+export * from './sms_consent_events.js'
+export * from './sms_consent_kinds.js'
 export * from './sms_messages.js'
 export * from './targets.js'
 export * from './timeline_kinds.js'

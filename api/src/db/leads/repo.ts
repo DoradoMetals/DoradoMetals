@@ -19,6 +19,7 @@ const RECORD_SMS_CONSENT_SQL = sql('record_sms_consent').replaceAll(
   LEAD_STAGE
 )
 const CLEAR_SMS_CONSENT_SQL = sql('clear_sms_consent').replaceAll('/*__lead_stage__*/', LEAD_STAGE)
+const MARK_CONVERTED_SQL = sql('mark_converted').replaceAll('/*__lead_stage__*/', LEAD_STAGE)
 
 export const PATCHABLE = columnsOf(LeadPatch)
 
@@ -51,7 +52,6 @@ export async function create(row: LeadPatch, executor?: Executor): Promise<LeadV
       row.phone,
       row.email,
       row.priority,
-      row.notes,
       row.source,
       row.assigned_to_id,
       row.source_id,
@@ -99,5 +99,13 @@ export async function clearSmsConsent(
   executor?: Executor
 ): Promise<LeadView | undefined> {
   const { rows } = await query<LeadView>(CLEAR_SMS_CONSENT_SQL, [id], executor)
+  return rows[0]
+}
+
+export async function markConverted(
+  id: string,
+  executor?: Executor
+): Promise<LeadView | undefined> {
+  const { rows } = await query<LeadView>(MARK_CONVERTED_SQL, [id], executor)
   return rows[0]
 }

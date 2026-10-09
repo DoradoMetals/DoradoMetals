@@ -6,7 +6,7 @@ import { mockSessions, restoreSessions, as, anonymous } from '#shared/testing/se
 import { TEST_ACTOR } from '#shared/testing/actor.ts'
 import { LOCKS } from '#shared/testing/locks.ts'
 import { inPinnedTransaction } from '#shared/testing/pinned-pool.ts'
-import { aLead, aUser, anEstimateItem, anOrder } from '#shared/testing/builders/index.ts'
+import { aLead, aNote, aUser, anEstimateItem, anOrder } from '#shared/testing/builders/index.ts'
 
 await mockSessions()
 const { default: app } = await import('#app')
@@ -44,16 +44,18 @@ test('the timeline includes an order and a note when the customer has them', asy
     async (client) => {
       const user = await aUser(client)
       await anOrder(client, user, { direction: 'purchase' })
-      await client.query(`UPDATE auth.users SET notes = 'called about a big sale' WHERE id = $1`, [
-        user.id,
-      ])
+      await aNote(client, { user_id: user.id }, 'called about a big sale')
 
       await asAdmin(TEST_ACTOR.id, async () => {
         const res = await request(app).get(`/api/customers/${user.id}/timeline`)
         assert.equal(res.status, 200)
         const kinds = res.body.map((row: { kind: string }) => row.kind)
         assert.ok(kinds.includes('order'), 'no order row in the timeline')
-        assert.ok(kinds.includes('note'), 'no note row in the timeline')
+        const note = res.body.find((row: { kind: string }) => row.kind === 'note')
+        assert.ok(note, 'no note row in the timeline')
+        assert.equal(note.summary, 'called about a big sale')
+        assert.equal(note.actor_id, TEST_ACTOR.id, 'the note row names no author')
+        assert.equal(note.actor_name, TEST_ACTOR.name)
       })
     },
     { lock: LOCKS.USERS, actor: TEST_ACTOR.id }
@@ -76,10 +78,8 @@ test('an anonymous caller is refused', async () => {
 test('the lead timeline answers 200 and every kind the lead actually has', async () => {
   await inPinnedTransaction(
     async (client) => {
-      const lead = await aLead(client, {
-        phone: '5125554242',
-        notes: 'wants a quote on a chain',
-      })
+      const lead = await aLead(client, { phone: '5125554242' })
+      await aNote(client, { lead_id: lead.id }, 'wants a quote on a chain')
       await client.query(
         `INSERT INTO crm.sms_messages
                 (direction, provider, provider_sid, from_number, to_number, body, status)

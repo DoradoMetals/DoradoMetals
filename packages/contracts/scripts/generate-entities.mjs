@@ -203,7 +203,11 @@ const ENTITY = {
   'checkout.checkouts': 'Checkout',
   'checkout.lots': 'CheckoutLot',
 
+  'crm.assignments': 'Assignment',
   'crm.calls': 'Call',
+  'crm.notes': 'Note',
+  'crm.sms_consent_events': 'SmsConsentEvent',
+  'crm.sms_consent_kinds': 'SmsConsentKind',
   'crm.sms_messages': 'SmsMessage',
   'crm.targets': 'FunnelTarget',
   'crm.timeline_kinds': 'TimelineKind',
