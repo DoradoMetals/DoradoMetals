@@ -30,6 +30,8 @@ export const User = z.object({
 })
 export type User = z.infer<typeof User>
 // generated:end
+import { Review } from '../reviews/reviews.js'
+
 export const UserSummary = User.pick({ id: true, name: true, email: true })
 export type UserSummary = z.infer<typeof UserSummary>
 
@@ -51,6 +53,8 @@ export const AdminUser = User.omit({
   orders_count: z.number().int(),
   open_orders_count: z.number().int(),
   last_contact: z.string().nullable(),
+  review_count: z.number().int(),
+  review_rating_avg: Review.shape.rating,
 })
 export type AdminUser = z.infer<typeof AdminUser>
 

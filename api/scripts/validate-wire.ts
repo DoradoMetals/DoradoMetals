@@ -123,7 +123,7 @@ const refining = await import('#refining/service.ts')
 add('GET /suppliers/get_all', c.RefinerView, () => refining.allRefiners())
 add('GET /refining/orders', c.RefiningOrderView, () => refining.list(null, null, null))
 add('GET /refining/pool', c.PoolBalance, () => refining.balances(null, null))
-add('GET /refining/pool/entries', c.PoolEntry, () => refining.entries(null, null, null))
+add('GET /refining/pool/entries', c.PoolEntryView, () => refining.entries(null, null, null))
 const refiningOrdersRepo = await import('#db/refining/orders/repo.ts')
 const refiningLotsRepo = await import('#db/refining/lots/repo.ts')
 add('GET /refining/orders/:id/lots', c.RefiningLot, async () => {
@@ -251,6 +251,48 @@ add(
   'POST /quotes/profit_breakdown',
   c.ProfitBreakdown,
   () => (quotableOrders.length ? pricing.profitBreakdown(quotableOrders[0].id) : []),
+  false
+)
+
+const { rows: leadRows } = await pool.query(
+  `SELECT id FROM leads.leads ORDER BY created_at ASC, id ASC LIMIT 5`
+)
+const leadIds: string[] = leadRows.map((r) => r.id as string)
+const leadsService = await import('#crm/leads/service.ts')
+// The lead reads omit the two actor ids, exactly as db/leads/repo.ts's own
+// RETURNING does - the same shape of declared omission as OrderView.payout
+// above. The contract still DECLARES them, which is a real gap; it is recorded
+// in FOLLOWUPS rather than closed by widening an endpoint this lane did not own.
+add('GET /leads/:id', c.LeadView.omit({ created_by_id: true, updated_by_id: true }), () =>
+  Promise.all(leadIds.map((id) => leadsService.getOne(id)))
+)
+
+const leadEstimatesService = await import('#crm/estimates/service.ts')
+add('GET /leads/:id/estimate/items', c.EstimateItem, async () => {
+  const lists = await Promise.all(leadIds.map((id) => leadEstimatesService.forLead(id)))
+  return lists.flat()
+})
+
+const leadDocumentsService = await import('#crm/lead-documents/service.ts')
+add('GET /leads/:id/documents', c.LeadDocumentView, async () => {
+  const lists = await Promise.all(leadIds.map((id) => leadDocumentsService.forLead(id)))
+  return lists.flat()
+})
+
+const leadTimelineService = await import('#crm/timeline/service.ts')
+add('GET /leads/:id/timeline', c.LeadTimeline, async () => {
+  const lists = await Promise.all(leadIds.map((id) => leadTimelineService.forLead(id)))
+  return lists.flat()
+})
+
+const leadFunnelService = await import('#crm/funnel/service.ts')
+add('GET /leads/funnel', c.LeadFunnel, () => leadFunnelService.get(), false)
+
+add('GET /pricing/lead-estimates', c.LeadEstimateTotal, () => pricing.leadEstimateTotals(leadIds))
+add(
+  'GET /pricing/lead-estimates/:leadId',
+  c.LeadEstimate,
+  () => (leadIds.length ? pricing.leadEstimate(leadIds[0]!) : []),
   false
 )
 

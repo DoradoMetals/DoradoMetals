@@ -2,4 +2,10 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Every entity of the `leads` schema, one namespace each.
+export * from './contact_preferences.js'
+export * from './documents.js'
+export * from './estimate_items.js'
+export * from './estimate_kinds.js'
 export * from './leads.js'
+export * from './sources.js'
+export * from './weight_units.js'

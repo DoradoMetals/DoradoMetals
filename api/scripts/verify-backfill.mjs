@@ -387,7 +387,8 @@ const TABLES = [
       unit: 'the admin drawer re-states the weight unit on the lot itself',
       post_melt: 'the drawer records the post-melt weight once the parcel is opened',
       purity: 'the drawer corrects the declared purity after testing',
-      premium: "placement re-tiers the premium by the whole order's ounces, and the drawer edits it after",
+      premium:
+        "placement re-tiers the premium by the whole order's ounces, and the drawer edits it after",
       sales_tax_rate: 'a sale line freezes the rate it was taxed at; a purchase line has none',
     },
   },
@@ -533,6 +534,30 @@ const NOT_REBUILT = {
 
   'crm.sms_messages': 'provider (Twilio) webhook rows, no exchange source',
   'crm.calls': 'provider webhook rows, no exchange source',
+  'crm.targets':
+    'the two lead-funnel targets, seeded by 236. Ruling 116 puts a business ' +
+    'number in a row rather than a constant, and exchange never recorded a ' +
+    'target of any kind: the migration IS the source, and it is idempotent.',
+  'crm.timeline_kinds':
+    'the nine kinds a lead timeline row can be, seeded by 235. Lookup rows ' +
+    'with no exchange source - exchange had no timeline at all.',
+  'leads.sources':
+    'the five places a lead comes from, seeded by 233. exchange.leads has no ' +
+    '`source` column, so there is nothing to rebuild from; the migration IS ' +
+    'the source.',
+  'leads.contact_preferences':
+    'text, call or email, seeded by 233. exchange.leads.contact held an ' +
+    'EMPLOYEE NAME, not a preference, so no exchange column backs this set.',
+  'leads.estimate_kinds': 'scrap or bullion, seeded by 232; no exchange source',
+  'leads.weight_units':
+    'troy_oz, g, dwt and lb with their gram factors, seeded by 232. Defined ' +
+    'constants in rows (ruling 116); exchange recorded no unit table.',
+  'leads.estimate_items':
+    'a lead estimate is a conversation record created natively after this ' +
+    'wave; exchange never held one, so there is nothing to rebuild.',
+  'leads.documents':
+    'a link from a lead to an uploaded pdf, written natively after this wave; ' +
+    'exchange recorded no lead document.',
 
   'payments.transfers':
     'Moov/Plaid payout and charge state machine rows, built fresh by ' +

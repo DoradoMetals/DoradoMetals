@@ -7,3 +7,9 @@ export const getTimeline = asyncHandler(async (req, res) => {
   const rows = await service.forCustomer(id)
   return res.status(200).json(rows)
 })
+
+export const getLeadTimeline = asyncHandler(async (req, res) => {
+  const id = uuidParam(req, 'id')
+  const rows = await service.forLead(id)
+  return res.status(200).json(rows)
+})

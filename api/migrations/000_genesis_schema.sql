@@ -228,7 +228,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
     WHERE t.typname = 'pdf_kind' AND n.nspname = 'media'
   ) THEN
-    CREATE TYPE media.pdf_kind AS ENUM ('packing_list', 'return_packing_list', 'invoice', 'sales_order_invoice', 'shipping_instructions', 'pickup_manifest', 'pickup_instructions', 'intake_receipt', 'appointment_instructions', 'settlement', 'lot_manifest', 'rate_sheet', 'assay_results');
+    CREATE TYPE media.pdf_kind AS ENUM ('packing_list', 'return_packing_list', 'invoice', 'sales_order_invoice', 'shipping_instructions', 'pickup_manifest', 'pickup_instructions', 'intake_receipt', 'appointment_instructions', 'settlement', 'lot_manifest', 'rate_sheet', 'assay_results', 'lead_document');
   END IF;
 END $$;
 
@@ -351,6 +351,7 @@ END $$;
 
 -- Sequences ----------------------------------------------------------
 
+CREATE SEQUENCE IF NOT EXISTS leads.number_seq AS bigint;
 CREATE SEQUENCE IF NOT EXISTS orders.number_seq AS bigint;
 CREATE SEQUENCE IF NOT EXISTS orders.purchase_number_seq AS bigint;
 CREATE SEQUENCE IF NOT EXISTS orders.sale_number_seq AS bigint;
@@ -765,6 +766,44 @@ ALTER TABLE crm.sms_messages ADD COLUMN IF NOT EXISTS created_by_id uuid;
 ALTER TABLE crm.sms_messages ADD COLUMN IF NOT EXISTS updated_by_id uuid;
 ALTER TABLE crm.sms_messages ADD COLUMN IF NOT EXISTS read_at timestamp with time zone;
 
+CREATE TABLE IF NOT EXISTS crm.targets (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  key text NOT NULL,
+  label text NOT NULL,
+  value numeric NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  created_by_id uuid,
+  updated_by_id uuid
+);
+ALTER TABLE crm.targets ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE crm.targets ADD COLUMN IF NOT EXISTS key text;
+ALTER TABLE crm.targets ADD COLUMN IF NOT EXISTS label text;
+ALTER TABLE crm.targets ADD COLUMN IF NOT EXISTS value numeric;
+ALTER TABLE crm.targets ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE crm.targets ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE crm.targets ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE crm.targets ADD COLUMN IF NOT EXISTS updated_by_id uuid;
+
+CREATE TABLE IF NOT EXISTS crm.timeline_kinds (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  key text NOT NULL,
+  label text NOT NULL,
+  sort_order integer NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  created_by_id uuid,
+  updated_by_id uuid
+);
+ALTER TABLE crm.timeline_kinds ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE crm.timeline_kinds ADD COLUMN IF NOT EXISTS key text;
+ALTER TABLE crm.timeline_kinds ADD COLUMN IF NOT EXISTS label text;
+ALTER TABLE crm.timeline_kinds ADD COLUMN IF NOT EXISTS sort_order integer;
+ALTER TABLE crm.timeline_kinds ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE crm.timeline_kinds ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE crm.timeline_kinds ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE crm.timeline_kinds ADD COLUMN IF NOT EXISTS updated_by_id uuid;
+
 CREATE TABLE IF NOT EXISTS fulfillments.directs (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
   fulfillment_id uuid NOT NULL,
@@ -1018,6 +1057,88 @@ ALTER TABLE inventory.pool ADD COLUMN IF NOT EXISTS lot_id uuid;
 ALTER TABLE inventory.pool ADD COLUMN IF NOT EXISTS spot numeric;
 ALTER TABLE inventory.pool ADD COLUMN IF NOT EXISTS basis_spot numeric;
 
+CREATE TABLE IF NOT EXISTS leads.contact_preferences (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  key text NOT NULL,
+  label text NOT NULL,
+  sort_order integer NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  created_by_id uuid,
+  updated_by_id uuid
+);
+ALTER TABLE leads.contact_preferences ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE leads.contact_preferences ADD COLUMN IF NOT EXISTS key text;
+ALTER TABLE leads.contact_preferences ADD COLUMN IF NOT EXISTS label text;
+ALTER TABLE leads.contact_preferences ADD COLUMN IF NOT EXISTS sort_order integer;
+ALTER TABLE leads.contact_preferences ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE leads.contact_preferences ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE leads.contact_preferences ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE leads.contact_preferences ADD COLUMN IF NOT EXISTS updated_by_id uuid;
+
+CREATE TABLE IF NOT EXISTS leads.documents (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  lead_id uuid NOT NULL,
+  pdf_id uuid NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  created_by_id uuid,
+  updated_by_id uuid
+);
+ALTER TABLE leads.documents ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE leads.documents ADD COLUMN IF NOT EXISTS lead_id uuid;
+ALTER TABLE leads.documents ADD COLUMN IF NOT EXISTS pdf_id uuid;
+ALTER TABLE leads.documents ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE leads.documents ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE leads.documents ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE leads.documents ADD COLUMN IF NOT EXISTS updated_by_id uuid;
+
+CREATE TABLE IF NOT EXISTS leads.estimate_items (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  lead_id uuid NOT NULL,
+  kind_id uuid NOT NULL,
+  metal_id text NOT NULL,
+  weight numeric NOT NULL,
+  unit_id uuid NOT NULL,
+  purity_id uuid,
+  custom_purity numeric,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  created_by_id uuid,
+  updated_by_id uuid
+);
+ALTER TABLE leads.estimate_items ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE leads.estimate_items ADD COLUMN IF NOT EXISTS lead_id uuid;
+ALTER TABLE leads.estimate_items ADD COLUMN IF NOT EXISTS kind_id uuid;
+ALTER TABLE leads.estimate_items ADD COLUMN IF NOT EXISTS metal_id text;
+ALTER TABLE leads.estimate_items ADD COLUMN IF NOT EXISTS weight numeric;
+ALTER TABLE leads.estimate_items ADD COLUMN IF NOT EXISTS unit_id uuid;
+ALTER TABLE leads.estimate_items ADD COLUMN IF NOT EXISTS purity_id uuid;
+ALTER TABLE leads.estimate_items ADD COLUMN IF NOT EXISTS custom_purity numeric;
+ALTER TABLE leads.estimate_items ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE leads.estimate_items ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE leads.estimate_items ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE leads.estimate_items ADD COLUMN IF NOT EXISTS updated_by_id uuid;
+
+CREATE TABLE IF NOT EXISTS leads.estimate_kinds (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  key text NOT NULL,
+  label text NOT NULL,
+  sort_order integer NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  created_by_id uuid,
+  updated_by_id uuid
+);
+ALTER TABLE leads.estimate_kinds ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE leads.estimate_kinds ADD COLUMN IF NOT EXISTS key text;
+ALTER TABLE leads.estimate_kinds ADD COLUMN IF NOT EXISTS label text;
+ALTER TABLE leads.estimate_kinds ADD COLUMN IF NOT EXISTS sort_order integer;
+ALTER TABLE leads.estimate_kinds ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE leads.estimate_kinds ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE leads.estimate_kinds ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE leads.estimate_kinds ADD COLUMN IF NOT EXISTS updated_by_id uuid;
+
 CREATE TABLE IF NOT EXISTS leads.leads (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
   name text NOT NULL,
@@ -1039,7 +1160,10 @@ CREATE TABLE IF NOT EXISTS leads.leads (
   assigned_to_id uuid,
   source text,
   sms_consent_at timestamp with time zone,
-  sms_consent_method text
+  sms_consent_method text,
+  source_id uuid,
+  contact_preference_id uuid,
+  number text DEFAULT ('LEAD-'::text || nextval('leads.number_seq'::regclass)) NOT NULL
 );
 ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS name text;
@@ -1062,6 +1186,49 @@ ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS assigned_to_id uuid;
 ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS source text;
 ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS sms_consent_at timestamp with time zone;
 ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS sms_consent_method text;
+ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS source_id uuid;
+ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS contact_preference_id uuid;
+ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS number text DEFAULT ('LEAD-'::text || nextval('leads.number_seq'::regclass));
+
+CREATE TABLE IF NOT EXISTS leads.sources (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  key text NOT NULL,
+  label text NOT NULL,
+  sort_order integer NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  created_by_id uuid,
+  updated_by_id uuid
+);
+ALTER TABLE leads.sources ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE leads.sources ADD COLUMN IF NOT EXISTS key text;
+ALTER TABLE leads.sources ADD COLUMN IF NOT EXISTS label text;
+ALTER TABLE leads.sources ADD COLUMN IF NOT EXISTS sort_order integer;
+ALTER TABLE leads.sources ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE leads.sources ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE leads.sources ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE leads.sources ADD COLUMN IF NOT EXISTS updated_by_id uuid;
+
+CREATE TABLE IF NOT EXISTS leads.weight_units (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  key text NOT NULL,
+  label text NOT NULL,
+  grams numeric NOT NULL,
+  sort_order integer NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  created_by_id uuid,
+  updated_by_id uuid
+);
+ALTER TABLE leads.weight_units ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE leads.weight_units ADD COLUMN IF NOT EXISTS key text;
+ALTER TABLE leads.weight_units ADD COLUMN IF NOT EXISTS label text;
+ALTER TABLE leads.weight_units ADD COLUMN IF NOT EXISTS grams numeric;
+ALTER TABLE leads.weight_units ADD COLUMN IF NOT EXISTS sort_order integer;
+ALTER TABLE leads.weight_units ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE leads.weight_units ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE leads.weight_units ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE leads.weight_units ADD COLUMN IF NOT EXISTS updated_by_id uuid;
 
 CREATE TABLE IF NOT EXISTS media.emails (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -2653,6 +2820,36 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'crm_targets_pkey' AND c.relname = 'targets' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.targets ADD CONSTRAINT crm_targets_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'crm_targets_value_positive' AND c.relname = 'targets' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.targets ADD CONSTRAINT crm_targets_value_positive CHECK ((value > (0)::numeric));
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'timeline_kinds_pkey' AND c.relname = 'timeline_kinds' AND n.nspname = 'crm'
+  ) THEN
+    ALTER TABLE crm.timeline_kinds ADD CONSTRAINT timeline_kinds_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'fulfillment_directs_one_per_fulfillment' AND c.relname = 'directs' AND n.nspname = 'fulfillments'
   ) THEN
     ALTER TABLE fulfillments.directs ADD CONSTRAINT fulfillment_directs_one_per_fulfillment UNIQUE (fulfillment_id);
@@ -2923,6 +3120,76 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'contact_preferences_pkey' AND c.relname = 'contact_preferences' AND n.nspname = 'leads'
+  ) THEN
+    ALTER TABLE leads.contact_preferences ADD CONSTRAINT contact_preferences_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'lead_documents_pkey' AND c.relname = 'documents' AND n.nspname = 'leads'
+  ) THEN
+    ALTER TABLE leads.documents ADD CONSTRAINT lead_documents_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'estimate_items_custom_purity_range' AND c.relname = 'estimate_items' AND n.nspname = 'leads'
+  ) THEN
+    ALTER TABLE leads.estimate_items ADD CONSTRAINT estimate_items_custom_purity_range CHECK (((custom_purity IS NULL) OR ((custom_purity > (0)::numeric) AND (custom_purity <= (1)::numeric))));
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'estimate_items_one_purity' AND c.relname = 'estimate_items' AND n.nspname = 'leads'
+  ) THEN
+    ALTER TABLE leads.estimate_items ADD CONSTRAINT estimate_items_one_purity CHECK (((purity_id IS NULL) <> (custom_purity IS NULL)));
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'estimate_items_pkey' AND c.relname = 'estimate_items' AND n.nspname = 'leads'
+  ) THEN
+    ALTER TABLE leads.estimate_items ADD CONSTRAINT estimate_items_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'estimate_items_weight_positive' AND c.relname = 'estimate_items' AND n.nspname = 'leads'
+  ) THEN
+    ALTER TABLE leads.estimate_items ADD CONSTRAINT estimate_items_weight_positive CHECK ((weight > (0)::numeric));
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'estimate_kinds_pkey' AND c.relname = 'estimate_kinds' AND n.nspname = 'leads'
+  ) THEN
+    ALTER TABLE leads.estimate_kinds ADD CONSTRAINT estimate_kinds_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'leads_pkey' AND c.relname = 'leads' AND n.nspname = 'leads'
   ) THEN
     ALTER TABLE leads.leads ADD CONSTRAINT leads_pkey PRIMARY KEY (id);
@@ -2936,6 +3203,36 @@ DO $$ BEGIN
     WHERE con.conname = 'leads_sms_consent_method_is_known' AND c.relname = 'leads' AND n.nspname = 'leads'
   ) THEN
     ALTER TABLE leads.leads ADD CONSTRAINT leads_sms_consent_method_is_known CHECK (((sms_consent_method IS NULL) OR (sms_consent_method = ANY (ARRAY['web_form'::text, 'verbal'::text, 'via_text'::text]))));
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'lead_sources_pkey' AND c.relname = 'sources' AND n.nspname = 'leads'
+  ) THEN
+    ALTER TABLE leads.sources ADD CONSTRAINT lead_sources_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'weight_units_grams_positive' AND c.relname = 'weight_units' AND n.nspname = 'leads'
+  ) THEN
+    ALTER TABLE leads.weight_units ADD CONSTRAINT weight_units_grams_positive CHECK ((grams > (0)::numeric));
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'weight_units_pkey' AND c.relname = 'weight_units' AND n.nspname = 'leads'
+  ) THEN
+    ALTER TABLE leads.weight_units ADD CONSTRAINT weight_units_pkey PRIMARY KEY (id);
   END IF;
 END $$;
 DO $$ BEGIN
@@ -4323,6 +4620,76 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'lead_documents_lead_fk' AND c.relname = 'documents' AND n.nspname = 'leads'
+  ) THEN
+    ALTER TABLE leads.documents ADD CONSTRAINT lead_documents_lead_fk FOREIGN KEY (lead_id) REFERENCES leads.leads(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'lead_documents_pdf_fk' AND c.relname = 'documents' AND n.nspname = 'leads'
+  ) THEN
+    ALTER TABLE leads.documents ADD CONSTRAINT lead_documents_pdf_fk FOREIGN KEY (pdf_id) REFERENCES media.pdfs(id) ON DELETE RESTRICT;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'estimate_items_kind_fk' AND c.relname = 'estimate_items' AND n.nspname = 'leads'
+  ) THEN
+    ALTER TABLE leads.estimate_items ADD CONSTRAINT estimate_items_kind_fk FOREIGN KEY (kind_id) REFERENCES leads.estimate_kinds(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'estimate_items_lead_fk' AND c.relname = 'estimate_items' AND n.nspname = 'leads'
+  ) THEN
+    ALTER TABLE leads.estimate_items ADD CONSTRAINT estimate_items_lead_fk FOREIGN KEY (lead_id) REFERENCES leads.leads(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'estimate_items_metal_fk' AND c.relname = 'estimate_items' AND n.nspname = 'leads'
+  ) THEN
+    ALTER TABLE leads.estimate_items ADD CONSTRAINT estimate_items_metal_fk FOREIGN KEY (metal_id) REFERENCES metals.metals(id) ON UPDATE CASCADE;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'estimate_items_purity_fk' AND c.relname = 'estimate_items' AND n.nspname = 'leads'
+  ) THEN
+    ALTER TABLE leads.estimate_items ADD CONSTRAINT estimate_items_purity_fk FOREIGN KEY (purity_id) REFERENCES metals.purity_labels(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'estimate_items_unit_fk' AND c.relname = 'estimate_items' AND n.nspname = 'leads'
+  ) THEN
+    ALTER TABLE leads.estimate_items ADD CONSTRAINT estimate_items_unit_fk FOREIGN KEY (unit_id) REFERENCES leads.weight_units(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'leads_assigned_fk' AND c.relname = 'leads' AND n.nspname = 'leads'
   ) THEN
     ALTER TABLE leads.leads ADD CONSTRAINT leads_assigned_fk FOREIGN KEY (assigned_to_id) REFERENCES auth.users(id) ON DELETE SET NULL;
@@ -4333,9 +4700,29 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'leads_contact_preference_fk' AND c.relname = 'leads' AND n.nspname = 'leads'
+  ) THEN
+    ALTER TABLE leads.leads ADD CONSTRAINT leads_contact_preference_fk FOREIGN KEY (contact_preference_id) REFERENCES leads.contact_preferences(id) ON DELETE SET NULL;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'leads_created_by_id_fkey' AND c.relname = 'leads' AND n.nspname = 'leads'
   ) THEN
     ALTER TABLE leads.leads ADD CONSTRAINT leads_created_by_id_fkey FOREIGN KEY (created_by_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'leads_source_fk' AND c.relname = 'leads' AND n.nspname = 'leads'
+  ) THEN
+    ALTER TABLE leads.leads ADD CONSTRAINT leads_source_fk FOREIGN KEY (source_id) REFERENCES leads.sources(id) ON DELETE SET NULL;
   END IF;
 END $$;
 DO $$ BEGIN
@@ -5529,6 +5916,8 @@ CREATE INDEX IF NOT EXISTS calls_user_started ON crm.calls USING btree (user_id,
 CREATE INDEX IF NOT EXISTS sms_messages_from_created ON crm.sms_messages USING btree (from_number, created_at);
 CREATE INDEX IF NOT EXISTS sms_messages_to_created ON crm.sms_messages USING btree (to_number, created_at);
 CREATE INDEX IF NOT EXISTS sms_messages_user_created ON crm.sms_messages USING btree (user_id, created_at);
+CREATE UNIQUE INDEX IF NOT EXISTS crm_targets_key ON crm.targets USING btree (key);
+CREATE UNIQUE INDEX IF NOT EXISTS timeline_kinds_key ON crm.timeline_kinds USING btree (key);
 CREATE INDEX IF NOT EXISTS idx_fulfillment_directs_assigned_to ON fulfillments.directs USING btree (assigned_employee_id);
 CREATE INDEX IF NOT EXISTS idx_fulfillment_directs_fulfillment_id ON fulfillments.directs USING btree (fulfillment_id);
 CREATE INDEX IF NOT EXISTS idx_fulfillment_directs_location_id ON fulfillments.directs USING btree (location_id);
@@ -5560,12 +5949,23 @@ CREATE INDEX IF NOT EXISTS lots_metal ON inventory.lots USING btree (metal_id);
 CREATE INDEX IF NOT EXISTS lots_settled ON inventory.lots USING btree (settled_at) WHERE (settled_at IS NOT NULL);
 CREATE INDEX IF NOT EXISTS pool_balance ON inventory.pool USING btree (refiner_id, metal_id, occurred_at);
 CREATE INDEX IF NOT EXISTS pool_lot ON inventory.pool USING btree (lot_id) WHERE (lot_id IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS contact_preferences_key ON leads.contact_preferences USING btree (key);
+CREATE INDEX IF NOT EXISTS lead_documents_lead ON leads.documents USING btree (lead_id);
+CREATE UNIQUE INDEX IF NOT EXISTS lead_documents_lead_pdf ON leads.documents USING btree (lead_id, pdf_id);
+CREATE INDEX IF NOT EXISTS estimate_items_lead ON leads.estimate_items USING btree (lead_id);
+CREATE INDEX IF NOT EXISTS estimate_items_metal ON leads.estimate_items USING btree (metal_id);
+CREATE UNIQUE INDEX IF NOT EXISTS estimate_kinds_key ON leads.estimate_kinds USING btree (key);
 CREATE INDEX IF NOT EXISTS idx_leads_leads_created_by_id ON leads.leads USING btree (created_by_id);
 CREATE INDEX IF NOT EXISTS idx_leads_leads_updated_by_id ON leads.leads USING btree (updated_by_id);
 CREATE INDEX IF NOT EXISTS leads_assigned ON leads.leads USING btree (assigned_to_id);
+CREATE INDEX IF NOT EXISTS leads_contact_preference_id ON leads.leads USING btree (contact_preference_id);
+CREATE UNIQUE INDEX IF NOT EXISTS leads_number_unique ON leads.leads USING btree (number);
+CREATE INDEX IF NOT EXISTS leads_source_id ON leads.leads USING btree (source_id);
 CREATE INDEX IF NOT EXISTS migration_leads_email_idx ON leads.leads USING btree (lower(email));
 CREATE INDEX IF NOT EXISTS migration_leads_phone_idx ON leads.leads USING btree (phone);
 CREATE INDEX IF NOT EXISTS migration_leads_status_idx ON leads.leads USING btree (converted, contacted, responded);
+CREATE UNIQUE INDEX IF NOT EXISTS lead_sources_key ON leads.sources USING btree (key);
+CREATE UNIQUE INDEX IF NOT EXISTS weight_units_key ON leads.weight_units USING btree (key);
 CREATE INDEX IF NOT EXISTS emails_address_idx ON media.emails USING btree (to_address);
 CREATE INDEX IF NOT EXISTS emails_order_idx ON media.emails USING btree (order_id, sent_at DESC);
 CREATE INDEX IF NOT EXISTS emails_provider_message_idx ON media.emails USING btree (provider_message_id);

@@ -6,7 +6,7 @@ import { mockSessions, restoreSessions, as, anonymous } from '#shared/testing/se
 import { TEST_ACTOR } from '#shared/testing/actor.ts'
 import { LOCKS } from '#shared/testing/locks.ts'
 import { inPinnedTransaction } from '#shared/testing/pinned-pool.ts'
-import { aUser, anOrder } from '#shared/testing/builders/index.ts'
+import { aLead, aUser, anEstimateItem, anOrder } from '#shared/testing/builders/index.ts'
 
 await mockSessions()
 const { default: app } = await import('#app')
@@ -70,5 +70,61 @@ test('an anonymous caller is refused', async () => {
       })
     },
     { lock: LOCKS.USERS, actor: TEST_ACTOR.id }
+  )
+})
+
+test('the lead timeline answers 200 and every kind the lead actually has', async () => {
+  await inPinnedTransaction(
+    async (client) => {
+      const lead = await aLead(client, {
+        phone: '5125554242',
+        notes: 'wants a quote on a chain',
+      })
+      await client.query(
+        `INSERT INTO crm.sms_messages
+                (direction, provider, provider_sid, from_number, to_number, body, status)
+         VALUES ('outbound', 'twilio', 'SMleadep000000000000000000001', '5125550000',
+                 '5125554242', 'hello', 'sent')`
+      )
+      await anEstimateItem(client, lead.id)
+
+      await asAdmin(TEST_ACTOR.id, async () => {
+        const res = await request(app).get(`/api/leads/${lead.id}/timeline`)
+        assert.equal(res.status, 200, JSON.stringify(res.body))
+        const kinds = res.body.map((row: { kind: string }) => row.kind)
+        assert.ok(kinds.includes('created'), 'no created row')
+        assert.ok(kinds.includes('text'), 'no text row')
+        assert.ok(kinds.includes('note'), 'no note row')
+        assert.ok(kinds.includes('estimate_item'), 'no estimate line row')
+        for (const row of res.body) {
+          assert.ok(row.label, `the ${row.kind} row carries no label`)
+        }
+      })
+    },
+    { lock: LOCKS.USERS, actor: TEST_ACTOR.id }
+  )
+})
+
+test('an anonymous caller cannot read a lead timeline', async () => {
+  await inPinnedTransaction(
+    async (client) => {
+      const lead = await aLead(client, { phone: '5125554343' })
+      await anonymous(async () => {
+        const res = await request(app).get(`/api/leads/${lead.id}/timeline`)
+        assert.ok([401, 403].includes(res.status))
+      })
+    },
+    { actor: TEST_ACTOR.id }
+  )
+})
+
+test('a lead timeline for a non-uuid id is 400', async () => {
+  await inPinnedTransaction(
+    async () => {
+      await asAdmin(TEST_ACTOR.id, async () => {
+        assert.equal((await request(app).get('/api/leads/nope/timeline')).status, 400)
+      })
+    },
+    { actor: TEST_ACTOR.id }
   )
 })

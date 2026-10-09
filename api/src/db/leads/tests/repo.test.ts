@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto'
 import type { PoolClient } from 'pg'
 import pool from '#pool'
 import { inRollback } from '#shared/testing/rollback.ts'
-import { aLead } from '#shared/testing/builders/index.ts'
+import { aLead, contactPreferenceId, leadSourceId } from '#shared/testing/builders/index.ts'
 import { TEST_ACTOR } from '#shared/testing/actor.ts'
 import * as leads from '#db/leads/repo.ts'
 
@@ -112,5 +112,50 @@ test('assigned_to filters to one owner, and "unassigned" to none', async () => {
     const unassigned = await leads.list({ ...NO_FILTER, assigned_to: 'unassigned' }, c)
     assert.ok(unassigned.some((l) => l.id === unowned.id))
     assert.ok(!unassigned.some((l) => l.id === owned.id))
+  })
+})
+
+test('every created lead carries its own LEAD- number', async () => {
+  await inRollback(async (c: PoolClient) => {
+    const first = await aLead(c)
+    const second = await aLead(c)
+
+    assert.match(first.number, /^LEAD-\d+$/, `number was ${first.number}`)
+    assert.match(second.number, /^LEAD-\d+$/)
+    assert.notEqual(first.number, second.number, 'two leads drew the same number')
+  })
+})
+
+test('the lead number comes from the leads sequence, not the orders one', async () => {
+  await inRollback(async (c: PoolClient) => {
+    const lead = await aLead(c)
+    const { rows } = await c.query<{ exists: boolean }>(
+      `SELECT EXISTS (
+         SELECT 1 FROM pg_class cl
+          JOIN pg_namespace n ON n.oid = cl.relnamespace
+         WHERE cl.relkind = 'S' AND n.nspname = 'leads' AND cl.relname = 'number_seq'
+       ) AS exists`
+    )
+    assert.equal(rows[0]?.exists, true, 'leads.number_seq is missing')
+    assert.ok(lead.number.startsWith('LEAD-'))
+  })
+})
+
+test('a lead carries a source row and a contact preference row', async () => {
+  await inRollback(async (c: PoolClient) => {
+    const source_id = await leadSourceId(c, 'walk_in')
+    const contact_preference_id = await contactPreferenceId(c, 'call')
+    const lead = await aLead(c, { source_id, contact_preference_id })
+
+    assert.equal(lead.source_id, source_id)
+    assert.equal(lead.contact_preference_id, contact_preference_id)
+
+    const moved = await leads.update(
+      lead.id,
+      { source_id: await leadSourceId(c, 'sell_form'), contact_preference_id: null },
+      c
+    )
+    assert.equal(moved?.source_id, await leadSourceId(c, 'sell_form'))
+    assert.equal(moved?.contact_preference_id, null, 'the preference did not clear')
   })
 })

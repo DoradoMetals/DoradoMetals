@@ -150,3 +150,57 @@ export async function packageId(c: PoolClient, label = 'Small Box'): Promise<str
 export function shipmentDirection(direction: 'purchase' | 'sale'): 'Inbound' | 'Outbound' {
   return direction === 'purchase' ? 'Inbound' : 'Outbound'
 }
+
+export async function estimateKindId(c: PoolClient, key = 'scrap'): Promise<string> {
+  const row = await one<{ id: string }>(
+    c,
+    `the estimate kind "${key}"`,
+    `SELECT id FROM leads.estimate_kinds WHERE key = $1`,
+    [key]
+  )
+  return row.id
+}
+
+export async function estimateUnitId(c: PoolClient, key = 'troy_oz'): Promise<string> {
+  const row = await one<{ id: string }>(
+    c,
+    `the weight unit "${key}"`,
+    `SELECT id FROM leads.weight_units WHERE key = $1`,
+    [key]
+  )
+  return row.id
+}
+
+export async function purityLabelId(
+  c: PoolClient,
+  metal_id = 'Gold',
+  label = '14K'
+): Promise<string> {
+  const row = await one<{ id: string }>(
+    c,
+    `the purity label ${metal_id} ${label}`,
+    `SELECT id FROM metals.purity_labels WHERE metal_id = $1 AND label = $2`,
+    [metal_id, label]
+  )
+  return row.id
+}
+
+export async function leadSourceId(c: PoolClient, key = 'sell_form'): Promise<string> {
+  const row = await one<{ id: string }>(
+    c,
+    `the lead source "${key}"`,
+    `SELECT id FROM leads.sources WHERE key = $1`,
+    [key]
+  )
+  return row.id
+}
+
+export async function contactPreferenceId(c: PoolClient, key = 'text'): Promise<string> {
+  const row = await one<{ id: string }>(
+    c,
+    `the contact preference "${key}"`,
+    `SELECT id FROM leads.contact_preferences WHERE key = $1`,
+    [key]
+  )
+  return row.id
+}

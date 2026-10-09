@@ -27,6 +27,9 @@ export const Lead = z.object({
   'source': z.string().nullable(),
   'sms_consent_at': z.string().nullable(),
   'sms_consent_method': z.string().nullable(),
+  'source_id': z.string().uuid().nullable(),
+  'contact_preference_id': z.string().uuid().nullable(),
+  'number': z.string(),
 })
 export type Lead = z.infer<typeof Lead>
 // generated:end
@@ -47,6 +50,8 @@ export const LeadPatch = Lead.pick({
   notes: true,
   priority: true,
   source: true,
+  source_id: true,
+  contact_preference_id: true,
   assigned_to_id: true,
 })
   .partial()

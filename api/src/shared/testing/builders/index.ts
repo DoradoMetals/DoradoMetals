@@ -15,6 +15,6 @@ export {
   type BuiltPayout,
 } from '#shared/testing/builders/payments.ts'
 export { aRefiningOrder, type BuiltRefiningOrder } from '#shared/testing/builders/refiners.ts'
-export { aLead } from '#shared/testing/builders/leads.ts'
+export { aLead, anEstimateItem } from '#shared/testing/builders/leads.ts'
 export { aLedgerEntry, type LedgerEntry } from '#shared/testing/builders/transactions.ts'
 export { aReview } from '#shared/testing/builders/reviews.ts'

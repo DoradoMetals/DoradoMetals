@@ -6,7 +6,7 @@ import * as repo from '#db/users/repo.ts'
 import { takeLocks, LOCKS } from '#shared/testing/locks.ts'
 import { rollbackIn } from '#shared/testing/rollback.ts'
 import { TEST_ACTOR } from '#shared/testing/actor.ts'
-import { aUser as buildUser } from '#shared/testing/builders/index.ts'
+import { aUser as buildUser, aReview } from '#shared/testing/builders/index.ts'
 
 let client: PoolClient
 
@@ -120,4 +120,48 @@ test('an adjustment on a client is invisible on another connection', async () =>
     client.release()
     other.release()
   }
+})
+
+test('the customer read carries the review count and the average rating', async () => {
+  await inRollback(async (c: PoolClient) => {
+    const user = await buildUser(c, { funds: 0 })
+
+    const fresh = await repo.getOne(user.id, c)
+    assert.equal(fresh?.review_count, 0, 'a customer with no reviews did not count zero')
+    assert.equal(fresh?.review_rating_avg, null, 'an average of nothing is not null')
+
+    await aReview(c, null, { rating: 5 }, { user: { id: user.id } })
+    await aReview(c, null, { rating: 4 }, { user: { id: user.id } })
+
+    const reviewed = await repo.getOne(user.id, c)
+    assert.equal(reviewed?.review_count, 2)
+    assert.equal(reviewed?.review_rating_avg, 4.5)
+  })
+})
+
+test('a review with no rating counts but does not move the average', async () => {
+  await inRollback(async (c: PoolClient) => {
+    const user = await buildUser(c, { funds: 0 })
+    await aReview(c, null, { rating: 3 }, { user: { id: user.id } })
+    await c.query(
+      `INSERT INTO reviews.reviews (user_id, name, review_text, rating, hidden)
+       VALUES ($1, 'No stars', 'words only', NULL, true)`,
+      [user.id]
+    )
+
+    const read = await repo.getOne(user.id, c)
+    assert.equal(read?.review_count, 2)
+    assert.equal(read?.review_rating_avg, 3)
+  })
+})
+
+test('the customer list carries the same two fields the read does', async () => {
+  await inRollback(async (c: PoolClient) => {
+    const user = await buildUser(c, { funds: 0 })
+    await aReview(c, null, { rating: 2 }, { user: { id: user.id } })
+
+    const listed = (await repo.list(c)).find((row) => row.id === user.id)
+    assert.equal(listed?.review_count, 1)
+    assert.equal(listed?.review_rating_avg, 2)
+  })
 })
