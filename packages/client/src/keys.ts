@@ -5,15 +5,19 @@ export const keys = {
   },
   orders: {
     all: () => ['orders'] as const,
-    list: (direction: string | null, userId: string | null) =>
-      ['orders', 'list', direction, userId] as const,
+    list: (filters: Record<string, unknown>) => ['orders', 'list', filters] as const,
     view: (id: string) => ['orders', 'view', id] as const,
     spots: (id: string) => ['orders', 'spots', id] as const,
     documents: (id: string) => ['orders', 'documents', id] as const,
     fulfillment: (id: string) => ['orders', 'fulfillment', id] as const,
     shipments: (id: string) => ['orders', 'shipments', id] as const,
     profit: (id: string) => ['orders', 'profit', id] as const,
+    sorts: () => ['orders', 'sorts'] as const,
     dropoffs: (id: string) => ['orders', 'dropoffs', id] as const,
+  },
+  search: {
+    all: () => ['search'] as const,
+    hits: (q: string) => ['search', 'hits', q] as const,
   },
   refining: {
     all: () => ['refining'] as const,
@@ -25,6 +29,8 @@ export const keys = {
     spots: (id: string) => ['refining', 'spots', id] as const,
     documents: (id: string) => ['refining', 'documents', id] as const,
     payment: (id: string) => ['refining', 'payment', id] as const,
+    pricing: (id: string) => ['refining', 'pricing', id] as const,
+    settlementLines: (id: string) => ['refining', 'settlement_lines', id] as const,
   },
   payments: {
     all: () => ['payments'] as const,

@@ -42,6 +42,7 @@ SELECT jsonb_build_object(
              to_char(li.confirmed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
            'settled_at', to_char(li.settled_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
            'settled_spot', li.settled_spot, 'source', li.source::text,
+           'line_reference', li.line_reference,
            'product_name', b.name, 'form', COALESCE(b.type, 'Scrap'),
            'reference', lr.reference,
            'position', /*__lot_position__*/,
@@ -69,10 +70,7 @@ SELECT jsonb_build_object(
                                     'id', ro.id, 'number', ro.number,
                                     'reference', (CASE ro.direction WHEN 'buy' THEN 'RP-' ELSE 'RS-' END)
                                                  || ro.number,
-                                    'state', CASE WHEN ro.cancelled_at IS NOT NULL THEN 'Cancelled'
-                                                  WHEN ro.disputed_at IS NOT NULL THEN 'Disputed'
-                                                  WHEN ro.settled_at IS NOT NULL THEN 'Settled'
-                                                  ELSE 'Pending assay' END) END,
+                                    'state', (/*__refining_state__*/)) END,
            'refiner', CASE WHEN rf.id IS NULL THEN NULL
                            ELSE jsonb_build_object('id', rf.id, 'name', org.name) END),
          'worth', jsonb_build_object(

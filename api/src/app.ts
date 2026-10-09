@@ -15,6 +15,7 @@ import paymentMethodRoutes from '#transactions/methods/routes.ts'
 import spotRoutes from '#pricing/spots/routes.ts'
 import transactionRoutes from '#transactions/ledger/routes.ts'
 import ordersRoutes from '#orders/routes.ts'
+import searchRoutes from '#orders/search/routes.ts'
 import inventoryRoutes from '#inventory/routes.ts'
 import { inventorySummaryRoutes } from '#inventory/routes.ts'
 import locationRoutes from '#accounts/places/locations/routes.ts'
@@ -106,6 +107,7 @@ app.use('/api/reviews', reviewRoutes)
 app.use('/api/emails', emailRoutes)
 app.use('/api/transactions', transactionRoutes)
 app.use('/api/orders', ordersRoutes)
+app.use('/api/search', searchRoutes)
 app.use('/api/lots', inventoryRoutes)
 app.use('/api/inventory', inventorySummaryRoutes)
 app.use('/api/locations', locationRoutes)

@@ -21,7 +21,7 @@ beforeAll(async () => {
   client = await pool.connect()
   await client.query('SELECT pg_advisory_lock($1)', [LOCKS.ORDERS])
   orders = []
-  for (const row of await orderRead.list('purchase', null)) {
+  for (const row of (await orderRead.list({ direction: 'purchase' })).items) {
     const view = await orderRead.view(row.id)
     if (view) orders.push(view)
   }

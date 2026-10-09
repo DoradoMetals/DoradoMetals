@@ -4,6 +4,7 @@ import { Pdf } from '../media/pdfs.js'
 
 export const OrderState = z.enum([
   'Cancelled',
+  'Draft',
   'Awaiting Receipt',
   'At Refiner',
   'Awaiting Payout',
@@ -11,9 +12,24 @@ export const OrderState = z.enum([
   'Awaiting Payment',
   'Preparing',
   'In Transit',
+  'Awaiting Delivery',
+  'Pending Assay',
+  'Settled',
+  'Disputed',
   'Completed',
 ])
 export type OrderState = z.infer<typeof OrderState>
+
+export const SearchKind = z.enum(['order', 'customer', 'lead', 'lot'])
+export type SearchKind = z.infer<typeof SearchKind>
+
+export const SearchHit = z.object({
+  kind: SearchKind,
+  id: z.string().uuid(),
+  reference: z.string(),
+  title: z.string(),
+})
+export type SearchHit = z.infer<typeof SearchHit>
 
 export const Action = z.object({
   name: z.string(),

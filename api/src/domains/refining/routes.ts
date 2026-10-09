@@ -12,6 +12,7 @@ import {
   getRefiningDocuments,
   getRefiningLots,
   getRefiningOrder,
+  getRefiningSettlementLines,
   getRefiningSpots,
   listRefiningOrders,
   patchRefiningLot,
@@ -51,6 +52,7 @@ router.post(
   express.raw({ type: 'multipart/form-data', limit: '25mb' }),
   importRefiningDocument
 )
+router.get('/orders/:id/settlement-lines', requireAdmin, getRefiningSettlementLines)
 router.post('/orders/:id/settle', requireAdmin, settleRefiningOrder)
 router.get('/orders/:id/lots', requireAdmin, getRefiningLots)
 router.post('/orders/:id/lots', requireAdmin, assignRefiningLots)

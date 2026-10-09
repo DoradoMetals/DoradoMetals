@@ -11,7 +11,8 @@ import type {
   LotPatch,
   OrderActions,
   OrderDocument,
-  OrderListItem,
+  OrderList,
+  OrderSort,
   OrderLotPatch,
   OrderLotView,
   OrderSpot,
@@ -159,7 +160,11 @@ export function shipConfirm(view: OrderViewFacts): string | null {
   return null
 }
 
-export function offer(name: string, confirm: string | null = null, override: string | null = null): Action {
+export function offer(
+  name: string,
+  confirm: string | null = null,
+  override: string | null = null
+): Action {
   return { name, confirm, override }
 }
 
@@ -221,8 +226,18 @@ export function orderViewForCustomer(view: OrderView): OrderView {
   return { ...view, order: { ...view.order, notes: null, assigned_to_id: null } }
 }
 
-export function orderListForCustomer(items: OrderListItem[]): OrderListItem[] {
-  return items.map((item) => ({ ...item, notes: null, assigned_to_id: null }))
+export function orderListForCustomer(list: OrderList): OrderList {
+  return {
+    counts: list.counts,
+    items: list.items.map((item) => ({ ...item, notes: null, assigned_to_id: null })),
+  }
+}
+
+export function assertKnownSort(sort: string | null, offered: OrderSort[]): void {
+  if (sort === null) return
+  if (!offered.some((row) => row.key === sort)) {
+    throw new Invalid(`"sort" is one of ${offered.map((row) => row.key).join(', ')}`)
+  }
 }
 
 const FINALIZED: PdfKind[] = ['invoice', 'assay_results']

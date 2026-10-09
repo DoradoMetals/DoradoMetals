@@ -56,7 +56,7 @@ test('a purchase order splits every line three ways, per metal and per category'
           }
         )
         .withSpots({ bid: 100, ask: 200 })
-        .withTotals({})
+        .withTotals({ total: 1425.5 })
 
       const [scrapLine, bullionLine] = order.lots
 
@@ -69,17 +69,11 @@ test('a purchase order splits every line three ways, per metal and per category'
       })
       await refiningOrdersRepo.update(engagement.id, { fee: 7 }, c)
       const assayed = await refiningLotsRepo.getFor(engagement.id, c)
-      const edges = await lotSourcesRepo.sourcesOf(
-        [scrapLine!.lot_id, bullionLine!.lot_id],
-        c
-      )
+      const edges = await lotSourcesRepo.sourcesOf([scrapLine!.lot_id, bullionLine!.lot_id], c)
       const refinerLotFor = (customerLotId: string) =>
-        edges.find((edge) => edge.source_lot_id === customerLotId && edge.kind === 'batch')!
-          .lot_id
+        edges.find((edge) => edge.source_lot_id === customerLotId && edge.kind === 'batch')!.lot_id
       const scrapAssay = assayed.find((row) => row.lot_id === refinerLotFor(scrapLine!.lot_id))!
-      const bullionAssay = assayed.find(
-        (row) => row.lot_id === refinerLotFor(bullionLine!.lot_id)
-      )!
+      const bullionAssay = assayed.find((row) => row.lot_id === refinerLotFor(bullionLine!.lot_id))!
       await refiningLotsRepo.update(
         scrapAssay.id,
         { post_melt: 10.5, purity: 1, unit: 't oz', premium: 0.94 },
@@ -152,6 +146,27 @@ test('a purchase order splits every line three ways, per metal and per category'
       close(partyOf(b, 'refiner')?.refiner_fee_net, 0, 'refiner refiner_fee_net')
       close(partyOf(b, 'refiner')?.spot_net, 0, 'refiner spot_net')
       close(partyOf(b, 'refiner')?.total_profit, 90, 'refiner total_profit')
+
+      // The card's own header rows: what the customer was paid, what paying
+      // them cost, and one row per lot it lists.
+      close(b.payout, 1425.5, 'payout is the order transaction total')
+      close(b.fees, 24.5 + 20, 'fees are the customer carriage and the payout fee')
+      assert.equal(b.lots.length, b.total_lots, 'the denominator does not count the rows listed')
+      assert.deepEqual(
+        b.lots.map((lot) => lot.reference).sort(),
+        [`Lot ${order.number}-A`, `Lot ${order.number}-B`],
+        'a lot row is not named the way the order view names it'
+      )
+      for (const lot of b.lots) {
+        assert.equal(lot.estimated, true, 'an unsettled lot did not say it was estimated')
+        assert.equal(lot.settled_at, null)
+        assert.equal(lot.settled_spot, null)
+        assert.equal(lot.metal_id, 'Gold')
+      }
+      const scrapRow = b.lots.find((lot) => lot.lot_id === scrapLine!.lot_id)
+      close(scrapRow?.value, 10.5 * 0.94 * 120, 'an estimated lot is valued at the refiner feed')
+      const bullionRow = b.lots.find((lot) => lot.lot_id === bullionLine!.lot_id)
+      close(bullionRow?.value, 2 * 3 * 0.98 * 120, 'a bullion lot is valued over its own units')
     },
     { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS }
   )
@@ -252,7 +267,12 @@ test('an order that does not exist is refused, not answered with zeros', async (
   )
 })
 
-const setSpot = async (c: PoolClient, metal_id: string, bid: number, ask: number): Promise<void> => {
+const setSpot = async (
+  c: PoolClient,
+  metal_id: string,
+  bid: number,
+  ask: number
+): Promise<void> => {
   await c.query(
     `INSERT INTO spots.spots (metal_id, bid, ask) VALUES ($1, $2, $3)
        ON CONFLICT (metal_id) DO UPDATE SET bid = EXCLUDED.bid, ask = EXCLUDED.ask`,
@@ -284,8 +304,16 @@ test('a pooled order settled through the real flow prices off its own settled_sp
       assert.equal(b.total_lots, 1)
       assert.equal(b.settled_lots, 1, 'a pooled lot now settles with its own spot too')
       assert.equal(b.basis, 'realized')
-      close(shareOf(b, 'total', 'customer', 'Gold')?.profit, 8.1 * 2300, "customer prices off the order's own spot")
-      close(shareOf(b, 'total', 'refiner', 'Gold')?.profit, 0.9 * 2400, "the refiner's share prices off the pooled lot's own settled_spot")
+      close(
+        shareOf(b, 'total', 'customer', 'Gold')?.profit,
+        8.1 * 2300,
+        "customer prices off the order's own spot"
+      )
+      close(
+        shareOf(b, 'total', 'refiner', 'Gold')?.profit,
+        0.9 * 2400,
+        "the refiner's share prices off the pooled lot's own settled_spot"
+      )
     },
     { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS }
   )

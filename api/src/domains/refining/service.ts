@@ -6,6 +6,7 @@ import * as ordersRepo from '#db/orders/repo.ts'
 import * as orderLots from '#db/orders/lots/repo.ts'
 import * as refiners from '#db/refiners/repo.ts'
 import * as pdfs from '#db/media/pdfs/repo.ts'
+import * as refiningDocuments from '#db/refining/documents/repo.ts'
 
 import * as rules from '#refining/rules.ts'
 import withTransaction from '#shared/db/withTransaction.ts'
@@ -14,6 +15,7 @@ import type { Executor } from '#shared/db/executor.ts'
 import type {
   Lot,
   OrderDocument,
+  OrderState,
   PoolBalance,
   PoolEntry,
   PoolEntryKind,
@@ -31,12 +33,13 @@ import type {
   RefiningOrderRead,
   RefiningSettlement,
   RefiningSpot,
+  SettlementLine,
 } from '@dorado/contracts'
 
 export async function list(
   refiner_id: string | null,
   direction: RefiningDirection | null,
-  state: string | null
+  state: OrderState | null
 ): Promise<RefiningOrderView[]> {
   return await refiningOrders.list(refiner_id, direction, state)
 }
@@ -130,7 +133,14 @@ export async function spotsFor(id: string): Promise<RefiningSpot[]> {
 export async function documentsFor(id: string): Promise<OrderDocument[]> {
   const order = await refiningOrders.getOne(id)
   rules.assertRefiningOrder(order, id)
-  return rules.documentsFor(order.sent_at !== null, await pdfs.storedKinds(null, id))
+  const stored = await pdfs.storedKinds(null, id)
+  const offered = await refiningDocuments.list()
+  return rules.documentsFor(order.sent_at !== null, stored, offered)
+}
+
+export async function settlementLinesFor(id: string): Promise<SettlementLine[]> {
+  rules.assertRefiningOrder(await refiningOrders.getOne(id), id)
+  return await refiningLots.settlementLines(id)
 }
 
 export async function patch(id: string, changes: RefiningOrderPatch): Promise<RefiningOrderRead> {

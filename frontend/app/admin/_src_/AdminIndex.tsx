@@ -48,9 +48,7 @@ const ordersColumns: DataTableColumn<OrderListItem>[] = [
   {
     accessorKey: 'state',
     header: 'State',
-    cell: ({ row }) => (
-      <Badge {...orderStateBadge(row.original.state)}>{row.original.state}</Badge>
-    ),
+    cell: ({ row }) => <Badge {...orderStateBadge(row.original.state)}>{row.original.state}</Badge>,
   },
   {
     accessorKey: 'created_at',
@@ -143,7 +141,7 @@ export function AdminIndex() {
         <DataTable
           label="Orders"
           columns={ordersColumns}
-          data={orders.data ?? []}
+          data={orders.data?.items ?? []}
           getRowId={(row) => row.id}
           searchable
           searchPlaceholder="Search orders"

@@ -111,8 +111,8 @@ add('GET /rates/admin', c.AdminRate, () => ratesService.listAdminRates())
 add('GET /rates/tiers', c.RateTier, () => ratesService.listTiers())
 
 const orderRead = await import('#orders/read.ts')
-const orders = await orderRead.list('purchase', null)
-add('GET /orders', c.OrderListItem, () => orderRead.list(null, null))
+const orders = (await orderRead.list({ direction: 'purchase' })).items
+add('GET /orders', c.OrderList, async () => [await orderRead.list({})])
 
 const orderSpotsRepo = await import('#db/orders/spots/repo.ts')
 add('GET /orders/:id/spots', c.OrderSpot, async () => {
@@ -126,11 +126,18 @@ add('GET /refining/pool', c.PoolBalance, () => refining.balances(null, null))
 add('GET /refining/pool/entries', c.PoolEntryView, () => refining.entries(null, null, null))
 const refiningOrdersRepo = await import('#db/refining/orders/repo.ts')
 const refiningLotsRepo = await import('#db/refining/lots/repo.ts')
+const refiningDocumentsRepo = await import('#db/refining/documents/repo.ts')
 add('GET /refining/orders/:id/lots', c.RefiningLot, async () => {
   const all = await refiningOrdersRepo.list(null, null, null)
   const lists = await Promise.all(all.map((o) => refiningLotsRepo.getFor(o.id)))
   return lists.flat()
 })
+add('GET /refining/orders/:id/settlement-lines', c.SettlementLine, async () => {
+  const all = await refiningOrdersRepo.list(null, null, null)
+  const lists = await Promise.all(all.map((o) => refiningLotsRepo.settlementLines(o.id)))
+  return lists.flat()
+})
+add('GET /refining/orders/:id/documents', c.RefiningDocument, () => refiningDocumentsRepo.list())
 const fulfillmentPickups = await import('#logistics/fulfillments/pickups/service.ts')
 const fulfillmentDirects = await import('#logistics/fulfillments/directs/service.ts')
 add('GET /orders/:orderId/fulfillments', c.FulfillmentView, async () => {
@@ -253,6 +260,12 @@ add(
   () => (quotableOrders.length ? pricing.profitBreakdown(quotableOrders[0].id) : []),
   false
 )
+
+add('GET /orders/sorts', c.OrderSort, () => orderRead.sorts())
+add('POST /quotes/refining_order', c.RefiningPricing, async () => {
+  const all = await refiningOrdersRepo.list(null, null, null)
+  return await Promise.all(all.slice(0, 5).map((o) => pricing.priceRefiningOrder(o.id)))
+})
 
 const { rows: leadRows } = await pool.query(
   `SELECT id FROM leads.leads ORDER BY created_at ASC, id ASC LIMIT 5`

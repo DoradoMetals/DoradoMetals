@@ -3,7 +3,7 @@ import { buildUpdate } from '#shared/db/patch.ts'
 import { sqlFrom } from '#shared/db/sql.ts'
 import { columnsOf, returningOf } from '#shared/db/columns.ts'
 import * as inventoryLots from '#db/inventory/lots/repo.ts'
-import { Lot, RefiningLot, RefiningLotPatch } from '@dorado/contracts'
+import { Lot, RefiningLot, RefiningLotPatch, SettlementLine } from '@dorado/contracts'
 import type { RefiningSettlementLot } from '@dorado/contracts'
 import type { Executor } from '#shared/db/executor.ts'
 
@@ -41,17 +41,21 @@ export async function alreadyBatched(lot_ids: string[], executor?: Executor): Pr
   return rows.map((row) => row.source_lot_id)
 }
 
+export async function settlementLines(
+  refining_order_id: string,
+  executor?: Executor
+): Promise<SettlementLine[]> {
+  const { rows } = await query(sql('settlement_lines'), [refining_order_id], executor)
+  return rows.map((row) => SettlementLine.parse(row))
+}
+
 export async function assign(
   refining_order_id: string,
   lot_ids: string[],
   executor?: Executor
 ): Promise<RefiningLot[]> {
   if (lot_ids.length === 0) return []
-  const { rows } = await query<RefiningLot>(
-    sql('assign'),
-    [refining_order_id, lot_ids],
-    executor
-  )
+  const { rows } = await query<RefiningLot>(sql('assign'), [refining_order_id, lot_ids], executor)
   return rows
 }
 
@@ -90,6 +94,7 @@ export async function settle(
       assays.map((a) => a.unit ?? null),
       assays.map((a) => a.premium ?? null),
       assays.map((a) => a.settled_spot ?? null),
+      assays.map((a) => a.line_reference ?? null),
     ],
     executor
   )

@@ -235,6 +235,7 @@ const ENTITY = {
   'metals.purity_labels': 'PurityLabel',
 
   'orders.addresses': 'OrderAddressLink',
+  'orders.list_sorts': 'OrderSort',
   'orders.lots': 'OrderLot',
   'orders.orders': 'Order',
   'orders.spots': 'OrderSpot',
@@ -277,6 +278,7 @@ const ENTITY = {
   'inventory.pool': 'PoolEntry',
   'refining.orders': 'RefiningOrder',
   'refining.lots': 'RefiningLot',
+  'refining.documents': 'RefiningDocument',
 
   'reviews.reviews': 'Review',
 

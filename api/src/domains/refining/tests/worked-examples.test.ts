@@ -5,7 +5,7 @@ import pool from '#pool'
 import { LOCKS } from '#shared/testing/locks.ts'
 import { TEST_ACTOR } from '#shared/testing/actor.ts'
 import { inPinnedTransaction } from '#shared/testing/pinned-pool.ts'
-import { aUser, aProduct, anOrder } from '#shared/testing/builders/index.ts'
+import { aUser, aProduct, anOrder, aShipment } from '#shared/testing/builders/index.ts'
 import * as refining from '#refining/service.ts'
 import * as pricing from '#pricing/index.ts'
 
@@ -56,7 +56,12 @@ const contentOf = async (c: PoolClient, lot_id: string): Promise<number> => {
   return Number(rows[0]!.content)
 }
 
-const setSpot = async (c: PoolClient, metal_id: string, bid: number, ask: number): Promise<void> => {
+const setSpot = async (
+  c: PoolClient,
+  metal_id: string,
+  bid: number,
+  ask: number
+): Promise<void> => {
   await c.query(
     `INSERT INTO spots.spots (metal_id, bid, ask) VALUES ($1, $2, $3)
        ON CONFLICT (metal_id) DO UPDATE SET bid = EXCLUDED.bid, ask = EXCLUDED.ask`,
@@ -199,7 +204,11 @@ test('the pool credit reads the refiner lot own figures, not the customer lot it
     close(customerContent, 9, "the customer lot's own content never moved")
 
     const gold = (await refining.balances(r1!, 'Gold'))[0]
-    close(gold!.balance, 20 * 0.5 * 0.4, "the credit used the refiner lot's reported weight, not the customer's")
+    close(
+      gold!.balance,
+      20 * 0.5 * 0.4,
+      "the credit used the refiner lot's reported weight, not the customer's"
+    )
   })
 })
 
@@ -392,6 +401,7 @@ test("linked_orders derives a buy order's sales through lots, with no stored ord
     const buyer = await aUser(c)
     const product = await aProduct(c, { metal_id: 'Gold', gross: 1, content: 1, purity: 1 })
     const sale = await anOrder(c, buyer, { direction: 'sale' }).withBullion(product, 1)
+    await aShipment(c, sale)
     const [r1] = await refinerIds(c)
 
     const engagement = await refining.supplyOrder(sale.id, r1!)
@@ -404,10 +414,13 @@ test("linked_orders derives a buy order's sales through lots, with no stored ord
     )
 
     const view = await refining.view(engagement.id)
-    assert.ok(
-      view.linked_orders.some((row) => row.id === sale.id && row.direction === 'sale'),
-      'a buy order does not name the sale its metal is bound for'
-    )
+    const linked = view.linked_orders.find((row) => row.id === sale.id)
+    assert.ok(linked, 'a buy order does not name the sale its metal is bound for')
+    assert.equal(linked.direction, 'sale')
+    assert.equal(linked.reference, `SO-${sale.number}`)
+    assert.equal(linked.customer_name, buyer.name, 'the linked row does not name the customer')
+    assert.equal(linked.stage, 'Label Created', 'the linked row does not carry its own stage')
+    assert.equal(linked.city, null, 'a sale with no snapshot address invented a city')
   })
 })
 

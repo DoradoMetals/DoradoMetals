@@ -1,15 +1,27 @@
 import * as ordersRepo from '#db/orders/repo.ts'
 import * as rules from '#orders/rules.ts'
 import { withDecisions } from '#shared/views.ts'
-import type { Direction, OrderListItem, OrderRead, OrderView } from '@dorado/contracts'
+import type {
+  OrderFilter,
+  OrderList,
+  OrderRead,
+  OrderSort,
+  OrderView,
+  SearchHit,
+} from '@dorado/contracts'
 import type { Executor } from '#shared/db/executor.ts'
 
-export async function list(
-  direction: Direction | null,
-  user_id: string | null,
-  executor?: Executor
-): Promise<OrderListItem[]> {
-  return await ordersRepo.list(direction, user_id, executor)
+export async function sorts(executor?: Executor): Promise<OrderSort[]> {
+  return await ordersRepo.sorts(executor)
+}
+
+export async function list(filter: OrderFilter, executor?: Executor): Promise<OrderList> {
+  rules.assertKnownSort(filter.sort ?? null, await ordersRepo.sorts(executor))
+  return await ordersRepo.list(filter, executor)
+}
+
+export async function search(q: string, executor?: Executor): Promise<SearchHit[]> {
+  return await ordersRepo.search(q, executor)
 }
 
 export async function getOne(id: string, executor?: Executor): Promise<OrderRead | null> {

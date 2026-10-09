@@ -2,24 +2,31 @@ import query from '#shared/db/query.ts'
 import { buildUpdate } from '#shared/db/patch.ts'
 import { expression, sqlFrom } from '#shared/db/sql.ts'
 import { ARRIVED } from '#db/fulfillments/repo.ts'
+import { LOT_POSITION } from '#db/inventory/lots/repo.ts'
+import { ORDER_VALUE } from '#db/pricing/repo.ts'
 import type {
   AbandonedSale,
   Direction,
   Order,
+  OrderFilter,
   OrderGuard,
-  OrderListItem,
+  OrderList,
   OrderRead,
+  OrderSort,
   OrderViewFacts,
   OrderWrite,
+  SearchHit,
   SettledAwaiting,
 } from '@dorado/contracts'
 import type { Executor } from '#shared/db/executor.ts'
 import { columnsOf } from '#shared/db/columns.ts'
 import {
   OrderGuard as Guard,
-  OrderListItem as ListItem,
+  OrderList as List,
+  OrderSort as Sort,
   OrderViewFacts as Facts,
   OrderWrite as Write,
+  SearchHit as Hit,
 } from '@dorado/contracts'
 
 const sql = sqlFrom(import.meta.dirname)
@@ -29,8 +36,10 @@ export const ORDER_STATE = expression(sql('order_state')).replaceAll(
   ARRIVED
 )
 const LIST_SQL = sql('list')
-  .replace('/*__order_reference__*/', ORDER_REFERENCE)
-  .replace('/*__order_state__*/', ORDER_STATE)
+  .replaceAll('/*__order_reference__*/', ORDER_REFERENCE)
+  .replaceAll('/*__order_state__*/', ORDER_STATE)
+  .replaceAll('/*__lot_position__*/', LOT_POSITION)
+  .replaceAll('/*__order_estimated_value__*/', ORDER_VALUE)
 const VIEW_SQL = sql('view')
   .replace('/*__order_reference__*/', ORDER_REFERENCE)
   .replace('/*__order_state__*/', ORDER_STATE)
@@ -45,13 +54,33 @@ export async function directionOf(id: string, executor?: Executor): Promise<Dire
   return rows[0]?.direction ?? null
 }
 
-export async function list(
-  direction: Direction | null,
-  user_id: string | null,
-  executor?: Executor
-): Promise<OrderListItem[]> {
-  const { rows } = await query<{ view: unknown }>(LIST_SQL, [direction, user_id], executor)
-  return rows.map((row) => ListItem.parse(row.view))
+export async function list(filter: OrderFilter, executor?: Executor): Promise<OrderList> {
+  const { rows } = await query<{ view: unknown }>(
+    LIST_SQL,
+    [
+      filter.direction ?? null,
+      filter.user_id ?? null,
+      filter.states ?? null,
+      filter.assigned_to_id ?? null,
+      filter.sort ?? null,
+      filter.unassigned ?? null,
+      filter.has_unassigned_lots ?? null,
+      filter.limit ?? null,
+      filter.offset ?? null,
+    ],
+    executor
+  )
+  return List.parse(rows[0]?.view)
+}
+
+export async function sorts(executor?: Executor): Promise<OrderSort[]> {
+  const { rows } = await query(sql('list_sorts'), [], executor)
+  return rows.map((row) => Sort.parse(row))
+}
+
+export async function search(q: string, executor?: Executor): Promise<SearchHit[]> {
+  const { rows } = await query(sql('search'), [q], executor)
+  return rows.map((row) => Hit.parse(row))
 }
 
 export async function getOne(id: string, executor?: Executor): Promise<OrderRead | undefined> {

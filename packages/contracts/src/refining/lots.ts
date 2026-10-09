@@ -26,6 +26,7 @@ export const RefiningLotPatch = Lot.pick({
   unit: true,
   premium: true,
   settled_spot: true,
+  line_reference: true,
 })
   .partial()
   .strict()

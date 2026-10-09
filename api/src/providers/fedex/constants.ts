@@ -60,7 +60,7 @@ export const FEDEX_TRACKING_STATUS_MAP = {
   RP: 'Return Label Sent',
   RS: 'Returning to Shipper',
 
-  AR: 'In Transit',
+  AR: 'Arrived',
   AF: 'In Transit',
   AC: 'At Canada Post',
   IT: 'In Transit',

@@ -25,7 +25,7 @@ let lockClient: PoolClient
 beforeAll(async () => {
   lockClient = await pool.connect()
   await lockClient.query('SELECT pg_advisory_lock($1)', [LOCKS.ORDERS])
-  const ids = (await orderRead.list('purchase', null)).map((o) => o.id)
+  const ids = (await orderRead.list({ direction: 'purchase' })).items.map((o) => o.id)
   orders = []
   for (const id of ids) {
     const view = await orderRead.view(id)

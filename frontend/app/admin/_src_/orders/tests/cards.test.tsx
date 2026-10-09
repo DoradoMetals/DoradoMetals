@@ -305,7 +305,14 @@ describe('Charges', () => {
         showPoolOz
         chargeLabel="Payment Charge"
         poolOz={0.003}
-        refining={{ fee: 20, pool_remediation: 7.24, payment_charge: 20, total: 41871.4 }}
+        refining={{
+          fee: 20,
+          pool_remediation: 7.24,
+          payment_charge: 20,
+          shipping: 24,
+          pool_oz_remediated: -0.003,
+          total: 41871.4,
+        }}
       />
     )
     expect(screen.getByText('Payment Charge')).toBeTruthy()

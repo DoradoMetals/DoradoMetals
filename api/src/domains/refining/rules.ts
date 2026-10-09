@@ -8,9 +8,9 @@ import type {
   OrderDocument,
   OrderRead,
   PaymentView,
-  PdfKind,
   RefiningBatch,
   RefiningBatchResult,
+  RefiningDocument,
   RefiningLot,
   RefiningLotPatch,
   RefiningLotView,
@@ -233,8 +233,6 @@ export function batchResult(
   }
 }
 
-const REFINING_DOCUMENTS: { kind: PdfKind; name: string }[] = [{ kind: 'invoice', name: 'Invoice' }]
-
 export function sendPaymentConfirm(order: RefiningOrderView): string | null {
   if (order.settled_at !== null) return null
   return `Refiner order ${order.number} has not been settled yet`
@@ -281,14 +279,18 @@ export function actionsFor(view: RefiningOrderView): RefiningOrderActions {
   return offered
 }
 
-export function documentsFor(sent: boolean, stored: StoredDocument[]): OrderDocument[] {
-  return REFINING_DOCUMENTS.map((row) => {
+export function documentsFor(
+  sent: boolean,
+  stored: StoredDocument[],
+  offered: RefiningDocument[]
+): OrderDocument[] {
+  return offered.map((row) => {
     const held = stored.find((file) => file.kind === row.kind) ?? null
     return {
       kind: row.kind,
       name: row.name,
       pdf_id: held?.id ?? null,
-      available: row.kind === 'invoice' ? sent || held !== null : held !== null,
+      available: row.renderable ? sent || held !== null : held !== null,
     }
   })
 }

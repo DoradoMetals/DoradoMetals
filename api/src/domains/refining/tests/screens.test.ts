@@ -273,7 +273,7 @@ test('a refiner order names its one document, and an imported file is what makes
       assert.equal(listed.status, 200, listed.text)
       assert.deepEqual(
         listed.body.map((row: { name: string }) => row.name),
-        ['Invoice']
+        ['Refiner Invoice', 'Packing List', 'Settlement', 'Shipping Instructions']
       )
       assert.equal(listed.body.find((r: { kind: string }) => r.kind === 'invoice').available, false)
 

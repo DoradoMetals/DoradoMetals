@@ -35,6 +35,7 @@ export const Lot = z.object({
   'settled_at': z.string().nullable(),
   'settled_spot': z.number().nullable(),
   'source': LotSourceChoice.nullable(),
+  'line_reference': z.string().nullable(),
 })
 export type Lot = z.infer<typeof Lot>
 // generated:end
@@ -76,14 +77,7 @@ export type LotSplitPart = z.infer<typeof LotSplitPart>
 export const LotSplit = z.object({ parts: z.array(LotSplitPart).min(2) }).strict()
 export type LotSplit = z.infer<typeof LotSplit>
 
-export const Position = z.enum([
-  'incoming',
-  'on hand',
-  'at refiner',
-  'pooled',
-  'sold',
-  'consumed',
-])
+export const Position = z.enum(['incoming', 'on hand', 'at refiner', 'pooled', 'sold', 'consumed'])
 export type Position = z.infer<typeof Position>
 
 export const LotKind = z.enum(['scrap', 'bullion'])

@@ -25,9 +25,7 @@ type OrderFixture = {
 const world = async (c: PoolClient) => {
   const victimUser = await aUser(c, { name: 'The Owner' })
   const strangerUser = await aUser(c, { name: 'The Stranger' })
-  const order = await anOrder(c, victimUser, { direction: 'purchase' })
-    .withLots(1)
-    .withSpots()
+  const order = await anOrder(c, victimUser, { direction: 'purchase' }).withLots(1).withSpots()
   return {
     victim: { ...victimUser, role: 'user' },
     stranger: { ...strangerUser, role: 'user' },
@@ -58,9 +56,7 @@ test("a plain user cannot finalize an order's pricing, even their own", async ()
     async (c: PoolClient) => {
       const { victim, order } = await world(c)
       await as(victim, async () => {
-        const res = await request(app)
-          .patch(`/api/orders/${order.id}`)
-          .send({ finalize: true })
+        const res = await request(app).patch(`/api/orders/${order.id}`).send({ finalize: true })
         assert.equal(res.status, 403, `answered ${res.status} - a customer priced an order`)
       })
     },
@@ -185,7 +181,7 @@ test("no admin-only field leaks to the order's own customer, on the view or the 
 
         const list = await request(app).get('/api/orders?direction=purchase')
         assert.equal(list.status, 200, list.text)
-        const listed = list.body.find((o: { id: string }) => o.id === order.id)
+        const listed = list.body.items.find((o: { id: string }) => o.id === order.id)
         assert.ok(listed, 'the order is missing from the customer own list')
         assert.equal(listed.notes, null, "the customer's order list leaked notes")
         assert.equal(listed.assigned_to_id, null, "the customer's order list leaked assigned_to_id")

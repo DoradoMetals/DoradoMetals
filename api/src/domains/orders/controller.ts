@@ -2,13 +2,45 @@ import { callerId } from '#shared/http/caller.ts'
 import { asyncHandler } from '#shared/middleware/asyncHandler.ts'
 import { refuseWith } from '#shared/http/refuse.ts'
 import { strictBody, uuidParam } from '#shared/http/validate.ts'
+import { manyStrings, oneString } from '#shared/http/query.ts'
 import * as orders from '#orders/service.ts'
 import * as orderRead from '#orders/read.ts'
 import * as rules from '#orders/rules.ts'
 import * as place from '#orders/place.ts'
 import * as checkoutService from '#checkout/service.ts'
 import { Forbidden, NotFound } from '#shared/errors.ts'
-import { AdminOrderCreate, AdoptAssayBody, OrderCancelBody, OrderCreateBody, OrderPatch, OverrideBody } from '@dorado/contracts'
+import {
+  AdminOrderCreate,
+  AdoptAssayBody,
+  OrderCancelBody,
+  OrderCreateBody,
+  OrderPatch,
+  OrderState,
+  OverrideBody,
+} from '@dorado/contracts'
+import type { OrderState as State } from '@dorado/contracts'
+import type { Request } from 'express'
+
+const UNASSIGNED = 'unassigned'
+
+const statesIn = (req: Request): State[] | null => {
+  const raw = manyStrings(req.query.state)
+  if (raw === null) return null
+  for (const value of raw) {
+    if (!OrderState.safeParse(value).success) {
+      refuseWith(400, `"state" is one of ${OrderState.options.join(', ')}`)
+    }
+  }
+  return raw as State[]
+}
+
+const countIn = (req: Request, key: string): number | null => {
+  const raw = oneString(req.query[key])
+  if (raw === undefined) return null
+  const value = Number(raw)
+  if (!Number.isInteger(value) || value < 0) refuseWith(400, `"${key}" is a whole number`)
+  return value
+}
 
 export const listOrders = asyncHandler(async (req, res) => {
   const callerIdValue = callerId(req)
@@ -21,9 +53,30 @@ export const listOrders = asyncHandler(async (req, res) => {
 
   const namedUser = isAdmin && typeof req.query.user_id === 'string' ? req.query.user_id : null
   const user_id = isAdmin && !namedUser ? null : (namedUser ?? callerIdValue)
+  const assigned = isAdmin ? (oneString(req.query.assigned_to_id) ?? null) : null
 
-  const list = await orderRead.list(direction, user_id)
+  const list = await orderRead.list({
+    direction,
+    user_id,
+    states: statesIn(req),
+    assigned_to_id: assigned === UNASSIGNED ? null : assigned,
+    unassigned: assigned === UNASSIGNED ? true : null,
+    has_unassigned_lots: oneString(req.query.has_unassigned_lots) === 'true' ? true : null,
+    sort: oneString(req.query.sort) ?? null,
+    limit: countIn(req, 'limit'),
+    offset: countIn(req, 'offset'),
+  })
   return res.json(isAdmin ? list : rules.orderListForCustomer(list))
+})
+
+export const listOrderSorts = asyncHandler(async (_req, res) => {
+  return res.json(await orderRead.sorts())
+})
+
+export const searchEverything = asyncHandler(async (req, res) => {
+  const q = oneString(req.query.q)?.trim() ?? ''
+  if (q.length < 2) refuseWith(400, `"q" is at least two characters`)
+  return res.json(await orderRead.search(q))
 })
 
 export const getOrder = asyncHandler(async (req, res) => {
@@ -56,7 +109,9 @@ export const adminCreateOrder = asyncHandler(async (req, res) => {
 
 export const addFundsToOrder = asyncHandler(async (req, res) => {
   const body = strictBody(OverrideBody, req.body ?? {})
-  return res.status(200).json(await orders.addFunds(uuidParam(req, 'id'), body, req.sessionId ?? null))
+  return res
+    .status(200)
+    .json(await orders.addFunds(uuidParam(req, 'id'), body, req.sessionId ?? null))
 })
 
 export const finalizeOrder = asyncHandler(async (req, res) => {
@@ -80,4 +135,3 @@ export const adoptAssay = asyncHandler(async (req, res) => {
   const body = strictBody(AdoptAssayBody, req.body)
   return res.status(200).json(await orders.adoptAssay(uuidParam(req, 'id'), body))
 })
-

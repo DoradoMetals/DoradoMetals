@@ -59,7 +59,7 @@ test("the shipment's own owner gets a real tracking refresh, not a guard's 403",
       const stages = res.body.timeline.map((s: { stage: string }) => s.stage)
       assert.deepEqual(
         stages,
-        ['Picked Up', 'In Transit', 'Out for Delivery', 'Delivered'],
+        ['Picked Up', 'Arrived', 'In Transit', 'Out for Delivery', 'Delivered'],
         'the timeline does not draw the four stages in order'
       )
       const reached = res.body.timeline.filter((s: { reached: boolean }) => s.reached)

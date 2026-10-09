@@ -13,7 +13,7 @@ import type { RefiningDirection } from '@dorado/contracts'
 import type { Executor } from '#shared/db/executor.ts'
 
 const sql = sqlFrom(import.meta.dirname)
-const REFINING_STATE = expression(sql('refining_state'))
+export const REFINING_STATE = expression(sql('refining_state'))
 const VIEW_ONE_SQL = sql('view_one').replaceAll('/*__refining_state__*/', REFINING_STATE)
 const VIEW_ALL_SQL = sql('view_all').replaceAll('/*__refining_state__*/', REFINING_STATE)
 

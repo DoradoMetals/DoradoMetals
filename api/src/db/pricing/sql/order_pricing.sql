@@ -115,6 +115,46 @@ payout AS (
               ELSE COALESCE(t.payout_fee, 0) END AS payout_fee
     FROM ord
     JOIN orders.transactions t ON t.order_id = ord.id
+),
+-- THE TWO DIRECTIONS ARE NOT THE SAME ARITHMETIC. A purchase is what we PAY:
+-- the goods less the carriage and the payout fee. A sale is what the customer
+-- OWES: the goods plus the carriage plus the sales tax, less the credit the
+-- balance covered (ruling 47 - a sale applies the balance whenever one
+-- exists, so the credit is a row on the card and never a choice). Applying the
+-- purchase form to a sale subtracted the shipping the customer had just paid
+-- and subtracted a payout fee no sale carries.
+--
+-- A placed sale's goods, carriage, tax and credit are FACTS, not estimates:
+-- a charge was taken against them and orders.transactions is where they were
+-- written. A purchase keeps pricing its lots at spot, which is what
+-- `scrap_total` and `bullion_total` are for, and a sale with no transaction row
+-- yet falls back to the same derivation.
+card AS (
+  SELECT CASE WHEN ord.direction = 'sale' AND t.items IS NOT NULL
+              THEN t.items
+              ELSE totals.scrap_total + totals.bullion_total END AS items_total,
+         CASE WHEN ord.direction = 'sale' AND t.shipping IS NOT NULL
+              THEN t.shipping
+              ELSE COALESCE(carriage.shipping_charge, 0) END AS shipping_charge,
+         CASE WHEN ord.direction = 'sale' THEN 0
+              ELSE COALESCE(payout.payout_fee, 0) END AS payout_fee,
+         CASE WHEN ord.direction = 'sale' THEN COALESCE(t.sales_tax, 0)
+              ELSE 0 END AS sales_tax,
+         CASE WHEN ord.direction = 'sale' THEN COALESCE(t.funds, 0)
+              ELSE 0 END AS credit_applied
+    FROM ord
+   CROSS JOIN totals
+    LEFT JOIN orders.transactions t ON t.order_id = ord.id
+    LEFT JOIN carriage ON TRUE
+    LEFT JOIN payout ON TRUE
+),
+billed AS (
+  SELECT c.*,
+         CASE WHEN ord.direction = 'sale'
+              THEN c.items_total + c.shipping_charge + c.sales_tax - c.credit_applied
+              ELSE c.items_total - c.shipping_charge - c.payout_fee END AS total
+    FROM card c
+   CROSS JOIN ord
 )
 SELECT jsonb_build_object(
          'order_id', ord.id,
@@ -151,15 +191,14 @@ SELECT jsonb_build_object(
            '[]'::jsonb),
          'scrap_total', totals.scrap_total,
          'bullion_total', totals.bullion_total,
-         'items_total', totals.scrap_total + totals.bullion_total,
-         'shipping_charge', COALESCE(carriage.shipping_charge, 0),
-         'payout_fee', COALESCE(payout.payout_fee, 0),
-         'total', totals.scrap_total + totals.bullion_total
-                  - COALESCE(carriage.shipping_charge, 0)
-                  - COALESCE(payout.payout_fee, 0),
+         'items_total', billed.items_total,
+         'shipping_charge', billed.shipping_charge,
+         'payout_fee', billed.payout_fee,
+         'sales_tax', billed.sales_tax,
+         'credit_applied', billed.credit_applied,
+         'total', billed.total,
          'declared_value', totals.scrap_total + totals.bullion_total
        ) AS pricing
   FROM ord
  CROSS JOIN totals
-  LEFT JOIN carriage ON TRUE
-  LEFT JOIN payout ON TRUE
+ CROSS JOIN billed

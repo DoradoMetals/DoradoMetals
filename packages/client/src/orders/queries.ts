@@ -8,32 +8,67 @@ import type {
   LotSplit,
   OrderCancelBody,
   OrderDocument,
-  OrderListItem,
+  OrderList,
   OrderLotPatch,
   OrderLotView,
   OrderPatch,
   OrderSpot,
   OrderSpotsPutBody,
+  OrderSort,
+  OrderState,
   OrderSupplyBody,
   OrderView,
   ProfitBreakdown,
   RefiningOrderView,
+  SearchHit,
   ShipmentView,
 } from '@dorado/contracts'
 
 import { apiRequest, apiRequestForm } from '../fetch'
 import { keys } from '../keys'
 
-export function useOrders(
-  filters: { direction?: Direction | null; user_id?: string | null } = {},
-  options: { enabled?: boolean } = {}
-) {
-  const direction = filters.direction ?? null
-  const user_id = filters.user_id ?? null
-  return useQuery<OrderListItem[]>({
-    queryKey: keys.orders.list(direction, user_id),
+export type OrderListFilters = {
+  direction?: Direction | null
+  user_id?: string | null
+  state?: OrderState[] | null
+  assigned_to_id?: string | null
+  has_unassigned_lots?: boolean | null
+  sort?: string | null
+  limit?: number | null
+  offset?: number | null
+}
+
+export function useOrders(filters: OrderListFilters = {}, options: { enabled?: boolean } = {}) {
+  const params = {
+    direction: filters.direction ?? null,
+    user_id: filters.user_id ?? null,
+    state: filters.state ?? null,
+    assigned_to_id: filters.assigned_to_id ?? null,
+    has_unassigned_lots: filters.has_unassigned_lots ?? null,
+    sort: filters.sort ?? null,
+    limit: filters.limit ?? null,
+    offset: filters.offset ?? null,
+  }
+  return useQuery<OrderList>({
+    queryKey: keys.orders.list(params),
     enabled: options.enabled ?? true,
-    queryFn: () => apiRequest<OrderListItem[]>('GET', '/orders', undefined, { direction, user_id }),
+    queryFn: () => apiRequest<OrderList>('GET', '/orders', undefined, params),
+  })
+}
+
+export function useOrderSorts(options: { enabled?: boolean } = {}) {
+  return useQuery<OrderSort[]>({
+    queryKey: keys.orders.sorts(),
+    enabled: options.enabled ?? true,
+    queryFn: () => apiRequest<OrderSort[]>('GET', '/orders/sorts'),
+  })
+}
+
+export function useSearch(q: string, options: { enabled?: boolean } = {}) {
+  return useQuery<SearchHit[]>({
+    queryKey: keys.search.hits(q),
+    enabled: (options.enabled ?? true) && q.trim().length > 1,
+    queryFn: () => apiRequest<SearchHit[]>('GET', '/search', undefined, { q }),
   })
 }
 
