@@ -1,0 +1,47 @@
+name: deploy-staging
+
+# Fires once the `check` workflow finishes on `dev`, rather than a `needs:`
+# chain inside check.yml itself - `needs:` only orders jobs within ONE
+# workflow file, and this deploy is deliberately its own file so Railway
+# credentials never sit in the same workflow a pull_request run exercises.
+# workflow_run is the mechanism GitHub gives for "after that OTHER workflow
+# finished successfully" across files, so it is the only reliable choice here,
+# not just the simpler one.
+on:
+  workflow_run:
+    workflows: [check]
+    types: [completed]
+    branches: [dev]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      # workflow_run checks out the DEFAULT branch by default, not the commit
+      # that triggered `check` - head_sha is what actually passed the gate.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: install the Railway CLI
+        run: npm i -g @railway/cli
+
+      - name: deploy api
+        run: railway up --service api --detach --ci
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_STAGING_TOKEN }}
+
+      - name: deploy frontend
+        run: railway up --service frontend --detach --ci
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_STAGING_TOKEN }}

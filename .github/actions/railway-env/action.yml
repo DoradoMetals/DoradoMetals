@@ -1,0 +1,71 @@
+name: railway-env
+description: >-
+  Derives the staging Postgres URL and the test_ci URL from Railway at
+  runtime, via the Railway CLI, so neither lives as its own GitHub secret.
+  Optionally also derives PAYOUT_ENCRYPTION_KEY / PAYOUT_ENCRYPTION_KEY_ID
+  from the api service's own Railway variables. Every value is masked with
+  ::add-mask:: before it is written anywhere, and exported via GITHUB_ENV so
+  later steps in the SAME job see them as plain environment variables - the
+  simplest path to a pnpm/node step's process.env, with no steps.*.outputs
+  indirection needed on the calling side.
+
+inputs:
+  railway-token:
+    required: true
+    description: Railway project token scoped to the staging environment
+  need-payout-key:
+    required: false
+    default: 'false'
+    description: Also derive PAYOUT_ENCRYPTION_KEY / PAYOUT_ENCRYPTION_KEY_ID from the api service
+
+runs:
+  using: composite
+  steps:
+    - name: install the Railway CLI
+      shell: bash
+      run: npm i -g @railway/cli --no-fund --no-audit --loglevel=error
+
+    # --kv (not --json): its own --help describes --kv as "prints raw
+    # values" in plain KEY=value lines, which is unambiguous to parse with
+    # sed. The exact JSON schema for `--json` is not documented beyond
+    # "raw values" either and could not be verified against a live project
+    # from here - a stable, directly-described format beats guessing at one
+    # that happens to also work.
+    - name: derive STAGING_DATABASE_URL and CI_TEST_DATABASE_URL
+      shell: bash
+      env:
+        RAILWAY_TOKEN: ${{ inputs.railway-token }}
+      run: |
+        pg_vars="$(railway variable list --service Postgres --kv)"
+        db_url="$(printf '%s\n' "$pg_vars" | sed -n 's/^DATABASE_PUBLIC_URL=//p')"
+        if [ -z "$db_url" ]; then
+          echo "DATABASE_PUBLIC_URL was not found on the Postgres service's variables" >&2
+          exit 1
+        fi
+        echo "::add-mask::$db_url"
+        test_ci_url="$(node -e "const u = new URL(process.argv[1]); u.pathname = '/test_ci'; process.stdout.write(u.toString())" "$db_url")"
+        echo "::add-mask::$test_ci_url"
+        {
+          echo "STAGING_DATABASE_URL=$db_url"
+          echo "CI_TEST_DATABASE_URL=$test_ci_url"
+        } >> "$GITHUB_ENV"
+
+    - name: derive PAYOUT_ENCRYPTION_KEY and PAYOUT_ENCRYPTION_KEY_ID
+      if: ${{ inputs.need-payout-key == 'true' }}
+      shell: bash
+      env:
+        RAILWAY_TOKEN: ${{ inputs.railway-token }}
+      run: |
+        api_vars="$(railway variable list --service api --kv)"
+        key="$(printf '%s\n' "$api_vars" | sed -n 's/^PAYOUT_ENCRYPTION_KEY=//p')"
+        key_id="$(printf '%s\n' "$api_vars" | sed -n 's/^PAYOUT_ENCRYPTION_KEY_ID=//p')"
+        if [ -z "$key" ] || [ -z "$key_id" ]; then
+          echo "PAYOUT_ENCRYPTION_KEY or PAYOUT_ENCRYPTION_KEY_ID was not found on the api service's variables" >&2
+          exit 1
+        fi
+        echo "::add-mask::$key"
+        echo "::add-mask::$key_id"
+        {
+          echo "PAYOUT_ENCRYPTION_KEY=$key"
+          echo "PAYOUT_ENCRYPTION_KEY_ID=$key_id"
+        } >> "$GITHUB_ENV"
