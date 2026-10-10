@@ -4,8 +4,12 @@ name: check
 # Enable that toggle on both services once this workflow is green.
 on:
   push:
-    branches: [master]
+    branches: [dev, master]
   pull_request:
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   check:
@@ -40,8 +44,63 @@ jobs:
       - name: api - typecheck
         run: pnpm --filter @dorado/api typecheck
 
-      - name: api - tests
-        run: pnpm --filter @dorado/api test
+      # The api-lint group from scripts/check.mjs, run directly rather than
+      # through check:fast - check:fast also runs api-test, which always
+      # forces USE_TEST_DB=1 and a loopback preflight; this job tests against
+      # the remote test_ci instead (see the test:on-dev step below), so
+      # check:fast as a single unit no longer fits here.
+      - name: api - lints and audits
+        run: |
+          set -e
+          for s in lint:imports lint:namespace-calls lint:row-vs-list lint:db lint:migrations \
+                   lint:no-minted-ids lint:domain-boundaries lint:pricing-owner lint:script-guards \
+                   lint:type-homes lint:contracts-derived lint:domain-errors lint:one-catch \
+                   lint:no-throw-in-services lint:no-column-arrays lint:input-shapes \
+                   lint:no-literal-views lint:no-dictionaries lint:client-boundary \
+                   lint:test-locks lint:test-actor audit:silent-mutations; do
+            echo "::group::api $s"
+            pnpm --filter @dorado/api "$s"
+            echo "::endgroup::"
+          done
+
+      - name: design - figma snapshot checks
+        run: |
+          node scripts/figma/check-tokens.mjs
+          node scripts/figma/check-inventory.mjs
+          node scripts/figma/check-hygiene.mjs
+
+      # Not part of check:fast (scripts/check.mjs keeps it serial and
+      # full-run-only to avoid oversubscribing a shared machine's cores), but
+      # asked for here explicitly and cheap enough to run as its own step.
+      - name: components - typecheck and test
+        run: |
+          pnpm --filter @dorado/icons typecheck
+          pnpm --filter @dorado/components typecheck
+          pnpm --filter @dorado/components test
+          pnpm --filter @dorado/client typecheck
+          pnpm --filter @dorado/client test
+
+      - name: derive the staging and test_ci connection details
+        uses: ./.github/actions/railway-env
+        with:
+          railway-token: ${{ secrets.RAILWAY_STAGING_TOKEN }}
+
+      # test_ci is a dedicated database on the staging Postgres server,
+      # rebuilt from a fresh staging by refresh-staging.mjs (its nightly full
+      # refresh, or its --test-db-only mode on demand) - never by this
+      # workflow. test:on-dev is the existing escape hatch that skips the
+      # loopback preflight (api/package.json, api/src/env.ts): USE_TEST_DB=1
+      # refuses a non-loopback DATABASE_URL outright, which test_ci always is
+      # from a GitHub-hosted runner. Every test runs inside a transaction
+      # that is rolled back (CLAUDE.md), so concurrent CI runs against the
+      # same test_ci do not interfere with each other -
+      # scripts/audit-test-leaks.ts is what proves that for the suite as a
+      # whole.
+      - name: api - test:on-dev against test_ci
+        run: pnpm --filter @dorado/api test:on-dev
+        env:
+          DATABASE_URL: ${{ env.CI_TEST_DATABASE_URL }}
+          TEST_DATABASE_URL: ${{ env.CI_TEST_DATABASE_URL }}
 
       - name: frontend - typecheck
         run: pnpm --filter @dorado/frontend typecheck
