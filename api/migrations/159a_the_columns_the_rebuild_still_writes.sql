@@ -1,3 +1,11 @@
+-- runs-even-under-a-baseline: it re-adds the eleven columns 188, 190 and 191
+--   drop, which genesis therefore no longer creates and which 160 to 179 still
+--   write on their way to the lot. 160 carries rows, so a baseline replays it,
+--   and its foreign key on inventory.lots.split_from_id aborts the chain with
+--   "column split_from_id referenced in foreign key constraint does not exist"
+--   the moment this file is stamped instead of run. Measured 2026-10-09 on the
+--   production dump, with the range at 002-265.
+--
 -- THE COLUMNS THE REBUILD STILL WRITES.
 --
 -- 188, 190 and 191 drop eleven columns whose values moved onto the lot, so

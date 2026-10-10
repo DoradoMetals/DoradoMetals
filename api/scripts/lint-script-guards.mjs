@@ -184,6 +184,18 @@ const REAL_EXCUSED = {
       'builds the whole schema into renamed schemas inside a rolled-back ' +
       'transaction. The build either succeeds or it does not.',
   },
+  'api/scripts/verify-replay.mjs': {
+    kind: 'report',
+    why:
+      'hands the real migrate.mjs a scratch database holding nothing but an ' +
+      'empty exchange and lets it apply genesis and every migration after the ' +
+      'baseline. The chain either applies or it does not, and the comparison ' +
+      'against dev carries a relation floor and a migration-count floor so a ' +
+      'broken walk or a replay that applied nothing fails rather than shrugs. ' +
+      'Its guards are refusals that fire before anything happens: the scratch ' +
+      'cluster must be loopback, the scratch name must start with uat_replay, ' +
+      'and it must not be the database being compared against.',
+  },
   'api/scripts/validate-wire.ts': {
     kind: 'report',
     why:

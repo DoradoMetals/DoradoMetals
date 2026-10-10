@@ -130,12 +130,75 @@ aborted the chain.
 
 Three changes, together, make a from-nothing build work.
 
-### 2a. The range now runs to the head — `-- baseline: 002-133`
+### 2a. The range now runs to the head — and is DERIVED, not typed
 
 In `api/scripts/dump-schema.mjs` (the generator) and the committed
 `000_genesis_schema.sql`, whose header now explains all of the below.
 `verify:genesis` proves the two still match byte for byte. 001 stays outside
 the range: it indexes foreign keys on `exchange`, which any real database wants.
+
+**A typed marker goes stale, and did.** `002-133` became `002-134` and then sat
+there while the lanes added 135 to 265 and genesis was regenerated behind every
+one of them. On 2026-10-09 a replay from the 2026-08-25 production dump aborted
+at `169_a_refiner_orders_money_has_one_definition.sql`:
+
+```
+169 ... FAILED
+  cannot drop columns from view
+```
+
+169 creates `refining.order_money` with six columns; 263 had given the view
+eight; genesis held the eight; Postgres will not drop columns from a view.
+Everything from 135 to 265 was being replayed on top of its own end state and
+only happened to be idempotent — `IF NOT EXISTS` and "already exists, skipping"
+run the length of that log.
+
+So `through` is now READ FROM THE DATABASE THE DUMP IS TAKEN FROM: the newest
+migration `exchange.schema_migrations` records there, minus any marked
+`runs-even-under-a-baseline`. `pnpm dump:schema` cannot emit a marker that
+disagrees with the shape it emits, and `verify:genesis` asserts the committed
+marker by name as well as byte for byte.
+
+### 2a-bis. The split is per FILE, so four files must always run
+
+A covered migration that carries rows replays its DDL too, because a backfill's
+own `ALTER`s are part of how it writes its rows — 233 disables the audit trigger
+around its `UPDATE`. Four files are on the wrong side of that and now carry
+`-- runs-even-under-a-baseline`, found by replaying the dump with the range at
+265:
+
+| file | what stamping it cost |
+|---|---|
+| `159a` | it re-adds the eleven columns 188/190/191 drop and 160–179 still write. Stamped, 160 aborts: `column split_from_id referenced in foreign key constraint does not exist` |
+| `179` | it adds `inventory.lots.combined_into_id`, which 188 turns into a `combine` edge and drops. Stamped, 188 aborts: `column li.combined_into_id does not exist` |
+| `170` | 166 creates `dropoffs_driver_fk` into `auth.users` and RUNS; only 170 removes it. Stamped, the rebuild keeps a foreign key dev does not have |
+| `191` | 159a re-adds four `orders.lots` columns and RUNS; only 191 removes them. Stamped, the rebuild keeps four columns dev does not have |
+
+`266_the_money_view_survives_the_rebuild.sql` is the fifth case from the other
+side: 190 carries rows, so it replays and rewrites `refining.order_money` back
+to six columns, and 263 is stamped. 266 restates the view — genesis's own
+definition, character for character — and carries the marker so it is never
+stamped itself.
+
+### 2a-ter. `verify:replay` is what catches the next one
+
+`verify:genesis` compares genesis with dev. It never REPLAYS, so no migration
+after the baseline is ever put on top of the shape genesis holds — which is why
+the gate was green while the chain was broken.
+
+`pnpm --filter @dorado/api verify:replay` (a `dev-db` member of `pnpm check`)
+does the replay for real. It creates `uat_replay` on the LOCAL cluster
+`TEST_DATABASE_URL` names, copies `exchange` into it — tables, sequences,
+defaults, keys, indexes and rows, no foreign keys and no triggers, since
+nothing in the chain writes it — hands the real `scripts/migrate.mjs` that
+database, and then compares all twenty schemas against `DATABASE_URL` by
+relation, column, constraint, index, enum, function, trigger and view
+definition. It runs `migrate` a second time to prove the second run applies
+nothing.
+
+Put the old marker back and it says the production-day line verbatim:
+`169 ... FAILED / cannot drop columns from view`. Take 266 away and it says
+`the replay is missing column: refining.order_money.pool_oz_remediated`.
 
 ### 2b. A BASELINE STAMPS SHAPE, NEVER ROWS
 
@@ -175,7 +238,7 @@ Three refinements were forced by measurement:
 | marker | meaning | files |
 |---|---|---|
 | `-- superseded-by-genesis: <why>` | the file's whole work, data included, is already in genesis or is re-derived later, and its target no longer exists | `003`, `010`, `011`, `018` |
-| `-- runs-even-under-a-baseline: <why>` | looks like pure DDL genesis reproduces, and is not, because it undoes something a migration that DOES run has just done | `131` |
+| `-- runs-even-under-a-baseline: <why>` | looks like pure DDL genesis reproduces, and is not, because it undoes something a migration that DOES run has just done, or repairs a shape genesis no longer carries | `027a`, `131`, `159a`, `170`, `179`, `191`, `266` |
 
 A reason under 20 characters throws rather than being honoured — a marker that
 says nothing is a skipped migration nobody can audit.
@@ -502,6 +565,7 @@ starts at head 133: **134 → 173, 28 migrations, one run, zero aborts.**
 
 ```bash
 pnpm --filter @dorado/api verify:genesis          # expect 0
+pnpm --filter @dorado/api verify:replay           # expect 0
 pnpm --filter @dorado/api verify:backfill         # expect 0
 pnpm --filter @dorado/api audit:coverage          # expect 0
 pnpm --filter @dorado/api audit:precision         # expect 0

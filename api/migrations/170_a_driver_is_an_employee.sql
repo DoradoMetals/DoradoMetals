@@ -1,3 +1,10 @@
+-- runs-even-under-a-baseline: 166 creates fulfillments.dropoffs with
+--   dropoffs_driver_fk pointing at auth.users and RUNS (it carries rows), so
+--   only this file removes it again before pointing the column at
+--   auth.employees. Stamped, a rebuilt fulfillments.dropoffs keeps a foreign
+--   key dev does not have - verify:genesis found exactly that on 2026-10-09
+--   when the range reached 265.
+--
 -- 166 gave fulfillments.dropoffs a driver, and pointed it at auth.users while
 -- its two siblings - fulfillments.pickups.assigned_employee_id and
 -- fulfillments.directs.assigned_employee_id - point at auth.employees. The

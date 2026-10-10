@@ -1,3 +1,9 @@
+-- runs-even-under-a-baseline: 159a re-adds orders.lots premium, price,
+--   sales_tax_charged and confirmed because 161 fills them, and 159a RUNS - so
+--   only this file removes them again. Stamped, a rebuilt orders.lots keeps
+--   four columns dev does not have. Same shape as 131's case, found 2026-10-09
+--   when the baseline range reached 265.
+--
 -- PURE LINKS (ruling 120). `orders.lots` is (order_id, lot_id) and nothing
 -- else. 189 carried `premium` and `sales_tax_charged` onto the lot and turned
 -- `confirmed` into `confirmed_at` there; `price` goes and does not come back.

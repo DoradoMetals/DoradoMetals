@@ -42,6 +42,7 @@
     "verify:genesis": "TZ=UTC node scripts/verify-genesis.mjs",
     "verify:genesis:production": "TZ=UTC node scripts/verify-genesis-production.mjs",
     "dump:schema": "node scripts/dump-schema.mjs",
+    "verify:replay": "TZ=UTC node scripts/verify-replay.mjs",
     "verify:backfill": "TZ=UTC node scripts/verify-backfill.mjs",
     "audit:coverage": "TZ=UTC node scripts/audit-coverage.mjs",
     "dump:seed": "node scripts/dump-seed.mjs",

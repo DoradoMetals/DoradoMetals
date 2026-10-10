@@ -169,6 +169,7 @@ const FULL_ONLY_GROUPS = [
       { name: 'contracts:verify:fresh', cmd: pnpm('@dorado/contracts', 'verify:fresh') },
       { name: 'contracts:validate', cmd: pnpm('@dorado/contracts', 'validate') },
       { name: 'api:verify:genesis', cmd: pnpm('@dorado/api', 'verify:genesis') },
+      { name: 'api:verify:replay', cmd: pnpm('@dorado/api', 'verify:replay') },
       { name: 'api:verify:backfill', cmd: pnpm('@dorado/api', 'verify:backfill') },
       { name: 'api:validate:wire', cmd: pnpm('@dorado/api', 'validate:wire') },
       { name: 'api:audit:coverage', cmd: pnpm('@dorado/api', 'audit:coverage') },
