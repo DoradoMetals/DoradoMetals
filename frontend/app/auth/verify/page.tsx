@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useConfirmChange, useSendCode, useVerifyCode } from '@dorado/client'
 
 import { AuthForm } from '@/shared/ui/auth/AuthForm'
+import { OpenCodeLink } from '@/shared/ui/auth/OpenCodeLink'
 import { getSession } from '@/shared/hooks/auth/authClient'
 import { useAdoptSession } from '@/shared/hooks/auth/queries'
 import { useVerification } from '@/shared/providers/VerificationProvider'
@@ -88,6 +89,7 @@ export default function Page() {
       view={view}
       code={code}
       smsConsentPending={verification.smsConsentPending}
+      openCode={<OpenCodeLink />}
       onCodeChange={setCode}
       onSubmit={submit}
       onResend={resend}

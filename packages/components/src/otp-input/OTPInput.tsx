@@ -74,7 +74,7 @@ export function OTPInput({
   }
 
   return (
-    <div className={cn('flex flex-col gap-4', className)}>
+    <div className={cn('flex flex-col gap-md', className)}>
       {(title != null || description != null) && (
         <span className="flex flex-col gap-1">
           {title != null && <span className="text-h5 font-semibold text-foreground">{title}</span>}
@@ -101,7 +101,7 @@ export function OTPInput({
           maxLength={length}
           className="absolute inset-0 z-10 h-full w-full cursor-default opacity-0"
         />
-        <div aria-hidden className="flex items-center justify-center gap-sm">
+        <div aria-hidden className="flex items-center justify-between gap-sm">
           {Array.from({ length }, (_, i) => {
             const isActive = focused && i === activeIndex && !disabled
             const digit = digits[i]
@@ -116,7 +116,7 @@ export function OTPInput({
                     : cn(
                         'bg-card text-foreground',
                         invalid
-                          ? 'border border-destructive text-destructive'
+                          ? 'border border-destructive'
                           : isActive
                             ? 'border-[1.5px] border-border-strong'
                             : 'border border-border'
@@ -136,7 +136,7 @@ export function OTPInput({
         </div>
       </div>
       {resendIn != null && (
-        <span className="flex items-center gap-1 text-small text-placeholder">
+        <span className="flex items-center gap-2xs text-small text-placeholder">
           <span>Didn&apos;t get it?</span>
           {secondsLeft > 0 ? (
             <span className="font-medium text-foreground">{`Resend in ${secondsLeft}s`}</span>

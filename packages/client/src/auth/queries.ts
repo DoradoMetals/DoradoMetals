@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type {
+  AuthFakesView,
   ChangeConfirmedView,
   ChangeEmailBody,
   ChangePhoneBody,
@@ -13,7 +14,7 @@ import type {
   VerifyCodeBody,
 } from '@dorado/contracts'
 
-import { apiRequest } from '../fetch'
+import { apiRequest, ApiError } from '../fetch'
 import { keys } from '../keys'
 
 export function useSession(options: { enabled?: boolean } = {}) {
@@ -67,6 +68,28 @@ export function useChangePhone() {
   return useMutation({
     mutationFn: (body: ChangePhoneBody) =>
       apiRequest<VerificationView>('POST', '/account/change_phone', body),
+  })
+}
+
+export function useAuthFakes() {
+  return useQuery<AuthFakesView>({
+    queryKey: keys.auth.fakes(),
+    staleTime: Infinity,
+    queryFn: async () => {
+      try {
+        return await apiRequest<AuthFakesView>('GET', '/account/auth_fakes')
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 404) return { sms: false, email: false }
+        throw err
+      }
+    },
+  })
+}
+
+export function useLastCode() {
+  return useMutation({
+    mutationFn: (query: { number?: string; email?: string } = {}) =>
+      apiRequest<{ code: string | null }>('GET', '/account/last_code', undefined, query),
   })
 }
 

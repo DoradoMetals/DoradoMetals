@@ -36,6 +36,9 @@ export const SIGN_IN_OTP_TYPE = 'sign-in'
 export const STEP_UP_OTP_TYPE = 'email-verification'
 export const CHANGE_OTP_TYPE = 'change-email'
 
+export const LAST_CODE_COOKIE = 'dorado.last_code_to'
+export const LAST_CODE_COOKIE_MAX_AGE_MS = 10 * 60 * 1000
+
 const US_E164 = /^\+1[2-9]\d{2}[2-9]\d{6}$/
 
 const ms = (value: Date | string | null | undefined): number | null => {
@@ -66,10 +69,7 @@ export function assertUser(row: User | undefined): asserts row is User {
   if (!row) throw new NotFound('no such account')
 }
 
-export function assertProfile(
-  user_id: string,
-  row: AccountProfile | undefined
-): AccountProfile {
+export function assertProfile(user_id: string, row: AccountProfile | undefined): AccountProfile {
   if (!row) throw new NotFound(`no such account ${user_id}`)
   return row
 }
@@ -117,6 +117,18 @@ export function destinationOf(
 
 export const maskFor = (channel: OtpChannel, value: string): string =>
   channel === 'sms' ? maskPhone(value) : maskEmail(value)
+
+export const lastCodeCookieValue = (channel: OtpChannel, destination: string): string =>
+  `${channel}:${destination}`
+
+export function lastCodeCookieQuery(value: string | null): { number?: string; email?: string } {
+  if (!value) return {}
+  const sep = value.indexOf(':')
+  if (sep === -1) return {}
+  const destination = value.slice(sep + 1)
+  if (!destination) return {}
+  return value.slice(0, sep) === 'sms' ? { number: destination } : { email: destination }
+}
 
 export function isLocked(row: AuthOtpThrottle, now: number): boolean {
   const until = ms(row.locked_until)
@@ -282,8 +294,7 @@ export const changedAtLabel = (now: number): string =>
 export const detailsChangedLabel = (factor: Factor): string =>
   factor === 'email' ? 'Email address' : 'Phone number'
 
-export const stepUpChannel = (user: User): OtpChannel =>
-  user.emailVerified ? 'email' : 'sms'
+export const stepUpChannel = (user: User): OtpChannel => (user.emailVerified ? 'email' : 'sms')
 
 export function stepUpDestination(user: User): string {
   const value = stepUpChannel(user) === 'sms' ? user.phone_number : user.email

@@ -29,6 +29,13 @@ const PROPS =
 
 const ACCEPTED: Record<string, { count: number; why: string }> = {
   'domains/checkout/adopt.ts': { count: 2, why: RESULT },
+  'domains/accounts/auth/service.ts': {
+    count: 1,
+    why:
+      'two runtime provider facts, not columns: whether the SMS and email ' +
+      'senders are the recording fakes, so a staging frontend can offer the ' +
+      'code read-back. There is no table to read and no SQL to build it in',
+  },
   'domains/accounts/auth/session.ts': {
     count: 3,
     why:

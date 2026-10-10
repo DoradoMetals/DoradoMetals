@@ -47,6 +47,7 @@ export type AuthFormProps =
       view: VerificationView
       code: string
       smsConsentPending?: boolean
+      openCode?: React.ReactNode
       onCodeChange: (code: string) => void
       onSubmit: () => void
       onResend: () => void
@@ -123,7 +124,7 @@ const codeFooter = (view: VerificationView): { prose: string; label: string; hre
 
 function Head({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="flex w-full flex-col justify-center gap-1 text-center">
+    <div className="flex w-full flex-col justify-center gap-2xs text-center">
       <h4 id={TITLE_ID}>{title}</h4>
       <p className="micro">{children}</p>
     </div>
@@ -132,7 +133,7 @@ function Head({ title, children }: { title: string; children: React.ReactNode })
 
 function FooterRow({ prose, label, href }: { prose: string; label: string; href: string }) {
   return (
-    <div className="flex w-full items-center justify-center gap-1">
+    <div className="flex w-full items-center justify-center gap-2xs">
       <p className="micro">{prose}</p>
       {href.startsWith('mailto:') ? (
         <Link href={href}>{label}</Link>
@@ -158,16 +159,18 @@ function Alternatives({
   return (
     <div className="flex w-full flex-col gap-lg">
       <Divider label={label} />
-      <Button
-        type="button"
-        variant="secondary"
-        className="w-full"
-        onClick={onGoogle}
-        disabled={googlePending}
-      >
-        <GoogleLogo />
-        Google
-      </Button>
+      <div className="flex w-full items-center gap-xs">
+        <Button
+          type="button"
+          variant="secondary"
+          className="flex-1"
+          onClick={onGoogle}
+          disabled={googlePending}
+        >
+          <GoogleLogo />
+          Google
+        </Button>
+      </div>
     </div>
   )
 }
@@ -229,8 +232,17 @@ export function AuthForm(props: AuthFormProps) {
     props.state === 'otp-success' ||
     props.state === 'verify-its-you'
   ) {
-    const { state, view, code, smsConsentPending, onCodeChange, onResend, pending, message } =
-      props
+    const {
+      state,
+      view,
+      code,
+      smsConsentPending,
+      openCode,
+      onCodeChange,
+      onResend,
+      pending,
+      message,
+    } = props
     const footer = codeFooter(view)
     const stepUp = view.purpose === 'step_up'
     return (
@@ -241,7 +253,7 @@ export function AuthForm(props: AuthFormProps) {
       >
         <Head title={stepUp ? "Verify it's you" : 'Enter your code'}>
           {stepUp ? 'We sent a code to ' : `We sent a ${view.code_length}-digit code to `}
-          <strong>{view.destination}</strong>.
+          <span className="text-foreground">{view.destination}</span>.
         </Head>
         {view.purpose === 'sign_up' && smsConsentPending && (
           <p className="micro text-center">
@@ -250,6 +262,7 @@ export function AuthForm(props: AuthFormProps) {
         )}
         <div className="flex w-full flex-col gap-lg">
           <OTPInput
+            className="p-md"
             length={view.code_length}
             value={code}
             onValueChange={onCodeChange}
@@ -273,6 +286,7 @@ export function AuthForm(props: AuthFormProps) {
             Taking you through now.
           </Alert>
         )}
+        {openCode}
       </form>
     )
   }
@@ -351,8 +365,8 @@ export function AuthForm(props: AuthFormProps) {
             />
             <label htmlFor="sms-consent" className="micro">
               I agree to receive text messages from Dorado Metals about my account and orders.
-              Message and data rates may apply. Message frequency varies. Reply STOP to cancel,
-              HELP for help.
+              Message and data rates may apply. Message frequency varies. Reply STOP to cancel, HELP
+              for help.
             </label>
           </div>
           {props.captcha}
