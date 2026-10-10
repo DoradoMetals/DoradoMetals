@@ -579,3 +579,8 @@ Detail in `docs/waves/auth-passwordless.md`.
 - MinIO is gone from every public registry (Docker Hub deleted 2026-09-11, quay.io anonymous pulls refused since 2026-09-24) and the last free release carries CVE-2026-40344 (auth bypass, CVSS 8.8). Production's Bucket service still runs the last pulled image and cannot be redeployed. Plan: Railway native Bucket (S3-compatible) replaces MinIO; the `env-hardening` lane makes the provider generic (`S3_*` names); production day copies objects across and retires the MinIO container. Until then do not redeploy production's Bucket service.
 - Env audit (`scratchpad/uat/env-checklist.md`, 2026-10-08): no boot-time validator; `STRIPE_SECRET_KEY` defaults to `''` silently; `BETTER_AUTH_SECRET` read only by the library, public default outside `NODE_ENV=production`; Sentry DSN hardcoded in three frontend files; two dead build ARGs in `frontend/Dockerfile`; both `.env.example` files stale. All in the `env-hardening` lane.
 - Promote pipeline (one-click staging to production with migrate) is parked until the rebuilt app is on production.
+
+## Figma snapshot hand-off (2026-10-10)
+
+- The library bound the mobile Admin Header title to Stat/XSmall after the design-sync capture. The next `figma:pull` capture reads textStyle 93, so `HYGIENE_BUDGET.textStyle` in `scripts/figma/map.mjs` drops 94 -> 93 with it (ratchet), and the Chat "Secondary Button" note in HYGIENE_NOTES retires (the frame is Primary and the description now says so).
+- The remaining 93 unstyled text nodes are one decision for Jacob: a 16px Regular style for Input/Select/Textarea fields (Body/Large or Field/Regular; no new variables).
