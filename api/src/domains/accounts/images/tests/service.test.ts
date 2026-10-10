@@ -12,17 +12,25 @@ afterAll(async () => {
   await pool.end()
 })
 
-async function rejectsForNetwork(promise: Promise<unknown>): Promise<void> {
-  let threw = false
-  try {
-    await promise
-  } catch {
-    threw = true
-  }
+function assertPresignedUrl(raw: string, objectKey: string): void {
+  assert.equal(typeof raw, 'string', 'the service should return a presigned URL string')
+
+  const url = new URL(raw)
+  const endpoint = new URL(process.env.S3_ENDPOINT as string)
+  const bucket = process.env.S3_BUCKET as string
+
   assert.equal(
-    threw,
-    true,
-    "this test's storage provider is not reachable - the call should have failed"
+    url.hostname,
+    endpoint.hostname,
+    'the presigned URL should point at the configured S3 endpoint'
+  )
+  assert.ok(
+    url.pathname.includes(`/${bucket}/`) || url.hostname.startsWith(`${bucket}.`),
+    'the presigned URL should name the bucket, in its path or its host'
+  )
+  assert.ok(
+    url.pathname.includes(objectKey) || url.hostname.includes(objectKey),
+    'the presigned URL should name the object key'
   )
 }
 
@@ -31,18 +39,24 @@ test('uploadImage writes its row before it ever reaches the storage provider', a
     async (c) => {
       const user = await aUser(c)
 
-      await rejectsForNetwork(service.uploadImage(user.id, 'photo.jpg', 'image/jpeg', 1024))
+      const result = await service.uploadImage(user.id, 'photo.jpg', 'image/jpeg', 1024)
 
       const { rows } = await c.query(
         `SELECT user_id, filename FROM media.images WHERE user_id = $1`,
         [user.id]
       )
-      assert.equal(rows.length, 1, 'uploadImage did not write its row before contacting storage')
+      assert.equal(
+        rows.length,
+        1,
+        'uploadImage did not write its row before signing the upload url'
+      )
       assert.match(
         rows[0].filename,
         /photo\.jpg$/,
         'the original filename should survive at the end'
       )
+
+      assertPresignedUrl(result.uploadUrl, `${user.id}/${rows[0].filename}`)
     },
     { actor: TEST_ACTOR.id }
   )
@@ -71,7 +85,8 @@ test('getUrl asserts a real image, then reaches for a presigned URL', async () =
         },
         c
       )
-      await rejectsForNetwork(service.getUrl(row.id))
+      const url = await service.getUrl(row.id)
+      assertPresignedUrl(url, `${row.path}${row.filename}`)
     },
     { actor: TEST_ACTOR.id }
   )
@@ -91,7 +106,14 @@ test("attachUrlToImage carries the image's own fields alongside the url decision
         },
         c
       )
-      await rejectsForNetwork(service.attachUrlToImage(row))
+      const attached = await service.attachUrlToImage(row)
+
+      assert.equal(attached.id, row.id)
+      assert.equal(attached.user_id, row.user_id)
+      assert.equal(attached.bucket, row.bucket)
+      assert.equal(attached.path, row.path)
+      assert.equal(attached.filename, row.filename)
+      assertPresignedUrl(attached.url, `${row.path}${row.filename}`)
     },
     { actor: TEST_ACTOR.id }
   )
@@ -101,7 +123,7 @@ test('getTestImages maps every row through attachUrlToImage', async () => {
   await inPinnedTransaction(
     async (c) => {
       const user = await aUser(c)
-      await images.create(
+      const row = await images.create(
         {
           user_id: user.id,
           bucket: 'images',
@@ -111,7 +133,13 @@ test('getTestImages maps every row through attachUrlToImage', async () => {
         },
         c
       )
-      await rejectsForNetwork(service.getTestImages())
+
+      const all = await service.getTestImages()
+      const mine = all.find((img) => img.id === row.id)
+
+      assert.ok(mine, 'getTestImages did not return the row written inside this transaction')
+      assert.equal(mine.filename, row.filename)
+      assertPresignedUrl(mine.url, `${row.path}${row.filename}`)
     },
     { actor: TEST_ACTOR.id }
   )

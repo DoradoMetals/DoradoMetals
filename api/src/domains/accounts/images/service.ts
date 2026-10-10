@@ -16,7 +16,7 @@ export async function uploadImage(
   mime_type: string,
   size_bytes: number | null
 ): Promise<{ id: string; uploadUrl: string }> {
-  const bucket = process.env.MINIO_BUCKET as string
+  const bucket = process.env.S3_BUCKET as string
 
   const originalName =
     String(filename ?? '')

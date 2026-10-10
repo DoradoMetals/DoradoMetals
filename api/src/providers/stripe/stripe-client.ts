@@ -2,10 +2,11 @@ import '#env'
 import http from 'node:http'
 import https from 'node:https'
 import { isTestRun } from '#shared/testing/is-test-run.ts'
+import { requiredEnv } from '#shared/env/required.ts'
 import { STRIPE_API_VERSION } from '#providers/stripe/constants.ts'
 import Stripe from 'stripe'
 
-const key = process.env.STRIPE_SECRET_KEY ?? ''
+const key = requiredEnv('STRIPE_SECRET_KEY')
 
 if (isTestRun() && key.startsWith('sk_live')) {
   throw new Error(
