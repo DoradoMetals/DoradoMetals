@@ -17,7 +17,7 @@ export type StoredReader = (path: string) => Promise<Buffer>
 
 const readFromStorage: StoredReader = async (path) => {
   rules.assertNotTestRun(isTestRun())
-  const stream = await minio.getObject(process.env.MINIO_BUCKET as string, path)
+  const stream = await minio.getObject(process.env.S3_BUCKET as string, path)
   const chunks: Buffer[] = []
   for await (const chunk of stream) {
     chunks.push(chunk as Buffer)

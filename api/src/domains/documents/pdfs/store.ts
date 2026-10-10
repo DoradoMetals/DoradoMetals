@@ -42,7 +42,7 @@ export async function persistPdf(
     const path = `pdfs/${order_id ?? 'unattached'}/${kind}-${checksum}.pdf`
 
     if (!isTestRun()) {
-      await minio.putObject(process.env.MINIO_BUCKET as string, path, buffer)
+      await minio.putObject(process.env.S3_BUCKET as string, path, buffer)
     }
 
     const linkable = await linkableOrderId(order_id, executor)
@@ -72,7 +72,7 @@ export async function storeUpload(
   const checksum = createHash('sha256').update(buffer).digest('hex')
   const path = `pdfs/${order_id ?? refining_order_id ?? 'unattached'}/${kind}-${checksum}.pdf`
   if (!isTestRun()) {
-    await minio.putObject(process.env.MINIO_BUCKET as string, path, buffer)
+    await minio.putObject(process.env.S3_BUCKET as string, path, buffer)
   }
   const linkable = order_id === null ? null : await linkableOrderId(order_id)
   const written = await withTransaction((tx) =>

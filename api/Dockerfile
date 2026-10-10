@@ -13,24 +13,30 @@ FROM node:24-bookworm-slim
 
 # Puppeteer renders the PDFs. Use the distro's Chromium rather than the copy
 # puppeteer would download, so PUPPETEER_SKIP_DOWNLOAD is set before install.
-RUN apt-get update && apt-get install -y \
-    chromium \
-    fonts-liberation \
-    libasound2 \
-    libatk-bridge2.0-0 \
-    libatk1.0-0 \
-    libcups2 \
-    libdbus-1-3 \
-    libgdk-pixbuf2.0-0 \
-    libnspr4 \
-    libnss3 \
-    libx11-xcb1 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxrandr2 \
-    xdg-utils \
-    wget \
-    --no-install-recommends \
+#
+# deb.debian.org has returned transient 404s mid-build on Railway, so the
+# update+install pair gets both apt's own retry count and an outer retry loop.
+RUN for i in 1 2 3 4 5; do \
+      apt-get -o Acquire::Retries=5 update && \
+      apt-get -o Acquire::Retries=5 install -y --no-install-recommends \
+        chromium \
+        fonts-liberation \
+        libasound2 \
+        libatk-bridge2.0-0 \
+        libatk1.0-0 \
+        libcups2 \
+        libdbus-1-3 \
+        libgdk-pixbuf2.0-0 \
+        libnspr4 \
+        libnss3 \
+        libx11-xcb1 \
+        libxcomposite1 \
+        libxdamage1 \
+        libxrandr2 \
+        xdg-utils \
+        wget \
+      && break || sleep 5; \
+    done \
  && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 ENV PUPPETEER_SKIP_DOWNLOAD=true
@@ -46,11 +52,27 @@ RUN corepack enable && corepack prepare pnpm@10.29.3 --activate
 
 WORKDIR /repo
 
-# Manifests first, so a source-only change reuses the install layer.
+# Manifests first, so a source-only change reuses the install layer. The api
+# depends on three workspace packages at runtime - @dorado/contracts for the
+# generated row/wire types, and @dorado/components + @dorado/theme for the PDF
+# and email templates (src/domains/documents) - so pnpm needs each one's
+# package.json to resolve the workspace graph for --filter.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY api/package.json api/
+COPY packages/contracts/package.json packages/contracts/
+COPY packages/components/package.json packages/components/
+COPY packages/icons/package.json packages/icons/
+COPY packages/theme/package.json packages/theme/
 
 RUN pnpm install --frozen-lockfile --filter @dorado/api...
+
+# @dorado/components and @dorado/theme ship source and are imported directly
+# (Node 24 strips types; the document/email entry points are plain .ts, no
+# JSX). @dorado/icons is @dorado/components' own dependency, not the api's,
+# but its source has to be on disk for that workspace link to resolve.
+# @dorado/contracts ships dist, so it is the one package built ahead of time.
+COPY packages packages
+RUN pnpm --filter @dorado/contracts build
 
 COPY api api
 
