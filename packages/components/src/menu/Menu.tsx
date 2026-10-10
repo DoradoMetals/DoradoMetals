@@ -39,7 +39,7 @@ const MenuItem = React.forwardRef<
   <MenuPrimitive.Item
     ref={ref}
     className={cn(
-      'flex min-h-9 cursor-default select-none items-center gap-2 rounded-md px-2 text-small outline-none',
+      'flex min-h-(--control-sm-plus) cursor-default select-none items-center gap-2 rounded-md px-2 text-small outline-none',
       'data-[highlighted]:bg-accent data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
       '[&_svg]:size-3.5 [&_svg]:shrink-0 [&_svg]:text-muted-foreground',
       intent === 'danger' && 'text-destructive [&_svg]:text-destructive',

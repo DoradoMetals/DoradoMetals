@@ -17,7 +17,7 @@ export function DialogContent({
   showClose = true,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
-  size?: 'sm' | 'md'
+  size?: 'sm' | 'md' | 'lg'
   showClose?: boolean
 }) {
   return (
@@ -34,7 +34,7 @@ export function DialogContent({
         className={cn(
           'fixed left-1/2 top-1/2 z-90 -translate-x-1/2 -translate-y-1/2',
           'flex w-[calc(100vw-2rem)] flex-col gap-4 rounded-lg border border-border bg-highest p-4',
-          size === 'sm' ? 'max-w-80' : 'max-w-[420px]',
+          size === 'sm' ? 'max-w-80' : size === 'lg' ? 'max-w-[960px]' : 'max-w-[420px]',
           'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
           'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',
           'motion-reduce:animate-none',
@@ -91,6 +91,24 @@ export function DialogHeader({ className, ...props }: React.HTMLAttributes<HTMLD
 export const DialogOverlay = DialogPrimitive.Overlay
 export const DialogPortal = DialogPrimitive.Portal
 
-export function DialogFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('flex items-center justify-between gap-2', className)} {...props} />
+export function DialogFooter({
+  className,
+  meta,
+  stacked = false,
+  children,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement> & { meta?: React.ReactNode; stacked?: boolean }) {
+  return (
+    <div
+      className={cn(
+        'flex',
+        stacked ? 'flex-col-reverse gap-xs' : 'items-center justify-between gap-md',
+        className
+      )}
+      {...props}
+    >
+      {meta && <span className="grow truncate text-small text-subtle">{meta}</span>}
+      {children}
+    </div>
+  )
 }

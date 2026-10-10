@@ -56,4 +56,24 @@ describe('ScrollArea', () => {
     expect(bar?.className).toContain('w-2')
     expect(bar?.className).not.toContain('w-2.5')
   })
+
+  it('draws its own card chrome by default (306:38)', () => {
+    const { container } = render(
+      <ScrollArea className="h-24">
+        <div>x</div>
+      </ScrollArea>
+    )
+    expect(container.firstElementChild!.className).toContain('border-border')
+    expect(container.firstElementChild!.className).toContain('bg-card')
+  })
+
+  it('chrome=false drops the box, for nesting inside a panel that already draws one', () => {
+    const { container } = render(
+      <ScrollArea className="h-24" chrome={false}>
+        <div>x</div>
+      </ScrollArea>
+    )
+    expect(container.firstElementChild!.className).not.toContain('border-border')
+    expect(container.firstElementChild!.className).not.toContain('bg-card')
+  })
 })

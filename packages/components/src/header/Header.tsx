@@ -10,6 +10,7 @@ export type HeaderProps = {
   brand: React.ReactNode
   nav?: React.ReactNode
   trailing?: React.ReactNode
+  mobileTrailing?: React.ReactNode
   drawerOpen?: boolean
   onDrawerToggle?: () => void
   className?: string
@@ -19,6 +20,7 @@ export function Header({
   brand,
   nav,
   trailing,
+  mobileTrailing,
   drawerOpen = false,
   onDrawerToggle,
   className,
@@ -56,7 +58,8 @@ export function Header({
         )}
       </div>
 
-      <div className="flex items-center lg:hidden">
+      <div className="flex items-center gap-4 lg:hidden">
+        {mobileTrailing}
         {onDrawerToggle && (
           <Button
             variant="tertiary"

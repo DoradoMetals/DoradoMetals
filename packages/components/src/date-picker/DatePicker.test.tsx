@@ -61,7 +61,7 @@ describe('DatePicker', () => {
     expect(queryByRole('combobox')).toBe(null)
   })
 
-  it('Stacked is the mobile shape: the times sit under the calendar, 3 across', () => {
+  it('Stacked is the mobile shape: the times sit under the calendar, 2 across (104:438, re-read 2026-10-10 - the drawing dropped the old 3-across grid)', () => {
     const { container } = render(
       <DatePicker
         layout="stacked"
@@ -73,7 +73,8 @@ describe('DatePicker', () => {
     )
     const card = container.firstElementChild as HTMLElement
     expect(card.className).not.toContain('sm:flex-row')
-    expect(container.querySelector('.grid-cols-3')).toBeTruthy()
+    expect(container.querySelector('.grid-cols-2')).toBeTruthy()
+    expect(container.querySelector('.grid-cols-3')).toBe(null)
   })
 
   it('Side by side stays the default and keeps the two-column slot grid', () => {

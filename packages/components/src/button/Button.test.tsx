@@ -71,10 +71,10 @@ describe('rendered Button', () => {
     expect((getByRole('button') as HTMLButtonElement).disabled).toBe(true)
   })
 
-  it('type and icon tier with the size; the gap does not (25:510, 2026-09-05)', () => {
+  it('type, icon and gap all tier with the size (25:510, 2026-10-09)', () => {
     const tier = {
-      sm: { text: 'text-micro', icon: '[&_svg]:size-3.5', gap: 'gap-xs' },
-      default: { text: 'text-small', icon: '[&_svg]:size-4', gap: 'gap-xs' },
+      sm: { text: 'text-micro', icon: '[&_svg]:size-3.5', gap: 'gap-2xs' },
+      default: { text: 'text-small', icon: '[&_svg]:size-4', gap: 'gap-2xs-plus' },
       lg: { text: 'sm:text-body', icon: '[&_svg]:size-5', gap: 'gap-xs' },
     } as const
     for (const [size, want] of Object.entries(tier)) {
@@ -90,13 +90,22 @@ describe('rendered Button', () => {
     expect(sm).not.toContain('[&_svg]:size-4')
   })
 
-  it('the icon gap is spacing/xs on every variant and size - tertiary no longer tightens (2026-09-05)', () => {
+  it('the icon gap scales by size - 2xs/SM, 2xs-plus/Default, xs/LG - same for every variant (25:510, 2026-10-09)', () => {
+    const gapBySize = { sm: 'gap-2xs', default: 'gap-2xs-plus', lg: 'gap-xs' } as const
     for (const variant of ['primary', 'secondary', 'tertiary'] as const) {
       for (const size of ['sm', 'default', 'lg'] as const) {
-        expect(rendered({ variant, size })).toContain('gap-xs')
+        expect(rendered({ variant, size })).toContain(gapBySize[size])
       }
     }
-    expect(rendered({ variant: 'tertiary', size: 'default' })).not.toContain('gap-[5px]')
+  })
+
+  it('primary/secondary bind height to the control tokens; tertiary carries none (25:510, 2026-10-09)', () => {
+    expect(rendered({ variant: 'primary', size: 'sm' })).toContain('min-h-(--control-sm)')
+    expect(rendered({ variant: 'primary', size: 'default' })).toContain('min-h-(--control-md)')
+    expect(rendered({ variant: 'primary', size: 'lg' })).toContain('min-h-(--control-lg)')
+    expect(rendered({ variant: 'tertiary', size: 'sm' })).toContain('min-h-0')
+    expect(rendered({ variant: 'tertiary', size: 'default' })).toContain('min-h-0')
+    expect(rendered({ variant: 'tertiary', size: 'lg' })).toContain('min-h-0')
   })
 
   it('tertiary neutral is the one place the library uses subtle', () => {
@@ -105,8 +114,12 @@ describe('rendered Button', () => {
     expect(rendered({ variant: 'secondary' })).not.toContain('text-subtle')
   })
 
-  it('icon-only sizes match Icon Button 457:75, not the labeled tier: SM 32/16, Default 40/20', () => {
+  it('icon-only sizes match Icon Button 457:75: box 28/32/40, glyph 16/16/20 (iconXs/iconSm/icon)', () => {
+    expect(rendered({ size: 'iconXs' })).toContain('h-7')
+    expect(rendered({ size: 'iconXs' })).toContain('[&_svg]:size-4')
+    expect(rendered({ size: 'iconSm' })).toContain('h-8')
     expect(rendered({ size: 'iconSm' })).toContain('[&_svg]:size-4')
+    expect(rendered({ size: 'icon' })).toContain('h-10')
     expect(rendered({ size: 'icon' })).toContain('[&_svg]:size-5')
   })
 
@@ -125,5 +138,10 @@ describe('rendered Button', () => {
     expect(sm.querySelector('svg')?.getAttribute('stroke-width')).toBe(String((2 * 14) / 24))
     expect(def.querySelector('svg')?.getAttribute('stroke-width')).toBe(String((2 * 16) / 24))
     expect(lg.querySelector('svg')?.getAttribute('stroke-width')).toBe(String((2 * 20) / 24))
+  })
+
+  it('iconXs glyph is 16px, matching Icon Button SM (457:75), not 14', () => {
+    const { container } = render(<Button size="iconXs" icon={ArrowLeft} aria-label="Back" />)
+    expect(container.querySelector('svg')?.getAttribute('stroke-width')).toBe(String((2 * 16) / 24))
   })
 })

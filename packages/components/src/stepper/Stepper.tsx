@@ -23,7 +23,7 @@ export function Stepper({ steps, current, className }: StepperProps) {
               aria-current={state === 'current' ? 'step' : undefined}
               aria-label={`Step ${i + 1} of ${n}${label ? `: ${label}` : ''}`}
               className={cn(
-                'flex size-6 shrink-0 items-center justify-center rounded-full text-micro font-medium',
+                'flex min-h-(--control-xs) min-w-(--control-xs) shrink-0 items-center justify-center rounded-full text-micro font-medium',
                 state === 'upcoming'
                   ? 'border border-border bg-muted text-muted-foreground'
                   : 'bg-primary text-primary-foreground'

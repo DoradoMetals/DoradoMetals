@@ -158,13 +158,24 @@ function round(n: number): number {
 export const space = {
   '3xs': px('--spacing-3xs'),
   '2xs': px('--spacing-2xs'),
+  '2xs+': px('--spacing-2xs-plus'),
   xs: px('--spacing-xs'),
+  'xs+': px('--spacing-xs-plus'),
   sm: px('--spacing-sm'),
+  'sm+': px('--spacing-sm-plus'),
   md: px('--spacing-md'),
+  'md+': px('--spacing-md-plus'),
   lg: px('--spacing-lg'),
   xl: px('--spacing-xl'),
   '2xl': px('--spacing-2xl'),
   '3xl': px('--spacing-3xl'),
+  '4xl': px('--spacing-4xl'),
+} as const
+
+export const control = {
+  sm: px('--control-sm'),
+  md: px('--control-md'),
+  lg: px('--control-lg'),
 } as const
 
 export const radius = px('--radius')

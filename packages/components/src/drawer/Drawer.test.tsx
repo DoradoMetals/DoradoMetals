@@ -101,4 +101,15 @@ describe('Drawer', () => {
     expect(handle).toBeTruthy()
     expect(await axeViolations(document.body)).toEqual([])
   })
+
+  it('grab handle row is 36x4, padded 8 top / 2 bottom to a 14px row (127:32, 2026-10-09)', () => {
+    openDrawer({ anchor: 'bottom' })
+    const panel = document.body.querySelector('[role="dialog"]') as HTMLElement
+    const row = panel.querySelector('[aria-hidden="true"]') as HTMLElement
+    expect(row.className).toContain('pt-2')
+    expect(row.className).toContain('pb-0.5')
+    const bar = row.firstElementChild as HTMLElement
+    expect(bar.className).toContain('h-1')
+    expect(bar.className).toContain('w-9')
+  })
 })

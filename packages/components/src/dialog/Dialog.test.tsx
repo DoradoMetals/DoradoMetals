@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render } from '@testing-library/react'
 import * as React from 'react'
 
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from './Dialog'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from './Dialog'
 import { axeViolations } from '../test/axe'
 
 function openDialog(onOpenChange = () => {}) {
@@ -46,5 +46,55 @@ describe('Dialog', () => {
     expect(close).toBeTruthy()
     expect(close.className).toMatch(/h-8 w-8/)
     expect(close.className).toMatch(/\[&_svg\]:size-4/)
+  })
+
+  it('size=lg is 960px wide, added 2026-10-09 (41:55)', () => {
+    render(
+      <Dialog open onOpenChange={() => {}}>
+        <DialogContent size="lg">
+          <DialogTitle>Photos</DialogTitle>
+        </DialogContent>
+      </Dialog>
+    )
+    const content = document.body.querySelector('[role="dialog"]') as HTMLElement
+    expect(content.className).toMatch(/max-w-\[960px\]/)
+  })
+
+  it('footer Row is justify-between at gap-md (16px); Stacked reverses to gap-xs (8px), Confirm on top (41:55)', () => {
+    const { container: row } = render(
+      <DialogFooter>
+        <button>Cancel</button>
+        <button>Confirm</button>
+      </DialogFooter>
+    )
+    expect(row.firstElementChild?.className).toMatch(/justify-between/)
+    expect(row.firstElementChild?.className).toMatch(/gap-md/)
+
+    const { container: stacked } = render(
+      <DialogFooter stacked>
+        <button>Cancel</button>
+        <button>Confirm</button>
+      </DialogFooter>
+    )
+    expect(stacked.firstElementChild?.className).toMatch(/flex-col-reverse/)
+    expect(stacked.firstElementChild?.className).toMatch(/gap-xs/)
+  })
+
+  it('footer meta fills the slack at the left, text/subtle, off by default (41:55, 2026-10-09)', () => {
+    const { container, rerender } = render(
+      <DialogFooter>
+        <button>Cancel</button>
+      </DialogFooter>
+    )
+    expect(container.querySelector('.text-subtle')).toBeNull()
+
+    rerender(
+      <DialogFooter meta="IMG_4471.jpg · 2.4 MB">
+        <button>Cancel</button>
+      </DialogFooter>
+    )
+    const meta = container.querySelector('.text-subtle') as HTMLElement
+    expect(meta?.textContent).toBe('IMG_4471.jpg · 2.4 MB')
+    expect(meta.className).toMatch(/grow/)
   })
 })

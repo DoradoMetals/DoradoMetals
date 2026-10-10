@@ -23,6 +23,7 @@ export function Stat({
   className,
 }: StatProps) {
   const centered = align === 'center'
+  const valueTag = size === 'default' ? 'stat' : 'stat-sm'
   return (
     <div
       className={cn(
@@ -33,13 +34,15 @@ export function Stat({
     >
       <small>{label}</small>
       <span className={cn('flex items-center gap-2', centered && 'justify-center')}>
-        <span className={size === 'default' ? 'stat' : 'stat-sm'}>
-          {typeof value === 'number' ? <Amount value={value} format={format} /> : value}
-        </span>
+        {typeof value === 'number' ? (
+          <Amount value={value} format={format} tag={valueTag} />
+        ) : (
+          <span className={valueTag}>{value}</span>
+        )}
         {trend && (
           <span
             className={cn(
-              'micro tabular-nums',
+              'micro font-medium tabular-nums',
               trend.direction === 'up' ? 'text-success' : 'text-destructive'
             )}
           >

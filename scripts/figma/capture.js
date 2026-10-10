@@ -161,7 +161,11 @@ for (const page of figma.root.children) {
           }
         }
       }
-      if ('layoutMode' in n && n.layoutMode !== 'NONE') {
+      // A COMPONENT_SET's own gap and padding are Figma's canvas chrome too:
+      // an auto-layout set container is how the variant grid is arranged, not
+      // a drawing. Counting it charged Chat 15, Headers 5 and Selection Bar 5
+      // for nothing. setChromeExcluded reports how many were skipped.
+      if ('layoutMode' in n && n.layoutMode !== 'NONE' && n.type !== 'COMPONENT_SET') {
         if (may('itemSpacing') && n.itemSpacing > 0 && !bv.itemSpacing) { counts.spacing++; if (samples.spacing.length < 30) samples.spacing.push(page.name + ' :: ' + pathOf(n) + ' gap=' + n.itemSpacing); }
         for (const f of ['paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft'])
           if (may(f) && n[f] > 0 && !bv[f]) { counts.spacing++; if (samples.spacing.length < 30) samples.spacing.push(page.name + ' :: ' + pathOf(n) + ' ' + f + '=' + n[f]); }

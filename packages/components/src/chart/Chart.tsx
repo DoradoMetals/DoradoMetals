@@ -54,9 +54,6 @@ const C = {
   get primary() {
     return tokenColor('--color-primary', '#fafafa')
   },
-  get info() {
-    return tokenColor('--color-info', '#3eaef4')
-  },
   get success() {
     return tokenColor('--color-success', '#3ecc89')
   },
@@ -138,14 +135,14 @@ export function LineChart({
             labels,
             datasets: series.map((s, i) => ({
               ...s,
-              borderColor: i === 0 ? C.info : C.mutedForeground,
+              borderColor: i === 0 ? C.primary : C.mutedForeground,
               backgroundColor: area
                 ? 'color-mix(in srgb, var(--color-primary) 8%, transparent)'
                 : 'transparent',
               fill: area,
-              borderWidth: 1.5,
+              borderWidth: area ? 1.5 : 2,
               pointRadius: i === 0 ? s.data.map((_, idx) => (idx === last ? 4 : 0)) : 0,
-              pointBackgroundColor: i === 0 ? C.info : C.mutedForeground,
+              pointBackgroundColor: i === 0 ? C.primary : C.mutedForeground,
               pointBorderWidth: 0,
               tension: 0.25,
             })),

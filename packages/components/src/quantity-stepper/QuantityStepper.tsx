@@ -22,6 +22,8 @@ function clamp(n: number, min: number, max: number) {
 const QuantityStepper = React.forwardRef<HTMLDivElement, QuantityStepperProps>(
   ({ value, onChange, min = 1, max = 99, disabled, className, label }, ref) => {
     const [draft, setDraft] = React.useState<string | null>(null)
+    const atMin = value <= min
+    const atMax = value >= max
 
     const commit = (raw: string) => {
       setDraft(null)
@@ -45,16 +47,19 @@ const QuantityStepper = React.forwardRef<HTMLDivElement, QuantityStepperProps>(
         aria-valuemax={max}
         className={cn(
           'inline-flex h-9 items-center overflow-hidden rounded-lg border border-border bg-card transition-colors focus-within:border-primary',
-          disabled && 'pointer-events-none bg-muted',
+          disabled && 'pointer-events-none opacity-50',
           className
         )}
       >
         <button
           type="button"
           aria-label="Decrease quantity"
-          disabled={disabled || value <= min}
+          disabled={disabled || atMin}
           onClick={() => step(-1)}
-          className="flex h-full w-8 items-center justify-center text-muted-foreground outline-none hover:bg-accent focus-visible:bg-accent disabled:pointer-events-none disabled:opacity-40"
+          className={cn(
+            'flex h-full w-8 items-center justify-center text-muted-foreground outline-none hover:bg-accent focus-visible:bg-accent disabled:pointer-events-none',
+            !disabled && atMin && 'opacity-40'
+          )}
         >
           <Minus className="size-3.5" aria-hidden />
         </button>
@@ -83,9 +88,12 @@ const QuantityStepper = React.forwardRef<HTMLDivElement, QuantityStepperProps>(
         <button
           type="button"
           aria-label="Increase quantity"
-          disabled={disabled || value >= max}
+          disabled={disabled || atMax}
           onClick={() => step(1)}
-          className="flex h-full w-8 items-center justify-center text-muted-foreground outline-none hover:bg-accent focus-visible:bg-accent disabled:pointer-events-none disabled:opacity-40"
+          className={cn(
+            'flex h-full w-8 items-center justify-center text-muted-foreground outline-none hover:bg-accent focus-visible:bg-accent disabled:pointer-events-none',
+            !disabled && atMax && 'opacity-40'
+          )}
         >
           <Plus className="size-3.5" aria-hidden />
         </button>

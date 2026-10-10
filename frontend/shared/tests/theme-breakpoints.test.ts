@@ -32,11 +32,19 @@ describe('the mobile type ramp', () => {
     expect(Number(block![1])).toBe(Number(md![1]))
   })
 
-  it('moves exactly the five steps the library moves', () => {
+  it('moves exactly the steps the library moves', () => {
     const sizes = [...block![2].matchAll(/--text-([a-z0-9-]+):\s/g)]
       .map((m) => m[1])
       .filter((name) => !name.includes('--'))
-    expect([...sizes].sort()).toEqual(['display', 'h1', 'h2', 'stat', 'stat-sm'])
+    expect([...sizes].sort()).toEqual([
+      'display',
+      'h1',
+      'h2',
+      'stat',
+      'stat-lg',
+      'stat-sm',
+      'stat-xs',
+    ])
   })
 
   it('pins the Hero headline at 32/38', () => {

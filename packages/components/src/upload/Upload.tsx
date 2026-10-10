@@ -167,30 +167,26 @@ export function Upload({
             <span className="text-small">No files added yet</span>
           </div>
         ) : (
-          <ScrollArea className="h-full">
+          <ScrollArea className="h-full" chrome={false}>
             <div className="flex flex-col divide-y divide-border px-3 py-2.5">{attachments}</div>
           </ScrollArea>
         )}
       </div>
-      {maxFiles != null && (
-        <>
-          <div className="h-px w-full bg-border" />
-          <div className="flex h-[37px] w-full shrink-0 items-center justify-between px-3">
-            <span className={cn('text-micro', isFull ? 'text-foreground' : 'text-placeholder')}>
-              {count} of {maxFiles}
-            </span>
-            {onClearAll != null && (
-              <button
-                type="button"
-                onClick={onClearAll}
-                className="cursor-pointer text-small font-medium text-foreground underline-offset-4 hover:underline"
-              >
-                Clear all
-              </button>
-            )}
-          </div>
-        </>
-      )}
+      <div className="h-px w-full bg-border" />
+      <div className="flex h-[37px] w-full shrink-0 items-center justify-between px-3">
+        <span className={cn('text-micro', isFull ? 'text-foreground' : 'text-placeholder')}>
+          {maxFiles != null ? `${count} of ${maxFiles}` : `${count} file${count === 1 ? '' : 's'}`}
+        </span>
+        {onClearAll != null && (
+          <button
+            type="button"
+            onClick={onClearAll}
+            className="cursor-pointer text-small font-medium text-foreground underline-offset-4 hover:underline"
+          >
+            Clear all
+          </button>
+        )}
+      </div>
     </div>
   )
 }

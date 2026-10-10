@@ -70,13 +70,26 @@ describe('QuantityStepper', () => {
     expect(input.className).toContain('text-small')
   })
 
-  it('disabled reads as a muted fill, not an opacity fade', () => {
+  it('disabled is the normal chrome at 50%, not a muted fill (132:1016, 2026-10-10 convention)', () => {
     const { getByRole } = render(<QuantityStepper value={2} onChange={() => {}} disabled />)
     const group = getByRole('spinbutton')
-    expect(group.className).toContain('bg-muted')
-    expect(group.className).not.toContain('opacity-50')
+    expect(group.className).toContain('opacity-50')
+    expect(group.className).not.toContain('bg-muted')
+    expect(group.className).toContain('bg-card')
     const input = getByRole('textbox') as HTMLInputElement
     expect(input.disabled).toBe(true)
     expect(input.className).toContain('disabled:text-foreground-disabled')
+  })
+
+  it('at-bound dimming (0.4 opacity) is its own cue, and does not compound with disabled (132:1016)', () => {
+    const { getByLabelText, rerender } = render(
+      <QuantityStepper value={1} onChange={() => {}} min={1} max={9} />
+    )
+    const dec = getByLabelText('Decrease quantity') as HTMLButtonElement
+    expect(dec.className).toContain('opacity-40')
+
+    rerender(<QuantityStepper value={1} onChange={() => {}} min={1} max={9} disabled />)
+    const decDisabled = getByLabelText('Decrease quantity') as HTMLButtonElement
+    expect(decDisabled.className).not.toContain('opacity-40')
   })
 })

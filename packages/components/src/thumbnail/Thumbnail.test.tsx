@@ -7,7 +7,9 @@ import { axeViolations } from '../test/axe'
 
 describe('Thumbnail', () => {
   it('with a photo it renders the image and no placeholder glyph', () => {
-    const { container } = render(<Thumbnail src="/lot.jpg" alt="Lot 2481-A" aria-label="Open photo" />)
+    const { container } = render(
+      <Thumbnail src="/lot.jpg" alt="Lot 2481-A" aria-label="Open photo" />
+    )
     const img = container.querySelector('img')
     expect(img?.getAttribute('src')).toBe('/lot.jpg')
     expect(img?.getAttribute('alt')).toBe('Lot 2481-A')
@@ -28,10 +30,26 @@ describe('Thumbnail', () => {
     expect(await axeViolations(container)).toEqual([])
   })
 
-  it('SM is 32 and MD is 40, the document-row and lot-row slots', () => {
+  it('SM 32 / MD 40 / LG 64 / XL 96 (698:29 Size variant)', () => {
     const { container, rerender } = render(<Thumbnail size="sm" aria-label="Open photo" />)
-    expect(container.querySelector('button')?.className).toContain('size-8')
+    expect(container.querySelector('button')?.className).toContain('size-xl')
     rerender(<Thumbnail size="md" aria-label="Open photo" />)
     expect(container.querySelector('button')?.className).toContain('size-10')
+    rerender(<Thumbnail size="lg" aria-label="Open photo" />)
+    expect(container.querySelector('button')?.className).toContain('size-3xl')
+    rerender(<Thumbnail size="xl" aria-label="Open photo" />)
+    expect(container.querySelector('button')?.className).toContain('size-4xl')
+  })
+
+  it('defaults to size=md, the lot-row slot', () => {
+    const { container } = render(<Thumbnail aria-label="Open photo" />)
+    expect(container.querySelector('button')?.className).toContain('size-10')
+  })
+
+  it('the glyph steps from 16px (spacing/md) on SM/MD to 24px (spacing/lg) on LG/XL', () => {
+    const { container, rerender } = render(<Thumbnail size="sm" aria-label="Open photo" />)
+    expect(container.querySelector('svg')?.getAttribute('class')).toContain('size-md')
+    rerender(<Thumbnail size="lg" aria-label="Open photo" />)
+    expect(container.querySelector('svg')?.getAttribute('class')).toContain('size-lg')
   })
 })
