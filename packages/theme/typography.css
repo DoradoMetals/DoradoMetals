@@ -248,7 +248,7 @@
     font-size: var(--text-micro);
     line-height: var(--text-micro--line-height);
     font-weight: 500;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
     color: var(--text, var(--muted-foreground));
   }
@@ -259,6 +259,33 @@
     line-height: var(--text-stat--line-height);
     letter-spacing: var(--text-stat--letter-spacing);
     font-weight: var(--text-stat--font-weight);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .stat-2xs {
+    color: var(--text, var(--foreground));
+    font-size: var(--text-stat-2xs);
+    line-height: var(--text-stat-2xs--line-height);
+    letter-spacing: var(--text-stat-2xs--letter-spacing);
+    font-weight: var(--text-stat-2xs--font-weight);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .stat-xs {
+    color: var(--text, var(--foreground));
+    font-size: var(--text-stat-xs);
+    line-height: var(--text-stat-xs--line-height);
+    letter-spacing: var(--text-stat-xs--letter-spacing);
+    font-weight: var(--text-stat-xs--font-weight);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .stat-lg {
+    color: var(--text, var(--foreground));
+    font-size: var(--text-stat-lg);
+    line-height: var(--text-stat-lg--line-height);
+    letter-spacing: var(--text-stat-lg--letter-spacing);
+    font-weight: var(--text-stat-lg--font-weight);
     font-variant-numeric: tabular-nums;
   }
 

@@ -33,7 +33,7 @@ export function eyebrowType(extra: CSSProperties = {}): CSSProperties {
     fontFamily: monoStack,
     fontSize: t.size,
     lineHeight: t.lineHeight,
-    letterSpacing: '1.2px',
+    letterSpacing: '0.48px',
     fontWeight: 500,
     textTransform: 'uppercase',
     ...extra,

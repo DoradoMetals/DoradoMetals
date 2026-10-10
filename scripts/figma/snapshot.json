@@ -1,12 +1,10 @@
 {
   "fileKey": "8A73quhBLBqotJlX95jN9j",
   "fileName": "Themes and Components",
-  "capturedAt": "2026-09-11",
+  "capturedAt": "2026-10-10",
   "collections": {
     "Color": {
-      "modes": [
-        "Dark"
-      ],
+      "modes": ["Dark"],
       "variables": [
         {
           "name": "accent/default",
@@ -333,9 +331,7 @@
       ]
     },
     "Scale": {
-      "modes": [
-        "Default"
-      ],
+      "modes": ["Default"],
       "variables": [
         {
           "name": "breakpoint/2xl",
@@ -374,6 +370,42 @@
           "value": 304
         },
         {
+          "name": "control/lg",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 44
+        },
+        {
+          "name": "control/md",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 40
+        },
+        {
+          "name": "control/sm",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 32
+        },
+        {
+          "name": "control/sm+",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 36
+        },
+        {
+          "name": "control/xl",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 48
+        },
+        {
+          "name": "control/xs",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 24
+        },
+        {
           "name": "opacity/disabled",
           "type": "FLOAT",
           "alias": null,
@@ -383,7 +415,7 @@
           "name": "opacity/hover",
           "type": "FLOAT",
           "alias": null,
-          "value": 0.85
+          "value": 85
         },
         {
           "name": "opacity/muted",
@@ -395,13 +427,19 @@
           "name": "opacity/scrim",
           "type": "FLOAT",
           "alias": null,
-          "value": 0.7
+          "value": 70
         },
         {
           "name": "opacity/soft",
           "type": "FLOAT",
           "alias": null,
-          "value": 0.16
+          "value": 16
+        },
+        {
+          "name": "page/margin-letter",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 72
         },
         {
           "name": "radius/base",
@@ -452,6 +490,12 @@
           "value": 4
         },
         {
+          "name": "spacing/2xs+",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 6
+        },
+        {
           "name": "spacing/3xl",
           "type": "FLOAT",
           "alias": null,
@@ -462,6 +506,12 @@
           "type": "FLOAT",
           "alias": null,
           "value": 2
+        },
+        {
+          "name": "spacing/4xl",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 96
         },
         {
           "name": "spacing/lg",
@@ -476,10 +526,22 @@
           "value": 16
         },
         {
+          "name": "spacing/md+",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 20
+        },
+        {
           "name": "spacing/sm",
           "type": "FLOAT",
           "alias": null,
           "value": 12
+        },
+        {
+          "name": "spacing/sm+",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 14
         },
         {
           "name": "spacing/xl",
@@ -492,6 +554,12 @@
           "type": "FLOAT",
           "alias": null,
           "value": 8
+        },
+        {
+          "name": "spacing/xs+",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 10
         },
         {
           "name": "stroke/emphasis",
@@ -514,10 +582,7 @@
       ]
     },
     "Typography": {
-      "modes": [
-        "Default",
-        "Mobile"
-      ],
+      "modes": ["Default", "Mobile"],
       "variables": [
         {
           "name": "letter-spacing/body",
@@ -630,6 +695,26 @@
           }
         },
         {
+          "name": "letter-spacing/stat-2xs",
+          "type": "FLOAT",
+          "alias": null,
+          "value": -0.4,
+          "modeValues": {
+            "Default": -0.4,
+            "Mobile": -0.4
+          }
+        },
+        {
+          "name": "letter-spacing/stat-lg",
+          "type": "FLOAT",
+          "alias": null,
+          "value": -0.96,
+          "modeValues": {
+            "Default": -0.96,
+            "Mobile": -0.64
+          }
+        },
+        {
           "name": "letter-spacing/stat-sm",
           "type": "FLOAT",
           "alias": null,
@@ -637,6 +722,16 @@
           "modeValues": {
             "Default": -0.6,
             "Mobile": -0.56
+          }
+        },
+        {
+          "name": "letter-spacing/stat-xs",
+          "type": "FLOAT",
+          "alias": null,
+          "value": -0.48,
+          "modeValues": {
+            "Default": -0.48,
+            "Mobile": -0.44
           }
         },
         {
@@ -750,6 +845,26 @@
           }
         },
         {
+          "name": "line-height/stat-2xs",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 23,
+          "modeValues": {
+            "Default": 23,
+            "Mobile": 23
+          }
+        },
+        {
+          "name": "line-height/stat-lg",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 55.2,
+          "modeValues": {
+            "Default": 55.2,
+            "Mobile": 36.8
+          }
+        },
+        {
           "name": "line-height/stat-sm",
           "type": "FLOAT",
           "alias": null,
@@ -757,6 +872,16 @@
           "modeValues": {
             "Default": 34.5,
             "Mobile": 32.2
+          }
+        },
+        {
+          "name": "line-height/stat-xs",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 27.6,
+          "modeValues": {
+            "Default": 27.6,
+            "Mobile": 25.3
           }
         },
         {
@@ -870,6 +995,26 @@
           }
         },
         {
+          "name": "size/stat-2xs",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 20,
+          "modeValues": {
+            "Default": 20,
+            "Mobile": 20
+          }
+        },
+        {
+          "name": "size/stat-lg",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 48,
+          "modeValues": {
+            "Default": 48,
+            "Mobile": 32
+          }
+        },
+        {
           "name": "size/stat-sm",
           "type": "FLOAT",
           "alias": null,
@@ -877,6 +1022,16 @@
           "modeValues": {
             "Default": 30,
             "Mobile": 28
+          }
+        },
+        {
+          "name": "size/stat-xs",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 24,
+          "modeValues": {
+            "Default": 24,
+            "Mobile": 22
           }
         },
         {
@@ -943,7 +1098,7 @@
       "style": "Medium",
       "fontSize": 12,
       "lineHeight": 17.4,
-      "letterSpacing": 1.2
+      "letterSpacing": 0.48
     },
     {
       "name": "Heading/H1",
@@ -1026,6 +1181,14 @@
       "letterSpacing": 0
     },
     {
+      "name": "Stat/2XSmall",
+      "family": "Geist",
+      "style": "SemiBold",
+      "fontSize": 20,
+      "lineHeight": 23,
+      "letterSpacing": -0.4
+    },
+    {
       "name": "Stat/Default",
       "family": "Geist",
       "style": "SemiBold",
@@ -1034,12 +1197,28 @@
       "letterSpacing": -0.864
     },
     {
+      "name": "Stat/Large",
+      "family": "Geist",
+      "style": "SemiBold",
+      "fontSize": 48,
+      "lineHeight": 55.2,
+      "letterSpacing": -0.96
+    },
+    {
       "name": "Stat/Small",
       "family": "Geist",
       "style": "SemiBold",
       "fontSize": 30,
       "lineHeight": 34.5,
       "letterSpacing": -0.6
+    },
+    {
+      "name": "Stat/XSmall",
+      "family": "Geist",
+      "style": "SemiBold",
+      "fontSize": 24,
+      "lineHeight": 27.6,
+      "letterSpacing": -0.48
     }
   ],
   "pages": [
@@ -1065,7 +1244,11 @@
     },
     {
       "id": "14:3",
-      "name": "\u2014\u2014\u2014  COMPONENTS  \u2014\u2014\u2014"
+      "name": "———  COMPONENTS  ———"
+    },
+    {
+      "id": "14:10",
+      "name": "Accordion"
     },
     {
       "id": "163:2",
@@ -1076,12 +1259,12 @@
       "name": "Alert"
     },
     {
-      "id": "40:2",
-      "name": "Attachment"
+      "id": "609:2",
+      "name": "Amount"
     },
     {
-      "id": "14:10",
-      "name": "Accordion"
+      "id": "40:2",
+      "name": "Attachment"
     },
     {
       "id": "100:2",
@@ -1108,8 +1291,12 @@
       "name": "Button"
     },
     {
-      "id": "457:2",
-      "name": "Icon Button"
+      "id": "813:974",
+      "name": "Card"
+    },
+    {
+      "id": "59:2",
+      "name": "Carousel"
     },
     {
       "id": "57:2",
@@ -1148,20 +1335,32 @@
       "name": "Empty State"
     },
     {
+      "id": "898:441",
+      "name": "Estimator"
+    },
+    {
       "id": "51:59",
       "name": "Footer"
     },
     {
-      "id": "51:2",
-      "name": "Header"
+      "id": "730:2",
+      "name": "Headers"
     },
     {
       "id": "163:33",
       "name": "Hero"
     },
     {
+      "id": "457:2",
+      "name": "Icon Button"
+    },
+    {
       "id": "14:5",
       "name": "Input"
+    },
+    {
+      "id": "800:942",
+      "name": "Item Details"
     },
     {
       "id": "26:392",
@@ -1188,12 +1387,20 @@
       "name": "Menu"
     },
     {
+      "id": "96:2",
+      "name": "OTP"
+    },
+    {
       "id": "132:955",
       "name": "Pagination"
     },
     {
       "id": "541:2",
       "name": "Paperwork"
+    },
+    {
+      "id": "951:2",
+      "name": "Photo Viewer"
     },
     {
       "id": "106:2",
@@ -1220,6 +1427,10 @@
       "name": "Select"
     },
     {
+      "id": "871:2",
+      "name": "Selection Bar"
+    },
+    {
       "id": "32:148",
       "name": "Skeleton"
     },
@@ -1232,16 +1443,12 @@
       "name": "Stat"
     },
     {
-      "id": "609:2",
-      "name": "Amount"
-    },
-    {
       "id": "54:45",
       "name": "Stepper"
     },
     {
-      "id": "59:2",
-      "name": "Carousel"
+      "id": "626:2",
+      "name": "Swiper"
     },
     {
       "id": "14:8",
@@ -1278,40 +1485,25 @@
     {
       "id": "117:2",
       "name": "Upload"
-    },
-    {
-      "id": "96:2",
-      "name": "OTP"
-    },
-    {
-      "id": "626:2",
-      "name": "Swiper"
     }
   ],
   "hygiene": {
-    "scanned": 3521,
+    "scanned": 4287,
+    "setChromeExcluded": 35,
     "totals": {
       "color": 0,
-      "spacing": 24,
+      "spacing": 0,
       "radius": 0,
-      "textStyle": 93,
+      "textStyle": 94,
       "iconFill": 0,
-      "iconWeight": 8
+      "iconWeight": 0
     },
     "perPage": {
-      "Chat": {
+      "Headers": {
         "color": 0,
-        "spacing": 15,
+        "spacing": 0,
         "radius": 0,
-        "textStyle": 0,
-        "iconFill": 0,
-        "iconWeight": 4
-      },
-      "Footer": {
-        "color": 0,
-        "spacing": 4,
-        "radius": 0,
-        "textStyle": 0,
+        "textStyle": 1,
         "iconFill": 0,
         "iconWeight": 0
       },
@@ -1338,87 +1530,21 @@
         "textStyle": 10,
         "iconFill": 0,
         "iconWeight": 0
-      },
-      "Thumbnail": {
-        "color": 0,
-        "spacing": 5,
-        "radius": 0,
-        "textStyle": 0,
-        "iconFill": 0,
-        "iconWeight": 4
       }
     },
     "samples": {
       "color": [],
-      "spacing": [
-        "Chat :: Message gap=24",
-        "Chat :: Message paddingTop=24",
-        "Chat :: Message paddingRight=24",
-        "Chat :: Message paddingBottom=24",
-        "Chat :: Message paddingLeft=24",
-        "Chat :: Call Event gap=16",
-        "Chat :: Call Event paddingTop=24",
-        "Chat :: Call Event paddingRight=24",
-        "Chat :: Call Event paddingBottom=24",
-        "Chat :: Call Event paddingLeft=24",
-        "Chat :: Chat gap=48",
-        "Chat :: Chat paddingTop=24",
-        "Chat :: Chat paddingRight=24",
-        "Chat :: Chat paddingBottom=24",
-        "Chat :: Chat paddingLeft=24",
-        "Footer :: Footer/Layout=Mobile/Bottom row gap=90",
-        "Footer :: Footer/Layout=Desktop/Legal gap=16",
-        "Footer :: Footer/Layout=Desktop/Columns gap=378",
-        "Footer :: Footer/Layout=Desktop/Columns/Link columns gap=64",
-        "Thumbnail :: Thumbnail gap=24",
-        "Thumbnail :: Thumbnail paddingTop=24",
-        "Thumbnail :: Thumbnail paddingRight=24",
-        "Thumbnail :: Thumbnail paddingBottom=24",
-        "Thumbnail :: Thumbnail paddingLeft=24"
-      ],
+      "spacing": [],
       "radius": [],
+      "iconFill": [],
+      "iconWeight": [],
       "textStyle": [
-        "Input :: Input/Content=Filled, State=ReadOnly, Trailing=Clear/Box/Value",
-        "Input :: Input/Content=Filled, State=ReadOnly, Trailing=Clear/Box/Leading label",
-        "Input :: Input/Content=Filled, State=ReadOnly, Trailing=Label/Box/Value",
-        "Input :: Input/Content=Filled, State=ReadOnly, Trailing=Label/Box/Leading label",
+        "Headers :: Admin Header/Admin Header / Mobile/Head/Title/H2",
         "Input :: Input/Content=Filled, State=ReadOnly, Trailing=None/Box/Value",
         "Input :: Input/Content=Filled, State=ReadOnly, Trailing=None/Box/Leading label",
-        "Input :: Input/Content=Placeholder, State=ReadOnly, Trailing=Clear/Box/Value",
-        "Input :: Input/Content=Placeholder, State=ReadOnly, Trailing=Clear/Box/Leading label",
-        "Input :: Input/Content=Placeholder, State=ReadOnly, Trailing=Label/Box/Value",
-        "Input :: Input/Content=Placeholder, State=ReadOnly, Trailing=Label/Box/Leading label",
-        "Input :: Input/Content=Placeholder, State=ReadOnly, Trailing=None/Box/Value",
-        "Input :: Input/Content=Placeholder, State=ReadOnly, Trailing=None/Box/Leading label",
-        "Input :: Input/Content=Filled, State=Success, Trailing=Clear/Box/Value",
-        "Input :: Input/Content=Filled, State=Success, Trailing=Clear/Box/Leading label",
-        "Input :: Input/Content=Filled, State=Success, Trailing=Label/Box/Value",
-        "Input :: Input/Content=Filled, State=Success, Trailing=Label/Box/Leading label",
-        "Input :: Input/Content=Filled, State=Success, Trailing=None/Box/Value",
-        "Input :: Input/Content=Filled, State=Success, Trailing=None/Box/Leading label",
-        "Input :: Input/Content=Placeholder, State=Success, Trailing=Clear/Box/Value",
-        "Input :: Input/Content=Placeholder, State=Success, Trailing=Clear/Box/Leading label",
         "Input :: Input/Content=Placeholder, State=Success, Trailing=Label/Box/Value",
-        "Input :: Input/Content=Placeholder, State=Success, Trailing=Label/Box/Leading label",
-        "Input :: Input/Content=Placeholder, State=Success, Trailing=None/Box/Value",
-        "Input :: Input/Content=Placeholder, State=Success, Trailing=None/Box/Leading label",
-        "Input :: Input/Content=Filled, State=Disabled, Trailing=Clear/Box/Value",
-        "Input :: Input/Content=Filled, State=Disabled, Trailing=Clear/Box/Leading label",
-        "Input :: Input/Content=Filled, State=Disabled, Trailing=Label/Box/Value",
-        "Input :: Input/Content=Filled, State=Disabled, Trailing=Label/Box/Leading label",
-        "Input :: Input/Content=Filled, State=Disabled, Trailing=None/Box/Value",
-        "Input :: Input/Content=Filled, State=Disabled, Trailing=None/Box/Leading label"
-      ],
-      "iconFill": [],
-      "iconWeight": [
-        "Chat :: Call Event/Kind=Missed/Glyph 16px w=2 want 1.333",
-        "Chat :: Call Event/Kind=Incoming/Glyph 16px w=2 want 1.333",
-        "Chat :: Call Event/Kind=No answer/Glyph 16px w=2 want 1.333",
-        "Chat :: Call Event/Kind=Outgoing/Glyph 16px w=2 want 1.333",
-        "Thumbnail :: Thumbnail/Size=MD, State=Hover/Download 16px w=2 want 1.333",
-        "Thumbnail :: Thumbnail/Size=MD, State=Default/Empty glyph 16px w=2 want 1.333",
-        "Thumbnail :: Thumbnail/Size=SM, State=Hover/Download 16px w=2 want 1.333",
-        "Thumbnail :: Thumbnail/Size=SM, State=Default/Empty glyph 16px w=2 want 1.333"
+        "Select :: Select (wears Popover Field)/Content=Filled, State=Default/Box/Value",
+        "Textarea :: Textarea/Content=Filled, State=Default/Box/Value"
       ]
     }
   }

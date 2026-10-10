@@ -4,7 +4,7 @@ import * as React from 'react'
 import { Download, ImageIcon } from '@dorado/icons'
 import { cn } from '../cn'
 
-export type ThumbnailSize = 'sm' | 'md'
+export type ThumbnailSize = 'sm' | 'md' | 'lg' | 'xl'
 
 export type ThumbnailProps = Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'type'> & {
   src?: string
@@ -13,7 +13,19 @@ export type ThumbnailProps = Omit<React.ButtonHTMLAttributes<HTMLButtonElement>,
   showGlyph?: boolean
 }
 
-const SIZES: Record<ThumbnailSize, string> = { sm: 'size-8', md: 'size-10' }
+const SIZES: Record<ThumbnailSize, string> = {
+  sm: 'size-xl',
+  md: 'size-10',
+  lg: 'size-3xl',
+  xl: 'size-4xl',
+}
+
+const GLYPH_SIZES: Record<ThumbnailSize, string> = {
+  sm: 'size-md',
+  md: 'size-md',
+  lg: 'size-lg',
+  xl: 'size-lg',
+}
 
 export const Thumbnail = React.forwardRef<HTMLButtonElement, ThumbnailProps>(
   ({ src, alt = '', size = 'md', showGlyph = true, className, ...props }, ref) => (
@@ -31,13 +43,15 @@ export const Thumbnail = React.forwardRef<HTMLButtonElement, ThumbnailProps>(
       {src != null ? (
         <img src={src} alt={alt} className="size-full object-cover" />
       ) : (
-        showGlyph && <ImageIcon aria-hidden className="size-4 text-muted-foreground" />
+        showGlyph && (
+          <ImageIcon aria-hidden className={cn(GLYPH_SIZES[size], 'text-muted-foreground')} />
+        )
       )}
       <span
         aria-hidden
         className="absolute inset-0 hidden items-center justify-center bg-card/60 group-hover:flex group-focus-visible:flex"
       >
-        <Download className="size-4 text-foreground" />
+        <Download className={cn(GLYPH_SIZES[size], 'text-foreground')} />
       </span>
     </button>
   )

@@ -8,7 +8,7 @@ const spinnerVariants = cva(
     variants: {
       size: {
         sm: 'size-4 border-2',
-        md: 'size-6 border-2',
+        md: 'size-6 border-[2.5px]',
         lg: 'size-10 border-[3px]',
       },
     },

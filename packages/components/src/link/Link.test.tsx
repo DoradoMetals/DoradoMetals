@@ -38,13 +38,22 @@ describe('Link', () => {
     expect(getByRole('link').className).toContain('aria-disabled:pointer-events-none')
   })
 
-  it('external renders a leading 12px icon with a 5px gap', () => {
+  it('external renders a leading 12px icon with a 4px gap (26:513, 2026-10-09)', () => {
     const { getByRole, container } = render(
       <Link href="https://example.com" external>
         Docs
       </Link>
     )
-    expect(getByRole('link').className).toContain('gap-[5px]')
+    expect(getByRole('link').className).toContain('gap-2xs')
     expect(container.querySelector('svg')?.getAttribute('class')).toContain('size-3')
+  })
+
+  it('intent=subtle sits on text/subtle, added 2026-10-07 (26:513)', () => {
+    const { getByRole } = render(
+      <Link href="/orders" intent="subtle">
+        View all
+      </Link>
+    )
+    expect(getByRole('link').className).toContain('text-subtle')
   })
 })

@@ -25,18 +25,22 @@ const buttonVariants = cva(
       size: {
         xs: 'h-7 px-2.5 text-micro gap-xs [&_svg]:size-3.5',
 
-        sm: 'h-8 px-sm text-micro tracking-normal gap-xs [&_svg]:size-3.5',
-        default: 'h-10 px-md text-small gap-xs [&_svg]:size-4',
+        sm: 'min-h-(--control-sm) px-sm text-micro tracking-normal gap-2xs [&_svg]:size-3.5',
+        default: 'min-h-(--control-md) px-md text-small gap-2xs-plus [&_svg]:size-4',
 
-        lg: 'h-11 px-6 text-small sm:text-body gap-xs [&_svg]:size-5',
+        lg: 'min-h-(--control-lg) px-lg text-small sm:text-body gap-xs [&_svg]:size-5',
         xl: 'h-12 px-10 text-body sm:text-h6 gap-xs [&_svg]:size-5',
         icon: 'h-10 w-10 p-0 [&_svg]:size-5',
         iconSm: 'h-8 w-8 p-0 [&_svg]:size-4',
-        iconXs: 'h-7 w-7 p-0 [&_svg]:size-3.5',
+        iconXs: 'h-7 w-7 p-0 [&_svg]:size-4',
         iconInline: 'h-4 w-4 p-0 [&_svg]:size-3.5',
       },
     },
     compoundVariants: [
+      { variant: 'tertiary', size: 'sm', className: 'min-h-0' },
+      { variant: 'tertiary', size: 'default', className: 'min-h-0' },
+      { variant: 'tertiary', size: 'lg', className: 'min-h-0' },
+
       { variant: 'primary', intent: 'neutral', className: 'bg-primary text-primary-foreground' },
       { variant: 'primary', intent: 'success', className: 'bg-success text-success-foreground' },
       {
@@ -76,7 +80,7 @@ const ICON_PX_BY_SIZE = {
   xl: 20,
   icon: 20,
   iconSm: 16,
-  iconXs: 14,
+  iconXs: 16,
   iconInline: 14,
 } as const
 

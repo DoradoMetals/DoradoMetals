@@ -66,7 +66,7 @@ function TrackerNode({ state }: { state: TrackerStepState }) {
     <span
       aria-hidden
       className={cn(
-        'flex size-6 shrink-0 items-center justify-center rounded-xl',
+        'flex min-h-(--control-xs) min-w-(--control-xs) shrink-0 items-center justify-center rounded-xl',
         NODE_STYLES[state]
       )}
     >
@@ -92,7 +92,7 @@ function TrackerRow({ step, connector }: { step: TrackerStepData; connector: boo
       aria-current={state === 'current' ? 'step' : undefined}
       className="flex w-full items-start gap-sm"
     >
-      <span className="flex shrink-0 flex-col items-center gap-2xs self-stretch">
+      <span className="flex shrink-0 flex-col items-center self-stretch">
         <TrackerNode state={state} />
         {connector && (
           <span aria-hidden className={cn('w-0.5 min-h-px flex-1', CONNECTOR_STYLES[state])} />

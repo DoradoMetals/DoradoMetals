@@ -111,7 +111,7 @@ export function Drawer({
           >
             {isBottom && (
               <div
-                className="flex shrink-0 items-center justify-center pb-0.5 pt-1"
+                className="flex shrink-0 items-center justify-center pb-0.5 pt-2"
                 aria-hidden="true"
               >
                 <div className="h-1 w-9 rounded-full bg-border-strong" />

@@ -18,6 +18,7 @@ export function Switch({ className, label, id, ...props }: SwitchProps) {
       className={cn(
         'group peer inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border border-transparent transition-colors',
         'data-[state=unchecked]:bg-muted data-[state=unchecked]:border-border',
+        'data-[state=unchecked]:hover:bg-accent data-[state=unchecked]:hover:border-border-strong',
         'data-[state=checked]:bg-primary',
         'disabled:data-[state=checked]:bg-border-strong',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background',
@@ -30,8 +31,10 @@ export function Switch({ className, label, id, ...props }: SwitchProps) {
         className={cn(
           'pointer-events-none block size-4 rounded-full transition-transform motion-reduce:transition-none',
           'data-[state=unchecked]:translate-x-0.5 data-[state=unchecked]:bg-muted-foreground',
+          'data-[state=unchecked]:group-hover:bg-subtle',
           'data-[state=checked]:translate-x-[18px] data-[state=checked]:bg-primary-foreground',
-          'group-disabled:data-[state=checked]:bg-background'
+          'group-disabled:data-[state=checked]:bg-background',
+          'group-disabled:data-[state=unchecked]:bg-border-strong'
         )}
       />
     </SwitchPrimitive.Root>

@@ -43,7 +43,7 @@ describe('Radio', () => {
     expect(radio.className).toMatch(/\brounded-full\b/)
   })
 
-  it('selected reads by a primary border, not by a filled control', () => {
+  it('selected fills the whole control with primary, with a small primary-foreground dot (15:27, 2026-10-10)', () => {
     const { getByRole } = render(
       <RadioGroup value="14k" aria-label="Purity">
         <Radio value="14k" aria-label="x" />
@@ -51,7 +51,11 @@ describe('Radio', () => {
     )
     const radio = getByRole('radio')
     expect(radio.className).toMatch(/data-\[state=checked\]:border-primary/)
-    expect(radio.className).not.toMatch(/data-\[state=checked\]:bg-primary/)
+    expect(radio.className).toMatch(/data-\[state=checked\]:bg-primary/)
+    const dot = radio.querySelector('span') as HTMLElement
+    expect(dot.className).toContain('size-1.5')
+    expect(dot.className).toContain('bg-primary-foreground')
+    expect(dot.className).not.toContain('size-2')
   })
 
   it('disabled unselected keeps its own surface and fades to 50% (15:27, 2026-09-05)', () => {

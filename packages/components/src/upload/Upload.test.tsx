@@ -37,6 +37,11 @@ describe('Upload', () => {
     const { getByText } = render(<Upload onFiles={() => {}} />)
     expect(getByText('No files added yet')).toBeTruthy()
   })
+
+  it('the footer band is always present, even with no maxFiles - total height stays 343px (349:340)', () => {
+    const { getByText } = render(<Upload onFiles={() => {}} />)
+    expect(getByText('0 files')).toBeTruthy()
+  })
 })
 
 describe('Upload uploaded state', () => {

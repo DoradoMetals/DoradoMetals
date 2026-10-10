@@ -13,6 +13,10 @@ describe('Field chassis', () => {
     expect(c).toContain('aria-[invalid=true]:border-destructive')
   })
 
+  it('trigger height rides the control-lg token (44px), not a bare h-11 (2026-10-10)', () => {
+    expect(fieldTrigger()).toContain('min-h-(--control-lg)')
+  })
+
   it('trigger and option text bind to size/h5, not size/body (2026-09-04)', () => {
     expect(fieldTrigger()).toContain('text-h5')
     expect(fieldOption()).toContain('text-h5')

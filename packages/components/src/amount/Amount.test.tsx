@@ -2,8 +2,20 @@ import { describe, expect, it } from 'vitest'
 import { render } from '@testing-library/react'
 import * as React from 'react'
 
-import { Amount } from './Amount'
+import { Amount, type AmountTag } from './Amount'
 import { axeViolations } from '../test/axe'
+
+const TAG_RAMP: Array<[AmountTag, string]> = [
+  ['display', 'display'],
+  ['stat-lg', 'stat-lg'],
+  ['stat', 'stat'],
+  ['stat-sm', 'stat-sm'],
+  ['stat-xs', 'stat-xs'],
+  ['stat-2xs', 'stat-2xs'],
+  ['body', 'text-body'],
+  ['small', 'text-small'],
+  ['micro', 'micro'],
+]
 
 describe('Amount', () => {
   it('formats as USD at two decimals by default, and axe finds nothing', async () => {
@@ -45,4 +57,12 @@ describe('Amount', () => {
     expect(el.className).not.toMatch(/\btext-(display|h[1-6]|body|small|micro|stat|stat-sm)\b/)
     expect(el.className).not.toMatch(/\btext-(foreground|muted-foreground|success|destructive)\b/)
   })
+
+  it.each(TAG_RAMP)(
+    'tag=%s carries the %s ramp token (612:12 Tag variant, all nine)',
+    (tag, token) => {
+      const { container } = render(<Amount value={2411.2} tag={tag} />)
+      expect(container.firstElementChild!.className.split(' ')).toContain(token)
+    }
+  )
 })

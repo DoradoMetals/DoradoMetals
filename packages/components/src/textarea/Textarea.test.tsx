@@ -21,6 +21,14 @@ describe('Textarea', () => {
     expect(textarea.className).not.toContain('disabled:bg-muted')
   })
 
+  it('the box fills the component height, 96px is only the shipped default (37:63, 2026-10-08)', () => {
+    const { getByLabelText, container } = render(<Textarea label="Notes" />)
+    const el = getByLabelText('Notes') as HTMLTextAreaElement
+    expect(el.className).toContain('flex-1')
+    expect(el.className).toContain('min-h-24')
+    expect((container.firstElementChild as HTMLElement).className).toContain('h-full')
+  })
+
   it('value text binds to size/h5, not size/body (37:63, 2026-09-04)', () => {
     const { getByLabelText } = render(<Textarea label="Notes" />)
     const el = getByLabelText('Notes') as HTMLTextAreaElement

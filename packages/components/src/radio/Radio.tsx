@@ -19,7 +19,7 @@ export function Radio({ className, ...props }: RadioProps) {
       className={cn(
         'group peer flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-full border border-border bg-card outline-none transition-colors',
         'data-[state=unchecked]:hover:border-border-strong data-[state=unchecked]:hover:bg-accent',
-        'data-[state=checked]:border-primary data-[state=checked]:hover:bg-accent',
+        'data-[state=checked]:border-primary data-[state=checked]:bg-primary',
         'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background',
         'aria-invalid:border-destructive',
         'disabled:cursor-not-allowed disabled:opacity-50',
@@ -28,7 +28,7 @@ export function Radio({ className, ...props }: RadioProps) {
       )}
       {...props}
     >
-      <RadioGroupPrimitive.Indicator className="size-2 rounded-full bg-primary group-disabled:bg-background" />
+      <RadioGroupPrimitive.Indicator className="size-1.5 rounded-full bg-primary-foreground group-disabled:bg-background" />
     </RadioGroupPrimitive.Item>
   )
 }
@@ -46,7 +46,7 @@ export const radioOptionVariants = cva(
       variant: {
         tile: 'flex-col items-center justify-center gap-2xs p-sm text-center',
         card: 'items-start justify-between gap-sm p-md',
-        chip: 'h-10 items-center justify-center px-sm text-small font-medium text-muted-foreground data-[state=checked]:text-foreground',
+        chip: 'min-h-(--control-md) items-center justify-center px-sm text-small font-medium text-muted-foreground data-[state=checked]:text-foreground',
         segment:
           'items-center justify-center gap-2xs rounded-md border-transparent bg-muted px-sm py-xs text-small font-medium text-muted-foreground data-[state=checked]:border data-[state=checked]:border-border data-[state=checked]:bg-card data-[state=checked]:text-foreground',
       },
@@ -94,12 +94,12 @@ export function RadioOption({
           className={cn(
             'flex size-4 shrink-0 items-center justify-center rounded-full border border-border bg-card transition-colors',
             'group-hover:border-border-strong group-hover:bg-accent',
-            'group-data-[state=checked]:border-primary group-data-[state=checked]:group-hover:bg-accent',
+            'group-data-[state=checked]:border-primary group-data-[state=checked]:bg-primary group-data-[state=checked]:group-hover:bg-primary',
             'group-disabled:group-data-[state=checked]:border-border-strong group-disabled:group-data-[state=checked]:bg-border-strong',
             indicatorPosition[resolvedVariant]
           )}
         >
-          <RadioGroupPrimitive.Indicator className="size-2 rounded-full bg-primary group-disabled:bg-background" />
+          <RadioGroupPrimitive.Indicator className="size-1.5 rounded-full bg-primary-foreground group-disabled:bg-background" />
         </span>
       )}
     </RadioGroupPrimitive.Item>

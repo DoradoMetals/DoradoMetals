@@ -46,6 +46,7 @@ export function SliderField({
         step={step}
         disabled={disabled}
         aria-label={label}
+        showValue={false}
         className="flex-1"
       />
       <span

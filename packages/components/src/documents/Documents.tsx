@@ -5,6 +5,7 @@ import { Download, FilePlus, FileText, Send, Trash2, Upload } from '@dorado/icon
 
 import { Accordion } from '../accordion/Accordion'
 import { Button } from '../button/Button'
+import { Divider } from '../divider/Divider'
 import { cn } from '../cn'
 
 export const DOCUMENT_NAMES = [
@@ -178,6 +179,7 @@ export function Documents({
       defaultOpen={defaultOpen}
       className={className}
     >
+      <Divider className="-ml-4 -mr-3 w-auto" />
       {isEmpty ? (
         <div className="flex w-full flex-col items-center gap-xs px-lg py-xl text-center">
           <FileText aria-hidden className="size-8 text-muted-foreground" />

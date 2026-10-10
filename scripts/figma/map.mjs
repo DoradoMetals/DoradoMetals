@@ -86,21 +86,45 @@ export const COLOR_CSS_ONLY = {
 // Scale: Figma variable -> CSS property. Radii are calc() off --radius and are
 // resolved by lib.evalRadius before comparing.
 // ---------------------------------------------------------------------------
+// The half-steps carry a `+` in the Figma name, which is not a legal CSS
+// identifier character, so the CSS spells it `-plus`. Added to the library
+// 2026-10-10: each is the MIDPOINT of two existing steps and is named for the
+// step below, so the scale stays a scale and nothing was renamed.
 export const SCALE = {
   'spacing/3xs': '--spacing-3xs',
   'spacing/2xs': '--spacing-2xs',
+  'spacing/2xs+': '--spacing-2xs-plus',
   'spacing/xs': '--spacing-xs',
+  'spacing/xs+': '--spacing-xs-plus',
   'spacing/sm': '--spacing-sm',
+  'spacing/sm+': '--spacing-sm-plus',
   'spacing/md': '--spacing-md',
+  'spacing/md+': '--spacing-md-plus',
   'spacing/lg': '--spacing-lg',
   'spacing/xl': '--spacing-xl',
   'spacing/2xl': '--spacing-2xl',
   'spacing/3xl': '--spacing-3xl',
+  'spacing/4xl': '--spacing-4xl',
   'radius/base': '--radius',
   'radius/sm': '--radius-sm',
   'radius/md': '--radius-md',
   'radius/xl': '--radius-xl',
   'radius/full': '--radius-full',
+  // The control height ladder, added 2026-10-10 for Button and Icon Button and
+  // widened to six steps the same day as the library's hug-and-fill pass moved
+  // ten more controls onto it. Not a Tailwind namespace, so these are plain
+  // custom properties a component reads with min-h-(--control-md) rather than a
+  // generated utility - and min-h, never h: a fixed height is what collapses a
+  // hugging control, which is the whole reason the ladder exists.
+  'control/xs': '--control-xs',
+  'control/sm': '--control-sm',
+  'control/sm+': '--control-sm-plus',
+  'control/md': '--control-md',
+  'control/lg': '--control-lg',
+  'control/xl': '--control-xl',
+  // Print geometry, its own family. The letter-page margin a document is laid
+  // out on; nothing on screen reads it.
+  'page/margin-letter': '--page-margin-letter',
   'stroke/hairline': '--stroke-hairline',
   'stroke/emphasis': '--stroke-emphasis',
   'stroke/heavy': '--stroke-heavy',
@@ -126,17 +150,19 @@ export const SCALE_ALIASES = { 'radius/lg': 'radius/base' }
 // Figma variables stored on a 0-100 PERCENT scale where the CSS carries a
 // 0-1 ratio. Divide the Figma value by 100 before comparing.
 //
-// THE LIBRARY IS INCONSISTENT ABOUT THIS AND IT IS NOT COSMETIC. Figma's
-// opacity binding reads the variable as a percentage, so `opacity/disabled`
-// = 50 renders at 0.5 (right) while `opacity/hover` = 0.85 renders at
-// 0.0085 - 0.85% - which is why every Button and Icon Button Hover variant
-// measures op=0.0085 on the canvas. Button's own description records the
-// identical bug being fixed on the Disabled variants ("someone entered 0.5
-// meaning 50%"); the hover half was never fixed. The CSS keeps the INTENDED
-// ratios, because 0.85% is not a hover state anybody drew on purpose.
+// ALL FIVE ARE PERCENT SINCE 2026-10-10, and that closed a real rendering bug.
+// Figma's opacity binding reads the variable as a percentage, so a variable
+// holding 0.85 rendered at 0.0085 - 0.85% - which is why every Button and Icon
+// Button Hover variant measured op=0.0085 on the canvas. disabled and muted had
+// already been fixed ("someone entered 0.5 meaning 50%", recorded in Button's
+// own description); hover, scrim and soft were corrected to 85, 70 and 16 in
+// the same pass that added the control ladder. The CSS keeps the ratios.
 export const SCALE_PERCENT = {
   'opacity/disabled': 'Figma 50 = 0.5. Correct for a Figma opacity binding.',
   'opacity/muted': 'Figma 40 = 0.4. Correct for a Figma opacity binding.',
+  'opacity/hover': 'Figma 85 = 0.85. Corrected from 0.85 on 2026-10-10.',
+  'opacity/scrim': 'Figma 70 = 0.7. Corrected from 0.7 on 2026-10-10.',
+  'opacity/soft': 'Figma 16 = 0.16. Corrected from 0.16 on 2026-10-10.',
 }
 
 // ---------------------------------------------------------------------------
@@ -147,8 +173,11 @@ export const SCALE_PERCENT = {
 // ---------------------------------------------------------------------------
 export const TYPE_STEPS = [
   'display',
+  'stat-lg',
   'stat',
   'stat-sm',
+  'stat-xs',
+  'stat-2xs',
   'h1',
   'h2',
   'h3',
@@ -167,7 +196,10 @@ export const TYPE_STEPS = [
 export const TEXT_STYLES = {
   Display: { step: 'display', canonical: true },
   'Stat/Default': { step: 'stat', canonical: true },
+  'Stat/Large': { step: 'stat-lg', canonical: true },
   'Stat/Small': { step: 'stat-sm', canonical: true },
+  'Stat/XSmall': { step: 'stat-xs', canonical: true },
+  'Stat/2XSmall': { step: 'stat-2xs', canonical: true },
   'Heading/H1': { step: 'h1', canonical: true },
   'Heading/H2': { step: 'h2', canonical: true },
   'Heading/H3': { step: 'h3', canonical: true },
@@ -211,6 +243,7 @@ export const MOBILE_UNCHANGED = {
   h4: 'already 18px',
   h5: 'already 16px, and it is the field-value size',
   h6: 'already 14px',
+  'stat-2xs': 'already 20px; the floor of the Amount ladder, and it fits at 390',
   body: '15px is the reading size at every width',
   small: 'already 13px',
   micro: 'already 12px, the floor of the ramp',
@@ -235,6 +268,10 @@ export const PAGE_TO_DIR = {
   // is the Icon Button page. Ruling: an icon button is a Button with no label,
   // not a second component.
   'Icon Button': 'button',
+  // The page was called Header until 2026-10-09, when Admin Header, Header and
+  // Entity Header were consolidated onto one page and it was renamed. The code
+  // directory followed the component it builds, Header, not the page.
+  Headers: 'header',
 }
 
 // Figma pages that are not components and never will be.
@@ -258,6 +295,17 @@ export const NOT_A_COMPONENT = {
 export const PENDING = {
   Breadcrumb: 'drawn 126:16; no code counterpart anywhere in the repo (see README)',
   Popover: 'drawn 106:213; Field wears the same box, but the panel itself is not lifted',
+  // Drawn 2026-10-09/10, after the frontend nuke (ruling 99). Nothing imports
+  // any of them: the admin order screen carries its own local card chassis and
+  // the auth screens need none of this. Each waits for the surface that uses
+  // it, so it is built against a real call site rather than guessed.
+  Card: 'drawn 818:4; the admin order screen has its own local OrderCard chassis and nothing else needs one yet',
+  Estimator: 'drawn 905:193; the customer sell form and the admin Lead screen are both still nuked',
+  'Item Details':
+    'drawn 804:38; the middot item line, eight toggled parts - needs the order item surface',
+  'Photo Viewer': 'drawn 957:54; wears the Dialog chassis, needs the lead and order photo surfaces',
+  'Selection Bar':
+    'drawn 871:2335; needs a table with row selection, which no regrown surface has yet',
 }
 
 // Directories in packages/components/src with no page of their own, and the
@@ -278,7 +326,8 @@ export const DIR_NOT_DRAWN = {
   hooks: 'useFocusTrap, useDebounce and useBreakpoint; behaviour, nothing to draw',
   text: 'the ramp is Foundations - Text renders the 16 text styles and adds no drawing of its own',
   rating: 'star rating lifted from the app 2026-09; no page has been drawn for it yet',
-  email: 'drawn in the Media file, not this library - the Mailers page (0:1) holds Email Header, Email Footer, Email Code, Email Row and Email Card, and this directory is those five as table-based, inline-styled React',
+  email:
+    'drawn in the Media file, not this library - the Mailers page (0:1) holds Email Header, Email Footer, Email Code, Email Row and Email Card, and this directory is those five as table-based, inline-styled React',
   document:
     'drawn in the Media file, not this library - the Documents page (31:212) holds Header, Footer, Hero, Table, Summary, Shipping, Payment, Pickup and Appointment, and this directory is those nine as print React',
 }
@@ -308,33 +357,29 @@ export const HYGIENE_BUDGET = {
   // A visible solid fill or stroke with no bound Color variable.
   color: 0,
   // itemSpacing or padding on an auto-layout frame with no bound Scale
-  // variable. All 24 are new work: Chat's three frames (15), Thumbnail's (5)
-  // and four one-off Footer gaps (90/378/64/16) that are layout arithmetic
-  // rather than steps of the scale.
-  spacing: 24,
-  // A corner radius with no bound Scale variable. Zero, and radius/full (9999)
-  // is why - the pills that used to make this unreachable now have a token.
+  // variable. A COMPONENT_SET's own gap and padding are excluded, the same way
+  // its corner radius already was: an auto-layout set container is how Figma
+  // arranges the variant grid, not a drawing. 35 are skipped that way, and the
+  // capture reports the number as setChromeExcluded so it stays visible.
+  spacing: 0,
+  // A corner radius with no bound Scale variable.
   radius: 0,
-  // A TEXT node with raw font properties instead of a text style. All 93 are
-  // the field components: Input 72, Select 11, Textarea 10. They are the
-  // 16px field-value change of 2026-09-04 typed as raw size/h5 rather than
-  // put on a ramp style, because no 16px Regular text style exists - the ramp
-  // has Heading/H5 at 16 SemiBold and nothing else. Fixing it means adding a
-  // style, which is Jacob's.
-  textStyle: 93,
+  // A TEXT node with raw font properties instead of a text style. The last
+  // category off zero, and it is one pending decision - see the notes.
+  textStyle: 94,
   // An icon instance carrying its own background fill.
   iconFill: 0,
-  // An icon whose vector stroke is not 2 x (size/24). All 8 are new: Chat's
-  // four Call Event glyphs and Thumbnail's four, each a 16px instance left at
-  // the master's weight 2 instead of 1.333.
-  iconWeight: 8,
+  // An icon whose vector stroke is not 2 x (size/24).
+  iconWeight: 0,
 }
 
 // Things the hygiene sweep cannot fix from inside a component, recorded so the
 // number is understood rather than merely tracked.
 export const HYGIENE_NOTES = [
-  'The 2026-09-04/05 pass drove color and radius to zero and took spacing from 695 to 24. Nothing here is now structural: every remaining finding is a named component that has not had the pass applied.',
-  "textStyle's 93 are Input, Select and Textarea, and they are the 16px field-value decision: the ramp has no 16px Regular style, only Heading/H5 at 16 SemiBold, so the value text was typed raw. Adding one text style clears all 93 - and the CODE has the mirror of this defect, since Tailwind's text-h5 carries --text-h5--font-weight: 600 and the field value is drawn Regular. The code pins font-normal; Figma still wants the style.",
-  "OPACITY VARIABLES ARE ON TWO DIFFERENT SCALES AND ONE OF THEM RENDERS WRONG. Figma reads an opacity binding as a percentage: opacity/disabled = 50 gives 0.5 (right), but opacity/hover = 0.85 gives 0.0085 - 0.85% - so every Button and Icon Button Hover variant measures op=0.0085 on the canvas. Button's own description records this exact bug being fixed on the Disabled variants ('someone entered 0.5 meaning 50%'); the hover half was missed. opacity/scrim (0.7) and opacity/soft (0.16) have the same shape. Not a hygiene category, so nothing counts it - recorded here so it is not rediscovered.",
+  'FIVE OF SIX CATEGORIES ARE AT ZERO as of 2026-10-10, over 4287 component nodes - the most this file has ever been in agreement with itself. It did not get there quietly. The same day re-capture that added the Card, Estimator, Item Details, Photo Viewer and Selection Bar pages measured colour 5, spacing 72, iconWeight 44 and textStyle 95, and those four budgets had to be RAISED because every finding was inside the Figma file with nothing to fix from this repo. The library worker then bound all of it. The raise stood for about an hour, which is the argument for recording drift honestly rather than leaving a stale snapshot: the number is what got it fixed.',
+  "textStyle, 94, is one pending decision and not drift. 93 of them are Input 72, Select 11 and Textarea 10 - the 16px field-value change of 2026-09-04. The ramp has no 16px REGULAR text style, only Heading/H5 at 16 SemiBold, so the value text was typed raw rather than put on a style. Adding that one style clears all 93 and it is Jacob's call.",
+  'The 94th is the Admin Header / Mobile title, 24 SemiBold, and it is now fixable where it was not before: it was left raw because no 24px style existed, and Stat/XSmall (24 / 27.6 SemiBold) landed later the same day. Binding that one node takes this to 93.',
+  "The CODE half of the field-value defect is pinned, not drifting: Tailwind's text-h5 carries --text-h5--font-weight 600 and the field value is drawn Regular, so the components pin font-normal. Figma still wants the style.",
+  'OPACITY, FIXED 2026-10-10: hover, scrim and soft were holding 0.85, 0.7 and 0.16, which a Figma opacity binding reads as fractions of a percent - 0.85% - which is why every Button and Icon Button Hover variant measured op=0.0085. All five opacity variables are on the 0-100 scale now and SCALE_PERCENT divides all five.',
   "Chat's Call button is drawn on primary/default (a Primary Button) while the component description says Secondary. Resolved in favour of the frame, which is the house rule for this file.",
 ]

@@ -10,6 +10,7 @@ export type InputProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size
   invalid?: boolean
   success?: boolean
   leading?: React.ReactNode
+  leadingLabel?: React.ReactNode
   trailing?: React.ReactNode
   className?: string
   inputClassName?: string
@@ -26,6 +27,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
       invalid,
       success,
       leading,
+      leadingLabel,
       trailing,
       className,
       inputClassName,
@@ -66,6 +68,11 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           {leading != null && (
             <span className="flex size-4 shrink-0 items-center justify-center text-muted-foreground [&>svg]:size-4">
               {leading}
+            </span>
+          )}
+          {leadingLabel != null && (
+            <span className="flex shrink-0 items-center text-h5 font-normal text-muted-foreground">
+              {leadingLabel}
             </span>
           )}
           <input

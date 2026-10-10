@@ -33,6 +33,17 @@ describe('OTPInput', () => {
     expect(onComplete).toHaveBeenCalledWith('123456')
   })
 
+  it('error cells are a 1px destructive border with destructive text, not the 1.5px focus weight (96:18)', () => {
+    const { container } = render(
+      <OTPInput value="123" length={6} onValueChange={() => {}} invalid label="Code" />
+    )
+    const cells = container.querySelectorAll('[data-testid="otp-cell"]')
+    const filledCell = cells[0] as HTMLElement
+    expect(filledCell.className).toContain('border-destructive')
+    expect(filledCell.className).toContain('text-destructive')
+    expect(filledCell.className).not.toContain('border-[1.5px]')
+  })
+
   it('non-digits never reach the value', () => {
     const onValueChange = vi.fn()
     const { container } = render(<OTPInput value="" onValueChange={onValueChange} label="Code" />)

@@ -34,7 +34,7 @@ export function Calendar({
         week: 'flex gap-0.5',
         day: 'flex-1 p-0',
         day_button:
-          'flex size-10 w-full cursor-pointer items-center justify-center rounded-sm text-small text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+          'flex min-h-(--control-md) min-w-(--control-md) w-full cursor-pointer items-center justify-center rounded-sm text-small text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         today: '[&>button]:border [&>button]:border-border-strong [&>button]:font-medium',
         selected:
           '[&>button]:bg-primary [&>button]:font-medium [&>button]:text-primary-foreground [&>button:hover]:bg-primary',

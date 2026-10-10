@@ -114,7 +114,7 @@ export function Autocomplete({
             onKeyDown(e)
             inputProps?.onKeyDown?.(e)
           }}
-          className="min-w-0 flex-1 bg-transparent text-h5 text-foreground outline-none placeholder:text-placeholder disabled:text-foreground-disabled"
+          className="min-w-0 flex-1 bg-transparent text-h5 font-normal text-foreground outline-none placeholder:text-placeholder disabled:text-foreground-disabled"
           {...(({ onFocus: _f, onBlur: _b, onKeyDown: _k, ...rest }) => rest)(inputProps ?? {})}
         />
         {trailing != null && (

@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Phone, PhoneIncoming, PhoneMissed, PhoneOutgoing } from '@dorado/icons'
+import { PhoneIncoming, PhoneMissed, PhoneOutgoing } from '@dorado/icons'
 import { cn } from '../cn'
 
 export type CallKind = 'outgoing' | 'no-answer' | 'incoming' | 'missed'
@@ -13,7 +13,7 @@ export type CallEventProps = {
 
 const KIND_ICON: Record<CallKind, React.ElementType> = {
   outgoing: PhoneOutgoing,
-  'no-answer': Phone,
+  'no-answer': PhoneOutgoing,
   incoming: PhoneIncoming,
   missed: PhoneMissed,
 }

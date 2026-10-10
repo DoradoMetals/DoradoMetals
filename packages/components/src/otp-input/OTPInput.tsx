@@ -116,7 +116,7 @@ export function OTPInput({
                     : cn(
                         'bg-card text-foreground',
                         invalid
-                          ? 'border-[1.5px] border-destructive'
+                          ? 'border border-destructive text-destructive'
                           : isActive
                             ? 'border-[1.5px] border-border-strong'
                             : 'border border-border'

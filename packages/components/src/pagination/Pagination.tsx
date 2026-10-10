@@ -71,7 +71,7 @@ export function Pagination({ page, pageCount, onPageChange, className }: Paginat
             aria-label={`Page ${item}`}
             onClick={() => onPageChange(item)}
             className={cn(
-              'flex size-8 cursor-pointer items-center justify-center rounded-lg text-small font-medium transition-colors',
+              'flex min-h-(--control-sm) min-w-(--control-sm) cursor-pointer items-center justify-center rounded-lg text-small font-medium transition-colors',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background',
               item === current
                 ? 'bg-primary text-primary-foreground'

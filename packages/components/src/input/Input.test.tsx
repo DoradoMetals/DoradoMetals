@@ -34,6 +34,14 @@ describe('Input', () => {
     expect(getByText('t oz')).toBeTruthy()
   })
 
+  it('leading label is its own slot, text-sized rather than boxed like the icon (26:391, 599:0)', () => {
+    const { getByText } = render(<Input label="Price" leadingLabel="$" />)
+    const label = getByText('$')
+    expect(label.className).toContain('text-h5')
+    expect(label.className).toContain('font-normal')
+    expect(label.className).not.toContain('size-4')
+  })
+
   it("leading icon is boxed at 16px and shares the label token (26:391), regardless of the icon's own className", () => {
     const { container, getByTestId } = render(
       <Input label="Phone" leading={<FakeIcon className="size-6" />} />
