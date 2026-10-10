@@ -32,6 +32,30 @@ Rehearsed end to end on a production-shaped copy with zero aborts. Nothing has
 touched real production. Every step is Jacob's, in the order
 `docs/waves/production-chain.md` gives.
 
+**Reconcile four checksums on dev first (genesis-chain lane, 2026-10-09).**
+`159a`, `170`, `179` and `191` gained a `-- runs-even-under-a-baseline:` marker,
+and `migrate` therefore warns that each was modified after it was applied. The
+change is a comment: the statements are untouched, and dev already holds their
+result. Clear the warning once with
+
+```
+pnpm --filter @dorado/api migrate -- --reconcile 159a_the_columns_the_rebuild_still_writes.sql
+pnpm --filter @dorado/api migrate -- --reconcile 170_a_driver_is_an_employee.sql
+pnpm --filter @dorado/api migrate -- --reconcile 179_a_combine_leaves_a_trail.sql
+pnpm --filter @dorado/api migrate -- --reconcile 191_orders_lots_is_a_link.sql
+```
+
+then apply `266_the_money_view_survives_the_rebuild.sql` with a normal
+`migrate` and regenerate genesis with `dump:schema` - the baseline marker is
+derived now, so the range follows dev on its own and 266 stays outside it.
+
+**No migration says `CREATE EXTENSION`.** Genesis needs `btree_gist` for
+`rates.rates_no_overlap_qty`, and `pgcrypto` is installed beside it. Production
+and dev both carry them, so the chain has never met this; a database built from
+literally nothing aborts on genesis itself with "data type text has no default
+operator class for access method gist". `verify:replay` gives its scratch
+whatever the reference has. Worth a migration one day, or a line in the runbook.
+
 Two blockers before step 1:
 
 - **The dump credential.** `PROD_READONLY_DATABASE_URL` cannot produce a full

@@ -1,3 +1,9 @@
+-- runs-even-under-a-baseline: it adds inventory.lots.combined_into_id, which
+--   188 turns into a `combine` edge and then drops - so genesis no longer
+--   creates it and 188, which carries rows, replays and reads it. Stamped, the
+--   chain aborts with "column li.combined_into_id does not exist". The mirror
+--   of 159a's case; found 2026-10-09 when the range reached 265.
+--
 -- A split records `split_from_id` on the CHILD. A combine is the reverse and
 -- had no column at all, which `docs/design/orders-lots-proposal.md` §5.5 left
 -- open and `docs/design/statuses.md` §4 recommends closing this way:

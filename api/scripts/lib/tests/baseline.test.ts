@@ -10,6 +10,11 @@ import {
   dataStatements,
   supersededByGenesis,
   runsUnderBaseline,
+  BASELINE_FROM,
+  migrationNumber,
+  baselineThrough,
+  alwaysRunMigrations,
+  migrationNames,
 } from '../baseline.ts'
 
 const names = [
@@ -207,4 +212,81 @@ test('every marker on disk carries a reason the runner will accept', () => {
     if (runsUnderBaseline(sql) !== null) marked += 1
   }
   assert.ok(marked >= 5, `expected the five declared markers, found ${marked}`)
+})
+
+test('a migration filename yields its sortable number, and 159a is 159', () => {
+  assert.equal(migrationNumber('265_the_order_list.sql'), '265')
+  assert.equal(migrationNumber('159a_the_columns.sql'), '159')
+  assert.equal(migrationNumber('000_genesis_schema.sql'), '000')
+  assert.equal(migrationNumber('readme.md'), null)
+})
+
+test('the baseline through is the newest applied migration', () => {
+  assert.equal(
+    baselineThrough(
+      ['000_genesis_schema.sql', '001_index.sql', '002_a.sql', '159a_b.sql', '265_c.sql'],
+      new Set()
+    ),
+    '265'
+  )
+})
+
+test('a runs-even-under-a-baseline migration is left out of the range', () => {
+  assert.equal(
+    baselineThrough(['002_a.sql', '265_c.sql', '266_repair.sql'], new Set(['266_repair.sql'])),
+    '265',
+    'naming it would claim the runner stamps it, and the runner replays it'
+  )
+})
+
+test('a ledger with nothing at or after the from has no through', () => {
+  assert.equal(baselineThrough(['000_genesis_schema.sql', '001_index.sql'], new Set()), null)
+  assert.equal(BASELINE_FROM, '002')
+})
+
+test('the repair migrations on disk are the ones the marker leaves out', () => {
+  const dir = path.join(import.meta.dirname, '..', '..', '..', 'migrations')
+  const always = alwaysRunMigrations(dir)
+  assert.ok(always.size >= 2, `expected the declared repairs, found ${always.size}`)
+  for (const name of always) {
+    assert.ok(
+      runsUnderBaseline(fs.readFileSync(path.join(dir, name), 'utf8')) !== null,
+      `${name} is listed as always-run but carries no marker`
+    )
+  }
+})
+
+test('the committed genesis marker names a migration that exists', () => {
+  const dir = path.join(import.meta.dirname, '..', '..', '..', 'migrations')
+  const marker = parseBaseline(fs.readFileSync(path.join(dir, '000_genesis_schema.sql'), 'utf8'))
+  assert.ok(marker, 'genesis carries no baseline marker')
+  assert.equal(marker.from, BASELINE_FROM)
+  const present = fs
+    .readdirSync(dir)
+    .filter((n) => n.endsWith('.sql'))
+    .map(migrationNumber)
+  assert.ok(
+    present.includes(marker.through),
+    `baseline through ${marker.through} names no migration file`
+  )
+})
+
+test('a ledger row naming no file does not move the range', () => {
+  assert.equal(
+    baselineThrough(
+      ['002_a.sql', '265_c.sql', '999_renumbered_away.sql'],
+      new Set(),
+      new Set(['002_a.sql', '265_c.sql'])
+    ),
+    '265',
+    "dev's ledger holds a row for a file that was renumbered; it claims nothing"
+  )
+})
+
+test('the migration names on disk are the ones the runner sorts', () => {
+  const dir = path.join(import.meta.dirname, '..', '..', '..', 'migrations')
+  const names = migrationNames(dir)
+  assert.ok(names.length >= 200, `expected the migration set, found ${names.length}`)
+  assert.equal(names[0], '000_genesis_schema.sql')
+  assert.deepEqual(names, [...names].sort())
 })

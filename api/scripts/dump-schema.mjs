@@ -3,6 +3,12 @@ import fs from 'node:fs'
 import path from 'node:path'
 import pool from '#pool'
 import { NATIVE_SCHEMAS as SCHEMAS, assertSchemasComplete } from './lib/schemas.ts'
+import {
+  BASELINE_FROM,
+  alwaysRunMigrations,
+  baselineThrough,
+  migrationNames,
+} from './lib/baseline.ts'
 
 const q = async (sql, params = []) => (await pool.query(sql, params)).rows
 
@@ -28,7 +34,51 @@ const qualify = (def) =>
 const out = []
 const say = (s = '') => out.push(s)
 
-const BASELINE = '002-134'
+// THE BASELINE RANGE IS READ FROM THE DATABASE, NOT TYPED HERE.
+//
+// This file is generated from a database that has every migration applied, so
+// the shape it creates is the shape after all of them - which is what the
+// marker has to say. Typed by hand it went stale twice: `002-049` cost the
+// September UAT rehearsal six aborts (F3-F6), and `002-134` cost the October
+// one an abort at 169, whose six-column `refining.order_money` met the
+// eight-column view 263 gave it and this file already held. Everything from
+// 135 to 265 was being replayed on top of its own end state.
+//
+// So `through` is the newest migration the source database's ledger records,
+// minus any marked `runs-even-under-a-baseline` - the runner replays one of
+// those whatever the range says, so naming it would make the marker claim
+// something the runner does not do.
+const MIGRATIONS_DIR = path.join(import.meta.dirname, '..', 'migrations')
+
+const ledger = await q(`SELECT name FROM exchange.schema_migrations ORDER BY name`).catch(
+  () => null
+)
+
+if (!ledger) {
+  console.error(
+    `this database has no exchange.schema_migrations, so there is no way to ` +
+      `know which migrations the shape being dumped already contains. Genesis ` +
+      `can only be generated from a database the runner has migrated.`
+  )
+  process.exit(1)
+}
+
+const THROUGH = baselineThrough(
+  ledger.map((r) => r.name),
+  alwaysRunMigrations(MIGRATIONS_DIR),
+  new Set(migrationNames(MIGRATIONS_DIR))
+)
+
+if (!THROUGH) {
+  console.error(
+    `exchange.schema_migrations records no migration at or after ` +
+      `${BASELINE_FROM}, so this database is not the one genesis is generated ` +
+      `from.`
+  )
+  process.exit(1)
+}
+
+const BASELINE = `${BASELINE_FROM}-${THROUGH}`
 
 say(`-- baseline: ${BASELINE}
 --
@@ -57,8 +107,21 @@ say(`-- baseline: ${BASELINE}
 -- named a column a later migration drops, or created an object this file
 -- already created, aborted the chain.
 --
--- So the range now runs to the last migration this file was generated behind.
--- 001 is deliberately still outside it: it indexes foreign keys on exchange,
+-- THE RANGE IS DERIVED, NOT TYPED. Pinned by hand it goes stale the moment a
+-- lane adds a migration without touching it, and \`002-134\` did: on 2026-10-09
+-- a replay from the production dump aborted at 169, whose six-column
+-- \`CREATE OR REPLACE VIEW refining.order_money\` met the eight-column view 263
+-- gave it and this file already holds - "cannot drop columns from view". 135
+-- to 265 were all being replayed on top of their own end state and only
+-- happened to be idempotent. \`scripts/dump-schema.mjs\` now reads the newest
+-- migration recorded in \`exchange.schema_migrations\` on the database it
+-- dumps, so the marker cannot fall behind the shape again, and
+-- \`verify:genesis\` fails when the committed marker disagrees with dev.
+--
+-- A migration marked \`runs-even-under-a-baseline\` is left out of the range on
+-- purpose: the runner replays one whatever the range says.
+--
+-- 001 is deliberately outside it too: it indexes foreign keys on exchange,
 -- which any real database still wants.
 --
 -- WHAT A BASELINE STAMPS IS SHAPE, NEVER ROWS. The runner splits the covered
@@ -68,6 +131,16 @@ say(`-- baseline: ${BASELINE}
 -- catalogue, no metals and no spot prices (F7); \`scripts/lib/baseline.ts\`
 -- \`isDdlOnly\` is where the split is decided and it treats anything it cannot
 -- read as data, which is the safe direction.
+--
+-- THE SPLIT IS PER FILE, NOT PER STATEMENT, because a backfill's own ALTERs
+-- are part of how it writes its rows - 233 disables the audit trigger around
+-- its UPDATE so the backfill does not stamp itself. So a covered migration
+-- that carries rows replays its DDL too, and one that rewrites an object this
+-- file already holds in a later form undoes it. 190 is that case for
+-- \`refining.order_money\`, and 266 restates the view after it under
+-- \`runs-even-under-a-baseline\`. \`verify:replay\` is what catches the next one:
+-- it builds this file on a scratch database, runs every migration the runner
+-- would run after it, and compares the result with dev.
 --
 -- The stamping is only sound on a database genesis builds from NOTHING, since
 -- every statement here is IF NOT EXISTS and cannot repair a table that already

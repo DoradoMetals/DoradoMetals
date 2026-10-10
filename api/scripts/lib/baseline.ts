@@ -1,3 +1,6 @@
+import fs from 'node:fs'
+import path from 'node:path'
+
 export type Baseline = { from: string; through: string }
 
 export type MigrationFile = { name: string }
@@ -213,4 +216,75 @@ function writesRows(stmt: string): boolean {
 /** The statements that make a file more than DDL, for the runner to print. */
 export function dataStatements(sql: string): string[] {
   return splitStatements(sql).filter(writesRows)
+}
+
+// ------------------------------------------------------------- the marker
+//
+// DERIVING the baseline range instead of typing it. The range was pinned by
+// hand twice - `002-049`, then `002-134` - and both times it fell behind the
+// shape `000_genesis_schema.sql` actually holds, because the file is
+// regenerated from dev after every lane and the marker was not. The second
+// stale marker aborted a from-the-dump replay at 169 on 2026-10-09: that file
+// creates `refining.order_money` with six columns, 263 gave the view eight,
+// genesis already held the eight, and Postgres will not drop columns from a
+// view. Everything between 135 and 265 was being replayed on top of its own
+// end state and only happened to be idempotent.
+//
+// So `through` is read from the database the dump is taken from: the newest
+// migration its ledger records. That database is the definition of the shape
+// being dumped, so it is also the definition of what the baseline supersedes.
+
+export const BASELINE_FROM = '002'
+
+/** The sortable number a migration filename starts with - `159a_...` is 159 -
+ *  or null when the name does not start with one. */
+export function migrationNumber(name: string): string | null {
+  const m = /^(\d{3})/.exec(name)
+  return m ? m[1] : null
+}
+
+/**
+ * The `through` a genesis dump may claim, given the migrations recorded as
+ * applied on the database it is generated from.
+ *
+ * A migration marked `runs-even-under-a-baseline` is left out: the runner
+ * replays one whatever the range says, so naming it would make the marker
+ * claim something the runner does not do - and would force a regeneration
+ * every time such a repair is added.
+ *
+ * `presentNames` is the files on disk, and a ledger entry naming no file is
+ * ignored. Dev's ledger holds one - `134_a_balance_cannot_go_below_zero.sql`,
+ * renumbered to 135 long ago (FOLLOWUPS, "the orphan ledger row") - and a
+ * stray row numbered above every real file would otherwise claim a range
+ * genesis does not hold.
+ */
+export function baselineThrough(
+  appliedNames: readonly string[],
+  alwaysRunNames: ReadonlySet<string>,
+  presentNames: ReadonlySet<string> | null = null
+): string | null {
+  const numbers = appliedNames
+    .filter((n) => !alwaysRunNames.has(n))
+    .filter((n) => presentNames === null || presentNames.has(n))
+    .map(migrationNumber)
+    .filter((n): n is string => n !== null && n >= BASELINE_FROM)
+  return numbers.length ? numbers.reduce((a, b) => (b > a ? b : a)) : null
+}
+
+/** The migration filenames on disk, sorted the way the runner applies them. */
+export function migrationNames(dir: string): string[] {
+  return fs
+    .readdirSync(dir)
+    .filter((f) => f.endsWith('.sql'))
+    .sort()
+}
+
+/** The migration files that carry `runs-even-under-a-baseline`, by name, so a
+ *  derived marker can leave them out of its range. */
+export function alwaysRunMigrations(dir: string): Set<string> {
+  return new Set(
+    migrationNames(dir).filter(
+      (f) => runsUnderBaseline(fs.readFileSync(path.join(dir, f), 'utf8')) !== null
+    )
+  )
 }

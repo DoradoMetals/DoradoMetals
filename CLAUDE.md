@@ -168,7 +168,7 @@ Three rules the lints do not cover:
 ## The gate
 
 `pnpm check` before committing. `scripts/check.mjs` builds `@dorado/contracts`
-first — everything imports its dist — then runs five groups concurrently. 44
+first — everything imports its dist — then runs five groups concurrently. 45
 members in all.
 
 | group | steps | needs the dev database |
@@ -177,7 +177,7 @@ members in all.
 | `api-test` | `typecheck`, then `test:coverage` | no (local Postgres) |
 | `design` | `figma:tokens`, `figma:inventory`, `figma:hygiene` | no |
 | `components` | `icons` / `components` / `client` typecheck and test, serial | no |
-| `dev-db` | `verify:fresh`, `validate`, `verify:genesis`, `verify:backfill`, `validate:wire`, `audit:coverage`, `audit:indexes`, `audit:query-paths`, `audit:constraints`, `audit:non-finite`, `audit:nullability` — one at a time | **yes** |
+| `dev-db` | `verify:fresh`, `validate`, `verify:genesis`, `verify:replay`, `verify:backfill`, `validate:wire`, `audit:coverage`, `audit:indexes`, `audit:query-paths`, `audit:constraints`, `audit:non-finite`, `audit:nullability` — one at a time | **yes** |
 
 `components` and `dev-db` are serial inside themselves on purpose: the first
 oversubscribed the cores badly enough to fail a component test on a timeout that
@@ -196,8 +196,16 @@ touches the frontend.
 The verifiers that have actually caught things:
 
 - `verify:genesis` — builds the whole schema into renamed schemas inside a
-  rolled-back transaction and compares it against dev column by column, and
-  checks the committed `000_genesis_schema.sql` still matches what dev is.
+  rolled-back transaction and compares it against dev column by column, checks
+  the committed `000_genesis_schema.sql` still matches what dev is, and asserts
+  its `-- baseline:` marker names dev's newest migration. It does NOT replay.
+- `verify:replay` — the replay `verify:genesis` cannot do: a scratch `uat_replay`
+  database on the local cluster, `exchange` copied into it, the real `migrate`
+  run over genesis and every migration after the baseline, the result compared
+  with dev and a second run proved to apply nothing. The marker being one lane
+  stale aborted the October production rehearsal at 169 with "cannot drop
+  columns from view" while the gate was green; this is the member that would
+  have said so.
 - `verify:backfill` — runs every backfill and seed into those empty tables,
   compares the rows against dev, re-runs to prove idempotency, then checks the
   guard refuses once the new schema holds rows `exchange` does not.

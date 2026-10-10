@@ -4,6 +4,13 @@ import fs from 'node:fs'
 import path from 'node:path'
 import pool from '#pool'
 import { NATIVE_SCHEMAS as SCHEMAS, assertSchemasComplete } from './lib/schemas.ts'
+import {
+  BASELINE_FROM,
+  alwaysRunMigrations,
+  baselineThrough,
+  migrationNames,
+  parseBaseline,
+} from './lib/baseline.ts'
 
 const PREFIX = 'zz_genesis_'
 
@@ -212,6 +219,34 @@ try {
   const unqualify = (k) => {
     const [table, line] = k.split('\u0000')
     return table === '(top level)' ? line : `${line}   [${table}]`
+  }
+
+  // THE MARKER, CHECKED ON ITS OWN.
+  //
+  // The byte comparison above catches a stale marker too, but it says "this
+  // file does not match dev" and buries the one line that matters among the
+  // shape drift. A stale marker is its own failure with its own consequence:
+  // the runner stamps only up to it and REPLAYS everything after it against a
+  // schema that already holds the end state. That is what aborted the October
+  // replay at 169. So it is asserted by name.
+  const marker = parseBaseline(committed)
+  const ledger = await client.query(`SELECT name FROM exchange.schema_migrations ORDER BY name`)
+  const migrationsDir = path.join(import.meta.dirname, '..', 'migrations')
+  const expected = baselineThrough(
+    ledger.rows.map((r) => r.name),
+    alwaysRunMigrations(migrationsDir),
+    new Set(migrationNames(migrationsDir))
+  )
+  if (!marker) {
+    note(`000_genesis_schema.sql carries no \`-- baseline:\` marker at all`)
+  } else if (marker.from !== BASELINE_FROM || marker.through !== expected) {
+    note(
+      `000_genesis_schema.sql says \`baseline: ${marker.from}-${marker.through}\`, ` +
+        `but this database's newest migration is ${expected}.\n` +
+        `  The marker has to name the last migration genesis was generated ` +
+        `behind, or the runner replays ${marker.through} onwards onto their own ` +
+        `end state.\n  run: pnpm --filter @dorado/api dump:schema`
+    )
   }
 
   if (committed !== regenerated) {

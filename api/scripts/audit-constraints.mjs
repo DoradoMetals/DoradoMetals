@@ -69,7 +69,6 @@ const ACCEPTED_NOT_NULL = {
     'carrier-agnostic - the customer picks the service, the refinery picks ' +
     'the carrier, and the shipment records that choice on its own row. Only ' +
     'the three business rows are NULL; the carrier catalogue keeps its ids.',
-
 }
 
 const ACCEPTED_UNIQUE = {
@@ -88,6 +87,17 @@ const ACCEPTED_UNIQUE = {
     'at 950, separate objects - so the same number can legitimately exist once ' +
     'in each direction and a unique on number alone would be WRONG, not merely ' +
     'narrower. Every caller supplies the direction.',
+  unique_intent_quad:
+    'The identity of a provider intent is one row per Stripe intent, and that ' +
+    'is guarded on the new side by the unique index on payments.attempts.' +
+    'provider_ref (migration 103, attempts_provider_ref_key) - the table that ' +
+    'actually holds one row per Stripe intent. payment_status on exchange.' +
+    'payment_intents is a STATUS, and ruling 112 says a status is derived, not ' +
+    'a stored fact to key uniqueness on, so a quad that includes it cannot be ' +
+    'carried forward. Measured on the current dev database: 25 exchange.' +
+    'payment_intents rows hold only 21 distinct (session_id, user_id, type) ' +
+    'triples - the quad is doing real work today only by keying on a column ' +
+    'that is expected to change under one intent, not one that identifies it.',
   rates_unique_band:
     "The target's index is STRICTLY STRONGER, not missing. exchange's " +
     'UNIQUE (metal_id, unit, min_qty, max_qty) treats a NULL max_qty as ' +
