@@ -564,3 +564,18 @@ Detail in `docs/waves/auth-passwordless.md`.
   `ProfitBreakdown` basis fields) under `frontend/app/admin/_src_/orders/`.
   The sale's bottom line is `total`, direction-aware, not a second
   `total_due` field.
+
+- **Convert carries the estimate to the cart (Jacob, 2026-10-09).**
+  `POST /api/leads/:id/convert` takes `carry_estimate` (default true) and
+  writes checkout items for the new customer from `leads.estimate_items`:
+  scrap items map to scrap lines (weight converted from the item's unit,
+  purity by label or custom percent); bullion items become bullion lines
+  with metal and weight and no product, matched in checkout. The lead keeps
+  its estimate rows. Design: one checkbox on the existing Convert dialog.
+
+## UAT rehearsal and environment findings (2026-10-09)
+
+- `audit:constraints` on the 2026-08-25 production copy (`uat_0913`): `exchange.payment_intents` carries unique index `unique_intent_quad (session_id, user_id, type, payment_status)` in production but dev's frozen copy has `unique_payment_intent_id (payment_intent_id)` instead. Not touched by any migration; `payments.intents` is identical in both. Jacob decides: accept in `ACCEPTED_UNIQUE` or investigate the divergence.
+- MinIO is gone from every public registry (Docker Hub deleted 2026-09-11, quay.io anonymous pulls refused since 2026-09-24) and the last free release carries CVE-2026-40344 (auth bypass, CVSS 8.8). Production's Bucket service still runs the last pulled image and cannot be redeployed. Plan: Railway native Bucket (S3-compatible) replaces MinIO; the `env-hardening` lane makes the provider generic (`S3_*` names); production day copies objects across and retires the MinIO container. Until then do not redeploy production's Bucket service.
+- Env audit (`scratchpad/uat/env-checklist.md`, 2026-10-08): no boot-time validator; `STRIPE_SECRET_KEY` defaults to `''` silently; `BETTER_AUTH_SECRET` read only by the library, public default outside `NODE_ENV=production`; Sentry DSN hardcoded in three frontend files; two dead build ARGs in `frontend/Dockerfile`; both `.env.example` files stale. All in the `env-hardening` lane.
+- Promote pipeline (one-click staging to production with migrate) is parked until the rebuilt app is on production.

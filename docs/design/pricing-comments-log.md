@@ -1040,3 +1040,641 @@ Thursday and is the selected custom date, Jun 22 is a Monday, which is what
 variant.
 
 After: 4 dialog screens and the component set, 0 clipped.
+
+### Same cycle — the bullion card now prices from the same spot as everything else
+
+Earlier I left the Bullion card alone on the grounds that ruling Q12 may delete
+its buy column. That reasoning was half wrong: the **sell** column stays
+whatever Q12 decides, and it was pricing from the same wrong spot. So the fix
+was never fully contingent on the answer.
+
+The card derived from its own spot — about $2,415.80 for gold and $29.51 for
+silver, against the Spots page's $2,411.20 / $2,412.80 and $28.94 / $29.06.
+Recomputed all nine reconcilable rows as `bid x premium` for buy and
+`ask x premium` for sell, which also fixes the sloppier assumption underneath:
+the old figures used one spot for both sides, so the drawn buy/sell gap was the
+premium spread alone and ignored the feed's own bid-ask. Gold Eagle goes
+$2,512.40 / $2,633.20 to $2,507.65 / $2,629.95; the 100 ozt silver bar
+$3,068.80 / $3,245.90 to $3,009.76 / $3,196.60.
+
+**Left untouched on purpose:** 90% junk silver at $1 face, $21.23 / $23.00.
+Its silver content per dollar of face value is the open question I put to
+Jacob — the standard figure is 0.715 ozt but the drawn number implies 0.749 —
+and recomputing it would bury the question under a plausible-looking answer.
+One unreconciled row that I have asked about is more honest than ten rows where
+one is quietly guessed.
+
+Verified: 9 of 10 rows reconcile exactly to the Spots page, 1 skipped by
+design, both badges still match their column maxima (Buy 104 · Sell 109,
+Buy 118 · Sell 132), 0 clipped.
+
+With this, every money figure on both pages derives from one set of spot
+figures, except the single row with an open question against it.
+
+### Same cycle — running every detector at once found what running them one at a time had not
+
+Ran all eight detectors across both pages in a single pass to record a baseline.
+The section checks, which I had only ever pointed at the two Components
+sections, fired on **Jacob's own Draft sections** — the ones holding the
+screens.
+
+- **2 overlaps:** the live desktop Spots screen sat on top of two mobile
+  screens. The desktop row starts at y=100 and the mobile row at y=1400, but
+  desktop screens are 1667-1771 tall, so they have been running through the
+  mobile row.
+- **8 members outside their section:** every mobile screen on both pages
+  (they are 3833 and 2427 tall from y=1400/1700, well past section heights of
+  3254 and 4030), plus the custom-expiry desktop screen whose right edge at
+  8100 exceeded the 6560 section.
+
+**This was pre-existing, not damage from this session** — at their original
+1667 the desktop screens already crossed y=1400 — but my changes added 100px
+to two of them and 29px to the mobile ones, so I made it worse. I checked that
+before writing it down, because "I broke it" and "I inherited it" lead to
+different conversations with Jacob.
+
+Fixed by laying both sections out properly: desktop row at y=100 on a 1640
+pitch, mobile row below the tallest desktop screen with a 200 gap, sections
+resized to contain everything. Spots 6560x3254 -> 8200x6004, Rates
+8200x4030 -> 8200x4407. Two strays pulled into line: the custom-expiry desktop
+screen was at y=500 while its four peers were at y=100, and its mobile twin was
+at y=1800 while the others were at 1400.
+
+**These are Jacob's frames, so the position changes need flagging to him.** I
+moved no content and resized no screen — only where they sit on the canvas,
+and only to stop them overlapping. Noted for the consolidated comment, with an
+offer to put the two strays back if the offsets were deliberate.
+
+The lesson is about the detectors rather than the bug: I had been running the
+section checks against the sections I had built, not against every section in
+the file. A check pointed only at your own work is not a check.
+
+**CLEAN BASELINE 2026-10-09**
+- 17 screens: 0 clipped text, 0 nodes past a frame edge
+- 14 component sets: 0 overlapping variants
+- 8 sections: 0 sibling overlaps, 0 members outside
+- 0 gapless pill stacks
+- 178 instances with variant axes: 2 text-vs-variant hits, both the known
+  "Expire at market open" Switch-label false positive
+
+### Same cycle — orphan audit re-run after a session of cloning
+
+This file's original failure was 15 orphaned mains after a paste, and tonight I
+cloned variants, created instances off remote mains, and duplicated log rows.
+Worth re-proving rather than assuming.
+
+Spots: 1,220 instances, 74 distinct mains, 0 unresolved, 0 orphaned.
+Rates: 616 instances, 44 distinct mains, 0 unresolved, 0 orphaned.
+File: **1,836 instances, 0 unresolved, 0 orphans.**
+
+Instance count is up from the 1,028 recorded at the end of the earlier audit,
+which is the five-tab Admin Header, the four Active source Selects, the Status
+column, the added log rows and the enabled Switches all landing since.
+
+Orphan test unchanged and still the right one: a main is only an orphan if it
+is parentless **and** importing it by key throws. Remote library mains are
+legitimately parentless, so the parent check alone would report every library
+component in the file as broken.
+
+### Sparkline republish accepted — and the predicted breakage did not happen
+
+Coordinator warned: Chart / Sparkline goes 120x40 -> 120x64, so every Spot
+Metal Card sparkline gets 24px taller and card heights move. Snapshotted all 32
+cards first (`scratchpad/spots/sparkline-before-snapshot.md`): every card 231
+tall, every sparkline 120x44, library main 120x40 at snapshot time.
+
+**The update had in fact already landed** — importing by key returned 120x64
+with a 112x56 Series vector. The cards had not moved, because each card main's
+sparkline carried an explicit 44 height override that survives a library
+update. So the risk was never "cards grow 24px"; it was the opposite — a 56px
+climb pinned inside a 44px box, with the vector constrained MIN/MIN so it would
+hang below its own frame rather than scale.
+
+Two measurements settled what to do, both taken rather than reasoned:
+
+1. **A nested instance cannot be resized at all.** Resizing the sparkline
+   inside a placed *card instance* silently did nothing — three attempts at 64,
+   100 and 120 all returned 44. Same family as the earlier `relativeTransform`
+   restriction: Figma refuses size overrides on an instance nested in an
+   instance. So this could only ever be fixed on the card main, which is also
+   what the coordinator meant by not fighting it on the instance.
+2. **Card height is driven by the Stats column, not the sparkline.** Body is
+   HORIZONTAL and hugs vertically; Stats is 100 tall, the sparkline 64. Probed
+   at 64, 100, 112 and 120 on a throwaway clone: body stayed 112 and the card
+   stayed 231 every time. The card only grows if the sparkline passes 100.
+
+So I cleared the stale override on all four card mains and let the sparkline
+take its natural 64. Result: **all 32 placed cards still 231 tall**, no card
+resized, nothing clipped, Stats and sparkline do not overlap horizontally, and
+the vector stays inside Body on all 32.
+
+Alignment is better than before, not worse: Body centres on the counter axis,
+so the sparkline centre now sits at 50 against the Stats centre at 50 — exact.
+At 44 it was centred too, but on a box with 4px of slack against a 40-tall
+main, which is the sort of near-miss that drifts.
+
+**Verdict for the coordinator: the card reads better and nothing needs the
+40-tall alternative.** The steeper line is legible at a glance where the old
+one was nearly flat, and it cost no height.
+
+*My own error worth recording:* the first probe printed card, body and stats
+heights after each resize but never read back the sparkline height, so it
+looked like "resizing changes nothing about the card" when the truth was
+"the resize never happened". I only caught it because the numbers were
+suspiciously identical across four very different requested heights. Read back
+the thing you changed, not only the things you expect it to affect.
+
+### Jacob is awake — "It can't take up this much room" (1959539344, on the locks thread)
+
+He is looking at the locks card I had just given a Status column to, and says
+it will sit at half the screen width on a card. The table was 1,376 wide with
+six columns; it had to fit roughly 720.
+
+Compressed rather than redesigned:
+- **Metal folded into the order cell** — "PO-2481 · Gold" replaces a separate
+  140px Metal column.
+- **Customer name dropped.** "PO-2481 · Dana Whitfield" becomes "PO-2481". On
+  a card attached to an order, the customer is already on the screen; it was
+  the widest thing in the row and the least load-bearing.
+- **Columns rebalanced** to Order (fill, 150) · Status 70 · Locked spot 140 ·
+  Locked 140 · Action 140, gap 16 -> 12. Card 1,376 -> 720.
+- **The confirm warning moved to its own line.** At 114px the sentence "Unlock
+  reprices this order at today's feed." wrapped to four lines inside the Order
+  column and blew the row to 93 tall. The Confirming variant is now a
+  two-part row: the five columns on one line, the warning spanning the full
+  width beneath. Row 40 -> 68, card 288 -> 316 in that state only.
+
+Nothing was lost but the customer name: status, both legs of the locked spot,
+the timestamp, who locked it, and the actions all survive at half the width.
+
+Three traps hit in one pass, all mine:
+1. Changing the Confirming row's `layoutMode` to VERTICAL **collapsed its
+   width to 254** — an auto-layout frame re-derives sizing when the axis
+   changes, so the explicit width had to be re-set afterwards.
+2. The same change left `layoutSizingVertical = FIXED` at the stale 734 from
+   the collapsed state, so the row stayed 734 tall with 52 of content in it.
+   Setting HUG fixed it. **A frame that looks absurdly tall after a layout
+   change is usually holding a fixed height, not mis-measuring.**
+3. First column pass left Order at 114 and "PO-2470 · Platinum" clipped —
+   caught by the clipped-text detector, not by eye, because the cut happened
+   mid-word ("Platinun") and reads as a real string at a glance.
+
+After: 4 sections 0 overlaps / 0 out of bounds, parent 1648x11402, both lock
+sets 0 overlapping variants, 0 clipped anywhere in the lock components.
+
+Still open on this thread: whether the card is per-order (in which case the
+order number is redundant too and rows become one per metal) or a cross-order
+list as drawn. Asked rather than assumed.
+
+## 2026-10-09 03:30 — Jacob awake, four comments
+
+Poll filter updated per the coordinator: **a thread needs action whenever its
+newest message is Jacob's, resolved or not.** Re-ran the whole file under the
+new rule — 21 threads, 3 needing action, **0 of them resolved**, so nothing had
+been missed by the old filter here. Worth having checked rather than assumed.
+
+Pin hit-test first, per the standing rule. Comment 1959542182 is pinned on
+1:556 at 668,1056; the hit chain lands on the **Adjustments** card (104:5466),
+not the frame and not the Logs below it.
+
+### Done this cycle — the spot card rebuilt (1959435183, 1959542182 in part)
+
+"Put the ask back on the right (it's fine if the card gets a little bigger).
+I think I like the percentage in parentheses. And yes, lets go back to the old
+trendline, and that can live underneath the spots." Plus "show active
+adjustments on the main card."
+
+- **Bid left, Ask right**, each column stacking label / amount / change. Card
+  332x231 -> 332x301 desktop, 358x231 -> 358x301 mobile.
+- **One change treatment everywhere**: dollar first, percent in parentheses.
+  The ask had been percent-first on all 32 placed cards; all rewritten.
+- **Sparkline moved underneath** the two columns.
+- **Active adjustment stated on the card**: a line reading
+  "Adjustment  nFusion · −0.20% / +0.20%", per metal, taken from each metal's
+  active source — Gold and Palladium carry figures, Silver and Platinum read a
+  bare dash because their active source has no adjustment standing.
+- The two dialog screens were FIXED height and clipped 12 texts each once the
+  cards grew; both resized 1667 -> 1761 with their scrims stretched to match.
+
+Three mistakes of mine in this one, all caught before Jacob could see them:
+
+1. **Stats collapsed to 1px.** Switching it to HORIZONTAL left its vertical
+   sizing FILL inside a hug parent, so it took zero height. The repair is the
+   same every time now: after changing an auto-layout axis, re-assert HUG down
+   the chain. That is the third time a layout-axis change has broken sizing
+   this session — it is not an edge case, it is what changing the axis does.
+2. **`setProperties({ Value: ... })` failed on all four Amount instances** —
+   the real key is `Value#612:0`. Component property keys carry an id suffix;
+   look the key up on the instance instead of typing the human-readable name.
+3. **Stretching the sparkline to full width did nothing useful.** The frame
+   went to 300 but the vector inside stayed 112 wide, anchored MIN/MIN, so the
+   line sat stranded in the left third. Reverted to its natural 120. Making it
+   span the card needs the vector's constraints changed, which is a library
+   change, not something to fake here.
+
+Still open from these four comments, in order:
+- the old (shallower) trendline — library change, to hand over;
+- get rid of the parent components frame (1959541173);
+- park the Adjustments card and redo both logs, components first (1959542182).
+
+### Done — parent components frame removed (1959439919)
+
+"get rid of the parent components frame, I don't want them all living on the
+same parent frame. They should be actually seperated please."
+
+The four nested sections — Spots, Sources, Adjustments, Spot Locks — are now
+top-level sections on the page, laid out in a row above the note at y=-5999,
+and the empty `Components · Spots` wrapper is deleted. His words were explicit
+("get rid of"), which is the standing bar for deleting rather than parking.
+
+Verified: **1,220 instances before, 1,220 after** — reparenting a section does
+not touch instance links. Page now holds 6 children with 0 overlaps:
+the note, the Draft section, and the four component sections.
+
+`Components · Rates` is untouched. It is a single section holding seven
+component sets directly rather than a wrapper around nested sections, so his
+complaint may not apply to it; asking rather than guessing.
+
+### Sparkline revert — snapshot #2 taken, update not yet published
+
+Coordinator: Jacob reverted Chart / Sparkline to 120x40 with the 20-climb
+line, and the Series vector is now horizontal STRETCH / vertical SCALE, so
+after his next publish the instance can be stretched to full width and the line
+follows. Snapshot taken first, to
+`scratchpad/spots/sparkline-snapshot-2.md`.
+
+Probed the library: main is still **120x64 with the vector at 112x56 MIN/MIN**,
+so the revert has not landed. Leaving the sparkline exactly as it is, per the
+instruction not to fight it on the instance.
+
+One thing the snapshot makes predictable that was not true last time: the cards
+**will** shrink when this lands. Stats is now 64 tall, not 100, because Bid and
+Ask sit side by side rather than stacked — so the sparkline at 64 is currently
+tied with Stats for the tallest thing in Body. Dropping it to 40 should take
+the card from 301 to about 277. Last time I argued the card could not change
+height because Stats dominated at 100; that reasoning expired the moment I
+rebuilt the card, and it would have been easy to repeat it out of habit.
+
+### 03:48 — Jacob: "I can't see anything because it's all overlapped" (1959551453)
+
+Pinned on Feed Notice (9:1935). **My fault, and a repeat.** Rebuilding the spot
+card took it 231 -> 301, which took the component set 502 -> 642, and I never
+re-flowed the Spots section afterwards. Spot Metal Card, Spot Metal Card /
+Mobile and Feed Notice all stacked on each other.
+
+I have re-flowed sections after a resize maybe six times tonight and forgotten
+twice, and both times Jacob saw it before a detector did — because I only ran
+the section detectors when I happened to think of it. **The re-flow is now part
+of the same step as the resize, not a thing to remember afterwards.**
+
+Fixed: Spots 994 -> 1736 tall, 0 overlaps, 0 outside, and the four sections
+re-laid on the page with 0 page-level overlaps.
+
+Also found by rendering it: the **Down variant default was incoherent** —
+titled "Gold", carrying Platinum's prices ($978.30 / $981.10), with Gold's
+change figures ($18.40 / $18.60) beside them, and a "Stale" footer on a card
+whose siblings say Live. Now a consistent Platinum: $12.10 (1.24%) and
+$12.30 (1.25%), active source Kitco with no adjustment standing, Live footer.
+That incoherence predates tonight but only became visible once Bid and Ask sat
+side by side where you can read them against each other.
+
+### Still queued, all three from Jacob in the last few minutes
+- 1959552013, pinned on the Adjustments card: "Instead of this terrible horrid
+  thing, make a single adjustment card. REmove this though."
+- 1957615129, pinned on Spot Locks: "The entire component is still a horrid
+  mess. Idk why you're trying to make it a table. Make a lock card that
+  contains a single lock, then we can go from there."
+- 1959542182: both logs to be redone, components first.
+
+Common thread in all three: he wants **one card per thing**, not a table of
+things. That is the same instruction three times, and I should read it as a
+principle for this file rather than three separate fixes.
+
+## 2026-10-09 05:00 — the brief was overtaken; Jacob rewrote the file himself
+
+Picked the file back up with three queued directions (single adjustment card,
+single lock card, both logs components-first). **All three are now behind six
+newer ones**, and two of them Jacob has already carried out himself. Polling
+first and reading the whole thread list before starting is the only reason I
+did not spend an hour building a card he had already deleted the context for.
+
+What he did while nobody was driving:
+
+- **The Rates page is empty.** 1959553211: "We're gonna start over here.
+  Remove everything, start with a single screen and a rates card. We're only
+  going to do rates by weight volume." He removed everything. The page has
+  zero children. Nothing of mine to park or delete there.
+- **The Spots draft section holds one screen.** 1959551453: "Remove all the
+  screens but the base screen … We can keep the components, but I only want to
+  see one base screen until we're headed towards finalization." Sixteen screens
+  are gone; `1:556` survives, and he rebuilt it: the Sources, Adjustments and
+  Locks cards are off it, and the active-adjustment line that was on each spot
+  card is now a banner above the grid, which is what 1959552645 asked for.
+- **He drew the spot card he wants.** `31:8287`, pulled out of the mobile set
+  as a loose COMPONENT, with 1959570811 pinned on it: "This is how the spot
+  card should look." and "For desktop and mobile."
+
+So the queue he is working to now, newest last: single adjustment card ·
+single lock card · both logs redone with **two rows per entry** (1959574755,
+"all the important information is essentially unreadable … try having two rows
+per log", "similar to mobile") · Rates restarted as one screen and one rates
+card by weight band · Sources desktop to catch up with mobile (1959573976,
+"mobile version is solid, looks much closer than the desktop version") ·
+and over all of it 1959584311: **"Lets focus in on one thing at a time. We'll
+start with spot cards."**
+
+### Done — the spot card, to his drawing, desktop and mobile
+
+Took `31:8287` as the specification and read its structure rather than its
+picture. The differences from what was there were not cosmetic:
+
+- padding moves to the **root** (12) with a gap of 8, instead of three
+  different paddings on title, body and footer;
+- the two figures sit in one SPACE_BETWEEN row with the right-hand column
+  right-aligned — that is "spots not justified between" from 1959552645;
+- the amounts are the Amount component's **Stat-sm** variant (30px), not Body
+  (15px);
+- the sparkline **fills the card width** at 30 tall;
+- hairlines are strokes on the title row and the footer, so the old `Hairline`
+  rectangle between body and footer is redundant;
+- the footer reads "Updated 14s ago".
+
+Applied to all four variants: desktop Up `31:7600`, desktop Down `31:7646`,
+mobile Up `31:8241`, and his own card folded back into the mobile set as
+`Direction=Down`. Every card 215 tall — his number — against 271 before, and
+the four on the screen followed without losing a text override. Screen
+1440x659 -> 1440x603.
+
+**I kept Ask on the left and Bid on the right, which is what he drew and the
+opposite of what he typed three hours earlier** ("Put the ask back on the
+right"). Flagged on the thread as the one thing to tell me about, because it
+is a one-line swap and a silent correction of his own drawing is worse than
+asking. Rule for later: when his words and his *drawing* disagree, the drawing
+is newer and wins, but say so.
+
+Four traps, three of them already in this log and hit anyway:
+
+1. `setBoundVariable('strokes', v)` throws — paints bind through
+   `figma.variables.setBoundVariableForPaint(paint, 'color', v)` and then you
+   assign the returned paint. Cost one aborted run, which left the root
+   padding written and nothing else; the script was idempotent so the re-run
+   was clean. **Write these transforms so re-running them is safe**, because a
+   mid-script throw is normal.
+2. The empty-wrapper sweep ran *before* the node that emptied the wrapper
+   moved, so `Frame 1` survived as an empty frame and his card came out 302
+   tall instead of 215. Order the cleanup after the moves, not with them.
+3. Footer came out 48 tall against his 26: the Spacer between the text and the
+   button was holding a stale 40 height. An auto-layout spacer wants
+   FILL on both axes, not HUG — an empty HUG frame keeps whatever it last had.
+4. The desktop Down variant kept the **Up** sparkline after the swap, because
+   I matched the variant by the card's direction and only the Up main was
+   looked up. Caught by rendering the set, not by the property dump.
+
+### The Down sparkline is broken in the library, not here
+
+The detector reported "Series in Sparkline" outside its frame on both Down
+cards. Measured before believing it: the library main is 120x40 and its Series
+vector sits at y=26 with height 20, so **the vector ends 6px below the
+component's own bottom edge**. The Up variant is correct at y=6. At the 30
+height the cards use it scales to 4.5px of overhang, which reads as the line
+escaping the card.
+
+Not fixable from a consuming file — a nested instance's vector cannot be moved
+— so it is pinned on the component: comment 1959594084 on `884:2`. The cards
+keep 30 meanwhile, which is what Jacob drew.
+
+Worth recording that the *good* news arrived the same way: the sparkline
+revert the coordinator warned about **has landed**. The main is 120x40 with the
+vector STRETCH horizontally, which is why the line now spans the whole card.
+The predicted card shrink happened too, just not for the predicted reason —
+the card went 301 -> 215 because Jacob redesigned it, not because the
+sparkline lost 24px.
+
+### Token sweep — Spots page, before and after
+
+Scope: the one remaining screen and every local component in the four
+component sections, skipping instance internals because those follow their
+main.
+
+| | before | after |
+|---|---|---|
+| gaps bound | 35/178 (20%) | **131/144 (91%)** |
+| paddings bound | 24/211 (11%) | **130/211 (62%)** |
+| fills | 210/210 (100%) | 210/210 (100%) |
+| strokes | 24/24 (100%) | 24/24 (100%) |
+| stroke weights | 16/16 (100%) | 16/16 (100%) |
+| radii bound | 22/29 (76%) | 22/29 (76%) |
+
+210 bindings written, 0 errors, and no node changed size — screen, all four
+card variants and the metals row measured identical before and after.
+
+The gap denominator falls from 178 to 144 because 26 frames have a gap of
+**zero**; a zero gap is not a hardcoded number and there is no token for it,
+so the after-count reports them separately rather than as failures. On the
+before-count's own definition the gap figure is 23% -> 91%.
+
+**101 values are still hardcoded, every one of them because the Scale
+collection has no step holding it**: spacing 10 (55 uses), 14 (12), 6 (12 as a
+gap, 6 as a padding), 20 (8), 52 (1), and radius 5 (7). Requested on the
+library, pinned on Foundations: comment 1959595502.
+
+I did **not** round them to the nearest existing token, which the standing
+rule offers as the stopgap. That stopgap is for a value I need while building
+something new; applying it here would move spacing on screens Jacob is
+reviewing this minute, to no benefit, and he has just said one thing at a
+time. Most of the 10s are inside the Adjustments and Locks components he is
+about to have rebuilt, so they will likely vanish without anyone touching
+them. Recorded as a deliberate deferral, not an oversight.
+
+### State after this pass
+
+- Spots page: 5 top-level children, 0 collisions. Draft section resized
+  8200x6354 -> 1640x803 around its one screen; the four component sections
+  re-flowed and re-laid in a row, 0 members outside, 0 sibling overlaps.
+- 1 screen and 4 card variants: 0 clipped text, 0 nodes past a frame edge
+  except the library sparkline overhang above.
+- Rates page: empty, by Jacob's hand.
+- `31:8287` no longer exists as a loose component; it is `Direction=Down`
+  inside `31:8240`.
+
+Deleted this pass, recorded as required: the `Hairline` rectangle in each of
+the three variants that had one (replaced by a stroke on the footer), and the
+empty `Frame 1` wrapper left inside his card after its contents moved. No
+component, variant, screen or instance was deleted.
+
+## 2026-10-09 05:20 — Jacob stayed on spot cards, and asked for options
+
+1959597009, on the spot card thread: "AMount needs another size that's a
+little smaller than the one we're using for the spot cards atm. Lets also make
+a variant with the spots stacked. Actually, go ahead and make a couple of
+different variants that you think might look good."
+
+So the file does **not** move on to the adjustment card yet. Good that the
+poll ran before the next job started.
+
+### The Amount ladder has a hole in it
+
+Read the set rather than guessing what "a little smaller" meant: Micro 12,
+Small 13, Body 15, **Stat-sm 30**, Stat 36, Display 64. The cards use Stat-sm.
+15 to 30 is the only doubling in the ladder, so there is nothing between a
+body line and a headline — which is exactly the step he is asking for.
+Requested at 22 to 24 SemiBold, pinned on the component: 1959598310 on
+`612:12`. Every option below is drawn at 30 and moves onto the new step when
+it lands.
+
+### Three options, built beside
+
+- **Stacked** `197:1331`, 332x222 — the one he asked for. Both spots full
+  width, label left, figure and change trailing right, baseline-aligned.
+- **Lead** `197:1374`, 332x253 — one headline figure (bid at Stat 36) with its
+  change under it, the ask as a quiet second line. The only one that states
+  which number matters.
+- **Compact** `197:1418`, 332x162 — no trendline, Body-size figures. Four of
+  them stop dominating the screen, but it drops the chart he asked to have
+  back, so it is there as a reference point rather than a recommendation.
+
+First Stacked attempt was too tight: two 30px figures 8px apart read as one
+block. Loosened the row gap to 12 and the figure-to-change gap to 12.
+
+### Hug and fill sweep — and the two mistakes it made first
+
+New standing rule from Jacob: children HUG or FILL with tokenized or
+SPACE_BETWEEN gaps; FIXED only on the screen, a viewport region whose height
+is the design, and sizes that are a token.
+
+**Spots page before: 145 children with FIXED sizing inside an auto-layout
+parent (75 horizontal, 88 vertical).**
+
+Split the sweep deliberately. The components Jacob has queued for rebuild or
+removal — the Adjustments card and rows, the Spot Locks table and lock rows,
+and the four log components — hold **105** of the 145, and converting them is
+work thrown away the moment their replacements are built hug-and-fill from the
+first line. Left alone on purpose, counted and named.
+
+The survivors went **34 -> 35**, which needs explaining, because two reverts
+inside it were me catching my own damage:
+
+1. **I converted things the rule exempts.** The site Header band went to HUG
+   and the screen lost 48px; switches (36x20) and the dialog's 28x28 close
+   button went to FILL and stretched. A Switch is a control, not a container.
+   Put back as FIXED at their control size — that is the rule's own
+   "sizes bound to a size token" clause, and reading the rule twice would have
+   been cheaper than reading the render.
+2. **Button does not hug.** Setting the feed-notice and dialog buttons to HUG
+   took SM from 32 to 18 and Default from 40 to 20, because the library's
+   Button carries its height as a fixed value with no vertical padding, so
+   hugging gives the bare label. The banner went 56 -> 44 before I caught it.
+   Reverted to each main's own height, and reported to the library rather than
+   papering over it locally: 1959602671 on `14:4`. This will hit every file
+   doing this sweep.
+
+What the sweep actually fixed and kept: the Sources table columns
+(Status 150, Last tick 170, Metals 380, all hand-set) are FILL now, which is
+the case the rule names first; the card Bodies are HUG.
+
+The 35 that remain in the survivors are all legitimate: 1 Header band,
+7 Sparklines, 2 Hairlines, 4 Switches, 4 Close buttons, 8 dialog buttons,
+2 notice buttons, 7 icons.
+
+**The sparkline height is the one I am not sure about.** It is FIXED at 30
+because that is what Jacob drew, and there is no size token to bind it to —
+the Scale collection holds spacing, radius, stroke and opacity only. Recorded
+as a deliberate exception rather than quietly rounded.
+
+### The latent bug the sweep exposed
+
+Switching the card Body from FIXED to HUG dropped the **Up** variants to 203
+while the Down variants stayed 215. The cause was not the sweep: Body on the
+Up variants carried `primaryAxisAlignItems = SPACE_BETWEEN`, which packs
+children and ignores itemSpacing when the frame hugs. The fixed 117 height had
+been hiding it, so the 12px gap under the figures was slack in a fixed box
+rather than the token gap it looked like. Set to MIN on all seven cards; all
+four shipped variants are 215 again.
+
+**That is the general shape of this rule's value: a fixed height does not just
+freeze a size, it hides whether the layout underneath it works.**
+
+State: screen 1440x603 unchanged, Metals row 215, Feed Notice 56, dialog
+variants back to 892/884/520/512, 0 clipped text, 3 overflow hits and all
+three are the known library Down-sparkline overhang.
+
+---
+
+# Pricing file worker log (FdBKQiTCRJNS3uJeD1n5zd) — started 2026-10-09 ~22:00 local
+
+## Environment note
+The `figma-use` skill is not installed in this harness and the
+`skill://figma/figma-use/SKILL.md` MCP resource is not reachable (no
+resource-reading tool is exposed). Worked to the worker-protocol rules
+instead. Flagged for main.
+
+## Poll 1 — three new comments from Jacob overnight, all hit-tested
+
+Baseline tripwire: Spots page 5 children / 744 nodes; Rates 0 / 0.
+
+What Jacob did himself after 05:00Z: deleted the `Spot Metal Card/Up`
+variant (`31:7600`), the whole mobile set (`31:8240`) and all three options
+offered to him (`197:1331` Stacked, `197:1374` Lead, `197:1418` Compact).
+All five resolve through `getNodeByIdAsync` with `removed:false` and
+`parent:null` — Figma's deleted-main-still-backing-live-instances state.
+**He picked none of the three options; he kept his own card.** The three
+options question is therefore closed, not outstanding.
+
+He also drew a new page wireframe on the screen (raw rectangles, no auto
+layout): `202:2262` Frame 1 = LOCK LEDGER panel 1023 wide + DEFAULT GLOBAL
+SELECTION panel 329 wide; `202:2272` Frame 3 = "???" panel 680 + ADJUSTMENT
+LEDGER panel 680. Screen grew 1440x603 -> 1440x1782.
+
+### 1960977153 "replace main screen cards with this one please" — DONE
+Pin on `31:7599` @152,125, inside the only surviving variant. Gold, Silver
+and Palladium were still instances of the deleted Up main, which was a
+half-finished leftover: its title row carried a stray Button instance
+labelled "Button" plus an arrow-left icon and a redundant Frame 6 / Frame 5
+wrapper pair. Swapped all three onto `31:7646` with `swapComponent` (no
+`remove()` anywhere), then restored each metal's name, ask/bid amount and
+change through the bound `Value#612:0` property, and its direction flair
+through the badge's `Label#64:99` + Intent and the sparkline's Direction.
+
+**The tripwire fired and was right to.** Spots went 744 -> 726. The
+decrease is exactly explained: an Up card is 35 nodes, the clean Down card
+is 29, 3 x 6 = 18. The abort rolled back cleanly (verified: still 744, cards
+untouched). Re-ran with the blanket no-decrease rule replaced by an
+exact-delta assertion (`Spots: -18`, `Rates: 0`) plus a structural guard on
+COMPONENT / COMPONENT_SET / SECTION counts, which held at 10 / 3 / 5.
+Recommend that shape generally: a bare "never shrink" rule cannot pass a
+legitimate swap onto a simpler component, an exact predicted delta can.
+
+**Fault the swap exposed:** the change figures on the three Up cards came
+through red, because the colour is bound on the component and the component
+is the Down card. Colour is what carries the sign here — which also settles
+the open question about Platinum reading "$12.30 (1.25%)" with no minus: the
+convention is sign-by-colour, so no minus is wanted. Bound the six change
+texts (ask + bid on three cards) to `text/success`, the exact sibling of the
+`text/danger` they carried. Verified by render: three green, one red.
+
+Result: Metals row 1376x215, four instances of `31:7646`, all 332x215, all
+FILL/HUG. Open question put to Jacob in the reply: the set holds only
+Direction=Down, so the up flair on three cards is a local override — offered
+to add Direction=Up back as a proper second variant.
+
+### 1960975344 "Ghost button to see lock ledger page" — recorded, not built
+Pin resolves to screen(905,638) -> content(905,574) -> Frame 1 local
+(873,35), which lands inside `202:2283` Rectangle 5 (807..1004, 26..65) —
+his own placeholder block in the LOCK LEDGER panel header. Confirmed to him.
+
+### 1960975364 "Ghost button to edit sources" — recorded, not built
+Pin resolves to Frame 1 local (1280,31), inside `202:2260` Rectangle 2, the
+DEFAULT GLOBAL SELECTION panel. Confirmed to him.
+
+Both are annotations on a wireframe whose panels are still bare rectangles,
+and his own ruling 1959584311 is one thing at a time, so they are recorded
+as the spec for the lock card (his item 3) and the Sources rebuild (his item
+6) rather than dropped as finished buttons onto a sketch. Asked him on each
+thread whether he wants them on the wireframe today.
+
+Library note: Button has no "Ghost" variant — Variant is
+Primary / Secondary / Tertiary, and Tertiary is the ghost. No library block.
+
+Snapshot on disk: `scratchpad/spots3/metals-snapshot-2026-10-10.json`.
+Renders: `scratchpad/spots3/metals-after.png` (red-change fault),
+`metals-final.png` (corrected).

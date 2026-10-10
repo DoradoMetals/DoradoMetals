@@ -294,8 +294,12 @@ export const aLiveSpot = (id: string, bid: number): SpotPrice => ({
   bid,
   percent_change: 0.4,
   dollar_change: 9.1,
+  bid_dollar_change: 9.1,
+  bid_percent_change: 0.4,
+  ask_dollar_change: 9.1,
+  ask_percent_change: 0.4,
   updated_at: '2026-09-01T12:00:00.000Z',
-  source: 'live',
+  state: 'live',
 })
 
 export const aDocument = (
@@ -407,6 +411,22 @@ export const aShipment = (
 export const aProfitBreakdown = (): ProfitBreakdown => ({
   order_id: ID(1),
   spots_at: '2026-09-01T12:00:00.000Z',
+  basis: 'estimated',
+  settled_lots: 0,
+  total_lots: 1,
+  payout: 13346.09,
+  fees: 20,
+  lots: [
+    {
+      lot_id: ID(21),
+      reference: 'Lot 2481-A',
+      metal_id: 'Gold',
+      settled_at: null,
+      settled_spot: null,
+      value: 5102.4,
+      estimated: true,
+    },
+  ],
   shares: [
     {
       party: 'dorado',
@@ -451,7 +471,7 @@ export const aRefiningLot = (over: Partial<RefiningLotView> = {}): RefiningLotVi
 export const aRefiningOrder = (over: Partial<RefiningOrderView> = {}): RefiningOrderView =>
   ({
     id: ID(101),
-    number: 4471,
+    number: 'RS-4471',
     direction: 'sell',
     refiner_id: ID(102),
     assigned_to_id: ID(3),
@@ -500,6 +520,7 @@ export const aRefiningOrder = (over: Partial<RefiningOrderView> = {}): RefiningO
     expected_settlement: 41871.4,
     orders_to_date: 12,
     linked_orders: [],
+    payment: null,
     ...over,
   }) satisfies RefiningOrderView
 

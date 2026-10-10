@@ -439,3 +439,319 @@ gate for folding `Lot Header` onto the library `Entity Header`, watches the publ
 Entity Header's `updated_at` over REST. Baseline **2026-10-08T01:25:05.577Z**. When it
 moves: re-import by key, snapshot all 24 Lot Header instances (desktop and mobile) to
 disk, migrate one set at a time with a pixel diff, report counts.
+
+### 2026-10-09 — quiet cycle 1 (55 minutes)
+No comments on the file; published `Entity Header` still 2026-10-08T01:25:05.577Z, so
+the Lot Header fold stays parked.
+
+Detectors over all 17 built frames: clipped text **0** of 2,045 visible TEXT nodes,
+children outside their section **0**, section overlaps **0**, orphans **1**
+(`Filter Bar (proposal A)`, 3 instances, all parked).
+
+Render review found one thing and it is fixed: the **mobile** Elemetal ledger and
+lock-open screens were still prefixing every entry with `Elemetal · `, which is
+redundant on the refiner's own page — the desktop ledger already hides its Refiner
+column there. 16 lines across the two frames now read `Gold · 12.480 oz · $2,411.20`
+and so on. Both frames re-rendered.
+
+Noted, not changed: the count badge sits at the left edge of the title row's right
+block, so with selects beside it it reads nearer the middle than the title. That is
+the only arrangement that satisfies both halves of the instruction (badge in the right
+block as on the Lots card, selects right-aligned) without making the accordion hug.
+
+### 2026-10-09 — Entity Header published; Lot Header fold proved, not yet migrated
+
+The watch fired on the gate: published `Entity Header` moved
+**2026-10-08T01:25:05.577Z -> 2026-10-09T03:25:34.339Z**. Re-imported by key and it
+now carries all 18 properties, including the three slots the fold needs —
+`Identity#893:0`, `Reference#899:0`, `Actions#899:6` — plus `Show title` and
+`Show buttons`. Comments polled first: none from Jacob, only my own two.
+
+**Snapshot taken before anything was touched**:
+`scratchpad/inventory/lot-header-snapshot-2026-10-09.json`. All **24** instances
+(12 desktop off `Lot Header` 1:3612, 12 mobile off `Lot Header / Mobile` 1:3746) with
+their variant, host frame, parent, index, sizing, every text and every action state.
+**Zero empty reads**, so nothing was aborted.
+
+**Two slot components built** in `Components · Lots`, cut straight from the Lot
+Header's own frames so the content is his: **`Lot Reference` 70:12208** (the composed
+line `Lot 2481-A · PO-2481 · Marguerite Whitfield` with the inline Link) and
+**`Lot Actions` 70:12217** (the five icon buttons).
+
+**One proof migration, built beside and nothing live touched**, in a new section
+`Proof · Entity Header fold 2026-10-09` **72:12485**: today's screen on the left,
+the same screen with the header folded onto Entity Header on the right
+(`PROOF · Lot 2481-A — On hand (Entity Header fold)` 70:12228).
+
+Measured delta, header against header:
+
+| | Lot Header today | folded Entity Header |
+|---|---|---|
+| size | 1376 x 125 | 1376 x **127** |
+| padding | 16 all round | 16 all round |
+| fill / stroke / radius | 1 / 1 / 8 | 1 / 1 / 8 |
+| eyebrow row | 16,16 | 17,17 |
+| badge | 93,16 | 94,17 |
+| title | 16,46 (hugs, 171 wide) | 17,47 (fills, 1134 wide) |
+| actions | 1152,16 208x40 | 1151,17 208x40 |
+
+Pixel diff: the **body below the header is pixel-identical** — 2 differing pixels in a
+2880x1200 region once the 2px offset is removed. The change is confined to the header
+and amounts to **+2px of height and a 1px content inset**; the eyebrow, badge, title,
+reference line with its inline Link, and all five icon buttons land where they do
+today. The reference slot renders the composed line exactly.
+
+**Held for a ruling.** 24 instances across 13 lot screens all move 2px, and the ruling
+for 2.6 says the lot screen needs no layout change. The remaining 23 are not migrated
+until the coordinator says the 2px is accepted.
+
+### 2026-10-09 — Lot Header fold completed (24/24), two library items applied
+
+**Desktop set, 12 instances.** Each Lot Header replaced in place by the published
+`Entity Header` (Layout=Desktop) with `Show reference slot` + `Reference` = local
+`Lot Reference` 70:12208, `Show actions slot` + `Actions` = local `Lot Actions`
+70:12217, plain reference and buttons off, meta and assigned-to off. Eyebrow, title
+and the position badge (label, intent, variant) set per instance; `Split` and
+`Batch into` kept Disabled on Pooled / Sold / Consumed, `Delete` Disabled on the
+refiner lot; the refiner lot's reference line overridden to
+`Lot 2493-A · SO-2493 · Elemetal · Dallas`.
+Header 125 -> **127** on all twelve. Pixel diff below the header, at a 2px offset:
+**12/12 clean, 3 differing pixels in total** across all twelve screens.
+
+The five dialog screens needed one extra move: their dialogs are absolutely
+positioned, so they did not follow the 2px shift and the diff flagged the dialog
+band (x 480-960, exactly the centred dialog's width). Each dialog was nudged
+y 220 -> 222, after which those five came back clean.
+
+**Mobile set, 12 instances.** Same recipe on Layout=Mobile. Header 206 -> **200**,
+so these screens get 6px *shorter* — the Entity Header's mobile rhythm is tighter
+than Jacob's was. Content is unchanged: eyebrow, badge, title, the reference line
+with its inline Link and all five icon buttons read as before. The five mobile
+dialogs were nudged y 120 -> 114. Pixel diff below the header at a -6px offset:
+**11/12 at zero, one at 3px, 5 differing pixels in total**.
+
+Counts after: **0** Lot Header instances left in use (the one remaining is the
+deliberate `BEFORE ·` reference copy inside the parked section), **31** Entity Header
+instances file-wide (24 folded + 2 on the metal detail + 4 on the refiner detail +
+1 proof), 25 `Lot Reference` and 25 `Lot Actions` instances. The local `Lot Header`
+and `Lot Header / Mobile` sets are now unused; they stay in
+`Draft · Inventory · 2026-09-11` — not deleted, that is Jacob's call.
+
+**Proof parked**, not deleted: the before/after pair and its note moved into
+`Parked · superseded 2026-10-09` 17:12924, which is now 10190 wide with 15 children.
+
+**Two published library items applied** (snapshot first:
+`scratchpad/inventory/library-apply-snapshot-2026-10-09.json`, 54 breadcrumbs and 22
+mobile headers read, zero empty reads):
+- **Fourth breadcrumb.** `Show crumb 3#923:0` shipped default false, so nothing
+  existing moved. Turned on for the four detail screens and their lock-open twins —
+  6 instances now read `Admin › Inventory › On hand › Gold` and
+  `Admin › Inventory › Pool › Elemetal`. The 24 lot screens keep three crumbs,
+  which is right: a lot has no fourth level.
+- **Mobile signed-in Header.** `Layout=Mobile, Signed In=True` now exists, so **18**
+  mobile screens were switched to it — the 12 mobile lot screens and my six mobile
+  screens. They show the avatar beside the menu instead of a signed-out marketing bar.
+  Jacob's own superseded Pool mobile drafts and the parked mobile frame were left
+  alone.
+
+**Poll filter corrected**, per the near miss on the library: the watch now wakes on
+any thread whose newest message is from a person, resolved or not, instead of
+treating a resolved thread as handled.
+
+**Q3 confirmed by Jacob**: four tabs, Orders · Inventory · People · Pricing. The Pool
+tab leaves the Admin Header on his next publish, after which the Pool chip is the
+only way in — which is what these screens already draw.
+
+**Detectors after everything**, 41 frames: clipped text **0** of 3,848 visible TEXT
+nodes, children outside their section **0**, section overlaps **0**, orphans **1**
+(`Filter Bar (proposal A)`, 3 instances, all parked).
+
+### 2026-10-09 — Jacob: "I'm confused on what's new and what's old"
+
+| comment | pin | words | action |
+|---|---|---|---|
+| `1959549754` | page `Lots` 0:1 @ -18559,4008 | "Ok we have a lot of screens here and I'm confused on what's new and what's old. Can we organize better please?" | replied `1959552726` |
+| `1959550253` | page `Pool` 1:2488 @ 7153,8771 | "Same thing here… Remove all the extra screens or ones that we no longer need etc" | replied `1959552733` |
+
+Both pins hit-tested: each lands on **empty canvas** near my new work, not on a node,
+so the words govern and they are page-level complaints about organisation.
+
+**Every section on all three pages renamed to a band prefix and restacked top to
+bottom at x 0**, so each page reads in one pass:
+
+*Lots*: READ ME (-516) · CURRENT · Inventory › Lots (0) · CURRENT · Lot screens (2200)
+· COMPONENTS · Lots (13400) · COMPONENTS · Lot screens (15400) ·
+PARKED · superseded 2026-10-09 (22400) · PARKED · source proposal (25000) ·
+PARKED · Jacob's old lots components (28600).
+
+*Pool*: READ ME (-475) · CURRENT · Inventory › Pool (0) · COMPONENTS · Pool (6800) ·
+PARKED · old Pool screens (9500) · PARKED · old Pool components (14800). His loose
+`Pool · note` frame, which still read "Not designed yet", moved into the parked band.
+
+*On hand*: READ ME (-475) · CURRENT · Inventory › On hand (0) ·
+COMPONENTS · On hand (5100). Nothing parked — the page is entirely new.
+
+A **READ ME** section now sits above each page, in plain English, saying what each
+band is and that nothing in a PARKED band is live or needs his attention.
+
+Nothing was parked while still in use: every local component was instance-counted
+first. `Draft · Inventory · 2026-09-11` turned out to be a components section whose
+pieces are still on all 24 live lot screens, so it was **renamed, not parked**.
+The Pool components that moved are used only by the Pool drafts that moved with them.
+
+**Nothing deleted.** He asked to "remove all the extra screens"; deleting is the one
+irreversible act, so both replies park them, explain where they went, and ask him to
+reply "delete the parked bands" if he wants them gone for real. Three pages, zero
+section overlaps, zero stray top-level nodes.
+
+### 2026-10-09 — Jacob escalated: "delete everything but the base screen"
+
+Four new comments, all polled before any action and all hit-tested.
+
+| comment | pin | words | hit-test |
+|---|---|---|---|
+| `1959556448` | reply on the Lots thread | "Honestly it's too much to ingest at once. Please build the components in their own frame, and a single screen. We can build out the additional screens later on when we get the base done." | thread reply, no pin |
+| `1959556499` | reply on the Lots thread | "Remove anything that's not the base screen." | thread reply, no pin |
+| `1959557087` | reply on the Pool thread | "No, delete everything but the base screen. It's impossible to go through all of this, it's too much. We can keep components in a separate frame, but just one screen for now. We can add more screens once we're headed towards finalization." | thread reply, no pin |
+| `1959575948` | node `1:15315` @182,194 | "THis won't ever be there. Elemetal would be on it's own entity page." | lands on the **Admin Header title row** `I1:15318;730:82` of his **old, already-parked** `Admin / Pool — Elemetal` 1:15315, inside `PARKED · old Pool screens` 1:15303. A ruling, and it agrees with what was built: the refiner detail is its own entity screen. |
+| `1959576478` | page `Pool` 1:2488 @8414,5810 | "This whole thing needs to be rethought tbh. It's just too much information thrown at you. Break it up. High level, then individual breakdowns can happen on the metal/refiner entity pages" | **empty canvas**, right of `CURRENT · Inventory › Pool` at its vertical middle, so the words govern: it is a ruling on the new Pool screen. Reported to main, not acted on. |
+
+He answered my parking proposal with "**No,**". So the five PARKED sections go, and so does
+every screen that is not the one base screen on its page. The three COMPONENTS bands and
+`COMPONENTS · Lot screens` stay, because he said "we can keep components in a separate frame".
+
+**Version checkpoints are not available through the API** (`POST /v1/files/:key/versions`
+is not a route), so this enumeration is the durable record. Everything below is also
+rendered to PNG in `scratchpad/inventory/parked-archive/` (9 files), and all of it is in
+Figma's own version history for 2026-10-09.
+
+#### Deletion set — 6 sections, 13,896 nodes, 33 component mains
+
+**`CURRENT · Lot screens` 1:2779** (Lots, @0,2200, 11520x10865, 48 children) — Jacob's own
+single-lot screens from 2026-09-11, whose headers were folded onto the library Entity
+Header earlier today. 24 frames + 24 labels:
+`1:2780` Incoming 1440x967 · `1:2792` On hand 1440x967 · `1:2804` At refiner 1440x1094 ·
+`1:2817` Pooled 1440x1128 · `1:2830` Sold 1440x967 · `1:2842` Consumed 1440x967 ·
+`1:2854` Incoming (Mobile) 390x1477 · `1:2863` On hand (Mobile) 390x1605 ·
+`1:2872` At refiner (Mobile) 390x2110 · `1:2882` Pooled (Mobile) 390x2210 ·
+`1:2892` Sold (Mobile) 390x1671 · `1:2901` Consumed (Mobile) 390x1737 ·
+`1:3086` Split lot open · `1:3100` Combine lots open · `1:3114` Assign to sale open ·
+`1:3128` Batch into open · `1:3142` Lock ounces open (all 1440x967, Lock 1440x1094) ·
+`1:3157` `1:3168` `1:3179` `1:3190` the four mobile dialogs 390x1605 ·
+`1:3201` Lock ounces open (Mobile) 390x2210 · `1:3239` Lot 2493-A Refiner lot 1440x811 ·
+`1:3250` Refiner lot (Mobile) 390x1120. Labels `1:3213`-`1:3224`, `1:3229`-`1:3238`,
+`1:3258`, `1:3259`.
+
+**`PARKED · superseded 2026-10-09` 17:12924** (Lots, @0,22400, 10190x2176, 15 children) —
+`1:2910` Inventory 3 lots selected 1440x1616 · `1:2963` mixed selection 1440x1592 ·
+`1:3016` empty 1440x982 · `1:3048` Inventory (Mobile) 390x1836 ·
+`1:2747` Jacob's `Admin / Lots — Gold, unassigned` 1440x1152 with his note `1:2778` ·
+`72:12472` BEFORE Lot 2481-A On hand (today, Lot Header) 1440x965 ·
+`70:12228` PROOF Lot 2481-A On hand (Entity Header fold) 1440x967 ·
+notes `17:12925`, `33:12140`, `72:12484`; labels `1:3225`-`1:3228`.
+These four Inventory drafts were the last three instances of the orphaned
+`Filter Bar (proposal A)` **1:2642**, so that orphan goes with them — the file now has none.
+
+**`PARKED · source proposal` 1:4570** (Lots, @0,25000, 4720x3171, 4 children) —
+`1:4571` COMPONENT_SET `Inventory (proposal)` 1240x348 · `1:4644` FRAME
+`Admin / Inventory — proposal` 1440x1494 · `1:4696` TEXT caption ·
+`1:4697` COMPONENT_SET `Lot Row (proposal)` 1424x388.
+
+**`PARKED · Jacob's old lots components (unused)` 1:4455** (Lots, @0,28600, 4076x492,
+4 children) — `1:4456` SET `Lot Tile` 360x136 · `1:4467` COMPONENT `More Tile` 78x36 ·
+`1:4469` SET `Lot Row` 1424x252 · `1:4521` SET `Unassigned Card` 1140x10.
+
+**`PARKED · old Pool screens` 1:15303** (Pool, @-750,9280, 6560x4931, 9 children) —
+`1:15304` Admin / Pool 1440x956 · `1:15310` Pool empty 1440x606 ·
+`1:15315` Pool — Elemetal 1440x1130 (the node `1959575948` is pinned on) ·
+`1:15355` Elemetal empty 1440x828 · `1:15379` Pool (Mobile) 390x1465 ·
+`1:15521` Elemetal (Mobile) 390x1611 · `1:15606` Elemetal Lock ounces open 1440x1130 ·
+`1:15648` Elemetal Lock ounces open (Mobile) 390x1611 · `1:15300` `Pool · note` 720x111.
+
+**`PARKED · old Pool components` 1:15735** (Pool, @-750,14580, 2264x1522, 3 children) —
+`1:705` SET `Pool Metal Card` 960x146 · `1:748` SET `Pool Ledger Row` 1416x172 ·
+`1:769` COMPONENT `Pool Refiner Card` 1376x263.
+
+#### Deletion set — the 14 non-base screens inside the three CURRENT bands
+
+`CURRENT · Inventory › Lots` 28:12468 keeps `22:10623` `Admin / Inventory — Lots` and its
+label `28:12463`; deleted `27:11402` 3 selected · `27:11884` mixed selection ·
+`27:12411` empty · `28:11883` (Mobile), labels `28:12464`-`28:12467`.
+
+`CURRENT · Inventory › Pool` 47:15003 keeps `42:13648` `Admin / Inventory — Pool` and
+`47:15000`; deleted `47:14667` empty · `47:14026` (Mobile) · `54:14240` Pool › Elemetal ·
+`56:14460` Elemetal Lock ounces open · `57:14712` Elemetal (Mobile) ·
+`57:15463` Elemetal Lock ounces open (Mobile), labels `47:15001`, `47:15002`,
+`57:16547`-`57:16550`.
+
+`CURRENT · Inventory › On hand` 39:12757 keeps `35:12140` `Admin / Inventory — On hand`
+and `39:12754`; deleted `37:12452` empty · `37:12914` (Mobile) · `49:14849` On hand › Gold ·
+`52:12938` On hand › Gold (Mobile), labels `39:12755`, `39:12756`, `57:16545`, `57:16546`.
+
+#### Containment re-check before deleting — both directions, 0 findings
+
+- **33 component mains** live inside the deletion set. Every one was asked for its
+  instances with `getInstancesAsync()` (walking `COMPONENT_SET` children, since a set has
+  no such method): **0** have an instance outside the deletion set. Nothing in a CURRENT
+  or COMPONENTS band is instanced from a doomed main.
+- From the other direction, the three surviving base screens were walked for every
+  `INSTANCE` and each main resolved: **28 distinct mains**, **0** of them doomed. 21 are
+  library components (`Accordion`, `Badge`, `Button`, `Chip`, `Select`, `Admin Header`,
+  `Breadcrumb`, `Header`, `Pagination`, `Radio Chip`, `Tab`, `Thumbnail` …) and 5 are my
+  local ones that stay in the COMPONENTS bands — `Lots Row` 20:10607,
+  `On Hand Metal Card` 34:13638, `Movement Row` 34:13711, `Pool Refiner Card` 41:13638,
+  `Pool Ledger Row` 41:13676. No orphaned main among them.
+
+### 2026-10-09 05:05 — STOP: the Pool page and the Lots READ ME were lost during the token sweep
+
+**What is gone from the live file.** The Pool page `1:2488` is empty — all three bands
+(`CURRENT · Inventory › Pool` 47:15003 with the Pool screen 42:13648, `COMPONENTS · Pool`
+17:12923 with `Pool Refiner Card` 41:13638, `Pool Ledger Row` 41:13676, `Lock Row`
+53:14271 and `Lock ounces` 1:807, and the Pool `READ ME` 85:15819) are NOT FOUND by id.
+The Lots `READ ME` 85:12976 is gone too. The Lots and On hand pages are otherwise intact
+and their screens render.
+
+Confirmed server-side over REST, not a plugin-session artefact: a `depth=1` read of page
+`1:2488` returns `children: []` while the same read of `0:1` returns its three sections.
+The file has been quiet since `lastModified 2026-10-09T05:01:57Z` (three probes 20s apart,
+unchanged), so nothing is still deleting.
+
+**I did not call `.remove()` on any of them.** The only deletions this session were the
+six sections and 28 frames recorded above, and the page listing taken immediately after
+showed Pool holding its three bands. The loss appeared during the token sweep: the bind
+run still read and wrote Pool nodes (it snapped the four `Pool Refiner Card` row paddings
+10 -> 12), and by the next audit the Pool nodes were already being skipped. The resize
+script that threw `cannot set property 'x' of undefined` was a **symptom** — it failed
+looking up `COMPONENTS · Pool` 17:12923, which had already gone — not the cause. Cause not
+established; my own scripts cannot be ruled out.
+
+**Recovery is exact and costs one click.** Figma version history holds the correct state:
+
+| version id | shown in history as | Lots | Pool | On hand |
+|---|---|---|---|---|
+| `2408214006773611894` | 2026-10-09 05:01 (**current, damaged**) | 3 bands, no READ ME | **empty** | 3 bands |
+| `2408221582579581614` | 2026-10-09 04:28 (**the good one**) | 4 bands incl. READ ME | **3 bands** | 3 bands |
+| `2408194016944016515` | 2026-10-09 03:40 | 8 bands, pre-deletion | 5 bands | 3 bands |
+
+`2408221582579581614` is the state job 1 produced and verified: every PARKED band and
+every non-base screen already deleted, every band renamed and restacked, all three READ MEs
+present and rewritten, `COMPONENTS · Lot screens (kept for the rebuild)` already renamed.
+Restoring it loses **only the token sweep**, which is scripted and takes minutes to redo.
+Restoring `2408194016944016515` instead would undo the whole approved deletion.
+
+Figma's REST API has **no restore endpoint** (and no create-version endpoint), so the
+restore is Jacob's click in File > Version history. **I have stopped writing to this file**
+until he has made it; building the Pool redraw now would be wiped by the restore and would
+obscure what was lost.
+
+**Token sweep result before the stop** (it did complete, on the surface that survived):
+unbound 153 -> **0**. 23 gaps and 41 paddings bound to `spacing/*`; 85 TEXT nodes given
+their exact library style (41 Micro/Regular, 30 Small/Regular, 14 Small/Medium) and 4 given
+the nearest, Heading/H5. Radii, fills, strokes and stroke weights were already fully bound.
+Two off-scale corrections: `Pool Refiner Card` row padding 10 -> 12 (`spacing/sm`), and the
+`9 lots` stat on all four `On Hand Metal Card` variants 18/SemiBold -> Heading/H5 16/SemiBold.
+**One missing library token to request**: there is no text style between `Heading/H5` 16px
+and `Heading/H2` 28px, so 18/SemiBold has no home.
+
+A first count of the new hug/fill rule, taken before the stop, is not reported here because
+the surface it would cover is about to change under a restore.
