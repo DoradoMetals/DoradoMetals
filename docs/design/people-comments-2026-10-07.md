@@ -1680,3 +1680,231 @@ is what made the first two detectors noisy. Probes are deleted in the same call.
 
 Re-rendered `37:2248`, `37:2558`, `37:2630` and `78:2727` after the relayout: **pixel-identical**.
 Only `73:2051` differs, in the one cell I meant to change.
+
+### Convert dialog — add the estimate to their cart
+Jacob's ask: a checkbox row above the dialog's actions, on by default, reading
+*Add the estimate to their cart* with the lead's estimate summarised beside it, and absent
+altogether for a lead with no estimate items.
+
+The dialog was a hand-built frame drawn twice (the live screen and the no-email error screen), so
+the row could not have a switch. Componentised it as **`Convert Dialog`** (`272:4671`) in
+`Components · Leads`, with:
+
+- `Show estimate` **boolean**, default on — the whole row disappears for a lead with no items,
+  which is the ask, and it costs no second screen;
+- `Estimate label` and `Estimate summary` as **text properties**, so the numbers come from the
+  lead rather than from a hand-typed string;
+- `Layout=Desktop` (420) and `Layout=Mobile` (358).
+
+The row is a library `Checkbox` (`Selected=True, State=Default`) plus two 15/24 texts on
+`text/default` and `text/muted`. On desktop the label fills and the summary hugs right, so it
+reads *Add the estimate to their cart        3 items · $4,200 est.* On mobile at 358 that wrapped
+the label onto two lines and crowded the summary, so the two texts stack under the checkbox
+instead — label, then summary muted beneath.
+
+Both Convert screens now instance the component; the no-email screen's error overrides were
+re-applied and verified. Pixel diff on each screen is confined to the new row (`510,532–930,628`
+and `510,552–930,648`); nothing else moved.
+
+**No mobile Convert screen exists** — no dialog in this file is drawn at phone width. The mobile
+variant is built and proven but has nowhere to sit yet; it is there for whoever draws that screen.
+
+**The rough edge, said out loud on the thread:** a bullion estimate item has no catalog product
+behind it, so it cannot become a cart line on its own. Those land as bullion lines the admin
+matches to a product during checkout. Scrap items have no such problem.
+
+### Estimator — swapped onto the published library set
+Jacob published the library. Imported `Estimator` by key
+(`261a73bd53270cbaeceffaa7c15f91c2d436b338`) to confirm it is really published — it resolves
+`remote = true`, both variants present at **872×332** and **326×688**, with `Eyebrow`,
+`Type label`, `Metal label`, `Weight label` and `Purity label` exposed as text properties.
+
+Swapped both nested instances inside the `Estimate` card — desktop onto the library's
+`Layout=Desktop`, mobile onto `Layout=Mobile` — and checked the two things the library worker
+flagged rather than assuming them:
+
+- **Layout carried per Estimate variant.** Read back `Layout=Desktop` inside the desktop Estimate
+  and `Layout=Mobile` inside the mobile one. Swapping to the matching variant directly rather
+  than relying on the property to carry is what makes that safe.
+- **The preselected chips survived.** `Scrap`, `Gold` and `Grams` still read `Selected=True`, out
+  of 17 chips per layout; nothing reset to the library defaults.
+
+Pixel check: the mobile screen and the Estimate card are **identical apart from the known 1px**
+(390×3829 → 3830, card 741 → 742). The desktop lead screen shows a diff from y 577 down, which is
+that same 1px of growth pushing the left column down — everything above the estimator is
+byte-identical, and a stacked crop of the block before and after is indistinguishable. The
+residual is sub-pixel text rendering off the one-row shift plus the eyebrow's real type style.
+
+Local set **parked, not deleted**, per instruction: zero instances now point at it, and it is
+renamed `Estimator — parked, superseded by the library` so nobody instances it by accident. It
+goes when Jacob says.
+
+Containment re-checked after the growth: one section grown, zero sibling overlaps.
+
+### Poll filter — resolved is not the same as answered
+Rule adopted after a near miss on the library file: Jacob sometimes answers a thread and resolves
+it in the same breath, so **a thread needs action whenever its newest message is his, resolved or
+not**. Checked this loop's filter against that: it never looked at `resolved_at` in the first
+place, so resolved threads were always in scope. Swept the file once to be sure — 31 threads, 27
+resolved, **0** whose newest message is Jacob's and unanswered.
+
+### 1957666940 (cont.) — Add note dropped from the timeline
+Jacob: *"Ok, well you didn't drop it? Add note there is still at the bottom lol"* — he was
+confirming the recommendation, not asking again. Removed.
+
+The `Actions` row is gone from `Timeline` and from `Customer Timeline` (desktop; the mobile
+variant never had one). Both cards tightened by the row's 44px: the lead card 376 → 332, the
+Customer screen 1955 → 1911, the mobile lead screen 3887 → 3843. Nothing else on any screen
+moved — the lead screen's diff is the left column closing up under the shorter card.
+
+Swept for anything else still offering it: `Add note` now exists in exactly one place, the
+`Customer Notes` card, which is where a note is written. The timeline shows it afterwards as an
+entry.
+
+### 1959548133 / 1959548283 — dialog footers justified between
+Jacob, on the Delete dialog: *"Cancel should be justified between"*, and the same word on Convert.
+
+`Adjust credit` and the new `Ban` were already `SPACE_BETWEEN`; `Convert` and `Delete` were `MAX`,
+so both buttons bunched at the right. Set both to `SPACE_BETWEEN` on a 16 gap — Cancel sits at
+the left edge, the action at the right. Convert is now a component, so one change covered both of
+its screens.
+
+### 1959547682 — a photo opens a gallery, not a single image
+Jacob: *"when we open an image, it should open a modal that has all the images associated with
+that lead. Same thing with orders tbh"*.
+
+Drew `Admin / Lead · Photos` (`281:9538`) on the same pattern as the other dialog screens — the
+lead behind, a scrim over it, the modal centred:
+
+- header `Photos · Dwight Okafor` with the close, and `4 photos, uploaded with the lead` beneath;
+- the viewer between a back and a forward `Icon Button`, the photo surface filling the width;
+- a filmstrip of four tiles under it, so the whole set is reachable without closing;
+- footer justified between — `IMG_4471.jpg · 2.4 MB · Sep 9, 2026 · Renee Patel` on the left,
+  `Download` and a quiet danger `Delete` on the right.
+
+Two honest notes. The photo surfaces are empty frames on the stroke token, because
+`createImageAsync` is not available to me — they stand for the image, they are not one. And the
+library's `Thumbnail` tops out at 40px, which is too small for a filmstrip, so the tiles are
+frames on the same token rather than that component; worth a library ask if this pattern spreads.
+
+**The Orders half is not mine** — same modal on an order's photos, in the Orders file. Passed to
+the orchestrator rather than reaching into another worker's file.
+
+### 1959548530 — the bullet target looked like a blob
+Jacob, on the `Median time to first contact` tile: *"This looks kinda silly IMO. Prob needs to be
+dashed, or idk. Something."*
+
+He was right and the fix was already in the file to copy. The target was a **3×26 filled
+rectangle** — a stubby solid blob sitting on the bar. The `Conversion rate` tile next to it draws
+its target as a **dashed stroked vector**, so the two tiles were speaking different languages
+about the same idea.
+
+Replaced the rectangle with a stroked `VECTOR`: 2px, `[3,3]` dash, `text/muted`, and lengthened
+from 26 to **42** so it crosses the bar and reads as a target rule rather than a notch in it. The
+two funnel tiles now match.
+
+Worth restating the trap, because it is why this was a rectangle in the first place:
+**`dashPattern` on a fill does nothing** — dashes are a stroke property, so a dashed rule has to
+be a stroked vector, never a filled rect.
+
+Colour stays `text/muted` deliberately: the measure bar is near-white and the track near-black,
+so a white rule vanishes on the bar and a dark one vanishes on the card. Muted grey is the only
+one that reads on both.
+
+## 1959555710 — remove what is not used
+
+Jacob: *"Ok, lets remove anything that we don't need. Extra screens/components etc
+that we don't need/aern't being used"*.
+
+Counted every instance in the file against every local main first, because "unused"
+has to be a number, not an impression. 61 local mains, 2 with zero instances.
+
+**Recorded before deleting** (the API offers no version checkpoint, so this list is
+the only record):
+
+| node | what it was | why it goes |
+|---|---|---|
+| `11:486` `Funnel Card / Mobile` | the first mobile funnel card, superseded by `Funnel` (`186:3545`) | 0 instances anywhere |
+| `256:4272` `Estimator — parked, superseded by the library` | our local estimator, replaced by the published library set `905:2` / `905:101` | 0 instances; Jacob had already said "say the word and I delete it" |
+| `157:2669` `Draft · try again · 2026-10-08` | a scratch board of three alternative funnel-tile treatments, note reading *"Try three. Neither number is a shape…"* | an exploration that was decided; the winner is drawn on the real screen |
+| `185:3453` `Draft · unassigned + uncontacted · 2026-10-08` | a scratch board of three alternative unowned/uncontacted treatments | same — decided, and the chosen one shipped |
+
+**Not deleted, asked instead.** `9:58` `Admin / People (Desktop)` and `12:494`
+`Admin / People (Mobile)` are the original combined People screens. They are real
+screens, not scratch, and they still own the only instances of `Person Row`,
+`Person Card / Mobile`, `People List / Mobile` and `People List Card / Mobile` —
+four components that die with them. Whether the separate Leads · Users · Employees
+screens replace them is a product call, so it went back on the thread.
+`37:2225` `Customers · note` is a written decision, not a screen; left alone.
+
+## The token sweep (standing rule, Jacob 2026-10-09)
+
+*"We're not tokenizing gaps/padding at ALL. HUGE problem."* Swept every current
+screen and every local component on all four pages — 1,329 nodes I own, counting
+only nodes outside library instances, since an instance inherits its main's
+bindings and overriding one would fight the library.
+
+### Counts
+
+| | before | after |
+|---|---|---|
+| unbound gaps | 315 | 14 |
+| unbound paddings | 776 | 40 |
+| unbound corner radii | 81 | 9 |
+| unbound stroke weights | 42 | 9 |
+| unbound solid fills | 13 | **0** |
+| unbound solid strokes | 0 | 0 |
+| **total** | **1,227** | **72** |
+
+**Of the 72 left, 6 are mine and 66 are not.** The 66 are values the *library's*
+mains carry unbound — Entity Header's 16/24 padding and 12 gap, Admin Header's
+radius 8, Icon Button's 6 and 8, Item Details' 6, and a 1px stroke on Button,
+Chip, Chat, Avatar, Badge, Checkbox, Upload, Documents and Estimator. Every
+instance drags the raw number into this file and nothing I do here clears it.
+Pinned on `Entity Header` as comment 1959595101.
+
+The 6 that are mine are all the value **6**, on `Person Card / Mobile`'s footer
+and badge rows and `Inbox Row`'s second line. Held deliberately: 6 sits exactly
+between `spacing/2xs` (4) and `spacing/xs` (8), so "use the nearest" has no
+answer, and either choice would disagree with an Icon Button on the same row.
+Token requested on `Icon Button` as comment 1959594960.
+
+### Two passes, on purpose
+
+**Pass A — 540 bindings, zero pixel change.** Every value that already equalled a
+token: gaps and paddings on 2·4·8·12·16·24·32·48·64, radii on 4·8·12, stroke
+weights on 1·1.5·2, and all 13 fills. All 29 screens re-rendered **byte-identical**
+afterwards, which is the proof that binding a variable to the number already
+there moves nothing.
+
+**Pass B — 147 bindings, and this one moves pixels.** The off-scale values had to
+round: gap 1 → `spacing/3xs`, 10 → `spacing/xs`, padding 10 → `spacing/xs`,
+14 → `spacing/sm`, 20 → `spacing/md`, 40 → `spacing/xl`, 56 → `spacing/2xl`.
+
+**Radius 5 was the interesting one.** Twenty-nine of our cards sat at 5, which is
+on no scale — it is between `radius/sm` (4) and `radius/md` (6). Rather than pick
+a nearest, I asked what the library draws a card at, and the answer is unanimous:
+Accordion, Entity Header, Estimator, Chat, Documents and Button are all
+`radius/base` (8). Our cards were sitting beside library Accordions with a
+tighter corner than their neighbour. So cards and panels took `radius/base`, the
+badges and rows — Lead Stage, Lead Priority, Person Row, Inbox Row, Order State,
+Customer State, Ledger Row — took `radius/md` (6), matching the library Badge,
+and the two bullet bars at radius 7 took `radius/full`.
+
+**Screens that moved: 18 of 29.** All in the same direction — shorter, because the
+row paddings came down from 14 and 10 to 12 and 8, which is what the library's own
+Paperwork Row and Call Event use. The Customer screen 1911 → 1855, the Leads list
+1031 → 1001, Employee — Dana 658 → 634, Mobile · Lead 3843 → 3819. The other 11
+are byte-identical. Rendered and read both the Leads list and the Employee screen
+in full afterwards: nothing clipped, nothing reflowed wrongly, no row broken.
+
+### Text is measured but not bound
+
+268 of my text nodes carry no text style. There are **no text styles in this file
+at all**, local or reachable — the library tokenizes type through *variables*, and
+149 of those 268 already bind `size/*`, `weight/*` and `line-height/*`. **119 bind
+neither**, and they cannot all be bound today: our hand-set line heights are 20,
+17, 19, 25 and 28 where the library holds 19.5, 17.4, 25.2 and 28.6, and there is
+no size token below 12 at all. Binding them means re-measuring every text block
+and accepting a fractional reflow on every card, which is a second measured pass,
+not a blind one. Logged in the same library comment.

@@ -173,7 +173,9 @@ done, the worker checks these sums and says so.
 - **Q2** Show value at live bid on the On hand metal cards? Default **yes**
   (held metal has a market value; this is a pricing read).
 - **Q3** Pool tab leaves the Admin Header (Orders · Inventory · People ·
-  Pricing) and lives as the third chip? Default **yes**.
+  Pricing) and lives as the third chip? **Answered yes by Jacob, 2026-10-09**
+  ("Orders | Inventory | People | Pricing should be the tabs as it stands");
+  the library change lands with his next publish.
 - **Q4** Always four metal cards, Palladium included? Default **yes**.
 
 ## 5. API reads this needs (noted, not built here)
