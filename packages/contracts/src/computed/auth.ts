@@ -73,6 +73,12 @@ export const ChangeConfirmedView = z.object({
 })
 export type ChangeConfirmedView = z.infer<typeof ChangeConfirmedView>
 
+export const AuthFakesView = z.object({
+  sms: z.boolean(),
+  email: z.boolean(),
+})
+export type AuthFakesView = z.infer<typeof AuthFakesView>
+
 export const SessionView = z.object({
   user_id: User.shape.id,
   email: User.shape.email,

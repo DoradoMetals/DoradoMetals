@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useStepUp, useVerifyCode } from '@dorado/client'
 
 import { AuthForm } from '@/shared/ui/auth/AuthForm'
+import { OpenCodeLink } from '@/shared/ui/auth/OpenCodeLink'
 import { useVerification } from '@/shared/providers/VerificationProvider'
 import { codeStateFor } from '@/shared/utils/authForm'
 import { safeNext } from '@/shared/utils/returnTo'
@@ -61,6 +62,7 @@ export default function Page() {
       state={state}
       view={view}
       code={code}
+      openCode={<OpenCodeLink />}
       onCodeChange={setCode}
       onSubmit={submit}
       onResend={resend}

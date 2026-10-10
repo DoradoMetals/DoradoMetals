@@ -1,6 +1,7 @@
 import express from 'express'
 
 import {
+  authFakes,
   changeEmail,
   changePhone,
   confirmChange,
@@ -35,5 +36,7 @@ router.delete('/', requireUser, deleteAccount)
 export const readsBackCodes =
   (smsIsFake() || emailIsFake()) && process.env.NODE_ENV !== 'production'
 if (readsBackCodes) router.get('/last_code', lastCode)
+
+if (process.env.NODE_ENV !== 'production') router.get('/auth_fakes', authFakes)
 
 export default router
