@@ -29,6 +29,7 @@
     "typecheck": "pnpm -r typecheck",
     "check": "node scripts/check.mjs",
     "seed": "pnpm --filter @dorado/api seed:e2e && pnpm --filter @dorado/api seed:e2e:order",
+    "uat:refresh": "pnpm --filter @dorado/api refresh:staging --",
     "figma:tokens": "node scripts/figma/check-tokens.mjs",
     "figma:inventory": "node scripts/figma/check-inventory.mjs",
     "figma:hygiene": "node scripts/figma/check-hygiene.mjs",

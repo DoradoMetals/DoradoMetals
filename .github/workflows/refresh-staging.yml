@@ -1,0 +1,126 @@
+name: refresh-staging
+
+on:
+  schedule:
+    - cron: '0 9 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: refresh-staging
+  # A live refresh is mid pg_restore/migrate/encrypt against staging_next, or
+  # mid rename of staging itself - killing it partway is exactly the kind of
+  # half-done state this project's "do not lose data" rule exists to prevent.
+  # A second trigger queues behind it instead of cancelling it.
+  cancel-in-progress: false
+
+jobs:
+  # A production credential in GitHub is Jacob's call, not this workflow's -
+  # so the schedule stays wired up, but it is a no-op the moment
+  # PROD_READONLY_DATABASE_URL is absent, and says so in one line instead of
+  # failing. The real refresh then runs from an operator's machine instead:
+  # pnpm uat:refresh --from <read-only production url> --commit.
+  guard:
+    runs-on: ubuntu-latest
+    outputs:
+      have-prod-url: ${{ steps.check.outputs.present }}
+    steps:
+      - id: check
+        shell: bash
+        run: |
+          if [ -z "$PROD_READONLY_DATABASE_URL" ]; then
+            echo "PROD_READONLY_DATABASE_URL is not set - the nightly refresh is a no-op. Run it from an operator's machine instead: pnpm uat:refresh --from <read-only production url> --commit"
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          PROD_READONLY_DATABASE_URL: ${{ secrets.PROD_READONLY_DATABASE_URL }}
+
+  refresh:
+    needs: guard
+    if: needs.guard.outputs.have-prod-url == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.29.3
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # refresh-staging.mjs imports the built @dorado/contracts dist (same as
+      # every other api script - validate:wire is one of the four verifiers it
+      # runs against staging_next).
+      - name: contracts - build
+        run: pnpm --filter @dorado/contracts build
+
+      # THE 16 CLIENT. refresh-staging.mjs's PG_BIN default
+      # (/usr/lib/postgresql/16/bin) assumes it; the runner's preinstalled
+      # client is a different major version and pg_dump refuses to dump a
+      # server newer than itself.
+      - name: postgresql-client-16
+        run: |
+          sudo apt-get install -y -q wget gnupg > /dev/null
+          echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          wget -q -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+            | sudo apt-key add - > /dev/null
+          sudo apt-get update -q > /dev/null
+          sudo apt-get install -y -q postgresql-client-16 > /dev/null
+
+      - name: pick the dump's artifact filename
+        run: echo "DUMP_FILE=prod-backup-$(date -u +%Y%m%d).dump" >> "$GITHUB_ENV"
+
+      # The only values this job needs beyond PROD_READONLY_DATABASE_URL -
+      # STAGING_DATABASE_URL, PAYOUT_ENCRYPTION_KEY, PAYOUT_ENCRYPTION_KEY_ID -
+      # are derived from Railway here rather than stored as their own GitHub
+      # secrets, and land in this job's env already masked.
+      - name: derive the staging connection and payout key from Railway
+        uses: ./.github/actions/railway-env
+        with:
+          railway-token: ${{ secrets.RAILWAY_STAGING_TOKEN }}
+          need-payout-key: 'true'
+
+      # The chain: pg_dump from read-only production, restore into a scratch
+      # `staging_next`, reset-january + migrate + the four verifiers +
+      # encrypt:payouts against it, then swap it into `staging` and rebuild
+      # `test_ci` from the fresh staging - all inside refresh-staging.mjs,
+      # which refuses before doing anything unless the target is exactly
+      # "staging" and does not share a host:port with
+      # PROD_READONLY_DATABASE_URL. Nothing here echoes a URL or a key; the
+      # script scrubs its own output, and GitHub additionally masks every
+      # secret and derived value that appears in any log line regardless.
+      # STAGING_DATABASE_URL / PAYOUT_ENCRYPTION_KEY / PAYOUT_ENCRYPTION_KEY_ID
+      # are already in this job's environment from the step above.
+      - name: refresh staging from production
+        run: pnpm uat:refresh --from "$PROD_READONLY_DATABASE_URL" --dump-out "$DUMP_FILE" --commit
+        env:
+          PROD_READONLY_DATABASE_URL: ${{ secrets.PROD_READONLY_DATABASE_URL }}
+
+      # Doubles as the off-site daily backup - production's own backup.mjs
+      # writes only to a Railway volume, which is still a single site.
+      - name: upload the production dump
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.DUMP_FILE }}
+          path: ${{ env.DUMP_FILE }}
+          retention-days: 30
+          if-no-files-found: ignore
+
+      # Migrations already ran, inside the script, against staging_next before
+      # it became staging - this is not a deploy. It is only here so the api
+      # service's connection pool, open against the database that just got
+      # renamed out from under it, reconnects against the new one. The CLI
+      # is already installed by the railway-env action above.
+      - name: restart the staging api service
+        if: success()
+        run: railway redeploy --service api --yes
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_STAGING_TOKEN }}

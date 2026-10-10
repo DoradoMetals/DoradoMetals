@@ -68,6 +68,8 @@
     "refresh:test": "node scripts/refresh-from-backup.mjs --target test",
     "provision:test": "TZ=UTC node scripts/provision-test-db.ts",
     "refresh:dev": "node scripts/refresh-from-backup.mjs --target dev",
+    "refresh:staging": "node scripts/refresh-staging.mjs",
+    "refresh:staging:self-test": "node scripts/refresh-staging.mjs --self-test",
     "test:on-dev": "TZ=UTC NODE_ENV=test node node_modules/vitest/vitest.mjs run",
     "preflight:test-db": "TZ=UTC USE_TEST_DB=1 node scripts/preflight-test-db.ts",
     "audit:test-leaks:self-test": "TZ=UTC node scripts/audit-test-leaks.ts --self-test",
