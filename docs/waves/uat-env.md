@@ -190,3 +190,128 @@ reference tables.
 Adding `DEV_DATABASE_URL` is a real decision - it puts dev credentials in a
 PR-triggered workflow's blast radius - which is why this was left for Jacob
 rather than decided here.
+
+### Delta after the two-secret rework (2026-10-10)
+
+#### CI, staging deploys and the nightly refresh - delta for docs/waves/uat-env.md
+
+Two GitHub secrets, both under repo -> Settings -> Secrets and variables -> Actions:
+
+| secret | required | used by | value |
+|---|---|---|---|
+| `RAILWAY_STAGING_TOKEN` | yes | `check.yml`, `deploy-staging.yml`, `refresh-staging.yml` | a Railway project token scoped to the `staging` environment only |
+| `PROD_READONLY_DATABASE_URL` | optional | `refresh-staging.yml` | the existing read-only production credential. Enables the nightly refresh; without it, the scheduled job still runs, prints one line explaining that, and exits 0 - it does not fail |
+
+Nothing else is stored in GitHub. `STAGING_DATABASE_URL`, `CI_TEST_DATABASE_URL`,
+`PAYOUT_ENCRYPTION_KEY` and `PAYOUT_ENCRYPTION_KEY_ID` are all derived at
+runtime from Railway itself, via the Railway CLI and `RAILWAY_STAGING_TOKEN`,
+by a reusable composite action: **`.github/actions/railway-env/`**.
+
+### What `railway-env` does
+
+Given `railway-token` (required) and `need-payout-key` (optional, default
+`false`):
+
+1. Installs `@railway/cli`.
+2. Runs `railway variable list --service Postgres --kv` and reads
+   `DATABASE_PUBLIC_URL` out of the plain `KEY=value` output (`--kv`, not
+   `--json` - its own `--help` describes `--kv` as printing raw values in that
+   exact shape, which is simple and unambiguous to parse with `sed`; the
+   `--json` schema is not documented beyond "raw values" either and could not
+   be verified against a live project from this sandbox).
+3. Masks it (`::add-mask::`) and writes it to `$GITHUB_ENV` as
+   `STAGING_DATABASE_URL`.
+4. Derives `CI_TEST_DATABASE_URL` by swapping that URL's database name to
+   `test_ci` (a one-line `node -e` using the `URL` class, not a regex), masks
+   it, writes it to `$GITHUB_ENV` too.
+5. If `need-payout-key: 'true'`, repeats the same pattern against
+   `railway variable list --service api --kv` for `PAYOUT_ENCRYPTION_KEY` and
+   `PAYOUT_ENCRYPTION_KEY_ID`, masked and exported the same way.
+
+Writing straight to `$GITHUB_ENV` (rather than formal `outputs:`) is
+deliberate: every later step in the SAME job sees these as plain environment
+variables without the calling workflow needing to copy
+`steps.<id>.outputs.*` into an `env:` block by hand. `check.yml` calls it with
+`need-payout-key` left at its default (it never needs the payout key);
+`refresh-staging.yml` calls it with `need-payout-key: 'true'`.
+
+Jacob needs `DATABASE_PUBLIC_URL` present on the staging Postgres service's
+Railway variables (Railway sets this itself for a Postgres plugin) and
+`PAYOUT_ENCRYPTION_KEY` / `PAYOUT_ENCRYPTION_KEY_ID` set on the staging `api`
+service's variables (a 32-byte base64 key generated the same way the real one
+was, under its own key id - e.g. `k-staging-1` - never production's key).
+
+### `test_ci`: a dedicated CI database, not dev
+
+`check.yml`'s test step needs a real, populated database - `exchange` and
+everything backfilled from it - which cannot be built from nothing (its DDL
+is nowhere in this repo; `docs/waves/local-postgres.md` covers why). Rather
+than reach into dev for that, `refresh-staging.mjs` now also maintains
+**`test_ci`**, a dedicated database on the same staging Postgres server,
+always built from a fresh `staging`:
+
+- After every successful full refresh (once `staging_next` has passed
+  `reset-january`, `migrate`, the four verifiers and `encrypt:payouts`, and
+  has been renamed into `staging`), the script terminates backends on
+  `test_ci`, `DROP DATABASE IF EXISTS test_ci`, then
+  `CREATE DATABASE test_ci TEMPLATE staging` - falling back to a
+  `pg_dump | pg_restore` clone of `staging` if the `TEMPLATE` copy does not
+  go through. `test_ci` never touches production, never touches dev, and is
+  always a copy of what the business actually runs on staging.
+- `--test-db-only` is a new flag that does ONLY this step - no dump, no
+  reset, no migrate, no encrypt, `staging` itself untouched - for rebuilding
+  `test_ci` on demand without running the whole nightly chain:
+  `pnpm uat:refresh --test-db-only --commit`.
+- The script's guard list (`staging`, `staging_next`, `staging_prev`) gained
+  `test_ci` as a fourth and final scoped name; nothing outside those four is
+  ever touched, checked by the same `assertScoped` the other three names run
+  through.
+- `--self-test` gained three cases for this: a dry-run pass for
+  `--test-db-only`, and two refusals for combining it with `--dump` or
+  `--from` (it takes neither - there is nothing to restore in this mode).
+
+### `check.yml`: `test:on-dev` against `test_ci`, not a Postgres service container
+
+No `postgres:16` service container and no dev-database secret. Once
+`railway-env` has derived `CI_TEST_DATABASE_URL`, the job runs
+`pnpm --filter @dorado/api test:on-dev` with `DATABASE_URL` and
+`TEST_DATABASE_URL` both set to it. `test:on-dev` is the existing escape
+hatch (`api/package.json`, `api/src/env.ts`) that skips
+`preflight-test-db.ts` entirely - which matters here because
+`preflight-test-db.ts` refuses outright whenever `USE_TEST_DB=1` and the
+target is not loopback, and `test_ci` on the staging server never is.
+
+Every test runs inside a transaction that is rolled back (CLAUDE.md), so two
+PRs' CI runs hitting `test_ci` at the same time do not interfere with each
+other or leave rows behind - `api/scripts/audit-test-leaks.ts` is the
+existing proof of exactly that property for the whole suite, run deliberately
+rather than on every gate (it is excused from `pnpm check` for the same
+reason: its own `--self-test` would have to write a row to prove it).
+
+Everything else - contracts build, the individual lint:db/lint:migrations/
+typecheck steps, the full api-lint group (listed directly rather than through
+`check:fast`, since `check:fast`'s own test lane always forces
+`USE_TEST_DB=1` and the loopback preflight), the Figma design checks, the
+components group, and the frontend typecheck - is unchanged.
+
+### Running things by hand
+
+```bash
+### full nightly-equivalent refresh, including test_ci
+pnpm uat:refresh --from "$PROD_READONLY_DATABASE_URL" --commit
+
+### just rebuild test_ci from whatever staging currently holds
+pnpm --filter @dorado/api refresh:staging -- --test-db-only --commit
+
+### the refusal-rule self-test, no database needed (13 cases)
+pnpm --filter @dorado/api refresh:staging:self-test
+```
+
+### `refresh-staging.yml`'s guard
+
+The workflow is two jobs: `guard` runs first with no checkout, checks whether
+`PROD_READONLY_DATABASE_URL` is set, and either prints one line and exits 0
+(nothing else runs) or lets `refresh` proceed (`needs: guard`,
+`if: needs.guard.outputs.have-prod-url == 'true'`). The daily 09:00 UTC
+schedule stays active either way - whether it does anything depends only on
+whether that one optional secret exists.

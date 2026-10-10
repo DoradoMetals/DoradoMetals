@@ -1678,3 +1678,182 @@ Primary / Secondary / Tertiary, and Tertiary is the ghost. No library block.
 Snapshot on disk: `scratchpad/spots3/metals-snapshot-2026-10-10.json`.
 Renders: `scratchpad/spots3/metals-after.png` (red-change fault),
 `metals-final.png` (corrected).
+
+---
+
+## Polls 2-3 quiet — built three of the four blocks on Jacob's wireframe
+
+Main routed: the wireframe IS the answer to "what next", build onto it one
+panel at a time. Announced each start on his thread.
+
+### The missing spacing tokens have LANDED
+The library answered 1959595502 since the last sweep. `spacing/2xs+`=6,
+`spacing/xs+`=10, `spacing/sm+`=14, `spacing/md+`=20 now exist, alongside
+`radius/md`=6. **That retires the whole "101 hardcoded values, no token
+holds them" deferral** — everything I built is bound, and the Spots page
+sweep that was deliberately deferred can now finish. Only radius 5 still has
+no home (radius/sm=4, radius/md=6, radius/base=8). No local override was
+needed anywhere, so the override permission main granted went unused.
+
+### Components built, all components-first
+- `212:792` **Log Row**, 648x64 — ONE generic two-row entry used by every
+  ledger, not one per log. Line 1 is Primary + Trailing distributed by
+  `SPACE_BETWEEN`; Meta is a single FILL line under it. Cloned from the
+  mobile Lock Log Row Jacob called solid, then the Spacer frame the hug/fill
+  rule forbids was dropped and the row given its own tokenized vertical
+  padding, so it owns its 64 height instead of inheriting it from the
+  spacer's size. Named generically after the first build, once it was clear
+  the lock ledger wanted the identical shape.
+- `213:792` **Adjustment Ledger**, 680x254 → instance `214:809`.
+- `215:835` **Lock Ledger**, 1023x595, eight entries → instance `216:881`.
+- `217:944` **Default Global Selection**, 329x262 → instance `217:976`.
+
+### The two ghost buttons he pinned
+Built both. The library has no Ghost variant — Variant is
+Primary/Secondary/Tertiary and Tertiary IS the ghost, so no library block.
+Both carried a **leading arrow pointing left** by default, which on a "go to
+the page" button points back the way you came; hidden through the
+`Show leading icon#25:61` property, never through `.visible`.
+
+### Faults the renders caught that the API did not
+1. The four screen cards' change figures came through red after the swap
+   (fixed earlier, see above).
+2. **The adjustment ledger contradicted the notice banner.** The banner on
+   the same screen reads "Adjustments active · Gold, Palladium ... Gold back
+   0.20% and Palladium back 0.25% on nFusion, set by Dana." My first draft
+   had Gold and Silver active. Rewrote the three entries FROM the banner
+   text read back out of the file rather than from memory, so the badge
+   "2 active", the banner and the rows now name the same two metals in the
+   same vocabulary. This is the numeric-claim-vs-rows detector earning its
+   place on a screen nobody had cross-read.
+
+### Verification on all seven new nodes
+0 unbound gaps, 0 unbound paddings, 0 clipped text, 0 overflow. The only
+FIXED children are the two Buttons, which is the known library main that
+will not hug (1959602671) and is a legitimate control-size exemption.
+
+### Deliberately NOT done
+- **Jacob's grey sketch rectangles are still in place under every card.**
+  Main asked for them to be replaced; the no-delete-without-Jacob's-word
+  rule is Jacob's and an orchestrator cannot lift it, so each real card sits
+  on top of his block at the same position and the sketch survives
+  underneath. The strip of grey showing below each card is an honest review
+  signal: it shows exactly how much shorter the real card hugs than the
+  block he drew. Asked him when to clear them.
+- **Queue item 2, collapsing the 4-variant Adjustment dialog `25:2901` into
+  a single card, is NOT done and is not on his wireframe** — the wireframe's
+  ADJUSTMENT LEDGER block is the log, which is item 4. The dialog is a modal
+  and has no block. Flagged to main.
+- The old `113:4314` Lock Log Row is superseded by Log Row but left in place.
+
+### Open with Jacob
+1. Direction=Up as a real second variant on the spot card (up flair is a
+   local override on three cards today).
+2. When to clear the grey sketch blocks.
+3. What goes in the "???" block — pinned as 1960981683.
+4. Whether he wants "Default global selection" as the card title; it
+   crowded the button at 329 wide so it reads "Default source".
+
+## Queue correction, token sweep closed, and Rates rebuilt
+
+### Item 2 was mis-stated in the handover, and item 6 is dead
+Read Jacob's originals rather than the predecessor's summary of them.
+1959552013 "Instead of this terrible horrid thing, make a single adjustment
+card. REmove this though" is pinned on **`119:4547`, the grouped Adjustments
+CARD** — not on the dialog `25:2901`. Fifteen minutes before it, 1959542182
+said "We don't need this card. We just need to show active adjustments on
+the main card." He resolved both at 02:37Z, immediately before drawing the
+wireframe, and the wireframe has no adjustments card: active adjustments are
+the notice banner, history is the ADJUSTMENT LEDGER. So item 2 is satisfied
+by things that already exist, and the dialog was never its subject. Left
+`25:2901` alone.
+
+**Jacob deleted far more than anyone recorded.** Verified MISSING from the
+file: `119:4547` Adjustments card, `104:5286` + `113:4417` the two Adjustment
+logs, `104:5376` + `113:4496` the two Lock logs, `32:7521` Locks card,
+`31:8653` Lock Row, `17:1965` the DESKTOP Sources card. That last one kills
+item 6 as written — there is no desktop Sources card left to bring up to
+mobile's standard, and the 329-wide Default source panel in his wireframe is
+mobile-shaped, which is the same answer by another route.
+
+### Token sweep on Spots — finished, deferral closed
+22 unbound gaps and paddings remained (gap 6x2, 8x2, 16, 24; pad 10x7, 14,
+20x8). Every one had a token after the library landed the `+` steps. 22
+bindings written, **0 skipped, 0 nodes changed, 0 sizes moved** — screen,
+metals row, card, all three new cards, Feed Notice and Sources card measured
+identical before and after. Gaps and paddings on the Spots page are now
+100% bound. The predecessor's "101 values with nowhere to go" is closed.
+
+### Rates rebuilt from nothing (1959553211, his only unresolved instruction)
+Page had 0 children. Built two sections, `Rates` holding the component and
+`Draft · for review` holding the screen.
+- `223:988` **Rate Card**, 1376x319 — title, badge "4 bands", four weight
+  bands as the same two-line row. Band and rate on the top line, what it
+  pays underneath.
+- `223:1028` **Admin / Pricing — Rates, by weight band**, 1440x627 — site
+  header and Admin Header cloned from the Spots screen so the chrome is
+  identical, Rates chip flipped to Selected=True, Spots to False, breadcrumb
+  tail set to Rates.
+
+Two things worth recording:
+- The row component now serves ledgers, sources and rates, so it is renamed
+  **`212:792` Entry Row** (was Log Row, was Adjustment Log Row). Instances
+  follow a rename, so nothing broke. It still sits in the Adjustments
+  section, which is the wrong home for a component four surfaces use; noted,
+  not moved, because moving sections is churn Jacob did not ask for.
+- First draft repeated "at today's bid of $2,411.20" on all four rows. The
+  basis belongs on the screen once, so it moved into the Admin Header
+  description and the rows now read "Pays $2,049.52 per ozt". Arithmetic
+  checked against the gold bid the Spots page states: 85/88/90/92% of
+  2,411.20 = 2,049.52 / 2,121.86 / 2,170.08 / 2,218.30.
+
+Rates page verification: 0 unbound gaps, 0 unbound paddings, 0 FIXED
+children, 0 clipped text, 0 overflow.
+
+Asked him whether he wants Silver, Platinum and Palladium as three more
+cards; only Gold is drawn, because he said "a rates card".
+
+## Quiet-cycle detectors, and two defects they found
+
+Ran section containment, section overlap, variant overlap, clipped text and
+numeric-claim-vs-rows across both pages.
+
+- **Section containment: 1 hit.** The new Default Global Selection component
+  sat at y=1100 in a Sources section only 818 tall, so it hung outside its
+  own section. Moved to y=820 and the section grown to 1130. All sections on
+  both pages now contain every member; 0 section overlaps, 0 variant
+  overlaps, 0 clipped text.
+- **Numeric claims: 7, all true.** "2 active" on the adjustment ledger (3
+  rows, 2 active + 1 expired), "2 active" on the lock ledger (8 rows, 2
+  expiring, 4 released, 2 expired), "3 sources" (3 rows), "4 bands" (4
+  rows). Checked, not assumed.
+
+### Two defects on the Spots screen, both standing-rule fixes
+1. **Content was FIXED at 1718 holding 136px of nothing.** Its children add
+   to 1582. Set to HUG; the screen went 1782 -> 1646 and the dead band at
+   the bottom is gone. This is the rule's own point — a fixed height hides
+   whether the layout under it works.
+2. **Jacob's bottom wireframe row was 8px wider than the top row.** He drew
+   two 680 blocks with a 24 gutter = 1384, against a 1376 content column, so
+   the page edge was ragged and Frame 3 overflowed. Moved the second block
+   from x=704 to 696, giving 680 + 16 + 680 = 1376. Both rows now start and
+   end on exactly the same pixel. Verified by absolute bounding box, not by
+   eye.
+
+Node counts unchanged by both (Spots 964). To mention at the next natural
+reply rather than as its own comment.
+
+## State at hand-off
+
+- **Spots** `1:556`, 1440x1646. Four spot cards from one component; lock
+  ledger, default source and adjustment ledger all real; "???" still his
+  grey block; his sketch rectangles still underneath every card, undeleted.
+- **Rates** `223:1028`, 1440x627. One screen, one rate card, weight bands
+  only, built from an empty page.
+- Components: `212:792` Entry Row, `213:792` Adjustment Ledger, `215:835`
+  Lock Ledger, `217:944` Default Global Selection, `223:988` Rate Card.
+- Both pages: 0 unbound gaps, 0 unbound paddings, 0 clipped text, 0
+  overflow, 0 section problems. Only FIXED children are the screen frames,
+  Jacob's own sketch frames and the library Buttons that will not hug.
+- Every instruction Jacob has given is done. Five questions are open with
+  him and none blocks anything.
