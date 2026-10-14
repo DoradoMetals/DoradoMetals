@@ -14,7 +14,7 @@ import {
   stepUp,
   verifyCode,
 } from '#accounts/auth/controller.ts'
-import { requireUser } from '#shared/middleware/authMiddleware.ts'
+import { requireAdmin, requireUser } from '#shared/middleware/authMiddleware.ts'
 import { isFake as smsIsFake } from '#providers/twilio/index.ts'
 import { isFake as emailIsFake } from '#providers/resend/index.ts'
 
@@ -34,6 +34,6 @@ router.delete('/', requireUser, deleteAccount)
 
 export const readsBackCodes =
   (smsIsFake() || emailIsFake()) && process.env.NODE_ENV !== 'production'
-if (readsBackCodes) router.get('/last_code', lastCode)
+if (readsBackCodes) router.get('/last_code', requireAdmin, lastCode)
 
 export default router

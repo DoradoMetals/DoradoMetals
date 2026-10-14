@@ -11,7 +11,7 @@ export class ApiError extends Error {
   }
 }
 
-const baseUrl = (): string =>
+export const baseUrl = (): string =>
   (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_API_URL) || ''
 
 const withQuery = (url: string, params?: Record<string, unknown>): string => {

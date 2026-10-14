@@ -47,11 +47,23 @@ export function missingEnvNames(env: NodeJS.ProcessEnv = process.env): string[] 
   return required.filter((name) => !env[name])
 }
 
+export function mailRedirectUnsafe(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.NODE_ENV === 'production' && Boolean((env.MAIL_REDIRECT_TO ?? '').trim())
+}
+
 export function validateEnv(env: NodeJS.ProcessEnv = process.env): void {
   const missing = missingEnvNames(env)
-  if (missing.length === 0) return
-  console.error(
-    `Refusing to start: missing required environment variable(s): ${missing.join(', ')}`
-  )
-  process.exit(1)
+  if (missing.length > 0) {
+    console.error(
+      `Refusing to start: missing required environment variable(s): ${missing.join(', ')}`
+    )
+    process.exit(1)
+  }
+  if (mailRedirectUnsafe(env)) {
+    console.error(
+      'Refusing to start: MAIL_REDIRECT_TO is set in production. It exists to keep staging ' +
+        'mail off real inboxes, and must never touch a production send.'
+    )
+    process.exit(1)
+  }
 }

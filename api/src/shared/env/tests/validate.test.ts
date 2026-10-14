@@ -4,6 +4,7 @@ import {
   REQUIRED_ENV_NAMES,
   PRODUCTION_ONLY_ENV_NAMES,
   missingEnvNames,
+  mailRedirectUnsafe,
 } from '#shared/env/validate.ts'
 
 const fullEnv = (): NodeJS.ProcessEnv => {
@@ -50,4 +51,25 @@ test('missing names are reported in declared order, not sorted', () => {
   delete env.STRIPE_SECRET_KEY
   delete env.DATABASE_URL
   assert.deepEqual(missingEnvNames(env), ['DATABASE_URL', 'STRIPE_SECRET_KEY'])
+})
+
+test('MAIL_REDIRECT_TO outside production is safe', () => {
+  const env = fullEnv()
+  delete env.NODE_ENV
+  env.MAIL_REDIRECT_TO = 'jacob@dorado.test'
+  assert.equal(mailRedirectUnsafe(env), false)
+})
+
+test('MAIL_REDIRECT_TO with NODE_ENV=production is unsafe', () => {
+  const env = fullEnv()
+  env.NODE_ENV = 'production'
+  env.MAIL_REDIRECT_TO = 'jacob@dorado.test'
+  assert.equal(mailRedirectUnsafe(env), true)
+})
+
+test('production with no MAIL_REDIRECT_TO set is safe', () => {
+  const env = fullEnv()
+  env.NODE_ENV = 'production'
+  delete env.MAIL_REDIRECT_TO
+  assert.equal(mailRedirectUnsafe(env), false)
 })

@@ -8,10 +8,20 @@ import * as fakeSms from '#providers/twilio/fake.ts'
 import * as fakeEmail from '#providers/resend/fake.ts'
 import { sendSignInCode } from '#documents/emails/service.ts'
 import { readsBackCodes } from '#accounts/auth/routes.ts'
+import {
+  mockSessions,
+  restoreSessions,
+  asAdmin,
+  asUser,
+  anonymous,
+} from '#shared/testing/session.ts'
+import { TEST_ACTOR } from '#shared/testing/actor.ts'
 
+await mockSessions()
 const { default: app } = await import('#app')
 
 afterAll(async () => {
+  restoreSessions()
   fakeSms.reset()
   fakeEmail.reset()
   await pool.end()
@@ -27,15 +37,19 @@ test('the read-back is mounted while the recording SMS fake is the adapter in us
   assert.equal(readsBackCodes, true)
 
   await fakeSms.send('+15125559100', '418209 is your Dorado Metals code.')
-  const res = await request(app).get('/api/account/last_code').query({ number: '+15125559100' })
+  const res = await asAdmin(TEST_ACTOR, () =>
+    request(app).get('/api/account/last_code').query({ number: '+15125559100' })
+  )
   assert.equal(res.status, 200)
   assert.equal(res.body.code, '418209')
 
-  const missing = await request(app).get('/api/account/last_code').query({ number: '+15125559199' })
+  const missing = await asAdmin(TEST_ACTOR, () =>
+    request(app).get('/api/account/last_code').query({ number: '+15125559199' })
+  )
   assert.equal(missing.status, 200)
   assert.equal(missing.body.code, null, 'a number nothing was sent to is null, not an error')
 
-  const noQuery = await request(app).get('/api/account/last_code')
+  const noQuery = await asAdmin(TEST_ACTOR, () => request(app).get('/api/account/last_code'))
   assert.equal(noQuery.status, 400)
 })
 
@@ -52,20 +66,36 @@ test('a sign-in code by email lands in the fake and is readable the same way', a
     expires_in_minutes: 10,
   })
 
-  const res = await request(app).get('/api/account/last_code').query({ email: 'someone@example.com' })
+  const res = await asAdmin(TEST_ACTOR, () =>
+    request(app).get('/api/account/last_code').query({ email: 'someone@example.com' })
+  )
   assert.equal(res.status, 200)
   assert.equal(res.body.code, '512340')
 
-  const missing = await request(app)
-    .get('/api/account/last_code')
-    .query({ email: 'nobody@example.com' })
+  const missing = await asAdmin(TEST_ACTOR, () =>
+    request(app).get('/api/account/last_code').query({ email: 'nobody@example.com' })
+  )
   assert.equal(missing.status, 200)
   assert.equal(missing.body.code, null, 'an address nothing was sent to is null, not an error')
 })
 
 test('neither number nor email answers 400, not a silent null', async () => {
-  const res = await request(app).get('/api/account/last_code')
+  const res = await asAdmin(TEST_ACTOR, () => request(app).get('/api/account/last_code'))
   assert.equal(res.status, 400)
+})
+
+test('a non-admin caller is refused', async () => {
+  const res = await asUser(TEST_ACTOR, () =>
+    request(app).get('/api/account/last_code').query({ number: '+15125559100' })
+  )
+  assert.equal(res.status, 403)
+})
+
+test('an anonymous caller is refused', async () => {
+  const res = await anonymous(() =>
+    request(app).get('/api/account/last_code').query({ number: '+15125559100' })
+  )
+  assert.equal(res.status, 401)
 })
 
 test('the read-back route stays mounted when only one channel loses its fake', async () => {
