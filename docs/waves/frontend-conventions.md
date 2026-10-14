@@ -25,6 +25,12 @@ frontend/app/<area>/<route>/
 - Code shared by two routes of one area goes to `app/<area>/_components`,
   `app/<area>/_lib`. Code shared across areas goes to `frontend/shared/<kind>/`
   (`ui hooks utils providers tests`).
+- A component lives in the most specific feature folder that holds every one
+  of its users (Jacob, 2026-10-14). A spots-only component lives under
+  `spots/_components/` even when the metal page under `spots/[metal]` is its
+  second user; it rises to the area's `_components/` only when a sibling route
+  (rates) uses it too. Nothing feature-specific sits one level up for
+  convenience.
 - Pages stay thin: read params, render one component from `_components/`.
 - Every route has `error.tsx` and `loading.tsx` (ruling 83), or inherits a
   correct one from its area.
