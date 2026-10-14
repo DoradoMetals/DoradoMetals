@@ -29,6 +29,10 @@ const PROPS =
 
 const ACCEPTED: Record<string, { count: number; why: string }> = {
   'domains/checkout/adopt.ts': { count: 2, why: RESULT },
+  'domains/accounts/auth/cookies.ts': {
+    count: 1,
+    why: "better-auth's advanced options contract: the cookie domain and secure flag the library expects, not a row",
+  },
   'domains/accounts/auth/service.ts': {
     count: 1,
     why:
