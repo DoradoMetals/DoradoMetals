@@ -147,14 +147,16 @@ unscanned location and an em dash for its time apply on both orientations now.
   alpha at all. Code is written to the PROSE (8px / 70%), which is also the
   more specific, dated, and internally consistent of the two - the frame reads
   like it predates a later blur-radius correction that never got re-drawn.
-- **Icon Button's (457:75) Default size doesn't balance.** SM checks out - a
-  32px box, 8px padding each side, 16px icon, 8+16+8=32. Default does not: a
-  40px box with the drawn 12px padding (spacing/sm) leaves only 16px for an
-  icon the description says is 20px - 12+20+12=44, four pixels over the frame.
-  Either the padding token or the icon size is wrong in Figma; not reachable
-  from a padding-based read, so Button's `icon`/`iconSm` cva sizes were set
-  from the description's plain-language sizes (SM 16, Default 20) rather than
-  back-computed from the padding.
+- **Icon Button (457:75) grew a third tier, 2026-10-09: SM 28 / Default 32 /
+  LG 40, icon 16/16/20.** The two smaller tiers now balance (SM: 6+16+6=28;
+  Default: 8+16+8=32), but the set's FIXED-size frames mean the padding fields
+  are vestigial once a tier is wider than its hugged content - LG still does
+  not: a 40px box with the drawn 12px padding leaves only 16px for the 20px
+  icon the description calls for (12+20+12=44, four pixels over). Same defect
+  as before, just carried by the new top tier instead of the old "Default."
+  Read the frame's own `absoluteBoundingBox`, not the padding arithmetic, to
+  get the true box: 28/32/40. Button's `iconXs`/`iconSm`/`icon` cva sizes are
+  28/32/40 with 16/16/20 glyphs, matching the three tiers in order.
 - **Menu Item's (132:18) drawn hover fill uses `--secondary`, not `--accent`.**
   Every other "quiet hover" surface in this file and in this codebase (Field's
   option, Table's row, Chip, Calendar, Accordion, tertiary Button) uses
@@ -223,10 +225,82 @@ the theme has no overlay or scrim token.
   AND fades, because that is what its own variant does.
 - **Button's icon gap is `spacing/xs` on every variant.** Tertiary's 4/5/6
   tightening is gone - Jacob raised it to 8 across all 135 variants on
-  2026-09-05.
+  2026-09-05. SUPERSEDED 2026-10-09: the flat 8 is gone too - see the
+  2026-10-09 entry below.
 - **`Hero` bakes in no routes.** `primaryAction` and `secondaryAction` are
   `{ href, label }` props; the secondary is optional. The old `/sell` and `/buy`
   hrefs died with the frontend nuke.
 - **`MaskedField` is deprecated, not deleted**, on both sides. Figma keeps the
   page because deleting a published component detaches every instance of it;
   the code keeps the directory so `figma:inventory` still maps the page.
+
+## Refreshed 2026-10-09 (library worker edit, lane B: button, link, dialog,
+menu, tooltip, drawer, empty-state, banner)
+
+- **Button (25:510) icon gap tiers by size again: 4 / 6 / 8 (SM / Default /
+  LG)**, via `gap-2xs` / `gap-2xs-plus` / `gap-xs`. The flat `gap-xs`
+  everywhere (2026-09-05 note above) is superseded.
+- **Primary/Secondary height is now `min-h-(--control-sm|md|lg)`**, bound to
+  the new `--control-sm`/`--control-md`/`--control-lg` tokens (32/40/44,
+  `packages/theme/theme.css`) instead of a literal `h-8`/`h-10`/`h-11`, so
+  hugging or wrapping content no longer collapses the control. Same pixels.
+- **Tertiary carries NO control height, confirmed from the file: no
+  `minHeight` binding on any of its three sizes**, unlike Primary/Secondary
+  which all bind to a `control/*` variable. `min-h-0` on tertiary's three
+  labeled sizes replaces the old flat `h-8`/`h-10`/`h-11`; it is bare text and
+  now actually sized to its own line height, not the control box.
+- **Icon Button (457:75) grew a third size tier** - see the updated entry
+  above (`Icon Button's (457:75) Default size doesn't balance`). `iconXs`'s
+  glyph was `size-3.5` (14px); the live frame says 16px for both SM and
+  Default, so `iconXs` is `size-4` now, matching `iconSm`. Box sizes
+  (28/32/40 for iconXs/iconSm/icon) were already right.
+- **`hover:opacity-85` needed no change.** The design token (`opacity/hover`)
+  briefly held `0.85` interpreted as 0.85% in a Figma opacity binding; fixed in
+  the file to 85. The code was always correct.
+- **Link (26:513) gained `Intent=Subtle`** (2026-10-07, text/subtle, otherwise
+  identical to Neutral) - added as `intent="subtle"`.
+- **Link's external-icon gap is 4px (`itemSpacing`), not 5.** `gap-[5px]` ->
+  `gap-2xs`. The 12px icon size the README already resolved in favour of the
+  frame over the "10px" prose is unchanged and still correct.
+- **Dialog (41:55) Size gained LG, 960px wide** (SM 320 / MD 420 unchanged).
+  `DialogContent` takes `size="sm" | "md" | "lg"`.
+- **Dialog gained a Footer meta text prop + Show footer meta boolean**, off by
+  default: a line of text at the left end of the footer that grows to fill the
+  slack so the buttons stay right. `DialogFooter` takes an optional `meta`
+  node, rendered `text-small text-subtle grow truncate`.
+- **Dialog's Footer=Row/Stacked variant was not implemented at all** -
+  `DialogFooter` was a single fixed horizontal row. Row and Stacked now differ
+  in both gap (16px row / 8px stacked, i.e. `gap-md` vs `gap-xs` - these were
+  never the same number) and direction: `stacked` renders `flex-col-reverse`
+  so Confirm (last child) lands on top and Cancel (first child) below, with
+  no change to call-site child order.
+  NOISE, not acted on: with Footer meta off, the live frame's footer reads
+  `primaryAxisAlignItems: MAX` (pack right) on all three Row-footer variants,
+  not `SPACE_BETWEEN`. The component's own prose is explicit that "with it
+  off the footer is byte for byte what it was" (space-between, Cancel far
+  left) - treated as a today's-edit artifact from wiring the meta slot, not a
+  real change; `justify-between` is unchanged.
+- **Dialog's body slot/body text toggle needs no code change.** There is no
+  `DialogBody` wrapper; the area between header and footer is already
+  free-form children, which is what an instance-swap slot maps to in code.
+- **Menu Item (132:18), Tooltip (32:177), Empty State (127:49) and Banner
+  (125:4) all matched exactly** - no code changes. Menu Item's hover fill is
+  still `--accent` per the already-resolved note above (`--secondary` in the
+  frame is stale, not followed).
+- **Drawer (127:32) bottom-sheet grab-handle row was 4px top-padded; the frame
+  is 8.** `pt-1` -> `pt-2` (`pb-0.5` already matched). The 36x4 pill bar itself
+  was already right.
+- **Drawer's Header/Footer chrome is designed, not yet in code.** Both sides
+  draw a consistent 16px-padded Header (title + close) and Footer (actions
+  right-aligned, real Buttons); `Drawer` only provides the outer shell
+  (shell padding, anchor, surface, scrim, drag-to-dismiss) and takes raw
+  `children` - every current call site (`AppShell`'s nav drawer) needs neither.
+  Would serve the admin-order and checkout-detail drawers the description
+  calls out as the main use case, as `DrawerHeader`/`DrawerFooter` siblings to
+  Dialog's. Not built: no call site needs it yet and it is a new surface, not
+  a value fix.
+- **Code-only, not drift:** Button's `xs`/`xl` sizes and its four icon-only
+  sizes (`icon`/`iconSm`/`iconXs`/`iconInline`) have no Figma-side variant of
+  their own; Link's `variant="inline"|"nav"` axis and its `muted`/`foreground`
+  intents serve nav-link highlighting, which Figma's Link does not model.
+  Kept, listed, not removed.

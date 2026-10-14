@@ -77,7 +77,7 @@ describe('the token reader', () => {
     const style = JSON.stringify(type('micro', { color: screen.muted }))
     expect(style).not.toMatch(/var\(/)
     expect(style).toContain('#9499a4')
-    expect(JSON.stringify(eyebrowType())).toContain('1.2px')
+    expect(JSON.stringify(eyebrowType())).toContain('0.48px')
   })
 
   it('hands a browser theme.css with @theme renamed, not dropped', () => {

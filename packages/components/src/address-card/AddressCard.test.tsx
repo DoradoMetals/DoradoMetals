@@ -40,9 +40,18 @@ describe('AddressCard', () => {
     expect(getByText('(214) 555-0182').className).not.toContain('text-placeholder')
   })
 
-  it('Edit/Delete render at the drawn 32px (sm) height', () => {
+  it('Edit/Delete are tertiary: bare text, no control height (25:510, 2026-10-09)', () => {
     const { getByRole } = render(<AddressCard {...base} onEdit={() => {}} onDelete={() => {}} />)
-    expect(getByRole('button', { name: /edit/i }).className).toContain('h-8')
-    expect(getByRole('button', { name: /delete/i }).className).toContain('h-8')
+    expect(getByRole('button', { name: /edit/i }).className).toContain('min-h-0')
+    expect(getByRole('button', { name: /delete/i }).className).toContain('min-h-0')
+  })
+
+  it('radius is 8px (radius/lg) and vertical padding is 12px, not the 10px/14px surface scale (163:32)', () => {
+    const { container } = render(<AddressCard {...base} />)
+    const card = container.firstElementChild as HTMLElement
+    expect(card.className).toContain('rounded-lg')
+    expect(card.className).toContain('py-3')
+    expect(card.className).not.toContain('rounded-surface')
+    expect(card.className).not.toContain('py-3.5')
   })
 })

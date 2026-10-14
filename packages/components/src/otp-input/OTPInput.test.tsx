@@ -33,6 +33,18 @@ describe('OTPInput', () => {
     expect(onComplete).toHaveBeenCalledWith('123456')
   })
 
+  it('error cells are a 1px destructive border and the digit keeps its own colour (96:14)', () => {
+    const { container } = render(
+      <OTPInput value="123" length={6} onValueChange={() => {}} invalid label="Code" />
+    )
+    const cells = container.querySelectorAll('[data-testid="otp-cell"]')
+    const filledCell = cells[0] as HTMLElement
+    expect(filledCell.className).toContain('border-destructive')
+    expect(filledCell.className).not.toContain('text-destructive')
+    expect(filledCell.className).toContain('text-foreground')
+    expect(filledCell.className).not.toContain('border-[1.5px]')
+  })
+
   it('non-digits never reach the value', () => {
     const onValueChange = vi.fn()
     const { container } = render(<OTPInput value="" onValueChange={onValueChange} label="Code" />)
@@ -96,7 +108,7 @@ describe('OTPInput', () => {
     const { container } = render(<OTPInput value="" onValueChange={() => {}} label="Code" />)
     const row = container.querySelector('[aria-hidden]')!
     expect(row.className).toContain('gap-sm')
-    expect(row.className).toContain('justify-center')
+    expect(row.className).toContain('justify-between')
     container.querySelectorAll('[data-testid="otp-cell"]').forEach((cell) => {
       expect(cell.className).toContain('h-14')
       expect(cell.className).toContain('max-w-[48px]')

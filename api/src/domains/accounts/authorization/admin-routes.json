@@ -10,7 +10,6 @@
   "DELETE /api/refining/lots/:id",
   "DELETE /api/reviews/:id",
   "DELETE /api/spots/adjustments/:metal_id/:source_id",
-  "GET /api/account/last_code",
   "GET /api/activity",
   "GET /api/calls/:id",
   "GET /api/carrier_services/get_one",

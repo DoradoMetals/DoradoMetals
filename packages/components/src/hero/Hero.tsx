@@ -23,7 +23,7 @@ export function Hero({ sellerCount, primaryAction, secondaryAction }: HeroProps)
 
       <h1 className="max-w-2xl text-balance">Sell your precious metals without the guesswork</h1>
 
-      <p className="max-w-xl text-balance text-h5 text-muted-foreground">
+      <p className="max-w-xl text-balance text-h5 font-semibold text-muted-foreground">
         Insured shipping, transparent assay, and payout the day your metal arrives.
       </p>
 

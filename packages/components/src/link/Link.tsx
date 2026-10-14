@@ -18,6 +18,7 @@ const linkVariants = cva(
         danger: 'text-destructive',
         warning: 'text-warning',
         info: 'text-info',
+        subtle: 'text-subtle',
       },
       variant: {
         inline: 'text-small underline-offset-4 hover:underline focus-visible:underline',
@@ -45,7 +46,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkProps>(
     return (
       <Comp
         className={cn(
-          external && 'inline-flex items-center gap-[5px]',
+          external && 'inline-flex items-center gap-2xs',
           linkVariants({ intent: resolvedIntent, variant, className })
         )}
         ref={ref}

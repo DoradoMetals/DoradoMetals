@@ -30,7 +30,12 @@ export function TableHeader({
 }
 
 export function TableBody({ className, ...props }: React.HTMLAttributes<HTMLTableSectionElement>) {
-  return <tbody className={cn('[&>tr]:h-12 [&>tr:hover]:bg-accent', className)} {...props} />
+  return (
+    <tbody
+      className={cn('[&>tr]:min-h-(--control-xl) [&>tr:hover]:bg-accent', className)}
+      {...props}
+    />
+  )
 }
 
 const ROW_INTENTS = {

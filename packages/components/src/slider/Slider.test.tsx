@@ -39,4 +39,18 @@ describe('Slider', () => {
     const range = container.querySelector('.bg-primary') as HTMLElement
     expect(range.className).toContain('data-[disabled]:bg-border-strong')
   })
+
+  it('carries its own trailing percentage readout by default (31:115)', () => {
+    const { getByText } = render(
+      <Slider aria-label="Purity" min={0} max={100} defaultValue={[40]} />
+    )
+    expect(getByText('40%')).toBeTruthy()
+  })
+
+  it('showValue=false hides the readout, for SliderField to replace it (99:210)', () => {
+    const { queryByText } = render(
+      <Slider aria-label="Purity" min={0} max={100} defaultValue={[40]} showValue={false} />
+    )
+    expect(queryByText('40%')).toBe(null)
+  })
 })

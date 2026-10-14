@@ -38,7 +38,7 @@ export function AddressCard({
         ? { type: 'button' as const, role: 'radio', 'aria-checked': !!selected, onClick: onSelect }
         : {})}
       className={cn(
-        'flex w-full flex-col gap-1 rounded-surface bg-card px-4 py-3.5 text-left',
+        'flex w-full flex-col gap-1 rounded-lg bg-card px-4 py-3 text-left',
         selected ? 'border-[1.5px] border-border-strong' : 'border border-border',
         pickable &&
           'cursor-pointer transition-colors hover:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background',
@@ -60,7 +60,7 @@ export function AddressCard({
       ))}
       {phone != null && <span className="text-small text-muted-foreground">{phone}</span>}
       {(onEdit || onDelete) && (
-        <span className="flex items-center gap-3 pt-2">
+        <span className="flex items-center gap-3">
           {onEdit && (
             <Button
               variant="tertiary"

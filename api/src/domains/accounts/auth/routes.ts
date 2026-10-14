@@ -1,6 +1,8 @@
 import express from 'express'
+import type { NextFunction, Request, RequestHandler, Response } from 'express'
 
 import {
+  authFakes,
   changeEmail,
   changePhone,
   confirmChange,
@@ -20,6 +22,9 @@ import { isFake as emailIsFake } from '#providers/resend/index.ts'
 
 const router = express.Router()
 
+const adminWhenQueried: RequestHandler = (req: Request, res: Response, next: NextFunction) =>
+  req.query.number || req.query.email ? requireAdmin(req, res, next) : next()
+
 router.post('/send_code', sendCode)
 router.post('/verify_code', verifyCode)
 router.post('/sign_up', signUp)
@@ -34,6 +39,8 @@ router.delete('/', requireUser, deleteAccount)
 
 export const readsBackCodes =
   (smsIsFake() || emailIsFake()) && process.env.NODE_ENV !== 'production'
-if (readsBackCodes) router.get('/last_code', requireAdmin, lastCode)
+if (readsBackCodes) router.get('/last_code', adminWhenQueried, lastCode)
+
+if (process.env.NODE_ENV !== 'production') router.get('/auth_fakes', authFakes)
 
 export default router

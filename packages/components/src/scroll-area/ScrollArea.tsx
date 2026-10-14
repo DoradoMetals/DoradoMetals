@@ -7,33 +7,45 @@ import { cn } from '../cn'
 
 export type ScrollAreaProps = React.ComponentPropsWithoutRef<typeof ScrollAreaPrimitive.Root> & {
   orientation?: 'vertical' | 'horizontal' | 'both'
+  chrome?: boolean
 }
 
 const ScrollArea = React.forwardRef<
   React.ComponentRef<typeof ScrollAreaPrimitive.Root>,
   ScrollAreaProps
->(({ className, children, orientation = 'vertical', type = 'hover', ...props }, ref) => (
-  <ScrollAreaPrimitive.Root
-    ref={ref}
-    type={type}
-    className={cn('relative overflow-hidden', className)}
-    {...props}
-  >
-    <ScrollAreaPrimitive.Viewport
+>(
+  (
+    { className, children, orientation = 'vertical', type = 'hover', chrome = true, ...props },
+    ref
+  ) => (
+    <ScrollAreaPrimitive.Root
+      ref={ref}
+      type={type}
       className={cn(
-        'size-full rounded-[inherit]',
-        'outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background'
+        'relative overflow-hidden',
+        chrome && 'rounded-lg border border-border bg-card',
+        className
       )}
+      {...props}
     >
-      {children}
-    </ScrollAreaPrimitive.Viewport>
-    {(orientation === 'vertical' || orientation === 'both') && <ScrollBar orientation="vertical" />}
-    {(orientation === 'horizontal' || orientation === 'both') && (
-      <ScrollBar orientation="horizontal" />
-    )}
-    <ScrollAreaPrimitive.Corner />
-  </ScrollAreaPrimitive.Root>
-))
+      <ScrollAreaPrimitive.Viewport
+        className={cn(
+          'size-full rounded-[inherit]',
+          'outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background'
+        )}
+      >
+        {children}
+      </ScrollAreaPrimitive.Viewport>
+      {(orientation === 'vertical' || orientation === 'both') && (
+        <ScrollBar orientation="vertical" />
+      )}
+      {(orientation === 'horizontal' || orientation === 'both') && (
+        <ScrollBar orientation="horizontal" />
+      )}
+      <ScrollAreaPrimitive.Corner />
+    </ScrollAreaPrimitive.Root>
+  )
+)
 ScrollArea.displayName = 'ScrollArea'
 
 const ScrollBar = React.forwardRef<
@@ -44,15 +56,15 @@ const ScrollBar = React.forwardRef<
     ref={ref}
     orientation={orientation}
     className={cn(
-      'flex touch-none select-none rounded-full bg-muted p-0.5 transition-opacity',
+      'flex touch-none select-none rounded-full p-0.5 transition-opacity',
       'data-[state=hidden]:opacity-0 motion-reduce:transition-none',
-      orientation === 'vertical' && 'my-1 mr-1 h-[calc(100%-0.5rem)] w-2',
-      orientation === 'horizontal' && 'mx-1 mb-1 h-2 w-[calc(100%-0.5rem)] flex-col',
+      orientation === 'vertical' && 'my-0.5 mr-0.5 h-[calc(100%-0.25rem)] w-2',
+      orientation === 'horizontal' && 'mx-0.5 mb-0.5 h-2 w-[calc(100%-0.25rem)] flex-col',
       className
     )}
     {...props}
   >
-    <ScrollAreaPrimitive.ScrollAreaThumb className="relative flex-1 rounded-full bg-border-strong" />
+    <ScrollAreaPrimitive.ScrollAreaThumb className="relative flex-1 rounded-full bg-muted" />
   </ScrollAreaPrimitive.ScrollAreaScrollbar>
 ))
 ScrollBar.displayName = 'ScrollBar'

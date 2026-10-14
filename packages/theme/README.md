@@ -115,8 +115,14 @@ bugs that were expensive to find and are invisible in the CSS itself.
   64px, collapsing every page shell built on a named max-width. These pin
   the container meaning back via the namespace that outranks spacing;
   values are Tailwind's own, verbatim. The spacing meaning stays for
-  p-/m-/gap-. `max-w-4xl` and up never collided - the spacing scale stops
-  at 3xl, and must keep stopping there or its new steps need pinning too.
+  p-/m-/gap-. `max-w-4xl` and up never collided - the spacing scale stopped
+  at 3xl. IT STOPPED. On 2026-10-10 the library added `spacing/4xl` 96, and
+  `max-w-4xl` collapsed from 56rem to 6rem exactly as predicted here.
+  `--max-width-4xl: 56rem` is pinned beside it, and `scripts/figma/pull.mjs`
+  now emits the pin for EVERY spacing name that collides with a container
+  name, from a verbatim table of Tailwind's container values, and refuses to
+  run when a colliding name has no pin value it knows. The trap is now a
+  failed command rather than a day of hunting computed styles.
 
 - --- TYPE ----------------------------------------------------------------
   One scale, driving both the semantic tag rules in base.css and the
@@ -616,3 +622,71 @@ block, so Tailwind's `text-h1` references `var(--text-h1)` rather than inlining
 — `Text`, the `h1` element rule in `typography.css` and `.display`/`.stat` all
 follow with no hydration cost. `docs/waves/responsive-type.md` carries the
 measurements.
+
+
+## The generator owns most of this file now (2026-10-10)
+
+`theme.css` and `typography.css` are still hand-written where the reasoning
+lives, but every value the Figma library declares is WRITTEN by
+`pnpm figma:pull` - see `scripts/figma/README.md`. Run it after a capture
+rather than retyping a number:
+
+```
+pnpm figma:pull <part1.json> <part2.json>
+```
+
+It patches values and inserts missing tokens; it never reorders or deletes, and
+running it twice does nothing. What it owns is listed in that README. What it
+does NOT own, and what therefore stays yours to edit: the `@theme inline`
+colour aliases, `--radius-surface`, the keyframes and `--animate-*`, the
+`--max-width-*` values that have no spacing twin, `--font-*`, and every comment.
+
+Three consequences worth knowing before you touch a number by hand:
+
+- **The eyebrow's tracking is one number in three files.** `typography.css`
+  carries it as `letter-spacing` on `.eyebrow` in em, and
+  `packages/components/src/email/style.ts` carries it as a hardcoded `px` inside
+  `eyebrowType`, because a mail client cannot read a custom property. The
+  generator writes both from the Figma `Eyebrow` text style. It moved from
+  `0.1em` to `0.04em` on 2026-10-10 because the style in the library reads 4%.
+- **A `+` in a Figma spacing name becomes `-plus` in CSS.** `spacing/2xs+`
+  is `--spacing-2xs-plus`, class `p-2xs-plus`. `+` is not a legal CSS
+  identifier character, so the name could not be carried across literally. The
+  four half-steps are 6, 10, 14 and 20 - each the midpoint of two existing
+  steps, named for the step below.
+- **The `--control-*` ladder is six steps and is NOT a Tailwind namespace.**
+  xs 24, sm 32, sm-plus 36, md 40, lg 44, xl 48. There is no `--height-*`
+  namespace in Tailwind v4, so a component reads them as
+  `min-h-(--control-md)`. They are `min-h` rather than `h` on purpose: in Figma
+  every one of these frames is HUG with a bound `minHeight`, so the number is a
+  FLOOR. A fixed height collapses a hugging control and clips a wrapping label,
+  which is what the library's hug-and-fill pass went looking for. Twelve
+  controls read the ladder: Button and Icon Button, plus Chip 32, Radio Chip 40,
+  Calendar Day 40, Menu Item 36, Page Item 32, Select Option 36, Table Row 48,
+  Tracker Node 24 and Step Marker 24. On the square and circular ones - the
+  calendar cell, the page item, the two 24px markers - the floor is paired with
+  a matching `min-w-(--control-*)`, because a bare `min-h` leaves the width to
+  the content and a circle stops being a circle.
+- **`--page-margin-letter` is 72px of print geometry and nothing on screen
+  reads it.** It is its own `page/*` family in the Figma Scale collection, for
+  the letter-page margin the `document` package lays out on.
+
+## The stat ladder (2026-10-10)
+
+Five steps now, not two, because Amount needed a figure size between a heading
+and a hero number and every ad-hoc one was a trap:
+
+| step | size / line-height | Mobile | Figma text style |
+|---|---|---|---|
+| `stat-lg` | 48 / 55.2 | **32 / 36.8** | Stat/Large |
+| `stat` | 36 / 39.6 | **30 / 33** | Stat/Default |
+| `stat-sm` | 30 / 34.5 | **28 / 32.2** | Stat/Small |
+| `stat-xs` | 24 / 27.6 | **22 / 25.3** | Stat/XSmall |
+| `stat-2xs` | 20 / 23 | 20 / 23 | Stat/2XSmall |
+
+`stat-xs` is 24 and not 22 for a stated reason: 22 is already `h3`, and a stat
+identical to a heading is indistinguishable in a diff and in a design. Every
+step but `stat` runs at a 1.15 ratio and -0.02em; `stat` keeps its own 1.1 and
+-0.024em. `typography.css` carries a `.stat-*` utility for each, all with
+`font-variant-numeric: tabular-nums`, because a figure that shifts its digits
+on every update was the original defect.

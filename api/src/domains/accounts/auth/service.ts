@@ -5,6 +5,7 @@ import * as captcha from '#providers/cloudflare/index.ts'
 import * as sms from '#providers/twilio/index.ts'
 import * as fakeSms from '#providers/twilio/fake.ts'
 import * as fakeEmail from '#providers/resend/fake.ts'
+import { isFake as emailIsFake } from '#providers/resend/index.ts'
 import * as throttles from '#db/auth/throttles/repo.ts'
 import * as pendingChanges from '#db/auth/pending-changes/repo.ts'
 import * as pendingSignups from '#db/auth/pending-signups/repo.ts'
@@ -23,6 +24,7 @@ import { detailsChangedRows } from '#documents/emails/rules.ts'
 import type {
   AccountProfile,
   AccountProfilePatch,
+  AuthFakesView,
   AuthOtpThrottle,
   ChangeConfirmedView,
   ConfirmChangeBody,
@@ -552,6 +554,27 @@ export function lastCode(number: string | undefined, email: string | undefined):
   if (number) return fakeSms.lastCodeTo(number)
   if (email) return fakeEmail.lastCodeTo(email)
   return null
+}
+
+export function authFakes(): AuthFakesView {
+  return { sms: sms.isFake(), email: emailIsFake() }
+}
+
+export function readsBackCodes(): boolean {
+  const fakes = authFakes()
+  return (fakes.sms || fakes.email) && process.env.NODE_ENV !== 'production'
+}
+
+export async function stepUpDestination(user_id: string): Promise<string> {
+  const user = await users.getOne(user_id)
+  rules.assertUser(user)
+  return rules.stepUpDestination(user)
+}
+
+export async function changeOtpDestination(user_id: string, factor: Factor): Promise<string> {
+  const user = await users.getOne(user_id)
+  rules.assertUser(user)
+  return rules.carrierFor(user, factor)
 }
 
 export async function profile(user_id: string): Promise<AccountProfile> {

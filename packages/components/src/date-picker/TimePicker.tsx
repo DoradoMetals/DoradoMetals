@@ -68,7 +68,7 @@ export function TimePicker({
                   disabled={!available}
                   onClick={() => onValueChange(slot.value)}
                   className={cn(
-                    'flex h-10 cursor-pointer items-center justify-center rounded-lg px-3 text-small font-medium transition-colors',
+                    'flex h-10 cursor-pointer items-center justify-center rounded-lg px-sm text-small font-medium transition-colors',
                     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background',
                     selected
                       ? 'bg-primary text-primary-foreground'

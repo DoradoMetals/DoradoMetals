@@ -20,9 +20,7 @@ for (const [role, account] of Object.entries(ROLES)) {
         `Has the seed been run?\n  pnpm seed`
     ).toBeTruthy()
 
-    const read = await api.get(`${API}/account/last_code`, {
-      params: { email: account.email },
-    })
+    const read = await api.get(`${API}/account/last_code`)
     expect(
       read.ok(),
       `/account/last_code answered ${read.status()} - is the email provider the recording fake?`

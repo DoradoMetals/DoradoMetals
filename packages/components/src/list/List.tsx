@@ -47,7 +47,7 @@ export function ListItem({
     >
       <span aria-hidden className="flex h-6 w-4 shrink-0 items-center justify-center">
         {marker === 'bullet' && <span className="size-[5px] rounded-full bg-muted-foreground" />}
-        {marker === 'check' && <Check className="size-4 text-success" strokeWidth={2.5} />}
+        {marker === 'check' && <Check className="size-4" strokeWidth={(2 * 16) / 24} />}
         {marker === 'number' && (
           <span className="text-muted-foreground before:content-[counter(item)'.']" />
         )}

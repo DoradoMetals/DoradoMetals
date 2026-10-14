@@ -66,7 +66,7 @@ export function DatePicker({
         }}
       />
       {withTimes && slim && (
-        <div className="border-t border-border p-2">
+        <div className="px-md pb-md">
           <Select
             label={timeHeading ?? 'Time'}
             placeholder="Select a time"
@@ -83,10 +83,10 @@ export function DatePicker({
             stacked ? 'border-t' : 'min-w-64 max-sm:border-t sm:border-l'
           )}
         >
-          <ScrollArea className={stacked ? undefined : 'max-h-72'}>
+          <ScrollArea className={stacked ? undefined : 'max-h-72'} chrome={false}>
             <TimePicker
               bare
-              columns={stacked ? 3 : 2}
+              columns={2}
               heading={timeHeading}
               groups={timeGroups}
               value={timeValue ?? null}
