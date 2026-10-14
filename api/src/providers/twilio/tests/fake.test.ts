@@ -48,3 +48,17 @@ test('reset empties the recording', async () => {
   assert.equal(fake.sent().length, 0)
   assert.equal(fake.lastCodeTo('+15125550199'), null)
 })
+
+test('a send records the sending number and is found again by its sid', async () => {
+  const result = await fake.send('+15125550199', 'code 444444')
+  const message = fake.byMessageId(result.provider_sid)
+  assert.equal(message?.body, 'code 444444')
+  assert.ok(message?.from, 'the from-number is recorded')
+  assert.equal(fake.byMessageId('SMfake-missing'), null)
+})
+
+test('the recording keeps only the newest 500 sends', async () => {
+  for (let index = 0; index < 505; index += 1) await fake.send('+15125550199', `n ${index}`)
+  assert.equal(fake.sent().length, 500)
+  assert.equal(fake.sent()[0].body, 'n 5')
+})

@@ -67,12 +67,8 @@ vi.mock('@dorado/client', () => ({
     error: null,
   }),
   useAuthFakes: () => ({ data: undefined, isPending: false, isError: false, error: null }),
-  useLastCode: () => ({
-    mutateAsync: vi.fn(),
-    isPending: false,
-    isError: false,
-    error: null,
-  }),
+  accountMessages: vi.fn(async () => []),
+  accountMessageUrl: (id: string) => `/api/account/messages/${id}`,
   useConfirmChange: () => ({
     mutateAsync: confirmChangeMutateAsync,
     isPending: false,

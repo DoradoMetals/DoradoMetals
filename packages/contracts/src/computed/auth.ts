@@ -79,6 +79,19 @@ export const AuthFakesView = z.object({
 })
 export type AuthFakesView = z.infer<typeof AuthFakesView>
 
+export const MessageChannel = z.enum(['email', 'sms'])
+export type MessageChannel = z.infer<typeof MessageChannel>
+
+export const AccountMessage = z.object({
+  message_id: z.string(),
+  channel: MessageChannel,
+  to: z.string(),
+  subject: z.string().nullable(),
+  preview: z.string().nullable(),
+  sent_at: z.string(),
+})
+export type AccountMessage = z.infer<typeof AccountMessage>
+
 export const SessionView = z.object({
   user_id: User.shape.id,
   email: User.shape.email,

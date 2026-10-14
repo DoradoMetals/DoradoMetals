@@ -37,6 +37,8 @@ const PUBLIC = new Set([
   'POST /api/account/sign_up',
   'GET /api/account/last_code',
   'GET /api/account/auth_fakes',
+  'GET /api/account/messages',
+  'GET /api/account/messages/:message_id',
 ])
 
 const NOT_OURS = new Set([

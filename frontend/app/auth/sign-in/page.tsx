@@ -8,6 +8,7 @@ import { AuthForm } from '@/shared/ui/auth/AuthForm'
 import { useCaptcha } from '@/shared/hooks/useCaptcha'
 import { useGoogleSignIn } from '@/shared/hooks/auth/queries'
 import { useVerification } from '@/shared/providers/VerificationProvider'
+import { useMessageTab } from '@/shared/hooks/useMessageTab'
 import { messageOf } from '@/shared/utils/authForm'
 import { nextFrom } from '@/shared/utils/returnTo'
 
@@ -16,14 +17,16 @@ function SignIn() {
   const params = useSearchParams()
   const [email, setEmail] = useState('')
   const sendCode = useSendCode()
+  const messageTab = useMessageTab()
   const captcha = useCaptcha()
   const google = useGoogleSignIn()
   const { setVerification } = useVerification()
 
   const submit = async () => {
-    const captcha_token = await captcha.token()
     try {
-      const view = await sendCode.mutateAsync({ channel: 'email', email, captcha_token })
+      const view = await messageTab.run(async () =>
+        sendCode.mutateAsync({ channel: 'email', email, captcha_token: await captcha.token() })
+      )
       setVerification({ view, channel: 'email', email, next: nextFrom(params) ?? undefined })
       router.push(view.status === 'locked' ? '/auth/locked' : '/auth/verify')
     } finally {

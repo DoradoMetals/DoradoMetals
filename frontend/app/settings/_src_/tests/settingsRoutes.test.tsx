@@ -43,6 +43,9 @@ vi.mock('@dorado/client', () => ({
   useVerifyCode: () => ({ mutateAsync: vi.fn(), isPending: false, isError: false, error: null }),
   useConfirmChange: () => ({ mutateAsync: vi.fn(), isPending: false, isError: false, error: null }),
   useSession: () => ({ data: null, isPending: false }),
+  useAuthFakes: () => ({ data: undefined, isPending: false, isError: false, error: null }),
+  accountMessages: vi.fn(async () => []),
+  accountMessageUrl: (id: string) => `/api/account/messages/${id}`,
 }))
 
 vi.mock('@/shared/hooks/useCaptcha', () => ({

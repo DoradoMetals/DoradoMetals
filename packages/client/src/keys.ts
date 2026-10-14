@@ -3,6 +3,7 @@ export const keys = {
     all: () => ['auth'] as const,
     session: () => ['auth', 'session'] as const,
     fakes: () => ['auth', 'fakes'] as const,
+    messages: () => ['auth', 'messages'] as const,
   },
   orders: {
     all: () => ['orders'] as const,

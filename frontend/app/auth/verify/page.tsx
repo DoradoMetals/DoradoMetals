@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import { useConfirmChange, useSendCode, useVerifyCode } from '@dorado/client'
 
 import { AuthForm } from '@/shared/ui/auth/AuthForm'
-import { OpenCodeLink } from '@/shared/ui/auth/OpenCodeLink'
+import { OpenMessageLink } from '@/shared/ui/auth/OpenMessageLink'
+import { useMessageTab } from '@/shared/hooks/useMessageTab'
 import { getSession } from '@/shared/hooks/auth/authClient'
 import { useAdoptSession } from '@/shared/hooks/auth/queries'
 import { useVerification } from '@/shared/providers/VerificationProvider'
@@ -22,6 +23,7 @@ export default function Page() {
   const confirmChange = useConfirmChange()
   const sendCode = useSendCode()
   const adopt = useAdoptSession()
+  const messageTab = useMessageTab()
 
   const leaving = useRef(false)
 
@@ -74,11 +76,13 @@ export default function Page() {
   }
 
   const resend = async () => {
-    const next = await sendCode.mutateAsync({
-      channel: verification.channel,
-      phone_number: verification.phone_number,
-      email: verification.email,
-    })
+    const next = await messageTab.run(() =>
+      sendCode.mutateAsync({
+        channel: verification.channel,
+        phone_number: verification.phone_number,
+        email: verification.email,
+      })
+    )
     setVerification({ ...verification, view: next })
     setCode('')
   }
@@ -89,7 +93,7 @@ export default function Page() {
       view={view}
       code={code}
       smsConsentPending={verification.smsConsentPending}
-      openCode={<OpenCodeLink />}
+      openCode={<OpenMessageLink />}
       onCodeChange={setCode}
       onSubmit={submit}
       onResend={resend}
