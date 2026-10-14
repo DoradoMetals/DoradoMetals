@@ -21,8 +21,9 @@ import { Badge, Button, Switch, Text } from '@dorado/components'
 import { GripVertical } from '@dorado/icons'
 import type { SpotSourceRead } from '@dorado/contracts'
 
-import { formatAgo, formatStamp } from '../../_lib'
-import { Panel } from '../../_components'
+import { formatAgo } from '../_lib'
+import { formatStamp } from '../../_lib'
+import { Panel } from '@/shared/ui/Panel'
 
 export type SourcesPanelProps = {
   sources: SpotSourceRead[]

@@ -1,7 +1,8 @@
 import { Accordion, Amount, Text } from '@dorado/components'
 import type { MetalSpot } from '@dorado/contracts'
 
-import { formatChange, formatMoney } from '../../../_lib'
+import { formatChange } from '../../_lib'
+import { formatMoney } from '../../../_lib'
 import { changeTone } from '../../_lib'
 
 function Figure({

@@ -7,22 +7,14 @@ import {
   easternInstant,
   formatAgo,
   formatChange,
-  rangeLabel,
   sourceName,
-  unitShort,
 } from '../_lib'
 
-describe('pricing formatters', () => {
+describe('spot formatters', () => {
   test('a change shows its sign only when asked', () => {
     expect(formatChange(-12.1, -1.24, false)).toBe('$12.10 (1.24%)')
     expect(formatChange(18.4, 0.76, true)).toBe('+$18.40 (0.76%)')
     expect(formatChange(null, null, true)).toBe('—')
-  })
-
-  test('a band reads as a range, the last one open', () => {
-    expect(rangeLabel(0, 5)).toBe('0 – 5 ozt')
-    expect(rangeLabel(20, null)).toBe('20+ ozt')
-    expect(rangeLabel(0, 100, unitShort('g'))).toBe('0 – 100 g')
   })
 
   test('an adjustment reads in its own unit', () => {

@@ -87,6 +87,7 @@ rows across two tables — 14 payouts in `exchange.payouts` (7 ACH, 7 WIRE, 9
 customers) and 10 January-residue rows in `payments.details` (8 customers).
 Re-measure with `audit:plaintext-secrets --prod` before trusting that count on
 the day.
+- **Twilio keys must be configured before dev merges to master.** Sign-in defaults to the phone form (`/auth/sign-in`, ruling D216 and the Auth frame); without the Twilio keys the api uses the fake SMS sender and the default sign-in form cannot deliver a code. Staging delivers through the fake on purpose.
 
 ## 3. Waiting on Jacob
 

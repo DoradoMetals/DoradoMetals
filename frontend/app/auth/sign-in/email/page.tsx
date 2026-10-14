@@ -9,14 +9,13 @@ import { useCaptcha } from '@/shared/hooks/useCaptcha'
 import { useGoogleSignIn } from '@/shared/hooks/auth/queries'
 import { useVerification } from '@/shared/providers/VerificationProvider'
 import { useMessageTab } from '@/shared/hooks/useMessageTab'
-import formatPhoneNumber, { normalizePhone } from '@/shared/utils/formatPhoneNumber'
 import { messageOf } from '@/shared/utils/authForm'
 import { nextFrom } from '@/shared/utils/returnTo'
 
-function SignInPhone() {
+function SignInEmail() {
   const router = useRouter()
   const params = useSearchParams()
-  const [digits, setDigits] = useState('')
+  const [email, setEmail] = useState('')
   const sendCode = useSendCode()
   const messageTab = useMessageTab()
   const captcha = useCaptcha()
@@ -24,12 +23,11 @@ function SignInPhone() {
   const { setVerification } = useVerification()
 
   const submit = async () => {
-    const phone_number = `+1${digits}`
     try {
       const view = await messageTab.run(async () =>
-        sendCode.mutateAsync({ channel: 'sms', phone_number, captcha_token: await captcha.token() })
+        sendCode.mutateAsync({ channel: 'email', email, captcha_token: await captcha.token() })
       )
-      setVerification({ view, channel: 'sms', phone_number, next: nextFrom(params) ?? undefined })
+      setVerification({ view, channel: 'email', email, next: nextFrom(params) ?? undefined })
       router.push(view.status === 'locked' ? '/auth/locked' : '/auth/verify')
     } finally {
       captcha.reset()
@@ -38,9 +36,9 @@ function SignInPhone() {
 
   return (
     <AuthForm
-      state="sign-in"
-      value={formatPhoneNumber(digits)}
-      onValueChange={(next) => setDigits(normalizePhone(next))}
+      state="sign-in-email"
+      value={email}
+      onValueChange={setEmail}
       onSubmit={submit}
       captcha={captcha.widget}
       pending={sendCode.isPending}
@@ -54,7 +52,7 @@ function SignInPhone() {
 export default function Page() {
   return (
     <Suspense fallback={null}>
-      <SignInPhone />
+      <SignInEmail />
     </Suspense>
   )
 }

@@ -55,7 +55,12 @@ function initials(name?: string | null, email?: string | null) {
 
 type Entry = { href: string; label: string }
 
-const HOME: Entry = { href: '/', label: 'Home' }
+const SITE: Entry[] = [
+  { href: '/how-it-works', label: 'How it works' },
+  { href: '/pricing', label: 'Pricing' },
+  { href: '/about', label: 'About' },
+  { href: '/contact', label: 'Contact' },
+]
 const ADMIN: Entry = { href: '/admin', label: 'Admin' }
 
 const SIGNED_IN_ACCOUNT: Entry[] = [
@@ -73,7 +78,8 @@ function useChrome() {
 
   return {
     signedIn,
-    nav: signedIn && isAdmin ? [HOME, ADMIN] : [HOME],
+    nav: SITE,
+    admin: signedIn && isAdmin ? [ADMIN] : [],
     account: signedIn
       ? SIGNED_IN_ACCOUNT
       : [{ href: signInHref(pathname), label: 'Sign in' }, ...SIGNED_OUT_ACCOUNT],
@@ -97,7 +103,7 @@ function NavLinks({ pathname }: { pathname: string }) {
 }
 
 function AccountMenu() {
-  const { signedIn, account, who, initials: label } = useChrome()
+  const { signedIn, account, admin, who, initials: label } = useChrome()
   const { mutate: signOut } = useSignOut()
   const pathname = usePathname() ?? '/'
 
@@ -121,6 +127,11 @@ function AccountMenu() {
             {who}
           </Text>
         )}
+        {admin.map((entry) => (
+          <MenuItem key={entry.href} asChild>
+            <NextLink href={entry.href}>{entry.label}</NextLink>
+          </MenuItem>
+        ))}
         <MenuSeparator />
         <MenuLabel>Settings</MenuLabel>
         {account.map((entry) => (
@@ -138,12 +149,12 @@ function AccountMenu() {
 }
 
 function MenuPanel({ pathname, onNavigate }: { pathname: string; onNavigate: () => void }) {
-  const { signedIn, nav, account } = useChrome()
+  const { signedIn, nav, admin, account } = useChrome()
   const { mutate: signOut } = useSignOut()
 
   return (
     <nav aria-label="Menu" className="flex flex-col gap-lg p-lg">
-      {[...nav, ...account].map((entry) => (
+      {[...nav, ...admin, ...account].map((entry) => (
         <UILink key={entry.href} asChild variant="nav" active={pathname === entry.href}>
           <NextLink href={entry.href} onClick={onNavigate}>
             {entry.label}
@@ -214,6 +225,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <AccountMenu />
           </div>
         }
+        mobileTrailing={signedIn ? <AccountMenu /> : undefined}
         drawerOpen={drawerOpen}
         onDrawerToggle={() => setDrawerOpen((open) => !open)}
       />

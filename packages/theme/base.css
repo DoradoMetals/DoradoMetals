@@ -27,11 +27,6 @@ body {
   height: 100%;
 }
 
-svg {
-  width: auto !important;
-  height: auto !important;
-}
-
 html body[data-scroll-locked] {
   overflow-y: scroll !important;
   margin-right: 0px !important;

@@ -2,7 +2,8 @@ import { Badge, Button, cn, EmptyState, Pagination, Skeleton, Text } from '@dora
 import { Package } from '@dorado/icons'
 import type { SpotLock } from '@dorado/contracts'
 
-import { formatMoney, formatQuantity, formatStamp } from '../_lib'
+import { formatMoney, formatStamp } from '../../_lib'
+import { formatQuantity } from '../_lib'
 
 export type LockRowsProps = {
   locks: SpotLock[] | undefined

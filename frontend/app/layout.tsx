@@ -30,7 +30,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           <QueryProvider>
             <GoogleMapsProvider>
               <LayoutProvider>
-                <AppShell>{children}</AppShell>
+                <div className="mx-auto w-full max-w-page">
+                  <AppShell>{children}</AppShell>
+                </div>
               </LayoutProvider>
             </GoogleMapsProvider>
           </QueryProvider>

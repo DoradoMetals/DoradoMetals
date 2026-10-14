@@ -54,7 +54,7 @@ const openDrawer = () => {
 }
 
 const openAccountMenu = () => {
-  fireEvent.keyDown(screen.getByLabelText('Account menu'), { key: 'Enter' })
+  fireEvent.keyDown(screen.getAllByLabelText('Account menu')[0], { key: 'Enter' })
   return document.body.querySelector('[role="menu"]') as HTMLElement
 }
 
@@ -66,10 +66,12 @@ beforeEach(() => {
 })
 
 describe('the header, signed out', () => {
-  test('offers Home and a Sign in link, and no admin anything', () => {
+  test('offers the four site links and a Sign in link, and no admin anything', () => {
     shell()
     const bar = header()
-    expect(within(bar).getByText('Home')).toBeTruthy()
+    for (const label of ['How it works', 'Pricing', 'About', 'Contact']) {
+      expect(within(bar).getAllByText(label).length).toBeGreaterThan(0)
+    }
     expect(within(bar).queryByText('Admin')).toBeNull()
     expect(within(bar).getByText('Sign in')).toBeTruthy()
     expect(screen.queryByLabelText('Account menu')).toBeNull()
@@ -79,7 +81,14 @@ describe('the header, signed out', () => {
   test('the drawer carries the same entries the bar does', () => {
     shell()
     const panel = openDrawer()
-    expect(hrefsIn(panel)).toEqual(['/', '/auth/sign-in?next=%2F', '/auth/sign-up'])
+    expect(hrefsIn(panel)).toEqual([
+      '/how-it-works',
+      '/pricing',
+      '/about',
+      '/contact',
+      '/auth/sign-in?next=%2F',
+      '/auth/sign-up',
+    ])
     expect(within(panel).queryByText('Sign out')).toBeNull()
   })
 
@@ -95,8 +104,8 @@ describe('the header, signed in', () => {
   test('swaps the Sign in link for the avatar menu', () => {
     shell()
     expect(within(header()).queryByText('Sign in')).toBeNull()
-    expect(screen.getByLabelText('Account menu')).toBeTruthy()
-    expect(within(header()).getByText('DD')).toBeTruthy()
+    expect(screen.getAllByLabelText('Account menu').length).toBeGreaterThan(0)
+    expect(within(header()).getAllByText('DD').length).toBeGreaterThan(0)
   })
 
   test('the menu is Account, the two Settings screens and Sign out', () => {
@@ -114,7 +123,14 @@ describe('the header, signed in', () => {
   test('a customer is offered no Admin link anywhere', () => {
     shell()
     expect(within(header()).queryByText('Admin')).toBeNull()
-    expect(hrefsIn(openDrawer())).toEqual(['/', '/settings/email', '/settings/phone'])
+    expect(hrefsIn(openDrawer())).toEqual([
+      '/how-it-works',
+      '/pricing',
+      '/about',
+      '/contact',
+      '/settings/email',
+      '/settings/phone',
+    ])
   })
 
   test('the footer Account column follows the session', () => {
@@ -126,17 +142,24 @@ describe('the header, signed in', () => {
 describe('the header, signed in as an admin', () => {
   beforeEach(asAdmin)
 
-  test('the nav gains Admin, pointing at the admin index', () => {
+  test('the account menu gains Admin, pointing at the admin index', () => {
     shell()
-    const bar = header()
-    expect(within(bar).getByText('Admin')).toBeTruthy()
-    expect(hrefsIn(bar)).toContain('/admin')
+    expect(within(header()).queryByText('Admin')).toBeNull()
+    expect(hrefsIn(openAccountMenu())).toEqual(['/admin', '/settings/email', '/settings/phone'])
   })
 
   test('the drawer carries the nav and the account entries together', () => {
     shell()
     const panel = openDrawer()
-    expect(hrefsIn(panel)).toEqual(['/', '/admin', '/settings/email', '/settings/phone'])
+    expect(hrefsIn(panel)).toEqual([
+      '/how-it-works',
+      '/pricing',
+      '/about',
+      '/contact',
+      '/admin',
+      '/settings/email',
+      '/settings/phone',
+    ])
     fireEvent.click(within(panel).getByText('Sign out'))
     expect(signOut).toHaveBeenCalledTimes(1)
   })

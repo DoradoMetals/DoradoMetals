@@ -1,7 +1,7 @@
 import { RadioGroup, RadioOption, Text } from '@dorado/components'
 import type { SpotSourceRead } from '@dorado/contracts'
 
-import { Panel } from '../../_components'
+import { Panel } from '@/shared/ui/Panel'
 
 export type GlobalDefaultPanelProps = {
   sources: SpotSourceRead[]

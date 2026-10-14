@@ -1,7 +1,15 @@
 'use client'
 
 import { useState } from 'react'
-import { Button, Input, Select, Text, useDebounce, useMediaUp } from '@dorado/components'
+import {
+  Button,
+  ConfirmDialog,
+  Input,
+  Select,
+  Text,
+  useDebounce,
+  useMediaUp,
+} from '@dorado/components'
 import { Search } from '@dorado/icons'
 import type {
   SpotAdjustmentRead,
@@ -14,22 +22,13 @@ import type {
 import { useNow } from '@/shared/hooks/useNow'
 import { protectedRoutes } from '@/shared/types/routes'
 
-import {
-  AdjustmentRows,
-  ConfirmDialog,
-  FeedNotice,
-  LockRows,
-  Panel,
-  PricingHeader,
-} from '../../_components'
-import {
-  adjustmentAmount,
-  formatAgo,
-  formatClock,
-  formatMoney,
-  formatSince,
-  sourceName,
-} from '../../_lib'
+import { AdjustmentRows } from './AdjustmentRows'
+import { FeedNotice } from './FeedNotice'
+import { LockRows } from './LockRows'
+import { Panel } from '@/shared/ui/Panel'
+import { PricingHeader } from '../../_components'
+import { adjustmentAmount, formatAgo, formatClock, formatSince, sourceName } from '../_lib'
+import { formatMoney } from '../../_lib'
 import {
   useAdjustments,
   useBoard,
@@ -210,14 +209,12 @@ export function SpotsScreen() {
         }
         reset={
           mobile ? undefined : (
-            <>
-              <Button variant="tertiary" size="sm" onClick={reset}>
-                Reset
-              </Button>
-              <Text variant="micro">{`${locks?.total ?? 0} locks · ${current.length} adjustments`}</Text>
-            </>
+            <Button variant="tertiary" size="sm" onClick={reset}>
+              Reset
+            </Button>
           )
         }
+        count={`${locks?.total ?? 0} locks · ${current.length} adjustments`}
       />
 
       {board && board.paused.length > 0 && (

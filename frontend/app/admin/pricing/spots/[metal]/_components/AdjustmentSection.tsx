@@ -26,9 +26,9 @@ import {
   easternInstant,
   formatClock,
   formatMarketOpen,
-  formatMoney,
   unsigned,
-} from '../../../_lib'
+} from '../../_lib'
+import { formatMoney } from '../../../_lib'
 
 export type AdjustmentSectionProps = {
   metal: MetalSpot

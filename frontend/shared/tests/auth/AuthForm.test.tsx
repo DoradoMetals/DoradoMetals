@@ -40,7 +40,7 @@ describe('sign in by email - the default', () => {
     expect(screen.getByRole('button', { name: 'Google' })).toBeTruthy()
     expect(screen.getByText('Prefer a text?')).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Send the code there' }).getAttribute('href')).toBe(
-      '/auth/sign-in/phone'
+      '/auth/sign-in'
     )
     expect(screen.getByRole('link', { name: 'Create an account' }).getAttribute('href')).toBe(
       '/auth/sign-up'
@@ -76,9 +76,12 @@ describe('sign in by phone', () => {
       )
     ).toBeTruthy()
     expect(screen.getByLabelText('Phone')).toBeTruthy()
+    expect(
+      screen.getByText("Enter your phone number and we'll send you a sign-in code.")
+    ).toBeTruthy()
     expect(screen.getByText('Prefer email?')).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Send the code there' }).getAttribute('href')).toBe(
-      '/auth/sign-in'
+      '/auth/sign-in/email'
     )
   })
 })
@@ -182,7 +185,7 @@ describe('the code screen', () => {
     code({ channel: 'sms' })
     expect(screen.getByText('Wrong number?')).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Change it' }).getAttribute('href')).toBe(
-      '/auth/sign-in/phone'
+      '/auth/sign-in'
     )
   })
 
@@ -190,7 +193,7 @@ describe('the code screen', () => {
     code({ channel: 'email', destination: 'j•••@doradometals.com' })
     expect(screen.getByText('Wrong email?')).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Change it' }).getAttribute('href')).toBe(
-      '/auth/sign-in'
+      '/auth/sign-in/email'
     )
   })
 

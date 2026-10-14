@@ -48,7 +48,7 @@ export function TabsList({
         className={cn(
           'relative',
           variant === 'underline'
-            ? 'flex items-center gap-lg border-b border-border'
+            ? 'flex items-center gap-2xs border-b border-border'
             : 'inline-flex items-center gap-2xs rounded-lg bg-muted p-2xs',
           className
         )}
@@ -80,7 +80,7 @@ export function TabsTrigger({
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background',
         'disabled:pointer-events-none disabled:opacity-50',
         variant === 'underline'
-          ? 'pb-xs data-[state=active]:text-foreground'
+          ? 'px-sm pt-xs pb-xs-plus data-[state=active]:text-foreground'
           : 'rounded-md px-sm py-xs data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-none data-[state=active]:border data-[state=active]:border-border',
         className
       )}

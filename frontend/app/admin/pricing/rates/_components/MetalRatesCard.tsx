@@ -5,8 +5,9 @@ import { Amount, Button, cn, Input, Text } from '@dorado/components'
 import { Plus, Trash2 } from '@dorado/icons'
 import type { RateBandsBody, RatePay } from '@dorado/contracts'
 
-import { Panel } from '../../_components'
-import { formatMoney, rangeLabel, unitShort } from '../../_lib'
+import { Panel } from '@/shared/ui/Panel'
+import { formatMoney } from '../../_lib'
+import { rangeLabel, unitShort } from '../_lib'
 import { draftMin, toBody, toDrafts, type DraftBand } from '../_lib'
 
 export type RateType = 'all' | 'scrap' | 'bullion'

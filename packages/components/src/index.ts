@@ -65,6 +65,7 @@ export {
   DialogOverlay,
   DialogPortal,
 } from './dialog/Dialog'
+export { ConfirmDialog, type ConfirmDialogProps } from './dialog/ConfirmDialog'
 export { Calendar, type CalendarProps } from './date-picker/Calendar'
 export type { TimeGroup, TimeSlotShape } from './date-picker/TimePicker'
 export { DatePicker, type DatePickerProps, type DatePickerLayout } from './date-picker/DatePicker'

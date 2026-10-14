@@ -12,7 +12,7 @@ import {
 } from '@dorado/client'
 import type { SpotCandleRange, SpotLockStatus, SpotSourceRead } from '@dorado/contracts'
 
-import { candleLabel } from '../../_lib'
+import { candleLabel } from '../_lib'
 
 export { useSpotStream as useLiveBoard }
 
