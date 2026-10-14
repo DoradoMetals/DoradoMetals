@@ -24,6 +24,7 @@ const inbox: { data: unknown[]; refetchInterval: number | false | undefined } = 
 vi.mock('@dorado/client', async (original) => ({
   ...(await original<typeof import('@dorado/client')>()),
   useAuthFakes: () => ({ data: fakes.data, isPending: false }),
+  useSpotTicker: () => ({ data: [] }),
   useAccountMessages: (options: { refetchInterval?: number | false }) => {
     inbox.refetchInterval = options.refetchInterval
     return { data: inbox.data, isPending: false }

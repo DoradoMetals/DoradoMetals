@@ -11,6 +11,8 @@ export type HeaderProps = {
   nav?: React.ReactNode
   trailing?: React.ReactNode
   mobileTrailing?: React.ReactNode
+  spots?: React.ReactNode
+  showSpots?: boolean
   drawerOpen?: boolean
   onDrawerToggle?: () => void
   className?: string
@@ -21,12 +23,15 @@ export function Header({
   nav,
   trailing,
   mobileTrailing,
+  spots,
+  showSpots = true,
   drawerOpen = false,
   onDrawerToggle,
   className,
 }: HeaderProps) {
   return (
     <header className={cn('w-full border-b border-border bg-background', className)}>
+      {showSpots && spots}
       <div className="mx-auto flex h-18 w-full max-w-page items-center justify-between px-md lg:h-3xl lg:px-xl">
         {brand}
 

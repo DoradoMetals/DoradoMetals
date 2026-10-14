@@ -23,6 +23,7 @@ import {
 
 import { useGetSession, useSignOut } from '@/shared/hooks/auth/queries'
 import { MessagesMenu } from '@/shared/ui/MessagesMenu'
+import { SpotMarquee } from '@/shared/ui/SpotMarquee'
 import { signInHref } from '@/shared/utils/returnTo'
 
 const BARE_PREFIXES = ['/auth']
@@ -322,6 +323,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col">
       <Header
+        spots={<SpotMarquee />}
         brand={<BrandMark />}
         nav={<NavLinks pathname={pathname} />}
         trailing={

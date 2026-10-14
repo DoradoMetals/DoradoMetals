@@ -39,3 +39,33 @@ describe('Marquee', () => {
     expect(container.firstElementChild!.className).toContain('px-lg')
   })
 })
+
+describe('Marquee at Layout=Desktop', () => {
+  it('is a static row inside the page width, with no seam copy and no motion', () => {
+    const { container, getAllByText } = render(
+      <Marquee layout="desktop" label="Live spot prices">
+        <span>Gold $2,411.20</span>
+      </Marquee>
+    )
+    expect(getAllByText('Gold $2,411.20').length).toBe(1)
+    expect(container.querySelector('.motion-safe\\:animate-marquee')).toBeNull()
+    const bar = container.firstElementChild as HTMLElement
+    expect(bar.className).toContain('h-(--control-lg)')
+    const row = bar.firstElementChild as HTMLElement
+    expect(row.className).toContain('max-w-page')
+  })
+
+  it('under reduced motion the mobile band is a static, scrollable row', () => {
+    const { container } = render(
+      <Marquee>
+        <span>x</span>
+      </Marquee>
+    )
+    const band = container.firstElementChild as HTMLElement
+    expect(band.className).toContain('overflow-x-auto')
+    expect(band.className).toContain('motion-safe:overflow-hidden')
+    const seam = container.querySelector('[aria-hidden="true"]') as HTMLElement
+    expect(seam.className).toContain('hidden')
+    expect(seam.className).toContain('motion-safe:flex')
+  })
+})
