@@ -592,3 +592,11 @@ Detail in `docs/waves/auth-passwordless.md`.
 - Lock expiry: RULED 2026-10-14, order locks have no expiry; a lock is Active until its unlock event (Released). No TTL fact.
 - Adjustment unit: the form must carry `unit` (percent | dollar) and signed amounts, matching `spots.adjustments`.
 - Freeze (new, 2026-10-14): Jacob added a Freeze mode on the metal adjustment (Mode=Adjust | Freeze), a Frozen state on the spot card and a "Freeze all" action on the pricing-paused banner. A freeze holds a metal's resolved bid/ask at a fixed pair and stops following the feed; a dollar adjustment (migration 245) still tracks the feed. Jacob's final ruling (2026-10-14): Mode is Adjust or Freeze only; cancelling an adjustment = deleting it, so `spots.adjustments.enabled` goes (ruling: no paused state). Needs a fact: `spots.adjustments.mode` text in ('adjust','freeze'), absolute `bid`/`ask` columns used only by freeze, `enabled` dropped (verify nothing reads it first); the resolver returns the frozen pair while a freeze is enabled. History trail via the same trigger pattern as 242.
+
+## Pricing API lane leftovers (2026-10-14, migrations 267-272)
+
+- Stale refuses every price (resolver): dev's quotes are days old, so dev prices nothing until the feed runs or a freeze is set; tests raise the stale threshold on `test*` databases only. Staging and prod have a live feed.
+- The four `spots.active_sources` rows seeded by migration 240 (all nfusion, no actor) are now per-metal OVERRIDES and ignore a change of default. Jacob decides whether to delete them so every metal follows the default (one DELETE).
+- Fallback only relabels: `spots.spots` holds one quote per metal with no source column, so falling back to another source cannot change the price. Real multi-feed pricing needs quotes stored per source (`spots.quotes (source_id, metal_id, ...)`), a later wave.
+- Locking while stale: the orders lock and placement copy a NULL price when a metal is stale, and the order view shows a lot price of 0. Orders domain must refuse to lock or place while the metal is stale (ruling 112 blocked class).
+- Rate bands: first band starts at 0, percentages cannot be negative (rules added beyond the ask). Display unit is URL/UI state, not a column.
