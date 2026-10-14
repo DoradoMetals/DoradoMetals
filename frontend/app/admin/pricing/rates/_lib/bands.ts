@@ -1,4 +1,4 @@
-import type { RateBandsBody, RateChangeRow, RatePay } from '@dorado/contracts'
+import type { RateBandSnapshot, RateBandsBody, RateChangeType, RatePay } from '@dorado/contracts'
 
 import { formatFraction } from './format'
 
@@ -35,12 +35,20 @@ export const toBody = (drafts: DraftBand[]): RateBandsBody => ({
   })),
 })
 
-const isPercentField = (field: string) => field === 'scrap_pct' || field === 'bullion_pct'
+const bandQuantity = new Intl.NumberFormat('en-US', { maximumFractionDigits: 3 })
 
-export function changeText(row: Pick<RateChangeRow, 'field' | 'old_value' | 'new_value'>): string {
-  const show = (value: string | null) =>
-    value == null ? 'none' : isPercentField(row.field) ? formatFraction(Number(value)) : value
-  return `${show(row.old_value)} to ${show(row.new_value)}`
+export function bandCell(
+  band: RateBandSnapshot | null,
+  type: RateChangeType,
+  unit: (key: string) => string
+): string {
+  if (!band) return '—'
+  const low = bandQuantity.format(band.min_qty)
+  const range =
+    band.max_qty == null
+      ? `${low}+ ${unit(band.unit)}`
+      : `${low}–${bandQuantity.format(band.max_qty)} ${unit(band.unit)}`
+  return `${range} · ${formatFraction(type === 'scrap' ? band.scrap_pct : band.bullion_pct)}`
 }
 
 export function lastChange<T extends { metal_id: string; updated_at: string }>(

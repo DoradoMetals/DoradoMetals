@@ -1,11 +1,11 @@
 -- The lock list: one page of eight, newest first, and the count over every
--- matching lock. $1 metal, $2 status, $3 search, $4 page. The search matches
+-- matching lock. $1 metal, $2 status (active when absent, or all), $3 search, $4 page. The search matches
 -- the order reference (PO-1234), the bare number, or who locked it.
 WITH matched AS (
   SELECT v.*
     FROM (/*__view__*/) v
    WHERE ($1::text IS NULL OR v.metal_id = $1::text)
-     AND ($2::text IS NULL OR v.status = $2::text)
+     AND (COALESCE($2::text, 'active') = 'all' OR v.status = COALESCE($2::text, 'active'))
      AND (nullif(trim($3::text), '') IS NULL
           OR v.reference ILIKE '%' || trim($3::text) || '%'
           OR v.locked_by ILIKE '%' || trim($3::text) || '%')

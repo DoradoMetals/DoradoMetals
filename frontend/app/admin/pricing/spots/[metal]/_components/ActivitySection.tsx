@@ -1,10 +1,10 @@
+import { UserName } from '@/shared/ui/UserName'
+import { formatStamp } from '@/shared/utils/formatStamp'
 import { useUserNames } from '@dorado/client'
 import { Accordion, EmptyState, Text } from '@dorado/components'
-import { Lock, Package, RefreshCw, SlidersHorizontal } from '@dorado/icons'
+import { History, Lock, RefreshCw, SlidersHorizontal } from '@dorado/icons'
 import type { SpotActivity, SpotSourceRead } from '@dorado/contracts'
 
-import { UserName } from '@/shared/ui/UserName'
-import { formatStamp } from '../../../_lib'
 import { activityTitle } from '../_lib'
 
 function KindIcon({ kind }: { kind: SpotActivity['kind'] }) {
@@ -28,9 +28,9 @@ export function ActivitySection({
       <div className="flex flex-col px-md pb-md">
         {activity.length === 0 ? (
           <EmptyState
-            icon={<Package />}
-            title="No activity"
-            description="Nothing happened to this metal in the last 7 days."
+            icon={<History />}
+            title="No activity yet"
+            description="Locks, adjustments and feed changes for this metal show here."
           />
         ) : (
           <ul className="flex flex-col">

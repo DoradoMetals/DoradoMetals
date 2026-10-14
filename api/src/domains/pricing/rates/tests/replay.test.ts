@@ -137,13 +137,12 @@ test('replacing the bands of a metal answers its pay and leaves a change an admi
         assert.equal(changes.status, 200)
         const more = await request(app).get('/api/rates/changes?q=Gold&page=2')
         const entry = [...changes.body.items, ...more.body.items].find(
-          (h: { field: string; new_value: string }) =>
-            h.field === 'scrap_pct' && Number(h.new_value) === 0.81
+          (h: { type: string; new_band: { scrap_pct: number } | null }) =>
+            h.type === 'scrap' && h.new_band?.scrap_pct === 0.81
         )
         assert.ok(entry, 'the band change did not appear in the change log')
-        assert.equal(entry.type, 'scrap')
         assert.equal(entry.metal_id, 'Gold')
-        assert.equal(entry.min_qty, 0)
+        assert.equal(entry.new_band.min_qty, 0)
         assert.ok(entry.actor_id, 'the change carries no actor id')
         assert.equal('actor_name' in entry, false)
 

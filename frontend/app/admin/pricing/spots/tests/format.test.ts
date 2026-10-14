@@ -45,7 +45,7 @@ describe('spot formatters', () => {
         updated_at: '2026-09-09T10:12:00Z',
         expires_at_resolved: '2026-09-09T16:40:00Z',
       })
-    ).toBe('Sep 9, 10:12 - Sep 9, 16:40')
+    ).toBe('Sep 9, 5:12 AM - Sep 9, 11:40 AM')
   })
 
   test('a picked day and time are read in Eastern time', () => {

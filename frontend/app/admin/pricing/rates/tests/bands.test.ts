@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import type { RatePay } from '@dorado/contracts'
 
-import { changeText, draftMin, lastChange, toBody, toDrafts } from '../_lib'
+import { bandCell, draftMin, lastChange, toBody, toDrafts, unitShort } from '../_lib'
 
 const band = (min: number, max: number | null, scrap: number, bullion: number) =>
   ({ min_qty: min, max_qty: max, scrap_pct: scrap, bullion_pct: bullion }) as RatePay
@@ -22,10 +22,11 @@ describe('rate band drafts', () => {
     })
   })
 
-  test('a change reads old to new', () => {
-    expect(changeText({ field: 'scrap_pct', old_value: '0.89', new_value: '0.9' })).toBe(
-      '89% to 90%'
-    )
+  test('a change cell reads as the band and its rate, the side with no band as a dash', () => {
+    const band = { min_qty: 20, max_qty: 50, unit: 'troy_oz', scrap_pct: 0.94, bullion_pct: 0.985 }
+    expect(bandCell(band, 'bullion', unitShort)).toBe('20–50 ozt · 98.5%')
+    expect(bandCell({ ...band, max_qty: null }, 'scrap', unitShort)).toBe('20+ ozt · 94%')
+    expect(bandCell(null, 'scrap', unitShort)).toBe('—')
   })
 
   test('the latest edit of a metal names the card footer', () => {

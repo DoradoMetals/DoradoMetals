@@ -3,10 +3,18 @@ import { ArrowDownWideNarrow, ArrowUpDown, ArrowUpNarrowWide, Funnel } from '@do
 import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '../cn'
 
-export function Table({ className, ...props }: React.TableHTMLAttributes<HTMLTableElement>) {
+export function Table({
+  className,
+  bare = false,
+  ...props
+}: React.TableHTMLAttributes<HTMLTableElement> & { bare?: boolean }) {
   return (
     <div
-      className={cn('w-full overflow-x-auto rounded-lg border border-border bg-card', className)}
+      className={cn(
+        'w-full overflow-x-auto',
+        !bare && 'rounded-lg border border-border bg-card',
+        className
+      )}
     >
       <table className="w-full" {...props} />
     </div>

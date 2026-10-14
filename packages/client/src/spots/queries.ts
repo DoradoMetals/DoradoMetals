@@ -15,7 +15,7 @@ import type {
   SpotFreezeBody,
   SpotLock,
   SpotLockPage,
-  SpotLockStatus,
+  SpotLockStatusFilter,
   SpotPrice,
   SpotSettings,
   SpotSettingsPatch,
@@ -158,7 +158,7 @@ export function useAdjustmentHistory(
 export function useSpotLocks(
   filters: {
     metal?: string | null
-    status?: SpotLockStatus | null
+    status?: SpotLockStatusFilter | null
     q?: string | null
     page?: number
   } = {},

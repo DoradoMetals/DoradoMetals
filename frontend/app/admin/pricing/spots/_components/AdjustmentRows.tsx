@@ -1,114 +1,103 @@
-import { Badge, Button, EmptyState, Pagination, Text } from '@dorado/components'
-import { Package } from '@dorado/icons'
+'use client'
+
+import { Badge, Button, EmptyState, Text } from '@dorado/components'
+import { SlidersHorizontal } from '@dorado/icons'
 import type { SpotAdjustmentRead, SpotSourceRead } from '@dorado/contracts'
+
+import { ActorName } from '@/shared/ui/ActorName'
+import { RecordTable, recordColumns, type RecordColumn } from '@/shared/ui/RecordTable'
 
 import { adjustmentAmount, adjustmentExpiry, adjustmentWindow, sourceName } from '../_lib'
 
 export type AdjustmentRowsProps = {
   adjustments: SpotAdjustmentRead[]
   sources: SpotSourceRead[]
-  mobile: boolean
-  page?: number
-  pageCount?: number
-  onPageChange?: (page: number) => void
+  pageSize?: number
   onRemove: (adjustment: SpotAdjustmentRead) => void
 }
 
-function Row({
-  adjustment,
-  sources,
-  mobile,
-  onRemove,
-}: {
-  adjustment: SpotAdjustmentRead
-  sources: SpotSourceRead[]
-  mobile: boolean
+const column = recordColumns<SpotAdjustmentRead>()
+
+function adjustmentColumns(
+  sources: SpotSourceRead[],
   onRemove: (adjustment: SpotAdjustmentRead) => void
-}) {
-  const by = adjustment.updated_by || adjustment.created_by || 'System'
-  const expiry = adjustment.expired ? adjustmentWindow(adjustment) : adjustmentExpiry(adjustment)
-  return (
-    <li className="flex flex-col gap-sm py-xs-plus">
-      <div className="flex flex-col gap-3xs">
-        <div className="flex items-center justify-between gap-xs">
-          <div className="flex items-center gap-xs">
-            <Text variant="h5" as="h3">
-              {adjustment.metal_id}
-            </Text>
-            <Text variant="small-medium" emphasis="default">
-              {adjustmentAmount(adjustment)}
-            </Text>
-          </div>
-          <div className="flex items-center gap-xs">
-            {!adjustment.expired && (
-              <Button variant="tertiary" size="sm" onClick={() => onRemove(adjustment)}>
-                Remove
-              </Button>
-            )}
-            {adjustment.expired ? (
-              <Badge intent="neutral">Expired</Badge>
-            ) : (
-              <Badge intent="success">Active</Badge>
-            )}
-          </div>
-        </div>
-        <Text variant="micro">{sourceName(sources, adjustment.source_id)}</Text>
-      </div>
-      {mobile ? (
-        <>
-          <Text variant="small-medium" emphasis="default">
-            {by}
-          </Text>
-          <Text variant="micro">{expiry}</Text>
-        </>
-      ) : (
-        <div className="flex items-center justify-between gap-md">
-          <Text variant="small-medium" emphasis="default">
-            {by}
-          </Text>
-          <Text variant="micro">{expiry}</Text>
-        </div>
-      )}
-    </li>
-  )
+): RecordColumn<SpotAdjustmentRead>[] {
+  return column.columns([
+    column.accessor('metal_id', { header: 'Metal', meta: { line: 0, title: true } }),
+    column.display({
+      id: 'amount',
+      header: 'Amount',
+      cell: ({ row }) => (
+        <Text variant="small-medium" emphasis="default">
+          {adjustmentAmount(row.original)}
+        </Text>
+      ),
+      meta: { line: 0 },
+    }),
+    column.display({
+      id: 'remove',
+      header: '',
+      cell: ({ row }) =>
+        row.original.expired ? null : (
+          <Button variant="tertiary" size="sm" onClick={() => onRemove(row.original)}>
+            Remove
+          </Button>
+        ),
+      meta: { line: 0, end: true },
+    }),
+    column.accessor('expired', {
+      header: 'Status',
+      cell: ({ row }) =>
+        row.original.expired ? (
+          <Badge intent="neutral">Expired</Badge>
+        ) : (
+          <Badge intent="success">Active</Badge>
+        ),
+      meta: { line: 0, end: true },
+    }),
+    column.accessor('source_id', {
+      header: 'Source',
+      cell: ({ row }) => <Text variant="micro">{sourceName(sources, row.original.source_id)}</Text>,
+      meta: { line: 1 },
+    }),
+    column.accessor('updated_by', {
+      header: 'Set by',
+      cell: ({ row }) => (
+        <Text variant="small-medium" emphasis="default">
+          <ActorName name={row.original.updated_by || row.original.created_by} />
+        </Text>
+      ),
+      meta: { line: 2 },
+    }),
+    column.display({
+      id: 'expiry',
+      header: 'Expiry',
+      cell: ({ row }) => (
+        <Text variant="micro">
+          {row.original.expired ? adjustmentWindow(row.original) : adjustmentExpiry(row.original)}
+        </Text>
+      ),
+      meta: { line: 2, end: true },
+    }),
+  ])
 }
 
-export function AdjustmentRows({
-  adjustments,
-  sources,
-  mobile,
-  page,
-  pageCount,
-  onPageChange,
-  onRemove,
-}: AdjustmentRowsProps) {
-  if (adjustments.length === 0) {
-    return (
-      <EmptyState
-        icon={<Package />}
-        title="No adjustments"
-        description="Set one from a metal page when a feed needs correcting."
-      />
-    )
-  }
+export function AdjustmentRows({ adjustments, sources, pageSize, onRemove }: AdjustmentRowsProps) {
   return (
-    <div className="flex flex-col">
-      <ul className="flex flex-col divide-y divide-border">
-        {adjustments.map((adjustment) => (
-          <Row
-            key={`${adjustment.metal_id}:${adjustment.source_id}`}
-            adjustment={adjustment}
-            sources={sources}
-            mobile={mobile}
-            onRemove={onRemove}
-          />
-        ))}
-      </ul>
-      {page !== undefined && pageCount !== undefined && onPageChange && (
-        <div className="flex justify-center pt-sm">
-          <Pagination page={page} pageCount={pageCount} onPageChange={onPageChange} />
-        </div>
-      )}
-    </div>
+    <RecordTable
+      columns={adjustmentColumns(sources, onRemove)}
+      data={adjustments}
+      label="Adjustments"
+      layout="cards"
+      getRowId={(row) => `${row.metal_id}:${row.source_id}`}
+      pageSize={pageSize}
+      empty={
+        <EmptyState
+          icon={<SlidersHorizontal />}
+          title="No adjustments"
+          description="Set one from a metal page when a feed needs correcting."
+        />
+      }
+    />
   )
 }

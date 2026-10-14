@@ -126,8 +126,11 @@ export type SpotActivity = z.infer<typeof SpotActivity>
 export const SpotActivityDays = z.coerce.number().int().min(1).max(3650).default(7)
 export type SpotActivityDays = z.infer<typeof SpotActivityDays>
 
-export const SpotLockStatus = z.enum(['active', 'released'])
+export const SpotLockStatus = z.enum(['active', 'released', 'settled'])
 export type SpotLockStatus = z.infer<typeof SpotLockStatus>
+
+export const SpotLockStatusFilter = z.enum([...SpotLockStatus.options, 'all'])
+export type SpotLockStatusFilter = z.infer<typeof SpotLockStatusFilter>
 
 export const SpotLock = SpotLockEvent.pick({
   id: true,
@@ -156,6 +159,6 @@ export const SpotLockPage = z.object({ items: z.array(SpotLock) }).extend({
 export type SpotLockPage = z.infer<typeof SpotLockPage>
 
 export const SpotLockFilter = z
-  .object({ metal: Metal.shape.id.optional(), status: SpotLockStatus.optional() })
+  .object({ metal: Metal.shape.id.optional(), status: SpotLockStatusFilter.optional() })
   .extend({ q: z.string().optional(), page: z.coerce.number().int().min(1).default(1) })
 export type SpotLockFilter = z.infer<typeof SpotLockFilter>

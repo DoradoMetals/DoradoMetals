@@ -1,5 +1,6 @@
 'use client'
 
+import { formatClock } from '@/shared/utils/formatStamp'
 import { useState } from 'react'
 import {
   Button,
@@ -14,7 +15,7 @@ import { Search } from '@dorado/icons'
 import type {
   SpotAdjustmentRead,
   SpotLock,
-  SpotLockStatus,
+  SpotLockStatusFilter,
   SpotSourceRead,
   SpotTicker,
 } from '@dorado/contracts'
@@ -27,7 +28,7 @@ import { FeedNotice } from './FeedNotice'
 import { LockRows } from './LockRows'
 import { Panel } from '@/shared/ui/Panel'
 import { PricingHeader } from '../../_components'
-import { adjustmentAmount, formatAgo, formatClock, formatSince, sourceName } from '../_lib'
+import { adjustmentAmount, formatAgo, formatSince, sourceName } from '../_lib'
 import { formatMoney } from '../../_lib'
 import {
   useAdjustments,
@@ -51,6 +52,7 @@ const STATUS_ITEMS = [
   { value: 'all', label: 'All' },
   { value: 'active', label: 'Active' },
   { value: 'released', label: 'Released' },
+  { value: 'settled', label: 'Settled' },
 ]
 
 type Pending =
@@ -82,11 +84,10 @@ export function SpotsScreen() {
   const mobile = !useMediaUp('lg')
   const now = useNow()
 
-  const [status, setStatus] = useState('all')
+  const [status, setStatus] = useState<SpotLockStatusFilter>('active')
   const [metal, setMetal] = useState('all')
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
-  const [adjustmentPage, setAdjustmentPage] = useState(1)
   const [pending, setPending] = useState<Pending>(null)
   const q = useDebounce(search, 300)
 
@@ -95,7 +96,7 @@ export function SpotsScreen() {
   const sources = useSources().data ?? []
   const locks = useLocks({
     metal: metal === 'all' ? null : metal,
-    status: status === 'all' ? null : (status as SpotLockStatus),
+    status,
     q: q.trim() === '' ? null : q.trim(),
     page,
   }).data
@@ -110,15 +111,10 @@ export function SpotsScreen() {
   const lastTick = newest(spots)
   const current = adjustments.filter((entry) => !entry.expired)
   const active = current.filter((entry) => entry.scope === 'Active' && entry.mode === 'adjust')
-  const adjustmentPages = Math.max(1, Math.ceil(adjustments.length / ADJUSTMENTS_PER_PAGE))
-  const shownAdjustments = adjustments.slice(
-    (adjustmentPage - 1) * ADJUSTMENTS_PER_PAGE,
-    adjustmentPage * ADJUSTMENTS_PER_PAGE
-  )
   const lockPages = locks ? Math.max(1, Math.ceil(locks.total / locks.page_size)) : 1
 
   const reset = () => {
-    setStatus('all')
+    setStatus('active')
     setMetal('all')
     setSearch('')
     setPage(1)
@@ -186,7 +182,7 @@ export function SpotsScreen() {
                 items={STATUS_ITEMS}
                 value={status}
                 onValueChange={(value) => {
-                  setStatus(value)
+                  setStatus(value as SpotLockStatusFilter)
                   setPage(1)
                 }}
                 className="w-70"
@@ -297,12 +293,9 @@ export function SpotsScreen() {
       <div className="grid grid-cols-1 items-start gap-md lg:grid-cols-2 lg:gap-lg">
         <Panel id="adjustments" title="Adjustments">
           <AdjustmentRows
-            adjustments={shownAdjustments}
+            adjustments={adjustments}
             sources={sources}
-            mobile={mobile}
-            page={adjustmentPage}
-            pageCount={adjustmentPages}
-            onPageChange={setAdjustmentPage}
+            pageSize={ADJUSTMENTS_PER_PAGE}
             onRemove={(adjustment) => setPending({ kind: 'remove', adjustment })}
           />
         </Panel>

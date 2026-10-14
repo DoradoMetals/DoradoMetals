@@ -1,5 +1,6 @@
 'use client'
 
+import { formatStamp } from '@/shared/utils/formatStamp'
 import {
   closestCenter,
   DndContext,
@@ -22,7 +23,6 @@ import { GripVertical } from '@dorado/icons'
 import type { SpotSourceRead } from '@dorado/contracts'
 
 import { formatAgo } from '../_lib'
-import { formatStamp } from '../../_lib'
 import { Panel } from '@/shared/ui/Panel'
 
 export type SourcesPanelProps = {

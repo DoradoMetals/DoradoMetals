@@ -1,12 +1,12 @@
 'use client'
 
+import { formatStamp } from '@/shared/utils/formatStamp'
 import { useState } from 'react'
 import { Button, Select, Skeleton, useDebounce, useMediaUp } from '@dorado/components'
 import type { RatePay } from '@dorado/contracts'
 
 import { PricingHeader } from '../../_components'
 import { DEFAULT_UNIT, WEIGHT_UNITS } from '../_lib'
-import { formatStamp } from '../../_lib'
 import { useBands, useChanges, useRateRows, useReplaceRateBands } from '../_api'
 import { lastChange } from '../_lib'
 import { MetalRatesCard, type RateType } from './MetalRatesCard'
