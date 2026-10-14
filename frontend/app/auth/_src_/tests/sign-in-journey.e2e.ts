@@ -33,9 +33,7 @@ test.describe('signing in through the screens', () => {
     expect(cell).not.toBeNull()
     expect(cell!.height).toBeGreaterThan(cell!.width)
 
-    const read = await context.request.get(`${API}/account/last_code`, {
-      params: { email: ROLES.admin.email },
-    })
+    const read = await context.request.get(`${API}/account/last_code`)
     expect(
       read.ok(),
       `/account/last_code answered ${read.status()} - is the email fake the provider?`
@@ -74,9 +72,7 @@ test.describe('the phone channel, parked as coming soon but still wired end to e
 
     await page.waitForURL('**/auth/verify', { timeout: 20_000 })
 
-    const read = await context.request.get(`${API}/account/last_code`, {
-      params: { number: ROLES.admin.phone_number },
-    })
+    const read = await context.request.get(`${API}/account/last_code`)
     expect(read.ok(), `/account/last_code answered ${read.status()}`).toBeTruthy()
     const { code } = (await read.json()) as { code: string | null }
     expect(code, 'no code was recorded').toBeTruthy()

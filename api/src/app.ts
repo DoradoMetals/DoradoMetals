@@ -10,6 +10,7 @@ import checkoutRowRoutes from '#checkout/checkout.routes.ts'
 import pdfRoutes from '#documents/pdfs/routes.ts'
 import reviewRoutes from '#crm/reviews/routes.ts'
 import emailRoutes from '#documents/emails/routes.ts'
+import outboxRoutes from '#documents/outbox/routes.ts'
 import paymentRoutes from '#transactions/routes.ts'
 import paymentMethodRoutes from '#transactions/methods/routes.ts'
 import spotRoutes from '#pricing/spots/routes.ts'
@@ -105,6 +106,7 @@ app.use('/api/spots', spotRoutes)
 app.use('/api/pdf', pdfRoutes)
 app.use('/api/reviews', reviewRoutes)
 app.use('/api/emails', emailRoutes)
+app.use('/api/documents/outbox', outboxRoutes)
 app.use('/api/transactions', transactionRoutes)
 app.use('/api/orders', ordersRoutes)
 app.use('/api/search', searchRoutes)

@@ -29,13 +29,19 @@ test('lastCodeTo returns the six-digit code', async () => {
 })
 
 test('the address is matched case-insensitively', async () => {
-  await fake.transport().sendMail({ to: 'Someone@Example.com', subject: 's', html: '<p>123456</p>' })
+  await fake
+    .transport()
+    .sendMail({ to: 'Someone@Example.com', subject: 's', html: '<p>123456</p>' })
   assert.equal(fake.lastCodeTo('someone@example.com'), '123456')
 })
 
 test('the LAST send to an address wins', async () => {
-  await fake.transport().sendMail({ to: 'someone@example.com', subject: 's', html: '<p>111111</p>' })
-  await fake.transport().sendMail({ to: 'someone@example.com', subject: 's', html: '<p>222222</p>' })
+  await fake
+    .transport()
+    .sendMail({ to: 'someone@example.com', subject: 's', html: '<p>111111</p>' })
+  await fake
+    .transport()
+    .sendMail({ to: 'someone@example.com', subject: 's', html: '<p>222222</p>' })
   assert.equal(fake.lastCodeTo('someone@example.com'), '222222')
 })
 
@@ -69,8 +75,32 @@ test('a body with no six-digit run has no code', async () => {
 })
 
 test('reset empties the recording', async () => {
-  await fake.transport().sendMail({ to: 'someone@example.com', subject: 's', html: '<p>333333</p>' })
+  await fake
+    .transport()
+    .sendMail({ to: 'someone@example.com', subject: 's', html: '<p>333333</p>' })
   fake.reset()
   assert.equal(fake.sent().length, 0)
   assert.equal(fake.lastCodeTo('someone@example.com'), null)
+})
+
+test('byMessageId finds a recorded message by its id', async () => {
+  const result = (await fake.transport().sendMail({
+    to: 'x@example.com',
+    subject: 's',
+    html: '<p>x</p>',
+  })) as { messageId: string }
+  assert.equal(fake.byMessageId(result.messageId)?.to, 'x@example.com')
+})
+
+test('byMessageId with no match is null, not a throw', () => {
+  assert.equal(fake.byMessageId('nope'), null)
+})
+
+test('the buffer caps at the newest 500 messages so it cannot grow unbounded', async () => {
+  for (let i = 0; i < 510; i += 1) {
+    await fake.transport().sendMail({ to: `n${i}@example.com`, subject: 's', html: `<p>${i}</p>` })
+  }
+  assert.equal(fake.sent().length, 500)
+  assert.equal(fake.sent()[0]?.to, 'n10@example.com', 'the oldest 10 were dropped')
+  assert.equal(fake.sent().at(-1)?.to, 'n509@example.com', 'the newest message is kept')
 })

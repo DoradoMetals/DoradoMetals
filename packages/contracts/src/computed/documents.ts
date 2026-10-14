@@ -144,3 +144,11 @@ export const ShipmentManifestInput = DocumentInput.extend({
   package: DocumentPackage.nullable().optional(),
 })
 export type ShipmentManifestInput = z.infer<typeof ShipmentManifestInput>
+
+export const OutboxMessage = z.object({
+  message_id: z.string(),
+  to: z.string(),
+  subject: z.string(),
+  sent_at: z.string(),
+})
+export type OutboxMessage = z.infer<typeof OutboxMessage>

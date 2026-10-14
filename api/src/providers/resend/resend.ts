@@ -1,8 +1,5 @@
 import type { Attachment, Message, MessageTag, Transport } from '#providers/resend/types.ts'
-import {
-  RESEND_DEFAULT_HOST,
-  RESEND_SEND_EMAIL_PATH,
-} from '#providers/resend/constants.ts'
+import { RESEND_DEFAULT_HOST, RESEND_SEND_EMAIL_PATH } from '#providers/resend/constants.ts'
 
 export type ResendAttachment = {
   filename: string
@@ -46,6 +43,17 @@ export function assertSendable(): void {
       `refusing to send through Resend in production: EMAIL_FROM (${from || 'unset'}) is not on ` +
         `the verified domain ${verified}`
     )
+  }
+}
+
+export function applyRedirect(message: Message, env: NodeJS.ProcessEnv = process.env): Message {
+  if (env.NODE_ENV === 'production') return message
+  const redirectTo = (env.MAIL_REDIRECT_TO ?? '').trim()
+  if (!redirectTo) return message
+  return {
+    ...message,
+    to: redirectTo,
+    subject: `[to: ${message.to ?? ''}] ${message.subject ?? ''}`,
   }
 }
 
@@ -102,13 +110,14 @@ export function transport(): Transport {
 
   return {
     sendMail: async (message: Message) => {
+      const outgoing = applyRedirect(message)
       const response = await fetch(`${host}${RESEND_SEND_EMAIL_PATH}`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${key}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(requestBody(message)),
+        body: JSON.stringify(requestBody(outgoing)),
       })
       const payload: unknown = await response.json().catch(() => null)
       if (!response.ok) throw new Error(refusalFrom(response.status, payload))

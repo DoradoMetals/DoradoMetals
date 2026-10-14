@@ -8,6 +8,8 @@ export type FakeMessage = {
   sent_at: string
 }
 
+const MAX_MESSAGES = 500
+
 const messages: FakeMessage[] = []
 let counter = 0
 
@@ -23,6 +25,7 @@ function record(message: Message): FakeMessage {
     sent_at: new Date().toISOString(),
   }
   messages.push(entry)
+  if (messages.length > MAX_MESSAGES) messages.splice(0, messages.length - MAX_MESSAGES)
   return entry
 }
 
@@ -47,6 +50,10 @@ export function lastCodeTo(email: string): string | null {
 
 export function sent(): readonly FakeMessage[] {
   return messages
+}
+
+export function byMessageId(message_id: string): FakeMessage | null {
+  return messages.find((message) => message.message_id === message_id) ?? null
 }
 
 export function reset(): void {

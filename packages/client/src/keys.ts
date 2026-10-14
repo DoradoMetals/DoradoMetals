@@ -77,4 +77,8 @@ export const keys = {
     timeline: (userId: string) => ['crm', 'timeline', userId] as const,
     conversation: (userId: string) => ['crm', 'conversation', userId] as const,
   },
+  documents: {
+    all: () => ['documents'] as const,
+    outbox: () => ['documents', 'outbox'] as const,
+  },
 } as const

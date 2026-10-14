@@ -12,22 +12,35 @@ afterAll(async () => {
   await pool.end()
 })
 
-function assertPresignedUrl(raw: string, objectKey: string): void {
+function assertPresignedUrl(raw: string, objectKey: string, bucket: string): void {
   assert.equal(typeof raw, 'string', 'the service should return a presigned URL string')
 
   const url = new URL(raw)
   const endpoint = new URL(process.env.S3_ENDPOINT as string)
-  const bucket = process.env.S3_BUCKET as string
+  const pathStyle = process.env.S3_FORCE_PATH_STYLE === 'true'
 
-  assert.equal(
-    url.hostname,
-    endpoint.hostname,
-    'the presigned URL should point at the configured S3 endpoint'
-  )
-  assert.ok(
-    url.pathname.includes(`/${bucket}/`) || url.hostname.startsWith(`${bucket}.`),
-    'the presigned URL should name the bucket, in its path or its host'
-  )
+  if (pathStyle) {
+    assert.equal(
+      url.hostname,
+      endpoint.hostname,
+      'a path-style presigned URL should point at the configured S3 endpoint'
+    )
+    assert.ok(
+      url.pathname.startsWith(`/${bucket}/`),
+      'a path-style presigned URL should name the bucket at the start of its path'
+    )
+  } else {
+    assert.equal(
+      url.hostname,
+      `${bucket}.${endpoint.hostname}`,
+      'a virtual-hosted presigned URL should name the bucket as a host subdomain of the endpoint'
+    )
+    assert.ok(
+      !url.pathname.startsWith(`/${bucket}/`),
+      'a virtual-hosted presigned URL should not repeat the bucket in its path'
+    )
+  }
+
   assert.ok(
     url.pathname.includes(objectKey) || url.hostname.includes(objectKey),
     'the presigned URL should name the object key'
@@ -56,7 +69,11 @@ test('uploadImage writes its row before it ever reaches the storage provider', a
         'the original filename should survive at the end'
       )
 
-      assertPresignedUrl(result.uploadUrl, `${user.id}/${rows[0].filename}`)
+      assertPresignedUrl(
+        result.uploadUrl,
+        `${user.id}/${rows[0].filename}`,
+        process.env.S3_BUCKET as string
+      )
     },
     { actor: TEST_ACTOR.id }
   )
@@ -86,7 +103,7 @@ test('getUrl asserts a real image, then reaches for a presigned URL', async () =
         c
       )
       const url = await service.getUrl(row.id)
-      assertPresignedUrl(url, `${row.path}${row.filename}`)
+      assertPresignedUrl(url, `${row.path}${row.filename}`, row.bucket)
     },
     { actor: TEST_ACTOR.id }
   )
@@ -113,7 +130,7 @@ test("attachUrlToImage carries the image's own fields alongside the url decision
       assert.equal(attached.bucket, row.bucket)
       assert.equal(attached.path, row.path)
       assert.equal(attached.filename, row.filename)
-      assertPresignedUrl(attached.url, `${row.path}${row.filename}`)
+      assertPresignedUrl(attached.url, `${row.path}${row.filename}`, row.bucket)
     },
     { actor: TEST_ACTOR.id }
   )
@@ -139,7 +156,7 @@ test('getTestImages maps every row through attachUrlToImage', async () => {
 
       assert.ok(mine, 'getTestImages did not return the row written inside this transaction')
       assert.equal(mine.filename, row.filename)
-      assertPresignedUrl(mine.url, `${row.path}${row.filename}`)
+      assertPresignedUrl(mine.url, `${row.path}${row.filename}`, row.bucket)
     },
     { actor: TEST_ACTOR.id }
   )
