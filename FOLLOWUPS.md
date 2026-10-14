@@ -603,3 +603,8 @@ Detail in `docs/waves/auth-passwordless.md`.
 ## Orders: spot locks only for the order's metals (ruling 2026-10-14)
 
 - Lock spots only for metals the order holds at lock time (today every order locks all four). A metal introduced later (lot edit, refiner assay finding Pt/Pd) gets its own lock event at that moment from the step that introduced it, with the reason on the row. Settlement and profit read the latest lock per metal; a money read with no lock is a blocked error. No "four rows" check anywhere. Consequence Jacob is confirming on the Orders thread: a metal discovered after placement prices at discovery time.
+
+## Spots history lane leftovers (2026-10-14, migrations 273-276)
+
+- `spots.spots` is not dropped: the exchange backfill still writes it; restate those backfills onto `spots.current` first, then drop under verify-before-drop.
+- Sources card: Kitco and LBMA rows exist on the design but `spots.sources` holds only nfusion; seed both rows disabled (they read "Never" until a client exists) so the card is honest. `last_error` is never written (the feed's failure path cannot catch under lint:one-catch); record the error text through the error handler path. Board needs a `market_open` fact for the "market closed" line (calendar rows exist). Lock state "Settled" is not a fact (design decision pending). Candles are bid-only by ruling.
