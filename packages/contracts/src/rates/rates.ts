@@ -37,8 +37,8 @@ export type RateRead = z.infer<typeof RateRead>
 export const AdminRate = RateRead.extend({
   created_at: Rate.shape.created_at,
   updated_at: Rate.shape.updated_at,
-  created_by: Rate.shape.created_by,
-  updated_by: Rate.shape.updated_by,
+  created_by_id: Rate.shape.created_by_id,
+  updated_by_id: Rate.shape.updated_by_id,
 })
 export type AdminRate = z.infer<typeof AdminRate>
 

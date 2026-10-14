@@ -21,6 +21,8 @@ test('getRate reads a row back and refuses an id nothing names', async () => {
   await pinned(async () => {
     const [first] = await service.listAdminRates()
     assert.ok(first, 'dev has no rates')
+    assert.ok('updated_by_id' in first && 'created_by_id' in first)
+    assert.ok(!('updated_by' in first) && !('created_by' in first))
     assert.equal((await service.getRate(first.id)).id, first.id)
     await assert.rejects(() => service.getRate(randomUUID()), /no rate/)
   })
