@@ -30,6 +30,7 @@ const PUBLIC = new Set([
   'GET /api/reviews/public',
   'GET /api/spots/',
   'GET /api/spots/stream',
+  'GET /api/spots/ticker',
   'GET /api/spots/metals/:metal_id/candles',
   'POST /api/quotes/catalog',
   'GET /api/payments/methods/',

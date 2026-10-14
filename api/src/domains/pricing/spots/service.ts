@@ -29,6 +29,7 @@ import type {
   SpotBoard,
   SpotCandle,
   SpotCandleQuery,
+  SpotTickerRow,
   SpotFreezeBody,
   SpotLock,
   SpotLockFilter,
@@ -42,6 +43,10 @@ import type {
 
 export async function getSpotPrices(executor?: Executor): Promise<SpotPrice[]> {
   return await spots.list(executor)
+}
+
+export async function ticker(): Promise<SpotTickerRow[]> {
+  return await spots.ticker()
 }
 
 export async function board(): Promise<SpotBoard> {

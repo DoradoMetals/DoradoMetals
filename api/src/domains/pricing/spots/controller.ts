@@ -21,6 +21,13 @@ export const listSpots = asyncHandler(async (_req, res) => {
   res.status(200).json(await spotService.board())
 })
 
+export const TICKER_MAX_AGE_S = 15
+
+export const listTicker = asyncHandler(async (_req, res) => {
+  res.set('Cache-Control', `public, max-age=${TICKER_MAX_AGE_S}`)
+  res.status(200).json(await spotService.ticker())
+})
+
 export const HEARTBEAT_MS = 20_000
 
 export const streamSpots = asyncHandler(async (req, res) => {

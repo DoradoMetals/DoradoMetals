@@ -119,3 +119,27 @@ test('the activity merges locks, adjustments and feed events newest first in a w
     { lock: LOCKS.ORDERS }
   )
 })
+
+test('the ticker lists every metal in metal order with the board direction', async () => {
+  await inRollback(
+    async (c: PoolClient) => {
+      await query(`UPDATE spots.current SET seen_at = now()`, [], c)
+      await query(`UPDATE spots.current SET dollar_change = -3 WHERE metal_id = 'Silver'`, [], c)
+      await query(`UPDATE spots.current SET dollar_change = 0 WHERE metal_id = 'Gold'`, [], c)
+      const rows = await spots.ticker(c)
+      const { spots: cards } = await spots.board(c)
+      assert.deepEqual(
+        rows.map((r) => r.metal_id),
+        cards.map((s) => s.id)
+      )
+      assert.equal(rows.find((r) => r.metal_id === 'Silver')?.direction, 'down')
+      assert.equal(rows.find((r) => r.metal_id === 'Gold')?.direction, 'flat')
+      for (const row of rows) {
+        const card = cards.find((s) => s.id === row.metal_id)
+        assert.equal(row.price, card?.bid)
+        assert.equal(row.direction, card?.direction)
+      }
+    },
+    { lock: LOCKS.SPOTS_SETTINGS }
+  )
+})
