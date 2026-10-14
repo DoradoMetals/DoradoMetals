@@ -13,21 +13,40 @@ export function cityState(address: OrderView['address']): string | null {
   return joined || null
 }
 
-export function customerBlock(order: OrderView, label: string): EndBlock {
+function placeOf(address: OrderView['address']): string | null {
+  const joined = [
+    address?.line_1,
+    address?.city,
+    [address?.state, address?.zip].filter(Boolean).join(' '),
+  ]
+    .filter(Boolean)
+    .join(', ')
+  return joined || null
+}
+
+export function customerBlock(
+  order: OrderView,
+  label: string,
+  contact: 'ship' | 'quiet' | 'visit' = 'ship'
+): EndBlock {
   const address = order.address
+  const phone = formatPhoneNumber(address?.phone_number) || null
   return {
     label,
     who: order.user?.name ?? '-',
-    strong: formatPhoneNumber(address?.phone_number) || null,
-    lines: [address?.line_1 ?? null, cityState(address)],
+    strong: contact === 'ship' ? phone : null,
+    lines:
+      contact === 'visit'
+        ? [placeOf(address), phone]
+        : [address?.line_1 ?? null, cityState(address)],
   }
 }
 
-export function doradoBlock(label: string): EndBlock {
+export function doradoBlock(label: string, phone = true): EndBlock {
   return {
     label,
     who: process.env.FEDEX_DORADO_NAME || 'Dorado Metals Exchange',
-    strong: formatPhoneNumber(process.env.FEDEX_DORADO_PHONE_NUMBER) || null,
+    strong: phone ? formatPhoneNumber(process.env.FEDEX_DORADO_PHONE_NUMBER) || null : null,
     lines: [
       process.env.FEDEX_RETURN_ADDRESS_LINE_1 ?? null,
       [process.env.FEDEX_RETURN_CITY, process.env.FEDEX_RETURN_STATE].filter(Boolean).join(', ') ||

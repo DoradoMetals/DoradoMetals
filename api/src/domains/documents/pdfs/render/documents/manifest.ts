@@ -1,15 +1,6 @@
 import { createElement as h, type ReactNode } from 'react'
-import {
-  renderDocument,
-  Header,
-  Footer,
-  Hero,
-  Table,
-  Summary,
-  type TableRow,
-  type LedgerLine,
-} from '@dorado/components/document'
-import { DOCUMENT_FONT_FACES, DOCUMENT_FONT_FAMILY } from '#documents/pdfs/render/assets.ts'
+import { Hero, Table, Summary, type TableRow, type LedgerLine } from '@dorado/components/document'
+import { documentHtml } from '#documents/pdfs/render/documents/page.ts'
 
 export type ManifestInput = {
   title: string
@@ -19,28 +10,29 @@ export type ManifestInput = {
   heroValue: string
   heroStatus: string
   middle: ReactNode
+  tableCap: string
+  tableColumn: string
   rows: TableRow[]
   ledger: LedgerLine[]
   total: string
-  issued: string
+  footer: string
 }
 
 export function buildManifestHtml(input: ManifestInput): string {
-  return renderDocument({
+  return documentHtml({
     title: input.title,
-    head: h(Header, { kind: input.eyebrow, reference: input.reference }),
+    kind: input.eyebrow,
+    reference: input.reference,
     body: [
       h(Hero, { label: input.heroLabel, value: input.heroValue, status: input.heroStatus }),
       input.middle,
-      h(Table, { cap: 'Items', column: 'Payout', rows: input.rows }),
+      h(Table, { cap: input.tableCap, column: input.tableColumn, rows: input.rows }),
       h(Summary, { lines: input.ledger, totalLabel: 'Total', total: input.total }),
     ],
-    foot: h(Footer, { issued: input.issued }),
-    fontFaces: DOCUMENT_FONT_FACES,
-    fontFamily: DOCUMENT_FONT_FAMILY,
+    footer: input.footer,
   })
 }
 
 export const ESTIMATE_HERO_LABEL = 'Estimated payout'
 export const ESTIMATE_HERO_STATUS =
-  'An estimate, not an offer to purchase. Your final payout is set by assay on arrival and moves with spot until it is locked.'
+  'An estimate is not an offer to purchase and is subject to change based on spot movement and final assay.'

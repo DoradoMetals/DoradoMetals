@@ -1,6 +1,6 @@
 import { createElement as h } from 'react'
-import { renderDocument, Header, Footer, Instructions } from '@dorado/components/document'
-import { DOCUMENT_FONT_FACES, DOCUMENT_FONT_FAMILY } from '#documents/pdfs/render/assets.ts'
+import { Instructions } from '@dorado/components/document'
+import { documentHtml } from '#documents/pdfs/render/documents/page.ts'
 import { formatIssued } from '#documents/pdfs/render/format.ts'
 
 const LEAD = 'Your pickup takes four steps.'
@@ -61,9 +61,11 @@ const ARRIVAL = [
 ]
 
 export function buildPickupInstructionsHtml(reference: string): string {
-  return renderDocument({
+  return documentHtml({
     title: `Pickup Instructions ${reference}`,
-    head: h(Header, { kind: 'Pickup Instructions', reference }),
+    kind: 'Pickup Instructions',
+    reference,
+    density: 'roomy',
     body: [
       h(Instructions, {
         lead: LEAD,
@@ -76,8 +78,6 @@ export function buildPickupInstructionsHtml(reference: string): string {
         stages: ARRIVAL,
       }),
     ],
-    foot: h(Footer, { issued: formatIssued() }),
-    fontFaces: DOCUMENT_FONT_FACES,
-    fontFamily: DOCUMENT_FONT_FAMILY,
+    footer: formatIssued(),
   })
 }

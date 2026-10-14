@@ -10,14 +10,14 @@ import { buildShippingInstructionsHtml } from '#documents/pdfs/render/documents/
 import { buildPickupInstructionsHtml } from '#documents/pdfs/render/documents/pickup-instructions.ts'
 import { buildAppointmentInstructionsHtml } from '#documents/pdfs/render/documents/appointment-instructions.ts'
 import { buildRateSheetHtml } from '#documents/pdfs/render/documents/rate-sheet.ts'
-import { buildAssayResultsHtml } from '#documents/pdfs/render/documents/assay-results.ts'
+import { buildQuoteEstimateHtml } from '#documents/pdfs/render/documents/quote-estimate.ts'
 import { storeUpload } from '#documents/pdfs/store.ts'
 import type {
-  AssayResultsDocument,
   DocumentInput,
   PdfKind,
   RateSheetDocument,
   ShipmentManifestInput,
+  PartiesDocumentInput,
 } from '@dorado/contracts'
 
 export {
@@ -30,10 +30,10 @@ export {
   buildPickupInstructionsHtml,
   buildAppointmentInstructionsHtml,
   buildRateSheetHtml,
-  buildAssayResultsHtml,
+  buildQuoteEstimateHtml,
 }
 
-export async function generateInvoice(input: DocumentInput): Promise<Uint8Array> {
+export async function generateInvoice(input: PartiesDocumentInput): Promise<Uint8Array> {
   return renderPdf(buildInvoiceHtml(input))
 }
 
@@ -45,11 +45,11 @@ export async function generateReturnPackingList(input: ShipmentManifestInput): P
   return renderPdf(buildReturnPackingListHtml(input))
 }
 
-export async function generatePickupManifest(input: DocumentInput): Promise<Uint8Array> {
+export async function generatePickupManifest(input: PartiesDocumentInput): Promise<Uint8Array> {
   return renderPdf(buildPickupManifestHtml(input))
 }
 
-export async function generateIntakeReceipt(input: DocumentInput): Promise<Uint8Array> {
+export async function generateIntakeReceipt(input: PartiesDocumentInput): Promise<Uint8Array> {
   return renderPdf(buildIntakeReceiptHtml(input))
 }
 
@@ -69,8 +69,8 @@ export async function generateRateSheet(input: RateSheetDocument): Promise<Uint8
   return renderPdf(buildRateSheetHtml(input))
 }
 
-export async function generateAssayResults(input: AssayResultsDocument): Promise<Uint8Array> {
-  return renderPdf(buildAssayResultsHtml(input))
+export async function generateQuoteEstimate(input: DocumentInput): Promise<Uint8Array> {
+  return renderPdf(buildQuoteEstimateHtml(input))
 }
 
 export async function storeUnattachedUpload(kind: PdfKind, bytes: Uint8Array): Promise<string> {

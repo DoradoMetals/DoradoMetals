@@ -8,4 +8,21 @@ Missing designs (Jacob decides where): promo mailer, supplier sales-order email,
 
 Assets: emails reference `FRONTEND_URL/media/...` from `frontend/public/media/`; PDFs inline their assets. The Media worker exports the asset pack (logo black/white, mark) with Figma source ids before the lane starts.
 
-Ruling 2026-10-14 (Jacob): the Assay Results document becomes a **Quote Estimate** (estimated payout, spot per metal, one row per item with pre/post melt, purity, fine oz, spot, rate, unit price, line total; then shipping, payout fee, total). Every field exists on OrderPricing plus the lot row. Code lane: a quote/estimate PDF builder replaces assay-results.ts; the assay_results PdfKind stays until Jacob says to delete it. The assay summary never totals across metals.
+Ruling 2026-10-14 (Jacob): the Assay Results document becomes a **Quote Estimate**, drawn at 225:2270. The frame is the spec: header "Quote Estimate" over the customer's name (a quote is not stored and has no id or order number); hero "Estimated quote" with the items total and "Priced against spot at {time}"; the invoice Items table with an ESTIMATE column (per row: weight, purity, premium and spot for scrap; units, premium and spot for bullion; no fine oz or unit price columns); a "Next step" block, "Start your order", with a QR code to `FRONTEND_URL/sell`; an "About this quote" paragraph; footer "Quoted {date}". Shipping and the payout fee are not in the figure, and there is no summary block. The assay_results PdfKind and route stay until Jacob renames them, and a sales order gets no quote estimate.
+
+## Port status (media-port lane, 2026-10-14)
+
+Omissions: the frames draw these, the code does not render them yet.
+
+- **YouTube and LinkedIn icons in the mailer footer.** The PNGs are in `frontend/public/media/`, but no account URL exists in the repo.
+- **"Sterling Silver".** The purity label in `metals.purity_labels` is ".925", so a lot prints ".925 Silver".
+- **Voicemail mailer lede, rows and note.** They need the caller's name and the message length, which `VoicemailReceivedMail` does not carry (CRM calls change).
+- **Pickup-complete lede.** It needs the driver's name, the time and the office; the generic lede stays.
+
+Ruling 2026-10-14 (Jacob), built: quotes do not lock prices and are not stored, so a quote has no id. The Quote Estimate header names the customer, the "Start your order" block carries a vector QR code to `FRONTEND_URL/sell` (`links.ts` `sellUrl()`, generated at render time), and the footer reads "Quoted {date}". The live frame 225:2270 has no "Prepared for {name}" line in the hero; the customer's name sits in the header, so the code follows the frame.
+
+Open decisions:
+
+- **Sales invoice card fee.** The frame's Total includes the card fee. The pricing view's sale total (`order_pricing.sql`) does not carry the card fee, so the sales invoice summary still reads stored `orders.transactions`. Moving it to pricing needs the fee added to the pricing view's sale total, which changes money semantics.
+- **Payout method copy is data.** The invoice, the payout email and the rate sheet now read `payments.methods.label` and `time_delay`, so they cannot disagree. If the copy is wrong, it is edited in the method rows.
+- **Document label.** Done: `orders/rules.ts` `documentsFor` names the `assay_results` document "Quote Estimate". The kind and route rename is in `FOLLOWUPS.md`.

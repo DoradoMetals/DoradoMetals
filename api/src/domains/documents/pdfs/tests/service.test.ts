@@ -52,6 +52,7 @@ const hasNaN = (html: string): boolean =>
   html
     .replace(/<style[\s\S]*?<\/style>/g, '')
     .replace(/<img[^>]*>/g, '')
+    .replace(/<link[^>]*>/g, '')
     .includes('NaN')
 
 const isPdf = (buf: Uint8Array, what: string) => {
@@ -220,16 +221,20 @@ test('a scrap line with no recorded weight, purity or quantity shows a dash, nev
     })
 
     const own = await inputs.invoiceInputs(order.id, c)
-    const documents: Array<[string, string]> = [
-      ['packing list', pdf.buildPackingListHtml({ ...own, package: null })],
-      ['invoice', pdf.buildInvoiceHtml(own)],
-      ['return packing list', pdf.buildReturnPackingListHtml({ ...own, package: null })],
+    const documents: Array<[string, string, string]> = [
+      ['packing list', pdf.buildPackingListHtml({ ...own, package: null }), '- g pre melt'],
+      ['invoice', pdf.buildInvoiceHtml(own), '- g post melt'],
+      [
+        'return packing list',
+        pdf.buildReturnPackingListHtml({ ...own, package: null }),
+        '- g pre melt',
+      ],
     ]
 
-    for (const [name, html] of documents) {
+    for (const [name, html, weight] of documents) {
       assert.ok(!hasNaN(html), `${name} contains NaN for a null-shaped scrap line`)
       assert.ok(!/>\s*null\s*</.test(html), `${name} prints the literal word "null"`)
-      assert.ok(html.includes('- g post melt'), `${name} does not show the weight as a dash`)
+      assert.ok(html.includes(weight), `${name} does not show the weight as a dash`)
     }
   })
 })

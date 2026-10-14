@@ -186,8 +186,7 @@ const parcel = (direction: string, tracking_number: string | null) =>
 
 type Actions = ReturnType<typeof rules.actionsFor>
 
-const hasAction = (actions: Actions, name: string): boolean =>
-  actions.some((a) => a.name === name)
+const hasAction = (actions: Actions, name: string): boolean => actions.some((a) => a.name === name)
 const actionNamed = (actions: Actions, name: string) => actions.find((a) => a.name === name)
 
 const facts = (over: Partial<Facts> = {}): Facts =>
@@ -307,13 +306,13 @@ test('add_funds is offered for any DORADO_ACCOUNT payout, and warns once already
 
   const alreadyCredited = rules.actionsFor(facts({ ...payable, credited: true }))
   assert.equal(hasAction(alreadyCredited, 'add_funds'), true, 'the action disappeared (MP F4)')
-  assert.match(
-    actionNamed(alreadyCredited, 'add_funds')?.override ?? '',
-    /already been credited/
-  )
+  assert.match(actionNamed(alreadyCredited, 'add_funds')?.override ?? '', /already been credited/)
 
   assert.equal(
-    hasAction(rules.actionsFor(facts({ payout: { method: 'WIRE' } as Facts['payout'] })), 'add_funds'),
+    hasAction(
+      rules.actionsFor(facts({ payout: { method: 'WIRE' } as Facts['payout'] })),
+      'add_funds'
+    ),
     false
   )
 
@@ -345,7 +344,10 @@ test('the finalize gate only refuses a direction mismatch or an empty order - ev
 
 test('finalizeConfirm names the missing fine weight before the missing confirmation', () => {
   assert.equal(rules.finalizeConfirm(facts()), null)
-  assert.match(rules.finalizeConfirm(facts({ lots: [aLot(false)] })) ?? '', /1 of 1 lots are not confirmed/)
+  assert.match(
+    rules.finalizeConfirm(facts({ lots: [aLot(false)] })) ?? '',
+    /1 of 1 lots are not confirmed/
+  )
   assert.match(
     rules.finalizeConfirm(
       facts({
@@ -402,22 +404,22 @@ test('the documents a method prints, and the one that waits for finalization', (
       'Shipment Manifest',
       'Return Shipment Manifest',
       'Shipping Instructions',
-      'Assay Results',
+      'Quote Estimate',
     ]
   )
   assert.equal(shipment[0]!.available, false, 'an invoice was offered before finalization')
   assert.equal(rules.documentsFor('SHIPMENT', true, [])[0]!.available, true)
   assert.deepEqual(
     rules.documentsFor('PICKUP', true, []).map((d) => d.name),
-    ['Invoice', 'Pickup Manifest', 'Pickup Instructions', 'Assay Results']
+    ['Invoice', 'Pickup Manifest', 'Pickup Instructions', 'Quote Estimate']
   )
   assert.deepEqual(
     rules.documentsFor('DIRECT', true, []).map((d) => d.name),
-    ['Invoice', 'Intake Receipt', 'Appointment Instructions', 'Assay Results']
+    ['Invoice', 'Intake Receipt', 'Appointment Instructions', 'Quote Estimate']
   )
   assert.deepEqual(
     rules.documentsFor('DROPOFF', true, []).map((d) => d.name),
-    ['Invoice', 'Assay Results']
+    ['Invoice', 'Quote Estimate']
   )
   const finalGated = rules.documentsFor('SHIPMENT', false, [])
   assert.equal(

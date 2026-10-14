@@ -58,6 +58,7 @@ const pricing = (ask: number | null = 4000) =>
         retier_premium: null,
         unit_price: 100,
         line_total: 200,
+        spot: 50,
       },
     ],
     unpriceable: [],

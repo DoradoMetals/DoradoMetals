@@ -51,9 +51,6 @@ export function assertUpload(bytes: Uint8Array | null | undefined): asserts byte
   }
 }
 
-export function assertAssayResults<T>(
-  doc: T | null | undefined,
-  order_id: string
-): asserts doc is T {
-  if (!doc) throw new NotFound(`no assay results for order ${order_id}`)
+export function assertQuotable(direction: string | null, order_id: string): void {
+  if (direction !== 'purchase') throw new NotFound(`no quote estimate for sales order ${order_id}`)
 }

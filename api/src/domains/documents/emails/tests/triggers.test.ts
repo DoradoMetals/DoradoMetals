@@ -233,8 +233,8 @@ test('the payout mailer prints what was paid and files a payout_sent row', async
       assert.equal(t.sent.length, 1, 'the customer was told twice they had been paid')
       const html = t.sent[0].html ?? ''
       assert.ok(html.includes('$12,480.36'), 'the amount paid is missing')
-      assert.ok(html.includes('$12,730.36'), 'the metal value is missing')
-      assert.ok(html.includes('-$250.00'), 'the fee is not shown as a deduction')
+      assert.ok(html.includes('Processing time'), 'the card does not say how long it takes')
+      assert.ok(!html.includes('$12,730.36'), 'the card repeated a money figure')
       assert.ok(!html.includes('NaN') && !html.includes('undefined'), 'a figure did not resolve')
       assert.equal((await trail(c, order.id, 'payout_sent')).length, 1)
     },

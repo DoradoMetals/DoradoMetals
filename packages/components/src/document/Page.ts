@@ -3,19 +3,20 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { themeCss } from '@dorado/theme/tokens'
 import { paper } from '../email/palette.ts'
 import { fontStack } from '../email/style.ts'
-import { PAGE } from './primitives.ts'
+import { PAGE, Footer, Header, footerHeight, type Density } from './primitives.ts'
 
 const THEME = themeCss()
 
-function sheet(fontFamily: string): string {
+export const FOOTER_TEMPLATE_ID = 'page-footer'
+
+function sheet(fontFamily: string, bottom: number): string {
   return `*{box-sizing:border-box;}
-html,body{margin:0;padding:0;}
-body{width:${PAGE.width}px;background:${paper.background};color:${paper.foreground};font-family:${fontFamily};
+html,body{margin:0;padding:0;background:${paper.background};}
+body{width:${PAGE.width}px;color:${paper.foreground};font-family:${fontFamily};
   -webkit-print-color-adjust:exact;print-color-adjust:exact;}
-.page{width:${PAGE.width}px;min-height:${PAGE.height}px;display:flex;flex-direction:column;}
-.page-body{flex:1 0 auto;}
+.page{width:${PAGE.width}px;}
 p{margin:0;}
-@page{size:${PAGE.width}px ${PAGE.height}px;margin:0;}`
+@page{size:${PAGE.width}px ${PAGE.height}px;margin:${PAGE.top}px 0 ${bottom}px 0;}`
 }
 
 export type PageProps = {
@@ -23,8 +24,15 @@ export type PageProps = {
   head: ReactNode
   body: ReactNode[]
   foot: ReactNode
+  footHeight: number
   fontFaces?: string
   fontFamily?: string
+}
+
+function footerTemplate(foot: ReactNode, fontFaces: string): string {
+  return `<style>${fontFaces}\n*{box-sizing:border-box;}p{margin:0;}#header,#footer{padding:0 !important;}</style>${renderToStaticMarkup(
+    h('div', { style: { margin: 0, padding: 0 } }, foot)
+  )}`
 }
 
 export function Page({
@@ -32,6 +40,7 @@ export function Page({
   head,
   body,
   foot,
+  footHeight,
   fontFaces = '',
   fontFamily = fontStack,
 }: PageProps): ReactNode {
@@ -44,17 +53,50 @@ export function Page({
       h('meta', { charSet: 'utf-8' }),
       h('title', null, title),
       h('style', {
-        dangerouslySetInnerHTML: { __html: `${fontFaces}\n${THEME}\n${sheet(fontFamily)}` },
+        dangerouslySetInnerHTML: {
+          __html: `${fontFaces}\n${THEME}\n${sheet(fontFamily, footHeight)}`,
+        },
       })
     ),
     h(
       'body',
       null,
-      h('div', { className: 'page' }, head, h('div', { className: 'page-body' }, ...body), foot)
+      h('div', { className: 'page' }, head, ...body),
+      h('template', {
+        id: FOOTER_TEMPLATE_ID,
+        'data-top': String(PAGE.top),
+        'data-bottom': String(footHeight),
+        'data-ground': paper.background,
+        dangerouslySetInnerHTML: { __html: footerTemplate(foot, fontFaces) },
+      })
     )
   )
 }
 
 export function renderDocument(props: PageProps): string {
   return `<!DOCTYPE html>\n${renderToStaticMarkup(h(Page, props))}`
+}
+
+export type DocumentFrame = {
+  title: string
+  kind: string
+  reference: string | null
+  body: ReactNode[]
+  footer: string
+  density?: Density
+  footDensity?: Density
+}
+
+export function renderFramed(frame: DocumentFrame, logo: string, fontFaces: string): string {
+  const density = frame.density ?? 'compact'
+  const foot = frame.footDensity ?? density
+  return renderDocument({
+    title: frame.title,
+    head: h(Header, { kind: frame.kind, reference: frame.reference, logo, density }),
+    body: frame.body,
+    foot: h(Footer, { issued: frame.footer, density: foot }),
+    footHeight: footerHeight(foot),
+    fontFaces,
+    fontFamily: fontStack,
+  })
 }

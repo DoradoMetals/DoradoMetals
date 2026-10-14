@@ -136,6 +136,7 @@ export const aLot = (over: Partial<OrderLotView> = {}): OrderLotView =>
       form: 'Scrap',
       reference: 'Lot 2481-A',
     },
+    name: '14K Gold',
     payable: 0.786,
     price: 5102.4,
     line_total: 5102.4,

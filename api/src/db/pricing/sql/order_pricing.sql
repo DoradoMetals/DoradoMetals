@@ -159,7 +159,13 @@ billed AS (
 SELECT jsonb_build_object(
          'order_id', ord.id,
          'direction', ord.direction,
-         'spots_at', to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+         'spots_at', to_char(
+           COALESCE(
+             CASE WHEN ord.spots_locked
+                  THEN (SELECT max(sl.created_at)
+                          FROM orders.spot_locks sl
+                         WHERE sl.order_id = ord.id AND sl.action = 'lock') END,
+             now()) AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
          'spots_locked', ord.spots_locked,
          'items', COALESCE(
            (SELECT jsonb_agg(
@@ -172,7 +178,8 @@ SELECT jsonb_build_object(
                        'premium', l.premium,
                        'retier_premium', l.retier_premium,
                        'unit_price', l.unit_price,
-                       'line_total', l.line_total)
+                       'line_total', l.line_total,
+                       'spot', l.spot)
                      ORDER BY l.id ASC)
               FROM lined l),
            '[]'::jsonb),

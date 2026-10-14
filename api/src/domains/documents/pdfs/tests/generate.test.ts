@@ -57,6 +57,8 @@ test('every document kind renders to a real PDF at the drawn page size', async (
   isPdf(await pdf.generateAppointmentInstructions(reference), 'appointment instructions')
   isPdf(await pdf.generateRateSheet(await inputs.rateSheetInputs()), 'rate sheet')
 
-  const assay = await inputs.assayResultsInputs(order_id)
-  isPdf(await pdf.generateAssayResults(assay), 'assay results')
+  isPdf(
+    await pdf.generateQuoteEstimate(await inputs.quoteEstimateInputs(order_id)),
+    'quote estimate'
+  )
 }, 120_000)

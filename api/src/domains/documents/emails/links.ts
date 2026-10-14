@@ -1,11 +1,15 @@
 import { requiredEnv } from '#shared/env/required.ts'
 
+function frontend(): string {
+  return requiredEnv('FRONTEND_URL').replace(/\/+$/, '')
+}
+
 export function ordersUrl(): string {
-  return `${requiredEnv('FRONTEND_URL')}/orders`
+  return `${frontend()}/orders`
 }
 
 export function accountUrl(): string {
-  return `${requiredEnv('FRONTEND_URL')}/account`
+  return `${frontend()}/account`
 }
 
 export function trackingUrl(tracking_number: string | null): string {
@@ -33,4 +37,12 @@ export function calendarUrl(title: string, starts_at: string | null, venue: stri
     venue ? `&location=${encodeURIComponent(venue)}` : ''
   }`
   return `https://calendar.google.com/calendar/render?action=TEMPLATE&${params}`
+}
+
+export function mediaUrl(): string {
+  return `${frontend()}/media`
+}
+
+export function sellUrl(): string {
+  return `${frontend()}/sell`
 }

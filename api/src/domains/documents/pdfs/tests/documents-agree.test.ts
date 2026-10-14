@@ -100,10 +100,10 @@ test('a line with no premium renders unpriced, not a rate it never had', () => {
 const summarySection = (html: string): string => html.slice(html.indexOf('>Summary<'))
 
 const money = (html: string, label: string): number | null => {
-  const row = new RegExp(`>${label}<\\/p><p[^>]*>(-?\\$[\\d,]+\\.\\d\\d)<`).exec(
+  const row = new RegExp(`>${label}<\\/p><p[^>]*>([-−]?\\$[\\d,]+\\.\\d\\d)<`).exec(
     summarySection(html)
   )
-  return row ? Number(row[1].replace(/[$,]/g, '')) : null
+  return row ? Number(row[1].replace(/[$,]/g, '').replace('−', '-')) : null
 }
 
 test("the purchase invoice's own lines add up to the Total it prints", async () => {

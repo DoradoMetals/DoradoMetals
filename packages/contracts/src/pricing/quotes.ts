@@ -120,6 +120,7 @@ export const OrderPricingLine = z.object({
   retier_premium: z.number().nullable(),
   unit_price: z.number(),
   line_total: z.number(),
+  spot: OrderSpot.shape.bid.nullable(),
 })
 export type OrderPricingLine = z.infer<typeof OrderPricingLine>
 

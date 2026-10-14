@@ -4,10 +4,10 @@ import * as pdfsRepo from '#db/media/pdfs/repo.ts'
 import * as pricing from '#pricing/index.ts'
 import * as rules from '#documents/pdfs/rules.ts'
 import type {
-  AssayResultsDocument,
   OrderView,
   RateSheetDocument,
   DocumentPackage,
+  PartiesDocumentInput,
 } from '@dorado/contracts'
 import type { Executor } from '#shared/db/executor.ts'
 
@@ -49,9 +49,16 @@ export async function returnPackingListInputs(order_id: string, executor?: Execu
   return packingListInputs(order_id, executor)
 }
 
-export async function invoiceInputs(order_id: string, executor?: Executor) {
+export async function invoiceInputs(
+  order_id: string,
+  executor?: Executor
+): Promise<PartiesDocumentInput> {
   const order = await loadOrder(order_id, executor)
-  return { order, pricing: await pricing.priceOrder(order_id, executor) }
+  return {
+    order,
+    pricing: await pricing.priceOrder(order_id, executor),
+    parties: await pdfsRepo.parties(order_id, executor),
+  }
 }
 
 export async function pickupManifestInputs(order_id: string, executor?: Executor) {
@@ -62,18 +69,18 @@ export async function intakeReceiptInputs(order_id: string, executor?: Executor)
   return invoiceInputs(order_id, executor)
 }
 
+export async function quoteEstimateInputs(
+  order_id: string,
+  executor?: Executor
+): Promise<PartiesDocumentInput> {
+  const input = await invoiceInputs(order_id, executor)
+  rules.assertQuotable(input.order.order.direction, order_id)
+  return input
+}
+
 export async function referenceInputs(order_id: string, executor?: Executor): Promise<string> {
   const order = await loadOrder(order_id, executor)
   return order.reference
-}
-
-export async function assayResultsInputs(
-  order_id: string,
-  executor?: Executor
-): Promise<AssayResultsDocument> {
-  const doc = await pdfsRepo.assayResults(order_id, executor)
-  rules.assertAssayResults(doc, order_id)
-  return doc
 }
 
 export async function rateSheetInputs(executor?: Executor): Promise<RateSheetDocument> {

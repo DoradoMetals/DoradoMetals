@@ -40,7 +40,14 @@ function isClean(html: string, what: string): void {
 function wearsTheShell(html: string, what: string): void {
   assert.ok(html.includes('width="600"'), `${what} is not 600 wide`)
   assert.ok(html.includes('#09090c'), `${what} lost the dark ground`)
-  assert.ok(html.includes('doradometals.com/icons/branding'), `${what} has no logo`)
+  assert.ok(
+    html.includes(`${process.env.FRONTEND_URL}/media/email-logo.png`),
+    `${what} has no logo`
+  )
+  assert.ok(
+    !/text-align:center/.test(html.replace(/<td align="center"[\s\S]*?<\/td>/g, '')),
+    `${what} centres something the design left-aligns`
+  )
   assert.ok(html.includes('3198 Royal Lane'), `${what} has no postal address`)
   assert.ok(html.includes('Unsubscribe'), `${what} has no unsubscribe`)
   assert.ok(!/display:\s*(flex|grid)/.test(html), `${what} uses a layout Outlook cannot render`)
@@ -54,13 +61,10 @@ test('the sign-in code mailer prints the code as text and the design its copy', 
   isClean(html, 'sign-in code')
   wearsTheShell(html, 'sign-in code')
   assert.ok(html.includes('Your sign-in code'), 'the heading is missing')
-  assert.ok(html.includes('Security'), 'the eyebrow is missing')
+  assert.ok(!html.includes('Security'), 'a pre-title came back above the heading')
   assert.ok(html.includes('418 209'), 'THE CODE IS MISSING - the mailer has no purpose without it')
   assert.ok(html.includes('This code expires in 10 minutes.'), 'the expiry line is missing')
-  assert.ok(
-    html.includes('nobody can reach your account without it'),
-    'the reassurance line is missing'
-  )
+  assert.ok(html.includes('you can ignore this email.'), 'the lede is missing')
   assert.ok(!/<img[^>]*418/.test(html), 'the code rendered as an image and would be blocked')
 })
 
@@ -69,11 +73,7 @@ test('the account created mailer carries its sign-in link', () => {
   isClean(html, 'account created')
   wearsTheShell(html, 'account created')
   assert.ok(html.includes('Welcome to Dorado Metals Exchange'), 'the heading is missing')
-  assert.ok(
-    html.includes('there&#x27;s no password to remember') ||
-      html.includes("there's no password to remember"),
-    'the lede is missing'
-  )
+  assert.ok(html.includes('The link works once and expires in 30 minutes.'), 'the lede is missing')
   assert.ok(html.includes('Finish signing in'), 'the button label is missing')
   assert.ok(html.includes('verify-login?token=t'), 'the link is missing')
 })
@@ -121,8 +121,14 @@ test('order received is direction-aware and says the same heading either way', (
   }
   assert.ok(sell.includes('prepaid label and a packing list'), 'the seller lede is missing')
   assert.ok(buy.includes('preparing your order for shipment'), 'the buyer lede is missing')
-  assert.ok(sell.includes('PO - 004821'), 'the purchase number is not formatted')
-  assert.ok(buy.includes('SO - 004821'), 'the sale number is not formatted')
+  assert.ok(
+    !sell.includes('004821') && !buy.includes('004821'),
+    'the order number came back as a pre-title'
+  )
+  const sellSubject = orderReceived.subject({ ...onOrder, direction: 'purchase', rows })
+  const buySubject = orderReceived.subject({ ...onOrder, direction: 'sale', rows })
+  assert.ok(sellSubject.includes('PO - 004821'), 'the purchase number is not formatted')
+  assert.ok(buySubject.includes('SO - 004821'), 'the sale number is not formatted')
 })
 
 test('payout sent names the rail and the last four, and never more of the account', () => {
@@ -132,9 +138,8 @@ test('payout sent names the rail and the last four, and never more of the accoun
     account_last4: '6789',
     amount: '$12,480.36',
     rows: [
-      { label: 'Metal value', value: '$12,730.36' },
-      { label: 'Fees', value: '-$250.00' },
-      { label: 'Paid', value: '$12,480.36' },
+      { label: 'Method', value: 'ACH transfer' },
+      { label: 'Processing time', value: '1–3 business days' },
     ],
   })
   isClean(html, 'payout sent')
@@ -144,6 +149,8 @@ test('payout sent names the rail and the last four, and never more of the accoun
   assert.ok(html.includes('Amount sent'), 'the stat label is missing')
   assert.ok(html.includes('$12,480.36'), 'the figure is missing')
   assert.ok(html.includes('View your invoice'), 'the button is missing')
+  const body = html.slice(html.indexOf('</div>'))
+  assert.equal(body.split('$12,480.36').length - 1, 1, 'the amount printed more than once')
 })
 
 test('a payout to the balance says so instead of inventing a bank', () => {
@@ -305,7 +312,6 @@ test('the document mailer names the document it carries', () => {
 test('the promo template renders and keeps its disclaimer', () => {
   const html = promo.render({
     ...to,
-    eyebrow: 'Market update',
     headline: 'Gold is up since your last order',
     lede: 'You last sold with us in March.',
     stat_label: 'Gold spot, per oz',

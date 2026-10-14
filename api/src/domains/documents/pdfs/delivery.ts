@@ -36,7 +36,7 @@ async function rendered(kind: PdfKind, order_id: string): Promise<Uint8Array | n
     return await pdfService.generateAppointmentInstructions(await inputs.referenceInputs(order_id))
   }
   if (kind === 'assay_results') {
-    return await pdfService.generateAssayResults(await inputs.assayResultsInputs(order_id))
+    return await pdfService.generateQuoteEstimate(await inputs.quoteEstimateInputs(order_id))
   }
   return null
 }

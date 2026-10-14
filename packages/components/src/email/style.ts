@@ -39,3 +39,7 @@ export function eyebrowType(extra: CSSProperties = {}): CSSProperties {
     ...extra,
   }
 }
+
+export function labelType(extra: CSSProperties = {}): CSSProperties {
+  return type('small', { letterSpacing: '0.35px', ...extra })
+}

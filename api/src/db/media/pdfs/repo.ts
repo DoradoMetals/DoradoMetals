@@ -1,15 +1,7 @@
 import query from '#shared/db/query.ts'
 import { sqlFrom } from '#shared/db/sql.ts'
-import type {
-  AssayResultsDocument,
-  Pdf,
-  RateSheetDocument,
-  StoredDocument,
-} from '@dorado/contracts'
-import {
-  AssayResultsDocument as AssayResults,
-  RateSheetDocument as RateSheet,
-} from '@dorado/contracts'
+import type { DocumentParties, Pdf, RateSheetDocument, StoredDocument } from '@dorado/contracts'
+import { DocumentParties as Parties, RateSheetDocument as RateSheet } from '@dorado/contracts'
 import type { Executor } from '#shared/db/executor.ts'
 
 const sql = sqlFrom(import.meta.dirname)
@@ -74,12 +66,12 @@ async function contentOf(name: string, params: unknown[], executor?: Executor): 
   return rows[0]?.content
 }
 
-export async function assayResults(
+export async function parties(
   order_id: string,
   executor?: Executor
-): Promise<AssayResultsDocument | null> {
-  const row = await contentOf('content_assay_results', [order_id], executor)
-  return row === undefined ? null : AssayResults.parse(row)
+): Promise<DocumentParties | null> {
+  const row = await contentOf('content_document_parties', [order_id], executor)
+  return row === undefined ? null : Parties.parse(row)
 }
 
 export async function rateSheet(executor?: Executor): Promise<RateSheetDocument> {
