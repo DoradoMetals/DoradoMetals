@@ -18,6 +18,7 @@ import type {
   RateSheetDocument,
   ShipmentManifestInput,
   PartiesDocumentInput,
+  QuoteEstimateInput,
 } from '@dorado/contracts'
 
 export {
@@ -69,7 +70,7 @@ export async function generateRateSheet(input: RateSheetDocument): Promise<Uint8
   return renderPdf(buildRateSheetHtml(input))
 }
 
-export async function generateQuoteEstimate(input: DocumentInput): Promise<Uint8Array> {
+export async function generateQuoteEstimate(input: QuoteEstimateInput): Promise<Uint8Array> {
   return renderPdf(buildQuoteEstimateHtml(input))
 }
 

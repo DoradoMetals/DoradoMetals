@@ -8,7 +8,9 @@ Missing designs (Jacob decides where): promo mailer, supplier sales-order email,
 
 Assets: emails reference `FRONTEND_URL/media/...` from `frontend/public/media/`; PDFs inline their assets. The Media worker exports the asset pack (logo black/white, mark) with Figma source ids before the lane starts.
 
-Ruling 2026-10-14 (Jacob): the Assay Results document becomes a **Quote Estimate**, drawn at 225:2270. The frame is the spec: header "Quote Estimate" over the customer's name (a quote is not stored and has no id or order number); hero "Estimated quote" with the items total and "Priced against spot at {time}"; the invoice Items table with an ESTIMATE column (per row: weight, purity, premium and spot for scrap; units, premium and spot for bullion; no fine oz or unit price columns); a "Next step" block, "Start your order", with a QR code to `FRONTEND_URL/sell`; an "About this quote" paragraph; footer "Quoted {date}". Shipping and the payout fee are not in the figure, and there is no summary block. The assay_results PdfKind and route stay until Jacob renames them, and a sales order gets no quote estimate.
+Ruling 2026-10-14 (Jacob): the Assay Results document becomes a **Quote Estimate**, drawn at 225:2270. The frame is the spec. A quote is not stored, so it has no id, no order number and no customer name. The header uses the Header's Checkout variant (62:258): "Start your order", "Scan with your phone" and a 48 px vector QR code to `FRONTEND_URL/sell` (`links.ts` `sellUrl()`, generated at render time). The hero is "Estimated quote" with the items total; its status line is the spot time followed by the disclaimer. Next comes the invoice Items table with an ESTIMATE column (per row: weight, purity, premium and spot for scrap; units, premium and spot for bullion; no fine oz or unit price), then "How to send it" (317:2358) and "Getting paid" (317:2398). The quote and the rate sheet share those two sections (`render/documents/send-and-paid.ts`), and the payout lines come from the rate sheet's content SQL (`payments.methods`). The footer reads "Quoted {date}". Shipping and the payout fee are not in the figure, and there is no summary block. The assay_results PdfKind and route stay until Jacob renames them, and a sales order gets no quote estimate.
+
+Footers: instruction sheets read "Sent {date}", the Quote Estimate "Quoted {date}", and invoices "Issued {date}". The shipment, pickup and intake manifests still read "Created {date}", which is what their frames show.
 
 ## Port status (media-port lane, 2026-10-14)
 
@@ -18,8 +20,6 @@ Omissions: the frames draw these, the code does not render them yet.
 - **"Sterling Silver".** The purity label in `metals.purity_labels` is ".925", so a lot prints ".925 Silver".
 - **Voicemail mailer lede, rows and note.** They need the caller's name and the message length, which `VoicemailReceivedMail` does not carry (CRM calls change).
 - **Pickup-complete lede.** It needs the driver's name, the time and the office; the generic lede stays.
-
-Ruling 2026-10-14 (Jacob), built: quotes do not lock prices and are not stored, so a quote has no id. The Quote Estimate header names the customer, the "Start your order" block carries a vector QR code to `FRONTEND_URL/sell` (`links.ts` `sellUrl()`, generated at render time), and the footer reads "Quoted {date}". The live frame 225:2270 has no "Prepared for {name}" line in the hero; the customer's name sits in the header, so the code follows the frame.
 
 Open decisions:
 

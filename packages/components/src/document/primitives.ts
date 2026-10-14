@@ -128,16 +128,42 @@ export function Dotted({ parts, align }: { parts: (string | null)[]; align?: 'ri
   )
 }
 
+export type Checkout = { title: string; note: string; qr: string }
+
+export const HEADER_QR = 48
+
+function Titles({ kind, reference }: { kind: string; reference: string | null }): ReactNode {
+  return h(
+    'div',
+    { style: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' } },
+    h(Eyebrow, { align: 'right', children: kind }),
+    ...(reference === null
+      ? []
+      : [
+          h(Line, {
+            key: 'reference',
+            step: 'small',
+            tone: 'ink',
+            align: 'right',
+            weight: 500,
+            children: reference,
+          }),
+        ])
+  )
+}
+
 export function Header({
   kind,
   reference,
   logo,
   density = 'compact',
+  checkout,
 }: {
   kind: string
   reference: string | null
   logo: string
   density?: Density
+  checkout?: Checkout | null
 }): ReactNode {
   const pad = edge(density)
   return h(
@@ -164,23 +190,20 @@ export function Header({
         alt: 'Dorado Metals Exchange',
         style: { display: 'block', width: `${LOGO.width}px`, height: `${LOGO.height}px` },
       }),
-      h(
-        'div',
-        { style: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' } },
-        h(Eyebrow, { align: 'right', children: kind }),
-        ...(reference === null
-          ? []
-          : [
-              h(Line, {
-                key: 'reference',
-                step: 'small',
-                tone: 'ink',
-                align: 'right',
-                weight: 500,
-                children: reference,
-              }),
-            ])
-      )
+      checkout
+        ? h(
+            'div',
+            { style: { display: 'flex', alignItems: 'center', gap: space.sm } },
+            h(Titles, { kind: checkout.title, reference: checkout.note }),
+            h('img', {
+              src: checkout.qr,
+              width: HEADER_QR,
+              height: HEADER_QR,
+              alt: '',
+              style: { display: 'block', width: `${HEADER_QR}px`, height: `${HEADER_QR}px` },
+            })
+          )
+        : h(Titles, { kind, reference })
     ),
     h('div', { style: { paddingTop: space.lg } }, h(Rule, {}))
   )
@@ -284,10 +307,12 @@ export function Table({
   cap,
   column,
   rows,
+  closed = true,
 }: {
   cap: string
   column: string
   rows: TableRow[]
+  closed?: boolean
 }): ReactNode {
   return h(
     'section',
@@ -339,58 +364,9 @@ export function Table({
         ),
         h(Dotted, { parts: row.facts })
       ),
-      h(Rule, { key: `rule${i}` }),
+      ...(closed || i < rows.length - 1 ? [h(Rule, { key: `rule${i}` })] : []),
     ])
   )
-}
-
-function Capped({ cap, children }: { cap: string; children: ReactNode }): ReactNode {
-  return h(
-    'section',
-    { style: bandWith({ breakInside: 'avoid' }) },
-    h(Eyebrow, { children: cap }),
-    h('div', { style: { paddingTop: '2px', paddingBottom: '2px' } }, h(Rule, {})),
-    h('div', { style: { paddingTop: space.sm } }, children)
-  )
-}
-
-export const QR_SIZE = 96
-
-export function NextStep({
-  cap,
-  title,
-  body,
-  qr,
-}: {
-  cap: string
-  title: string
-  body: string
-  qr: string
-}): ReactNode {
-  return h(Capped, {
-    cap,
-    children: h(
-      'div',
-      { style: { display: 'flex', alignItems: 'center', gap: space.lg } },
-      h('img', {
-        src: qr,
-        width: QR_SIZE,
-        height: QR_SIZE,
-        alt: '',
-        style: { display: 'block', width: `${QR_SIZE}px`, height: `${QR_SIZE}px`, flex: 'none' },
-      }),
-      h(
-        'div',
-        { style: { display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 } },
-        h(Line, { step: 'h4', tone: 'ink', children: title }),
-        h(Line, { step: 'micro', children: body })
-      )
-    ),
-  })
-}
-
-export function Note({ cap, body }: { cap: string; body: string }): ReactNode {
-  return h(Capped, { cap, children: h(Line, { step: 'small', children: body }) })
 }
 
 export type LedgerLine = { label: string; value: string }

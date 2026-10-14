@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { themeCss } from '@dorado/theme/tokens'
 import { paper } from '../email/palette.ts'
 import { fontStack } from '../email/style.ts'
-import { PAGE, Footer, Header, footerHeight, type Density } from './primitives.ts'
+import { PAGE, Footer, Header, footerHeight, type Checkout, type Density } from './primitives.ts'
 
 const THEME = themeCss()
 
@@ -85,6 +85,7 @@ export type DocumentFrame = {
   footer: string
   density?: Density
   footDensity?: Density
+  checkout?: Checkout | null
 }
 
 export function renderFramed(frame: DocumentFrame, logo: string, fontFaces: string): string {
@@ -92,7 +93,13 @@ export function renderFramed(frame: DocumentFrame, logo: string, fontFaces: stri
   const foot = frame.footDensity ?? density
   return renderDocument({
     title: frame.title,
-    head: h(Header, { kind: frame.kind, reference: frame.reference, logo, density }),
+    head: h(Header, {
+      kind: frame.kind,
+      reference: frame.reference,
+      logo,
+      density,
+      checkout: frame.checkout ?? null,
+    }),
     body: frame.body,
     foot: h(Footer, { issued: frame.footer, density: foot }),
     footHeight: footerHeight(foot),

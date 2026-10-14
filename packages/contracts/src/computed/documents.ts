@@ -139,6 +139,9 @@ export const PartiesDocumentInput = DocumentInput.extend({
 })
 export type PartiesDocumentInput = z.infer<typeof PartiesDocumentInput>
 
+export const QuoteEstimateInput = PartiesDocumentInput.extend({ fees: z.array(MailerRow) })
+export type QuoteEstimateInput = z.infer<typeof QuoteEstimateInput>
+
 export const DocumentPackage = z.object({
   label: Package.shape.label.nullable(),
   length: Package.shape.length.nullable(),

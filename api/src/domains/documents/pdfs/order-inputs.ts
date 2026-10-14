@@ -7,7 +7,7 @@ import type {
   OrderView,
   RateSheetDocument,
   DocumentPackage,
-  PartiesDocumentInput,
+  QuoteEstimateInput,
 } from '@dorado/contracts'
 import type { Executor } from '#shared/db/executor.ts'
 
@@ -52,12 +52,13 @@ export async function returnPackingListInputs(order_id: string, executor?: Execu
 export async function invoiceInputs(
   order_id: string,
   executor?: Executor
-): Promise<PartiesDocumentInput> {
+): Promise<QuoteEstimateInput> {
   const order = await loadOrder(order_id, executor)
   return {
     order,
     pricing: await pricing.priceOrder(order_id, executor),
     parties: await pdfsRepo.parties(order_id, executor),
+    fees: (await pdfsRepo.rateSheet(executor)).fees,
   }
 }
 
@@ -72,7 +73,7 @@ export async function intakeReceiptInputs(order_id: string, executor?: Executor)
 export async function quoteEstimateInputs(
   order_id: string,
   executor?: Executor
-): Promise<PartiesDocumentInput> {
+): Promise<QuoteEstimateInput> {
   const input = await invoiceInputs(order_id, executor)
   rules.assertQuotable(input.order.order.direction, order_id)
   return input
