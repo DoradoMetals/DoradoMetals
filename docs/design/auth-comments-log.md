@@ -1,0 +1,4 @@
+# Auth file comment log (`hZ5Ajr9Hn1h2Q2XFRa1NYY`)
+
+- 1966674044 | 10:148 pin on Back 10:150 | All 22 `Back` Button instances: chevron-left Vector stroke was literal #000 on 21 of them (31:716 was already bound); bound to `text/subtle`, same as the label. Root cause: the `chevron-left` icon (remote 14:633, key 5781cabc..., not in the Themes and Components file) draws a literal black stroke. Snapshot `tools/auth/snapshots/back-chevrons-pre-2026-10-14.json`.
+- 1966627573 + 1966659281 (bump) | 10:148 pin on Pitch 10:208 | New local set `Pitch` 111:1276 (Ticker=Off 111:1216, Ticker=On 111:1246): static hero, Heading/H1 headline, Body/Regular subline, three Reason cards (spot-locked price, our FedEx label, bank payout), Ticker=On adds the library Marquee spot strip. Instance 111:1277 placed in sign-in Desktop Pitch. Orchestrator view: no carousel, no unproven claims (seller counts, BBB, same-day). Asked Jacob to pick plain or ticker and approve the copy.

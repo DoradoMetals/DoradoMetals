@@ -8,29 +8,30 @@ import { recordEmail } from '#documents/emails/record.ts'
 import { closeBrowser } from '#documents/pdfs/render/puppeteer.ts'
 import * as orderRead from '#orders/read.ts'
 import { LOCKS } from '#shared/testing/locks.ts'
-import { inRollback } from '#shared/testing/rollback.ts'
+import { rollbackIn } from '#shared/testing/rollback.ts'
 import type { Transport } from '#providers/resend/index.ts'
 import type { OrderView } from '@dorado/contracts'
 
-let client: PoolClient
 type Message = Parameters<Transport['sendMail']>[0]
+
+const inOrders = rollbackIn({ lock: LOCKS.ORDERS })
 
 let orders: OrderView[]
 
 beforeAll(async () => {
-  client = await pool.connect()
+  const client = await pool.connect()
   await client.query('SELECT pg_advisory_lock($1)', [LOCKS.ORDERS])
   orders = []
   for (const row of (await orderRead.list({ direction: 'purchase' })).items) {
     const view = await orderRead.view(row.id)
     if (view) orders.push(view)
   }
+  await client.query('SELECT pg_advisory_unlock($1)', [LOCKS.ORDERS])
+  client.release()
   assert.ok(orders.length > 0, 'dev has no purchase orders to render')
 })
 
 afterAll(async () => {
-  await client.query('SELECT pg_advisory_unlock($1)', [LOCKS.ORDERS])
-  client.release()
   await closeBrowser()
   await pool.end()
 })
@@ -60,7 +61,7 @@ const anOrderWithAUser = () => {
 }
 
 test('a successful send leaves a sent row pointing at its stored document', async () => {
-  await inRollback(async (c: PoolClient) => {
+  await inOrders(async (c: PoolClient) => {
     const { order, email, user } = anOrderWithAUser()
     await emails.sendOrderReceived(order.order.id, recorder(), c)
 
@@ -84,7 +85,7 @@ test('a successful send leaves a sent row pointing at its stored document', asyn
 })
 
 test('a failed send throws AND leaves a failed row carrying the error', async () => {
-  await inRollback(async (c: PoolClient) => {
+  await inOrders(async (c: PoolClient) => {
     const { order, email } = anOrderWithAUser()
     await assert.rejects(
       async () => emails.sendOrderReceived(order.order.id, failing(), c),
@@ -104,7 +105,7 @@ test('a failed send throws AND leaves a failed row carrying the error', async ()
 })
 
 test('a record for an order the new schema does not know keeps everything but the link', async () => {
-  await inRollback(async (c: PoolClient) => {
+  await inOrders(async (c: PoolClient) => {
     await recordEmail(
       {
         kind: 'sales_order_to_supplier',
@@ -127,14 +128,17 @@ test('a record for an order the new schema does not know keeps everything but th
 test('without a transaction, a test-run send records nothing', async () => {
   const { order, email, user } = anOrderWithAUser()
   await emails.sendOrderReceived(order.order.id, recorder())
-  const { rows } = await client.query(
-    `SELECT count(*)::int AS n FROM media.emails WHERE kind = 'purchase_order_created'`
-  )
+  const rows = await inOrders(async (c: PoolClient) => {
+    const res = await c.query(
+      `SELECT count(*)::int AS n FROM media.emails WHERE kind = 'purchase_order_created'`
+    )
+    return res.rows
+  })
   assert.equal(rows[0].n, 0, 'an executor-less test send committed a real row - the guard rotted')
 })
 
 test('a sign-up mail leaves an account_created row with its user', async () => {
-  await inRollback(async (c: PoolClient) => {
+  await inOrders(async (c: PoolClient) => {
     const { order, email, user } = anOrderWithAUser()
     const t = recorder()
     await emails.sendAccountCreated(
@@ -168,7 +172,7 @@ test('a sign-up mail leaves an account_created row with its user', async () => {
 })
 
 test('a failed sign-in code throws, reaches the caller unchanged, and is recorded', async () => {
-  await inRollback(async (c: PoolClient) => {
+  await inOrders(async (c: PoolClient) => {
     await assert.rejects(
       () =>
         emails.sendSignInCode(

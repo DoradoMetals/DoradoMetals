@@ -1,6 +1,5 @@
 import { test, afterAll, beforeAll } from 'vitest'
 import assert from 'node:assert/strict'
-import type { PoolClient } from 'pg'
 import pool from '#pool'
 import * as orderRead from '#orders/read.ts'
 import * as inputs from '#documents/pdfs/order-inputs.ts'
@@ -9,20 +8,19 @@ import { closeBrowser } from '#documents/pdfs/render/puppeteer.ts'
 import { LOCKS } from '#shared/testing/locks.ts'
 
 let order_id: string
-let lockClient: PoolClient
 
 beforeAll(async () => {
-  lockClient = await pool.connect()
+  const lockClient = await pool.connect()
   await lockClient.query('SELECT pg_advisory_lock($1)', [LOCKS.ORDERS])
   const ids = (await orderRead.list({ direction: 'purchase' })).items.map((o) => o.id)
-  assert.ok(ids.length > 0, 'dev has no purchase orders')
   order_id = ids[0]!
+  await lockClient.query('SELECT pg_advisory_unlock($1)', [LOCKS.ORDERS])
+  lockClient.release()
+  assert.ok(ids.length > 0, 'dev has no purchase orders')
 })
 
 afterAll(async () => {
   await closeBrowser()
-  await lockClient.query('SELECT pg_advisory_unlock($1)', [LOCKS.ORDERS])
-  lockClient.release()
   await pool.end()
 })
 

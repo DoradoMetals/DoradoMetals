@@ -6,16 +6,17 @@ import pool from '#pool'
 import { serveOrderDocument } from '#documents/pdfs/serve.ts'
 import * as orderRead from '#orders/read.ts'
 import { LOCKS } from '#shared/testing/locks.ts'
-import { inRollback } from '#shared/testing/rollback.ts'
+import { rollbackIn } from '#shared/testing/rollback.ts'
 
-let client: PoolClient
 type OrderFixture = { id: string }
+
+const inOrders = rollbackIn({ lock: LOCKS.ORDERS })
 
 let order: OrderFixture
 let owner: { id: string; role: string }
 
 beforeAll(async () => {
-  client = await pool.connect()
+  const client = await pool.connect()
   await client.query('SELECT pg_advisory_lock($1)', [LOCKS.ORDERS])
   const orders = (await orderRead.list({ direction: 'purchase' }))
     .items as unknown as OrderFixture[]
@@ -29,13 +30,13 @@ beforeAll(async () => {
       break
     }
   }
+  await client.query('SELECT pg_advisory_unlock($1)', [LOCKS.ORDERS])
+  client.release()
   assert.ok(order, 'no dev purchase order exists in orders.orders')
   assert.ok(owner.id, 'the linkable order has no user_id to own it')
 })
 
 afterAll(async () => {
-  await client.query('SELECT pg_advisory_unlock($1)', [LOCKS.ORDERS])
-  client.release()
   await pool.end()
 })
 
@@ -87,7 +88,7 @@ const pdfRowCount = async (c: PoolClient) => {
 }
 
 test('the LATEST stored row of the kind is the one served', async () => {
-  await inRollback(async (c: PoolClient) => {
+  await inOrders(async (c: PoolClient) => {
     await insertRow(c, { path: 'pdfs/x/old.pdf', checksum: sha256('stale'), hoursAgo: 2 })
     await insertRow(c, { path: 'pdfs/x/new.pdf', checksum: sha256(STORED), hoursAgo: 1 })
 
@@ -107,7 +108,7 @@ test('the LATEST stored row of the kind is the one served', async () => {
 })
 
 test('an admin who does not own the order still gets the stored document', async () => {
-  await inRollback(async (c: PoolClient) => {
+  await inOrders(async (c: PoolClient) => {
     await insertRow(c, { path: 'pdfs/x/new.pdf', checksum: sha256(STORED), hoursAgo: 1 })
 
     const r = renderer()
@@ -127,7 +128,7 @@ test('an admin who does not own the order still gets the stored document', async
 })
 
 test('no stored row: the fallback renders live AND persists, so the second download reads the store', async () => {
-  await inRollback(async (c: PoolClient) => {
+  await inOrders(async (c: PoolClient) => {
     assert.equal(await pdfRowCount(c), 0, 'the fixture order already has rows')
 
     const r = renderer()
@@ -165,7 +166,7 @@ test('no stored row: the fallback renders live AND persists, so the second downl
 })
 
 test('a storage miss falls back to a live render, never a 500', async () => {
-  await inRollback(async (c: PoolClient) => {
+  await inOrders(async (c: PoolClient) => {
     await insertRow(c, { path: 'pdfs/x/gone.pdf', checksum: sha256(STORED), hoursAgo: 1 })
 
     const r = renderer()
@@ -183,7 +184,7 @@ test('a storage miss falls back to a live render, never a 500', async () => {
 })
 
 test('stored bytes that no longer match their checksum are a miss, not a serve', async () => {
-  await inRollback(async (c: PoolClient) => {
+  await inOrders(async (c: PoolClient) => {
     await insertRow(c, {
       path: 'pdfs/x/new.pdf',
       checksum: sha256('what was really sent'),
@@ -200,7 +201,7 @@ test('stored bytes that no longer match their checksum are a miss, not a serve',
 })
 
 test('a caller who does not own the order is refused - nothing is rendered, read or stored', async () => {
-  await inRollback(async (c: PoolClient) => {
+  await inOrders(async (c: PoolClient) => {
     await insertRow(c, { path: 'pdfs/x/new.pdf', checksum: sha256(STORED), hoursAgo: 1 })
 
     const r = renderer()
@@ -230,7 +231,7 @@ test('a caller who does not own the order is refused - nothing is rendered, read
 })
 
 test('an anonymous caller is refused, and an admin is not', async () => {
-  await inRollback(async (c: PoolClient) => {
+  await inOrders(async (c: PoolClient) => {
     const anonymous = renderer()
     await assert.rejects(
       () =>
@@ -260,7 +261,7 @@ test('an anonymous caller is refused, and an admin is not', async () => {
 })
 
 test('the default reader refuses in a test run, and the download still answers', async () => {
-  await inRollback(async (c: PoolClient) => {
+  await inOrders(async (c: PoolClient) => {
     await insertRow(c, { path: 'pdfs/x/new.pdf', checksum: sha256(STORED), hoursAgo: 1 })
 
     const served = await serveOrderDocument(

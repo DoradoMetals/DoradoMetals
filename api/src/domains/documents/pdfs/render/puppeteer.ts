@@ -2,6 +2,8 @@ import puppeteer from 'puppeteer'
 import type { Browser, PDFOptions } from 'puppeteer'
 import { FOOTER_TEMPLATE_ID } from '@dorado/components/document'
 
+const CLOSE_TIMEOUT_MS = 3000
+
 let browserPromise: Promise<Browser> | null = null
 
 interface PageGlobals {
@@ -93,5 +95,10 @@ export async function closeBrowser(): Promise<void> {
   const pending = browserPromise
   browserPromise = null
   const browser = await pending.catch(() => null)
-  if (browser) await browser.close()
+  if (!browser) return
+  await Promise.race([
+    browser.close(),
+    new Promise<void>((resolve) => setTimeout(resolve, CLOSE_TIMEOUT_MS).unref()),
+  ])
+  browser.process()?.kill('SIGKILL')
 }

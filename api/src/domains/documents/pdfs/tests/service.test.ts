@@ -8,14 +8,15 @@ import * as inputs from '#documents/pdfs/order-inputs.ts'
 import { documentRows } from '#documents/pdfs/render/documents/rows.ts'
 import { formatCurrency } from '#documents/pdfs/render/format.ts'
 import { LOCKS } from '#shared/testing/locks.ts'
-import { inRollback } from '#shared/testing/rollback.ts'
+import { rollbackIn } from '#shared/testing/rollback.ts'
 import { aUser, anOrder } from '#shared/testing/builders/index.ts'
 import type { PoolClient } from 'pg'
 import type { OrderPricing, OrderView } from '@dorado/contracts'
 
+const inOrders = rollbackIn({ lock: LOCKS.ORDERS })
+
 let orders: OrderView[]
 let salesOrders: OrderView[]
-let lockClient: PoolClient
 
 const viewsOf = async (direction: 'purchase' | 'sale') => {
   const out: OrderView[] = []
@@ -34,16 +35,16 @@ beforeAll(async () => {
     0,
     'these tests require TZ=UTC - run them with `pnpm --filter @dorado/api test`'
   )
-  lockClient = await pool.connect()
+  const lockClient = await pool.connect()
   await lockClient.query('SELECT pg_advisory_lock($1)', [LOCKS.ORDERS])
   orders = await viewsOf('purchase')
   salesOrders = await viewsOf('sale')
+  await lockClient.query('SELECT pg_advisory_unlock($1)', [LOCKS.ORDERS])
+  lockClient.release()
   assert.ok(orders.length > 0, 'dev has no purchase orders to render')
 })
 
 afterAll(async () => {
-  await lockClient.query('SELECT pg_advisory_unlock($1)', [LOCKS.ORDERS])
-  lockClient.release()
   await closeBrowser()
   await pool.end()
 })
@@ -209,7 +210,7 @@ test('every order item appears as a row in the packing list', async () => {
 })
 
 test('a scrap line with no recorded weight, purity or quantity shows a dash, never NaN or the word null', async () => {
-  await inRollback(async (c: PoolClient) => {
+  await inOrders(async (c: PoolClient) => {
     const user = await aUser(c)
     const order = await anOrder(c, user, { direction: 'purchase' }).withLines({
       metal_id: 'Gold',
