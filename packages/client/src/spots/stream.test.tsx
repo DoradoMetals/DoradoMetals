@@ -112,3 +112,40 @@ describe('useLiveSpots fallback polling', () => {
     live.unmount()
   })
 })
+
+describe('useSpotTicker', () => {
+  it('reads the stream board when the stream is open and polls at 30 s otherwise', async () => {
+    const { useSpotTicker, SPOT_TICKER_POLL_MS } = await import('./queries')
+    expect(SPOT_TICKER_POLL_MS).toBe(30_000)
+    const client = new QueryClient()
+    client.setQueryData(keys.spots.stream(), 'open')
+    client.setQueryData(keys.spots.board(), {
+      spots: [
+        {
+          id: 'Gold',
+          bid: 10,
+          ask: 11,
+          percent_change: 1,
+          dollar_change: 2,
+          updated_at: '2026-01-01T00:00:00Z',
+          direction: 'up',
+        },
+      ],
+      paused: [],
+      market_open: true,
+      next_market_open: null,
+    })
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(QueryClientProvider, { client }, children)
+    const { result } = renderHook(() => useSpotTicker(), { wrapper })
+    expect(result.current.data).toEqual([
+      {
+        metal_id: 'Gold',
+        price: 10,
+        percent_change: 1,
+        direction: 'up',
+        at: '2026-01-01T00:00:00Z',
+      },
+    ])
+  })
+})

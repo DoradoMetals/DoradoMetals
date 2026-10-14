@@ -21,6 +21,7 @@ import type {
   SpotSettingsPatch,
   SpotSourcePatch,
   SpotSourceRead,
+  SpotTickerRow,
 } from '@dorado/contracts'
 
 import { apiRequest } from '../fetch'
@@ -37,6 +38,33 @@ export function useSpotBoard(options: { enabled?: boolean } = {}) {
     queryFn: board,
     refetchInterval,
   })
+}
+
+export const SPOT_TICKER_POLL_MS = 30_000
+
+export function useSpotTicker() {
+  const streamState = useSpotStreamState()
+  const streaming = streamState === 'open'
+  const polled = useQuery<SpotTickerRow[]>({
+    queryKey: keys.spots.ticker(),
+    enabled: !streaming,
+    queryFn: () => apiRequest<SpotTickerRow[]>('GET', '/spots/ticker'),
+    refetchInterval: streaming ? false : SPOT_TICKER_POLL_MS,
+  })
+  const streamed = useQuery<SpotBoard, Error, SpotTickerRow[]>({
+    queryKey: keys.spots.board(),
+    enabled: false,
+    queryFn: board,
+    select: (data) =>
+      data.spots.map((s) => ({
+        metal_id: s.id,
+        price: s.bid,
+        percent_change: s.percent_change,
+        direction: s.direction,
+        at: s.updated_at,
+      })),
+  })
+  return streaming && streamed.data ? { ...polled, data: streamed.data } : polled
 }
 
 export function useLiveSpots(options: { enabled?: boolean } = {}) {

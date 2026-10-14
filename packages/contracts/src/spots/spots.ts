@@ -66,6 +66,15 @@ export type SpotTrend = z.infer<typeof SpotTrend>
 export const SpotTicker = SpotPrice.extend({ direction: SpotTrend })
 export type SpotTicker = z.infer<typeof SpotTicker>
 
+export const SpotTickerRow = z.object({
+  metal_id: Metal.shape.id,
+  price: CurrentSpot.shape.bid.nullable(),
+  percent_change: CurrentSpot.shape.percent_change,
+  direction: SpotTrend,
+  at: CurrentSpot.shape.at.nullable(),
+})
+export type SpotTickerRow = z.infer<typeof SpotTickerRow>
+
 export const SpotBoard = z
   .object({
     spots: z.array(SpotTicker),
