@@ -315,3 +315,4 @@ Note: Jacob's four `Party=Customer` instances carry NO badge at all, so they fol
 - 1966665004 MOBILE DRAWER WIDTH | After Jacob accepted the 20:02 publish, Size=Full instances snapped to 304 (root width bound to breakpoint/xs). Unbound and resized 1160:23218 and 1160:23348 to 390. Library ask as reply on 1966583657. Desktop LG now 1024 panel, OK.
 - 21:01 DRAWER PUBLISH | Library unbound all variant root widths; placed drawers stay at screen size (checked all four).
 - INVENTORY sent to main for the port review; porting page holds 23 screens (earlier '24' corrected on the thread).
+- RULING 129 TIMES | 22 texts changed (snapshot snapshots/2026-10-14-ruling129-times.json), node delta 0 on both pages, re-scan 0. Left and asked: date-only document stamps, time-only chat bubbles, and date-only list labels (Received Sep 2), slot pickers (9:00 AM) as times of day. Library Documents defaults may still carry ', 2026'.
