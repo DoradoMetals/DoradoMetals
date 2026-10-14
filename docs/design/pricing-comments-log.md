@@ -1857,3 +1857,246 @@ reply rather than as its own comment.
   Jacob's own sketch frames and the library Buttons that will not hug.
 - Every instruction Jacob has given is done. Five questions are open with
   him and none blocks anything.
+
+---
+
+## 1960987482 — "not reflecting edit button that's supposed to be there?"
+
+Checked rather than guessed. The button was never missing: the component
+`31:7646` carries `Label#25:0 = "Edit"` on its footer button, and all four
+screen instances carried a stale text override `"Adjust"` that beat it.
+
+**Root cause is the same one that produced the red change figures earlier:
+`swapComponent` preserves overrides by layer path, so every override the
+three cards had accumulated against the DELETED Up main came across onto
+the new card and kept winning over the new main's own values.** Two
+symptoms from one cause, and the second only surfaced because Jacob looked.
+The lesson for any swap: a swap is not a clean slate, and the overrides it
+carries are invisible in the API unless you diff instance against main.
+
+Fix: `resetOverrides()` on all four, then re-apply ONLY the real data —
+metal name, the four figures through `Value#612:0`, badge label and Intent,
+sparkline Direction, and `text/success` on the up cards' change figures.
+The footer label now inherits "Edit" from the component on all four, and
+anything else stale went with it. Row still 1376x215, node counts unchanged.
+
+Standing check to run after any future swap: for each instance, compare
+every component property against the main's default and treat any
+difference that is not deliberate data as a stale override.
+
+## 1960987839 / 1960987874 — two cards in the sources column
+
+Pin hit-tested to `Spot Sources/Body/Row/Kitco/Line 1` — he is pointing at a
+source row's top line, which is exactly what he then describes.
+
+His words: "We need two cards here. One is for toggling on/off spot history
+storage from the the sources, so this one works. We don't need metal thing
+here though. Show on/off badge, toggle, last update" and, as a reply, "The
+next thing we'll need is which source to use for our global default".
+
+**He is editing the file live while I work.** Mid-pass, Rectangle 1,
+Rectangle 2 and the DEFAULT GLOBAL SELECTION label disappeared from Frame 1
+— he cleared his own sketch blocks there. So re-read before assuming the
+canvas is as you left it, and never cache structure across a pass.
+
+### Card 1 — Spot history (`30:3429`, instance `235:1175`)
+Kept the card shape he approved. Row `30:3404`, renamed **Spot Source Row**
+(dropped "/ Mobile" — there is no desktop twin any more): Line 1 is now
+name on the left and a Trailing group of on/off badge + toggle on the
+right, distributed by SPACE_BETWEEN with the Spacer frame gone, and the row
+given its own tokenized vertical padding since the spacer had been
+supplying the height. Meta is "Last update 14s ago" — the metals clause is
+gone, as asked. Facts preserved from the old card: nFusion on/14s,
+Kitco on/9s, LBMA off/no tick. Title "Spot history", badge "2 on", which
+matches the rows.
+
+### Card 2 — Global default (`217:944`, instance `217:976`)
+Repurposed the Default Global Selection card rather than leaving an orphan.
+A single-choice picker built from the library **Chip** (the same control as
+the Rates/Spots chips in the Admin Header), because Jacob's rule bars radio
+icons and no Select component exists in this file. nFusion selected, Kitco
+available, LBMA absent because it is switched off — the same fact card 1
+states, so the two cards cannot contradict each other.
+
+Two corrections after rendering: the chips arrived carrying a dismiss "x",
+wrong for a single-choice default, turned off via `Show dismiss`; and the
+Edit sources ghost button was on the wrong card, since his original pin was
+at the TOP of this column, which is now Spot history, and that is the card
+that lists sources. Moved, and told him it is a one-line change back.
+
+### Tripwire fired twice more, correctly both times
+Once on the combined change (996 -> 982) and the deltas were two unrelated
+causes mixed together. Split them and accounted for each: turning the
+dismiss off cost exactly 16 nodes, and I asserted **page delta == the sum
+of the chips' own node delta**, which is stronger than a guessed constant —
+it proves the loss happened inside the nodes I touched and nowhere else.
+The ghost move was +2, its own size, as expected. Component, set and
+section counts unchanged throughout.
+
+## Polling mechanism, and a quiet-cycle probe
+
+Main asked for a foreground poll loop. **Not possible in this harness** — a
+foreground `sleep` is refused outright, with the refusal explicitly barring
+chained shorter sleeps as a workaround. The working equivalent, and the one
+the worker protocol itself prescribes, is a background timer task whose
+COMPLETION NOTIFICATION re-invokes the agent; re-armed each cycle it behaves
+exactly like the loop. Verified across cycles 1-10. The detached `Monitor`
+watch was stopped so a single poller owns the watermark — two watchers with
+separate watermark files will swallow each other's events.
+
+### Consistency probe (quiet cycle) — 19 checks, 0 faults
+Three pairings that can silently disagree, all clean:
+- every source row's on/off badge against its own toggle;
+- every spot card's direction badge against its sparkline variant;
+- every spot card's change figures against the colour token their direction
+  demands (`text/success` for Up, `text/danger` for Down), both legs.
+
+That third one is the regression test for today's two override bugs, so it
+is worth keeping. Two scripting notes for whoever reuses this: `Trailing` is
+a TEXT node in Entry Row and a FRAME in Spot Source Row, so every child
+lookup needs a `'children' in n` guard; and variable names only resolve
+through an async `getVariableByIdAsync`, so colour checks cannot live inside
+the synchronous tree walk.
+
+## Polls 8-12 — Jacob quiet since 04:00Z; screen tightened as his sketch cleared
+
+He has now deleted Rectangles 1, 2 and 4 himself. What remains of his sketch
+is `Rectangle 5` and the LOCK LEDGER label inside Frame 1, both sitting
+underneath the real card and invisible, plus `Rectangle 3` and the
+ADJUSTMENT LEDGER label inside Frame 2, and the "???" label.
+
+With his blocks gone, Frame 1 was a FIXED 662 holding 595 of content.
+Resized to 595; nothing overflows, node count unchanged. The screen is now
+**1440x1579**, down from 1782 at the start of the session, entirely by
+removing dead space rather than by dropping anything.
+
+**Not tightened, and the reason matters:** Frame 2 is 680x333 while the
+adjustment ledger in it is 254, but `Rectangle 3` is still 333 tall, so
+shrinking the frame would push his own rectangle outside it. The dead band
+there is held open by a node that is Jacob's to delete, not mine. Left
+alone deliberately.
+
+Also left: Frame 1 and Frame 4 are `layoutMode: NONE` with absolutely
+positioned children, which the hug/fill rule would rather see as auto-layout
+columns. Converting them means his leftover labels and rectangles become
+layout children and would suddenly appear in the flow, so that conversion
+has to wait until he has cleared them. Recorded as the follow-up, not done.
+
+Bottom-left of the screen is now empty where the "???" block was. That is
+his open question (pinned 1960981683), not a defect.
+
+---
+
+## Polling mechanism, and a quiet-cycle probe
+
+Main asked for a foreground poll loop. **Not possible in this harness** — a
+foreground `sleep` is refused outright, with the refusal explicitly barring
+chained shorter sleeps as a workaround. The working equivalent, and the one
+the worker protocol itself prescribes, is a background timer task whose
+COMPLETION NOTIFICATION re-invokes the agent; re-armed each cycle it behaves
+exactly like the loop. Verified across cycles 1-10. The detached `Monitor`
+watch was stopped so a single poller owns the watermark — two watchers with
+separate watermark files will swallow each other's events.
+
+### Consistency probe (quiet cycle) — 19 checks, 0 faults
+Three pairings that can silently disagree, all clean:
+- every source row's on/off badge against its own toggle;
+- every spot card's direction badge against its sparkline variant;
+- every spot card's change figures against the colour token their direction
+  demands (`text/success` for Up, `text/danger` for Down), both legs.
+
+That third one is the regression test for today's two override bugs, so it
+is worth keeping. Two scripting notes for whoever reuses this: `Trailing` is
+a TEXT node in Entry Row and a FRAME in Spot Source Row, so every child
+lookup needs a `'children' in n` guard; and variable names only resolve
+through an async `getVariableByIdAsync`, so colour checks cannot live inside
+the synchronous tree walk.
+
+## Polls 8-12 — Jacob quiet since 04:00Z; screen tightened as his sketch cleared
+
+He has now deleted Rectangles 1, 2 and 4 himself. What remains of his sketch
+is `Rectangle 5` and the LOCK LEDGER label inside Frame 1, both sitting
+underneath the real card and invisible, plus `Rectangle 3` and the
+ADJUSTMENT LEDGER label inside Frame 2, and the "???" label.
+
+With his blocks gone, Frame 1 was a FIXED 662 holding 595 of content.
+Resized to 595; nothing overflows, node count unchanged. The screen is now
+**1440x1579**, down from 1782 at the start of the session, entirely by
+removing dead space rather than by dropping anything.
+
+**Not tightened, and the reason matters:** Frame 2 is 680x333 while the
+adjustment ledger in it is 254, but `Rectangle 3` is still 333 tall, so
+shrinking the frame would push his own rectangle outside it. The dead band
+there is held open by a node that is Jacob's to delete, not mine. Left
+alone deliberately.
+
+Also left: Frame 1 and Frame 4 are `layoutMode: NONE` with absolutely
+positioned children, which the hug/fill rule would rather see as auto-layout
+columns. Converting them means his leftover labels and rectangles become
+layout children and would suddenly appear in the flow, so that conversion
+has to wait until he has cleared them. Recorded as the follow-up, not done.
+
+Bottom-left of the screen is now empty where the "???" block was. That is
+his open question (pinned 1960981683), not a defect.
+
+## Polls 13-14 — canvas hygiene while he is away
+
+Every section on both pages was far larger than its contents, worst being
+Adjustments at 1472x5511 around 3122 of content. Tightened all six to their
+content plus a 48 margin:
+
+| section | before | after |
+|---|---|---|
+| Spots / Draft | 1640x2296 | 1588x1727 |
+| Sources | 1440x1130 | 454x1012 |
+| Adjustments | 1472x5511 | 1094x3122 |
+| Spot Locks | 1552x3095 | 1119x3095 |
+| Rates / Rates | 1472x700 | 1472x487 |
+| Rates / Draft | 1640x800 | 1588x775 |
+
+**Tightening alone made the canvas worse, so it needed a second step.** The
+widths shrank too, which left the four component sections sitting at their
+old x positions with gaps of up to 1,186px between them. Re-flowed them into
+an even row on a common top with a 200 gutter, and closed the same kind of
+vertical gap on Rates. Result: 0 section overlaps, 0 members outside a
+section, node counts identical on both pages.
+
+Worth remembering: resizing sections to fit is only half the job — the
+positions have to be re-flowed in the same pass, which is the same trap a
+predecessor hit when a component grew and its section was never re-laid.
+
+Process note: armed one poll cycle with a detached `&` by mistake, which
+does NOT wake the agent. Only `run_in_background: true` produces the
+completion notification. Re-armed correctly.
+
+## Consolidated verification — authoritative state, polls 14-15
+
+Read-only sweep of both pages in full.
+
+| | Spots | Rates |
+|---|---|---|
+| nodes | 983 | 132 |
+| unbound gaps | **0** | **0** |
+| unbound paddings | **0** | **0** |
+| gaps / paddings bound | 72 / 67 | 2 / 11 |
+| clipped text | 0 | 0 |
+| nodes past a frame edge | 0 | 0 |
+| members outside a section | 0 | 0 |
+| section overlaps | 0 | 0 |
+| numeric claims | 6, all true | 2, all true |
+
+**Every FIXED child accounted for**, none of them a defect: the site Header
+band and Jacob's own two sketch frames (Frame 1, Frame 4, both layoutMode
+NONE); library controls at their control size (icons, Close 28x28, the
+Market open switch 36x20, Cancel and Save buttons, Retry now, Clear
+adjustment); and the rest live inside the four variants of the untouched
+Adjustment dialog `25:2901`.
+
+Note the Spots gap/padding denominators fell from 144/211 at the start of
+the session to 72/67 — not because bindings were lost but because the
+bloated Adjustments card, both logs, the locks card and the desktop Sources
+card are gone, replaced by far simpler components. Fewer frames, all bound.
+
+Stopping unrequested changes here. The file is coherent, both screens
+render correctly, and further polish would only add things Jacob has to
+notice and judge. Polling continues.
