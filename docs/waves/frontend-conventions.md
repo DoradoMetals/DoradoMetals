@@ -54,6 +54,8 @@ checks the role, because roles need the session body. A new guarded prefix is
 added to the proxy `matcher` and to `protectedRoutes` in
 `shared/types/routes.ts`.
 
-The proxy sees the cookie only when the API sets it for the frontend's host. On
-separate registrable domains the proxy would redirect a signed-in user; set the
-cookie on a shared parent domain before relying on it in production.
+The proxy sees the cookie only when the API sets it for the frontend's host. The
+API sets `AUTH_COOKIE_DOMAIN` (`.doradometals.com` on staging and production) as
+better-auth's `crossSubDomainCookies` domain, so `www`/`uat` and the `api`/`uat-api`
+hosts share the session cookie. The API refuses to start in production without it.
+Leave it unset locally: `localhost` shares cookies across ports.
