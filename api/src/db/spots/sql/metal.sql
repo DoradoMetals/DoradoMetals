@@ -23,6 +23,7 @@ SELECT jsonb_build_object(
          'direction', CASE WHEN COALESCE(r.dollar_change, 0) = 0 THEN 'flat'
                            WHEN r.dollar_change > 0 THEN 'up'
                            ELSE 'down' END,
+         'market_open', spots.market_is_open(),
          'source_id', r.source_id,
          'follows_default', r.follows_default,
          'mode', r.mode,

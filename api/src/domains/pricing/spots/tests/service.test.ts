@@ -389,9 +389,12 @@ test('a failed poll is counted and logged once, and the run ends on the next tic
       assert.equal(await service.updateSpotPrices(), 0)
       const [source] = (await service.listSources()).filter((s) => s.id === SOURCE_ID)
       assert.equal(source.failed_polls, 2)
+      assert.equal(source.last_error, 'feed down')
 
       vi.mocked(fetchQuotes).mockResolvedValueOnce(aQuote('Gold', 2000, 2010))
       await service.updateSpotPrices()
+      const [healed] = (await service.listSources()).filter((s) => s.id === SOURCE_ID)
+      assert.equal(healed.last_error, null)
       const activity = await service.metalActivity('Gold', 7)
       const feed = activity.filter((a) => a.kind === 'source').map((a) => a.event)
       assert.deepEqual(feed, ['feed recovered', 'feed failed'])

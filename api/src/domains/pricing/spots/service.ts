@@ -14,7 +14,7 @@ import * as candles from '#db/spots/candles/repo.ts'
 import * as ticks from '#db/spots/ticks/repo.ts'
 import * as stream from '#pricing/spots/stream.ts'
 import { reportError } from '#shared/observability/report.ts'
-import { attempt } from '#shared/attempt.ts'
+import { observe } from '#shared/observe.ts'
 import withTransaction from '#shared/db/withTransaction.ts'
 import type { Executor } from '#shared/db/executor.ts'
 import type {
@@ -67,11 +67,16 @@ async function pollSource(
   fetchQuotes: typeof nfusion.fetchQuotes
 ): Promise<number> {
   const polled = await sources.stampAttempt(source_id)
-  const quotes = await attempt(`pricing.spots.fetchQuotes.${source_id}`, fetchQuotes)
-  if (!quotes) {
-    reportUnstamped(source_id, polled && (await sources.recordFailure(source_id)), 0)
+  const polledQuotes = await observe(`pricing.spots.fetchQuotes.${source_id}`, fetchQuotes)
+  if (!polledQuotes.ok) {
+    reportUnstamped(
+      source_id,
+      polled && (await sources.recordFailure(source_id, polledQuotes.message)),
+      0
+    )
     return 0
   }
+  const quotes = polledQuotes.value
   const known = new Set((await metals.list()).map((metal) => metal.id))
 
   const written = await withTransaction(async (tx) => {

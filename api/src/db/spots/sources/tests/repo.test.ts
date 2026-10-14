@@ -97,10 +97,11 @@ test('a feed logs its first failure and its recovery, not every poll', async () 
   await inRollback(async (c: PoolClient) => {
     await sources.stampTick('nfusion', c)
     await query(`DELETE FROM spots.source_events WHERE source_id = 'nfusion'`, [], c)
-    await sources.recordFailure('nfusion', c)
-    await sources.recordFailure('nfusion', c)
-    await sources.recordFailure('nfusion', c)
+    await sources.recordFailure('nfusion', 'status 503', c)
+    await sources.recordFailure('nfusion', 'status 503', c)
+    await sources.recordFailure('nfusion', 'status 503', c)
     assert.equal((await sources.getOne('nfusion', c))?.failed_polls, 3)
+    assert.equal((await sources.getOne('nfusion', c))?.last_error, 'status 503')
     await sources.stampTick('nfusion', c)
     await sources.stampTick('nfusion', c)
 
@@ -111,10 +112,11 @@ test('a feed logs its first failure and its recovery, not every poll', async () 
       c
     )
     assert.deepEqual(events.rows, [
-      { kind: 'tick_failed', detail: null },
+      { kind: 'tick_failed', detail: 'status 503' },
       { kind: 'recovered', detail: 'recovered after 3 failed polls' },
     ])
     assert.equal((await sources.getOne('nfusion', c))?.failed_polls, 0)
+    assert.equal((await sources.getOne('nfusion', c))?.last_error, null)
   })
 })
 
@@ -175,7 +177,35 @@ test('a source nobody seeded is absent rather than empty', async () => {
     assert.equal(await sources.getOne('zz-not-a-feed', c), undefined)
     assert.equal(await sources.update('zz-not-a-feed', { enabled: true }, c), false)
     assert.equal(await sources.stampTick('zz-not-a-feed', c), false)
-    assert.equal(await sources.recordFailure('zz-not-a-feed', c), false)
+    assert.equal(await sources.recordFailure('zz-not-a-feed', 'x', c), false)
     assert.equal(await sources.makeDefault('zz-not-a-feed', c), false)
+  })
+})
+
+test('kitco and lbma are disabled rows that have never ticked', async () => {
+  await inRollback(async (c: PoolClient) => {
+    for (const id of ['kitco', 'lbma']) {
+      const row = await sources.getOne(id, c)
+      assert.equal(row?.enabled, false)
+      assert.equal(row?.is_default, false)
+      assert.equal(row?.last_tick_at, null)
+      assert.equal(row?.status, 'Off')
+    }
+    const order = (await sources.list(c)).map((s) => s.id)
+    assert.ok(order.indexOf('nfusion') < order.indexOf('kitco'))
+    assert.ok(order.indexOf('kitco') < order.indexOf('lbma'))
+  })
+})
+
+test('the market is open inside a session and closed outside, on a holiday and at weekends', async () => {
+  await inRollback(async (c: PoolClient) => {
+    const open = async (at: string) =>
+      (await query<{ o: boolean }>(`SELECT spots.market_is_open($1::timestamptz) AS o`, [at], c))
+        .rows[0]!.o
+    assert.equal(await open('2026-10-14T15:00:00Z'), true)
+    assert.equal(await open('2026-10-14T11:00:00Z'), false)
+    assert.equal(await open('2026-10-14T17:30:00Z'), false)
+    assert.equal(await open('2026-10-17T15:00:00Z'), false)
+    assert.equal(await open('2026-11-26T15:00:00Z'), false)
   })
 })
