@@ -71,7 +71,7 @@ export const SpotBoard = z
     spots: z.array(SpotTicker),
     paused: z.array(Metal.shape.id),
   })
-  .extend({ market_open: z.boolean() })
+  .extend({ market_open: z.boolean(), next_market_open: z.string().nullable() })
 export type SpotBoard = z.infer<typeof SpotBoard>
 
 export const SpotStreamEventName = z.enum(['board'])
@@ -86,6 +86,7 @@ export const MetalSpot = SpotTicker.extend({
   feed_ask: CurrentSpot.shape.ask.nullable(),
   source_id: SpotSource.shape.id.nullable(),
   market_open: z.boolean(),
+  next_market_open: z.string().nullable(),
   follows_default: z.boolean(),
   mode: SpotAdjustmentMode.nullable(),
   adjustment: SpotAdjustmentRead.nullable(),

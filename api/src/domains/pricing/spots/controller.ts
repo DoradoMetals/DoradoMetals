@@ -6,6 +6,7 @@ import * as spotService from '#pricing/spots/service.ts'
 import {
   ActiveSpotSourcePatch,
   SpotActivityDays,
+  SpotAdjustmentFilter,
   SpotAdjustmentPatch,
   SpotCandleQuery,
   SpotFreezeBody,
@@ -93,8 +94,9 @@ export const metalActivity = asyncHandler(async (req, res) => {
   res.status(200).json(await spotService.metalActivity(param(req, 'metal_id'), days))
 })
 
-export const listAdjustments = asyncHandler(async (_req, res) => {
-  res.status(200).json(await spotService.listAdjustments())
+export const listAdjustments = asyncHandler(async (req, res) => {
+  const filter = parseStrict(SpotAdjustmentFilter.strict(), req.query, 'query')
+  res.status(200).json(await spotService.listAdjustments(filter))
 })
 
 export const listAdjustmentHistory = asyncHandler(async (req, res) => {

@@ -24,6 +24,7 @@ SELECT jsonb_build_object(
                            WHEN r.dollar_change > 0 THEN 'up'
                            ELSE 'down' END,
          'market_open', spots.market_is_open(),
+         'next_market_open', spots.next_market_open(now()),
          'source_id', r.source_id,
          'follows_default', r.follows_default,
          'mode', r.mode,

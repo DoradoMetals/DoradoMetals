@@ -1,11 +1,12 @@
 import { Badge, Button, EmptyState, Pagination, Text } from '@dorado/components'
 import { Package } from '@dorado/icons'
-import type { SpotAdjustmentRead } from '@dorado/contracts'
+import type { SpotAdjustmentRead, SpotSourceRead } from '@dorado/contracts'
 
-import { adjustmentAmount, adjustmentExpiry } from '../_lib'
+import { adjustmentAmount, adjustmentExpiry, adjustmentWindow, sourceName } from '../_lib'
 
 export type AdjustmentRowsProps = {
   adjustments: SpotAdjustmentRead[]
+  sources: SpotSourceRead[]
   mobile: boolean
   page?: number
   pageCount?: number
@@ -15,15 +16,17 @@ export type AdjustmentRowsProps = {
 
 function Row({
   adjustment,
+  sources,
   mobile,
   onRemove,
 }: {
   adjustment: SpotAdjustmentRead
+  sources: SpotSourceRead[]
   mobile: boolean
   onRemove: (adjustment: SpotAdjustmentRead) => void
 }) {
   const by = adjustment.updated_by || adjustment.created_by || 'System'
-  const expiry = adjustmentExpiry(adjustment)
+  const expiry = adjustment.expired ? adjustmentWindow(adjustment) : adjustmentExpiry(adjustment)
   return (
     <li className="flex flex-col gap-sm py-xs-plus">
       <div className="flex flex-col gap-3xs">
@@ -37,17 +40,19 @@ function Row({
             </Text>
           </div>
           <div className="flex items-center gap-xs">
-            <Button variant="tertiary" size="sm" onClick={() => onRemove(adjustment)}>
-              Remove
-            </Button>
-            {adjustment.scope === 'Active' ? (
-              <Badge intent="success">Active</Badge>
+            {!adjustment.expired && (
+              <Button variant="tertiary" size="sm" onClick={() => onRemove(adjustment)}>
+                Remove
+              </Button>
+            )}
+            {adjustment.expired ? (
+              <Badge intent="neutral">Expired</Badge>
             ) : (
-              <Badge intent="neutral">Dormant</Badge>
+              <Badge intent="success">Active</Badge>
             )}
           </div>
         </div>
-        <Text variant="micro">{adjustment.source_id}</Text>
+        <Text variant="micro">{sourceName(sources, adjustment.source_id)}</Text>
       </div>
       {mobile ? (
         <>
@@ -70,6 +75,7 @@ function Row({
 
 export function AdjustmentRows({
   adjustments,
+  sources,
   mobile,
   page,
   pageCount,
@@ -92,6 +98,7 @@ export function AdjustmentRows({
           <Row
             key={`${adjustment.metal_id}:${adjustment.source_id}`}
             adjustment={adjustment}
+            sources={sources}
             mobile={mobile}
             onRemove={onRemove}
           />

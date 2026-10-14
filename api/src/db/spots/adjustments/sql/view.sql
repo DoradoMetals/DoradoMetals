@@ -23,6 +23,8 @@ SELECT a.metal_id,
        CASE WHEN a.mode = 'freeze' OR r.source_id = a.source_id THEN 'Active'
             ELSE 'Dormant' END AS scope,
        CASE WHEN a.expires_at_market_open THEN spots.next_market_open(a.updated_at)
-            ELSE a.expires_at END AS expires_at_resolved
+            ELSE a.expires_at END AS expires_at_resolved,
+       COALESCE(CASE WHEN a.expires_at_market_open THEN spots.next_market_open(a.updated_at)
+                     ELSE a.expires_at END < now(), false) AS expired
   FROM spots.adjustments a
   LEFT JOIN spots.resolved r ON r.metal_id = a.metal_id

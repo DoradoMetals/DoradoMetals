@@ -1,7 +1,7 @@
 import { Accordion, RadioGroup, RadioOption, Text } from '@dorado/components'
 import type { MetalSpot, SpotSourceRead } from '@dorado/contracts'
 
-import { formatAgo } from '../../../_lib'
+import { formatAgo, sourceName } from '../../../_lib'
 
 export type SourceSectionProps = {
   metal: MetalSpot
@@ -30,7 +30,7 @@ export function SourceSection({ metal, sources, now, className, onPick }: Source
   return (
     <Accordion
       label="Source"
-      trailing={metal.source_id ?? 'None'}
+      trailing={metal.source_id ? sourceName(sources, metal.source_id) : 'None'}
       defaultOpen
       flush
       className={className}
@@ -52,7 +52,7 @@ export function SourceSection({ metal, sources, now, className, onPick }: Source
               variant="chip"
               className="flex-1 justify-start"
             >
-              {source.id}
+              {source.name}
             </RadioOption>
           ))}
         </RadioGroup>
@@ -60,7 +60,7 @@ export function SourceSection({ metal, sources, now, className, onPick }: Source
           label="Using"
           value={
             metal.source_id
-              ? `${metal.source_id}, ${metal.follows_default ? 'the global default' : 'set for this metal'}`
+              ? `${sourceName(sources, metal.source_id)}, ${metal.follows_default ? 'the global default' : 'set for this metal'}`
               : 'No source'
           }
         />

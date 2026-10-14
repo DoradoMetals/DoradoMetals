@@ -15,7 +15,7 @@ import type { SpotAdjustmentRead, SpotCandleRange, SpotLock } from '@dorado/cont
 import { useNow } from '@/shared/hooks/useNow'
 
 import { AdjustmentRows, ConfirmDialog, LockRows } from '../../../_components'
-import { formatAgo, formatMoney } from '../../../_lib'
+import { formatAgo, formatMoney, sourceName } from '../../../_lib'
 import {
   useActivity,
   useAdjustments,
@@ -54,6 +54,7 @@ export function MetalScreen({ metalId }: { metalId: string }) {
   const history = useHistory(metalId, range)
   const locks = useLocks({ metal: metalId, status: null, q: null, page }).data
   const adjustments = (useAdjustments().data ?? []).filter((entry) => entry.metal_id === metalId)
+  const current = adjustments.filter((entry) => !entry.expired)
   const activity = useActivity(metalId).data ?? []
 
   const setSource = useSetMetalSource(metalId)
@@ -83,7 +84,7 @@ export function MetalScreen({ metalId }: { metalId: string }) {
 
   const badge = spotBadge(metal)
   const lockPages = locks ? Math.max(1, Math.ceil(locks.total / locks.page_size)) : 1
-  const activeCount = adjustments.filter((entry) => entry.scope === 'Active').length
+  const activeCount = current.length
   const adjustmentError =
     (setAdjustment.error?.message ?? cancel.error?.message ?? setSource.error?.message) || null
 
@@ -106,7 +107,7 @@ export function MetalScreen({ metalId }: { metalId: string }) {
         eyebrow="SPOT METAL"
         badge={badge ? <Badge intent={badge.intent}>{badge.label}</Badge> : undefined}
         title={metal.metal_id}
-        reference={`Source ${metal.source_id ?? 'none'}  ·  last tick ${formatAgo(metal.last_tick_at, now)}`}
+        reference={`Source ${sourceName(sources, metal.source_id)}  ·  last tick ${formatAgo(metal.last_tick_at, now)}`}
       />
       <div className="flex flex-col gap-md lg:flex-row lg:items-start lg:gap-lg">
         <div className="contents lg:flex lg:min-w-0 lg:flex-1 lg:flex-col lg:gap-lg">
@@ -141,12 +142,17 @@ export function MetalScreen({ metalId }: { metalId: string }) {
             <div className="px-md pb-sm">
               <AdjustmentRows
                 adjustments={adjustments}
+                sources={sources}
                 mobile={mobile}
                 onRemove={(adjustment) => setPending({ kind: 'remove', adjustment })}
               />
             </div>
           </Accordion>
-          <ActivitySection activity={activity} className="order-7 lg:order-none" />
+          <ActivitySection
+            activity={activity}
+            sources={sources}
+            className="order-7 lg:order-none"
+          />
         </div>
         <div className="contents lg:flex lg:w-112 lg:shrink-0 lg:flex-col lg:gap-lg">
           <SpotSection metal={metal} className="order-2 lg:order-none" />
@@ -190,7 +196,7 @@ export function MetalScreen({ metalId }: { metalId: string }) {
         }
         body={
           pending?.kind === 'remove'
-            ? `${pending.adjustment.metal_id} goes back to the raw ${pending.adjustment.source_id} price straight away.`
+            ? `${pending.adjustment.metal_id} goes back to the raw ${sourceName(sources, pending.adjustment.source_id)} price straight away.`
             : ''
         }
         confirmLabel="Remove"

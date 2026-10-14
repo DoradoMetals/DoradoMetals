@@ -144,3 +144,48 @@ export function adjustmentExpiry(adjustment: {
   if (adjustment.expires_at_resolved) return `Until ${formatStamp(adjustment.expires_at_resolved)}`
   return 'No expiry'
 }
+
+export const sourceName = (
+  sources: { id: string; name: string }[],
+  id: string | null | undefined
+): string => (id ? (sources.find((source) => source.id === id)?.name ?? id) : 'none')
+
+export function adjustmentWindow(adjustment: {
+  updated_at: string
+  expires_at_resolved: string | null
+}): string {
+  return `${formatStamp(adjustment.updated_at)} - ${formatStamp(adjustment.expires_at_resolved)}`
+}
+
+const etOffset = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'America/New_York',
+  timeZoneName: 'longOffset',
+})
+
+export function easternInstant(day: Date, time: string): string {
+  const date = [
+    day.getFullYear(),
+    String(day.getMonth() + 1).padStart(2, '0'),
+    String(day.getDate()).padStart(2, '0'),
+  ].join('-')
+  const noon = new Date(`${date}T12:00:00Z`)
+  const offset =
+    etOffset
+      .formatToParts(noon)
+      .find((part) => part.type === 'timeZoneName')
+      ?.value.replace('GMT', '') || '+00:00'
+  return new Date(`${date}T${time}:00${offset}`).toISOString()
+}
+
+const slotLabel = new Intl.DateTimeFormat('en-US', {
+  hour: 'numeric',
+  minute: '2-digit',
+  timeZone: 'UTC',
+})
+
+export const EASTERN_SLOTS = Array.from({ length: 48 }, (_, index) => {
+  const hours = String(Math.floor(index / 2)).padStart(2, '0')
+  const minutes = index % 2 === 0 ? '00' : '30'
+  const value = `${hours}:${minutes}`
+  return { value, label: `${slotLabel.format(new Date(`2000-01-01T${value}:00Z`))} ET` }
+})

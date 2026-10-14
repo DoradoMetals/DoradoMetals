@@ -22,7 +22,14 @@ import {
   Panel,
   PricingHeader,
 } from '../../_components'
-import { adjustmentAmount, formatAgo, formatClock, formatMoney, formatSince } from '../../_lib'
+import {
+  adjustmentAmount,
+  formatAgo,
+  formatClock,
+  formatMoney,
+  formatSince,
+  sourceName,
+} from '../../_lib'
 import {
   useAdjustments,
   useBoard,
@@ -102,7 +109,8 @@ export function SpotsScreen() {
 
   const spots = board?.spots ?? []
   const lastTick = newest(spots)
-  const active = adjustments.filter((entry) => entry.scope === 'Active' && entry.mode === 'adjust')
+  const current = adjustments.filter((entry) => !entry.expired)
+  const active = current.filter((entry) => entry.scope === 'Active' && entry.mode === 'adjust')
   const adjustmentPages = Math.max(1, Math.ceil(adjustments.length / ADJUSTMENTS_PER_PAGE))
   const shownAdjustments = adjustments.slice(
     (adjustmentPage - 1) * ADJUSTMENTS_PER_PAGE,
@@ -206,7 +214,7 @@ export function SpotsScreen() {
               <Button variant="tertiary" size="sm" onClick={reset}>
                 Reset
               </Button>
-              <Text variant="micro">{`${locks?.total ?? 0} locks · ${adjustments.length} adjustments`}</Text>
+              <Text variant="micro">{`${locks?.total ?? 0} locks · ${current.length} adjustments`}</Text>
             </>
           )
         }
@@ -249,7 +257,7 @@ export function SpotsScreen() {
             href={`${protectedRoutes.adminPricingSpots.path}/${encodeURIComponent(spot.id)}`}
             footer={cardFooter(
               spot,
-              adjustments.find((entry) => entry.metal_id === spot.id && entry.mode === 'freeze'),
+              current.find((entry) => entry.metal_id === spot.id && entry.mode === 'freeze'),
               now
             )}
           />
@@ -276,9 +284,9 @@ export function SpotsScreen() {
           title={`Adjustments active · ${unique(active.map((entry) => entry.metal_id)).join(', ')}`}
           message={`${active
             .map((entry) => `${entry.metal_id} ${adjustmentAmount(entry)}`)
-            .join(' and ')} on ${unique(active.map((entry) => entry.source_id)).join(
-            ', '
-          )}, set by ${unique(
+            .join(' and ')} on ${unique(
+            active.map((entry) => sourceName(sources, entry.source_id))
+          ).join(', ')}, set by ${unique(
             active.map((entry) => entry.updated_by || entry.created_by || 'System')
           ).join(', ')}.`}
           actions={
@@ -293,6 +301,7 @@ export function SpotsScreen() {
         <Panel id="adjustments" title="Adjustments">
           <AdjustmentRows
             adjustments={shownAdjustments}
+            sources={sources}
             mobile={mobile}
             page={adjustmentPage}
             pageCount={adjustmentPages}
@@ -334,7 +343,7 @@ export function SpotsScreen() {
         }
         body={
           pending?.kind === 'remove'
-            ? `${pending.adjustment.metal_id} goes back to the raw ${pending.adjustment.source_id} price straight away.`
+            ? `${pending.adjustment.metal_id} goes back to the raw ${sourceName(sources, pending.adjustment.source_id)} price straight away.`
             : ''
         }
         confirmLabel="Remove"
@@ -344,10 +353,10 @@ export function SpotsScreen() {
       />
       <ConfirmDialog
         open={pending?.kind === 'off'}
-        title={pending?.kind === 'off' ? `Turn off ${pending.source.id}?` : ''}
+        title={pending?.kind === 'off' ? `Turn off ${pending.source.name}?` : ''}
         body={
           pending?.kind === 'off'
-            ? `${pending.source.id} is the active source for ${offMetals}. Turning it off leaves ${offMetals} pricing from its last good tick, marked Stale, until another source is on.`
+            ? `${pending.source.name} is the active source for ${offMetals}. Turning it off leaves ${offMetals} pricing from its last good tick, marked Stale, until another source is on.`
             : ''
         }
         confirmLabel="Turn off"

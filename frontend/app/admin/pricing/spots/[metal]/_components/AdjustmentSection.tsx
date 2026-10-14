@@ -4,6 +4,7 @@ import { useState } from 'react'
 import {
   Accordion,
   Button,
+  DatePicker,
   Input,
   Switch,
   Tabs,
@@ -21,6 +22,8 @@ import type {
 
 import {
   adjustmentAmount,
+  EASTERN_SLOTS,
+  easternInstant,
   formatClock,
   formatMarketOpen,
   formatMoney,
@@ -134,13 +137,23 @@ export function AdjustmentSection({
   const [ask, setAsk] = useState<Side>(sideOf(adjusting?.ask_amount))
   const [reason, setReason] = useState(adjustment?.reason ?? '')
   const [marketOpen, setMarketOpen] = useState(adjustment?.expires_at_market_open ?? true)
+  const [day, setDay] = useState<Date | undefined>(undefined)
+  const [time, setTime] = useState<string | null>(null)
+  const pickExpiry = metal.market_open
 
   const frozen = adjustment?.mode === 'freeze'
   const needsReason = !adjustment && reason.trim() === ''
-  const expiry =
-    marketOpen && adjustment?.expires_at_market_open && adjustment.expires_at_resolved
-      ? formatMarketOpen(adjustment.expires_at_resolved)
-      : null
+  const nextOpen =
+    adjustment?.expires_at_market_open && adjustment.expires_at_resolved
+      ? adjustment.expires_at_resolved
+      : metal.next_market_open
+  const expiry = marketOpen && nextOpen ? formatMarketOpen(nextOpen) : null
+  const expiryPatch = pickExpiry
+    ? {
+        expires_at_market_open: false,
+        expires_at: day && time ? easternInstant(day, time) : null,
+      }
+    : { expires_at_market_open: marketOpen, expires_at: null }
 
   const holding = frozen
     ? `Holding bid ${formatMoney(adjustment.frozen_bid)} and ask ${formatMoney(
@@ -153,15 +166,14 @@ export function AdjustmentSection({
   const save = () =>
     onSave(
       mode === 'freeze'
-        ? { mode, reason, expires_at_market_open: marketOpen, expires_at: null }
+        ? { mode, reason, ...expiryPatch }
         : {
             mode,
             unit,
             bid_amount: signed(bid),
             ask_amount: signed(ask),
             reason,
-            expires_at_market_open: marketOpen,
-            expires_at: null,
+            ...expiryPatch,
           }
     )
 
@@ -201,14 +213,32 @@ export function AdjustmentSection({
           <Text variant="small">{holding}</Text>
         )}
         <Input label="Reason" value={reason} onChange={(event) => setReason(event.target.value)} />
-        <div className="flex flex-col gap-xs">
-          <Switch
-            label="Expire at market open"
-            checked={marketOpen}
-            onCheckedChange={setMarketOpen}
-          />
-          {expiry && <Text variant="micro-medium">{expiry}</Text>}
-        </div>
+        {pickExpiry ? (
+          <div className="relative flex flex-col gap-xs">
+            <Text variant="micro-medium">Expires at</Text>
+            <DatePicker
+              layout="slim"
+              mode="single"
+              weekStartsOn={1}
+              selected={day}
+              onSelect={setDay}
+              disabled={{ before: new Date() }}
+              timeGroups={[{ label: 'Time', slots: EASTERN_SLOTS }]}
+              timeValue={time}
+              onTimeChange={setTime}
+              className="w-full"
+            />
+          </div>
+        ) : (
+          <div className="flex flex-col gap-xs">
+            <Switch
+              label="Expire at market open"
+              checked={marketOpen}
+              onCheckedChange={setMarketOpen}
+            />
+            {expiry && <Text variant="micro-medium">{expiry}</Text>}
+          </div>
+        )}
         {error && (
           <Text variant="micro">
             <span className="text-destructive">{error}</span>

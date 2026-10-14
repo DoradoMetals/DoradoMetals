@@ -29,5 +29,6 @@ SELECT jsonb_build_object(
          'spots', COALESCE((SELECT jsonb_agg(t.card ORDER BY t.sort_order, t.metal_id) FROM t),
                            '[]'::jsonb),
          'market_open', spots.market_is_open(),
+         'next_market_open', spots.next_market_open(now()),
          'paused', COALESCE((SELECT jsonb_agg(t.metal_id ORDER BY t.sort_order, t.metal_id)
                                FROM t WHERE t.state = 'stale'), '[]'::jsonb)) AS board

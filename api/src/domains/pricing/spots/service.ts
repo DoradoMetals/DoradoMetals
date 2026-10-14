@@ -23,6 +23,7 @@ import type {
   MetalSpot,
   SpotActivity,
   SpotAdjustmentChangeRead,
+  SpotAdjustmentFilter,
   SpotAdjustmentPatch,
   SpotAdjustmentRead,
   SpotBoard,
@@ -178,8 +179,8 @@ export async function metalActivity(metal_id: string, days: number): Promise<Spo
   return await spots.activity(metal_id, days)
 }
 
-export async function listAdjustments(): Promise<SpotAdjustmentRead[]> {
-  return await adjustments.list()
+export async function listAdjustments(filter: SpotAdjustmentFilter): Promise<SpotAdjustmentRead[]> {
+  return await adjustments.list(filter.status)
 }
 
 export async function setAdjustment(

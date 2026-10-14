@@ -31,7 +31,7 @@ export function GlobalDefaultPanel({ sources, mobile, onMakeDefault }: GlobalDef
               disabled={!source.enabled}
               className="justify-start"
             >
-              {source.id}
+              {source.name}
             </RadioOption>
           ))}
         </RadioGroup>

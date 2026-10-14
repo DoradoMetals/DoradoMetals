@@ -1,17 +1,19 @@
-import type { SpotActivity } from '@dorado/contracts'
+import type { SpotActivity, SpotSourceRead } from '@dorado/contracts'
 
-import { capitalize, formatMoney } from '../../../_lib'
+import { capitalize, formatMoney, sourceName } from '../../../_lib'
 
-export function activityTitle(entry: SpotActivity): string {
+export function activityTitle(entry: SpotActivity, sources: SpotSourceRead[]): string {
   if (entry.kind === 'lock') {
     return `${entry.reference ?? 'An order'} locked at ${formatMoney(entry.bid ?? entry.ask)}`
   }
   if (entry.kind === 'unlock') return `${entry.reference ?? 'An order'} released`
   if (entry.kind === 'source') {
-    return [entry.source_id, entry.event, entry.detail].filter(Boolean).join(' ')
+    return [sourceName(sources, entry.source_id), entry.event, entry.detail]
+      .filter(Boolean)
+      .join(' ')
   }
   const to = entry.new_value ? ` to ${entry.new_value}` : ''
-  const on = entry.source_id ? ` on ${entry.source_id}` : ''
+  const on = entry.source_id ? ` on ${sourceName(sources, entry.source_id)}` : ''
   return `${capitalize(entry.event)}${to}${on}`
 }
 

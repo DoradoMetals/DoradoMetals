@@ -5,7 +5,7 @@ export const WEIGHT_UNITS = [
   { value: 'lb', label: 'Pound', short: 'lb' },
 ]
 
-export const DEFAULT_UNIT = 'troy_oz'
+export const DEFAULT_UNIT = 'g'
 
 export const unitShort = (key: string): string =>
   WEIGHT_UNITS.find((unit) => unit.value === key)?.short ?? key

@@ -1,6 +1,6 @@
 import { Accordion, EmptyState, Text } from '@dorado/components'
 import { Lock, Package, RefreshCw, SlidersHorizontal } from '@dorado/icons'
-import type { SpotActivity } from '@dorado/contracts'
+import type { SpotActivity, SpotSourceRead } from '@dorado/contracts'
 
 import { formatStamp } from '../../../_lib'
 import { activityTitle } from '../_lib'
@@ -13,9 +13,11 @@ function KindIcon({ kind }: { kind: SpotActivity['kind'] }) {
 
 export function ActivitySection({
   activity,
+  sources,
   className,
 }: {
   activity: SpotActivity[]
+  sources: SpotSourceRead[]
   className?: string
 }) {
   return (
@@ -36,7 +38,7 @@ export function ActivitySection({
                 </span>
                 <div className="flex min-w-0 flex-1 flex-col gap-3xs">
                   <Text variant="small-medium" emphasis="default">
-                    {activityTitle(entry)}
+                    {activityTitle(entry, sources)}
                   </Text>
                   <Text variant="micro">{entry.actor_name ?? 'System'}</Text>
                 </div>

@@ -54,7 +54,7 @@ function SourceRow({
             ref={setActivatorNodeRef}
             variant="tertiary"
             size="iconInline"
-            aria-label={`Drag ${source.id}`}
+            aria-label={`Drag ${source.name}`}
             className="cursor-grab"
             {...attributes}
             {...listeners}
@@ -62,7 +62,7 @@ function SourceRow({
             <GripVertical aria-hidden />
           </Button>
           <Text variant="body-medium" emphasis="default" as="h3">
-            {source.id}
+            {source.name}
           </Text>
           {source.enabled ? (
             <Badge intent="success">On</Badge>
@@ -71,7 +71,7 @@ function SourceRow({
           )}
         </div>
         <Switch
-          aria-label={`${source.id} on`}
+          aria-label={`${source.name} on`}
           checked={source.enabled}
           onCheckedChange={(checked) => onToggle(source, checked)}
         />

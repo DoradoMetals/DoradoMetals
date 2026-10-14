@@ -18,7 +18,7 @@ export { useSpotStream as useLiveBoard }
 
 export const useBoard = () => useSpotBoard()
 
-export const useAdjustments = () => useSpotAdjustments()
+export const useAdjustments = () => useSpotAdjustments('all')
 
 export function useSources() {
   const query = useSpotSources()

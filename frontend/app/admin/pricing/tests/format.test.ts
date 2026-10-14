@@ -3,9 +3,12 @@ import { describe, expect, test } from 'vitest'
 import {
   adjustmentAmount,
   adjustmentExpiry,
+  adjustmentWindow,
+  easternInstant,
   formatAgo,
   formatChange,
   rangeLabel,
+  sourceName,
   unitShort,
 } from '../_lib'
 
@@ -39,5 +42,22 @@ describe('pricing formatters', () => {
     expect(formatAgo('2026-10-14T11:59:46Z', now)).toBe('14s ago')
     expect(formatAgo('2026-10-14T11:48:00Z', now)).toBe('12 min ago')
     expect(formatAgo(null, now)).toBe('never')
+  })
+
+  test('a source reads by its name, an expired adjustment by its window', () => {
+    const sources = [{ id: 'nfusion', name: 'nFusion Solutions' }]
+    expect(sourceName(sources, 'nfusion')).toBe('nFusion Solutions')
+    expect(sourceName(sources, 'kitco')).toBe('kitco')
+    expect(
+      adjustmentWindow({
+        updated_at: '2026-09-09T10:12:00Z',
+        expires_at_resolved: '2026-09-09T16:40:00Z',
+      })
+    ).toBe('Sep 9, 10:12 - Sep 9, 16:40')
+  })
+
+  test('a picked day and time are read in Eastern time', () => {
+    expect(easternInstant(new Date(2026, 5, 22), '08:30')).toBe('2026-06-22T12:30:00.000Z')
+    expect(easternInstant(new Date(2026, 11, 1), '08:30')).toBe('2026-12-01T13:30:00.000Z')
   })
 })

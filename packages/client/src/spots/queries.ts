@@ -8,6 +8,7 @@ import type {
   SpotAdjustmentChangeRead,
   SpotAdjustmentPatch,
   SpotAdjustmentRead,
+  SpotAdjustmentStatus,
   SpotBoard,
   SpotCandle,
   SpotCandleRange,
@@ -98,11 +99,15 @@ export function useSpotCandles(
   })
 }
 
-export function useSpotAdjustments(options: { enabled?: boolean } = {}) {
+export function useSpotAdjustments(
+  status: SpotAdjustmentStatus = 'active',
+  options: { enabled?: boolean } = {}
+) {
   return useQuery<SpotAdjustmentRead[]>({
-    queryKey: keys.spots.adjustments(),
+    queryKey: keys.spots.adjustments(status),
     enabled: options.enabled ?? true,
-    queryFn: () => apiRequest<SpotAdjustmentRead[]>('GET', '/spots/adjustments'),
+    queryFn: () =>
+      apiRequest<SpotAdjustmentRead[]>('GET', '/spots/adjustments', undefined, { status }),
   })
 }
 

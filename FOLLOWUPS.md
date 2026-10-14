@@ -189,6 +189,25 @@ Twelve questions, each with a recommendation already written into the doc:
   inbound SMS webhook, the softphone, Cloudflare, the Figma mailers, and the
   rule that no frontend component ships without an approved design.
   `docs/rulings.md` carries the text.
+- **Rates take fractions, the Rates screen types percents.** `GET /api/rates`
+  and `PATCH /api/rates/:metal_id` carry `scrap_pct` and `bullion_pct` as
+  fractions (0.9), while the Rates edit form shows and accepts "90.00 %", so the
+  frontend converts in `rates/_lib/bands.ts`. Decide whether the api should take
+  and return percents for that screen, or the conversion stays in the client.
+- **Weight units have no endpoint.** `leads.weight_units` (key, label, grams,
+  sort_order) is what `GET /api/rates?unit=` accepts, but nothing serves it, so
+  the Rates screen lists units from `pricing/_lib/units.ts` and the hand-written
+  `WeightUnit` in `@dorado/contracts` still spells the old labels ('t oz'). One
+  endpoint over the table, owned by crm, and the frontend and the contract read
+  it (pricing-frontend lane, 2026-10-14).
+- **A spot lock stores no quantity.** The Pricing Activity frame reads "locked
+  12.4 ozt at $X"; `orders.spot_locks` holds the price only, and the order's
+  current fine content can change after the lock. Write the fine quantity held
+  at lock time on the lock row when the orders spot-lock ruling is built
+  (pricing-frontend lane, 2026-10-14).
+- **The library `Calendar` is `w-fit`.** The metal page frame shows the date
+  grid filling the Adjustment card; check the Library Calendar main's sizing
+  and make the code component match it (pricing-frontend lane, 2026-10-14).
 
 ## D218 - the mailers are the Figma design, and the PDFs wear its system (ruling 95)
 
