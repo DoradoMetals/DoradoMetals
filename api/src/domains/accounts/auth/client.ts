@@ -7,6 +7,7 @@ import { Pool } from 'pg'
 import stripeClient from '#providers/stripe/stripe-client.ts'
 import * as sms from '#providers/twilio/index.ts'
 import { fillMissingRole, withoutAnonymousCustomers } from '#accounts/auth/anonymous.ts'
+import { advancedCookieOptions } from '#accounts/auth/cookies.ts'
 import * as rules from '#accounts/auth/rules.ts'
 import { adoptAnonymousCheckoutQuietly } from '#checkout/adopt.ts'
 import { sendSignInCode } from '#documents/emails/service.ts'
@@ -32,7 +33,7 @@ export const auth = betterAuth({
   },
   account: { modelName: 'auth.account' },
   verification: { modelName: 'auth.verification' },
-  advanced: { database: { generateId: false } },
+  advanced: { database: { generateId: false }, ...advancedCookieOptions() },
   databaseHooks: {
     user: { create: { before: async (user) => fillMissingRole(user) } },
   },

@@ -2,7 +2,7 @@
 
 The unit tests whose subject is shared by several routes (`*.test.ts[x]`, run by
 `pnpm --filter @dorado/frontend test`), and the end-to-end harness. A test whose
-subject belongs to one route lives in that route's `app/<route>/_src_/tests/`.
+subject belongs to one route lives in that route's `app/<route>/tests/`.
 
 ## What is left after the nuke (ruling 99)
 
@@ -15,7 +15,7 @@ with the surfaces. Three files remain here:
 | `auth/authForm.test.ts` | `codeStateFor` and the countdowns |
 | `auth.setup.ts` | the Playwright harness's sign-in, through the real OTP flow |
 
-The one browser spec is `app/auth/_src_/tests/auth-screens.e2e.ts`. What used to
+The one browser spec is `app/auth/tests/auth-screens.e2e.ts`. What used to
 live here — the checkout journeys, the address drawer, the admin creates, the
 public-pages sweep, the degradation suite, the price-reading helper — is in git
 history, and each comes back with the screen it drives. Two lessons from those
