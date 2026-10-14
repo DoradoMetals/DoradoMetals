@@ -10,7 +10,7 @@ SELECT m.id AS metal_id,
        COALESCE(on_hand.content, 0) AS on_hand_content,
        CASE WHEN s.bid IS NULL THEN NULL ELSE COALESCE(on_hand.content, 0) * s.bid END AS est_value
   FROM metals.metals m
-  LEFT JOIN spots.spots s ON s.metal_id = m.id
+  LEFT JOIN spots.resolved s ON s.metal_id = m.id
   LEFT JOIN LATERAL (
          SELECT count(*) AS lots, sum(li.content) AS content
            FROM inventory.lots li

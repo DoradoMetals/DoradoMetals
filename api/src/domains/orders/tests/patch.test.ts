@@ -115,10 +115,7 @@ test('an action of the wrong direction is refused, naming the direction', async 
       await asAdmin(admin, async () => {
         const res = await request(app).post(`/api/orders/${sale.id}/finalize`).send({})
         assert.equal(res.status, 422, `answered ${res.status}`)
-        assert.match(
-          res.body?.error?.message ?? '',
-          /this is not a purchase order/
-        )
+        assert.match(res.body?.error?.message ?? '', /this is not a purchase order/)
 
         const refiner = await request(app)
           .post(`/api/orders/${order.id}/supply`)
@@ -333,7 +330,7 @@ const PINNED_BIDS: Record<string, number> = {
 const pinMetals = async (client: PoolClient) => {
   for (const [metal, bid] of Object.entries(PINNED_BIDS)) {
     await client.query(
-      `UPDATE spots.spots SET bid = $1
+      `UPDATE spots.current SET bid = $1
         WHERE metal_id = $2`,
       [bid, metal]
     )
@@ -379,9 +376,7 @@ test('finalizing prices the order and pins its spots; the label that follows mov
         [order.id]
       )
       await asAdmin(admin, async () => {
-        const finalize = await request(app)
-          .post(`/api/orders/${order.id}/finalize`)
-          .send({})
+        const finalize = await request(app).post(`/api/orders/${order.id}/finalize`).send({})
         assert.equal(
           finalize.status,
           200,
@@ -517,13 +512,13 @@ test('a PATCH refuses to set cancelled_at to anything but null', async () => {
 
 test('nothing this file did survived the transactions', async () => {
   const metalsNow = await outside<{ name: string; bid: string }>(
-    `SELECT sp.metal_id, sp.bid FROM spots.spots sp ORDER BY sp.metal_id`
+    `SELECT sp.metal_id, sp.bid FROM spots.current sp ORDER BY sp.metal_id`
   )
   for (const row of metalsNow) {
     assert.notEqual(
       Number(row.bid),
       PINNED_BIDS[row.name],
-      `a pinned sentinel bid for ${row.name} escaped into spots.spots`
+      `a pinned sentinel bid for ${row.name} escaped into spots.current`
     )
   }
 })

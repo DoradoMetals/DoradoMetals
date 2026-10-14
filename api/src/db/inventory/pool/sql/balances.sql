@@ -44,5 +44,5 @@ SELECT jsonb_build_object(
        AND ($2::text IS NULL OR p.metal_id = $2::text)
      GROUP BY p.refiner_id, p.metal_id
   ) agg
-  LEFT JOIN spots.spots sp ON sp.metal_id = agg.metal_id
+  LEFT JOIN spots.resolved sp ON sp.metal_id = agg.metal_id
  ORDER BY agg.refiner_id, agg.metal_id

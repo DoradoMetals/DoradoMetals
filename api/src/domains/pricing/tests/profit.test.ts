@@ -274,8 +274,10 @@ const setSpot = async (
   ask: number
 ): Promise<void> => {
   await c.query(
-    `INSERT INTO spots.spots (metal_id, bid, ask) VALUES ($1, $2, $3)
-       ON CONFLICT (metal_id) DO UPDATE SET bid = EXCLUDED.bid, ask = EXCLUDED.ask`,
+    `INSERT INTO spots.current (source_id, metal_id, bid, ask, dollar_change, percent_change, at, seen_at)
+     VALUES ('nfusion', $1, $2, $3, 0, 0, now(), now())
+       ON CONFLICT (source_id, metal_id) DO UPDATE
+         SET bid = EXCLUDED.bid, ask = EXCLUDED.ask, at = now(), seen_at = now()`,
     [metal_id, bid, ask]
   )
 }

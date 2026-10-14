@@ -4,10 +4,12 @@ import { reportError } from '#shared/observability/report.ts'
 import cron from 'node-cron'
 import { logger } from '#shared/logging/logger.ts'
 
-import { updateSpotPrices } from '#pricing/spots/service.ts'
+import { pruneHistory, updateSpotPrices } from '#pricing/spots/service.ts'
 import { sendTomorrowsReminders } from '#documents/emails/service.ts'
 
 export const ABANDONED_AFTER_HOURS = 24
+
+export const NIGHTLY = '0 15 4 * * *'
 
 export const everySeconds = (seconds: number): string =>
   seconds < 60 ? `*/${seconds} * * * * *` : `0 */${Math.round(seconds / 60)} * * * *`
@@ -45,6 +47,11 @@ export const jobs = (tick_seconds: number | null): Job[] => [
       await sweepSettledIntentsNow()
       await sweepAbandoned(ABANDONED_AFTER_HOURS)
     },
+  },
+  {
+    name: 'spot history retention',
+    schedule: tick_seconds === null ? undefined : NIGHTLY,
+    run: pruneHistory,
   },
 ]
 

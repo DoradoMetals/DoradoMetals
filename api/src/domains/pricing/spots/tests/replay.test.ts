@@ -306,9 +306,9 @@ test('the retired override routes are gone', async () => {
 })
 
 test('an admin can run the feed once from the API', async () => {
-  vi.mocked(fetchQuotes).mockResolvedValueOnce(
-    new Map([['Gold', { ask: 2345.67, bid: 2344.56, dollar_change: 1, percent_change: 0.1 }]])
-  )
+  vi.mocked(fetchQuotes).mockResolvedValueOnce([
+    { metal_id: 'Gold', ask: 2345.67, bid: 2344.56, dollar_change: 1, percent_change: 0.1 },
+  ])
 
   await inPinnedTransaction(
     async () => {
@@ -382,6 +382,10 @@ test('an admin reads a metal, points it at a source, back to the default, and re
     async (c) => {
       await c.query(
         `INSERT INTO spots.sources (id, enabled, sort_order) VALUES ('zz-http-feed', true, 909)`
+      )
+      await c.query(
+        `INSERT INTO spots.current (source_id, metal_id, bid, ask, at, seen_at)
+         VALUES ('zz-http-feed', 'Gold', 1, 2, now(), now())`
       )
       await asAdmin(TEST_ACTOR, async () => {
         const metal = await request(app).get('/api/spots/metals/Gold')
@@ -512,4 +516,60 @@ test('an admin makes another source the default in one PATCH', async () => {
     },
     { actor: TEST_ACTOR.id }
   )
+})
+
+test("anyone reads a metal's candles by range; a bad range or metal is refused", async () => {
+  await inPinnedTransaction(async () => {
+    await anonymous(async () => {
+      const res = await request(app).get('/api/spots/metals/Gold/candles?range=1Y')
+      assert.equal(res.status, 200, JSON.stringify(res.body))
+      assert.ok(Array.isArray(res.body))
+      for (const candle of res.body) {
+        assert.deepEqual(Object.keys(candle).sort(), [
+          'bucket_start',
+          'close',
+          'high',
+          'low',
+          'open',
+          'ticks',
+        ])
+      }
+      const named = await request(app).get('/api/spots/metals/Gold/candles?range=1W&source=nfusion')
+      assert.equal(named.status, 200)
+      assert.equal((await request(app).get('/api/spots/metals/Gold/candles?range=5Y')).status, 400)
+      assert.equal(
+        (await request(app).get('/api/spots/metals/Gold/candles?range=1D&extra=1')).status,
+        400
+      )
+      assert.equal((await request(app).get('/api/spots/metals/Unobtainium/candles')).status, 404)
+    })
+  })
+})
+
+test('the stream answers an event stream whose first event is the board', async () => {
+  await anonymous(async () => {
+    let text = ''
+    const res = await request(app)
+      .get('/api/spots/stream')
+      .buffer(false)
+      .parse((stream, done) => {
+        stream.on('data', (chunk: Buffer) => {
+          text += chunk.toString()
+          if (text.includes('\n\n')) {
+            stream.destroy()
+            done(null, text)
+          }
+        })
+      })
+    assert.equal(res.status, 200)
+    assert.match(String(res.headers['content-type']), /^text\/event-stream/)
+    assert.equal(res.headers['cache-control'], 'no-cache')
+    assert.equal(res.headers['content-encoding'], undefined)
+    const [first] = text.split('\n\n')
+    const lines = first.split('\n')
+    assert.equal(lines[0], 'event: board')
+    const board = JSON.parse(lines[1].replace(/^data: /, ''))
+    assert.ok(Array.isArray(board.spots) && board.spots.length > 0)
+    assert.ok(Array.isArray(board.paused))
+  })
 })

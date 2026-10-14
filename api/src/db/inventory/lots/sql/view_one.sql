@@ -117,7 +117,7 @@ SELECT jsonb_build_object(
   LEFT JOIN orders.lots ol ON ol.lot_id = li.id
   LEFT JOIN orders.orders od ON od.id = ol.order_id
   LEFT JOIN orders.spots os ON os.order_id = od.id AND os.metal_id = li.metal_id
-  LEFT JOIN spots.spots sp ON sp.metal_id = li.metal_id
+  LEFT JOIN spots.resolved sp ON sp.metal_id = li.metal_id
   LEFT JOIN LATERAL (
          SELECT bs.lot_id AS refiner_lot_id, bs.created_at AS batched_at,
                 bs.created_by_id AS batched_by_id

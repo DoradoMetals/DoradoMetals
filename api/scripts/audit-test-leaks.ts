@@ -65,7 +65,7 @@ async function tables(client: Queryable, schemaNames: string[]): Promise<string[
   const { rows } = await client.query(
     `SELECT n.nspname AS schema, c.relname AS name
        FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-      WHERE n.nspname = ANY($1) AND c.relkind = 'r'
+      WHERE n.nspname = ANY($1) AND c.relkind IN ('r', 'p') AND NOT c.relispartition
       ORDER BY n.nspname, c.relname`,
     [schemaNames]
   )

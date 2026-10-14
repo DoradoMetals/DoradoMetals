@@ -36,6 +36,18 @@ test('the seeded feed is Live and the default, and a feed no metal reads is Stan
     )
 
     await activeSources.set('Gold', 'zz-standby', c)
+    assert.deepEqual(
+      (await sources.getOne('zz-standby', c))?.metal_ids,
+      [],
+      'a feed that has never quoted the metal took its price away'
+    )
+
+    await query(
+      `INSERT INTO spots.current (source_id, metal_id, bid, ask, at, seen_at)
+       VALUES ('zz-standby', 'Gold', 1, 2, now(), now())`,
+      [],
+      c
+    )
     assert.deepEqual((await sources.getOne('zz-standby', c))?.metal_ids, ['Gold'])
   })
 })
@@ -150,11 +162,10 @@ test('the tick and the attempt are stamped separately', async () => {
 
 test('the metals a source serves are listed in the metals own sort order', async () => {
   await inRollback(async (c: PoolClient) => {
-    const rows = await activeSources.list(c)
-    assert.ok(rows.length > 0, 'no metal names an active source')
-    assert.equal(rows[0]?.metal_id, 'Gold', 'the list is not in metals.metals.sort_order')
-
+    await activeSources.set('Silver', 'nfusion', c)
     await activeSources.set('Gold', 'nfusion', c)
+    const rows = await activeSources.list(c)
+    assert.equal(rows[0]?.metal_id, 'Gold', 'the list is not in metals.metals.sort_order')
     assert.equal((await activeSources.getOne('Gold', c))?.source_id, 'nfusion')
   })
 })

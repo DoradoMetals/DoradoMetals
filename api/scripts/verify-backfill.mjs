@@ -471,6 +471,17 @@ const NOT_REBUILT = {
   'spots.overrides':
     'a manual spot override, created after the pivot by the lane that added ' +
     'spots.settings; exchange never recorded one',
+  'spots.current':
+    'the live quote per (source, metal), written by the feed; 273 seeds it from ' +
+    'spots.spots. exchange recorded no per-source quote, so a rebuild from ' +
+    'exchange would only repeat that one copy.',
+  'spots.candles':
+    'the price history kept per (source, metal) bucket, written by the feed; 273 ' +
+    'seeds the first candles from spots.spots. exchange kept no history.',
+  'spots.ticks':
+    'every quote the feed receives, a partitioned table whose monthly children ' +
+    'are made at runtime by spots.add_tick_partitions and dropped by ' +
+    'spots.drop_expired_tick_partitions; the feed is the only source of a tick.',
   'spots.sources':
     'the named spot feeds, seeded by 240 (docs/waves/pricing-resolver.md item 2). ' +
     'exchange had no source column anywhere: the feed was an HTTP call written ' +
@@ -1108,7 +1119,7 @@ try {
   const { rows: populated } = await client.query(
     `SELECT n.nspname || '.' || c.relname AS name
      FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-     WHERE c.relkind = 'r' AND n.nspname = ANY($1)
+     WHERE c.relkind IN ('r', 'p') AND NOT c.relispartition AND n.nspname = ANY($1)
      ORDER BY 1`,
     [SCHEMAS]
   )

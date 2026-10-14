@@ -164,7 +164,11 @@ const { rows: cols } = await pool.query(
   `SELECT table_schema || '.' || table_name AS tbl, column_name, table_type
      FROM information_schema.columns
      JOIN information_schema.tables USING (table_schema, table_name)
-    WHERE table_schema = ANY($1)`,
+    WHERE table_schema = ANY($1)
+      AND (table_schema, table_name) NOT IN (
+        SELECT n.nspname, c.relname FROM pg_class c
+          JOIN pg_namespace n ON n.oid = c.relnamespace
+         WHERE c.relispartition)`,
   [SCHEMAS]
 )
 const columnsOf = new Map()

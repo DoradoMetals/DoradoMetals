@@ -76,6 +76,11 @@ try {
         ON t.table_schema = c.table_schema
        AND t.table_name = c.table_name
        AND t.table_type = 'BASE TABLE'
+       AND NOT EXISTS (
+         SELECT 1 FROM pg_inherits h
+           JOIN pg_class pc ON pc.oid = h.inhrelid
+           JOIN pg_namespace pn ON pn.oid = pc.relnamespace
+          WHERE pn.nspname = t.table_schema AND pc.relname = t.table_name)
      WHERE c.table_schema NOT IN ('pg_catalog', 'information_schema')
        AND ${SECRET_NAME}
        AND NOT ${IS_SEALED}

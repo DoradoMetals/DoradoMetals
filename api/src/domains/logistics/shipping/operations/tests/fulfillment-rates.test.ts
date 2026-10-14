@@ -193,7 +193,7 @@ test('a complete purchase checkout gets back priced services', async () => {
       assert.ok(bandRows.length > 0, 'dev has no Gold bullion rate band - the fixture needs one')
       const pct = Number(bandRows[0]!.bullion_pct)
       const bid = Math.ceil(20000 / pct)
-      await c.query(`UPDATE spots.spots SET bid = $1, ask = $1 WHERE metal_id = 'Gold'`, [bid])
+      await c.query(`UPDATE spots.current SET bid = $1, ask = $1 WHERE metal_id = 'Gold'`, [bid])
 
       const draft = await aDraft(customer)
       const box = await packageId(c, 'Small Box')

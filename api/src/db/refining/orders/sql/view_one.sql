@@ -142,7 +142,7 @@ SELECT
                         FROM inventory.pool p
                        WHERE p.refiner_id = ro.refiner_id
                        GROUP BY p.refiner_id, p.metal_id) bal
-                LEFT JOIN spots.spots sp ON sp.metal_id = bal.metal_id), '[]'::jsonb),
+                LEFT JOIN spots.resolved sp ON sp.metal_id = bal.metal_id), '[]'::jsonb),
             'estimated_content', sums.estimated,
             'settled_content', sums.settled,
             'variance', CASE WHEN sums.settled IS NULL OR sums.estimated IS NULL THEN NULL

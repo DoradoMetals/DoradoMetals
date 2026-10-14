@@ -105,6 +105,17 @@ SELECT jsonb_build_object(
          -- to ship metal on that number (MP F9). `order_pricing.sql` has always
          -- had this array; the sell-side quote did not, so only the sale side
          -- was ever refused.
+         'spot_states', COALESCE(
+           (SELECT jsonb_agg(
+                     jsonb_build_object(
+                       'metal_id', mm.id,
+                       'state', rs.state,
+                       'last_tick_at', rs.last_tick_at)
+                     ORDER BY mm.sort_order ASC, mm.id ASC)
+              FROM metals.metals mm
+              JOIN spots.resolved rs ON rs.metal_id = mm.id
+             WHERE mm.id IN (SELECT l.metal_id FROM lines l)),
+           '[]'::jsonb),
          'unpriceable', COALESCE(
            (SELECT jsonb_agg(p.id ORDER BY p.id ASC)
               FROM priced p

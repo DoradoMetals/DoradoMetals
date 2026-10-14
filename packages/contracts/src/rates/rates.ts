@@ -23,7 +23,7 @@ export const Rate = z.object({
 export type Rate = z.infer<typeof Rate>
 // generated:end
 import { EstimateUnit } from '../leads/weight_units.js'
-import { Spot, SpotState } from '../spots/spots.js'
+import { Spot, SpotPrice, SpotState } from '../spots/spots.js'
 export const RateRead = Rate.omit({
   created_at: true,
   updated_at: true,
@@ -70,6 +70,7 @@ export const RatePay = RateRead.extend({
   display_unit: EstimateUnit.shape.key,
   spot_bid: Spot.shape.bid,
   spot_state: SpotState,
+  spot_last_tick_at: SpotPrice.shape.last_tick_at,
   scrap_pay: Spot.shape.bid,
   bullion_pay: Spot.shape.bid,
 })
