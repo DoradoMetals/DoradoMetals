@@ -18,5 +18,7 @@ export const ActiveSpotSource = z.object({
 export type ActiveSpotSource = z.infer<typeof ActiveSpotSource>
 // generated:end
 
-export const ActiveSpotSourcePatch = ActiveSpotSource.pick({ source_id: true })
+export const ActiveSpotSourcePatch = z.object({
+  source_id: ActiveSpotSource.shape.source_id.nullable(),
+})
 export type ActiveSpotSourcePatch = z.infer<typeof ActiveSpotSourcePatch>

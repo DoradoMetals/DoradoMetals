@@ -299,6 +299,9 @@ export const aLiveSpot = (id: string, bid: number): SpotPrice => ({
   ask_dollar_change: 9.1,
   ask_percent_change: 0.4,
   updated_at: '2026-09-01T12:00:00.000Z',
+  last_ask: bid + 8,
+  last_bid: bid,
+  last_tick_at: '2026-09-01T12:00:00.000Z',
   state: 'live',
 })
 

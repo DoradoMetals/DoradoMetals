@@ -7,15 +7,35 @@ import { z } from 'zod/v4'
 
 export const RateChange = z.object({
   'id': z.string().uuid(),
-  'rate_id': z.string().uuid(),
+  'rate_id': z.string().uuid().nullable(),
   'field': z.string(),
   'old_value': z.string().nullable(),
   'new_value': z.string().nullable(),
   'actor_id': z.string().uuid().nullable(),
   'actor_name': z.string().nullable(),
   'changed_at': z.string(),
+  'metal_id': z.string().nullable(),
+  'unit': z.string().nullable(),
+  'min_qty': z.number().nullable(),
+  'max_qty': z.number().nullable(),
 })
 export type RateChange = z.infer<typeof RateChange>
 // generated:end
 
-// Hand-written derivations go here: New, Patch, named reads.
+export const RateChangeType = z.enum(['scrap', 'bullion', 'band'])
+export type RateChangeType = z.infer<typeof RateChangeType>
+
+export const RateChangeRow = RateChange.extend({ type: RateChangeType })
+export type RateChangeRow = z.infer<typeof RateChangeRow>
+
+export const RateChangePage = z.object({ items: z.array(RateChangeRow) }).extend({
+  total: z.number().int(),
+  page: z.number().int(),
+  page_size: z.number().int(),
+})
+export type RateChangePage = z.infer<typeof RateChangePage>
+
+export const RateChangeFilter = z
+  .object({})
+  .extend({ q: z.string().optional(), page: z.coerce.number().int().min(1).default(1) })
+export type RateChangeFilter = z.infer<typeof RateChangeFilter>

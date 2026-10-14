@@ -1,12 +1,15 @@
 import query from '#shared/db/query.ts'
-import { buildUpdate } from '#shared/db/patch.ts'
 import { sqlFrom } from '#shared/db/sql.ts'
-import { RatePatch, type AdminRate, type RateChange, type RateRead } from '@dorado/contracts'
+import {
+  RateChangePage,
+  type AdminRate,
+  type RateBandInput,
+  type RateChangeFilter,
+  type RateRead,
+} from '@dorado/contracts'
 import type { Executor } from '#shared/db/executor.ts'
 
 const sql = sqlFrom(import.meta.dirname)
-
-export const PATCHABLE = Object.keys(RatePatch.shape) as (keyof RatePatch)[]
 
 export async function getOne(id: string, executor?: Executor): Promise<AdminRate | undefined> {
   const { rows } = await query<AdminRate>(sql('get_one'), [id], executor)
@@ -23,33 +26,27 @@ export async function listAdmin(executor?: Executor): Promise<AdminRate[]> {
   return rows
 }
 
-export async function create(patch: RatePatch, executor?: Executor): Promise<string> {
-  const { rows } = await query<{ id: string }>(
-    sql('create'),
-    [patch.metal_id, patch.unit, patch.min_qty, patch.max_qty, patch.scrap_pct, patch.bullion_pct],
+export async function replaceBands(
+  metal_id: string,
+  bands: RateBandInput[],
+  executor?: Executor
+): Promise<boolean> {
+  const { rowCount } = await query(
+    sql('replace_bands'),
+    [metal_id, JSON.stringify(bands)],
     executor
   )
-  return rows[0].id
-}
-
-export async function update(id: string, patch: RatePatch, executor?: Executor): Promise<boolean> {
-  const built = buildUpdate({
-    table: 'rates.rates',
-    allowed: PATCHABLE,
-    patch,
-    where: { id },
-  })
-  if (!built) return true
-  const { rowCount } = await query(built.text, built.values, executor)
   return rowCount === 1
 }
 
-export async function remove(id: string, executor?: Executor): Promise<boolean> {
-  const { rowCount } = await query(sql('delete'), [id], executor)
-  return rowCount === 1
-}
-
-export async function history(executor?: Executor): Promise<RateChange[]> {
-  const { rows } = await query<RateChange>(sql('get_history'), [], executor)
-  return rows
+export async function changes(
+  filter: RateChangeFilter,
+  executor?: Executor
+): Promise<RateChangePage> {
+  const { rows } = await query<{ page: unknown }>(
+    sql('changes'),
+    [filter.q ?? null, filter.page],
+    executor
+  )
+  return RateChangePage.parse(rows[0]?.page)
 }

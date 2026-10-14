@@ -1,8 +1,8 @@
 import { test, afterAll, beforeAll } from 'vitest'
 import assert from 'node:assert/strict'
-import { randomUUID } from 'node:crypto'
 import type { PoolClient } from 'pg'
 import pool from '#pool'
+import query from '#shared/db/query.ts'
 import { inRollback } from '#shared/testing/rollback.ts'
 import { LOCKS } from '#shared/testing/locks.ts'
 import * as rates from '#db/rates/repo.ts'
@@ -19,82 +19,137 @@ afterAll(async () => {
   await pool.end()
 })
 
-const aRateRow = async (c: PoolClient) =>
-  rates.create(
-    {
-      metal_id: 'Gold',
-      unit: 'oz',
-      min_qty: 0,
-      max_qty: 10,
-      scrap_pct: 0.9,
-      bullion_pct: 0.95,
-    },
-    c
-  )
+const bandsOf = async (c: PoolClient, metal_id: string) =>
+  (
+    await query<{ id: string; min_qty: number; max_qty: number | null; scrap_pct: number }>(
+      `SELECT id, min_qty, max_qty, scrap_pct FROM rates.rates WHERE metal_id = $1
+        ORDER BY min_qty`,
+      [metal_id],
+      c
+    )
+  ).rows
 
-test('updating a rate writes one history row per changed column', async () => {
+const band = (min_qty: number, max_qty: number | null, scrap_pct: number) => ({
+  min_qty,
+  max_qty,
+  scrap_pct,
+  bullion_pct: scrap_pct + 0.02,
+})
+
+test('replacing bands edits in place, adds and removes, moving every boundary at once', async () => {
   await inRollback(
     async (c: PoolClient) => {
-      const id = await aRateRow(c)
+      await rates.replaceBands('Gold', [band(0, 5, 0.9), band(5, null, 0.92)], c)
+      const before = await bandsOf(c, 'Gold')
+      assert.equal(before.length, 2)
 
-      const changed = await rates.update(id, { scrap_pct: 0.5, bullion_pct: 0.5 }, c)
-      assert.equal(changed, true)
-
-      const untouched = await rates.update(id, { scrap_pct: 0.5 }, c)
-      assert.equal(untouched, true, 'a no-op patch should still report the row present')
-
-      const history = await rates.history(c)
-      const forThisRate = history.filter((h) => h.rate_id === id)
-      const fields = forThisRate.map((h) => h.field).sort()
-      assert.deepEqual(
-        fields,
-        ['bullion_pct', 'scrap_pct'],
-        'setting scrap_pct to its own value logged a spurious row, or a real change went unlogged'
+      await rates.replaceBands(
+        'Gold',
+        [band(0, 10, 0.91), band(10, 20, 0.93), band(20, null, 0.95)],
+        c
       )
+      const grown = await bandsOf(c, 'Gold')
+      assert.deepEqual(
+        grown.map((b) => [b.min_qty, b.max_qty, b.scrap_pct]),
+        [
+          [0, 10, 0.91],
+          [10, 20, 0.93],
+          [20, null, 0.95],
+        ]
+      )
+      assert.equal(grown[0].id, before[0].id, 'an edited band lost its id and its trail')
 
-      const scrapEntry = forThisRate.find((h) => h.field === 'scrap_pct')
-      assert.equal(Number(scrapEntry?.old_value), 0.9)
-      assert.equal(Number(scrapEntry?.new_value), 0.5)
-      assert.ok(scrapEntry?.changed_at, 'the history row carries no changed_at')
+      await rates.replaceBands('Gold', [band(0, null, 0.9)], c)
+      assert.equal((await bandsOf(c, 'Gold')).length, 1)
     },
     { lock: LOCKS.RATES }
   )
 })
 
-test('update writes a real rate band and answers true', async () => {
+test('an overlapping list is refused by the database as a whole', async () => {
   await inRollback(
     async (c: PoolClient) => {
-      const id = await aRateRow(c)
-
-      const changed = await rates.update(id, { scrap_pct: 0.88, max_qty: null }, c)
-      assert.equal(changed, true, 'update reported no row changed')
-
-      const after = await rates.getOne(id, c)
-      assert.equal(Number(after?.scrap_pct), 0.88)
-      assert.equal(after?.max_qty, null, 'max_qty was not cleared to open-ended')
+      await assert.rejects(
+        () => rates.replaceBands('Gold', [band(0, 10, 0.9), band(5, null, 0.9)], c),
+        /rates_no_overlap_qty/
+      )
     },
     { lock: LOCKS.RATES }
   )
 })
 
-test('update answers false for an id with no rate row', async () => {
-  await inRollback(async (c: PoolClient) => {
-    const changed = await rates.update(randomUUID(), { scrap_pct: 0.5 }, c)
-    assert.equal(changed, false, 'update reported a change for a rate that does not exist')
-  })
-})
-
-test('remove deletes a real rate band and answers false the second time', async () => {
+test('every change is logged with its band, and a removed band keeps its trail', async () => {
   await inRollback(
     async (c: PoolClient) => {
-      const id = await aRateRow(c)
+      await query(`DELETE FROM rates.rate_history`, [], c)
+      await rates.replaceBands('Silver', [band(0, 100, 0.7), band(100, null, 0.75)], c)
+      await rates.replaceBands('Silver', [band(0, null, 0.72)], c)
 
-      const removed = await rates.remove(id, c)
-      assert.equal(removed, true, 'remove reported no row changed')
-      assert.equal(await rates.getOne(id, c), undefined)
+      const first = await rates.changes({ q: 'Silver', page: 1 }, c)
+      assert.ok(first.total > 0, 'no change was logged')
+      assert.equal(first.page_size, 8)
+      const page = { items: [...first.items] }
+      for (let n = 2; (n - 1) * 8 < first.total; n += 1) {
+        page.items.push(...(await rates.changes({ q: 'Silver', page: n }, c)).items)
+      }
+      assert.equal(page.items.length, first.total, 'the pages do not add up to the total')
+      const removed = page.items.filter((r) => r.rate_id === null && r.new_value === null)
+      assert.ok(removed.length > 0, 'the removal of a band left no row')
+      assert.ok(removed.every((r) => r.metal_id === 'Silver' && r.min_qty !== null))
+      assert.ok(
+        page.items.some((r) => r.rate_id === null && r.new_value !== null),
+        'the removed band took the trail of its earlier changes with it'
+      )
+      const scrap = page.items.find((r) => r.field === 'scrap_pct' && r.new_value === '0.72')
+      assert.equal(scrap?.type, 'scrap')
+      assert.equal(scrap?.min_qty, 0)
+      assert.equal(scrap?.metal_id, 'Silver')
+      const boundary = page.items.find((r) => r.field === 'max_qty')
+      assert.equal(boundary?.type, 'band')
 
-      const removedAgain = await rates.remove(id, c)
-      assert.equal(removedAgain, false, 'remove reported a change for a rate already gone')
+      const none = await rates.changes({ q: 'nobody-matches-this', page: 1 }, c)
+      assert.equal(none.total, 0)
+      assert.deepEqual(none.items, [])
+    },
+    { lock: LOCKS.RATES }
+  )
+})
+
+test('the change log pages by eight, newest first', async () => {
+  await inRollback(
+    async (c: PoolClient) => {
+      await query(`DELETE FROM rates.rate_history`, [], c)
+      for (let i = 1; i <= 5; i += 1) {
+        await rates.replaceBands(
+          'Gold',
+          [band(0, 5, 0.5 + i / 100), band(5, null, 0.6 + i / 100)],
+          c
+        )
+      }
+      const first = await rates.changes({ page: 1 }, c)
+      const second = await rates.changes({ page: 2 }, c)
+      assert.equal(first.items.length, 8)
+      assert.equal(second.total, first.total)
+      assert.ok(second.items.length > 0)
+      const times = first.items.map((r) => new Date(r.changed_at).getTime())
+      assert.deepEqual(
+        times,
+        [...times].sort((a, b) => b - a)
+      )
+    },
+    { lock: LOCKS.RATES }
+  )
+})
+
+test('a rate row reads back by id and the lists are in metal and band order', async () => {
+  await inRollback(
+    async (c: PoolClient) => {
+      const rows = await rates.list(c)
+      assert.ok(rows.length > 0)
+      const one = await rates.getOne(rows[0].id, c)
+      assert.equal(one?.id, rows[0].id)
+      assert.ok((await rates.listAdmin(c)).length === rows.length)
+      assert.equal(await rates.getOne('00000000-0000-4000-8000-000000000000', c), undefined)
     },
     { lock: LOCKS.RATES }
   )

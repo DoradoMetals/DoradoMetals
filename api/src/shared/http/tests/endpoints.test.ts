@@ -173,10 +173,16 @@ test('an unknown route returns JSON, not an HTML error page', async () => {
   assert.deepEqual(res.body, { error: 'Not Found' })
 })
 
+test('the public spot board returns every card and the paused list', async () => {
+  const res = await request(app).get('/api/spots')
+  assert.equal(res.status, 200)
+  assert.ok(Array.isArray(res.body.spots) && res.body.spots.length > 0, 'no spot cards')
+  assert.ok(Array.isArray(res.body.paused), 'no paused list')
+})
+
 test('public reads return JSON', async () => {
   const reads: [path: string, mustHaveRows: boolean][] = [
     ['/api/products', true],
-    ['/api/spots', true],
     ['/api/rates', true],
     ['/api/rates/tiers', true],
     ['/api/reviews/public', false],

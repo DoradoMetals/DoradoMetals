@@ -1,63 +1,93 @@
 import { test, afterAll } from 'vitest'
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
+import type { PoolClient } from 'pg'
 import pool from '#pool'
+import query from '#shared/db/query.ts'
 import { TEST_ACTOR } from '#shared/testing/actor.ts'
 import { inPinnedTransaction } from '#shared/testing/pinned-pool.ts'
 import { LOCKS } from '#shared/testing/locks.ts'
 import * as service from '#pricing/rates/service.ts'
+import { aStaleSpot } from '#shared/testing/builders/index.ts'
 
 afterAll(async () => {
   await pool.end()
 })
 
-const pinned = <T>(fn: (c: import('pg').PoolClient) => Promise<T>) =>
+const pinned = <T>(fn: (c: PoolClient) => Promise<T>) =>
   inPinnedTransaction(fn, { actor: TEST_ACTOR.id, lock: LOCKS.RATES })
 
-const patch = async (c: import('pg').PoolClient) => ({
-  metal_id: 'Gold',
-  unit: 'oz',
-  min_qty: 0,
-  max_qty: null,
-  scrap_pct: 0.9,
-  bullion_pct: 0.95,
-})
-
-test('createRate writes the row and getRate reads it straight back', async () => {
-  await pinned(async (c) => {
-    const created = await service.createRate(await patch(c))
-    assert.ok(created.id)
-    assert.equal(Number(created.scrap_pct), 0.9)
-
-    const fetched = await service.getRate(created.id)
-    assert.equal(fetched.id, created.id)
-    assert.equal(Number(fetched.bullion_pct), 0.95)
-  })
-})
-
-test('getRate refuses an id nothing names', async () => {
+test('getRate reads a row back and refuses an id nothing names', async () => {
   await pinned(async () => {
+    const [first] = await service.listAdminRates()
+    assert.ok(first, 'dev has no rates')
+    assert.equal((await service.getRate(first.id)).id, first.id)
     await assert.rejects(() => service.getRate(randomUUID()), /no rate/)
   })
 })
 
-test('updateRate changes the row and refuses an id nothing names', async () => {
+test('listPay prices every band off the resolved bid in the unit asked for', async () => {
   await pinned(async (c) => {
-    const created = await service.createRate(await patch(c))
-    const updated = await service.updateRate(created.id, { scrap_pct: 0.5 })
-    assert.equal(Number(updated.scrap_pct), 0.5)
-
-    await assert.rejects(() => service.updateRate(randomUUID(), { scrap_pct: 0.1 }), /no rate/)
+    await query(`UPDATE spots.spots SET bid = 2000 WHERE metal_id = 'Gold'`, [], c)
+    await query(`DELETE FROM spots.adjustments WHERE metal_id = 'Gold'`, [], c)
+    const oz = (await service.listPay('troy_oz')).filter((b) => b.metal_id === 'Gold')
+    assert.ok(oz.length > 0)
+    for (const band of oz) {
+      assert.equal(band.spot_bid, 2000)
+      assert.equal(Number(band.scrap_pay).toFixed(6), (2000 * band.scrap_pct).toFixed(6))
+      assert.equal(Number(band.bullion_pay).toFixed(6), (2000 * band.bullion_pct).toFixed(6))
+    }
+    const dwt = (await service.listPay('dwt')).find((b) => b.id === oz[0].id)
+    assert.equal(Number(dwt?.scrap_pay).toFixed(6), ((2000 * oz[0].scrap_pct) / 20).toFixed(6))
+    await assert.rejects(() => service.listPay('furlong'), /furlong/)
   })
 })
 
-test('deleteRate removes the row and reports false for an id nothing names', async () => {
-  await pinned(async (c) => {
-    const created = await service.createRate(await patch(c))
-    const gone = await service.deleteRate(created.id)
-    assert.equal(gone, true)
+test('a stale metal pays nothing and says so', async () => {
+  await inPinnedTransaction(
+    async (c) => {
+      await aStaleSpot(c, 'Gold')
+      const gold = (await service.listPay('troy_oz')).filter((b) => b.metal_id === 'Gold')
+      assert.ok(gold.every((b) => b.scrap_pay === null && b.spot_state === 'stale'))
+    },
+    { actor: TEST_ACTOR.id, lock: [LOCKS.RATES, LOCKS.SPOTS_SETTINGS] }
+  )
+})
 
-    const again = await service.deleteRate(randomUUID())
-    assert.equal(again, false)
+test('replaceBands validates, writes and answers the metal only', async () => {
+  await pinned(async () => {
+    const bands = await service.replaceBands(
+      'Silver',
+      {
+        bands: [
+          { min_qty: 0, max_qty: 50, scrap_pct: 0.7, bullion_pct: 0.74 },
+          { min_qty: 50, max_qty: null, scrap_pct: 0.76, bullion_pct: 0.8 },
+        ],
+      },
+      'g'
+    )
+    assert.equal(bands.length, 2)
+    assert.ok(bands.every((b) => b.metal_id === 'Silver' && b.display_unit === 'g'))
+    await assert.rejects(
+      () =>
+        service.replaceBands(
+          'Silver',
+          { bands: [{ min_qty: 0, max_qty: 50, scrap_pct: 0.7, bullion_pct: 0.7 }] },
+          'g'
+        ),
+      /open-ended/
+    )
+    await assert.rejects(
+      () =>
+        service.replaceBands(
+          'Unobtainium',
+          { bands: [{ min_qty: 0, max_qty: null, scrap_pct: 0.7, bullion_pct: 0.7 }] },
+          'g'
+        ),
+      /no metal/
+    )
+
+    const changes = await service.listChanges({ q: 'Silver', page: 1 })
+    assert.ok(changes.total > 0 && changes.items.every((r) => r.metal_id === 'Silver'))
   })
 })

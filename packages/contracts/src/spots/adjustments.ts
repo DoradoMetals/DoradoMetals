@@ -14,13 +14,15 @@ export const SpotAdjustment = z.object({
   'reason': z.string(),
   'expires_at': z.string().nullable(),
   'expires_at_market_open': z.boolean(),
-  'enabled': z.boolean(),
   'created_at': z.string(),
   'updated_at': z.string(),
   'created_by': z.string(),
   'updated_by': z.string(),
   'created_by_id': z.string().uuid().nullable(),
   'updated_by_id': z.string().uuid().nullable(),
+  'mode': z.string(),
+  'frozen_bid': z.number().nullable(),
+  'frozen_ask': z.number().nullable(),
 })
 export type SpotAdjustment = z.infer<typeof SpotAdjustment>
 // generated:end
@@ -28,11 +30,15 @@ export type SpotAdjustment = z.infer<typeof SpotAdjustment>
 export const SpotAdjustmentUnit = z.enum(['percent', 'dollars'])
 export type SpotAdjustmentUnit = z.infer<typeof SpotAdjustmentUnit>
 
+export const SpotAdjustmentMode = z.enum(['adjust', 'freeze'])
+export type SpotAdjustmentMode = z.infer<typeof SpotAdjustmentMode>
+
 export const SpotAdjustmentScope = z.enum(['Active', 'Dormant'])
 export type SpotAdjustmentScope = z.infer<typeof SpotAdjustmentScope>
 
 export const SpotAdjustmentRead = SpotAdjustment.extend({
   unit: SpotAdjustmentUnit,
+  mode: SpotAdjustmentMode,
   scope: SpotAdjustmentScope,
   expires_at_resolved: SpotAdjustment.shape.expires_at,
 })
@@ -41,11 +47,15 @@ export type SpotAdjustmentRead = z.infer<typeof SpotAdjustmentRead>
 export const SpotAdjustmentPatch = SpotAdjustment.pick({
   bid_amount: true,
   ask_amount: true,
+  frozen_bid: true,
+  frozen_ask: true,
   reason: true,
   expires_at: true,
   expires_at_market_open: true,
-  enabled: true,
 })
-  .extend({ unit: SpotAdjustmentUnit })
+  .extend({ unit: SpotAdjustmentUnit, mode: SpotAdjustmentMode })
   .partial()
 export type SpotAdjustmentPatch = z.infer<typeof SpotAdjustmentPatch>
+
+export const SpotFreezeBody = SpotAdjustment.pick({ reason: true })
+export type SpotFreezeBody = z.infer<typeof SpotFreezeBody>
