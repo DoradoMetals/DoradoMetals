@@ -1,7 +1,7 @@
 import type { PoolClient } from 'pg'
 import query from '#shared/db/query.ts'
 import { sqlFrom } from '#shared/db/sql.ts'
-import type { AccountProfile, SmsConsentMethod, User } from '@dorado/contracts'
+import type { AccountProfile, SmsConsentMethod, User, UserName } from '@dorado/contracts'
 import type { Executor } from '#shared/db/executor.ts'
 
 const sql = sqlFrom(import.meta.dirname)
@@ -25,6 +25,11 @@ export async function byPhone(
 ): Promise<User | undefined> {
   const { rows } = await query<User>(sql('by_phone'), [phone_number], executor)
   return rows[0]
+}
+
+export async function names(ids: string[], executor?: Executor): Promise<UserName[]> {
+  const { rows } = await query<UserName>(sql('names'), [ids], executor)
+  return rows
 }
 
 export async function byEmail(email: string, executor?: Executor): Promise<User | undefined> {

@@ -266,7 +266,8 @@ test('an admin sets an adjustment, reads it back in adjust mode, logs it and cle
         const log = await request(app).get('/api/spots/adjustments/history?metal_id=Silver')
         assert.equal(log.status, 200)
         assert.ok(log.body.length > 0, 'the adjustment left no history row')
-        assert.equal(log.body[0].actor_name, TEST_ACTOR.name)
+        assert.equal(log.body[0].actor_id, TEST_ACTOR.id)
+        assert.equal('actor_name' in log.body[0], false)
 
         const removed = await request(app).delete(`/api/spots/adjustments/Silver/${SOURCE_ID}`)
         assert.equal(removed.status, 204)

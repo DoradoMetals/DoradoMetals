@@ -102,7 +102,6 @@ export const SpotActivity = z
     kind: SpotActivityKind,
     at: SpotLockEvent.shape.created_at,
     actor_id: SpotAdjustmentChange.shape.actor_id,
-    actor_name: SpotAdjustmentChange.shape.actor_name,
     order_id: SpotLockEvent.shape.order_id.nullable(),
     source_id: SpotAdjustmentChange.shape.source_id,
     field: SpotAdjustmentChange.shape.field.nullable(),

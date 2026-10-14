@@ -13,13 +13,15 @@ export const SpotAdjustmentChange = z.object({
   'old_value': z.string().nullable(),
   'new_value': z.string().nullable(),
   'actor_id': z.string().uuid().nullable(),
-  'actor_name': z.string().nullable(),
   'changed_at': z.string(),
+  'actor_name': z.string().nullable(),
 })
 export type SpotAdjustmentChange = z.infer<typeof SpotAdjustmentChange>
 // generated:end
 
-export const SpotAdjustmentChangeRead = SpotAdjustmentChange.extend({ event: z.string() })
+export const SpotAdjustmentChangeRead = SpotAdjustmentChange.omit({ actor_name: true }).extend({
+  event: z.string(),
+})
 export type SpotAdjustmentChangeRead = z.infer<typeof SpotAdjustmentChangeRead>
 
 export const SpotHistoryDays = z.coerce.number().int().min(1).max(3650).default(30)

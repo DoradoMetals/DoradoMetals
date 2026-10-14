@@ -6,6 +6,8 @@ import query from '#shared/db/query.ts'
 import { inRollback } from '#shared/testing/rollback.ts'
 import { LOCKS } from '#shared/testing/locks.ts'
 import * as rates from '#db/rates/repo.ts'
+import { actingAs } from '#shared/testing/actor.ts'
+import { aUser } from '#shared/testing/builders/index.ts'
 
 beforeAll(async () => {
   assert.equal(
@@ -112,6 +114,30 @@ test('every change is logged with its band, and a removed band keeps its trail',
       assert.deepEqual(none.items, [])
     },
     { lock: LOCKS.RATES }
+  )
+})
+
+test('the change log is searched by the actor current name and returns only the id', async () => {
+  await inRollback(
+    async (c: PoolClient) => {
+      await query(`DELETE FROM rates.rate_history`, [], c)
+      const actor = await aUser(c, { role: 'admin' })
+      await actingAs(c, actor.id)
+      await rates.replaceBands('Silver', [band(0, null, 0.73)], c)
+      await query(`UPDATE auth.users SET name = 'Renamed Rater zz' WHERE id = $1`, [actor.id], c)
+
+      const found = await rates.changes({ q: 'Renamed Rater', page: 1 }, c)
+      assert.ok(found.total > 0, 'the search did not follow the actor to the current name')
+      assert.ok(found.items.every((r) => r.actor_id === actor.id))
+      assert.ok(
+        found.items.every((r) => !('actor_name' in r)),
+        'a change still carries a stored name'
+      )
+
+      const old = await rates.changes({ q: actor.name ?? 'no-name', page: 1 }, c)
+      assert.equal(old.total, 0, 'the old name still matches')
+    },
+    { lock: [LOCKS.RATES, LOCKS.USERS] }
   )
 })
 

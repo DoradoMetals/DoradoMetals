@@ -120,3 +120,22 @@ export type AccountProfile = z.infer<typeof AccountProfile>
 
 export const AccountProfilePatch = User.pick({ name: true }).partial().strict()
 export type AccountProfilePatch = z.infer<typeof AccountProfilePatch>
+
+export const UserNameIds = z
+  .string()
+  .transform((raw) => [
+    ...new Set(
+      raw
+        .split(',')
+        .map((id) => id.trim())
+        .filter(Boolean)
+    ),
+  ])
+  .pipe(z.array(User.shape.id).min(1).max(200))
+export type UserNameIds = z.infer<typeof UserNameIds>
+
+export const UserNamesQuery = z.object({ ids: UserNameIds }).strict()
+export type UserNamesQuery = z.infer<typeof UserNamesQuery>
+
+export const UserName = User.pick({ id: true, name: true })
+export type UserName = z.infer<typeof UserName>

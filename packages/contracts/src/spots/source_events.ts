@@ -11,8 +11,8 @@ export const SpotSourceEvent = z.object({
   'kind': z.string(),
   'detail': z.string().nullable(),
   'actor_id': z.string().uuid().nullable(),
-  'actor_name': z.string().nullable(),
   'created_at': z.string(),
+  'actor_name': z.string().nullable(),
 })
 export type SpotSourceEvent = z.infer<typeof SpotSourceEvent>
 // generated:end

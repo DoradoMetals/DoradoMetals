@@ -1,8 +1,10 @@
 import { Badge, EmptyState, Input, Pagination, Skeleton, Text } from '@dorado/components'
 import { Package, Search } from '@dorado/icons'
+import { useUserNames } from '@dorado/client'
 import type { RateChangeRow } from '@dorado/contracts'
 
 import { Panel } from '@/shared/ui/Panel'
+import { UserName } from '@/shared/ui/UserName'
 import { capitalize, formatStamp } from '../../_lib'
 import { rangeLabel, unitShort } from '../_lib'
 import { changeText } from '../_lib'
@@ -40,6 +42,7 @@ export function RateChangesPanel({
   onSearch,
   onPageChange,
 }: RateChangesPanelProps) {
+  const names = useUserNames(rows?.map((row) => row.actor_id) ?? []).data
   const field = (
     <Input
       aria-label="Search rate changes"
@@ -84,7 +87,9 @@ export function RateChangesPanel({
               <Value>{changeText(row)}</Value>
             </div>
             <div className="flex items-center justify-between gap-xs">
-              <Value>{row.actor_name ?? 'System'}</Value>
+              <Value>
+                <UserName id={row.actor_id} names={names} />
+              </Value>
               <Text variant="micro">{formatStamp(row.changed_at)}</Text>
             </div>
           </li>
@@ -107,7 +112,9 @@ export function RateChangesPanel({
             <Value>{capitalize(row.type)}</Value>
             <Value>{bandOf(row)}</Value>
             <Value>{changeText(row)}</Value>
-            <Value>{row.actor_name ?? 'System'}</Value>
+            <Value>
+              <UserName id={row.actor_id} names={names} />
+            </Value>
             <Value>{formatStamp(row.changed_at)}</Value>
           </li>
         ))}

@@ -8,7 +8,6 @@ SELECT h.id,
        h.old_value,
        h.new_value,
        h.actor_id,
-       h.actor_name,
        h.changed_at,
        CASE WHEN h.field = 'active_source' THEN 'active source set'
             WHEN h.field = 'mode' AND h.new_value = 'freeze' THEN 'freeze set'

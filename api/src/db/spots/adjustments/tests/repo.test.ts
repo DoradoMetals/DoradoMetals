@@ -7,6 +7,7 @@ import { inRollback } from '#shared/testing/rollback.ts'
 import * as adjustments from '#db/spots/adjustments/repo.ts'
 import * as adjustmentHistory from '#db/spots/adjustment-history/repo.ts'
 import * as activeSources from '#db/spots/active-sources/repo.ts'
+import { TEST_ACTOR } from '#shared/testing/actor.ts'
 
 afterAll(async () => {
   await pool.end()
@@ -102,7 +103,7 @@ test('the trigger logs the set, the change and the clear, and the switch', async
       'the delete logged nothing, so "cleared" could never be drawn'
     )
     assert.ok(
-      rows.filter((r) => r.field !== 'active_source').every((r) => r.actor_name !== null),
+      rows.filter((r) => r.field !== 'active_source').every((r) => r.actor_id !== null),
       'a logged change names no actor'
     )
 
@@ -232,5 +233,20 @@ test('the list answers by status: active, expired once its instant passed, or al
       [true]
     )
     assert.ok(all.includes('Gold:nfusion') && all.includes('Silver:nfusion'))
+  })
+})
+
+test('the history read returns the actor id and no stored name', async () => {
+  await inRollback(async (c: PoolClient) => {
+    await query(`DELETE FROM spots.adjustment_history WHERE metal_id = 'Platinum'`, [], c)
+    await adjustments.create('Platinum', 'nfusion', { bid_amount: -1, reason: 'named by id' }, c)
+
+    const rows = await adjustmentHistory.list(30, 'Platinum', c)
+    assert.ok(rows.length > 0, 'the set left no history row')
+    assert.ok(rows.every((r) => r.actor_id === TEST_ACTOR.id))
+    assert.ok(
+      rows.every((r) => !('actor_name' in r)),
+      'a history row still carries a stored name'
+    )
   })
 })

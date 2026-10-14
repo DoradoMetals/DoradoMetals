@@ -76,6 +76,7 @@ export const keys = {
     all: () => ['users'] as const,
     admins: () => ['users', 'admins'] as const,
     one: (id: string) => ['users', 'one', id] as const,
+    names: (ids: readonly string[]) => ['users', 'names', ids] as const,
   },
   lots: {
     all: () => ['lots'] as const,
