@@ -600,3 +600,7 @@ Detail in `docs/waves/auth-passwordless.md`.
 - Fallback only relabels: `spots.spots` holds one quote per metal with no source column, so falling back to another source cannot change the price. Real multi-feed pricing needs quotes stored per source (`spots.quotes (source_id, metal_id, ...)`), a later wave.
 - Locking while stale: the orders lock and placement copy a NULL price when a metal is stale, and the order view shows a lot price of 0. Orders domain must refuse to lock or place while the metal is stale (ruling 112 blocked class).
 - Rate bands: first band starts at 0, percentages cannot be negative (rules added beyond the ask). Display unit is URL/UI state, not a column.
+
+## Orders: spot locks only for the order's metals (ruling 2026-10-14)
+
+- Lock spots only for metals the order holds at lock time (today every order locks all four). A metal introduced later (lot edit, refiner assay finding Pt/Pd) gets its own lock event at that moment from the step that introduced it, with the reason on the row. Settlement and profit read the latest lock per metal; a money read with no lock is a blocked error. No "four rows" check anywhere. Consequence Jacob is confirming on the Orders thread: a metal discovered after placement prices at discovery time.
