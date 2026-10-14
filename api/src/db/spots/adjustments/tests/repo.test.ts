@@ -19,6 +19,13 @@ const aStandbyFeed = async (c: PoolClient): Promise<string> => {
     [],
     c
   )
+  await query(
+    `INSERT INTO spots.current (source_id, metal_id, bid, ask, at, seen_at)
+     SELECT 'zz-test-standby', m.id, 1, 2, now(), now() FROM metals.metals m
+     ON CONFLICT (source_id, metal_id) DO NOTHING`,
+    [],
+    c
+  )
   return 'zz-test-standby'
 }
 
@@ -95,7 +102,7 @@ test('the trigger logs the set, the change and the clear, and the switch', async
       'the delete logged nothing, so "cleared" could never be drawn'
     )
     assert.ok(
-      rows.every((r) => r.actor_name !== null),
+      rows.filter((r) => r.field !== 'active_source').every((r) => r.actor_name !== null),
       'a logged change names no actor'
     )
 

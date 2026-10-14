@@ -133,6 +133,8 @@ function checkReactQueryImports(files: string[]): Finding[] {
   return findings
 }
 
+const TEST_ONLY = new Set(['vitest', '@testing-library/react', '@testing-library/dom'])
+
 function checkClientPackage(files: string[]): Finding[] {
   const findings: Finding[] = []
   for (const file of files) {
@@ -143,7 +145,7 @@ function checkClientPackage(files: string[]): Finding[] {
         ? specifier.split('/').slice(0, 2).join('/')
         : specifier.split('/')[0]
       if (CLIENT_ALLOWED.has(bare)) continue
-      if (/\.test\.tsx?$/.test(file) && bare === 'vitest') continue
+      if (/\.test\.tsx?$/.test(file) && TEST_ONLY.has(bare)) continue
       findings.push({
         file: rel(file),
         line: 0,

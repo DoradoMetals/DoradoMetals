@@ -22,22 +22,27 @@ import type {
 
 import { apiRequest } from '../fetch'
 import { keys } from '../keys'
+import { spotPollInterval, useSpotStreamState } from './stream'
 
 const board = () => apiRequest<SpotBoard>('GET', '/spots')
 
 export function useSpotBoard(options: { enabled?: boolean } = {}) {
+  const refetchInterval = spotPollInterval(useSpotStreamState())
   return useQuery<SpotBoard>({
     queryKey: keys.spots.board(),
     enabled: options.enabled ?? true,
     queryFn: board,
+    refetchInterval,
   })
 }
 
 export function useLiveSpots(options: { enabled?: boolean } = {}) {
+  const refetchInterval = spotPollInterval(useSpotStreamState())
   return useQuery<SpotBoard, Error, SpotPrice[]>({
     queryKey: keys.spots.board(),
     enabled: options.enabled ?? true,
     queryFn: board,
+    refetchInterval,
     select: (data) => data.spots,
   })
 }

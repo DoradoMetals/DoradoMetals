@@ -2,7 +2,7 @@ import { test } from 'vitest'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 
-import { everySeconds, jobs, setupScheduler } from '#shared/cron/scheduler.ts'
+import { NIGHTLY, everySeconds, jobs, setupScheduler } from '#shared/cron/scheduler.ts'
 
 const SCHEDULE_VARS: string[] = (() => {
   const source = fs.readFileSync(new URL('../scheduler.ts', import.meta.url), 'utf8')
@@ -39,6 +39,7 @@ test('the jobs are declared, and not invoked by reading them', () => {
     'anonymous visitors',
     'appointment reminders',
     'reconcile payments',
+    'spot history retention',
   ])
   for (const job of jobs(30)) {
     assert.equal(typeof job.run, 'function', `${job.name} has something to run`)
@@ -67,11 +68,13 @@ test('the spot tick interval comes from the caller, which reads spots.settings',
     'no row means no cron, not a cron built from a TypeScript default'
   )
   assert.equal(everySeconds(15), '*/15 * * * * *')
+  assert.equal(jobs(30)[4].schedule, NIGHTLY, 'spot history is never pruned')
+  assert.equal(jobs(null)[4].schedule, undefined)
 })
 
 test('an unset schedule is undefined rather than a string', () => {
   assert.ok(
-    SCHEDULE_VARS.length >= jobs(null).length - 1,
+    SCHEDULE_VARS.length >= jobs(null).length - 2,
     `found ${SCHEDULE_VARS.length} schedule variable(s) in scheduler.ts for ` +
       `${jobs(null).length} job(s) - the discovery is wrong, and a scan that ` +
       "clears nothing lets this test pass on the environment's say-so"

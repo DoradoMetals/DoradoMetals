@@ -3,7 +3,6 @@ import fs from 'node:fs'
 import path from 'node:path'
 import pool from '#pool'
 import withTransaction from '#shared/db/withTransaction.ts'
-import { inPinnedTransaction } from '#shared/testing/pinned-pool.ts'
 import * as c from '@dorado/contracts'
 import type { ZodType } from 'zod/v4'
 
@@ -17,11 +16,6 @@ type Case = {
 
 const cases: Case[] = []
 
-const priced = <T>(load: () => Promise<T>) =>
-  inPinnedTransaction(async (client) => {
-    await client.query('UPDATE spots.spots SET updated_at = now()')
-    return await load()
-  })
 const add = (name: string, schema: WireSchema, load: () => unknown, many = true) =>
   cases.push({ name, schema, load, many })
 
@@ -214,7 +208,7 @@ const { rows: quotable } = await pool.query(
 add(
   'POST /quotes/catalog',
   c.ProductQuote,
-  () => (quotable.length ? priced(() => pricing.priceProduct(quotable[0].id, 'ask', 1)) : []),
+  () => (quotable.length ? pricing.priceProduct(quotable[0].id, 'ask', 1) : []),
   false
 )
 
@@ -238,7 +232,7 @@ if (saleBasket) {
 add(
   'GET /quotes/checkout (sale)',
   c.SaleQuote,
-  () => (saleBasket ? priced(() => pricing.priceCheckout(saleBasket.id)) : []),
+  () => (saleBasket ? pricing.priceCheckout(saleBasket.id) : []),
   false
 )
 
@@ -262,7 +256,7 @@ if (purchaseBasket) {
 add(
   'GET /quotes/checkout (purchase)',
   c.PurchaseQuote,
-  () => (purchaseBasket ? priced(() => pricing.priceCheckout(purchaseBasket.id)) : []),
+  () => (purchaseBasket ? pricing.priceCheckout(purchaseBasket.id) : []),
   false
 )
 
@@ -272,7 +266,7 @@ const { rows: quotableOrders } = await pool.query(
 add(
   'POST /quotes/order',
   c.OrderPricing,
-  () => (quotableOrders.length ? priced(() => pricing.priceOrder(quotableOrders[0].id)) : []),
+  () => (quotableOrders.length ? pricing.priceOrder(quotableOrders[0].id) : []),
   false
 )
 

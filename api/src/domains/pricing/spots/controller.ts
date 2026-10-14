@@ -7,15 +7,45 @@ import {
   ActiveSpotSourcePatch,
   SpotActivityDays,
   SpotAdjustmentPatch,
+  SpotCandleQuery,
   SpotFreezeBody,
   SpotHistoryDays,
   SpotLockFilter,
   SpotSettingsPatch,
   SpotSourcePatch,
+  SpotStreamEventName,
 } from '@dorado/contracts'
 
 export const listSpots = asyncHandler(async (_req, res) => {
   res.status(200).json(await spotService.board())
+})
+
+export const HEARTBEAT_MS = 20_000
+
+export const streamSpots = asyncHandler(async (req, res) => {
+  const first = JSON.stringify(await spotService.board())
+  res.status(200).set({
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  })
+  res.flushHeaders()
+  const send = (board: string) => {
+    res.write(`event: ${SpotStreamEventName.enum.board}\ndata: ${board}\n\n`)
+  }
+  send(first)
+  const stop = spotService.watchBoard(send)
+  const beat = setInterval(() => res.write(': heartbeat\n\n'), HEARTBEAT_MS)
+  req.on('close', () => {
+    clearInterval(beat)
+    stop()
+  })
+})
+
+export const metalCandles = asyncHandler(async (req, res) => {
+  const filter = parseStrict(SpotCandleQuery.strict(), req.query, 'query')
+  res.status(200).json(await spotService.candlesFor(param(req, 'metal_id'), filter))
 })
 
 export const refreshSpots = asyncHandler(async (_req, res) => {

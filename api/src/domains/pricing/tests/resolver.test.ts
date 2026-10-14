@@ -19,7 +19,8 @@ const FEED_ASK = 2010
 
 async function aPricedOrder(c: PoolClient): Promise<string> {
   await query(
-    `UPDATE spots.spots SET bid = $1, ask = $2, dollar_change = 0, percent_change = 0
+    `UPDATE spots.current SET bid = $1, ask = $2, dollar_change = 0, percent_change = 0,
+            seen_at = now()
       WHERE metal_id = $3`,
     [FEED_BID, FEED_ASK, METAL],
     c
@@ -47,7 +48,7 @@ test('an adjustment on the active source changes what an order pays', async () =
     async (c: PoolClient) => {
       const order_id = await aPricedOrder(c)
       const active = await query<{ source_id: string }>(
-        `SELECT source_id FROM spots.active_sources WHERE metal_id = $1`,
+        `SELECT source_id FROM spots.resolved WHERE metal_id = $1`,
         [METAL],
         c
       )
@@ -81,7 +82,7 @@ test('a dollar adjustment shifts the priced spot by exactly that many dollars', 
     async (c: PoolClient) => {
       const order_id = await aPricedOrder(c)
       const active = await query<{ source_id: string }>(
-        `SELECT source_id FROM spots.active_sources WHERE metal_id = $1`,
+        `SELECT source_id FROM spots.resolved WHERE metal_id = $1`,
         [METAL],
         c
       )
@@ -122,7 +123,7 @@ test('a deleted adjustment stops pricing, and an expired one has lapsed', async 
     async (c: PoolClient) => {
       const order_id = await aPricedOrder(c)
       const active = await query<{ source_id: string }>(
-        `SELECT source_id FROM spots.active_sources WHERE metal_id = $1`,
+        `SELECT source_id FROM spots.resolved WHERE metal_id = $1`,
         [METAL],
         c
       )
@@ -161,7 +162,7 @@ test('a freeze holds the last resolved pair and ignores the next tick', async ()
     async (c: PoolClient) => {
       const order_id = await aPricedOrder(c)
       const active = await query<{ source_id: string }>(
-        `SELECT source_id FROM spots.active_sources WHERE metal_id = $1`,
+        `SELECT source_id FROM spots.resolved WHERE metal_id = $1`,
         [METAL],
         c
       )
@@ -180,7 +181,7 @@ test('a freeze holds the last resolved pair and ignores the next tick', async ()
       assert.equal(Number(held.rows[0].frozen_bid).toFixed(6), (FEED_BID * 0.9).toFixed(6))
       assert.equal(Number(held.rows[0].frozen_ask).toFixed(6), (FEED_ASK * 0.9).toFixed(6))
 
-      await query(`UPDATE spots.spots SET bid = 1, ask = 2 WHERE metal_id = $1`, [METAL], c)
+      await query(`UPDATE spots.current SET bid = 1, ask = 2 WHERE metal_id = $1`, [METAL], c)
       assert.equal(
         Number((await pricing.priceOrder(order_id, c)).items_total).toFixed(6),
         (FEED_BID * 0.9).toFixed(6),
@@ -203,7 +204,7 @@ test('a freeze holds the last resolved pair and ignores the next tick', async ()
   )
 })
 
-test('a stale quote refuses to price, and a frozen one prices through it', async () => {
+test('a stale quote still prices from the last good tick and warns, and a frozen one prices through it', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
       const order_id = await aPricedOrder(c)
@@ -214,9 +215,14 @@ test('a stale quote refuses to price, and a frozen one prices through it', async
         c
       )
       assert.equal(state.rows[0].state, 'stale')
-      assert.equal(state.rows[0].bid, null, 'a stale metal still carries a price')
+      assert.equal(Number(state.rows[0].bid), FEED_BID, 'a stale metal lost its price')
       assert.equal(Number(state.rows[0].last_bid), FEED_BID, 'the last good bid is gone')
-      await assert.rejects(() => pricing.priceOrder(order_id, c), /cannot be priced/)
+      const stale = await pricing.priceOrder(order_id, c)
+      assert.equal(Number(stale.items_total).toFixed(6), FEED_BID.toFixed(6))
+      assert.deepEqual(stale.unpriceable, [])
+      const warned = stale.spots.find((s) => s.metal_id === METAL)
+      assert.equal(warned?.state, 'stale')
+      assert.ok(warned?.last_tick_at, 'a stale spot did not say when it was last seen')
 
       const source = await query<{ source_id: string }>(
         `SELECT source_id FROM spots.resolved WHERE metal_id = $1`,
@@ -246,6 +252,12 @@ test('a metal follows the default source, and falls back in sort order when it i
       await query(
         `INSERT INTO spots.sources (id, enabled, sort_order) VALUES ('backup', true, 50)`,
         [],
+        c
+      )
+      await query(
+        `INSERT INTO spots.current (source_id, metal_id, bid, ask, dollar_change, percent_change, at, seen_at)
+         VALUES ('backup', $1, 1, 2, 0, 0, now(), now())`,
+        [METAL],
         c
       )
       await query(`DELETE FROM spots.active_sources WHERE metal_id = $1`, [METAL], c)
@@ -307,7 +319,7 @@ test('an expiry at market open stands until the calendar says the bell rang', as
     async (c: PoolClient) => {
       const order_id = await aPricedOrder(c)
       const active = await query<{ source_id: string }>(
-        `SELECT source_id FROM spots.active_sources WHERE metal_id = $1`,
+        `SELECT source_id FROM spots.resolved WHERE metal_id = $1`,
         [METAL],
         c
       )

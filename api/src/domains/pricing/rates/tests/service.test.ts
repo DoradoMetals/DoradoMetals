@@ -28,7 +28,11 @@ test('getRate reads a row back and refuses an id nothing names', async () => {
 
 test('listPay prices every band off the resolved bid in the unit asked for', async () => {
   await pinned(async (c) => {
-    await query(`UPDATE spots.spots SET bid = 2000 WHERE metal_id = 'Gold'`, [], c)
+    await query(
+      `UPDATE spots.current SET bid = 2000, seen_at = now() WHERE metal_id = 'Gold'`,
+      [],
+      c
+    )
     await query(`DELETE FROM spots.adjustments WHERE metal_id = 'Gold'`, [], c)
     const oz = (await service.listPay('troy_oz')).filter((b) => b.metal_id === 'Gold')
     assert.ok(oz.length > 0)
@@ -43,12 +47,14 @@ test('listPay prices every band off the resolved bid in the unit asked for', asy
   })
 })
 
-test('a stale metal pays nothing and says so', async () => {
+test('a stale metal still pays from its last good tick and says so', async () => {
   await inPinnedTransaction(
     async (c) => {
       await aStaleSpot(c, 'Gold')
       const gold = (await service.listPay('troy_oz')).filter((b) => b.metal_id === 'Gold')
-      assert.ok(gold.every((b) => b.scrap_pay === null && b.spot_state === 'stale'))
+      assert.ok(gold.length > 0)
+      assert.ok(gold.every((b) => b.scrap_pay !== null && b.spot_state === 'stale'))
+      assert.ok(gold.every((b) => b.spot_last_tick_at !== null))
     },
     { actor: TEST_ACTOR.id, lock: [LOCKS.RATES, LOCKS.SPOTS_SETTINGS] }
   )

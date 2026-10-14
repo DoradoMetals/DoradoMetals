@@ -21,6 +21,7 @@ export const Spot = z.object({
 export type Spot = z.infer<typeof Spot>
 // generated:end
 import { Metal } from '../metals/metals.js'
+import { CurrentSpot } from './current.js'
 import { Direction } from '../orders/enums.js'
 import { SpotLockEvent } from '../orders/spot_locks.js'
 import { SpotAdjustmentChange } from './adjustment_history.js'
@@ -31,36 +32,32 @@ import { SpotSourceEvent } from './source_events.js'
 export const SpotState = z.enum(['live', 'stale', 'frozen'])
 export type SpotState = z.infer<typeof SpotState>
 
-export const SpotPrice = Spot.pick({
-  ask: true,
-  bid: true,
+export const SpotPrice = CurrentSpot.pick({
   percent_change: true,
   dollar_change: true,
-  bid_dollar_change: true,
-  bid_percent_change: true,
-  ask_dollar_change: true,
-  ask_percent_change: true,
-  updated_at: true,
 }).extend({
   id: Metal.shape.id,
-  ask: Spot.shape.ask.nullable(),
-  last_bid: Spot.shape.bid,
-  last_ask: Spot.shape.ask.nullable(),
-  last_tick_at: Spot.shape.updated_at,
+  bid: CurrentSpot.shape.bid.nullable(),
+  ask: CurrentSpot.shape.ask.nullable(),
+  bid_dollar_change: CurrentSpot.shape.dollar_change,
+  bid_percent_change: CurrentSpot.shape.percent_change,
+  ask_dollar_change: CurrentSpot.shape.dollar_change,
+  ask_percent_change: CurrentSpot.shape.percent_change,
+  updated_at: CurrentSpot.shape.at.nullable(),
+  last_bid: CurrentSpot.shape.bid.nullable(),
+  last_ask: CurrentSpot.shape.ask.nullable(),
+  last_tick_at: CurrentSpot.shape.seen_at.nullable(),
   state: SpotState,
 })
 export type SpotPrice = z.infer<typeof SpotPrice>
 
-export const SpotPatch = Spot.pick({
+export const SpotPatch = CurrentSpot.pick({
+  metal_id: true,
   ask: true,
   bid: true,
   percent_change: true,
   dollar_change: true,
-  bid_dollar_change: true,
-  bid_percent_change: true,
-  ask_dollar_change: true,
-  ask_percent_change: true,
-}).partial()
+})
 export type SpotPatch = z.infer<typeof SpotPatch>
 
 export const SpotTrend = z.enum(['up', 'down', 'flat'])
@@ -75,10 +72,16 @@ export const SpotBoard = z.object({
 })
 export type SpotBoard = z.infer<typeof SpotBoard>
 
+export const SpotStreamEventName = z.enum(['board'])
+export type SpotStreamEventName = z.infer<typeof SpotStreamEventName>
+
+export const SpotStreamEvent = z.object({ event: SpotStreamEventName, data: SpotBoard })
+export type SpotStreamEvent = z.infer<typeof SpotStreamEvent>
+
 export const MetalSpot = SpotTicker.extend({
   metal_id: Metal.shape.id,
-  feed_bid: Spot.shape.bid,
-  feed_ask: Spot.shape.ask.nullable(),
+  feed_bid: CurrentSpot.shape.bid.nullable(),
+  feed_ask: CurrentSpot.shape.ask.nullable(),
   source_id: SpotSource.shape.id.nullable(),
   follows_default: z.boolean(),
   mode: SpotAdjustmentMode.nullable(),

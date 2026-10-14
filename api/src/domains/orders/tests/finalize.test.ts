@@ -206,7 +206,7 @@ test('finalizing refreshes the frozen ask alongside the bid', async () => {
         await client.query(`UPDATE orders.orders SET spots_locked = false WHERE id = $1`, [
           order.id,
         ])
-        await client.query(`UPDATE spots.spots SET ask = ask + 111.11, bid = bid + 77.77`)
+        await client.query(`UPDATE spots.current SET ask = ask + 111.11, bid = bid + 77.77`)
 
         const res = await request(app).post(`/api/orders/${order.id}/finalize`).send({})
         assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`)
@@ -214,7 +214,7 @@ test('finalizing refreshes the frozen ask alongside the bid', async () => {
         const { rows } = await client.query(
           `SELECT os.metal_id, os.ask, os.bid, s.ask AS feed_ask, s.bid AS feed_bid
              FROM orders.spots os
-             JOIN spots.spots s ON s.metal_id = os.metal_id
+             JOIN spots.resolved s ON s.metal_id = os.metal_id
             WHERE os.order_id = $1`,
           [order.id]
         )

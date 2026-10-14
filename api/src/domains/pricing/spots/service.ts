@@ -8,7 +8,11 @@ import * as settings from '#db/spots/settings/repo.ts'
 import * as locks from '#db/spots/locks/repo.ts'
 import * as orderSpots from '#orders/spots/service.ts'
 import * as rules from '#pricing/spots/rules.ts'
-import { SOURCE_ID, fetchQuotes } from '#providers/nfusion/feed.ts'
+import * as nfusion from '#providers/nfusion/feed.ts'
+import * as current from '#db/spots/current/repo.ts'
+import * as candles from '#db/spots/candles/repo.ts'
+import * as ticks from '#db/spots/ticks/repo.ts'
+import * as stream from '#pricing/spots/stream.ts'
 import { reportError } from '#shared/observability/report.ts'
 import { attempt } from '#shared/attempt.ts'
 import withTransaction from '#shared/db/withTransaction.ts'
@@ -22,6 +26,8 @@ import type {
   SpotAdjustmentPatch,
   SpotAdjustmentRead,
   SpotBoard,
+  SpotCandle,
+  SpotCandleQuery,
   SpotFreezeBody,
   SpotLock,
   SpotLockFilter,
@@ -41,39 +47,77 @@ export async function board(): Promise<SpotBoard> {
   return await spots.board()
 }
 
-function reportUnstamped(stamped: boolean, written: number): void {
+function clientFor(source_id: string): typeof nfusion.fetchQuotes | undefined {
+  return source_id === nfusion.SOURCE_ID ? nfusion.fetchQuotes : undefined
+}
+
+function reportUnstamped(source_id: string, stamped: boolean, written: number): void {
   if (stamped) return
   reportError({
     at: 'pricing.spots.updateSpotPrices',
     message:
       `the feed wrote ${written} quote(s) and spots.sources has no row named ` +
-      `${SOURCE_ID}, so the Spots screen reports no tick for it and no metal ` +
-      `can name it as an active source`,
-    extra: { source_id: SOURCE_ID, written },
+      `${source_id}, so the Spots screen reports no tick for it`,
+    extra: { source_id, written },
   })
 }
 
-export async function updateSpotPrices(): Promise<number> {
-  const polled = await sources.stampAttempt(SOURCE_ID)
-  const quotes = await attempt('pricing.spots.fetchQuotes', fetchQuotes)
+async function pollSource(
+  source_id: string,
+  fetchQuotes: typeof nfusion.fetchQuotes
+): Promise<number> {
+  const polled = await sources.stampAttempt(source_id)
+  const quotes = await attempt(`pricing.spots.fetchQuotes.${source_id}`, fetchQuotes)
   if (!quotes) {
-    reportUnstamped(polled && (await sources.recordFailure(SOURCE_ID)), 0)
+    reportUnstamped(source_id, polled && (await sources.recordFailure(source_id)), 0)
     return 0
   }
   const known = new Set((await metals.list()).map((metal) => metal.id))
 
   const written = await withTransaction(async (tx) => {
+    await ticks.addPartitions(tx)
     let count = 0
-    for (const [metal_id, patch] of quotes) {
-      if (!known.has(metal_id)) continue
-      await spots.upsert(metal_id, patch, tx)
+    for (const quote of quotes) {
+      if (!known.has(quote.metal_id)) continue
+      await current.upsert(source_id, quote, tx)
+      await candles.roll(source_id, quote.metal_id, tx)
       count += 1
     }
     return count
   })
 
-  reportUnstamped(polled && (await sources.stampTick(SOURCE_ID)), written)
+  reportUnstamped(source_id, polled && (await sources.stampTick(source_id)), written)
   return written
+}
+
+export async function updateSpotPrices(): Promise<number> {
+  let written = 0
+  for (const source of await sources.list()) {
+    const fetchQuotes = clientFor(source.id)
+    if (!source.enabled || !fetchQuotes) continue
+    written += await pollSource(source.id, fetchQuotes)
+  }
+  stream.publish(await board())
+  return written
+}
+
+export function watchBoard(listener: (board: string) => void): () => void {
+  return stream.subscribe(listener)
+}
+
+export async function candlesFor(metal_id: string, query: SpotCandleQuery): Promise<SpotCandle[]> {
+  rules.assertMetal(await spots.metal(metal_id), metal_id)
+  const source_id = query.source ?? null
+  if (source_id !== null) rules.assertSource(await sources.getOne(source_id), source_id)
+  return await candles.list(metal_id, source_id, query.range)
+}
+
+export async function pruneHistory(): Promise<void> {
+  await withTransaction(async (tx) => {
+    await ticks.addPartitions(tx)
+    await ticks.dropExpired(tx)
+    await candles.prune(tx)
+  })
 }
 
 export async function refresh(): Promise<SpotBoard> {

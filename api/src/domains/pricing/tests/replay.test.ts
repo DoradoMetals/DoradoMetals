@@ -31,7 +31,7 @@ let buyer: BuyerFixture
 beforeAll(async () => {
   const spots = await outside<SpotFixture>(
     `SELECT s.metal_id, s.ask, s.bid
-       FROM spots.spots s
+       FROM spots.resolved s
       WHERE s.metal_id = 'Gold'`
   )
   gold = spots[0]

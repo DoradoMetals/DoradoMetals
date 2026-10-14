@@ -24,7 +24,7 @@ beforeAll(async () => {
 
 async function goldBid(): Promise<number> {
   const { rows } = await query<{ bid: number }>(
-    `SELECT s.bid FROM spots.spots s
+    `SELECT s.bid FROM spots.resolved s
       WHERE s.metal_id = 'Gold'`
   )
   return Number(rows[0]?.bid ?? 0)

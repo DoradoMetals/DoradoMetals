@@ -22,7 +22,7 @@ lines AS (
     JOIN leads.weight_units u ON u.id = i.unit_id
     CROSS JOIN troy
     LEFT JOIN metals.purity_labels p ON p.id = i.purity_id
-    LEFT JOIN spots.spots s ON s.metal_id = i.metal_id
+    LEFT JOIN spots.resolved s ON s.metal_id = i.metal_id
 ),
 by_metal AS (
   SELECT l.lead_id, l.metal_id, sum(l.content) AS total

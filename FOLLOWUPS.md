@@ -595,8 +595,7 @@ Detail in `docs/waves/auth-passwordless.md`.
 
 ## Pricing API lane leftovers (2026-10-14, migrations 267-272)
 
-- Stale refuses every price (resolver): dev's quotes are days old, so dev prices nothing until the feed runs or a freeze is set; tests raise the stale threshold on `test*` databases only. Staging and prod have a live feed.
-- The four `spots.active_sources` rows seeded by migration 240 (all nfusion, no actor) are now per-metal OVERRIDES and ignore a change of default. Jacob decides whether to delete them so every metal follows the default (one DELETE).
-- Fallback only relabels: `spots.spots` holds one quote per metal with no source column, so falling back to another source cannot change the price. Real multi-feed pricing needs quotes stored per source (`spots.quotes (source_id, metal_id, ...)`), a later wave.
-- Locking while stale: the orders lock and placement copy a NULL price when a metal is stale, and the order view shows a lot price of 0. Orders domain must refuse to lock or place while the metal is stale (ruling 112 blocked class).
+- RESOLVED by the spots-history lane (migrations 273-275): stale no longer refuses (the price flows from the last good tick and every read carries `state` and `last_tick_at`); the four seeded `spots.active_sources` rows are deleted (274); quotes are stored per source in `spots.current`, so fallback now changes the price.
+- `spots.spots` is no longer read or written by application code but is NOT dropped: the replayed migration chain still writes it (the exchange backfill), and genesis would then lack the table those migrations write. Dropping it needs those backfills restated onto `spots.current` first.
+- Locking while stale: since 275 a stale metal resolves to its last good price, so a lock copies that price, not NULL. A NULL still reaches the lock only for a metal no source has ever quoted; the orders domain should refuse that case (ruling 112 blocked class).
 - Rate bands: first band starts at 0, percentages cannot be negative (rules added beyond the ask). Display unit is URL/UI state, not a column.

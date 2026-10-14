@@ -67,6 +67,7 @@ console.log(`validating against ${target.pathname.slice(1)} @ ${target.hostname}
 const { rows: tableRows } = await client.query(
   `SELECT table_schema, table_name FROM information_schema.tables
     WHERE table_schema = ANY($1) AND table_type = 'BASE TABLE'
+      AND format('%I.%I', table_schema, table_name)::regclass NOT IN (SELECT inhrelid FROM pg_inherits)
     ORDER BY table_schema, table_name`,
   [SCHEMAS]
 )

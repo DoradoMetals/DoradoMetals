@@ -89,7 +89,7 @@ try {
     const { rows: tables } = await client.query(
       `SELECT c.relname AS name FROM pg_class c
        JOIN pg_namespace n ON n.oid = c.relnamespace
-       WHERE n.nspname = $1 AND c.relkind = 'r' ORDER BY 1`,
+       WHERE n.nspname = $1 AND c.relkind IN ('r', 'p') AND NOT c.relispartition ORDER BY 1`,
       [built]
     )
 
@@ -154,7 +154,7 @@ try {
         await client.query(
           `SELECT c.relname AS name, c.relkind AS kind FROM pg_class c
          JOIN pg_namespace n ON n.oid = c.relnamespace
-         WHERE n.nspname = $1 AND c.relkind IN ('r','v') ORDER BY 1`,
+         WHERE n.nspname = $1 AND c.relkind IN ('r','p','v') AND NOT c.relispartition ORDER BY 1`,
           [nsp]
         )
       ).rows

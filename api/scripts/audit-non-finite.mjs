@@ -22,7 +22,10 @@ const { rows: columns } = await pool.query(
     WHERE table_schema = ANY($1)
       AND data_type IN ('numeric','double precision','real')
       -- Views carry no rows of their own; counting them double-counts a table.
-      AND table_name IN (SELECT tablename FROM pg_tables WHERE schemaname = table_schema)
+      AND table_name IN (SELECT c.relname FROM pg_class c
+                          JOIN pg_namespace n ON n.oid = c.relnamespace
+                         WHERE n.nspname = table_schema
+                           AND c.relkind IN ('r', 'p') AND NOT c.relispartition)
     ORDER BY 1,2,3`,
   [SCHEMAS]
 )

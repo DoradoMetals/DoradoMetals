@@ -46,7 +46,7 @@ const pricing = (ask: number | null = 4000) =>
     direction: 'sale',
     spots_at: new Date().toISOString(),
     spots_locked: false,
-    spots: [{ metal_id: GOLD, bid: null, ask }],
+    spots: [{ metal_id: GOLD, bid: null, ask, state: 'live', last_tick_at: null }],
     items: [
       {
         id: 'line-1',

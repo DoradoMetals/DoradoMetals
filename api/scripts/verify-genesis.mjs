@@ -57,7 +57,7 @@ try {
         await client.query(
           `SELECT c.relname AS name, c.relkind AS kind
          FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-         WHERE n.nspname = $1 AND c.relkind IN ('r', 'v') ORDER BY 1`,
+         WHERE n.nspname = $1 AND c.relkind IN ('r', 'p', 'v') AND NOT c.relispartition ORDER BY 1`,
           [nsp]
         )
       ).rows
@@ -102,7 +102,7 @@ try {
           note(`${schema}.${rel.name}: got       ${x}`)
       }
 
-      if (rel.kind !== 'r') continue
+      if (rel.kind === 'v') continue
 
       const defs = async (nsp) =>
         (
@@ -187,7 +187,7 @@ try {
   for (const x of fb.filter((v) => !fa.includes(v))) note(`extra function:\n${x}`)
 
   const counts = await client.query(
-    `SELECT count(*) FILTER (WHERE c.relkind='r')::int tables,
+    `SELECT count(*) FILTER (WHERE c.relkind IN ('r','p') AND NOT c.relispartition)::int tables,
             count(*) FILTER (WHERE c.relkind='v')::int views
      FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
      WHERE n.nspname LIKE $1`,

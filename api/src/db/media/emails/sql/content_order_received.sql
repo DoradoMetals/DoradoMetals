@@ -34,7 +34,7 @@ bought AS (
     JOIN ord ON ord.id = ol.order_id
     LEFT JOIN products.bullion b ON b.id = i.bullion_id
     LEFT JOIN orders.spots os ON os.order_id = ol.order_id AND os.metal_id = i.metal_id
-    LEFT JOIN spots.spots sp ON sp.metal_id = i.metal_id
+    LEFT JOIN spots.resolved sp ON sp.metal_id = i.metal_id
    WHERE i.bullion_id IS NOT NULL
 ),
 lines AS (
