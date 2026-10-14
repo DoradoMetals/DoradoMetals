@@ -81,3 +81,22 @@ describe('Header', () => {
     expect(await axeViolations(container)).toEqual([])
   })
 })
+
+describe('Header spots row', () => {
+  it('renders the spots slot as the first row, above brand and nav, unless turned off', () => {
+    const { getByRole, rerender } = render(
+      <Header brand={<span>Brand</span>} spots={<section aria-label="Live spot prices" />} />
+    )
+    expect(getByRole('banner').firstElementChild?.getAttribute('aria-label')).toBe(
+      'Live spot prices'
+    )
+    rerender(
+      <Header
+        brand={<span>Brand</span>}
+        spots={<section aria-label="Live spot prices" />}
+        showSpots={false}
+      />
+    )
+    expect(getByRole('banner').querySelector('[aria-label="Live spot prices"]')).toBeNull()
+  })
+})

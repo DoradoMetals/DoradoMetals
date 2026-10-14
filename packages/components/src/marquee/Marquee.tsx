@@ -6,32 +6,57 @@ import { cn } from '../cn'
 
 export type MarqueeProps = {
   children: React.ReactNode
+  layout?: 'desktop' | 'mobile'
   duration?: number
+  label?: string
   className?: string
 }
 
-export function Marquee({ children, duration = 30, className }: MarqueeProps) {
+const TRACK = 'flex shrink-0 items-center gap-xl pr-xl'
+const MOVING =
+  'motion-safe:animate-marquee group-hover:[animation-play-state:paused] group-focus-within:[animation-play-state:paused]'
+
+export function Marquee({
+  children,
+  layout = 'mobile',
+  duration = 30,
+  label,
+  className,
+}: MarqueeProps) {
+  if (layout === 'desktop') {
+    return (
+      <section
+        aria-label={label}
+        data-layout="desktop"
+        className={cn('h-(--control-lg) w-full border-y border-border', className)}
+      >
+        <div className="mx-auto flex h-full w-full max-w-page items-center gap-xl overflow-hidden px-lg">
+          {children}
+        </div>
+      </section>
+    )
+  }
+
   return (
-    <div
+    <section
+      aria-label={label}
+      data-layout="mobile"
       className={cn(
-        'group flex w-full overflow-x-auto border-y border-border px-lg py-sm',
+        'group flex h-(--control-lg) w-full items-center overflow-x-auto border-y border-border px-lg',
         'motion-safe:overflow-hidden',
         className
       )}
     >
-      <div
-        className="flex shrink-0 items-center gap-xl pr-xl motion-safe:animate-marquee group-hover:[animation-play-state:paused] group-focus-within:[animation-play-state:paused]"
-        style={{ animationDuration: `${duration}s` }}
-      >
+      <div className={cn(TRACK, MOVING)} style={{ animationDuration: `${duration}s` }}>
         {children}
       </div>
       <div
         aria-hidden
-        className="hidden shrink-0 items-center gap-xl pr-xl motion-safe:flex motion-safe:animate-marquee group-hover:[animation-play-state:paused] group-focus-within:[animation-play-state:paused]"
+        className={cn(TRACK, 'hidden motion-safe:flex', MOVING)}
         style={{ animationDuration: `${duration}s` }}
       >
         {children}
       </div>
-    </div>
+    </section>
   )
 }
