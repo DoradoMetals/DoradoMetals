@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import { useStepUp, useVerifyCode } from '@dorado/client'
 
 import { AuthForm } from '@/shared/ui/auth/AuthForm'
-import { OpenCodeLink } from '@/shared/ui/auth/OpenCodeLink'
+import { OpenMessageLink } from '@/shared/ui/auth/OpenMessageLink'
+import { useMessageTab } from '@/shared/hooks/useMessageTab'
 import { useVerification } from '@/shared/providers/VerificationProvider'
 import { codeStateFor } from '@/shared/utils/authForm'
 import { safeNext } from '@/shared/utils/returnTo'
@@ -16,6 +17,7 @@ export default function Page() {
   const { verification, setVerification } = useVerification()
   const verifyCode = useVerifyCode()
   const stepUp = useStepUp()
+  const messageTab = useMessageTab()
 
   const leaving = useRef(false)
 
@@ -52,7 +54,7 @@ export default function Page() {
   }
 
   const resend = async () => {
-    const next = await stepUp.mutateAsync()
+    const next = await messageTab.run(() => stepUp.mutateAsync())
     setVerification({ ...verification, view: next })
     setCode('')
   }
@@ -62,7 +64,7 @@ export default function Page() {
       state={state}
       view={view}
       code={code}
-      openCode={<OpenCodeLink />}
+      openCode={<OpenMessageLink />}
       onCodeChange={setCode}
       onSubmit={submit}
       onResend={resend}

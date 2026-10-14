@@ -8,6 +8,7 @@ import { AuthForm } from '@/shared/ui/auth/AuthForm'
 import { useCaptcha } from '@/shared/hooks/useCaptcha'
 import { useGoogleSignIn } from '@/shared/hooks/auth/queries'
 import { useVerification } from '@/shared/providers/VerificationProvider'
+import { useMessageTab } from '@/shared/hooks/useMessageTab'
 import formatPhoneNumber, { normalizePhone } from '@/shared/utils/formatPhoneNumber'
 import { messageOf } from '@/shared/utils/authForm'
 import { nextFrom } from '@/shared/utils/returnTo'
@@ -17,15 +18,17 @@ function SignInPhone() {
   const params = useSearchParams()
   const [digits, setDigits] = useState('')
   const sendCode = useSendCode()
+  const messageTab = useMessageTab()
   const captcha = useCaptcha()
   const google = useGoogleSignIn()
   const { setVerification } = useVerification()
 
   const submit = async () => {
     const phone_number = `+1${digits}`
-    const captcha_token = await captcha.token()
     try {
-      const view = await sendCode.mutateAsync({ channel: 'sms', phone_number, captcha_token })
+      const view = await messageTab.run(async () =>
+        sendCode.mutateAsync({ channel: 'sms', phone_number, captcha_token: await captcha.token() })
+      )
       setVerification({ view, channel: 'sms', phone_number, next: nextFrom(params) ?? undefined })
       router.push(view.status === 'locked' ? '/auth/locked' : '/auth/verify')
     } finally {

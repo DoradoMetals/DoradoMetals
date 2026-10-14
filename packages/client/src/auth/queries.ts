@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type {
+  AccountMessage,
   AuthFakesView,
   ChangeConfirmedView,
   ChangeEmailBody,
@@ -14,7 +15,7 @@ import type {
   VerifyCodeBody,
 } from '@dorado/contracts'
 
-import { apiRequest, ApiError } from '../fetch'
+import { apiRequest, ApiError, baseUrl } from '../fetch'
 import { keys } from '../keys'
 
 export function useSession(options: { enabled?: boolean } = {}) {
@@ -86,13 +87,6 @@ export function useAuthFakes() {
   })
 }
 
-export function useLastCode() {
-  return useMutation({
-    mutationFn: (query: { number?: string; email?: string } = {}) =>
-      apiRequest<{ code: string | null }>('GET', '/account/last_code', undefined, query),
-  })
-}
-
 export function useConfirmChange() {
   const client = useQueryClient()
   return useMutation({
@@ -102,4 +96,23 @@ export function useConfirmChange() {
       client.invalidateQueries({ queryKey: keys.auth.all(), refetchType: 'active' })
     },
   })
+}
+
+export function accountMessages(): Promise<AccountMessage[]> {
+  return apiRequest<AccountMessage[]>('GET', '/account/messages')
+}
+
+export function useAccountMessages(
+  options: { enabled?: boolean; refetchInterval?: number | false } = {}
+) {
+  return useQuery<AccountMessage[]>({
+    queryKey: keys.auth.messages(),
+    enabled: options.enabled ?? true,
+    refetchInterval: options.refetchInterval ?? false,
+    queryFn: accountMessages,
+  })
+}
+
+export function accountMessageUrl(message_id: string): string {
+  return `${baseUrl()}/account/messages/${encodeURIComponent(message_id)}`
 }

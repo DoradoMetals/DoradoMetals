@@ -8,6 +8,7 @@ import { AuthForm } from '@/shared/ui/auth/AuthForm'
 import { useCaptcha } from '@/shared/hooks/useCaptcha'
 import { useGoogleSignIn } from '@/shared/hooks/auth/queries'
 import { useVerification } from '@/shared/providers/VerificationProvider'
+import { useMessageTab } from '@/shared/hooks/useMessageTab'
 import formatPhoneNumber, { normalizePhone } from '@/shared/utils/formatPhoneNumber'
 import { messageOf } from '@/shared/utils/authForm'
 import { nextFrom } from '@/shared/utils/returnTo'
@@ -21,6 +22,7 @@ function SignUp() {
   const [acceptedTerms, setAcceptedTerms] = useState(false)
   const [smsConsent, setSmsConsent] = useState(false)
   const signUp = useSignUp()
+  const messageTab = useMessageTab()
   const captcha = useCaptcha()
   const google = useGoogleSignIn()
   const { setVerification } = useVerification()
@@ -28,16 +30,17 @@ function SignUp() {
   const submit = async () => {
     if (!acceptedTerms) return
     const phone_number = digits ? `+1${digits}` : undefined
-    const captcha_token = await captcha.token()
     try {
-      const view = await signUp.mutateAsync({
-        name,
-        email,
-        phone_number,
-        accepted_terms: true,
-        sms_consent: smsConsent,
-        captcha_token,
-      })
+      const view = await messageTab.run(async () =>
+        signUp.mutateAsync({
+          name,
+          email,
+          phone_number,
+          accepted_terms: true,
+          sms_consent: smsConsent,
+          captcha_token: await captcha.token(),
+        })
+      )
       const smsConsentPending = Boolean(smsConsent && phone_number)
       setVerification(
         phone_number

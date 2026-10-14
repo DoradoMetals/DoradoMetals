@@ -4,11 +4,15 @@ export { parseInbound, parseStatus } from '#providers/twilio/sms.ts'
 
 export type FakeMessage = {
   to: string
+  from: string
   body: string
   media: SmsMedia[]
   provider_sid: string
   sent_at: string
 }
+
+const MAX_MESSAGES = 500
+const FALLBACK_FROM = '+15550100000'
 
 const messages: FakeMessage[] = []
 let counter = 0
@@ -23,12 +27,14 @@ export async function send(
   counter += 1
   const message: FakeMessage = {
     to,
+    from: (process.env.TWILIO_FROM_NUMBER ?? '').trim() || FALLBACK_FROM,
     body,
     media,
     provider_sid: `SMfake${String(counter).padStart(26, '0')}`,
     sent_at: new Date().toISOString(),
   }
   messages.push(message)
+  if (messages.length > MAX_MESSAGES) messages.splice(0, messages.length - MAX_MESSAGES)
   return { provider_sid: message.provider_sid, status: 'queued', error_code: null }
 }
 
@@ -49,6 +55,10 @@ export function lastCodeTo(number: string): string | null {
 
 export function sent(): readonly FakeMessage[] {
   return messages
+}
+
+export function byMessageId(provider_sid: string): FakeMessage | null {
+  return messages.find((message) => message.provider_sid === provider_sid) ?? null
 }
 
 export function reset(): void {

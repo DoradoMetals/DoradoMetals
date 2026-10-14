@@ -21,6 +21,7 @@ import {
 } from '@dorado/components'
 
 import { useGetSession, useSignOut } from '@/shared/hooks/auth/queries'
+import { MessagesMenu } from '@/shared/ui/MessagesMenu'
 import { signInHref } from '@/shared/utils/returnTo'
 
 const BARE_PREFIXES = ['/auth']
@@ -193,6 +194,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const { isAbove } = useBreakpoint()
   const desktop = isAbove('lg')
+  const { signedIn } = useChrome()
 
   useEffect(() => setDrawerOpen(false), [pathname])
   useEffect(() => {
@@ -206,7 +208,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <Header
         brand={<BrandMark />}
         nav={<NavLinks pathname={pathname} />}
-        trailing={<AccountMenu />}
+        trailing={
+          <div className="flex items-center gap-sm">
+            {signedIn && <MessagesMenu />}
+            <AccountMenu />
+          </div>
+        }
         drawerOpen={drawerOpen}
         onDrawerToggle={() => setDrawerOpen((open) => !open)}
       />
