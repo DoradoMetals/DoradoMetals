@@ -22,9 +22,13 @@ export type Spot = z.infer<typeof Spot>
 // generated:end
 import { Metal } from '../metals/metals.js'
 import { Direction } from '../orders/enums.js'
-import { SpotLockAction, SpotLockEvent } from '../orders/spot_locks.js'
+import { SpotLockEvent } from '../orders/spot_locks.js'
+import { SpotAdjustmentChange } from './adjustment_history.js'
+import { SpotAdjustmentMode, SpotAdjustmentRead } from './adjustments.js'
+import { SpotSource } from './sources.js'
+import { SpotSourceEvent } from './source_events.js'
 
-export const SpotState = z.enum(['live', 'manual', 'stale'])
+export const SpotState = z.enum(['live', 'stale', 'frozen'])
 export type SpotState = z.infer<typeof SpotState>
 
 export const SpotPrice = Spot.pick({
@@ -40,6 +44,9 @@ export const SpotPrice = Spot.pick({
 }).extend({
   id: Metal.shape.id,
   ask: Spot.shape.ask.nullable(),
+  last_bid: Spot.shape.bid,
+  last_ask: Spot.shape.ask.nullable(),
+  last_tick_at: Spot.shape.updated_at,
   state: SpotState,
 })
 export type SpotPrice = z.infer<typeof SpotPrice>
@@ -62,8 +69,50 @@ export type SpotTrend = z.infer<typeof SpotTrend>
 export const SpotTicker = SpotPrice.extend({ direction: SpotTrend })
 export type SpotTicker = z.infer<typeof SpotTicker>
 
-export const SpotLockState = z.enum(['Unlocked', 'Locked', 'Finalized'])
-export type SpotLockState = z.infer<typeof SpotLockState>
+export const SpotBoard = z.object({
+  spots: z.array(SpotTicker),
+  paused: z.array(Metal.shape.id),
+})
+export type SpotBoard = z.infer<typeof SpotBoard>
+
+export const MetalSpot = SpotTicker.extend({
+  metal_id: Metal.shape.id,
+  feed_bid: Spot.shape.bid,
+  feed_ask: Spot.shape.ask.nullable(),
+  source_id: SpotSource.shape.id.nullable(),
+  follows_default: z.boolean(),
+  mode: SpotAdjustmentMode.nullable(),
+  adjustment: SpotAdjustmentRead.nullable(),
+})
+export type MetalSpot = z.infer<typeof MetalSpot>
+
+export const SpotActivityKind = z.enum(['lock', 'unlock', 'adjustment', 'source'])
+export type SpotActivityKind = z.infer<typeof SpotActivityKind>
+
+export const SpotActivity = z
+  .object({
+    id: SpotLockEvent.shape.id,
+    kind: SpotActivityKind,
+    at: SpotLockEvent.shape.created_at,
+    actor_id: SpotAdjustmentChange.shape.actor_id,
+    actor_name: SpotAdjustmentChange.shape.actor_name,
+    order_id: SpotLockEvent.shape.order_id.nullable(),
+    source_id: SpotAdjustmentChange.shape.source_id,
+    field: SpotAdjustmentChange.shape.field.nullable(),
+    old_value: SpotAdjustmentChange.shape.old_value,
+    new_value: SpotAdjustmentChange.shape.new_value,
+    bid: SpotLockEvent.shape.bid,
+    ask: SpotLockEvent.shape.ask,
+    detail: SpotSourceEvent.shape.detail,
+  })
+  .extend({ event: z.string(), reference: z.string().nullable() })
+export type SpotActivity = z.infer<typeof SpotActivity>
+
+export const SpotActivityDays = z.coerce.number().int().min(1).max(3650).default(7)
+export type SpotActivityDays = z.infer<typeof SpotActivityDays>
+
+export const SpotLockStatus = z.enum(['active', 'released'])
+export type SpotLockStatus = z.infer<typeof SpotLockStatus>
 
 export const SpotLock = SpotLockEvent.pick({
   id: true,
@@ -71,13 +120,27 @@ export const SpotLock = SpotLockEvent.pick({
   metal_id: true,
   bid: true,
   ask: true,
+  created_at: true,
 }).extend({
-  action: SpotLockAction,
   reference: z.string(),
   direction: Direction,
-  state: SpotLockState,
-  occurred_at: SpotLockEvent.shape.created_at,
-  actor_id: SpotLockEvent.shape.created_by_id,
-  actor_name: SpotLockEvent.shape.created_by,
+  quantity: z.number(),
+  locked_by: SpotLockEvent.shape.created_by,
+  locked_by_id: SpotLockEvent.shape.created_by_id,
+  status: SpotLockStatus,
+  released_at: SpotLockEvent.shape.created_at.nullable(),
+  released_by: SpotLockEvent.shape.created_by.nullable(),
 })
 export type SpotLock = z.infer<typeof SpotLock>
+
+export const SpotLockPage = z.object({ items: z.array(SpotLock) }).extend({
+  total: z.number().int(),
+  page: z.number().int(),
+  page_size: z.number().int(),
+})
+export type SpotLockPage = z.infer<typeof SpotLockPage>
+
+export const SpotLockFilter = z
+  .object({ metal: Metal.shape.id.optional(), status: SpotLockStatus.optional() })
+  .extend({ q: z.string().optional(), page: z.coerce.number().int().min(1).default(1) })
+export type SpotLockFilter = z.infer<typeof SpotLockFilter>

@@ -362,7 +362,8 @@ const PROJECTIONS = {
                FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
               WHERE n.nspname = ANY($1) AND c.relkind IN ('r', 'v', 'S')`,
 
-  column: `SELECT n.nspname || '.' || c.relname || '.' || a.attname || '  #' || a.attnum ||
+  column: `SELECT n.nspname || '.' || c.relname || '.' || a.attname || '  #' ||
+                  row_number() OVER (PARTITION BY a.attrelid ORDER BY a.attnum) ||
                   '  ' || format_type(a.atttypid, a.atttypmod) ||
                   CASE WHEN a.attnotnull THEN ' NOT NULL' ELSE '' END ||
                   CASE WHEN a.attidentity <> '' THEN ' IDENTITY(' || a.attidentity::text || ')'

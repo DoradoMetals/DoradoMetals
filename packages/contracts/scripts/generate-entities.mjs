@@ -298,6 +298,7 @@ const ENTITY = {
   'spots.adjustment_history': 'SpotAdjustmentChange',
   'spots.market_sessions': 'MarketSession',
   'spots.market_holidays': 'MarketHoliday',
+  'spots.source_events': 'SpotSourceEvent',
 
   'tax.sales_tax': 'SalesTax',
   'tax.sales_tax_rules': 'SalesTaxRule',

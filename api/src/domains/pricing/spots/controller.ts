@@ -1,26 +1,39 @@
 import { asyncHandler } from '#shared/middleware/asyncHandler.ts'
-import { parseStrict, strictBody } from '#shared/http/validate.ts'
+import { parseStrict, strictBody, uuidParam } from '#shared/http/validate.ts'
 import { oneString } from '#shared/http/query.ts'
 import { param } from '#shared/http/caller.ts'
 import * as spotService from '#pricing/spots/service.ts'
 import {
   ActiveSpotSourcePatch,
+  SpotActivityDays,
   SpotAdjustmentPatch,
+  SpotFreezeBody,
   SpotHistoryDays,
+  SpotLockFilter,
   SpotSettingsPatch,
   SpotSourcePatch,
 } from '@dorado/contracts'
 
 export const listSpots = asyncHandler(async (_req, res) => {
-  res.status(200).json(await spotService.listTicker())
+  res.status(200).json(await spotService.board())
 })
 
 export const refreshSpots = asyncHandler(async (_req, res) => {
   res.status(200).json(await spotService.refresh())
 })
 
-export const listLocks = asyncHandler(async (_req, res) => {
-  res.status(200).json(await spotService.listLocks())
+export const freezeAll = asyncHandler(async (req, res) => {
+  const body = strictBody(SpotFreezeBody.strict(), req.body)
+  res.status(200).json(await spotService.freezeAll(body))
+})
+
+export const listLocks = asyncHandler(async (req, res) => {
+  const filter = parseStrict(SpotLockFilter.strict(), req.query, 'query')
+  res.status(200).json(await spotService.listLocks(filter))
+})
+
+export const unlockLock = asyncHandler(async (req, res) => {
+  res.status(200).json(await spotService.unlock(uuidParam(req, 'id')))
 })
 
 export const listSources = asyncHandler(async (_req, res) => {
@@ -36,9 +49,18 @@ export const listActiveSources = asyncHandler(async (_req, res) => {
   res.status(200).json(await spotService.listActiveSources())
 })
 
-export const setActiveSource = asyncHandler(async (req, res) => {
+export const getMetal = asyncHandler(async (req, res) => {
+  res.status(200).json(await spotService.getMetal(param(req, 'metal_id')))
+})
+
+export const setMetalSource = asyncHandler(async (req, res) => {
   const patch = strictBody(ActiveSpotSourcePatch.strict(), req.body)
-  res.status(200).json(await spotService.setActiveSource(param(req, 'metal_id'), patch))
+  res.status(200).json(await spotService.setMetalSource(param(req, 'metal_id'), patch))
+})
+
+export const metalActivity = asyncHandler(async (req, res) => {
+  const days = parseStrict(SpotActivityDays, oneString(req.query.days) ?? undefined, 'days')
+  res.status(200).json(await spotService.metalActivity(param(req, 'metal_id'), days))
 })
 
 export const listAdjustments = asyncHandler(async (_req, res) => {
@@ -61,6 +83,11 @@ export const setAdjustment = asyncHandler(async (req, res) => {
 
 export const removeAdjustment = asyncHandler(async (req, res) => {
   await spotService.removeAdjustment(param(req, 'metal_id'), param(req, 'source_id'))
+  res.status(204).end()
+})
+
+export const cancelAdjustment = asyncHandler(async (req, res) => {
+  await spotService.cancelAdjustment(param(req, 'metal_id'))
   res.status(204).end()
 })
 
