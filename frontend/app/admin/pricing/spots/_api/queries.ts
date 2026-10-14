@@ -10,7 +10,7 @@ import {
   useSpotSources,
   useSpotStream,
 } from '@dorado/client'
-import type { SpotCandleRange, SpotLockStatus, SpotSourceRead } from '@dorado/contracts'
+import type { SpotCandleRange, SpotLockStatusFilter, SpotSourceRead } from '@dorado/contracts'
 
 import { rangeWindow } from '../_lib'
 
@@ -30,7 +30,7 @@ export function useSources() {
 
 export function useLocks(filters: {
   metal: string | null
-  status: SpotLockStatus | null
+  status: SpotLockStatusFilter
   q: string | null
   page: number
 }) {
@@ -39,13 +39,11 @@ export function useLocks(filters: {
 
 export function useSparkline(metalId: string) {
   const candles = useSpotCandles(metalId, '1D').data ?? []
+  const now = Date.now()
+  const x = candles.map((candle) => Date.parse(candle.bucket_start))
   return {
     data: candles.map((candle) => candle.close),
-    domain: rangeWindow(
-      '1D',
-      Date.now(),
-      candles.map((candle) => candle.bucket_start)
-    ),
+    domain: { x, min: x[0] ?? now, max: now },
   }
 }
 

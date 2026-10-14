@@ -1,8 +1,14 @@
-import { Badge, Button, cn, EmptyState, Pagination, Skeleton, Text } from '@dorado/components'
-import { Package } from '@dorado/icons'
+'use client'
+
+import { formatStamp } from '@/shared/utils/formatStamp'
+import { Badge, Button, EmptyState } from '@dorado/components'
+import { LockOpen } from '@dorado/icons'
 import type { SpotLock } from '@dorado/contracts'
 
-import { formatMoney, formatStamp } from '../../_lib'
+import { ActorName } from '@/shared/ui/ActorName'
+import { RecordTable, recordColumns, type RecordColumn } from '@/shared/ui/RecordTable'
+
+import { formatMoney } from '../../_lib'
 import { formatQuantity } from '../_lib'
 
 export type LockRowsProps = {
@@ -15,87 +21,65 @@ export type LockRowsProps = {
   onUnlock: (lock: SpotLock) => void
 }
 
-const HEADINGS = ['ORDER', 'METAL', 'QUANTITY', 'LOCKED AT', 'LOCKED BY', 'WHEN', 'STATUS']
+const column = recordColumns<SpotLock>()
 
-const lockedAt = (lock: SpotLock) => formatMoney(lock.bid ?? lock.ask)
-
-function StatusBadge({ lock }: { lock: SpotLock }) {
-  return lock.status === 'active' ? (
-    <Badge intent="info">Active</Badge>
-  ) : (
-    <Badge intent="success">Released</Badge>
-  )
-}
-
-function UnlockButton({ lock, onUnlock }: { lock: SpotLock; onUnlock: (lock: SpotLock) => void }) {
-  if (lock.status !== 'active') return null
-  return (
-    <Button variant="tertiary" size="sm" onClick={() => onUnlock(lock)}>
-      Unlock
-    </Button>
-  )
-}
-
-function Value({ children }: { children: React.ReactNode }) {
-  return (
-    <Text variant="small-medium" emphasis="default" className="truncate">
-      {children}
-    </Text>
-  )
-}
-
-function DesktopRow({
-  lock,
-  showMetal,
-  onUnlock,
-  grid,
-}: {
-  lock: SpotLock
-  showMetal: boolean
+function lockColumns(
+  showMetal: boolean,
   onUnlock: (lock: SpotLock) => void
-  grid: string
-}) {
-  return (
-    <li className={cn(grid, 'items-center py-xs-plus')}>
-      <Value>{lock.reference}</Value>
-      {showMetal && <Value>{lock.metal_id}</Value>}
-      <Value>{formatQuantity(lock.quantity)}</Value>
-      <Value>{lockedAt(lock)}</Value>
-      <Value>{lock.locked_by || 'System'}</Value>
-      <Value>{formatStamp(lock.created_at)}</Value>
-      <span className="flex">
-        <StatusBadge lock={lock} />
-      </span>
-      <span className="flex justify-end">
-        <UnlockButton lock={lock} onUnlock={onUnlock} />
-      </span>
-    </li>
-  )
-}
-
-function MobileRow({ lock, onUnlock }: { lock: SpotLock; onUnlock: (lock: SpotLock) => void }) {
-  return (
-    <li className="flex flex-col gap-sm py-xs-plus">
-      <div className="flex items-center justify-between gap-xs">
-        <Text variant="h5" as="h3">
-          {lock.metal_id}
-        </Text>
-        <StatusBadge lock={lock} />
-      </div>
-      <div className="flex min-h-(--control-sm) items-center justify-between gap-xs">
-        <Value>{lock.reference}</Value>
-        <UnlockButton lock={lock} onUnlock={onUnlock} />
-      </div>
-      <Text variant="small" className="flex gap-xs">
-        <span>{formatQuantity(lock.quantity)}</span>
-        <span>{lockedAt(lock)}</span>
-      </Text>
-      <div className="flex items-center justify-between gap-xs">
-        <Value>{lock.locked_by || 'System'}</Value>
-        <Text variant="small">{formatStamp(lock.created_at)}</Text>
-      </div>
-    </li>
-  )
+): RecordColumn<SpotLock>[] {
+  return column.columns([
+    column.accessor('reference', { header: 'ORDER', meta: { primary: true, line: 1 } }),
+    column.accessor('metal_id', {
+      header: 'METAL',
+      enableSorting: true,
+      meta: { primary: true, line: 0, title: true, hidden: !showMetal },
+    }),
+    column.accessor('quantity', {
+      header: 'QUANTITY',
+      cell: ({ row }) => formatQuantity(row.original.quantity),
+      meta: { primary: true, line: 2 },
+    }),
+    column.display({
+      id: 'locked_at',
+      header: 'LOCKED AT',
+      cell: ({ row }) => formatMoney(row.original.bid ?? row.original.ask),
+      meta: { primary: true, line: 2 },
+    }),
+    column.accessor('locked_by', {
+      header: 'LOCKED BY',
+      cell: ({ row }) => <ActorName name={row.original.locked_by} />,
+      meta: { primary: true, line: 3 },
+    }),
+    column.accessor('created_at', {
+      header: 'WHEN',
+      enableSorting: true,
+      cell: ({ row }) => formatStamp(row.original.created_at),
+      meta: { primary: true, line: 3, end: true },
+    }),
+    column.accessor('status', {
+      header: 'STATUS',
+      cell: ({ row }) =>
+        row.original.status === 'active' ? (
+          <Badge intent="info">Active</Badge>
+        ) : row.original.status === 'settled' ? (
+          <Badge intent="success">Settled</Badge>
+        ) : (
+          <Badge intent="neutral">Released</Badge>
+        ),
+      meta: { line: 0, end: true },
+    }),
+    column.display({
+      id: 'unlock',
+      header: '',
+      cell: ({ row }) =>
+        row.original.status === 'active' ? (
+          <Button variant="tertiary" size="sm" onClick={() => onUnlock(row.original)}>
+            Unlock
+          </Button>
+        ) : null,
+      meta: { numeric: true, line: 1, end: true },
+    }),
+  ])
 }
 
 export function LockRows({
@@ -107,61 +91,23 @@ export function LockRows({
   onPageChange,
   onUnlock,
 }: LockRowsProps) {
-  const grid = showMetal
-    ? 'grid grid-cols-[repeat(7,minmax(0,1fr))_2.5rem] gap-md'
-    : 'grid grid-cols-[repeat(6,minmax(0,1fr))_2.5rem] gap-md'
-
-  if (locks === undefined) {
-    return (
-      <div aria-busy className="flex flex-col gap-md py-sm">
-        {Array.from({ length: 6 }, (_, index) => (
-          <Skeleton key={index} />
-        ))}
-      </div>
-    )
-  }
-
-  if (locks.length === 0) {
-    return (
-      <EmptyState
-        icon={<Package />}
-        title="No locks this week"
-        description="Locks show here when an order locks its price."
-      />
-    )
-  }
-
   return (
-    <div className="flex flex-col">
-      <ul className="flex flex-col divide-y divide-border">
-        {!mobile && (
-          <li aria-hidden className={cn(grid, 'items-center py-xs-plus')}>
-            {HEADINGS.filter((heading) => showMetal || heading !== 'METAL').map((heading) => (
-              <Text key={heading} variant="micro">
-                {heading}
-              </Text>
-            ))}
-          </li>
-        )}
-        {locks.map((lock) =>
-          mobile ? (
-            <MobileRow key={lock.id} lock={lock} onUnlock={onUnlock} />
-          ) : (
-            <DesktopRow
-              key={lock.id}
-              lock={lock}
-              showMetal={showMetal}
-              onUnlock={onUnlock}
-              grid={grid}
-            />
-          )
-        )}
-      </ul>
-      {pageCount >= 1 && (
-        <div className="flex justify-center pt-sm">
-          <Pagination page={page} pageCount={pageCount} onPageChange={onPageChange} />
-        </div>
-      )}
-    </div>
+    <RecordTable
+      columns={lockColumns(showMetal || mobile, onUnlock)}
+      data={locks}
+      label="Order locks"
+      layout={mobile ? 'cards' : 'table'}
+      getRowId={(lock) => lock.id}
+      page={page}
+      pageCount={pageCount}
+      onPageChange={onPageChange}
+      empty={
+        <EmptyState
+          icon={<LockOpen />}
+          title="No order locks"
+          description="A lock shows here when an order locks its price."
+        />
+      }
+    />
   )
 }

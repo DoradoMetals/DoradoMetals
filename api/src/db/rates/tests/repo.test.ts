@@ -78,34 +78,55 @@ test('an overlapping list is refused by the database as a whole', async () => {
   )
 })
 
-test('every change is logged with its band, and a removed band keeps its trail', async () => {
+test('a change reads as the band before and after it: added, changed and removed', async () => {
   await inRollback(
     async (c: PoolClient) => {
+      await rates.replaceBands('Silver', [band(0, null, 0.7)], c)
       await query(`DELETE FROM rates.rate_history`, [], c)
+      const earlier = async () => {
+        await query(
+          `UPDATE rates.rate_history SET changed_at = changed_at - interval '1 hour'`,
+          [],
+          c
+        )
+      }
       await rates.replaceBands('Silver', [band(0, 100, 0.7), band(100, null, 0.75)], c)
+      await earlier()
+      await rates.replaceBands('Silver', [band(0, 100, 0.72), band(100, null, 0.75)], c)
+      await earlier()
       await rates.replaceBands('Silver', [band(0, null, 0.72)], c)
 
       const first = await rates.changes({ q: 'Silver', page: 1 }, c)
-      assert.ok(first.total > 0, 'no change was logged')
-      assert.equal(first.page_size, 8)
-      const page = { items: [...first.items] }
+      const items = [...first.items]
       for (let n = 2; (n - 1) * 8 < first.total; n += 1) {
-        page.items.push(...(await rates.changes({ q: 'Silver', page: n }, c)).items)
+        items.push(...(await rates.changes({ q: 'Silver', page: n }, c)).items)
       }
-      assert.equal(page.items.length, first.total, 'the pages do not add up to the total')
-      const removed = page.items.filter((r) => r.rate_id === null && r.new_value === null)
-      assert.ok(removed.length > 0, 'the removal of a band left no row')
-      assert.ok(removed.every((r) => r.metal_id === 'Silver' && r.min_qty !== null))
-      assert.ok(
-        page.items.some((r) => r.rate_id === null && r.new_value !== null),
-        'the removed band took the trail of its earlier changes with it'
+      assert.equal(items.length, first.total, 'the pages do not add up to the total')
+
+      const added = items.filter((r) => r.old_band === null)
+      assert.deepEqual(added.map((r) => r.type).sort(), ['bullion', 'scrap'])
+      assert.ok(added.every((r) => r.new_band?.min_qty === 100 && r.new_band?.max_qty === null))
+      assert.equal(added.find((r) => r.type === 'scrap')?.new_band?.scrap_pct, 0.75)
+
+      const split = items.find((r) => r.old_band?.max_qty === null && r.new_band?.max_qty === 100)
+      assert.ok(split, 'the band that gained an upper bound did not read as a change')
+      assert.equal(split.old_band?.min_qty, 0)
+
+      const changed = items.find(
+        (r) => r.type === 'scrap' && r.old_band?.scrap_pct === 0.7 && r.new_band?.scrap_pct === 0.72
       )
-      const scrap = page.items.find((r) => r.field === 'scrap_pct' && r.new_value === '0.72')
-      assert.equal(scrap?.type, 'scrap')
-      assert.equal(scrap?.min_qty, 0)
-      assert.equal(scrap?.metal_id, 'Silver')
-      const boundary = page.items.find((r) => r.field === 'max_qty')
-      assert.equal(boundary?.type, 'band')
+      assert.ok(changed, 'the rate change did not read as one row')
+      assert.equal(changed.old_band?.max_qty, 100)
+      assert.equal(changed.new_band?.max_qty, 100)
+
+      const removed = items.filter((r) => r.new_band === null)
+      assert.deepEqual(removed.map((r) => r.type).sort(), ['bullion', 'scrap'])
+      assert.ok(removed.every((r) => r.old_band?.min_qty === 100 && r.old_band?.max_qty === null))
+      assert.equal(removed.find((r) => r.type === 'bullion')?.old_band?.bullion_pct, 0.77)
+
+      const widened = items.find((r) => r.old_band?.max_qty === 100 && r.new_band?.max_qty === null)
+      assert.ok(widened, 'the open-ended widening did not read as a band change')
+      assert.equal(widened.new_band?.scrap_pct, 0.72, 'an untouched rate was not read as it stood')
 
       const none = await rates.changes({ q: 'nobody-matches-this', page: 1 }, c)
       assert.equal(none.total, 0)
@@ -123,6 +144,11 @@ test('the change log pages by eight, newest first', async () => {
         await rates.replaceBands(
           'Gold',
           [band(0, 5, 0.5 + i / 100), band(5, null, 0.6 + i / 100)],
+          c
+        )
+        await query(
+          `UPDATE rates.rate_history SET changed_at = changed_at - interval '1 hour'`,
+          [],
           c
         )
       }

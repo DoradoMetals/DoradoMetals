@@ -69,7 +69,10 @@ test('an unlock releases the lock before it and a new lock is active again', asy
     await age(20, 'unlock')
     await spotLocks.record(order.id, 'lock', c)
 
-    const page = await locks.page({ metal: 'Gold', q: `PO-${order.number}`, page: 1 }, c)
+    const page = await locks.page(
+      { metal: 'Gold', status: 'all', q: `PO-${order.number}`, page: 1 },
+      c
+    )
     const mine = page.items.filter((r) => r.order_id === order.id && r.metal_id === 'Gold')
     assert.equal(mine.length, 2, 'an unlock event was listed as a lock')
     assert.deepEqual(
@@ -91,10 +94,10 @@ test('the list filters by metal and pages by eight', async () => {
   await inRollback(async (c: PoolClient) => {
     for (let i = 0; i < 9; i += 1) await aLockedOrder(c)
 
-    const all = await locks.page({ metal: 'Gold', page: 1 }, c)
+    const all = await locks.page({ metal: 'Gold', status: 'all', page: 1 }, c)
     assert.ok(all.total >= 9)
     assert.equal(all.items.length, 8)
-    const second = await locks.page({ metal: 'Gold', page: 2 }, c)
+    const second = await locks.page({ metal: 'Gold', status: 'all', page: 2 }, c)
     assert.ok(second.items.length >= 1)
     assert.equal(second.page, 2)
     assert.ok(
@@ -111,5 +114,33 @@ test('the list filters by metal and pages by eight', async () => {
 test('a lock nobody recorded is absent', async () => {
   await inRollback(async (c: PoolClient) => {
     assert.equal(await locks.getOne('00000000-0000-4000-8000-000000000000', c), undefined)
+  })
+})
+
+test('a lock reads active on an open order, released on a cancelled one, settled on a finalized one', async () => {
+  await inRollback(async (c: PoolClient) => {
+    const open = await aLockedOrder(c)
+    const cancelled = await aLockedOrder(c)
+    const finalized = await aLockedOrder(c)
+    await c.query('UPDATE orders.orders SET cancelled_at = now() WHERE id = $1', [cancelled.id])
+    await c.query(
+      `INSERT INTO orders.transactions (order_id, total) VALUES ($1, 100)
+       ON CONFLICT (order_id) DO UPDATE SET total = EXCLUDED.total`,
+      [finalized.id]
+    )
+
+    const statusOf = async (order: { id: string; number: number }) => {
+      const found = await locks.page({ status: 'all', q: `PO-${order.number}`, page: 1 }, c)
+      return found.items.find((r) => r.order_id === order.id)?.status
+    }
+    assert.equal(await statusOf(open), 'active')
+    assert.equal(await statusOf(cancelled), 'released')
+    assert.equal(await statusOf(finalized), 'settled')
+
+    const active = await locks.page({ status: 'active', page: 1 }, c)
+    assert.ok(active.items.every((r) => r.status === 'active'))
+    const settled = await locks.page({ status: 'settled', q: `PO-${finalized.number}`, page: 1 }, c)
+    assert.ok(settled.items.some((r) => r.order_id === finalized.id))
+    assert.ok(settled.items.every((r) => r.status === 'settled'))
   })
 })

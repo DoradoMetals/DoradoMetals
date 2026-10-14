@@ -54,7 +54,7 @@ export function MetalScreen({ metalId }: { metalId: string }) {
   const metal = metalQuery.data
   const sources = useSources().data ?? []
   const history = useHistory(metalId, range)
-  const locks = useLocks({ metal: metalId, status: null, q: null, page }).data
+  const locks = useLocks({ metal: metalId, status: 'all', q: null, page }).data
   const adjustments = (useAdjustments().data ?? []).filter((entry) => entry.metal_id === metalId)
   const current = adjustments.filter((entry) => !entry.expired)
   const activity = useActivity(metalId).data ?? []
@@ -145,7 +145,6 @@ export function MetalScreen({ metalId }: { metalId: string }) {
               <AdjustmentRows
                 adjustments={adjustments}
                 sources={sources}
-                mobile={mobile}
                 onRemove={(adjustment) => setPending({ kind: 'remove', adjustment })}
               />
             </div>

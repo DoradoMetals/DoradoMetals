@@ -1,4 +1,4 @@
-import { formatStamp } from '../../_lib'
+import { formatClock, formatStamp } from '@/shared/utils/formatStamp'
 
 const wholeMoney = new Intl.NumberFormat('en-US', {
   style: 'currency',
@@ -30,19 +30,6 @@ const quantity = new Intl.NumberFormat('en-US', {
   minimumFractionDigits: 0,
   maximumFractionDigits: 3,
 })
-const clock = new Intl.DateTimeFormat('en-US', {
-  hour: '2-digit',
-  minute: '2-digit',
-  hourCycle: 'h23',
-})
-const marketOpen = new Intl.DateTimeFormat('en-US', {
-  weekday: 'short',
-  month: 'short',
-  day: 'numeric',
-  hour: 'numeric',
-  minute: '2-digit',
-  timeZone: 'America/New_York',
-})
 const dayLabel = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' })
 const weekdayLabel = new Intl.DateTimeFormat('en-US', { weekday: 'short' })
 const monthLabel = new Intl.DateTimeFormat('en-US', { month: 'short' })
@@ -71,11 +58,8 @@ export const formatChange = (
 export const formatQuantity = (value: number, unit = 'ozt'): string =>
   `${quantity.format(value)} ${unit}`
 
-export const formatClock = (iso: string | null | undefined): string =>
-  iso ? clock.format(new Date(iso)) : '—'
-
 export const formatMarketOpen = (iso: string): string =>
-  `${marketOpen.format(new Date(iso)).replace(' at ', ', ')} ET`
+  `${formatStamp(iso, 'America/New_York')} ET`
 
 export const formatAmount = (value: number, unit: string): string => {
   if (unit === 'percent') return `${signedNumber.format(value)}%`
@@ -102,7 +86,7 @@ export function formatSince(iso: string | null | undefined, now: number): string
 
 export function candleLabel(iso: string, range: string): string {
   const at = new Date(iso)
-  if (range === '1D') return clock.format(at)
+  if (range === '1D') return formatClock(iso)
   if (range === '1W') return weekdayLabel.format(at)
   if (range === '1M') return dayLabel.format(at)
   return monthLabel.format(at)

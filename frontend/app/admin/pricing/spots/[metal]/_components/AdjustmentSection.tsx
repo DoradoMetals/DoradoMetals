@@ -1,5 +1,6 @@
 'use client'
 
+import { formatClock } from '@/shared/utils/formatStamp'
 import { useState } from 'react'
 import {
   Accordion,
@@ -24,7 +25,6 @@ import {
   adjustmentAmount,
   EASTERN_SLOTS,
   easternInstant,
-  formatClock,
   formatMarketOpen,
   unsigned,
 } from '../../_lib'

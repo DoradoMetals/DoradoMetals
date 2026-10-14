@@ -1,11 +1,16 @@
-import { Badge, EmptyState, Input, Pagination, Skeleton, Text } from '@dorado/components'
-import { Package, Search } from '@dorado/icons'
+'use client'
+
+import { Badge, EmptyState, Input } from '@dorado/components'
+import { History, Search } from '@dorado/icons'
 import type { RateChangeRow } from '@dorado/contracts'
 
+import { ActorName } from '@/shared/ui/ActorName'
 import { Panel } from '@/shared/ui/Panel'
-import { capitalize, formatStamp } from '../../_lib'
-import { rangeLabel, unitShort } from '../_lib'
-import { changeText } from '../_lib'
+import { RecordTable, recordColumns, type RecordColumn } from '@/shared/ui/RecordTable'
+import { formatStamp } from '@/shared/utils/formatStamp'
+
+import { capitalize } from '../../_lib'
+import { bandCell, unitShort } from '../_lib'
 
 export type RateChangesPanelProps = {
   rows: RateChangeRow[] | undefined
@@ -17,19 +22,51 @@ export type RateChangesPanelProps = {
   onPageChange: (page: number) => void
 }
 
-const GRID = 'grid grid-cols-[repeat(6,minmax(0,1fr))] gap-sm'
-const HEADINGS = ['METAL', 'TYPE', 'RANGE', 'CHANGE', 'SET BY', 'WHEN']
+const column = recordColumns<RateChangeRow>()
 
-const bandOf = (row: RateChangeRow) =>
-  rangeLabel(row.min_qty, row.max_qty, unitShort(row.unit ?? 'troy_oz'))
-
-function Value({ children }: { children: React.ReactNode }) {
-  return (
-    <Text variant="small-medium" emphasis="default" className="truncate">
-      {children}
-    </Text>
-  )
-}
+const changeColumns: RecordColumn<RateChangeRow>[] = column.columns([
+  column.accessor('metal_id', {
+    header: 'METAL',
+    enableSorting: true,
+    cell: ({ row }) => row.original.metal_id ?? '—',
+    meta: { primary: true, line: 0, title: true },
+  }),
+  column.accessor('type', {
+    header: 'TYPE',
+    cell: ({ row }) => capitalize(row.original.type),
+    meta: {
+      primary: true,
+      line: 0,
+      end: true,
+      cardCell: (original) => (
+        <Badge intent="neutral">{capitalize((original as RateChangeRow).type)}</Badge>
+      ),
+    },
+  }),
+  column.display({
+    id: 'old_range',
+    header: 'OLD RANGE',
+    cell: ({ row }) => bandCell(row.original.old_band, row.original.type, unitShort),
+    meta: { primary: true, line: 1, cardLabel: 'Old range' },
+  }),
+  column.display({
+    id: 'new_range',
+    header: 'NEW RANGE',
+    cell: ({ row }) => bandCell(row.original.new_band, row.original.type, unitShort),
+    meta: { primary: true, line: 2, cardLabel: 'New range' },
+  }),
+  column.accessor('actor_name', {
+    header: 'SET BY',
+    cell: ({ row }) => <ActorName name={row.original.actor_name} />,
+    meta: { primary: true, line: 3 },
+  }),
+  column.accessor('changed_at', {
+    header: 'WHEN',
+    enableSorting: true,
+    cell: ({ row }) => formatStamp(row.original.changed_at),
+    meta: { primary: true, line: 3, end: true },
+  }),
+])
 
 export function RateChangesPanel({
   rows,
@@ -51,77 +88,27 @@ export function RateChangesPanel({
     />
   )
 
-  let body: React.ReactNode
-  if (rows === undefined) {
-    body = (
-      <div aria-busy className="flex flex-col gap-md py-sm">
-        {Array.from({ length: 6 }, (_, index) => (
-          <Skeleton key={index} />
-        ))}
-      </div>
-    )
-  } else if (rows.length === 0) {
-    body = (
-      <EmptyState
-        icon={<Package />}
-        title="No rate changes"
-        description="Changes show here when an admin saves a metal's rates."
-      />
-    )
-  } else if (mobile) {
-    body = (
-      <ul className="flex flex-col divide-y divide-border">
-        {rows.map((row) => (
-          <li key={row.id} className="flex flex-col gap-sm py-xs-plus">
-            <div className="flex items-center justify-between gap-xs">
-              <Text variant="h5" as="h3">
-                {row.metal_id ?? '—'}
-              </Text>
-              <Badge intent="neutral">{capitalize(row.type)}</Badge>
-            </div>
-            <div className="flex items-center justify-between gap-xs">
-              <Text variant="micro">{bandOf(row)}</Text>
-              <Value>{changeText(row)}</Value>
-            </div>
-            <div className="flex items-center justify-between gap-xs">
-              <Value>{row.actor_name ?? 'System'}</Value>
-              <Text variant="micro">{formatStamp(row.changed_at)}</Text>
-            </div>
-          </li>
-        ))}
-      </ul>
-    )
-  } else {
-    body = (
-      <ul className="flex flex-col divide-y divide-border">
-        <li aria-hidden className={`${GRID} py-xs-plus`}>
-          {HEADINGS.map((heading) => (
-            <Text key={heading} variant="micro">
-              {heading}
-            </Text>
-          ))}
-        </li>
-        {rows.map((row) => (
-          <li key={row.id} className={`${GRID} items-center py-xs-plus`}>
-            <Value>{row.metal_id ?? '—'}</Value>
-            <Value>{capitalize(row.type)}</Value>
-            <Value>{bandOf(row)}</Value>
-            <Value>{changeText(row)}</Value>
-            <Value>{row.actor_name ?? 'System'}</Value>
-            <Value>{formatStamp(row.changed_at)}</Value>
-          </li>
-        ))}
-      </ul>
-    )
-  }
-
   return (
     <Panel title="Rate Changes" trailing={mobile ? undefined : field}>
       {mobile && <div className="pb-xs pt-2xs">{field}</div>}
-      {body}
-      <div className="flex justify-center pt-sm">
-        <Pagination page={page} pageCount={pageCount} onPageChange={onPageChange} />
-      </div>
+      <RecordTable
+        columns={changeColumns}
+        data={rows}
+        label="Rate changes"
+        layout={mobile ? 'cards' : 'table'}
+        evenColumns
+        getRowId={(row) => `${row.id}:${row.type}`}
+        page={page}
+        pageCount={pageCount}
+        onPageChange={onPageChange}
+        empty={
+          <EmptyState
+            icon={<History />}
+            title="No rate changes"
+            description="A change shows here when someone saves a metal's rates."
+          />
+        }
+      />
     </Panel>
   )
 }

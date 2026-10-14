@@ -1,7 +1,9 @@
 -- One lock as the Spots page and the metal page draw it. A lock has no expiry
--- (ruling 2026-10-14): it is active until an unlock of the same order and
--- metal follows it, then released. `quantity` is the order's fine content in
--- that metal, in troy ounces.
+-- (ruling 2026-10-14). It is released once an unlock of the same order and
+-- metal follows it or the order is cancelled, settled once the order is
+-- finalized (spots_locked and its transaction carries a total, the fact
+-- rules.isFinalized and migration 161 read), and active otherwise.
+-- `quantity` is the order's fine content in that metal, in troy ounces.
 SELECT l.id,
        l.order_id,
        /*__order_reference__*/ AS reference,
@@ -13,7 +15,11 @@ SELECT l.id,
        l.created_at,
        l.created_by AS locked_by,
        l.created_by_id AS locked_by_id,
-       CASE WHEN u.released_at IS NULL THEN 'active' ELSE 'released' END AS status,
+       CASE WHEN u.released_at IS NOT NULL OR o.cancelled_at IS NOT NULL THEN 'released'
+            WHEN o.spots_locked
+             AND EXISTS (SELECT 1 FROM orders.transactions t
+                          WHERE t.order_id = o.id AND t.total IS NOT NULL) THEN 'settled'
+            ELSE 'active' END AS status,
        u.released_at,
        u.released_by
   FROM orders.spot_locks l

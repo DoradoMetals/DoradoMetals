@@ -22,10 +22,28 @@ export const RateChange = z.object({
 export type RateChange = z.infer<typeof RateChange>
 // generated:end
 
-export const RateChangeType = z.enum(['scrap', 'bullion', 'band'])
+import { Rate } from './rates.js'
+
+export const RateBandSnapshot = Rate.pick({ min_qty: true, max_qty: true, unit: true }).extend({
+  scrap_pct: Rate.shape.scrap_pct.nullable(),
+  bullion_pct: Rate.shape.bullion_pct.nullable(),
+})
+export type RateBandSnapshot = z.infer<typeof RateBandSnapshot>
+
+export const RateChangeType = z.enum(['scrap', 'bullion'])
 export type RateChangeType = z.infer<typeof RateChangeType>
 
-export const RateChangeRow = RateChange.extend({ type: RateChangeType })
+export const RateChangeRow = RateChange.pick({
+  id: true,
+  changed_at: true,
+  actor_id: true,
+  actor_name: true,
+  metal_id: true,
+}).extend({
+  type: RateChangeType,
+  old_band: RateBandSnapshot.nullable(),
+  new_band: RateBandSnapshot.nullable(),
+})
 export type RateChangeRow = z.infer<typeof RateChangeRow>
 
 export const RateChangePage = z.object({ items: z.array(RateChangeRow) }).extend({
