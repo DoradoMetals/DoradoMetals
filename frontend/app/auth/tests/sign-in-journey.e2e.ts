@@ -3,9 +3,7 @@ import { test, expect } from '@playwright/test'
 import { ROLES } from '@/shared/tests/roles'
 
 const API = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api').replace(/\/$/, '')
-const START = process.env.E2E_ORDER_ID
-  ? `/admin/orders/${process.env.E2E_ORDER_ID}`
-  : '/settings/email'
+const START = '/settings/email'
 
 test.describe('signing in through the screens', () => {
   test('a protected page, a code, and the same page signed in', async ({ page, context }) => {
