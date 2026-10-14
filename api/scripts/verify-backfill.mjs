@@ -482,6 +482,10 @@ const NOT_REBUILT = {
     'every quote the feed receives, a partitioned table whose monthly children ' +
     'are made at runtime by spots.add_tick_partitions and dropped by ' +
     'spots.drop_expired_tick_partitions; the feed is the only source of a tick.',
+  'spots.source_events':
+    'a native trail of feed transitions and admin switches, written by triggers ' +
+    'after the pivot (268). exchange holds no source events, so there is nothing ' +
+    'to rebuild from.',
   'spots.sources':
     'the named spot feeds, seeded by 240 (docs/waves/pricing-resolver.md item 2). ' +
     'exchange had no source column anywhere: the feed was an HTTP call written ' +
