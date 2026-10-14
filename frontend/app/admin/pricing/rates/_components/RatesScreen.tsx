@@ -2,6 +2,8 @@
 
 import { formatStamp } from '@/shared/utils/formatStamp'
 import { useState } from 'react'
+import { useUserNames } from '@dorado/client'
+import { userNameOf } from '@/shared/ui/UserName'
 import { Button, Select, Skeleton, useDebounce, useMediaUp } from '@dorado/components'
 import type { RatePay } from '@dorado/contracts'
 
@@ -34,6 +36,7 @@ export function RatesScreen() {
   const rows = useRateRows().data ?? []
   const changes = useChanges(q.trim() === '' ? null : q.trim(), page).data
   const replace = useReplaceRateBands(unit)
+  const names = useUserNames(rows.map((row) => row.updated_by_id ?? row.created_by_id)).data
 
   const metals = bands ? metalsOf(bands) : []
   const shown = metal === 'all' ? metals : metals.filter((entry) => entry === metal)
@@ -118,7 +121,9 @@ export function RatesScreen() {
                   type={type}
                   mobile={mobile}
                   changed={
-                    last ? `Changed ${formatStamp(last.updated_at)} by ${last.updated_by}` : ''
+                    last
+                      ? `Changed ${formatStamp(last.updated_at)} by ${userNameOf(names, last.updated_by_id ?? last.created_by_id)}`
+                      : ''
                   }
                   editing={editing === metalId}
                   pending={replace.isPending}
