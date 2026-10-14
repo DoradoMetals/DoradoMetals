@@ -42,7 +42,7 @@ class FakeEventSource {
   }
 }
 
-const board = { spots: [], market_open: true, paused: ['gold'] }
+const board = { spots: [], market_open: true, next_market_open: null, paused: ['gold'] }
 
 let client: QueryClient
 const wrapper = ({ children }: { children: ReactNode }) =>
