@@ -8,6 +8,7 @@ import * as spots from '#db/spots/repo.ts'
 import * as spotLocks from '#db/orders/spot-locks/repo.ts'
 import { LOCKS } from '#shared/testing/locks.ts'
 import { aStaleSpot, aUser, anOrder } from '#shared/testing/builders/index.ts'
+import { TEST_ACTOR } from '#shared/testing/actor.ts'
 
 beforeAll(async () => {
   assert.equal(
@@ -115,6 +116,58 @@ test('the activity merges locks, adjustments and feed events newest first in a w
         c
       )
       assert.ok(!(await spots.activity('Gold', 7, c)).some((r) => r.kind === 'adjustment'))
+    },
+    { lock: LOCKS.ORDERS }
+  )
+})
+
+test('the ticker lists every metal in metal order with the board direction', async () => {
+  await inRollback(
+    async (c: PoolClient) => {
+      await query(`UPDATE spots.current SET seen_at = now()`, [], c)
+      await query(`UPDATE spots.current SET dollar_change = -3 WHERE metal_id = 'Silver'`, [], c)
+      await query(`UPDATE spots.current SET dollar_change = 0 WHERE metal_id = 'Gold'`, [], c)
+      const rows = await spots.ticker(c)
+      const { spots: cards } = await spots.board(c)
+      assert.deepEqual(
+        rows.map((r) => r.metal_id),
+        cards.map((s) => s.id)
+      )
+      assert.equal(rows.find((r) => r.metal_id === 'Silver')?.direction, 'down')
+      assert.equal(rows.find((r) => r.metal_id === 'Gold')?.direction, 'flat')
+      for (const row of rows) {
+        const card = cards.find((s) => s.id === row.metal_id)
+        assert.equal(row.price, card?.bid)
+        assert.equal(row.direction, card?.direction)
+      }
+    },
+    { lock: LOCKS.SPOTS_SETTINGS }
+  )
+})
+
+test('an activity row names its actor by id and carries no stored name', async () => {
+  await inRollback(
+    async (c: PoolClient) => {
+      await query(
+        `INSERT INTO spots.adjustments (metal_id, source_id, bid_amount, reason)
+       VALUES ('Gold', 'nfusion', -1, 'moved')`,
+        [],
+        c
+      )
+      await query(`UPDATE spots.sources SET enabled = NOT enabled WHERE id = 'nfusion'`, [], c)
+
+      const rows = await spots.activity('Gold', 7, c)
+      const adjustment = rows.find((r) => r.kind === 'adjustment')
+      const source = rows.find(
+        (r) =>
+          r.kind === 'source' && (r.event === 'source turned on' || r.event === 'source turned off')
+      )
+      assert.equal(adjustment?.actor_id, TEST_ACTOR.id)
+      assert.equal(source?.actor_id, TEST_ACTOR.id)
+      assert.ok(
+        rows.every((r) => !('actor_name' in r)),
+        'an activity row still carries a stored name'
+      )
     },
     { lock: LOCKS.ORDERS }
   )

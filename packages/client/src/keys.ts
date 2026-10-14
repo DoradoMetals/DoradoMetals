@@ -56,6 +56,7 @@ export const keys = {
     all: () => ['spots'] as const,
     board: () => ['spots', 'board'] as const,
     stream: () => ['spots', 'stream'] as const,
+    ticker: () => ['spots', 'ticker'] as const,
     sources: () => ['spots', 'sources'] as const,
     metal: (metalId: string) => ['spots', 'metal', metalId] as const,
     activity: (metalId: string, days: number) => ['spots', 'activity', metalId, days] as const,
@@ -76,6 +77,7 @@ export const keys = {
     all: () => ['users'] as const,
     admins: () => ['users', 'admins'] as const,
     one: (id: string) => ['users', 'one', id] as const,
+    names: (ids: readonly string[]) => ['users', 'names', ids] as const,
   },
   lots: {
     all: () => ['lots'] as const,

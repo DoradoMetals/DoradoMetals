@@ -2,7 +2,13 @@ import path from 'node:path'
 import query from '#shared/db/query.ts'
 import { expression, sqlFrom } from '#shared/db/sql.ts'
 import type { Executor } from '#shared/db/executor.ts'
-import { MetalSpot, SpotBoard, type SpotActivity, type SpotPrice } from '@dorado/contracts'
+import {
+  MetalSpot,
+  SpotBoard,
+  type SpotTickerRow,
+  type SpotActivity,
+  type SpotPrice,
+} from '@dorado/contracts'
 
 const sql = sqlFrom(import.meta.dirname)
 const adjustmentsSql = sqlFrom(path.join(import.meta.dirname, 'adjustments'))
@@ -22,6 +28,11 @@ export async function list(executor?: Executor): Promise<SpotPrice[]> {
 export async function board(executor?: Executor): Promise<SpotBoard> {
   const { rows } = await query<{ board: unknown }>(sql('board'), [], executor)
   return SpotBoard.parse(rows[0]?.board)
+}
+
+export async function ticker(executor?: Executor): Promise<SpotTickerRow[]> {
+  const { rows } = await query<SpotTickerRow>(sql('ticker'), [], executor)
+  return rows
 }
 
 export async function metal(metal_id: string, executor?: Executor): Promise<MetalSpot | undefined> {

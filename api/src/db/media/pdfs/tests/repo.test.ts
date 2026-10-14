@@ -6,6 +6,7 @@ import { LOCKS, takeLocks } from '#shared/testing/locks.ts'
 import { rollbackIn } from '#shared/testing/rollback.ts'
 import { aPaymentIntent, aPayout, aUser, anOrder } from '#shared/testing/builders/index.ts'
 import * as repo from '#db/media/pdfs/repo.ts'
+import { timedEnd } from '#shared/text/time.ts'
 
 beforeAll(async () => {
   assert.equal(
@@ -106,7 +107,7 @@ test('parties names the office, the slot and the host of an appointment', async 
     const parties = await repo.parties(order_id, c)
     assert.ok(parties?.office && parties.appointment)
     assert.equal(parties.office.label, 'OFFICE')
-    assert.equal(parties.appointment.who, 'Wed, Sep 9 · 10:30 AM')
+    assert.equal(timedEnd(parties.appointment, '2026-10-14').who, 'Sep 9, 10:30 AM')
     assert.ok(parties.appointment.lines.every((line) => line.startsWith('With ')))
     assert.equal(parties.pickup, null)
   })
@@ -122,7 +123,7 @@ test('parties prints a pickup window in Central time with its driver', async () 
       [fulfillment_id]
     )
     const parties = await repo.parties(order_id, c)
-    assert.equal(parties?.pickup?.who, 'Wed, Sep 9 · 1:00 – 3:00 PM')
+    assert.equal(timedEnd(parties!.pickup!, '2026-10-14').who, 'Sep 9, 1:00 – 3:00 PM')
     assert.deepEqual(parties?.pickup?.lines, [])
   })
 })

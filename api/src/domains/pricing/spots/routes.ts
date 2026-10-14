@@ -10,6 +10,7 @@ import {
   listLocks,
   listSources,
   listSpots,
+  listTicker,
   metalActivity,
   metalCandles,
   refreshSpots,
@@ -43,6 +44,7 @@ router.delete('/adjustments/:metal_id/:source_id', requireAdmin, removeAdjustmen
 router.delete('/adjustments/:metal_id', requireAdmin, cancelAdjustment)
 router.post('/freeze', requireAdmin, freezeAll)
 router.post('/refresh', requireAdmin, refreshSpots)
+router.get('/ticker', listTicker)
 router.get('/stream', streamSpots)
 router.get('/', listSpots)
 

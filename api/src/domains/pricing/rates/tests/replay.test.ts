@@ -143,7 +143,8 @@ test('replacing the bands of a metal answers its pay and leaves a change an admi
         assert.ok(entry, 'the band change did not appear in the change log')
         assert.equal(entry.metal_id, 'Gold')
         assert.equal(entry.new_band.min_qty, 0)
-        assert.ok(entry.actor_name, 'the change carries no actor name')
+        assert.ok(entry.actor_id, 'the change carries no actor id')
+        assert.equal('actor_name' in entry, false)
 
         const gap = await request(app)
           .patch('/api/rates/Gold')

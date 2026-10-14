@@ -1,5 +1,6 @@
 import { Conflict, Forbidden, Invalid, NotFound } from '#shared/errors.ts'
 import { maskEmail, maskPhone } from '#shared/text/mask.ts'
+import { formatDateAtClockZone } from '#shared/text/time.ts'
 import type {
   AccountProfile,
   AuthOtpThrottle,
@@ -282,14 +283,7 @@ export function carrierFor(user: User, changing: Factor): string {
   return value
 }
 
-export const changedAtLabel = (now: number): string =>
-  `${new Date(now).toLocaleString('en-US', {
-    timeZone: 'America/Chicago',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  })} CT`
+export const changedAtLabel = (now: number): string => formatDateAtClockZone(now, now)
 
 export const detailsChangedLabel = (factor: Factor): string =>
   factor === 'email' ? 'Email address' : 'Phone number'

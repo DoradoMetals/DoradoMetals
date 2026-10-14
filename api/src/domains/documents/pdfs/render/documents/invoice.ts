@@ -77,7 +77,7 @@ export function buildInvoiceHtml(input: PartiesDocumentInput): string {
     reference: order.reference,
     heroLabel: isSale ? 'Order total' : 'Total payout',
     heroValue: total,
-    heroStatus: `Final agreed upon ${noun}. Priced against spots locked at ${formatSpotsAt(pricing.spots_at)}.`,
+    heroStatus: `Final agreed upon ${noun}. Priced against spots locked ${formatSpotsAt(pricing.spots_at)}.`,
     middle: isSale
       ? [
           h('div', { key: 'payment' }, paymentPair(input)),

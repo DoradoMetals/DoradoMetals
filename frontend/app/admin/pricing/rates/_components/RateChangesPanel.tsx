@@ -1,12 +1,13 @@
 'use client'
 
+import { useUserNames } from '@dorado/client'
 import { Badge, EmptyState, Input } from '@dorado/components'
 import { History, Search } from '@dorado/icons'
-import type { RateChangeRow } from '@dorado/contracts'
+import type { RateChangeRow, UserName as UserNameRow } from '@dorado/contracts'
 
-import { ActorName } from '@/shared/ui/ActorName'
 import { Panel } from '@/shared/ui/Panel'
 import { RecordTable, recordColumns, type RecordColumn } from '@/shared/ui/RecordTable'
+import { UserName } from '@/shared/ui/UserName'
 import { formatStamp } from '@/shared/utils/formatStamp'
 
 import { capitalize } from '../../_lib'
@@ -24,49 +25,50 @@ export type RateChangesPanelProps = {
 
 const column = recordColumns<RateChangeRow>()
 
-const changeColumns: RecordColumn<RateChangeRow>[] = column.columns([
-  column.accessor('metal_id', {
-    header: 'METAL',
-    enableSorting: true,
-    cell: ({ row }) => row.original.metal_id ?? '—',
-    meta: { primary: true, line: 0, title: true },
-  }),
-  column.accessor('type', {
-    header: 'TYPE',
-    cell: ({ row }) => capitalize(row.original.type),
-    meta: {
-      primary: true,
-      line: 0,
-      end: true,
-      cardCell: (original) => (
-        <Badge intent="neutral">{capitalize((original as RateChangeRow).type)}</Badge>
-      ),
-    },
-  }),
-  column.display({
-    id: 'old_range',
-    header: 'OLD RANGE',
-    cell: ({ row }) => bandCell(row.original.old_band, row.original.type, unitShort),
-    meta: { primary: true, line: 1, cardLabel: 'Old range' },
-  }),
-  column.display({
-    id: 'new_range',
-    header: 'NEW RANGE',
-    cell: ({ row }) => bandCell(row.original.new_band, row.original.type, unitShort),
-    meta: { primary: true, line: 2, cardLabel: 'New range' },
-  }),
-  column.accessor('actor_name', {
-    header: 'SET BY',
-    cell: ({ row }) => <ActorName name={row.original.actor_name} />,
-    meta: { primary: true, line: 3 },
-  }),
-  column.accessor('changed_at', {
-    header: 'WHEN',
-    enableSorting: true,
-    cell: ({ row }) => formatStamp(row.original.changed_at),
-    meta: { primary: true, line: 3, end: true },
-  }),
-])
+const changeColumns = (names: readonly UserNameRow[] | undefined): RecordColumn<RateChangeRow>[] =>
+  column.columns([
+    column.accessor('metal_id', {
+      header: 'METAL',
+      enableSorting: true,
+      cell: ({ row }) => row.original.metal_id ?? '—',
+      meta: { primary: true, line: 0, title: true },
+    }),
+    column.accessor('type', {
+      header: 'TYPE',
+      cell: ({ row }) => capitalize(row.original.type),
+      meta: {
+        primary: true,
+        line: 0,
+        end: true,
+        cardCell: (original) => (
+          <Badge intent="neutral">{capitalize((original as RateChangeRow).type)}</Badge>
+        ),
+      },
+    }),
+    column.display({
+      id: 'old_range',
+      header: 'OLD RANGE',
+      cell: ({ row }) => bandCell(row.original.old_band, row.original.type, unitShort),
+      meta: { primary: true, line: 1, cardLabel: 'Old range' },
+    }),
+    column.display({
+      id: 'new_range',
+      header: 'NEW RANGE',
+      cell: ({ row }) => bandCell(row.original.new_band, row.original.type, unitShort),
+      meta: { primary: true, line: 2, cardLabel: 'New range' },
+    }),
+    column.accessor('actor_id', {
+      header: 'SET BY',
+      cell: ({ row }) => <UserName id={row.original.actor_id} names={names} />,
+      meta: { primary: true, line: 3 },
+    }),
+    column.accessor('changed_at', {
+      header: 'WHEN',
+      enableSorting: true,
+      cell: ({ row }) => formatStamp(row.original.changed_at),
+      meta: { primary: true, line: 3, end: true },
+    }),
+  ])
 
 export function RateChangesPanel({
   rows,
@@ -77,6 +79,7 @@ export function RateChangesPanel({
   onSearch,
   onPageChange,
 }: RateChangesPanelProps) {
+  const names = useUserNames(rows?.map((row) => row.actor_id) ?? []).data
   const field = (
     <Input
       aria-label="Search rate changes"
@@ -92,7 +95,7 @@ export function RateChangesPanel({
     <Panel title="Rate Changes" trailing={mobile ? undefined : field}>
       {mobile && <div className="pb-xs pt-2xs">{field}</div>}
       <RecordTable
-        columns={changeColumns}
+        columns={changeColumns(names)}
         data={rows}
         label="Rate changes"
         layout={mobile ? 'cards' : 'table'}

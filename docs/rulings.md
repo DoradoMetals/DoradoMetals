@@ -516,7 +516,45 @@ file named at the top of this file.
   `docs/design/people-comments-2026-10-07.md`. `docs/waves/sms-consent.md`
   files the same decision under 112.
 
+## 127 and on (2026-10-14)
+
+- **127 — An audit fact stores the actor's id, never the actor's name.**
+  *"What if a user changes their name? All audit fields that need names should
+  use ids instead."* A history, event or stamp column holds `actor_id`
+  (`created_by_id`, `updated_by_id`); no `actor_name`, `created_by` or
+  `updated_by` text sits beside it, and no trigger writes one. A read returns
+  the id; the frontend resolves names through one batched user-name lookup
+  per screen, cached by the query client, so a renamed user reads correctly
+  everywhere at once. The three history tables that stored names
+  (`rates.rate_history`, `spots.adjustment_history`, `spots.source_events`)
+  drop the column; the genesis-era `created_by`/`updated_by` text columns are
+  swept in a later lane after `audit:coverage` shows nothing reads them.
+  2026-10-14. Source: Jacob, in session; audit-ids lane.
+- **128 — Every record list is the Table component, driven by TanStack
+  Table.** *"These should probably be using our table component. Think all
+  our tables should be. And then custom rows for the mobile cards as rows."*
+  A ledger, log, history or lock list renders through `@dorado/components`
+  Table primitives with `@tanstack/react-table` holding the column model,
+  sorting and pagination state (server-driven where the API pages); no
+  hand-rolled grid of list items. On mobile the same column model renders
+  each row as a card row, the way the Library's mobile row variants draw it,
+  so one definition serves both layouts. 2026-10-14. Source: Jacob, in
+  session; pricing-frontend lane.
+- **129 — Times read 12-hour with AM/PM, everywhere.** *"All dates AM/PM
+  please."* A timestamp on a screen, in an email, on a PDF or on a Figma
+  frame reads `Apr 8, 4:07 PM` (the year only when it is not the current
+  one), in the business's time zone; never `16:07`. One formatter in
+  `frontend/shared/utils` serves every screen, and the documents renderer
+  uses the same shape. 2026-10-14. Source: Jacob, in session.
+- **130 — A ported surface ships with its Playwright specs.** *"You're
+  building e2e tests as we're porting, right?"* Every screen a lane ports
+  lands with `*.e2e.ts` specs beside its route that drive a real browser
+  against the live API with the e2e seed: the screen renders its frame's
+  facts, each action the frame draws does what the API says, and the
+  mobile layout is exercised at 390. Unit tests and screenshot compares do
+  not substitute. 2026-10-14. Source: Jacob, in session.
+
 ## Numbering
 
-Every number from 1 to 126 has an entry, plus 26b and 26c. Two rulings carry the
+Every number from 1 to 130 has an entry, plus 26b and 26c. Two rulings carry the
 number 39; both are listed. No number is ever reused.

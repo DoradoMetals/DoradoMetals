@@ -51,7 +51,11 @@ test('the update writes the columns the change flow owns, and leaves the rest', 
       const built = await aUser(c)
       const phone_number = aNumber()
 
-      const withPhone = await users.update(built.id, { phone_number, phone_number_verified: true }, c)
+      const withPhone = await users.update(
+        built.id,
+        { phone_number, phone_number_verified: true },
+        c
+      )
       assert.equal(withPhone?.phone_number, phone_number)
       assert.equal(withPhone?.phone_number_verified, true)
       assert.equal(withPhone?.email, built.email, 'an unnamed column is not touched')
@@ -83,5 +87,28 @@ test('an update of nothing changes nothing', async () => {
       assert.equal(await users.update('00000000-0000-4000-8000-0000000000ff', {}, c), undefined)
     },
     { actor: TEST_ACTOR.id, lock: LOCKS.USERS }
+  )
+})
+
+test('names returns the id and name for each known id and leaves an unknown id out', async () => {
+  await inPinnedTransaction(
+    async (c: PoolClient) => {
+      const one = await aUser(c)
+      const two = await aUser(c)
+      const unknown = '00000000-0000-4000-8000-00000000dead'
+
+      const rows = await users.names([one.id, two.id, unknown], c)
+      assert.equal(rows.length, 2)
+      assert.deepEqual(
+        rows.map((r) => Object.keys(r).sort()),
+        [
+          ['id', 'name'],
+          ['id', 'name'],
+        ]
+      )
+      assert.equal(rows.find((r) => r.id === one.id)?.name, one.name)
+      assert.ok(!rows.some((r) => r.id === unknown))
+    },
+    { lock: LOCKS.USERS, actor: TEST_ACTOR.id }
   )
 })

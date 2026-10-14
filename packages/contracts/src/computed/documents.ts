@@ -6,9 +6,15 @@ import { OrderView } from '../orders/orders.js'
 import { OrderPricing } from '../pricing/quotes.js'
 import { Package } from '../shipping/packages.js'
 
+export const MailerRowShape = z.enum(['date', 'datetime', 'zoned', 'window'])
+export type MailerRowShape = z.infer<typeof MailerRowShape>
+
 export const MailerRow = z.object({
   label: z.string(),
   value: z.string(),
+  at: z.string().nullish(),
+  until: z.string().nullish(),
+  shape: MailerRowShape.nullish(),
 })
 export type MailerRow = z.infer<typeof MailerRow>
 
@@ -92,6 +98,7 @@ export type PromoMail = z.infer<typeof PromoMail>
 export const VoicemailReceivedMail = MailerAddressee.extend({
   from_number: z.string(),
   received_at: z.string(),
+  duration_seconds: z.number().nullable(),
   recording_url: z.string().nullable(),
 })
 export type VoicemailReceivedMail = z.infer<typeof VoicemailReceivedMail>
@@ -119,6 +126,9 @@ export type DocumentInput = z.infer<typeof DocumentInput>
 export const DocumentEnd = z.object({
   label: z.string(),
   who: z.string(),
+  at: z.string().nullish(),
+  until: z.string().nullish(),
+  shape: MailerRowShape.nullish(),
   lines: z.array(z.string()),
 })
 export type DocumentEnd = z.infer<typeof DocumentEnd>

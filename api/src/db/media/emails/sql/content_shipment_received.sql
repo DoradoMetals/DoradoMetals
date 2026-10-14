@@ -30,13 +30,9 @@ SELECT jsonb_build_object(
          'rows', jsonb_build_array(
                    jsonb_build_object(
                      'label', 'Received',
-                     'value', COALESCE(
-                       to_char(arrived.at AT TIME ZONE 'America/Chicago', 'FMMon ')
-                         || to_char(arrived.at AT TIME ZONE 'America/Chicago', 'FMDD') || ', '
-                         || to_char(arrived.at AT TIME ZONE 'America/Chicago', 'FMHH12') || ':'
-                         || to_char(arrived.at AT TIME ZONE 'America/Chicago', 'MI') || ' '
-                         || to_char(arrived.at AT TIME ZONE 'America/Chicago', 'AM') || ' CT',
-                       '-')),
+                     'value', '-',
+                     'at', arrived.at,
+                     'shape', 'zoned'),
                    jsonb_build_object(
                      'label', 'Parcels',
                      'value', arrived.in_hand::text || ' of ' || GREATEST(arrived.sent, 1)::text),

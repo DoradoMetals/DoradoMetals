@@ -12,12 +12,12 @@ export const RateChange = z.object({
   'old_value': z.string().nullable(),
   'new_value': z.string().nullable(),
   'actor_id': z.string().uuid().nullable(),
-  'actor_name': z.string().nullable(),
   'changed_at': z.string(),
   'metal_id': z.string().nullable(),
   'unit': z.string().nullable(),
   'min_qty': z.number().nullable(),
   'max_qty': z.number().nullable(),
+  'actor_name': z.string().nullable(),
 })
 export type RateChange = z.infer<typeof RateChange>
 // generated:end
@@ -37,7 +37,6 @@ export const RateChangeRow = RateChange.pick({
   id: true,
   changed_at: true,
   actor_id: true,
-  actor_name: true,
   metal_id: true,
 }).extend({
   type: RateChangeType,

@@ -180,6 +180,19 @@ Twelve questions, each with a recommendation already written into the doc:
 - **Drop the `created_by` / `updated_by` TEXT columns** once the `audit_stamp`
   trigger reliably fills the `*_id` columns. Some readers still display the
   text.
+- **Ruling 127, next sweep: the genesis-era `created_by` / `updated_by` text
+  columns** (migration 122's trigger still fills them where they exist, and
+  `orders.spot_locks.created_by` among them) go once `audit:coverage` shows
+  nothing reads them (audit-ids lane, 2026-10-14).
+- **A covered data migration should replay its row statements only.** Under a
+  baseline the runner replays the whole of a data-carrying migration, DDL
+  included, so old trigger bodies come back mid-chain (242, 268, 269, 270, 272,
+  277 write `actor_name` before 281 replaces them). `dataStatements` in
+  `api/scripts/lib/baseline.ts` already splits them out. Needs a
+  production-chain rehearsal before it ships (audit-ids lane, 2026-10-14).
+- **Then drop the three dead `actor_name` columns** (`rates.rate_history`,
+  `spots.adjustment_history`, `spots.source_events`) that migration 282 keeps
+  for the rebuild; nothing reads or writes them (ruling 127).
 - **Frontend chrome sits in `shared/`.** `Shell`, `Sidebar`, `Footer` and
   `ProfileMenu` are page chrome and belong in a `layout.tsx`.
 - **Test-suite lanes 6 and 7 are unconfirmed.** Lane 6 converts the sandbox

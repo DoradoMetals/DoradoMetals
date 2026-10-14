@@ -1,3 +1,5 @@
+import { formatDate, formatDateTimeZone } from '#shared/text/time.ts'
+
 const ZONE = 'America/Chicago'
 
 export const DASH = '-'
@@ -23,16 +25,7 @@ export function minus(value: number | null | undefined): string {
 }
 
 function longDate(date: Date): string {
-  return date.toLocaleDateString('en-US', {
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-    timeZone: ZONE,
-  })
-}
-
-function clock(date: Date): string {
-  return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: ZONE })
+  return formatDate(date)
 }
 
 export function formatIssued(date: Date = new Date()): string {
@@ -57,7 +50,7 @@ export function formatMonth(date: Date = new Date()): string {
 
 export function formatSpotsAt(iso: string): string {
   const date = new Date(iso)
-  return `${clock(date)} CT on ${longDate(date)}`
+  return formatDateTimeZone(date)
 }
 
 function decimal(value: number, min: number, max: number): string {

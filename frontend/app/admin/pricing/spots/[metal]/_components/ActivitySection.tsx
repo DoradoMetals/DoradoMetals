@@ -1,5 +1,6 @@
-import { ActorName } from '@/shared/ui/ActorName'
+import { UserName } from '@/shared/ui/UserName'
 import { formatStamp } from '@/shared/utils/formatStamp'
+import { useUserNames } from '@dorado/client'
 import { Accordion, EmptyState, Text } from '@dorado/components'
 import { History, Lock, RefreshCw, SlidersHorizontal } from '@dorado/icons'
 import type { SpotActivity, SpotSourceRead } from '@dorado/contracts'
@@ -21,6 +22,7 @@ export function ActivitySection({
   sources: SpotSourceRead[]
   className?: string
 }) {
+  const names = useUserNames(activity.map((entry) => entry.actor_id)).data
   return (
     <Accordion label="Activity" trailing="Last 7 days" defaultOpen flush className={className}>
       <div className="flex flex-col px-md pb-md">
@@ -42,7 +44,7 @@ export function ActivitySection({
                     {activityTitle(entry, sources)}
                   </Text>
                   <Text variant="micro">
-                    <ActorName name={entry.actor_name} />
+                    <UserName id={entry.actor_id} names={names} />
                   </Text>
                 </div>
                 <Text variant="micro">{formatStamp(entry.at)}</Text>

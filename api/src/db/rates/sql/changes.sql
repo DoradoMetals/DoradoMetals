@@ -1,6 +1,8 @@
 -- The rate change log: one row per band change and type (scrap, bullion),
 -- newest first, eight a page,
--- and the count over every match. $1 search (metal or who changed it), $2 page.
+-- and the count over every match. $1 search (metal, or the current name of who
+-- changed it), $2 page. The name is searched, never returned (ruling 127): the
+-- row carries actor_id alone.
 -- rates.rate_history holds one row per changed field (migrations 270, 272);
 -- the rows one trigger firing wrote share their changed_at, metal and band, so
 -- they are grouped here into one change. old_band is the band before it (null
@@ -17,7 +19,6 @@ WITH grouped AS (
          max(h.min_qty) AS min_qty,
          max(h.max_qty) AS max_qty,
          (array_agg(h.actor_id ORDER BY h.id))[1] AS actor_id,
-         max(h.actor_name) AS actor_name,
          jsonb_object_agg(h.field, jsonb_build_array(h.old_value, h.new_value)) AS f,
          bool_and(h.field IN ('scrap_pct', 'bullion_pct') AND h.old_value IS NULL) AS added,
          bool_and(h.field IN ('scrap_pct', 'bullion_pct') AND h.new_value IS NULL) AS removed
@@ -43,7 +44,7 @@ held AS (
    CROSS JOIN (VALUES ('scrap_pct'), ('bullion_pct')) AS fields(field)
 ),
 banded AS (
-  SELECT g.id, g.changed_at, g.metal_id, g.actor_id, g.actor_name, g.added, g.removed, g.f,
+  SELECT g.id, g.changed_at, g.metal_id, g.actor_id, g.added, g.removed, g.f,
          CASE WHEN g.added THEN NULL ELSE jsonb_build_object(
            'min_qty', COALESCE((g.f -> 'min_qty' ->> 0)::numeric, g.min_qty),
            'max_qty', CASE WHEN g.f ? 'max_qty' THEN (g.f -> 'max_qty' ->> 0)::numeric
@@ -70,7 +71,7 @@ banded AS (
     FROM grouped g
 ),
 typed AS (
-  SELECT b.id, kinds.type, b.changed_at, b.metal_id, b.actor_id, b.actor_name,
+  SELECT b.id, kinds.type, b.changed_at, b.metal_id, b.actor_id,
          b.old_band, b.new_band
     FROM banded b
    CROSS JOIN (VALUES ('scrap', 'scrap_pct'), ('bullion', 'bullion_pct'))
@@ -83,7 +84,9 @@ matched AS (
     FROM typed t
    WHERE nullif(trim($1::text), '') IS NULL
       OR t.metal_id ILIKE '%' || trim($1::text) || '%'
-      OR t.actor_name ILIKE '%' || trim($1::text) || '%'
+      OR EXISTS (SELECT 1 FROM auth.users u
+                  WHERE u.id = t.actor_id
+                    AND u.name ILIKE '%' || trim($1::text) || '%')
 ),
 page AS (
   SELECT m.*

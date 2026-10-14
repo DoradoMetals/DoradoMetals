@@ -32,14 +32,9 @@ SELECT jsonb_build_object(
          'rows', jsonb_build_array(
                    jsonb_build_object(
                      'label', 'When',
-                     'value', COALESCE(
-                       to_char(booking.start_time AT TIME ZONE 'America/Chicago', 'FMDy, FMMon ')
-                         || to_char(booking.start_time AT TIME ZONE 'America/Chicago', 'FMDD')
-                         || ' - '
-                         || to_char(booking.start_time AT TIME ZONE 'America/Chicago', 'FMHH12')
-                         || ':' || to_char(booking.start_time AT TIME ZONE 'America/Chicago', 'MI')
-                         || ' ' || to_char(booking.start_time AT TIME ZONE 'America/Chicago', 'AM'),
-                       'To be confirmed')),
+                     'value', 'To be confirmed',
+                     'at', booking.start_time,
+                     'shape', 'datetime'),
                    jsonb_build_object(
                      'label', 'Office',
                      'value', COALESCE(booking.office || ' - ' || booking.line_1,

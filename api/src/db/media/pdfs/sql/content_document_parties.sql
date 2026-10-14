@@ -20,8 +20,8 @@ direct AS (
    LIMIT 1
 ),
 visit AS (
-  SELECT p.start_time AT TIME ZONE 'America/Chicago' AS starts,
-         p.end_time AT TIME ZONE 'America/Chicago' AS ends,
+  SELECT p.start_time AS starts,
+         p.end_time AS ends,
          (SELECT eu.name FROM auth.employees e
              JOIN auth.users eu ON eu.id = e.user_id
             WHERE e.id = p.assigned_employee_id) AS driver
@@ -71,26 +71,18 @@ SELECT jsonb_build_object(
          'appointment', (
            SELECT jsonb_build_object(
                     'label', 'APPOINTMENT',
-                    'who', COALESCE(
-                      to_char(direct.start_time AT TIME ZONE 'America/Chicago', 'FMDy, FMMon FMDD')
-                        || ' · '
-                        || to_char(direct.start_time AT TIME ZONE 'America/Chicago', 'FMHH12:MI AM'),
-                      'To be confirmed'),
+                    'who', 'To be confirmed',
+                    'at', direct.start_time,
+                    'shape', 'datetime',
                     'lines', to_jsonb(array_remove(ARRAY['With ' || direct.host], NULL)))
              FROM direct),
          'pickup', (
            SELECT jsonb_build_object(
                     'label', 'PICKUP',
-                    'who', COALESCE(
-                      to_char(visit.starts, 'FMDy, FMMon FMDD') || ' · '
-                        || to_char(visit.starts, 'FMHH12:MI')
-                        || CASE WHEN visit.ends IS NULL
-                                THEN ' ' || to_char(visit.starts, 'AM')
-                                WHEN to_char(visit.starts, 'AM') = to_char(visit.ends, 'AM')
-                                THEN ' – ' || to_char(visit.ends, 'FMHH12:MI AM')
-                                ELSE ' ' || to_char(visit.starts, 'AM') || ' – '
-                                     || to_char(visit.ends, 'FMHH12:MI AM') END,
-                      'To be confirmed'),
+                    'who', 'To be confirmed',
+                    'at', visit.starts,
+                    'until', visit.ends,
+                    'shape', 'window',
                     'lines', to_jsonb(array_remove(ARRAY['Driver · ' || visit.driver], NULL)))
              FROM visit),
          'card', (
