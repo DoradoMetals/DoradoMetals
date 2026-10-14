@@ -54,7 +54,7 @@ api/                  @dorado/api          Express 5, ESM, TypeScript (Node runs
   migrations/           000_genesis_schema.sql .. 140_*.sql
   tests/                cassettes and the external suite
 frontend/             @dorado/frontend     Next.js app router - NUKED to auth + a placeholder home; surfaces regrow one at a time (ruling 99, docs/waves/frontend-nuke.md)
-  app/<route>/_src_/    a route's own code
+  app/<route>/_components _api _lib tests/   a route's own code (docs/waves/frontend-conventions.md)
   shared/<kind>/        ui hooks utils providers tests (store and types went with the surfaces)
 packages/contracts/   @dorado/contracts    generated zod row schemas and wire shapes
 packages/client/      @dorado/client       the typed API client; the frontend's ONLY way to reach the API
@@ -351,7 +351,7 @@ trigger touches it, and every domain reads and writes its own schema. The legacy
 machinery — dual writes, `*_SOURCE` switches, `api/legacy/`, `shared/wire/` — is
 deleted. The API is TypeScript end to end under eleven domains in
 `api/src/domains/`, with its tables under `api/src/db/<schema>/`. The frontend
-has no `features/` folder: a route's code is `app/<route>/_src_/`, and what
+has no `features/` folder: a route's code is `_components/ _api/ _lib/ tests/` beside its page, and what
 crosses routes is `shared/`. A four-reviewer API audit produced 63 findings and
 all four fix lanes are merged; what it left is in `FOLLOWUPS.md`. The production
 chain has been rehearsed on a production-shaped copy with zero aborts, and

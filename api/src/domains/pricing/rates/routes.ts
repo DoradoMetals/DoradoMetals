@@ -1,14 +1,12 @@
 import express from 'express'
 
 import {
-  createRate,
-  deleteRate,
-  getHistory,
   getRate,
   listAdminRates,
-  listRates,
+  listChanges,
+  listPay,
   listTiers,
-  updateRate,
+  replaceBands,
 } from '#pricing/rates/controller.ts'
 import { generateRateSheet } from '#documents/pdfs/controller.ts'
 import { requireAdmin } from '#shared/middleware/authMiddleware.ts'
@@ -17,13 +15,10 @@ const router = express.Router()
 
 router.get('/tiers', listTiers)
 router.get('/admin', requireAdmin, listAdminRates)
-router.get('/history', requireAdmin, getHistory)
+router.get('/changes', requireAdmin, listChanges)
 router.get('/sheet.pdf', requireAdmin, generateRateSheet)
-router.get('/', listRates)
+router.get('/', listPay)
 router.get('/:id', requireAdmin, getRate)
-
-router.post('/', requireAdmin, createRate)
-router.patch('/:id', requireAdmin, updateRate)
-router.delete('/:id', requireAdmin, deleteRate)
+router.patch('/:metal_id', requireAdmin, replaceBands)
 
 export default router

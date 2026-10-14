@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import pool from '#pool'
 import withTransaction from '#shared/db/withTransaction.ts'
+import { inPinnedTransaction } from '#shared/testing/pinned-pool.ts'
 import * as c from '@dorado/contracts'
 import type { ZodType } from 'zod/v4'
 
@@ -15,6 +16,12 @@ type Case = {
 }
 
 const cases: Case[] = []
+
+const priced = <T>(load: () => Promise<T>) =>
+  inPinnedTransaction(async (client) => {
+    await client.query('UPDATE spots.spots SET updated_at = now()')
+    return await load()
+  })
 const add = (name: string, schema: WireSchema, load: () => unknown, many = true) =>
   cases.push({ name, schema, load, many })
 
@@ -104,9 +111,24 @@ add('GET /products (row)', c.BullionStorefront, async () =>
 add('GET /products/admin', c.BullionAdmin, () => productsService.listAdminProducts())
 
 const spotsService = await import('#pricing/spots/service.ts')
-add('GET /spots', c.SpotTicker, () => spotsService.listTicker())
+add('GET /spots', c.SpotBoard, async () => [await spotsService.board()])
+add('GET /spots/sources', c.SpotSourceRead, () => spotsService.listSources())
+add('GET /spots/adjustments', c.SpotAdjustmentRead, () => spotsService.listAdjustments())
+add('GET /spots/locks', c.SpotLockPage, async () => [await spotsService.listLocks({ page: 1 })])
+add('GET /spots/metals/:metal_id', c.MetalSpot, async () =>
+  Promise.all((await spotsService.getSpotPrices()).map((s) => spotsService.getMetal(s.id)))
+)
+add('GET /spots/metals/:metal_id/activity', c.SpotActivity, async () => {
+  const lists = await Promise.all(
+    (await spotsService.getSpotPrices()).map((s) => spotsService.metalActivity(s.id, 30))
+  )
+  return lists.flat()
+})
 const ratesService = await import('#pricing/rates/service.ts')
-add('GET /rates', c.RateRead, () => ratesService.listRates())
+add('GET /rates', c.RatePay, () => ratesService.listPay('troy_oz'))
+add('GET /rates/changes', c.RateChangePage, async () => [
+  await ratesService.listChanges({ page: 1 }),
+])
 add('GET /rates/admin', c.AdminRate, () => ratesService.listAdminRates())
 add('GET /rates/tiers', c.RateTier, () => ratesService.listTiers())
 
@@ -192,7 +214,7 @@ const { rows: quotable } = await pool.query(
 add(
   'POST /quotes/catalog',
   c.ProductQuote,
-  () => (quotable.length ? pricing.priceProduct(quotable[0].id, 'ask', 1) : []),
+  () => (quotable.length ? priced(() => pricing.priceProduct(quotable[0].id, 'ask', 1)) : []),
   false
 )
 
@@ -216,7 +238,7 @@ if (saleBasket) {
 add(
   'GET /quotes/checkout (sale)',
   c.SaleQuote,
-  () => (saleBasket ? pricing.priceCheckout(saleBasket.id) : []),
+  () => (saleBasket ? priced(() => pricing.priceCheckout(saleBasket.id)) : []),
   false
 )
 
@@ -240,7 +262,7 @@ if (purchaseBasket) {
 add(
   'GET /quotes/checkout (purchase)',
   c.PurchaseQuote,
-  () => (purchaseBasket ? pricing.priceCheckout(purchaseBasket.id) : []),
+  () => (purchaseBasket ? priced(() => pricing.priceCheckout(purchaseBasket.id)) : []),
   false
 )
 
@@ -250,7 +272,7 @@ const { rows: quotableOrders } = await pool.query(
 add(
   'POST /quotes/order',
   c.OrderPricing,
-  () => (quotableOrders.length ? pricing.priceOrder(quotableOrders[0].id) : []),
+  () => (quotableOrders.length ? priced(() => pricing.priceOrder(quotableOrders[0].id)) : []),
   false
 )
 

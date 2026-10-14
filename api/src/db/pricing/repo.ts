@@ -11,6 +11,7 @@ import {
   PriceSide,
   ProfitBreakdown,
   PurchaseQuote,
+  RatePayView,
   RefiningPricing,
   SaleQuote,
 } from '@dorado/contracts'
@@ -103,4 +104,13 @@ export async function leadEstimateTotals(
 ): Promise<LeadEstimateTotal[]> {
   const { rows } = await query(sql('lead_estimate_totals'), [lead_ids], executor)
   return rows.map((row) => LeadEstimateTotal.parse(row))
+}
+
+export async function ratePay(
+  unit: string,
+  metal_id: string | null,
+  executor?: Executor
+): Promise<RatePayView> {
+  const { rows } = await query<{ view: unknown }>(sql('rate_pay'), [unit, metal_id], executor)
+  return RatePayView.parse(rows[0]?.view)
 }

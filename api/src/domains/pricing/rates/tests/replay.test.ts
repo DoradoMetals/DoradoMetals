@@ -37,55 +37,33 @@ const asAdmin = <T>(fn: () => Promise<T> | T) =>
 const asCustomer = <T>(fn: () => Promise<T> | T) =>
   as({ id: customer.id, name: customer.name, email: customer.email, role: 'user' }, fn)
 
-test('the public rate list needs no session at all', async () => {
+test('the public rate list needs no session and carries pay per unit', async () => {
   await inPinnedTransaction(
     async () => {
       await anonymous(async () => {
         const res = await request(app).get('/api/rates')
         assert.equal(res.status, 200, 'the public rates route stopped being public')
-        assert.ok(Array.isArray(res.body), 'the pricing page expects an array')
-        assert.ok(res.body.length > 0, 'dev has rates and none came back')
+        assert.ok(
+          Array.isArray(res.body) && res.body.length > 0,
+          'dev has rates and none came back'
+        )
+        const band = res.body[0]
+        assert.equal(band.display_unit, 'troy_oz', 'the default display unit is not the troy ounce')
+        assert.equal(typeof band.scrap_pay, 'number', 'no pay figure came back')
+        assert.ok(!('created_by' in band), 'the public list carries an audit column')
+
+        const grams = await request(app).get('/api/rates?unit=g')
+        assert.equal(grams.status, 200)
+        const same = grams.body.find((b: { id: string }) => b.id === band.id)
+        assert.equal(
+          (same.scrap_pay * 31.1034768).toFixed(6),
+          Number(band.scrap_pay).toFixed(6),
+          'a gram does not pay a troy ounce over 31.1034768'
+        )
+
+        const unknown = await request(app).get('/api/rates?unit=furlong')
+        assert.equal(unknown.status, 422, 'an unknown unit was answered')
       })
-    },
-    { actor: TEST_ACTOR.id }
-  )
-})
-
-test('the public list does not carry anything only the admin list has', async () => {
-  await inPinnedTransaction(
-    async () => {
-      let publicFields: Set<string> | undefined
-      let adminFields: Set<string> | undefined
-
-      await anonymous(async () => {
-        const res = await request(app).get('/api/rates')
-        publicFields = new Set(Object.keys(res.body[0] ?? {}))
-      })
-
-      await asAdmin(async () => {
-        const res = await request(app).get('/api/rates/admin')
-        assert.equal(res.status, 200)
-        assert.ok(res.body.length > 0, 'the admin rates read returned nothing')
-        adminFields = new Set(Object.keys(res.body[0] ?? {}))
-      })
-
-      assert.ok(publicFields, 'the public rates read produced no fields')
-      assert.ok(adminFields, 'the admin rates read produced no fields')
-      const publicSet = publicFields
-      const adminSet = adminFields
-      const onlyAdmin = [...adminSet].filter((f) => !publicSet.has(f))
-      const publicExtras = [...publicSet].filter((f) => !adminSet.has(f))
-
-      assert.equal(
-        publicExtras.length,
-        0,
-        `the public read returns fields the admin read does not: ${publicExtras.join(', ')}`
-      )
-
-      console.log(
-        `      public rate fields: ${publicSet.size}; admin-only: ` +
-          (onlyAdmin.length ? onlyAdmin.join(', ') : '(none - the two reads are the same shape)')
-      )
     },
     { actor: TEST_ACTOR.id }
   )
@@ -98,9 +76,8 @@ test('every writing route refuses a signed-in non-admin', async () => {
         const calls = [
           ['admin', request(app).get('/api/rates/admin')],
           ['one', request(app).get(`/api/rates/${randomUUID()}`)],
-          ['create', request(app).post('/api/rates').send({})],
-          ['update', request(app).patch(`/api/rates/${randomUUID()}`).send({})],
-          ['delete', request(app).delete(`/api/rates/${randomUUID()}`)],
+          ['changes', request(app).get('/api/rates/changes')],
+          ['replace', request(app).patch('/api/rates/Gold').send({ bands: [] })],
         ] as Array<[string, Promise<{ status: number }>]>
         for (const [name, call] of calls) {
           const res = await call
@@ -115,12 +92,14 @@ test('every writing route refuses a signed-in non-admin', async () => {
   )
 })
 
-test('an anonymous caller is refused the admin read', async () => {
+test('an anonymous caller is refused the admin read and the change log', async () => {
   await inPinnedTransaction(
     async () => {
       await anonymous(async () => {
-        const res = await request(app).get('/api/rates/admin')
-        assert.ok([401, 403].includes(res.status), `answered ${res.status}`)
+        for (const path of ['/api/rates/admin', '/api/rates/changes']) {
+          const res = await request(app).get(path)
+          assert.ok([401, 403].includes(res.status), `${path} answered ${res.status}`)
+        }
       })
     },
     { actor: TEST_ACTOR.id }
@@ -132,43 +111,60 @@ test('the refused writes wrote nothing', async () => {
   assert.equal(after[0].n, rateCountBefore, 'a route that answered 401/403 still changed the table')
 })
 
-test('an anonymous caller is refused the history read', async () => {
-  await inPinnedTransaction(
-    async () => {
-      await anonymous(async () => {
-        const res = await request(app).get('/api/rates/history')
-        assert.ok([401, 403].includes(res.status), `answered ${res.status}`)
-      })
-    },
-    { actor: TEST_ACTOR.id }
-  )
-})
-
-test('updating a rate writes a history row an admin can read back', async () => {
+test('replacing the bands of a metal answers its pay and leaves a change an admin reads back', async () => {
   await inPinnedTransaction(
     async () => {
       await asAdmin(async () => {
-        const list = await request(app).get('/api/rates/admin')
-        const rate = list.body[0]
-        assert.ok(rate, 'dev has no rate to update')
-
-        const newPct = Number(rate.scrap_pct) === 0.5 ? 0.6 : 0.5
-        const updated = await request(app)
-          .patch(`/api/rates/${rate.id}`)
-          .send({ scrap_pct: newPct })
-        assert.equal(updated.status, 200, JSON.stringify(updated.body))
-
-        const history = await request(app).get('/api/rates/history')
-        assert.equal(history.status, 200)
-        const entry = history.body.find(
-          (h: { rate_id: string; field: string }) =>
-            h.rate_id === rate.id && h.field === 'scrap_pct'
+        const res = await request(app)
+          .patch('/api/rates/Gold')
+          .send({
+            bands: [
+              { min_qty: 0, max_qty: 7, scrap_pct: 0.81, bullion_pct: 0.83 },
+              { min_qty: 7, max_qty: null, scrap_pct: 0.88, bullion_pct: 0.9 },
+            ],
+          })
+        assert.equal(res.status, 200, JSON.stringify(res.body))
+        assert.deepEqual(
+          res.body.map((b: { min_qty: number; max_qty: number | null }) => [b.min_qty, b.max_qty]),
+          [
+            [0, 7],
+            [7, null],
+          ]
         )
-        assert.ok(entry, 'the rate change did not appear in the history read')
-        assert.equal(Number(entry.new_value), newPct)
-        assert.equal(Number(entry.old_value), Number(rate.scrap_pct))
-        assert.ok(entry.actor_name, 'the history row carries no actor name')
-        assert.ok(entry.changed_at, 'the history row carries no timestamp')
+        assert.ok(res.body.every((b: { metal_id: string }) => b.metal_id === 'Gold'))
+
+        const changes = await request(app).get('/api/rates/changes?q=Gold')
+        assert.equal(changes.status, 200)
+        const more = await request(app).get('/api/rates/changes?q=Gold&page=2')
+        const entry = [...changes.body.items, ...more.body.items].find(
+          (h: { field: string; new_value: string }) =>
+            h.field === 'scrap_pct' && Number(h.new_value) === 0.81
+        )
+        assert.ok(entry, 'the band change did not appear in the change log')
+        assert.equal(entry.type, 'scrap')
+        assert.equal(entry.metal_id, 'Gold')
+        assert.equal(entry.min_qty, 0)
+        assert.ok(entry.actor_name, 'the change carries no actor name')
+
+        const gap = await request(app)
+          .patch('/api/rates/Gold')
+          .send({
+            bands: [
+              { min_qty: 0, max_qty: 5, scrap_pct: 0.8, bullion_pct: 0.8 },
+              { min_qty: 6, max_qty: null, scrap_pct: 0.8, bullion_pct: 0.8 },
+            ],
+          })
+        assert.equal(gap.status, 422, 'a gap between bands was accepted')
+
+        const noMetal = await request(app)
+          .patch('/api/rates/Unobtainium')
+          .send({ bands: [{ min_qty: 0, max_qty: null, scrap_pct: 0.8, bullion_pct: 0.8 }] })
+        assert.equal(noMetal.status, 404)
+
+        const extra = await request(app)
+          .patch('/api/rates/Gold')
+          .send({ bands: [{ min_qty: 0, max_qty: null, scrap_pct: 1, bullion_pct: 1, unit: 'g' }] })
+        assert.equal(extra.status, 400, 'a band with a stray key was accepted')
       })
     },
     { actor: TEST_ACTOR.id, lock: LOCKS.RATES }

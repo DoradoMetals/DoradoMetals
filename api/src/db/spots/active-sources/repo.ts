@@ -26,3 +26,8 @@ export async function set(
   const { rowCount } = await query(sql('set'), [metal_id, source_id], executor)
   return rowCount === 1
 }
+
+export async function clear(metal_id: string, executor?: Executor): Promise<boolean> {
+  const { rowCount } = await query(sql('clear'), [metal_id], executor)
+  return rowCount === 1
+}

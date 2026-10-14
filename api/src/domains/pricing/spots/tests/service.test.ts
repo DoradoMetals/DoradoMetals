@@ -35,7 +35,7 @@ test('updateSpotPrices writes a quote for a metal the feed named', async () => {
       assert.equal(Number(rows[0].ask), 1234.56)
       assert.equal(Number(rows[0].bid), 1230.12)
     },
-    { actor: TEST_ACTOR.id }
+    { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] }
   )
 })
 
@@ -47,7 +47,7 @@ test('updateSpotPrices ignores a quote for a name the reference data does not ha
       const written = await service.updateSpotPrices()
       assert.equal(written, 0, 'an unmatched quote name should write nothing')
     },
-    { actor: TEST_ACTOR.id }
+    { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] }
   )
 })
 
@@ -74,7 +74,7 @@ test('updateSpotPrices keeps writing a metal that carries a standing adjustment'
           'pre-override tick into every customer price'
       )
     },
-    { actor: TEST_ACTOR.id }
+    { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] }
   )
 })
 
@@ -92,11 +92,11 @@ test('updateSpotPrices stamps the attempt and the tick on the source row', async
       assert.ok(rows[0].last_attempt_at, 'the feed did not record that it polled')
       assert.ok(rows[0].last_tick_at, 'the feed did not record that it wrote')
     },
-    { actor: TEST_ACTOR.id }
+    { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] }
   )
 })
 
-test('setAdjustment marks a metal manual, removeAdjustment clears it and refuses a repeat', async () => {
+test('setAdjustment puts a metal in adjust mode, removeAdjustment clears it and refuses a repeat', async () => {
   await inPinnedTransaction(
     async () => {
       const row = await service.setAdjustment('Palladium', SOURCE_ID, {
@@ -109,21 +109,20 @@ test('setAdjustment marks a metal manual, removeAdjustment clears it and refuses
       assert.equal(row.scope, 'Active')
       assert.equal(Number(row.bid_amount), -0.2)
 
-      const prices = await service.getSpotPrices()
-      const palladium = prices.find((p) => p.id === 'Palladium')
-      assert.equal(palladium?.state, 'manual', 'an adjusted metal did not read manual')
+      const palladium = await service.getMetal('Palladium')
+      assert.equal(palladium.mode, 'adjust', 'an adjusted metal did not read adjust')
+      assert.equal(palladium.state, 'live', 'an adjusted ticking feed stopped reading live')
 
       await service.removeAdjustment('Palladium', SOURCE_ID)
-      const after = await service.getSpotPrices()
-      assert.notEqual(
-        after.find((p) => p.id === 'Palladium')?.state,
-        'manual',
-        'the adjustment still reads manual after being removed'
+      assert.equal(
+        (await service.getMetal('Palladium')).mode,
+        null,
+        'the adjustment still applies after being removed'
       )
 
       await assert.rejects(() => service.removeAdjustment('Palladium', SOURCE_ID), /no adjustment/)
     },
-    { actor: TEST_ACTOR.id }
+    { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] }
   )
 })
 
@@ -143,7 +142,7 @@ test('a new adjustment needs a reason; an edit of one that exists does not', asy
       assert.equal(Number(edited.bid_amount), -2)
       assert.equal(edited.reason, 'the first write says why')
     },
-    { actor: TEST_ACTOR.id }
+    { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] }
   )
 })
 
@@ -167,7 +166,7 @@ test('an adjustment edit and an active-source switch land in one history list', 
         'the metal filter let another metal through'
       )
     },
-    { actor: TEST_ACTOR.id }
+    { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] }
   )
 })
 
@@ -191,7 +190,7 @@ test('a source is listed with a derived status and the metals it serves', async 
 
       await assert.rejects(() => service.updateSource('nope', { enabled: true }), /no spot source/)
     },
-    { actor: TEST_ACTOR.id }
+    { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] }
   )
 })
 
@@ -207,8 +206,9 @@ test('a metal switched to another source leaves the first adjustment dormant', a
         reason: 'standing on the feed Gold is about to leave',
       })
 
-      const moved = await service.setActiveSource('Gold', { source_id: 'zz-test-feed' })
+      const moved = await service.setMetalSource('Gold', { source_id: 'zz-test-feed' })
       assert.equal(moved.source_id, 'zz-test-feed')
+      assert.equal(moved.follows_default, false)
 
       const adjustments = await service.listAdjustments()
       const dormant = adjustments.find(
@@ -223,11 +223,23 @@ test('a metal switched to another source leaves the first adjustment dormant', a
       )
 
       await assert.rejects(
-        () => service.setActiveSource('Gold', { source_id: 'nope' }),
+        () => service.setMetalSource('Gold', { source_id: 'nope' }),
         /no spot source/
       )
+
+      const following = await service.setMetalSource('Gold', { source_id: null })
+      assert.equal(
+        following.follows_default,
+        true,
+        'clearing the override did not follow the default'
+      )
+      assert.equal(following.source_id, SOURCE_ID)
+      await assert.rejects(
+        () => service.setMetalSource('Unobtainium', { source_id: null }),
+        /no spot for/
+      )
     },
-    { actor: TEST_ACTOR.id }
+    { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] }
   )
 })
 
@@ -242,17 +254,16 @@ test('getSettings and updateSettings round trip the stale threshold and the tick
       assert.equal(updated.stale_after_seconds, before.stale_after_seconds + 1)
       assert.equal(updated.tick_seconds, before.tick_seconds + 1)
     },
-    { actor: TEST_ACTOR.id, lock: LOCKS.SPOTS_SETTINGS }
+    { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.SPOTS_SETTINGS] }
   )
 })
 
-test('listLocks surfaces a lock event once an order is locked', async () => {
+test('listLocks pages the locks and unlock releases one through the orders action', async () => {
   await inPinnedTransaction(
     async (c) => {
-      const order = await anOrder(c, await aUser(c), { direction: 'purchase' }).withSpots({
-        bid: 2000,
-        ask: 2010,
-      })
+      const order = await anOrder(c, await aUser(c), { direction: 'purchase' })
+        .withLines({ bullion_id: null, metal_id: 'Gold', content: 1, premium: 1, quantity: 1 })
+        .withSpots({ bid: 2000, ask: 2010 })
       await c.query('UPDATE orders.orders SET spots_locked = true WHERE id = $1', [order.id])
       await c.query(
         `INSERT INTO orders.spot_locks (order_id, metal_id, action, bid, ask)
@@ -261,13 +272,133 @@ test('listLocks surfaces a lock event once an order is locked', async () => {
         [order.id]
       )
 
-      const locks = await service.listLocks()
-      const found = locks.find((l) => l.order_id === order.id && l.metal_id === 'Gold')
+      const page = await service.listLocks({ q: `PO-${order.number}`, page: 1 })
+      const found = page.items.find((l) => l.order_id === order.id && l.metal_id === 'Gold')
       assert.ok(found, 'a locked order with spots did not show up in listLocks')
-      assert.equal(found.reference, `PO-${order.number}`)
+      assert.equal(found.status, 'active')
       assert.equal(Number(found.bid), 2000)
-      assert.equal(found.state, 'Locked')
+
+      const released = await service.unlock(found.id)
+      assert.equal(released.status, 'released')
+      assert.ok(released.released_at, 'the unlock event carries no time')
+      const { rows } = await c.query('SELECT spots_locked FROM orders.orders WHERE id = $1', [
+        order.id,
+      ])
+      assert.equal(rows[0].spots_locked, false, 'the order is still locked')
+
+      await assert.rejects(() => service.unlock(found.id), /already released/)
+      await assert.rejects(
+        () => service.unlock('00000000-0000-4000-8000-000000000000'),
+        /no spot lock/
+      )
     },
-    { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS }
+    { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] }
+  )
+})
+
+test('making a source the default moves it, and un-defaulting one is refused', async () => {
+  await inPinnedTransaction(
+    async (c) => {
+      await c.query(
+        `INSERT INTO spots.sources (id, enabled, sort_order) VALUES ('zz-next-default', true, 905)`
+      )
+      const made = await service.updateSource('zz-next-default', { is_default: true })
+      assert.equal(made.is_default, true)
+      const sources = await service.listSources()
+      assert.deepEqual(
+        sources.filter((s) => s.is_default).map((s) => s.id),
+        ['zz-next-default']
+      )
+      await assert.rejects(
+        () => service.updateSource('zz-next-default', { is_default: false }),
+        /another source is made the default/
+      )
+    },
+    { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] }
+  )
+})
+
+test('cancel deletes the adjustment in force and refuses when there is none', async () => {
+  await inPinnedTransaction(
+    async () => {
+      await service.setAdjustment('Silver', SOURCE_ID, {
+        mode: 'freeze',
+        reason: 'hold the pair',
+      })
+      assert.equal((await service.getMetal('Silver')).state, 'frozen')
+      await service.cancelAdjustment('Silver')
+      assert.equal((await service.getMetal('Silver')).mode, null)
+      await assert.rejects(() => service.cancelAdjustment('Silver'), /no adjustment in force/)
+    },
+    { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] }
+  )
+})
+
+test('a freeze with no price to hold is refused unless the pair is named', async () => {
+  await inPinnedTransaction(
+    async (c) => {
+      await c.query(`UPDATE spots.sources SET enabled = false`)
+      await assert.rejects(
+        () => service.setAdjustment('Gold', SOURCE_ID, { mode: 'freeze', reason: 'nothing' }),
+        /no price to hold/
+      )
+      const named = await service.setAdjustment('Gold', SOURCE_ID, {
+        mode: 'freeze',
+        frozen_bid: 2000,
+        frozen_ask: 2010,
+        reason: 'held by hand',
+      })
+      assert.equal(named.frozen_bid, 2000)
+      const metal = await service.getMetal('Gold')
+      assert.equal(metal.state, 'frozen')
+      assert.equal(metal.bid, 2000)
+    },
+    { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] }
+  )
+})
+
+test('freeze all freezes every metal with a source and needs a reason', async () => {
+  await inPinnedTransaction(
+    async () => {
+      await assert.rejects(() => service.freezeAll({ reason: '  ' }), /needs a reason/)
+      const board = await service.freezeAll({ reason: 'pricing paused' })
+      assert.ok(board.spots.every((s) => s.state === 'frozen'))
+      assert.deepEqual(board.paused, [])
+    },
+    { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] }
+  )
+})
+
+test('a failed poll is counted and logged once, and the run ends on the next tick', async () => {
+  await inPinnedTransaction(
+    async (c) => {
+      await c.query(`DELETE FROM spots.source_events WHERE source_id = $1`, [SOURCE_ID])
+      vi.mocked(fetchQuotes).mockRejectedValueOnce(new Error('feed down'))
+      vi.mocked(fetchQuotes).mockRejectedValueOnce(new Error('feed down'))
+      assert.equal(await service.updateSpotPrices(), 0)
+      assert.equal(await service.updateSpotPrices(), 0)
+      const [source] = (await service.listSources()).filter((s) => s.id === SOURCE_ID)
+      assert.equal(source.failed_polls, 2)
+
+      vi.mocked(fetchQuotes).mockResolvedValueOnce(aQuote('Gold', 2000, 2010))
+      await service.updateSpotPrices()
+      const activity = await service.metalActivity('Gold', 7)
+      const feed = activity.filter((a) => a.kind === 'source').map((a) => a.event)
+      assert.deepEqual(feed, ['feed recovered', 'feed failed'])
+      await assert.rejects(() => service.metalActivity('Unobtainium', 7), /no spot for/)
+    },
+    { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] }
+  )
+})
+
+test('refresh polls once and answers the board', async () => {
+  vi.mocked(fetchQuotes).mockResolvedValueOnce(aQuote('Gold', 2100, 2110))
+  await inPinnedTransaction(
+    async () => {
+      const board = await service.refresh()
+      assert.ok(board.spots.some((s) => s.id === 'Gold' && s.last_bid === 2100))
+      await assert.rejects(() => service.getMetal('Unobtainium'), /no spot for/)
+    },
+    { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] }
   )
 })

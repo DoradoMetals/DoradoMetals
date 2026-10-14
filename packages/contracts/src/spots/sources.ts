@@ -18,6 +18,8 @@ export const SpotSource = z.object({
   'updated_by': z.string(),
   'created_by_id': z.string().uuid().nullable(),
   'updated_by_id': z.string().uuid().nullable(),
+  'is_default': z.boolean(),
+  'failed_polls': z.number().int(),
 })
 export type SpotSource = z.infer<typeof SpotSource>
 // generated:end
@@ -33,5 +35,9 @@ export const SpotSourceRead = SpotSource.extend({
 })
 export type SpotSourceRead = z.infer<typeof SpotSourceRead>
 
-export const SpotSourcePatch = SpotSource.pick({ enabled: true, sort_order: true }).partial()
+export const SpotSourcePatch = SpotSource.pick({
+  enabled: true,
+  sort_order: true,
+  is_default: true,
+}).partial()
 export type SpotSourcePatch = z.infer<typeof SpotSourcePatch>

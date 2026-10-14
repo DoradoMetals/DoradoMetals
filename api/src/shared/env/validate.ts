@@ -37,6 +37,7 @@ export const PRODUCTION_ONLY_ENV_NAMES = [
   'TURNSTILE_SECRET_KEY',
   'RESEND_FROM_DOMAIN',
   'EMAIL_FROM',
+  'AUTH_COOKIE_DOMAIN',
 ]
 
 export function missingEnvNames(env: NodeJS.ProcessEnv = process.env): string[] {

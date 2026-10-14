@@ -11,6 +11,7 @@ SELECT h.id,
        h.actor_name,
        h.changed_at,
        CASE WHEN h.field = 'active_source' THEN 'active source set'
+            WHEN h.field = 'mode' AND h.new_value = 'freeze' THEN 'freeze set'
             WHEN h.new_value IS NULL THEN 'adjustment cleared'
             WHEN h.old_value IS NULL THEN 'adjustment set'
             ELSE 'adjustment changed' END AS event

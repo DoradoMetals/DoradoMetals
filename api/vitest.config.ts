@@ -51,6 +51,7 @@ export default defineConfig({
     pool: 'forks',
     isolate: true,
     setupFiles: ['./src/shared/testing/vitest-setup.ts'],
+    globalSetup: ['./src/shared/testing/quotes-never-age.ts'],
     env: sharedEnv,
     testTimeout: 20_000,
     hookTimeout: 20_000,

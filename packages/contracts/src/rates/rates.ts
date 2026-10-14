@@ -22,6 +22,8 @@ export const Rate = z.object({
 })
 export type Rate = z.infer<typeof Rate>
 // generated:end
+import { EstimateUnit } from '../leads/weight_units.js'
+import { Spot, SpotState } from '../spots/spots.js'
 export const RateRead = Rate.omit({
   created_at: true,
   updated_at: true,
@@ -49,3 +51,32 @@ export const RatePatch = Rate.pick({
   bullion_pct: true,
 }).partial()
 export type RatePatch = z.infer<typeof RatePatch>
+
+export const RateBandInput = Rate.pick({
+  min_qty: true,
+  max_qty: true,
+  scrap_pct: true,
+  bullion_pct: true,
+})
+export type RateBandInput = z.infer<typeof RateBandInput>
+
+export const RateBandsBody = z.object({ bands: z.array(RateBandInput.strict()).min(1) })
+export type RateBandsBody = z.infer<typeof RateBandsBody>
+
+export const RatePayQuery = z.object({ unit: EstimateUnit.shape.key.default('troy_oz') })
+export type RatePayQuery = z.infer<typeof RatePayQuery>
+
+export const RatePay = RateRead.extend({
+  display_unit: EstimateUnit.shape.key,
+  spot_bid: Spot.shape.bid,
+  spot_state: SpotState,
+  scrap_pay: Spot.shape.bid,
+  bullion_pay: Spot.shape.bid,
+})
+export type RatePay = z.infer<typeof RatePay>
+
+export const RatePayView = z.object({
+  unit: EstimateUnit.shape.key.nullable(),
+  bands: z.array(RatePay),
+})
+export type RatePayView = z.infer<typeof RatePayView>

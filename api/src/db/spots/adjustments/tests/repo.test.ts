@@ -31,7 +31,8 @@ test('a create takes the patch and the column defaults decide the rest', async (
     assert.equal(Number(row.bid_amount), -0.2)
     assert.equal(Number(row.ask_amount), 0, 'the default ask amount is not zero')
     assert.equal(row.unit, 'percent', 'the default unit is not percent')
-    assert.equal(row.enabled, true)
+    assert.equal(row.mode, 'adjust', 'the default mode is not adjust')
+    assert.equal(row.frozen_bid, null, 'an adjust row holds a pair')
     assert.equal(row.expires_at_market_open, false)
     assert.equal(row.scope, 'Active')
   })
@@ -124,5 +125,80 @@ test('the history window excludes what falls outside it', async () => {
 
     assert.equal((await adjustmentHistory.list(30, 'Gold', c)).length, 0)
     assert.ok((await adjustmentHistory.list(365, 'Gold', c)).length > 0)
+  })
+})
+
+test('a freeze is Active on any source and the database fills the held pair', async () => {
+  await inRollback(async (c: PoolClient) => {
+    const standby = await aStandbyFeed(c)
+    await adjustments.create('Gold', standby, { mode: 'freeze', reason: 'hold it' }, c)
+    const row = await adjustments.getOne('Gold', standby, c)
+    const spot = await query<{ last_bid: number; last_ask: number }>(
+      `SELECT last_bid, last_ask FROM spots.resolved WHERE metal_id = 'Gold'`,
+      [],
+      c
+    )
+    assert.equal(row?.scope, 'Active', 'a freeze on another source did not hold the metal')
+    assert.equal(Number(row?.frozen_bid), Number(spot.rows[0].last_bid))
+    assert.equal(Number(row?.frozen_ask), Number(spot.rows[0].last_ask))
+
+    await adjustments.create(
+      'Silver',
+      'nfusion',
+      {
+        mode: 'freeze',
+        frozen_bid: 30,
+        frozen_ask: 31,
+        reason: 'named pair',
+      },
+      c
+    )
+    const named = await adjustments.getOne('Silver', 'nfusion', c)
+    assert.deepEqual([Number(named?.frozen_bid), Number(named?.frozen_ask)], [30, 31])
+  })
+})
+
+test('cancel deletes the rows in force on the metal and leaves a dormant one', async () => {
+  await inRollback(async (c: PoolClient) => {
+    const standby = await aStandbyFeed(c)
+    await adjustments.create('Platinum', 'nfusion', { bid_amount: -1, reason: 'live' }, c)
+    await adjustments.create('Platinum', standby, { bid_amount: -2, reason: 'dormant' }, c)
+
+    assert.equal(await adjustments.cancel('Platinum', c), 1)
+    assert.equal(await adjustments.getOne('Platinum', 'nfusion', c), undefined)
+    assert.ok(await adjustments.getOne('Platinum', standby, c), 'the dormant row went too')
+    assert.equal(await adjustments.cancel('Platinum', c), 0)
+  })
+})
+
+test('freeze all holds every unfrozen metal on its own source and logs it', async () => {
+  await inRollback(async (c: PoolClient) => {
+    await adjustments.create('Gold', 'nfusion', { bid_amount: -1, reason: 'was adjusting' }, c)
+    const frozen = await adjustments.freezeAll('pricing paused', c)
+    const metals = await query<{ n: number }>(
+      `SELECT count(*)::int AS n FROM spots.resolved WHERE source_id IS NOT NULL`,
+      [],
+      c
+    )
+    assert.equal(frozen, metals.rows[0].n)
+    const states = await query<{ state: string }>(
+      `SELECT DISTINCT state FROM spots.resolved`,
+      [],
+      c
+    )
+    assert.deepEqual(
+      states.rows.map((r) => r.state),
+      ['frozen']
+    )
+    const gold = await adjustments.getOne('Gold', 'nfusion', c)
+    assert.equal(gold?.mode, 'freeze')
+    assert.equal(gold?.reason, 'pricing paused')
+    assert.equal(await adjustments.freezeAll('again', c), 0, 'a frozen metal was frozen twice')
+
+    const logged = await adjustmentHistory.list(1, 'Gold', c)
+    assert.ok(
+      logged.some((r) => r.event === 'freeze set'),
+      'the freeze was not logged'
+    )
   })
 })

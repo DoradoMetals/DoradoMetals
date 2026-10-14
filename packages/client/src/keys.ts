@@ -54,7 +54,19 @@ export const keys = {
   },
   spots: {
     all: () => ['spots'] as const,
-    live: () => ['spots', 'live'] as const,
+    board: () => ['spots', 'board'] as const,
+    sources: () => ['spots', 'sources'] as const,
+    metal: (metalId: string) => ['spots', 'metal', metalId] as const,
+    activity: (metalId: string, days: number) => ['spots', 'activity', metalId, days] as const,
+    adjustments: () => ['spots', 'adjustments'] as const,
+    history: (days: number, metalId: string | null) => ['spots', 'history', days, metalId] as const,
+    locks: (filters: Record<string, unknown>) => ['spots', 'locks', filters] as const,
+    settings: () => ['spots', 'settings'] as const,
+  },
+  rates: {
+    all: () => ['rates'] as const,
+    pay: (unit: string) => ['rates', 'pay', unit] as const,
+    changes: (q: string | null, page: number) => ['rates', 'changes', q, page] as const,
   },
   users: {
     all: () => ['users'] as const,
