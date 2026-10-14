@@ -34,21 +34,21 @@ export function Attachment({
     <div
       data-state={state}
       className={cn(
-        'flex w-full flex-col gap-2 px-3',
+        'flex w-full flex-col gap-xs px-sm',
         bare
-          ? 'py-2.5'
+          ? 'py-xs'
           : cn(
-              'rounded-lg border bg-card py-2',
+              'rounded-lg border bg-card py-xs',
               state === 'error' ? 'border-destructive' : 'border-border'
             ),
         className
       )}
     >
-      <div className="flex w-full items-center gap-2">
+      <div className="flex w-full items-center gap-xs">
         <span className="flex size-8 shrink-0 items-center justify-center rounded-sm bg-secondary">
           {thumb ?? <FileIcon aria-hidden className="size-4 text-muted-foreground" />}
         </span>
-        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="flex min-w-0 flex-1 flex-col gap-3xs">
           <span className="truncate text-small font-medium text-foreground">{filename}</span>
           {meta != null && (
             <span

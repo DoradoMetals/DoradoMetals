@@ -31,7 +31,7 @@ export function TimePicker({
       aria-label={typeof heading === 'string' ? heading : 'Appointment time'}
       className={cn(
         'flex w-full flex-col',
-        bare ? 'gap-0' : 'gap-4 rounded-lg border border-border bg-card p-4',
+        bare ? 'gap-0' : 'gap-md rounded-lg border border-border bg-card p-md',
         className
       )}
     >
@@ -39,7 +39,7 @@ export function TimePicker({
         <h3
           className={cn(
             'font-medium text-muted-foreground',
-            bare ? 'border-b border-border px-4 py-3.5 text-center text-small' : 'text-h5'
+            bare ? 'border-b border-border px-md py-sm text-center text-small' : 'text-h5'
           )}
         >
           {heading}
@@ -49,13 +49,13 @@ export function TimePicker({
         <div
           key={group.label}
           className={cn(
-            'flex flex-col gap-2',
-            bare && 'px-4 py-3.5',
+            'flex flex-col gap-xs',
+            bare && 'px-md py-sm',
             bare && gi > 0 && 'border-t border-border'
           )}
         >
           <span className="text-micro font-medium text-muted-foreground">{group.label}</span>
-          <div className={cn('grid gap-2', columns === 3 ? 'grid-cols-3' : 'grid-cols-2')}>
+          <div className={cn('grid gap-xs', columns === 3 ? 'grid-cols-3' : 'grid-cols-2')}>
             {group.slots.map((slot) => {
               const available = slot.available !== false
               const selected = slot.value === value
@@ -68,7 +68,7 @@ export function TimePicker({
                   disabled={!available}
                   onClick={() => onValueChange(slot.value)}
                   className={cn(
-                    'flex h-10 cursor-pointer items-center justify-center rounded-lg px-sm text-small font-medium transition-colors',
+                    'flex min-h-(--control-md) cursor-pointer items-center justify-center rounded-lg px-sm text-small font-medium transition-colors',
                     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background',
                     selected
                       ? 'bg-primary text-primary-foreground'

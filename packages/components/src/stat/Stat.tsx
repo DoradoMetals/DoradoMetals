@@ -27,13 +27,13 @@ export function Stat({
   return (
     <div
       className={cn(
-        'flex flex-col gap-1',
+        'flex flex-col gap-2xs',
         centered ? 'items-center text-center' : 'items-start',
         className
       )}
     >
       <small>{label}</small>
-      <span className={cn('flex items-center gap-2', centered && 'justify-center')}>
+      <span className={cn('flex items-center gap-xs', centered && 'justify-center')}>
         {typeof value === 'number' ? (
           <Amount value={value} format={format} tag={valueTag} />
         ) : (

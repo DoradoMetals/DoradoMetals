@@ -77,8 +77,7 @@ describe('Autocomplete', () => {
   it('the input binds to size/h5 at Regular, not size/body or the h5 default SemiBold (100:29, 2026-09-04)', () => {
     const { getByRole } = renderAC()
     const input = getByRole('combobox') as HTMLInputElement
-    expect(input.className).toContain('text-h5')
-    expect(input.className).toContain('font-normal')
+    expect(input.className).toContain('text-field')
   })
 
   it('leading icon is boxed at 16px and matches the label token, regardless of its own className (100:29 composes 26:391)', () => {

@@ -12,17 +12,21 @@ export type MessageProps = {
   className?: string
 }
 
-const STATUS_LABEL: Record<MessageStatus, string> = {
-  delivered: 'Delivered',
-  sending: 'Sending…',
-  failed: 'Not delivered, tap to retry',
-}
-
-export function Message({ direction, status = 'delivered', time, children, className }: MessageProps) {
+export function Message({
+  direction,
+  status = 'delivered',
+  time,
+  children,
+  className,
+}: MessageProps) {
   const outbound = direction === 'outbound'
   return (
     <div
-      className={cn('flex w-full flex-col gap-2xs', outbound ? 'items-end' : 'items-start', className)}
+      className={cn(
+        'flex w-full flex-col gap-2xs',
+        outbound ? 'items-end' : 'items-start',
+        className
+      )}
     >
       <div
         className={cn(
@@ -36,7 +40,11 @@ export function Message({ direction, status = 'delivered', time, children, class
         <span>{time}</span>
         {outbound && (
           <span className={cn(status === 'failed' && 'text-destructive')}>
-            {'· ' + STATUS_LABEL[status]}
+            {status === 'sending'
+              ? '· Sending…'
+              : status === 'failed'
+                ? '· Not delivered, tap to retry'
+                : '· Delivered'}
           </span>
         )}
       </span>

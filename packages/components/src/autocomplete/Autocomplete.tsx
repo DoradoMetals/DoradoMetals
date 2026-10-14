@@ -77,7 +77,7 @@ export function Autocomplete({
   }
 
   return (
-    <div className={cn('relative flex w-full flex-col gap-0.5', className)}>
+    <div className={cn('relative flex w-full flex-col gap-3xs', className)}>
       {label != null && <FieldLabel htmlFor={id}>{label}</FieldLabel>}
       <div data-disabled={disabled || undefined} className={fieldTrigger()}>
         {leading != null && (
@@ -114,7 +114,7 @@ export function Autocomplete({
             onKeyDown(e)
             inputProps?.onKeyDown?.(e)
           }}
-          className="min-w-0 flex-1 bg-transparent text-h5 font-normal text-foreground outline-none placeholder:text-placeholder disabled:text-foreground-disabled"
+          className="min-w-0 flex-1 bg-transparent text-field text-foreground outline-none placeholder:text-placeholder disabled:text-foreground-disabled"
           {...(({ onFocus: _f, onBlur: _b, onKeyDown: _k, ...rest }) => rest)(inputProps ?? {})}
         />
         {trailing != null && (
@@ -127,10 +127,12 @@ export function Autocomplete({
         <ul
           id={listId}
           role="listbox"
-          className={cn(fieldPanel(), 'absolute top-full mt-1 w-full')}
+          className={cn(fieldPanel(), 'absolute top-full mt-2xs w-full')}
         >
           {items.length === 0 ? (
-            <li className="flex h-9 items-center px-3 text-h5 text-muted-foreground">{empty}</li>
+            <li className="flex min-h-(--control-sm-plus) items-center px-sm text-field text-muted-foreground">
+              {empty}
+            </li>
           ) : (
             items.map((item, idx) => (
               <li

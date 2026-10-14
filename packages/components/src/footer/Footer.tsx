@@ -37,13 +37,13 @@ export function Footer({
   return (
     <footer
       className={cn(
-        'flex w-full flex-col items-center gap-3 border-t border-border bg-background px-6 pt-8 pb-6',
-        'lg:items-stretch lg:gap-12 lg:px-16 lg:pt-12 lg:pb-8',
+        'flex w-full flex-col items-center gap-sm border-t border-border bg-background px-lg pt-xl pb-lg',
+        'lg:items-stretch lg:gap-2xl lg:px-3xl lg:pt-2xl lg:pb-xl',
         className
       )}
     >
-      <div className="flex w-full flex-col items-center gap-3 lg:flex-row lg:items-start lg:justify-between lg:gap-0">
-        <div className="flex flex-col items-center gap-4 lg:w-[500px] lg:items-start">
+      <div className="flex w-full flex-col items-center gap-sm lg:flex-row lg:items-start lg:justify-between lg:gap-0">
+        <div className="flex flex-col items-center gap-md lg:w-[500px] lg:items-start">
           {brand}
           {tagline != null && <small data-emphasis="subtlest">{tagline}</small>}
           {cta}
@@ -73,14 +73,14 @@ export function Footer({
         <small>{legal}</small>
 
         {legalLinks && legalLinks.length > 0 && (
-          <div className="hidden items-center gap-4 lg:flex">
+          <div className="hidden items-center gap-md lg:flex">
             {legalLinks.map((link, index) => (
               <React.Fragment key={index}>{link}</React.Fragment>
             ))}
           </div>
         )}
 
-        {social && <div className="flex items-center gap-3 lg:hidden">{social}</div>}
+        {social && <div className="flex items-center gap-sm lg:hidden">{social}</div>}
       </div>
 
       {notice != null && (

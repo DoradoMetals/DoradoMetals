@@ -23,23 +23,32 @@ const buttonVariants = cva(
         info: '',
       },
       size: {
-        xs: 'h-7 px-2.5 text-micro gap-xs [&_svg]:size-3.5',
+        xs: 'h-7 text-micro gap-xs [&_svg]:size-3.5',
 
-        sm: 'min-h-(--control-sm) px-sm text-micro tracking-normal gap-2xs [&_svg]:size-3.5',
-        default: 'min-h-(--control-md) px-md text-small gap-2xs-plus [&_svg]:size-4',
+        sm: 'min-h-(--control-sm) text-micro tracking-normal gap-2xs [&_svg]:size-3.5',
+        default: 'min-h-(--control-md) text-small gap-2xs-plus [&_svg]:size-4',
 
-        lg: 'min-h-(--control-lg) px-lg text-small sm:text-body gap-xs [&_svg]:size-5',
-        xl: 'h-12 px-10 text-body sm:text-h6 gap-xs [&_svg]:size-5',
-        icon: 'h-10 w-10 p-0 [&_svg]:size-5',
-        iconSm: 'h-8 w-8 p-0 [&_svg]:size-4',
-        iconXs: 'h-7 w-7 p-0 [&_svg]:size-4',
-        iconInline: 'h-4 w-4 p-0 [&_svg]:size-3.5',
+        lg: 'min-h-(--control-lg) text-body gap-xs [&_svg]:size-5',
+        xl: 'h-12 text-body sm:text-h6 gap-xs [&_svg]:size-5',
+        icon: 'size-(--control-md) p-0 [&_svg]:size-5',
+        iconSm: 'size-(--control-sm) p-0 [&_svg]:size-4',
+        iconXs: 'size-7 p-0 [&_svg]:size-4',
+        iconInline: 'size-4 p-0 [&_svg]:size-3.5',
       },
     },
     compoundVariants: [
-      { variant: 'tertiary', size: 'sm', className: 'min-h-0' },
-      { variant: 'tertiary', size: 'default', className: 'min-h-0' },
-      { variant: 'tertiary', size: 'lg', className: 'min-h-0' },
+      { variant: ['primary', 'secondary'], size: 'xs', className: 'px-2.5' },
+      { variant: ['primary', 'secondary'], size: 'sm', className: 'px-sm' },
+      { variant: ['primary', 'secondary'], size: 'default', className: 'px-md' },
+      { variant: ['primary', 'secondary'], size: 'lg', className: 'px-lg' },
+      { variant: ['primary', 'secondary'], size: 'xl', className: 'px-10' },
+      { variant: 'tertiary', size: ['sm', 'default', 'lg'], className: 'min-h-0' },
+      { variant: 'tertiary', size: ['xs', 'xl'], className: 'h-auto' },
+      {
+        variant: 'tertiary',
+        size: ['icon', 'iconSm', 'iconXs'],
+        className: 'size-auto',
+      },
 
       { variant: 'primary', intent: 'neutral', className: 'bg-primary text-primary-foreground' },
       { variant: 'primary', intent: 'success', className: 'bg-success text-success-foreground' },
@@ -57,7 +66,7 @@ const buttonVariants = cva(
       { variant: 'secondary', intent: 'warning', className: 'border-warning text-warning' },
       { variant: 'secondary', intent: 'info', className: 'border-info text-info' },
 
-      { variant: 'tertiary', className: 'px-2 -mx-2' },
+      { variant: 'tertiary', className: 'border-0' },
 
       { variant: 'tertiary', intent: 'neutral', className: 'text-subtle' },
       { variant: 'tertiary', intent: 'success', className: 'text-success' },

@@ -17,11 +17,12 @@ describe('the Button is the drawing at 25:510', () => {
     expect(c).not.toContain('rounded-full')
   })
 
-  it('tertiary keeps bare-text alignment: px-2/-mx-2 cancel; the size px loses', () => {
+  it('tertiary carries no box: no padding, no border, no margin trick', () => {
     const c = rendered({ variant: 'tertiary' })
-    expect(c).toContain('px-2')
-    expect(c).toContain('-mx-2')
-    expect(c).not.toContain('px-4')
+    expect(c).not.toContain('px-sm')
+    expect(c).toContain('border-0')
+    expect(c).not.toContain('-mx-2')
+    expect(c).not.toContain('px-md')
     expect(c).toContain('text-subtle')
   })
 
@@ -75,7 +76,7 @@ describe('rendered Button', () => {
     const tier = {
       sm: { text: 'text-micro', icon: '[&_svg]:size-3.5', gap: 'gap-2xs' },
       default: { text: 'text-small', icon: '[&_svg]:size-4', gap: 'gap-2xs-plus' },
-      lg: { text: 'sm:text-body', icon: '[&_svg]:size-5', gap: 'gap-xs' },
+      lg: { text: 'text-body', icon: '[&_svg]:size-5', gap: 'gap-xs' },
     } as const
     for (const [size, want] of Object.entries(tier)) {
       const c = rendered({ size: size as keyof typeof tier })
@@ -115,11 +116,11 @@ describe('rendered Button', () => {
   })
 
   it('icon-only sizes match Icon Button 457:75: box 28/32/40, glyph 16/16/20 (iconXs/iconSm/icon)', () => {
-    expect(rendered({ size: 'iconXs' })).toContain('h-7')
+    expect(rendered({ size: 'iconXs' })).toContain('size-7')
     expect(rendered({ size: 'iconXs' })).toContain('[&_svg]:size-4')
-    expect(rendered({ size: 'iconSm' })).toContain('h-8')
+    expect(rendered({ size: 'iconSm' })).toContain('size-(--control-sm)')
     expect(rendered({ size: 'iconSm' })).toContain('[&_svg]:size-4')
-    expect(rendered({ size: 'icon' })).toContain('h-10')
+    expect(rendered({ size: 'icon' })).toContain('size-(--control-md)')
     expect(rendered({ size: 'icon' })).toContain('[&_svg]:size-5')
   })
 

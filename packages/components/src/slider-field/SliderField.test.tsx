@@ -44,7 +44,7 @@ describe('SliderField', () => {
     )
     const input = container.querySelector('input') as HTMLInputElement
     const box = input.parentElement as HTMLElement
-    expect(box.className).toContain('focus-within:border-[1.5px]')
+    expect(box.className).toContain('focus-within:border-(length:--stroke-emphasis)')
     expect(box.className).toContain('focus-within:border-border-strong')
   })
 })

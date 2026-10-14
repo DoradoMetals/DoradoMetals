@@ -86,7 +86,7 @@ export function Carousel({
                 e.stopPropagation()
                 goTo(page - 1)
               }}
-              className={cn('absolute left-2 top-1/2 -translate-y-1/2', arrowsClassName)}
+              className={cn('absolute left-xs top-1/2 -translate-y-1/2', arrowsClassName)}
             >
               <ChevronLeft aria-hidden />
             </Button>
@@ -100,7 +100,7 @@ export function Carousel({
                 e.stopPropagation()
                 goTo(page + 1)
               }}
-              className={cn('absolute right-2 top-1/2 -translate-y-1/2', arrowsClassName)}
+              className={cn('absolute right-xs top-1/2 -translate-y-1/2', arrowsClassName)}
             >
               <ChevronRight aria-hidden />
             </Button>
@@ -122,7 +122,7 @@ export function Carousel({
               }}
               className={cn(
                 'shrink-0 rounded-full transition-all',
-                i === page ? 'size-2 bg-primary' : 'size-1.5 bg-muted-foreground/40'
+                i === page ? 'size-2 bg-primary' : 'size-1.5 bg-border-strong'
               )}
             />
           ))}

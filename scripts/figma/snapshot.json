@@ -1,7 +1,7 @@
 {
   "fileKey": "8A73quhBLBqotJlX95jN9j",
   "fileName": "Themes and Components",
-  "capturedAt": "2026-10-10",
+  "capturedAt": "2026-10-14",
   "collections": {
     "Color": {
       "modes": ["Dark"],
@@ -370,6 +370,12 @@
           "value": 304
         },
         {
+          "name": "chart/axis-y",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 48
+        },
+        {
           "name": "control/lg",
           "type": "FLOAT",
           "alias": null,
@@ -605,6 +611,16 @@
           }
         },
         {
+          "name": "letter-spacing/field",
+          "type": "FLOAT",
+          "alias": null,
+          "value": -0.045,
+          "modeValues": {
+            "Default": -0.045,
+            "Mobile": -0.045
+          }
+        },
+        {
           "name": "letter-spacing/h1",
           "type": "FLOAT",
           "alias": null,
@@ -755,6 +771,16 @@
           }
         },
         {
+          "name": "line-height/field",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 23.2,
+          "modeValues": {
+            "Default": 23.2,
+            "Mobile": 23.2
+          }
+        },
+        {
           "name": "line-height/h1",
           "type": "FLOAT",
           "alias": null,
@@ -902,6 +928,16 @@
           "modeValues": {
             "Default": 64,
             "Mobile": 32
+          }
+        },
+        {
+          "name": "size/field",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 16,
+          "modeValues": {
+            "Default": 16,
+            "Mobile": 16
           }
         },
         {
@@ -1099,6 +1135,14 @@
       "fontSize": 12,
       "lineHeight": 17.4,
       "letterSpacing": 0.48
+    },
+    {
+      "name": "Field/Regular",
+      "family": "Geist",
+      "style": "Regular",
+      "fontSize": 16,
+      "lineHeight": 23.2,
+      "letterSpacing": -0.045
     },
     {
       "name": "Heading/H1",
@@ -1488,64 +1532,24 @@
     }
   ],
   "hygiene": {
-    "scanned": 4287,
+    "scanned": 4322,
     "setChromeExcluded": 35,
     "totals": {
       "color": 0,
       "spacing": 0,
       "radius": 0,
-      "textStyle": 94,
+      "textStyle": 0,
       "iconFill": 0,
       "iconWeight": 0
     },
-    "perPage": {
-      "Headers": {
-        "color": 0,
-        "spacing": 0,
-        "radius": 0,
-        "textStyle": 1,
-        "iconFill": 0,
-        "iconWeight": 0
-      },
-      "Input": {
-        "color": 0,
-        "spacing": 0,
-        "radius": 0,
-        "textStyle": 72,
-        "iconFill": 0,
-        "iconWeight": 0
-      },
-      "Select": {
-        "color": 0,
-        "spacing": 0,
-        "radius": 0,
-        "textStyle": 11,
-        "iconFill": 0,
-        "iconWeight": 0
-      },
-      "Textarea": {
-        "color": 0,
-        "spacing": 0,
-        "radius": 0,
-        "textStyle": 10,
-        "iconFill": 0,
-        "iconWeight": 0
-      }
-    },
+    "perPage": {},
     "samples": {
       "color": [],
       "spacing": [],
       "radius": [],
+      "textStyle": [],
       "iconFill": [],
-      "iconWeight": [],
-      "textStyle": [
-        "Headers :: Admin Header/Admin Header / Mobile/Head/Title/H2",
-        "Input :: Input/Content=Filled, State=ReadOnly, Trailing=None/Box/Value",
-        "Input :: Input/Content=Filled, State=ReadOnly, Trailing=None/Box/Leading label",
-        "Input :: Input/Content=Placeholder, State=Success, Trailing=Label/Box/Value",
-        "Select :: Select (wears Popover Field)/Content=Filled, State=Default/Box/Value",
-        "Textarea :: Textarea/Content=Filled, State=Default/Box/Value"
-      ]
+      "iconWeight": []
     }
   }
 }

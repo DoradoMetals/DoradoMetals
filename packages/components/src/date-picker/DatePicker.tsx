@@ -53,10 +53,10 @@ export function DatePicker({
     >
       <Calendar
         {...calendar}
-        className="p-2"
+        className="rounded-none border-0"
         classNames={{
           caption_label: cn(
-            'text-h5 font-semibold text-foreground',
+            'text-h5 text-foreground',
             withTimes &&
               !slim &&
               !stacked &&

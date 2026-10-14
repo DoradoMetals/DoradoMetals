@@ -78,21 +78,21 @@ export function Upload({
         hasError
           ? 'border-destructive'
           : dragOver
-            ? 'border-[1.5px] border-primary'
+            ? 'border-(length:--stroke-emphasis) border-primary'
             : 'border-border hover:border-border-strong',
         disabled && 'pointer-events-none opacity-50',
         className
       )}
     >
-      <div className="w-full p-3">
+      <div className="w-full p-sm">
         <label
           data-drag-over={dragOver || undefined}
           className={cn(
-            'flex min-h-[168px] w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed p-6 text-center transition-colors',
+            'flex min-h-42 w-full cursor-pointer flex-col items-center justify-center gap-xs rounded-lg border border-dashed text-center transition-colors',
             hasError
               ? 'border-destructive'
               : dragOver
-                ? 'border-[1.5px] border-primary bg-accent'
+                ? 'border-(length:--stroke-emphasis) border-primary bg-accent'
                 : isFull
                   ? 'border-border'
                   : 'border-border-strong hover:border-subtle',
@@ -124,7 +124,7 @@ export function Upload({
           />
           <span
             className={cn(
-              '[&_svg]:size-[26px]',
+              '[&_svg]:size-6.5',
               hasError ? 'text-destructive' : isFull ? 'text-placeholder' : 'text-foreground'
             )}
           >
@@ -162,18 +162,20 @@ export function Upload({
       <div className="h-px w-full bg-border" />
       <div className="h-28 w-full shrink-0">
         {count === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center gap-1.5 text-placeholder">
+          <div className="flex h-full flex-col items-center justify-center gap-2xs text-placeholder">
             <FileIcon aria-hidden className="size-5" />
             <span className="text-small">No files added yet</span>
           </div>
         ) : (
           <ScrollArea className="h-full" chrome={false}>
-            <div className="flex flex-col divide-y divide-border px-3 py-2.5">{attachments}</div>
+            <div className="flex flex-col divide-y divide-border px-sm py-xs-plus">
+              {attachments}
+            </div>
           </ScrollArea>
         )}
       </div>
       <div className="h-px w-full bg-border" />
-      <div className="flex h-[37px] w-full shrink-0 items-center justify-between px-3">
+      <div className="flex h-9.25 w-full shrink-0 items-center justify-between px-sm">
         <span className={cn('text-micro', isFull ? 'text-foreground' : 'text-placeholder')}>
           {maxFiles != null ? `${count} of ${maxFiles}` : `${count} file${count === 1 ? '' : 's'}`}
         </span>

@@ -97,6 +97,7 @@ const CATS = ['color', 'spacing', 'radius', 'textStyle', 'iconFill', 'iconWeight
 const perPage = {};
 const samples = { color: [], spacing: [], radius: [], textStyle: [], iconFill: [], iconWeight: [] };
 let scanned = 0;
+let setChromeExcluded = 0;
 function subtree(n, out) { out.push(n); if ('children' in n) for (const c of n.children) subtree(c, out); return out; }
 const pathOf = (n) => { const p = []; let c = n; while (c && c.type !== 'PAGE') { p.unshift(c.name); c = c.parent; } return p.join('/'); };
 
@@ -165,6 +166,10 @@ for (const page of figma.root.children) {
       // an auto-layout set container is how the variant grid is arranged, not
       // a drawing. Counting it charged Chat 15, Headers 5 and Selection Bar 5
       // for nothing. setChromeExcluded reports how many were skipped.
+      if ('layoutMode' in n && n.layoutMode !== 'NONE' && n.type === 'COMPONENT_SET') {
+        if (n.itemSpacing > 0 && !bv.itemSpacing) setChromeExcluded++;
+        for (const f of ['paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft']) if (n[f] > 0 && !bv[f]) setChromeExcluded++;
+      }
       if ('layoutMode' in n && n.layoutMode !== 'NONE' && n.type !== 'COMPONENT_SET') {
         if (may('itemSpacing') && n.itemSpacing > 0 && !bv.itemSpacing) { counts.spacing++; if (samples.spacing.length < 30) samples.spacing.push(page.name + ' :: ' + pathOf(n) + ' gap=' + n.itemSpacing); }
         for (const f of ['paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft'])
@@ -201,5 +206,5 @@ for (const page of figma.root.children) {
 }
 const totals = {};
 for (const c of CATS) totals[c] = Object.values(perPage).reduce((s, p) => s + p[c], 0);
-return { scanned, totals, perPage, samples };
+return { scanned, setChromeExcluded, totals, perPage, samples };
 `

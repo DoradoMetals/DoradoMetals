@@ -22,7 +22,7 @@ export function Tooltip({ content, side = 'top', children, delayDuration = 300 }
           side={side}
           sideOffset={6}
           className={cn(
-            'z-50 rounded-sm border border-border bg-highest px-3 py-2 text-small text-foreground',
+            'z-50 rounded-sm border border-border bg-highest px-sm py-xs text-small text-foreground',
             'data-[state=delayed-open]:animate-in motion-reduce:animate-none'
           )}
         >

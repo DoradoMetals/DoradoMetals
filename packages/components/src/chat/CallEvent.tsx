@@ -8,45 +8,37 @@ export type CallEventProps = {
   kind: CallKind
   detail?: React.ReactNode
   time: React.ReactNode
+  agent?: React.ReactNode
   className?: string
 }
 
-const KIND_ICON: Record<CallKind, React.ElementType> = {
-  outgoing: PhoneOutgoing,
-  'no-answer': PhoneOutgoing,
-  incoming: PhoneIncoming,
-  missed: PhoneMissed,
-}
-
-const KIND_LABEL: Record<CallKind, string> = {
-  outgoing: 'Outgoing call',
-  'no-answer': 'Outgoing call',
-  incoming: 'Incoming call',
-  missed: 'Missed call',
-}
-
-const STATIC_DETAIL: Partial<Record<CallKind, React.ReactNode>> = { 'no-answer': 'No answer' }
-
-export function CallEvent({ kind, detail, time, className }: CallEventProps) {
-  const Icon = KIND_ICON[kind]
-  const danger = kind === 'missed'
-  const shown = kind === 'missed' ? undefined : (STATIC_DETAIL[kind] ?? detail)
+export function CallEvent({ kind, detail, time, agent, className }: CallEventProps) {
+  const missed = kind === 'missed'
+  const Icon = missed ? PhoneMissed : kind === 'incoming' ? PhoneIncoming : PhoneOutgoing
+  const label = missed ? 'Missed call' : kind === 'incoming' ? 'Incoming call' : 'Outgoing call'
+  const shown = missed ? undefined : kind === 'no-answer' ? 'No answer' : detail
   return (
-    <div className={cn('flex w-full items-center gap-sm py-xs', className)}>
+    <div className={cn('flex w-full items-center gap-sm border-b border-border py-xs', className)}>
       <Icon
         aria-hidden
-        className={cn('size-4 shrink-0', danger ? 'text-destructive' : 'text-muted-foreground')}
+        className={cn('size-4 shrink-0', missed ? 'text-destructive' : 'text-muted-foreground')}
       />
       <span className="flex min-w-0 flex-1 flex-col">
         <span
           className={cn(
             'truncate text-small font-medium',
-            danger ? 'text-destructive' : 'text-foreground'
+            missed ? 'text-destructive' : 'text-foreground'
           )}
         >
-          {KIND_LABEL[kind]}
+          {label}
         </span>
         <span className="flex items-center gap-3xs text-micro text-muted-foreground">
+          {agent != null && (
+            <>
+              <span>{agent}</span>
+              <span aria-hidden>·</span>
+            </>
+          )}
           {shown != null && (
             <>
               <span>{shown}</span>

@@ -235,4 +235,42 @@ describe('Table', () => {
     )
     expect(container.querySelector('tbody tr')?.hasAttribute('aria-selected')).toBe(false)
   })
+
+  it('Table Row 56:33: the name column fills, other columns hug, the header matches the rows', () => {
+    const { container } = render(
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead fill>Item</TableHead>
+            <TableHead numeric>Value</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <TableRow>
+            <TableCell fill primary>
+              gold-chain-photo.jpg
+            </TableCell>
+            <TableCell numeric primary>
+              $742.18
+            </TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
+    )
+    const [thName, thValue] = container.querySelectorAll('th')
+    const [tdName, tdValue] = container.querySelectorAll('td')
+    expect(thName.className).toContain('w-full')
+    expect(tdName.className).toContain('w-full')
+    expect(tdName.className).toContain('truncate')
+    expect(thValue.className).toContain('whitespace-nowrap')
+    expect(tdValue.className).toContain('whitespace-nowrap')
+    expect(tdValue.className).toContain('text-right')
+    for (const cell of [thName, thValue, tdName, tdValue]) {
+      expect(cell.className).toContain('px-2xs-plus')
+      expect(cell.className).toContain('first:pl-sm')
+      expect(cell.className).toContain('last:pr-sm')
+    }
+    expect(container.querySelector('thead')!.className).toContain('[&>tr]:h-(--control-md)')
+    expect(container.querySelector('tbody')!.className).toContain('[&>tr]:h-(--control-xl)')
+  })
 })

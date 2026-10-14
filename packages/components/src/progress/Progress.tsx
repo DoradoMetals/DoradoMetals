@@ -16,7 +16,10 @@ const Progress = React.forwardRef<React.ComponentRef<typeof ProgressPrimitive.Ro
       <ProgressPrimitive.Root
         ref={ref}
         value={clamped}
-        className={cn('relative h-1.5 w-full overflow-hidden rounded-full bg-muted', className)}
+        className={cn(
+          'relative h-2xs-plus w-full overflow-hidden rounded-full bg-muted',
+          className
+        )}
         {...props}
       >
         <ProgressPrimitive.Indicator
@@ -27,7 +30,7 @@ const Progress = React.forwardRef<React.ComponentRef<typeof ProgressPrimitive.Ro
     )
     if (!showValue) return bar
     return (
-      <span className="flex w-full items-center gap-2">
+      <span className="flex w-full items-center gap-xs">
         {bar}
         <span aria-hidden className="shrink-0 text-micro tabular-nums text-placeholder">
           {Math.round(clamped)}%

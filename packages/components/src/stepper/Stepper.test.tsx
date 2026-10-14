@@ -32,7 +32,7 @@ describe('Stepper', () => {
   it("the complete check is 14px at a scale-true stroke, matching Tracker Node (54:56: 'brought over')", () => {
     const { container } = render(<Stepper steps={3} current={2} />)
     const check = container.querySelector('li svg') as SVGElement
-    expect(check.getAttribute('class')).toMatch(/size-3\.5/)
+    expect(check.getAttribute('class')).toMatch(/size-sm-plus/)
     expect(check.getAttribute('stroke-width')).toBe(String((2 * 14) / 24))
   })
 })

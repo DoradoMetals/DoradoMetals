@@ -31,7 +31,7 @@ export function Chip({
       aria-pressed={selected}
       disabled={disabled}
       className={cn(
-        'inline-flex min-h-(--control-sm) cursor-pointer items-center gap-1 rounded-full px-3 text-small transition-colors',
+        'inline-flex min-h-(--control-sm) cursor-pointer items-center gap-2xs rounded-full px-sm text-small font-medium transition-colors',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background',
         'disabled:pointer-events-none disabled:opacity-50',
         selected
@@ -42,7 +42,7 @@ export function Chip({
       {...props}
     >
       {avatar != null ? (
-        <span className="-ml-1.5 flex size-4 shrink-0 items-center justify-center overflow-hidden rounded-full [&_img]:size-full [&_img]:object-cover">
+        <span className="-ml-2xs-plus flex size-4 shrink-0 items-center justify-center overflow-hidden rounded-full [&_img]:size-full [&_img]:object-cover">
           {avatar}
         </span>
       ) : icon != null ? (
@@ -55,7 +55,7 @@ export function Chip({
           asChild
           variant="tertiary"
           size="iconXs"
-          className="-mr-1 size-4"
+          className="-mr-2xs size-4"
           aria-label={`Remove ${typeof label === 'string' ? label : 'chip'}`}
         >
           <span

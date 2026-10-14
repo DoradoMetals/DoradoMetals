@@ -177,9 +177,10 @@ export function Documents({
       open={open}
       onToggle={onToggle}
       defaultOpen={defaultOpen}
+      flush
       className={className}
     >
-      <Divider className="-ml-4 -mr-3 w-auto" />
+      <Divider />
       {isEmpty ? (
         <div className="flex w-full flex-col items-center gap-xs px-lg py-xl text-center">
           <FileText aria-hidden className="size-8 text-muted-foreground" />

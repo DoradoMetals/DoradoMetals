@@ -20,6 +20,8 @@ export type AccordionProps = {
   defaultOpen?: boolean
   disabled?: boolean
   surface?: keyof typeof SURFACES
+  actions?: React.ReactNode
+  flush?: boolean
   className?: string
   children: React.ReactNode
 }
@@ -33,6 +35,8 @@ export function Accordion({
   defaultOpen = false,
   disabled = false,
   surface = 'card',
+  actions,
+  flush = false,
   className,
   children,
 }: AccordionProps) {
@@ -65,21 +69,24 @@ export function Accordion({
       )}
     >
       <AccordionPrimitive.Item value="it">
-        <AccordionPrimitive.Header asChild>
-          <AccordionPrimitive.Trigger asChild>
-            <Button
-              variant="tertiary"
-              className="group mx-0 h-auto w-full justify-start gap-2 rounded-none border-transparent p-3 text-left text-body hover:bg-accent hover:opacity-100 disabled:opacity-100"
-            >
-              {chevronTrailing ? null : marker}
-              <span className="min-w-0 flex-1 font-medium text-foreground">{label}</span>
-              {trailing != null && (
-                <span className="shrink-0 font-medium text-foreground">{trailing}</span>
-              )}
-              {chevronTrailing ? marker : null}
-            </Button>
-          </AccordionPrimitive.Trigger>
-        </AccordionPrimitive.Header>
+        <div className="flex items-center gap-xs">
+          <AccordionPrimitive.Header asChild>
+            <AccordionPrimitive.Trigger asChild>
+              <Button
+                variant="tertiary"
+                className="group mx-0 h-auto min-w-0 flex-1 justify-start gap-xs rounded-none border-transparent p-sm text-left text-body hover:bg-accent hover:opacity-100 disabled:opacity-100"
+              >
+                {chevronTrailing ? null : marker}
+                <span className="min-w-0 flex-1 font-medium text-foreground">{label}</span>
+                {trailing != null && (
+                  <span className="shrink-0 font-medium text-foreground">{trailing}</span>
+                )}
+                {chevronTrailing ? marker : null}
+              </Button>
+            </AccordionPrimitive.Trigger>
+          </AccordionPrimitive.Header>
+          {actions != null && <span className="shrink-0 pr-sm">{actions}</span>}
+        </div>
         <AccordionPrimitive.Content
           className={cn(
             'overflow-hidden',
@@ -87,7 +94,7 @@ export function Accordion({
             'motion-reduce:animate-none'
           )}
         >
-          <div className="pb-3 pl-4 pr-3">{children}</div>
+          <div className={cn(!flush && 'pb-sm pl-md pr-sm')}>{children}</div>
         </AccordionPrimitive.Content>
       </AccordionPrimitive.Item>
     </AccordionPrimitive.Root>

@@ -28,7 +28,7 @@ export function Header({
   return (
     <header
       className={cn(
-        'flex h-18 w-full items-center justify-between border-b border-border bg-background px-4 lg:h-16 lg:px-8',
+        'flex h-18 w-full items-center justify-between border-b border-border bg-background px-md lg:h-3xl lg:px-xl',
         className
       )}
     >
@@ -46,19 +46,19 @@ export function Header({
             <X aria-hidden />
           </Button>
         ) : (
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-lg">
             {nav && (
-              <nav aria-label="Primary" className="flex items-center gap-6">
+              <nav aria-label="Primary" className="flex items-center gap-lg">
                 {nav}
               </nav>
             )}
-            {nav && trailing && <span aria-hidden className="h-5 w-px shrink-0 bg-border" />}
+            {nav && trailing && <span aria-hidden className="h-md-plus w-px shrink-0 bg-border" />}
             {trailing}
           </div>
         )}
       </div>
 
-      <div className="flex items-center gap-4 lg:hidden">
+      <div className="flex items-center gap-md lg:hidden">
         {mobileTrailing}
         {onDrawerToggle && (
           <Button

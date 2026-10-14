@@ -48,6 +48,7 @@ export function Pagination({ page, pageCount, onPageChange, className }: Paginat
         type="button"
         variant="tertiary"
         size="iconSm"
+        className="size-(--control-sm) text-muted-foreground"
         aria-label="Previous page"
         disabled={atStart}
         onClick={() => onPageChange(current - 1)}
@@ -59,7 +60,7 @@ export function Pagination({ page, pageCount, onPageChange, className }: Paginat
           <span
             key={`ellipsis-${index}`}
             aria-hidden
-            className="flex size-8 items-center justify-center text-small text-placeholder"
+            className="flex size-(--control-sm) items-center justify-center text-small text-placeholder"
           >
             …
           </span>
@@ -75,7 +76,7 @@ export function Pagination({ page, pageCount, onPageChange, className }: Paginat
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background',
               item === current
                 ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
             )}
           >
             {item}
@@ -86,6 +87,7 @@ export function Pagination({ page, pageCount, onPageChange, className }: Paginat
         type="button"
         variant="tertiary"
         size="iconSm"
+        className="size-(--control-sm) text-muted-foreground"
         aria-label="Next page"
         disabled={atEnd}
         onClick={() => onPageChange(current + 1)}

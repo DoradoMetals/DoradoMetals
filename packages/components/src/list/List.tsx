@@ -18,7 +18,7 @@ export function List({ marker = 'bullet', children, className }: ListProps) {
     <ListContext.Provider value={marker}>
       <Tag
         className={cn(
-          'flex list-none flex-col gap-1.5',
+          'flex list-none flex-col gap-2xs',
           marker === 'number' && '[counter-reset:item]',
           className
         )}
@@ -40,13 +40,13 @@ export function ListItem({
   return (
     <li
       className={cn(
-        'flex items-start gap-2 text-body text-foreground',
+        'flex items-start gap-xs text-body text-foreground',
         marker === 'number' && '[counter-increment:item]',
         className
       )}
     >
-      <span aria-hidden className="flex h-6 w-4 shrink-0 items-center justify-center">
-        {marker === 'bullet' && <span className="size-[5px] rounded-full bg-muted-foreground" />}
+      <span aria-hidden className="flex h-6 w-md shrink-0 items-center justify-center">
+        {marker === 'bullet' && <span className="size-[5px] rounded-full bg-foreground" />}
         {marker === 'check' && <Check className="size-4" strokeWidth={(2 * 16) / 24} />}
         {marker === 'number' && (
           <span className="text-muted-foreground before:content-[counter(item)'.']" />

@@ -14,6 +14,7 @@ import {
 } from 'chart.js'
 import { Bar, Doughnut, Line } from 'react-chartjs-2'
 
+import { Chip } from '../chip/Chip'
 import { cn } from '../cn'
 
 ChartJS.register(
@@ -39,8 +40,8 @@ const C = {
   get mutedForeground() {
     return tokenColor('--color-muted-foreground', '#9499a4')
   },
-  get faint() {
-    return tokenColor('--color-placeholder', '#787c87')
+  get subtle() {
+    return tokenColor('--color-subtle', '#b8bcc4')
   },
   get border() {
     return tokenColor('--color-border', '#2c2f35')
@@ -62,18 +63,33 @@ const C = {
   },
 }
 
-const baseScales = {
-  x: {
-    grid: { color: C.border },
-    ticks: { color: C.mutedForeground, font: { size: 12 } },
-    border: { color: C.border },
-  },
-  y: {
-    grid: { color: C.border },
-    ticks: { color: C.mutedForeground, font: { size: 12 } },
-    border: { display: false },
-  },
+function tokenLength(name: string, fallback: number): number {
+  if (typeof window === 'undefined') return fallback
+  const root = getComputedStyle(document.documentElement)
+  const v = root.getPropertyValue(name).trim()
+  const n = parseFloat(v)
+  if (Number.isNaN(n)) return fallback
+  return v.endsWith('rem') ? n * (parseFloat(root.fontSize) || 16) : n
 }
+
+function axisScales(yAxis: boolean) {
+  return {
+    x: {
+      grid: { display: false },
+      ticks: { color: C.mutedForeground, font: { size: 12 } },
+      border: { display: false },
+    },
+    y: {
+      grid: { color: C.border },
+      ticks: { display: yAxis, color: C.subtle, font: { size: 12 } },
+      border: { display: false },
+      afterFit: (scale: { width: number }) => {
+        scale.width = yAxis ? tokenLength('--chart-axis-y', 48) : 0
+      },
+    },
+  }
+}
+
 const baseOptions = {
   responsive: true,
   maintainAspectRatio: false,
@@ -90,17 +106,56 @@ type ChartBaseProps = {
   className?: string
 }
 
+export const CHART_RANGES = ['1D', '1W', '1M', '1Y'] as const
+
+type AxisChartProps = ChartBaseProps & {
+  yAxis?: boolean
+  range?: string
+  onRangeChange?: (range: string) => void
+  rangeOptions?: readonly string[]
+}
+
+function ChartRange({
+  value,
+  onChange,
+  options,
+}: {
+  value?: string
+  onChange: (range: string) => void
+  options: readonly string[]
+}) {
+  return (
+    <div role="group" aria-label="Range" className="flex w-full flex-wrap items-center gap-xs">
+      {options.map((option) => (
+        <Chip
+          key={option}
+          label={option}
+          selected={option === value}
+          onClick={() => onChange(option)}
+        />
+      ))}
+    </div>
+  )
+}
+
 function ChartCard({
   title,
   className,
+  range,
   children,
 }: {
   title?: string
   className?: string
+  range?: React.ReactNode
   children: React.ReactNode
 }) {
   if (!title) {
-    return <div className={cn('relative w-full', className)}>{children}</div>
+    return (
+      <div className={cn('relative flex w-full flex-col gap-md', className)}>
+        {range}
+        {children}
+      </div>
+    )
   }
   return (
     <div
@@ -110,27 +165,45 @@ function ChartCard({
       )}
     >
       <h3 className="text-h5 text-foreground">{title}</h3>
+      {range}
       {children}
     </div>
   )
 }
 
-export function LineChart({
+function rangeSlot({
+  range,
+  onRangeChange,
+  rangeOptions = CHART_RANGES,
+}: Pick<AxisChartProps, 'range' | 'onRangeChange' | 'rangeOptions'>) {
+  if (!onRangeChange) return undefined
+  return <ChartRange value={range} onChange={onRangeChange} options={rangeOptions} />
+}
+
+function LineSeriesChart({
   labels,
   series,
   label,
   title,
   className,
-  area = false,
-}: ChartBaseProps & { area?: boolean }) {
+  area,
+  yAxis = false,
+  range,
+  onRangeChange,
+  rangeOptions,
+}: AxisChartProps & { area: boolean }) {
   const last = (series[0]?.data.length ?? 1) - 1
   return (
-    <ChartCard title={title} className={className}>
-      <div className="relative h-[200px] w-full">
+    <ChartCard
+      title={title}
+      className={className}
+      range={rangeSlot({ range, onRangeChange, rangeOptions })}
+    >
+      <div className="relative h-50 w-full">
         <Line
           aria-label={label}
           role="img"
-          options={{ ...baseOptions, scales: baseScales }}
+          options={{ ...baseOptions, scales: axisScales(yAxis) }}
           data={{
             labels,
             datasets: series.map((s, i) => ({
@@ -153,18 +226,36 @@ export function LineChart({
   )
 }
 
-export function AreaChart(props: ChartBaseProps) {
-  return <LineChart {...props} area />
+export function LineChart(props: AxisChartProps) {
+  return <LineSeriesChart {...props} area={false} />
 }
 
-export function BarChart({ labels, series, label, title, className }: ChartBaseProps) {
+export function AreaChart(props: ChartBaseProps) {
+  return <LineSeriesChart {...props} area />
+}
+
+export function BarChart({
+  labels,
+  series,
+  label,
+  title,
+  className,
+  yAxis = false,
+  range,
+  onRangeChange,
+  rangeOptions,
+}: AxisChartProps) {
   return (
-    <ChartCard title={title} className={className}>
-      <div className="relative h-[200px] w-full">
+    <ChartCard
+      title={title}
+      className={className}
+      range={rangeSlot({ range, onRangeChange, rangeOptions })}
+    >
+      <div className="relative h-50 w-full">
         <Bar
           aria-label={label}
           role="img"
-          options={{ ...baseOptions, scales: baseScales }}
+          options={{ ...baseOptions, scales: axisScales(yAxis) }}
           data={{
             labels,
             datasets: series.map((s, i) => ({
@@ -212,13 +303,15 @@ export function DonutChart({
 export function Sparkline({
   data,
   label,
+  direction,
   className,
 }: {
   data: number[]
   label: string
+  direction?: 'up' | 'down'
   className?: string
 }) {
-  const up = data.length > 1 && data[data.length - 1] >= data[0]
+  const up = direction ? direction === 'up' : data.length > 1 && data[data.length - 1] >= data[0]
   return (
     <div className={cn('relative h-10 w-30', className)}>
       <Line

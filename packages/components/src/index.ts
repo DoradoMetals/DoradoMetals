@@ -51,6 +51,7 @@ export {
   TableCell,
   type SortDirection,
   type TableRowProps,
+  type TableRowIntent,
 } from './table/Table'
 export {
   Dialog,
@@ -82,7 +83,15 @@ export { Progress } from './progress/Progress'
 export { QuantityStepper } from './quantity-stepper/QuantityStepper'
 export { cn, SEMANTIC_TEXT_SIZES } from './cn'
 export { AddressCard, type AddressCardProps } from './address-card/AddressCard'
-export { AreaChart, BarChart, DonutChart, LineChart, Sparkline, type Series } from './chart/Chart'
+export {
+  AreaChart,
+  BarChart,
+  DonutChart,
+  LineChart,
+  Sparkline,
+  CHART_RANGES,
+  type Series,
+} from './chart/Chart'
 export {
   DataTable,
   type DataTableProps,
@@ -142,7 +151,16 @@ export {
   radioOptionVariants,
   type RadioOptionProps,
 } from './radio/Radio'
-export { Drawer, type DrawerProps } from './drawer/Drawer'
+export {
+  Drawer,
+  DrawerHeader,
+  DrawerBody,
+  DrawerFooter,
+  type DrawerProps,
+  type DrawerHeaderProps,
+  type DrawerBodyProps,
+  type DrawerFooterProps,
+} from './drawer/Drawer'
 export { Rating, RatingButton, type RatingProps, type RatingButtonProps } from './rating/Rating'
 export { useFocusTrap } from './hooks/useFocusTrap'
 export { Amount, type AmountProps, type AmountTag } from './amount/Amount'
@@ -167,3 +185,25 @@ export {
   useFormField,
 } from './form/Form'
 export { ValidatedField, type ValidatedFieldProps } from './form/ValidatedField'
+export { Card, CardSlot, type CardProps, type CardSlotProps } from './card/Card'
+export { Popover, type PopoverProps, type PopoverState } from './popover/Popover'
+export { SelectionBar, type SelectionBarProps } from './selection-bar/SelectionBar'
+export {
+  ItemDetails,
+  type ItemDetailsProps,
+  type ItemDetailsPart,
+} from './item-details/ItemDetails'
+export {
+  Estimator,
+  type EstimatorProps,
+  type EstimatorOption,
+  type EstimatorChoice,
+} from './estimator/Estimator'
+export {
+  PhotoViewer,
+  type PhotoViewerProps,
+  type PhotoViewerPhoto,
+} from './photo-viewer/PhotoViewer'
+export { Breadcrumb, type BreadcrumbProps, type BreadcrumbCrumb } from './breadcrumb/Breadcrumb'
+export { AdminHeader, type AdminHeaderProps } from './admin-header/AdminHeader'
+export { EntityHeader, type EntityHeaderProps } from './entity-header/EntityHeader'

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render } from '@testing-library/react'
 import * as React from 'react'
 
-import { Drawer } from './Drawer'
+import { Drawer, DrawerBody, DrawerFooter, DrawerHeader } from './Drawer'
 import { axeViolations } from '../test/axe'
 
 function openDrawer(props: Partial<React.ComponentProps<typeof Drawer>> = {}) {
@@ -106,10 +106,64 @@ describe('Drawer', () => {
     openDrawer({ anchor: 'bottom' })
     const panel = document.body.querySelector('[role="dialog"]') as HTMLElement
     const row = panel.querySelector('[aria-hidden="true"]') as HTMLElement
-    expect(row.className).toContain('pt-2')
-    expect(row.className).toContain('pb-0.5')
+    expect(row.className).toContain('pt-xs')
+    expect(row.className).toContain('pb-3xs')
     const bar = row.firstElementChild as HTMLElement
-    expect(bar.className).toContain('h-1')
+    expect(bar.className).toContain('h-2xs')
     expect(bar.className).toContain('w-9')
+  })
+
+  it('Side=Right panel carries no padding of its own; the chrome parts pad themselves (127:32)', () => {
+    openDrawer({ anchor: 'right' })
+    const panel = document.body.querySelector('[role="dialog"]') as HTMLElement
+    expect(panel.className).not.toMatch(/(^|\s)p-md(\s|$)/)
+    expect(panel.className).not.toContain('space-y')
+    expect(panel.className).toContain('flex-col')
+  })
+
+  it('DrawerHeader titles the dialog, closes it, and draws the hairline under itself', async () => {
+    const setOpen = vi.fn()
+    const { getByRole } = render(
+      <Drawer open label="ignored" setOpen={setOpen}>
+        <DrawerHeader title="Order PO-2189" />
+        <DrawerBody>
+          <p>Body</p>
+        </DrawerBody>
+        <DrawerFooter>
+          <button type="button">Cancel</button>
+          <button type="button">Save</button>
+        </DrawerFooter>
+      </Drawer>
+    )
+    const dialog = getByRole('dialog', { name: 'Order PO-2189' })
+    expect(dialog.getAttribute('aria-label')).toBeNull()
+    const heading = getByRole('heading', { name: 'Order PO-2189' })
+    expect(heading.className).toContain('text-h5')
+    const header = heading.parentElement as HTMLElement
+    expect(header.className).toContain('border-b')
+    expect(header.className).toContain('p-md')
+    fireEvent.click(getByRole('button', { name: 'Close' }))
+    expect(setOpen).toHaveBeenCalledWith(false)
+    expect(await axeViolations(document.body)).toEqual([])
+  })
+
+  it('DrawerBody pads md with an xs gap; DrawerFooter right-aligns its actions over a top hairline', () => {
+    const { getByText } = render(
+      <Drawer open setOpen={vi.fn()}>
+        <DrawerBody>
+          <p>Body text</p>
+        </DrawerBody>
+        <DrawerFooter>
+          <button type="button">Save</button>
+        </DrawerFooter>
+      </Drawer>
+    )
+    const body = getByText('Body text').parentElement as HTMLElement
+    expect(body.className).toContain('p-md')
+    expect(body.className).toContain('gap-xs')
+    const footer = getByText('Save').parentElement as HTMLElement
+    expect(footer.className).toContain('justify-end')
+    expect(footer.className).toContain('border-t')
+    expect(footer.className).toContain('gap-xs')
   })
 })

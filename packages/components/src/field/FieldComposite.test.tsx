@@ -35,7 +35,7 @@ describe('Field wraps a control that is not a library component', () => {
     )
     const cls = (container.firstElementChild as HTMLElement).className
     expect(cls).toContain('flex-col')
-    expect(cls).toContain('gap-0.5')
+    expect(cls).toContain('gap-3xs')
   })
 
   it('invalid reddens the label and the message', () => {

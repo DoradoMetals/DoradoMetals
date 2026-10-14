@@ -50,7 +50,7 @@ describe('AddressCard', () => {
     const { container } = render(<AddressCard {...base} />)
     const card = container.firstElementChild as HTMLElement
     expect(card.className).toContain('rounded-lg')
-    expect(card.className).toContain('py-3')
+    expect(card.className).toContain('py-sm')
     expect(card.className).not.toContain('rounded-surface')
     expect(card.className).not.toContain('py-3.5')
   })

@@ -31,7 +31,7 @@ describe('Badge', () => {
   it('size=sm shrinks padding, gap and icon while staying on text-micro', () => {
     const { getByText } = render(<Badge size="sm">Paid</Badge>)
     const span = getByText('Paid')
-    expect(span.className).toContain('px-1.5')
+    expect(span.className).toContain('px-2xs-plus')
     expect(span.className).toContain('text-micro')
     expect(span.className).toContain('[&_svg]:size-2.5')
   })
@@ -39,7 +39,7 @@ describe('Badge', () => {
   it('size=lg grows padding, gap and icon and steps up to text-small', () => {
     const { getByText } = render(<Badge size="lg">Paid</Badge>)
     const span = getByText('Paid')
-    expect(span.className).toContain('px-2.5')
+    expect(span.className).toContain('px-xs-plus')
     expect(span.className).toContain('text-small')
     expect(span.className).toContain('[&_svg]:size-3.5')
   })

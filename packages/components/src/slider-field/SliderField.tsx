@@ -37,7 +37,7 @@ export function SliderField({
   }
 
   return (
-    <div className={cn('flex w-full items-center gap-3', className)}>
+    <div className={cn('flex w-full items-center gap-sm', disabled && 'opacity-50', className)}>
       <Slider
         value={[value]}
         onValueChange={([v]) => onValueChange(v!)}
@@ -51,8 +51,8 @@ export function SliderField({
       />
       <span
         className={cn(
-          'flex h-10 w-21 shrink-0 items-center gap-2 rounded-lg border border-border bg-card px-3',
-          'focus-within:border-[1.5px] focus-within:border-border-strong',
+          'flex min-h-(--control-md) w-21 shrink-0 items-center gap-xs rounded-lg border border-border bg-card px-sm',
+          'focus-within:border-(length:--stroke-emphasis) focus-within:border-border-strong',
           disabled && 'pointer-events-none bg-muted'
         )}
       >

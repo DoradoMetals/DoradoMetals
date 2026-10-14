@@ -44,7 +44,8 @@ describe('Dialog', () => {
     openDialog()
     const close = document.body.querySelector('[aria-label="Close"]') as HTMLElement
     expect(close).toBeTruthy()
-    expect(close.className).toMatch(/h-8 w-8/)
+    expect(close.className).toMatch(/size-auto/)
+    expect(close.className).not.toMatch(/size-\(--control-sm\)/)
     expect(close.className).toMatch(/\[&_svg\]:size-4/)
   })
 
@@ -57,17 +58,17 @@ describe('Dialog', () => {
       </Dialog>
     )
     const content = document.body.querySelector('[role="dialog"]') as HTMLElement
-    expect(content.className).toMatch(/max-w-\[960px\]/)
+    expect(content.className).toMatch(/max-w-\[60rem\]/)
   })
 
-  it('footer Row is justify-between at gap-md (16px); Stacked reverses to gap-xs (8px), Confirm on top (41:55)', () => {
+  it('footer Row is justify-end at gap-md (16px); Stacked reverses to gap-xs (8px), Confirm on top (41:55)', () => {
     const { container: row } = render(
       <DialogFooter>
         <button>Cancel</button>
         <button>Confirm</button>
       </DialogFooter>
     )
-    expect(row.firstElementChild?.className).toMatch(/justify-between/)
+    expect(row.firstElementChild?.className).toMatch(/justify-end/)
     expect(row.firstElementChild?.className).toMatch(/gap-md/)
 
     const { container: stacked } = render(

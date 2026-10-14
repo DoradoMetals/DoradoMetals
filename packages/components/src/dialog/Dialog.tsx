@@ -33,8 +33,8 @@ export function DialogContent({
       <DialogPrimitive.Content
         className={cn(
           'fixed left-1/2 top-1/2 z-90 -translate-x-1/2 -translate-y-1/2',
-          'flex w-[calc(100vw-2rem)] flex-col gap-4 rounded-lg border border-border bg-highest p-4',
-          size === 'sm' ? 'max-w-80' : size === 'lg' ? 'max-w-[960px]' : 'max-w-[420px]',
+          'flex w-[calc(100vw-var(--spacing-lg)*2)] flex-col gap-md rounded-lg border border-border bg-highest p-md',
+          size === 'sm' ? 'max-w-80' : size === 'lg' ? 'max-w-[60rem]' : 'max-w-[26.25rem]',
           'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
           'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',
           'motion-reduce:animate-none',
@@ -49,7 +49,7 @@ export function DialogContent({
               variant="tertiary"
               size="iconSm"
               aria-label="Close"
-              className="absolute right-4 top-4"
+              className="absolute right-md top-md"
             >
               <X aria-hidden />
             </Button>
@@ -65,10 +65,7 @@ export function DialogTitle({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Title>) {
   return (
-    <DialogPrimitive.Title
-      className={cn('pr-8 text-h4 font-semibold text-foreground', className)}
-      {...props}
-    />
+    <DialogPrimitive.Title className={cn('pr-xl text-h4 text-foreground', className)} {...props} />
   )
 }
 
@@ -85,7 +82,7 @@ export function DialogDescription({
 }
 
 export function DialogHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('flex items-start gap-2', className)} {...props} />
+  return <div className={cn('flex items-start gap-xs', className)} {...props} />
 }
 
 export const DialogOverlay = DialogPrimitive.Overlay
@@ -102,12 +99,16 @@ export function DialogFooter({
     <div
       className={cn(
         'flex',
-        stacked ? 'flex-col-reverse gap-xs' : 'items-center justify-between gap-md',
+        stacked ? 'flex-col-reverse gap-xs' : 'items-center justify-end gap-md',
         className
       )}
       {...props}
     >
-      {meta && <span className="grow truncate text-small text-subtle">{meta}</span>}
+      {meta && (
+        <span className={cn('grow truncate text-small text-subtle', stacked && 'order-last')}>
+          {meta}
+        </span>
+      )}
       {children}
     </div>
   )
