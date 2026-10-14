@@ -11,6 +11,7 @@ import {
   useDebounce,
   useMediaUp,
 } from '@dorado/components'
+import { useUserNames } from '@dorado/client'
 import { Search } from '@dorado/icons'
 import type {
   SpotAdjustmentRead,
@@ -18,6 +19,7 @@ import type {
   SpotLockStatusFilter,
   SpotSourceRead,
   SpotTicker,
+  UserName as UserNameRow,
 } from '@dorado/contracts'
 
 import { useNow } from '@/shared/hooks/useNow'
@@ -27,6 +29,7 @@ import { AdjustmentRows } from './AdjustmentRows'
 import { FeedNotice } from './FeedNotice'
 import { LockRows } from './LockRows'
 import { Panel } from '@/shared/ui/Panel'
+import { userNameOf } from '@/shared/ui/UserName'
 import { PricingHeader } from '../../_components'
 import { adjustmentAmount, formatAgo, formatSince, sourceName } from '../_lib'
 import { formatMoney } from '../../_lib'
@@ -70,10 +73,15 @@ const newest = (spots: SpotTicker[]): string | null =>
 
 const unique = (values: string[]) => [...new Set(values)]
 
-function cardFooter(spot: SpotTicker, freeze: SpotAdjustmentRead | undefined, now: number) {
+function cardFooter(
+  spot: SpotTicker,
+  freeze: SpotAdjustmentRead | undefined,
+  now: number,
+  names: readonly UserNameRow[] | undefined
+) {
   if (spot.state === 'frozen') {
-    const by = freeze?.updated_by || freeze?.created_by
-    return `Frozen at ${formatClock(freeze?.updated_at)}${by ? ` by ${by}` : ''}`
+    const byId = freeze?.updated_by_id ?? freeze?.created_by_id
+    return `Frozen at ${formatClock(freeze?.updated_at)}${byId ? ` by ${userNameOf(names, byId)}` : ''}`
   }
   if (spot.state === 'stale') return `No tick for ${formatSince(spot.last_tick_at, now)}`
   return `Updated ${formatAgo(spot.last_tick_at, now)}`
@@ -111,6 +119,9 @@ export function SpotsScreen() {
   const lastTick = newest(spots)
   const current = adjustments.filter((entry) => !entry.expired)
   const active = current.filter((entry) => entry.scope === 'Active' && entry.mode === 'adjust')
+  const names = useUserNames(
+    current.map((entry) => entry.updated_by_id ?? entry.created_by_id)
+  ).data
   const lockPages = locks ? Math.max(1, Math.ceil(locks.total / locks.page_size)) : 1
 
   const reset = () => {
@@ -251,7 +262,8 @@ export function SpotsScreen() {
             footer={cardFooter(
               spot,
               current.find((entry) => entry.metal_id === spot.id && entry.mode === 'freeze'),
-              now
+              now,
+              names
             )}
           />
         ))}
@@ -280,7 +292,7 @@ export function SpotsScreen() {
             .join(' and ')} on ${unique(
             active.map((entry) => sourceName(sources, entry.source_id))
           ).join(', ')}, set by ${unique(
-            active.map((entry) => entry.updated_by || entry.created_by || 'System')
+            active.map((entry) => userNameOf(names, entry.updated_by_id ?? entry.created_by_id))
           ).join(', ')}.`}
           actions={
             <Button variant="secondary" size="sm" asChild>

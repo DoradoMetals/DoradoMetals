@@ -10,17 +10,12 @@ const GONE = '00000000-0000-4000-8000-00000000000d'
 
 const row = (id: string, actor_id: string | null): RateChangeRow => ({
   id,
-  rate_id: null,
-  field: 'scrap_pct',
-  old_value: '0.7',
-  new_value: '0.72',
   actor_id,
   changed_at: '2026-10-14T12:00:00Z',
   metal_id: 'Gold',
-  unit: 'troy_oz',
-  min_qty: 0,
-  max_qty: null,
   type: 'scrap',
+  old_band: { unit: 'troy_oz', min_qty: 0, max_qty: null, scrap_pct: 0.7, bullion_pct: null },
+  new_band: { unit: 'troy_oz', min_qty: 0, max_qty: null, scrap_pct: 0.72, bullion_pct: null },
 })
 
 afterEach(() => {

@@ -2,11 +2,12 @@
 
 import { formatStamp } from '@/shared/utils/formatStamp'
 import { Badge, Button, EmptyState } from '@dorado/components'
+import { useUserNames } from '@dorado/client'
 import { LockOpen } from '@dorado/icons'
-import type { SpotLock } from '@dorado/contracts'
+import type { SpotLock, UserName as UserNameRow } from '@dorado/contracts'
 
-import { ActorName } from '@/shared/ui/ActorName'
 import { RecordTable, recordColumns, type RecordColumn } from '@/shared/ui/RecordTable'
+import { UserName } from '@/shared/ui/UserName'
 
 import { formatMoney } from '../../_lib'
 import { formatQuantity } from '../_lib'
@@ -24,6 +25,7 @@ export type LockRowsProps = {
 const column = recordColumns<SpotLock>()
 
 function lockColumns(
+  names: readonly UserNameRow[] | undefined,
   showMetal: boolean,
   onUnlock: (lock: SpotLock) => void
 ): RecordColumn<SpotLock>[] {
@@ -45,9 +47,9 @@ function lockColumns(
       cell: ({ row }) => formatMoney(row.original.bid ?? row.original.ask),
       meta: { primary: true, line: 2 },
     }),
-    column.accessor('locked_by', {
+    column.accessor('locked_by_id', {
       header: 'LOCKED BY',
-      cell: ({ row }) => <ActorName name={row.original.locked_by} />,
+      cell: ({ row }) => <UserName id={row.original.locked_by_id} names={names} />,
       meta: { primary: true, line: 3 },
     }),
     column.accessor('created_at', {
@@ -91,9 +93,10 @@ export function LockRows({
   onPageChange,
   onUnlock,
 }: LockRowsProps) {
+  const names = useUserNames(locks?.map((lock) => lock.locked_by_id) ?? []).data
   return (
     <RecordTable
-      columns={lockColumns(showMetal || mobile, onUnlock)}
+      columns={lockColumns(names, showMetal || mobile, onUnlock)}
       data={locks}
       label="Order locks"
       layout={mobile ? 'cards' : 'table'}

@@ -1,11 +1,12 @@
 'use client'
 
 import { Badge, Button, EmptyState, Text } from '@dorado/components'
+import { useUserNames } from '@dorado/client'
 import { SlidersHorizontal } from '@dorado/icons'
-import type { SpotAdjustmentRead, SpotSourceRead } from '@dorado/contracts'
+import type { SpotAdjustmentRead, SpotSourceRead, UserName as UserNameRow } from '@dorado/contracts'
 
-import { ActorName } from '@/shared/ui/ActorName'
 import { RecordTable, recordColumns, type RecordColumn } from '@/shared/ui/RecordTable'
+import { UserName } from '@/shared/ui/UserName'
 
 import { adjustmentAmount, adjustmentExpiry, adjustmentWindow, sourceName } from '../_lib'
 
@@ -19,6 +20,7 @@ export type AdjustmentRowsProps = {
 const column = recordColumns<SpotAdjustmentRead>()
 
 function adjustmentColumns(
+  names: readonly UserNameRow[] | undefined,
   sources: SpotSourceRead[],
   onRemove: (adjustment: SpotAdjustmentRead) => void
 ): RecordColumn<SpotAdjustmentRead>[] {
@@ -60,11 +62,11 @@ function adjustmentColumns(
       cell: ({ row }) => <Text variant="micro">{sourceName(sources, row.original.source_id)}</Text>,
       meta: { line: 1 },
     }),
-    column.accessor('updated_by', {
+    column.accessor('updated_by_id', {
       header: 'Set by',
       cell: ({ row }) => (
         <Text variant="small-medium" emphasis="default">
-          <ActorName name={row.original.updated_by || row.original.created_by} />
+          <UserName id={row.original.updated_by_id ?? row.original.created_by_id} names={names} />
         </Text>
       ),
       meta: { line: 2 },
@@ -83,9 +85,10 @@ function adjustmentColumns(
 }
 
 export function AdjustmentRows({ adjustments, sources, pageSize, onRemove }: AdjustmentRowsProps) {
+  const names = useUserNames(adjustments.map((row) => row.updated_by_id ?? row.created_by_id)).data
   return (
     <RecordTable
-      columns={adjustmentColumns(sources, onRemove)}
+      columns={adjustmentColumns(names, sources, onRemove)}
       data={adjustments}
       label="Adjustments"
       layout="cards"
