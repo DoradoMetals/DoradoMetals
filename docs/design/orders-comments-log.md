@@ -314,3 +314,4 @@ Note: Jacob's four `Party=Customer` instances carry NO badge at all, so they fol
 - 1966618xxx/1966648440 COMPONENTS WRAPPER | Jacob (19:28, missed by me, bumped 20:01): no parent components frame. Removed wrapper section 999:23834 after moving 661:7706, 661:7707, 664:11577 to page level in place; delta -1 exact. LESSON: grep every poll.sh run for non-bot comments before restarting the loop.
 - 1966665004 MOBILE DRAWER WIDTH | After Jacob accepted the 20:02 publish, Size=Full instances snapped to 304 (root width bound to breakpoint/xs). Unbound and resized 1160:23218 and 1160:23348 to 390. Library ask as reply on 1966583657. Desktop LG now 1024 panel, OK.
 - 21:01 DRAWER PUBLISH | Library unbound all variant root widths; placed drawers stay at screen size (checked all four).
+- INVENTORY sent to main for the port review; porting page holds 23 screens (earlier '24' corrected on the thread).
