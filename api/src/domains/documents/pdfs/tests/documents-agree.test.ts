@@ -8,6 +8,8 @@ import { documentRows } from '#documents/pdfs/render/documents/rows.ts'
 import { buildInvoiceHtml } from '#documents/pdfs/render/documents/invoice.ts'
 import { buildPackingListHtml } from '#documents/pdfs/render/documents/shipment-manifest.ts'
 import { LOCKS } from '#shared/testing/locks.ts'
+import { inRollback } from '#shared/testing/rollback.ts'
+import { aProduct, aUser, anOrder } from '#shared/testing/builders/index.ts'
 import type { OrderView, OrderLotView, OrderPricing } from '@dorado/contracts'
 
 const scrapLines = (lines: OrderLotView[]): OrderLotView[] =>
@@ -100,10 +102,10 @@ test('a line with no premium renders unpriced, not a rate it never had', () => {
 const summarySection = (html: string): string => html.slice(html.indexOf('>Summary<'))
 
 const money = (html: string, label: string): number | null => {
-  const row = new RegExp(`>${label}<\\/p><p[^>]*>(-?\\$[\\d,]+\\.\\d\\d)<`).exec(
+  const row = new RegExp(`>${label}<\\/p><p[^>]*>([-−]?\\$[\\d,]+\\.\\d\\d)<`).exec(
     summarySection(html)
   )
-  return row ? Number(row[1].replace(/[$,]/g, '')) : null
+  return row ? Number(row[1].replace(/[$,]/g, '').replace('−', '-')) : null
 }
 
 test("the purchase invoice's own lines add up to the Total it prints", async () => {
@@ -148,12 +150,12 @@ test('the sales invoice prints the tax that is part of its own total', async () 
     if (tax > 0) {
       withTax++
       assert.equal(
-        money(html, 'Sales Tax'),
+        money(html, 'Sales tax'),
         Number(tax.toFixed(2)),
         `SO ${order.order.number}: the tax it charged is not on the invoice`
       )
     } else {
-      assert.equal(money(html, 'Sales Tax'), null, 'a zero tax row was printed')
+      assert.equal(money(html, 'Sales tax'), null, 'a zero tax row was printed')
     }
   }
   assert.ok(withTax > 0, 'no dev sales order carries tax - this test proved nothing')
@@ -183,5 +185,32 @@ test('a return leg on the order does not move the invoice deduction away from th
     money(html, 'Shipping'),
     -Number(own.pricing.shipping_charge.toFixed(2)),
     'the return label moved a deduction the Total does not carry'
+  )
+})
+
+test("the sales invoice's Total is the amount charged, card fee included", async () => {
+  await inRollback(
+    async (c) => {
+      const product = await aProduct(c)
+      const order = await anOrder(c, await aUser(c), { direction: 'sale' })
+        .withBullion(product, 2)
+        .withTotals({
+          items: 10363.62,
+          shipping: 35,
+          funds: 250,
+          used_funds: true,
+          surcharge: 294.31,
+          sales_tax: 0,
+          total: 10442.93,
+        })
+      const own = await inputs.invoiceInputs(order.id, c)
+      const html = buildInvoiceHtml(own)
+      assert.equal(own.pricing.card_fee, 294.31)
+      assert.equal(own.pricing.total_charged, Number((own.pricing.total + 294.31).toFixed(2)))
+      assert.equal(money(html, 'Card fee'), 294.31)
+      assert.equal(money(html, 'Total'), Number(own.pricing.total_charged.toFixed(2)))
+      assert.equal(money(html, 'Items'), Number(own.pricing.items_total.toFixed(2)))
+    },
+    { client: lockClient }
   )
 })

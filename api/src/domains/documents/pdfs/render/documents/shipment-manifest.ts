@@ -13,32 +13,43 @@ import {
   customerBlock,
   doradoBlock,
 } from '#documents/pdfs/render/documents/parties.ts'
-import { formatCurrency, formatIssued } from '#documents/pdfs/render/format.ts'
+import {
+  formatAmount,
+  formatCurrency,
+  formatCreated,
+  minus,
+} from '#documents/pdfs/render/format.ts'
 
-function shippingPair(order: OrderView, isReturn: boolean, box: DocumentPackage | null) {
+export function shippingPair(
+  order: OrderView,
+  leg: 'inbound' | 'return' | 'sale',
+  box: DocumentPackage | null
+) {
+  const isReturn = leg === 'return'
+  const outward = leg !== 'inbound'
   const shipment = isReturn ? returnShipment(order) : inboundShipment(order)
-  const customer = customerBlock(order, isReturn ? 'TO' : 'FROM')
-  const dorado = doradoBlock(isReturn ? 'FROM' : 'TO')
+  const customer = customerBlock(order, outward ? 'TO' : 'FROM', leg === 'sale' ? 'quiet' : 'ship')
+  const dorado = doradoBlock(outward ? 'FROM' : 'TO', leg !== 'sale')
   const boxFact =
     box?.label && box.length != null && box.width != null && box.height != null
       ? `${box.label} (${box.length}×${box.width}×${box.height} in)`
       : null
 
   return h(Pair, {
-    cap: 'Shipping',
+    cap: 'Shipment',
     facts: [
       shipment?.service_name ?? null,
       shipment?.tracking_number ?? null,
-      shipment?.insured ? `Insured for ${formatCurrency(shipment.declared_value)}` : null,
+      shipment?.insured ? `Insured for ${formatAmount(shipment.declared_value)}` : null,
       boxFact,
     ],
-    left: isReturn ? dorado : customer,
-    right: isReturn ? customer : dorado,
+    left: outward ? dorado : customer,
+    right: outward ? customer : dorado,
     connector: true,
   })
 }
 
-function build(eyebrow: string, isReturn: boolean, input: ShipmentManifestInput): string {
+function build(eyebrow: string, leg: 'inbound' | 'return', input: ShipmentManifestInput): string {
   const { order, pricing, package: box = null } = input
   return buildManifestHtml({
     title: `${eyebrow} ${order.reference}`,
@@ -47,22 +58,24 @@ function build(eyebrow: string, isReturn: boolean, input: ShipmentManifestInput)
     heroLabel: ESTIMATE_HERO_LABEL,
     heroValue: formatCurrency(pricing.total),
     heroStatus: ESTIMATE_HERO_STATUS,
-    middle: shippingPair(order, isReturn, box),
-    rows: documentRows(order.lots, pricing),
+    middle: shippingPair(order, leg, box),
+    tableCap: 'Items enclosed',
+    tableColumn: 'Estimate',
+    rows: documentRows(order.lots, pricing, 'pre'),
     ledger: [
       { label: 'Items', value: formatCurrency(pricing.items_total) },
-      { label: 'Shipping', value: `-${formatCurrency(pricing.shipping_charge)}` },
-      { label: 'Payout', value: `-${formatCurrency(pricing.payout_fee)}` },
+      { label: 'Shipping', value: minus(pricing.shipping_charge) },
+      { label: 'Payout', value: minus(pricing.payout_fee) },
     ],
     total: formatCurrency(pricing.total),
-    issued: formatIssued(),
+    footer: formatCreated(),
   })
 }
 
 export function buildPackingListHtml(input: ShipmentManifestInput): string {
-  return build('Shipment Manifest', false, input)
+  return build('Shipment Manifest', 'inbound', input)
 }
 
 export function buildReturnPackingListHtml(input: ShipmentManifestInput): string {
-  return build('Shipment Manifest', true, input)
+  return build('Shipment Manifest', 'return', input)
 }

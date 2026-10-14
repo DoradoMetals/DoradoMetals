@@ -33,7 +33,6 @@ const promoTo = (email: string) => ({
   user_id: null,
   email,
   name: 'Jacob',
-  eyebrow: 'This week',
   headline: 'Silver is moving',
   lede: 'Here is what your scrap is worth today.',
   stat_label: 'Spot',

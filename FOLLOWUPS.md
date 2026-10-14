@@ -189,6 +189,16 @@ Twelve questions, each with a recommendation already written into the doc:
   inbound SMS webhook, the softphone, Cloudflare, the Figma mailers, and the
   rule that no frontend component ships without an approved design.
   `docs/rulings.md` carries the text.
+- **Rename the `assay_results` kind and the `/generate_assay_results` route to
+  `quote_estimate`.** The Quote Estimate replaced the Assay Results document
+  (media-port lane, 2026-10-14). The display name is already "Quote Estimate";
+  the PdfKind value and the URL keep the old name until Jacob says to rename
+  them.
+- **Where does the Quote Estimate live?** Today it is listed for a purchase
+  order after finalize, but its copy says prices move until the customer
+  places an order, which is false once the order is finalized. Jacob to rule:
+  an Estimator document before an order exists, or an order document after
+  finalize with different copy.
 
 ## D218 - the mailers are the Figma design, and the PDFs wear its system (ruling 95)
 

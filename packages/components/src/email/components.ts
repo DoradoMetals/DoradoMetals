@@ -1,14 +1,15 @@
 import { createElement as h, type CSSProperties, type ReactNode } from 'react'
 import { screen, type Palette } from './palette.ts'
-import { GUTTER, WIDTH, eyebrowType, radius, space, type } from './style.ts'
+import { GUTTER, WIDTH, labelType, radius, space, type } from './style.ts'
 
-export const LOGO_URL = 'https://www.doradometals.com/icons/branding/full/full.png'
-const SOCIAL_BASE = 'https://www.doradometals.com/icons/social_media/white'
 const SITE = 'https://www.doradometals.com'
-export const NBSP = '\u00a0'
+export const NBSP = ' '
 const POSTAL = 'Dorado Metals Exchange · 3198 Royal Lane, Suite 209, Dallas, Texas 75229'
+export const LOGO = { file: 'email-logo.png', width: 96, height: 47 } as const
+const ICON = { cell: 32, image: 24 } as const
 
 type WithPalette = { palette?: Palette }
+type WithMedia = { media: string }
 
 function table(
   style: CSSProperties,
@@ -30,6 +31,25 @@ function table(
   )
 }
 
+function boxed(palette: Palette, children: ReactNode): ReactNode {
+  return h(
+    'div',
+    {
+      style: {
+        backgroundColor: palette.card,
+        border: `1px solid ${palette.border}`,
+        borderRadius: radius,
+        overflow: 'hidden',
+      },
+    },
+    children
+  )
+}
+
+function spacer(key: string, width: string): ReactNode {
+  return h('td', { key, width: width.replace('px', ''), style: { width, fontSize: 0 } }, NBSP)
+}
+
 export function Rule({ palette = screen, span = 1 }: WithPalette & { span?: number }): ReactNode {
   return h(
     'tr',
@@ -46,18 +66,17 @@ export function Rule({ palette = screen, span = 1 }: WithPalette & { span?: numb
   )
 }
 
-export type TextVariant = 'eyebrow' | 'heading' | 'lede' | 'note'
+export type TextVariant = 'heading' | 'lede' | 'note'
 
 export function Text({
   variant,
   children,
   palette = screen,
 }: WithPalette & { variant: TextVariant; children: string }): ReactNode {
-  const align = variant === 'note' ? 'left' : 'center'
   const style: CSSProperties =
     variant === 'heading'
-      ? type('h3', { color: palette.foreground, textAlign: align })
-      : type('micro', { color: palette.muted, textAlign: align })
+      ? type('h3', { color: palette.foreground, textAlign: 'left', margin: 0 })
+      : type('micro', { color: palette.muted, textAlign: 'left', margin: 0 })
   return h('div', { style }, children)
 }
 
@@ -69,8 +88,8 @@ export function Stat({
   return h(
     'div',
     null,
-    h('div', { style: eyebrowType({ color: palette.muted, paddingBottom: space['2xs'] }) }, label),
-    h('div', { style: type('h1', { color: palette.foreground }) }, value)
+    h('div', { style: labelType({ color: palette.muted, paddingBottom: space['2xs'] }) }, label),
+    h('div', { style: type('h1', { color: palette.foreground, letterSpacing: '0px' }) }, value)
   )
 }
 
@@ -79,34 +98,43 @@ export function Code({
   expiry,
   palette = screen,
 }: WithPalette & { value: string; expiry: string }): ReactNode {
-  return table(
-    {
-      backgroundColor: palette.card,
-      border: `1px solid ${palette.border}`,
-      borderRadius: radius,
-    },
-    h(
-      'tr',
-      null,
+  return boxed(
+    palette,
+    table(
+      {},
       h(
-        'td',
-        { align: 'center', style: { padding: space.lg } },
+        'tr',
+        null,
         h(
-          'div',
-          {
-            style: type('h1', {
-              color: palette.foreground,
-              fontSize: '40px',
-              lineHeight: '48px',
-              letterSpacing: '8px',
-            }),
-          },
-          value
-        ),
-        h('div', { style: type('micro', { color: palette.muted, paddingTop: space.xs }) }, expiry)
+          'td',
+          { align: 'center', bgcolor: palette.card, style: { padding: space.lg } },
+          h(
+            'div',
+            {
+              style: type('h1', {
+                color: palette.foreground,
+                fontSize: '40px',
+                lineHeight: '48px',
+                letterSpacing: '8px',
+                textAlign: 'center',
+              }),
+            },
+            value
+          ),
+          h(
+            'div',
+            {
+              style: type('micro', {
+                color: palette.muted,
+                paddingTop: space.xs,
+                textAlign: 'center',
+              }),
+            },
+            expiry
+          )
+        )
       )
-    ),
-    { bgcolor: palette.card }
+    )
   )
 }
 
@@ -126,9 +154,10 @@ export function Row({ label, value, palette = screen }: WithPalette & RowEntry):
     h(
       'td',
       {
+        align: 'right',
         style: type('micro', {
           color: palette.foreground,
-          padding: `${space.xs} 0`,
+          padding: `${space.xs} 0 ${space.xs} ${space.md}`,
           textAlign: 'right',
         }),
       },
@@ -143,10 +172,20 @@ export function Card({ rows, palette = screen }: WithPalette & { rows: RowEntry[
     ...(i === 0 ? [] : [h(Rule, { key: `r${i}`, palette, span: 2 })]),
     h(Row, { key: entry.label + i, palette, ...entry }),
   ])
-  return table(
-    { backgroundColor: palette.card, border: `1px solid ${palette.border}`, borderRadius: radius },
-    h('tr', null, h('td', { style: { padding: `${space['2xs']} 20px` } }, table({}, body))),
-    { bgcolor: palette.card }
+  return boxed(
+    palette,
+    table(
+      {},
+      h(
+        'tr',
+        null,
+        h(
+          'td',
+          { bgcolor: palette.card, style: { padding: `${space['2xs']} 20px` } },
+          table({}, body)
+        )
+      )
+    )
   )
 }
 
@@ -155,44 +194,41 @@ export function Button({
   href,
   palette = screen,
 }: WithPalette & { label: string; href: string }): ReactNode {
-  return h(
-    'table',
-    { role: 'presentation', cellPadding: 0, cellSpacing: 0, border: 0 },
+  return table(
+    {},
     h(
-      'tbody',
+      'tr',
       null,
       h(
-        'tr',
-        null,
+        'td',
+        {
+          align: 'center',
+          bgcolor: palette.primary,
+          style: { backgroundColor: palette.primary, borderRadius: radius },
+        },
         h(
-          'td',
+          'a',
           {
-            bgcolor: palette.primary,
-            style: { backgroundColor: palette.primary, borderRadius: radius },
+            href,
+            target: '_blank',
+            style: type('small', {
+              display: 'block',
+              fontWeight: 500,
+              color: palette.onPrimary,
+              textDecoration: 'none',
+              textAlign: 'center',
+              padding: `10px ${space.md}`,
+              lineHeight: '20px',
+            }),
           },
-          h(
-            'a',
-            {
-              href,
-              target: '_blank',
-              style: type('small', {
-                display: 'inline-block',
-                fontWeight: 500,
-                color: palette.onPrimary,
-                textDecoration: 'none',
-                padding: `10px ${space.md}`,
-                lineHeight: '20px',
-              }),
-            },
-            label
-          )
+          label
         )
       )
     )
   )
 }
 
-export function Header({ palette = screen }: WithPalette): ReactNode {
+export function Header({ palette = screen, media }: WithPalette & WithMedia): ReactNode {
   return h(
     'tbody',
     null,
@@ -202,7 +238,7 @@ export function Header({ palette = screen }: WithPalette): ReactNode {
       h(
         'td',
         {
-          align: 'center',
+          align: 'left',
           bgcolor: palette.background,
           style: {
             backgroundColor: palette.background,
@@ -213,15 +249,15 @@ export function Header({ palette = screen }: WithPalette): ReactNode {
           'a',
           { href: SITE, target: '_blank', style: { textDecoration: 'none' } },
           h('img', {
-            src: LOGO_URL,
-            width: '160',
+            src: `${media}/${LOGO.file}`,
+            width: String(LOGO.width),
+            height: String(LOGO.height),
             alt: 'Dorado Metals Exchange',
             loading: 'lazy',
             style: {
               display: 'block',
-              width: '160px',
-              maxWidth: '160px',
-              height: 'auto',
+              width: `${LOGO.width}px`,
+              height: `${LOGO.height}px`,
               border: 0,
             },
           })
@@ -246,20 +282,32 @@ export function Header({ palette = screen }: WithPalette): ReactNode {
   )
 }
 
-function socialIcon(name: string, href: string, alt: string): ReactNode {
+const SOCIAL: Array<[string, string, string]> = [
+  ['instagram', 'https://www.instagram.com/doradometals/', 'Instagram'],
+  ['facebook', 'https://www.facebook.com/people/Dorado-Metals/61576361032653/', 'Facebook'],
+  ['x', 'https://x.com/DoradoMetals', 'X'],
+]
+
+function socialIcon(media: string, [name, href, alt]: [string, string, string]): ReactNode {
+  const pad = `${(ICON.cell - ICON.image) / 2}px`
   return h(
     'td',
-    { key: name, style: { padding: `0 ${space.xs}` } },
+    { key: name, width: String(ICON.cell), style: { width: `${ICON.image}px`, padding: pad } },
     h(
       'a',
       { href, target: '_blank', style: { textDecoration: 'none' } },
       h('img', {
-        src: `${SOCIAL_BASE}/${name}.png`,
-        width: '16',
-        height: '16',
+        src: `${media}/social-${name}.png`,
+        width: String(ICON.image),
+        height: String(ICON.image),
         alt,
         loading: 'lazy',
-        style: { display: 'block', width: '16px', height: '16px', border: 0 },
+        style: {
+          display: 'block',
+          width: `${ICON.image}px`,
+          height: `${ICON.image}px`,
+          border: 0,
+        },
       })
     )
   )
@@ -271,8 +319,24 @@ const LEGAL: Array<[string, string]> = [
   ['Unsubscribe', `${SITE}/account?tab=notifications`],
 ]
 
-export function Footer({ palette = screen }: WithPalette): ReactNode {
-  const micro = type('micro', { color: palette.muted })
+function inline(cells: ReactNode[]): ReactNode {
+  return h(
+    'table',
+    { role: 'presentation', cellPadding: 0, cellSpacing: 0, border: 0 },
+    h(
+      'tbody',
+      null,
+      h(
+        'tr',
+        null,
+        cells.flatMap((cell, i) => (i === 0 ? [cell] : [spacer(`gap${i}`, space.md), cell]))
+      )
+    )
+  )
+}
+
+export function Footer({ palette = screen, media }: WithPalette & WithMedia): ReactNode {
+  const micro = type('micro', { color: palette.muted, textAlign: 'left' })
   const link = type('small', { fontWeight: 500, color: palette.foreground, textDecoration: 'none' })
   return h(
     'tbody',
@@ -284,10 +348,7 @@ export function Footer({ palette = screen }: WithPalette): ReactNode {
         'td',
         {
           bgcolor: palette.background,
-          style: {
-            backgroundColor: palette.background,
-            padding: `0 ${GUTTER} ${GUTTER} ${GUTTER}`,
-          },
+          style: { backgroundColor: palette.background, padding: GUTTER },
         },
         table({}, [
           h(Rule, { key: 'rule', palette }),
@@ -296,51 +357,26 @@ export function Footer({ palette = screen }: WithPalette): ReactNode {
             { key: 'social' },
             h(
               'td',
-              { align: 'center', style: { paddingTop: space.md } },
-              h(
-                'table',
-                { role: 'presentation', cellPadding: 0, cellSpacing: 0, border: 0 },
-                h(
-                  'tbody',
-                  null,
-                  h(
-                    'tr',
-                    null,
-                    socialIcon('instagram', 'https://www.instagram.com/doradometals/', 'Instagram'),
-                    socialIcon(
-                      'facebook',
-                      'https://www.facebook.com/people/Dorado-Metals/61576361032653/',
-                      'Facebook'
-                    ),
-                    socialIcon('x', 'https://x.com/DoradoMetals', 'X')
-                  )
-                )
-              )
+              { align: 'left', style: { paddingTop: space.md } },
+              inline(SOCIAL.map((entry) => socialIcon(media, entry)))
             )
           ),
           h(
             'tr',
             { key: 'postal' },
-            h('td', { align: 'center', style: { ...micro, paddingTop: space.md } }, POSTAL)
+            h('td', { align: 'left', style: { ...micro, paddingTop: space.md } }, POSTAL)
           ),
           h(
             'tr',
             { key: 'legal' },
             h(
               'td',
-              { align: 'center', style: { paddingTop: space.md } },
-              LEGAL.flatMap(([label, href], i) => [
-                ...(i === 0
-                  ? []
-                  : [
-                      h(
-                        'span',
-                        { key: `gap${i}`, style: type('small', { color: palette.muted }) },
-                        '  '
-                      ),
-                    ]),
-                h('a', { key: label, href, target: '_blank', style: link }, label),
-              ])
+              { align: 'left', style: { paddingTop: space.md } },
+              inline(
+                LEGAL.map(([label, href]) =>
+                  h('td', { key: label }, h('a', { href, target: '_blank', style: link }, label))
+                )
+              )
             )
           ),
           h(
@@ -348,7 +384,7 @@ export function Footer({ palette = screen }: WithPalette): ReactNode {
             { key: 'why' },
             h(
               'td',
-              { align: 'center', style: { ...micro, paddingTop: space.md } },
+              { align: 'left', style: { ...micro, paddingTop: space.md } },
               'You’re receiving this because you have an account with Dorado Metals Exchange.'
             )
           ),

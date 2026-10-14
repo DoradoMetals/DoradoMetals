@@ -41,6 +41,7 @@ export type OrderLotPatch = z.infer<typeof OrderLotPatch>
 
 export const OrderLotView = OrderLot.extend({
   lot: LotView,
+  name: z.string(),
   payable: Lot.shape.content,
   price: Lot.shape.content,
   line_total: Lot.shape.content,

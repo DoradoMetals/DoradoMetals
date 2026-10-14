@@ -74,7 +74,7 @@ const RENDERS = [
   ['generate_shipping_instructions', 'shipping-instructions.pdf', 'purchase'],
   ['generate_pickup_instructions', 'pickup-instructions.pdf', 'purchase'],
   ['generate_appointment_instructions', 'appointment-instructions.pdf', 'purchase'],
-  ['generate_assay_results', 'assay-results.pdf', 'purchase'],
+  ['generate_assay_results', 'quote-estimate.pdf', 'purchase'],
 ]
 
 for (const [route, filename, direction] of RENDERS as Array<

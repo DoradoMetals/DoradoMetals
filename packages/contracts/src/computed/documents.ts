@@ -80,7 +80,6 @@ export const DetailsChangedMail = MailerAddressee.extend({
 export type DetailsChangedMail = z.infer<typeof DetailsChangedMail>
 
 export const PromoMail = MailerAddressee.extend({
-  eyebrow: z.string(),
   headline: z.string(),
   lede: z.string(),
   stat_label: z.string(),
@@ -97,22 +96,6 @@ export const VoicemailReceivedMail = MailerAddressee.extend({
 })
 export type VoicemailReceivedMail = z.infer<typeof VoicemailReceivedMail>
 
-export const DocumentTableRow = z.object({
-  name: z.string(),
-  figure: z.string(),
-  facts: z.array(z.string()),
-})
-export type DocumentTableRow = z.infer<typeof DocumentTableRow>
-
-export const AssayResultsDocument = z.object({
-  order_id: Order.shape.id,
-  reference: z.string(),
-  total_fine: z.string(),
-  lots: z.array(DocumentTableRow),
-  by_metal: z.array(MailerRow),
-})
-export type AssayResultsDocument = z.infer<typeof AssayResultsDocument>
-
 export const RateSheetMetal = z.object({
   name: z.string(),
   columns: z.array(z.string()),
@@ -123,6 +106,7 @@ export type RateSheetMetal = z.infer<typeof RateSheetMetal>
 export const RateSheetDocument = z.object({
   issued: z.string(),
   metals: z.array(RateSheetMetal),
+  fees: z.array(MailerRow),
 })
 export type RateSheetDocument = z.infer<typeof RateSheetDocument>
 
@@ -131,6 +115,29 @@ export const DocumentInput = z.object({
   pricing: OrderPricing,
 })
 export type DocumentInput = z.infer<typeof DocumentInput>
+
+export const DocumentEnd = z.object({
+  label: z.string(),
+  who: z.string(),
+  lines: z.array(z.string()),
+})
+export type DocumentEnd = z.infer<typeof DocumentEnd>
+
+export const DocumentParties = z.object({
+  order_id: Order.shape.id,
+  office: DocumentEnd.nullable(),
+  appointment: DocumentEnd.nullable(),
+  pickup: DocumentEnd.nullable(),
+  card: DocumentEnd.nullable(),
+  payment: DocumentEnd.nullable(),
+  payout: DocumentEnd.nullable(),
+})
+export type DocumentParties = z.infer<typeof DocumentParties>
+
+export const PartiesDocumentInput = DocumentInput.extend({
+  parties: DocumentParties.nullable().optional(),
+})
+export type PartiesDocumentInput = z.infer<typeof PartiesDocumentInput>
 
 export const DocumentPackage = z.object({
   label: Package.shape.label.nullable(),

@@ -28,13 +28,8 @@ export function orderLabel(direction: Direction, number: number): string {
 }
 
 export function payoutRoute(method: string | null, last_four: string | null): string {
-  if (method === 'ACH' || method === 'WIRE') {
-    const account = last_four ? ` to the account ending ${last_four}` : ''
-    return method === 'WIRE'
-      ? `Sent by wire${account} — most banks post it the same business day.`
-      : `Sent by ACH${account} — most banks post it within 1–3 business days.`
-  }
-  return 'Added to your Dorado balance — it is available to spend right away.'
+  const account = last_four ? ` to the account ending ${last_four}` : ''
+  return method ? `Sent by ${method}${account}.` : `Your payout was sent${account}.`
 }
 
 export function documentLede(label: string): string {

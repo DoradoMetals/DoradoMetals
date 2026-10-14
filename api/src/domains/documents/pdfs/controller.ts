@@ -135,9 +135,10 @@ export const generateAssayResults = asyncHandler(async (req, res) => {
     kind: 'assay_results',
     order_id,
     caller: req.user,
-    render: async () => pdfService.generateAssayResults(await inputs.assayResultsInputs(order_id)),
+    render: async () =>
+      pdfService.generateQuoteEstimate(await inputs.quoteEstimateInputs(order_id)),
   })
-  sendPdf(res, bytes, 'assay-results.pdf')
+  sendPdf(res, bytes, 'quote-estimate.pdf')
 })
 
 export const generateRateSheet = asyncHandler(async (_req, res) => {

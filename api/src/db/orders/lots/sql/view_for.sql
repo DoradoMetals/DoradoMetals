@@ -22,6 +22,14 @@ SELECT to_jsonb(ol)
                         'product_name', b.name,
                         'form', COALESCE(b.type, 'Scrap'),
                         'reference', 'Lot ' || o.number || '-' || chr(64 + ol.seat::int)),
+            'name', COALESCE(b.name,
+                          (SELECT p.label || ' ' || li.metal_id
+                             FROM metals.purity_labels p
+                            WHERE p.metal_id = li.metal_id
+                              AND abs(p.purity - li.purity) <= p.tolerance
+                            ORDER BY abs(p.purity - li.purity)
+                            LIMIT 1),
+                          li.metal_id),
             'payable', CASE WHEN li.content IS NULL OR li.premium IS NULL THEN NULL
                             ELSE li.content * li.premium END,
             'price', pr.price,

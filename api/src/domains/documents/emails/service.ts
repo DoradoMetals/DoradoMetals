@@ -93,10 +93,9 @@ export async function sendOrderReceived(
   if (!mail || mail.email.length === 0) return
 
   const isSale = mail.direction === 'sale'
-  const input = await inputs.packingListInputs(order_id, executor)
   const bytes = isSale
-    ? await pdfService.generateInvoice(input)
-    : await pdfService.generatePackingList(input)
+    ? await pdfService.generateInvoice(await inputs.invoiceInputs(order_id, executor))
+    : await pdfService.generatePackingList(await inputs.packingListInputs(order_id, executor))
   const pdf_id = await persistPdf(
     isSale ? 'sales_order_invoice' : 'packing_list',
     order_id,

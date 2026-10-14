@@ -242,7 +242,7 @@ export function assertKnownSort(sort: string | null, offered: OrderSort[]): void
 
 const FINALIZED: PdfKind[] = ['invoice', 'assay_results']
 
-const ASSAY = { kind: 'assay_results' as PdfKind, name: 'Assay Results' }
+const ASSAY = { kind: 'assay_results' as PdfKind, name: 'Quote Estimate' }
 const INVOICE = { kind: 'invoice' as PdfKind, name: 'Invoice' }
 
 const BY_CATEGORY: Record<string, { kind: PdfKind; name: string }[]> = {

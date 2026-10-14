@@ -15,9 +15,11 @@ import { buildShippingInstructionsHtml } from '#documents/pdfs/render/documents/
 import { buildPickupInstructionsHtml } from '#documents/pdfs/render/documents/pickup-instructions.ts'
 import { buildAppointmentInstructionsHtml } from '#documents/pdfs/render/documents/appointment-instructions.ts'
 import { buildRateSheetHtml } from '#documents/pdfs/render/documents/rate-sheet.ts'
-import { buildAssayResultsHtml } from '#documents/pdfs/render/documents/assay-results.ts'
+import { buildQuoteEstimateHtml } from '#documents/pdfs/render/documents/quote-estimate.ts'
+import { qrDataUri } from '#documents/pdfs/render/qr.ts'
+import { sellUrl } from '#documents/emails/links.ts'
 import { LOCKS } from '#shared/testing/locks.ts'
-import type { AssayResultsDocument, OrderView } from '@dorado/contracts'
+import type { OrderView } from '@dorado/contracts'
 
 let orders: OrderView[]
 let lockClient: PoolClient
@@ -42,8 +44,14 @@ afterAll(async () => {
 
 const carries = (html: string, text: string): boolean => html.includes(text.replace(/'/g, '&#x27;'))
 
+const visible = (html: string): string =>
+  html
+    .replace(/<style[\s\S]*?<\/style>/g, '')
+    .replace(/<img[^>]*>/g, '')
+    .replace(/<link[^>]*>/g, '')
+
 const clean = (html: string, name: string) => {
-  assert.ok(!html.includes('NaN'), `${name} contains NaN`)
+  assert.ok(!visible(html).includes('NaN'), `${name} contains NaN`)
   assert.ok(!/>\s*null\s*</.test(html), `${name} prints the literal word null`)
   assert.ok(!html.includes('undefined'), `${name} prints the literal word undefined`)
 }
@@ -160,23 +168,53 @@ test('the rate sheet carries its own labels and the theme', async () => {
   }
 })
 
-test('the assay results carries its own labels and the theme, with no money on it', async () => {
-  let doc: AssayResultsDocument | null = null
-  for (const order of orders) {
-    try {
-      doc = await inputs.assayResultsInputs(order.order.id)
-      break
-    } catch {
-      continue
-    }
-  }
-  if (!doc) return
+test('the quote estimate names the customer, links the sell page and prints no order number', async () => {
+  const order = orders.find((o) => o.lots.length > 0) ?? orders[0]
+  const own = await inputs.quoteEstimateInputs(order.order.id)
+  const html = buildQuoteEstimateHtml(own)
+  clean(html, 'quote estimate')
+  wearsTheTheme(html, 'quote estimate')
+  assert.ok(html.includes('Quote Estimate'), 'the eyebrow is missing')
+  assert.ok(html.includes('Estimated quote'), 'the hero label is missing')
+  assert.ok(html.includes('Start your order'), 'the next step is missing')
+  assert.ok(html.includes('About this quote'), 'the notes are missing')
+  assert.ok(html.includes('Shipping and payout fees are not included.'), 'the fee line is missing')
+  assert.ok(html.includes('Quoted '), 'the footer does not say when it was quoted')
+  if (order.user?.name) assert.ok(carries(html, order.user.name), 'the customer is not named')
+  assert.ok(!html.includes(order.reference), 'a quote printed an order number')
+  assert.ok(!html.includes('Summary'), 'a quote grew a summary block')
+  assert.match(html, /<img src="data:image\/svg\+xml;base64,[^"]+" width="96"/, 'no vector QR code')
+  for (const lot of order.lots) assert.ok(carries(html, lot.name), `lot ${lot.name} is missing`)
+})
 
-  const html = buildAssayResultsHtml(doc)
-  clean(html, 'assay results')
-  wearsTheTheme(html, 'assay results')
-  assert.ok(html.includes('Assay Results'), 'the eyebrow is missing')
-  assert.ok(html.includes('Lots'), 'the Table cap is missing')
-  assert.ok(html.includes('Fine content'), 'the Table column head is missing')
-  assert.ok(!/\$[\d,]/.test(html), 'a dollar figure appears on a document that carries no money')
+test('a sales order gets no quote estimate', async () => {
+  const sale = (await orderRead.list({ direction: 'sale' })).items[0]
+  if (!sale) return
+  await assert.rejects(() => inputs.quoteEstimateInputs(sale.id), /no quote estimate/)
+})
+
+test('the quote QR code encodes the sell page on this environment', () => {
+  const svg = Buffer.from(qrDataUri(sellUrl()).split(',')[1], 'base64').toString()
+  assert.ok(svg.startsWith('<svg'), 'the QR code is not an SVG')
+  assert.ok(!svg.includes('<image'), 'the QR code carries a raster')
+  assert.equal(sellUrl(), `${process.env.FRONTEND_URL}/sell`)
+})
+
+test('every document prints the mark and paginates through the footer template', async () => {
+  const order = orders.find((o) => o.lots.length > 0) ?? orders[0]
+  const own = await inputs.intakeReceiptInputs(order.order.id)
+  for (const [name, html] of [
+    ['invoice', buildInvoiceHtml(own)],
+    ['intake receipt', buildIntakeReceiptHtml(own)],
+    ['quote estimate', buildQuoteEstimateHtml(own)],
+    ['shipping instructions', buildShippingInstructionsHtml('PO-000041')],
+  ] as const) {
+    assert.ok(html.includes('data:image/svg+xml;base64,'), `${name} prints no logo`)
+    assert.ok(html.includes('<template id="page-footer"'), `${name} has no footer template`)
+    assert.ok(html.includes('class="pageNumber"'), `${name} does not count its pages`)
+    assert.ok(html.includes('class="totalPages"'), `${name} does not count the total`)
+    assert.ok(!html.includes('Page 1 of 1'), `${name} hardcodes its page count`)
+    assert.ok(html.includes("font-family: 'Geist'"), `${name} embeds no Geist`)
+    assert.ok(!/poppins/i.test(html), `${name} still carries Poppins`)
+  }
 })

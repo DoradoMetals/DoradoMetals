@@ -1,8 +1,23 @@
 import { createElement as h, type CSSProperties, type ReactNode } from 'react'
+import { px } from '@dorado/theme/tokens'
 import { paper } from '../email/palette.ts'
 import { eyebrowType, fontStack, space, stroke, type } from '../email/style.ts'
 
-export const PAGE = { width: 816, height: 1056, gutter: 72 } as const
+const gutter = Number.parseFloat(px('--page-margin-letter'))
+
+export const PAGE = {
+  width: 816,
+  height: 1056,
+  gutter,
+  top: Number.parseFloat(space.md),
+} as const
+
+export type Density = 'compact' | 'roomy'
+
+const edge = (density: Density): number =>
+  Number.parseFloat(density === 'roomy' ? space.lg : space.md)
+
+export const LOGO = { width: 70, height: 35 } as const
 
 const ink = paper.foreground
 const muted = paper.muted
@@ -46,7 +61,7 @@ export function Line({
   weight,
   style,
 }: {
-  step: 'micro' | 'small' | 'body' | 'h2' | 'h4' | 'h5' | 'stat-sm'
+  step: 'micro' | 'small' | 'body' | 'h2' | 'h3' | 'h4' | 'h5' | 'stat-sm'
   children: ReactNode
   tone?: Tone
   align?: 'right'
@@ -68,41 +83,140 @@ export function Line({
   )
 }
 
-export function Dotted({ parts }: { parts: (string | null)[] }): ReactNode {
-  const kept = parts.filter((part): part is string => part !== null && part !== '')
-  return h(Line, { step: 'micro', children: kept.join(' · ') })
+function Dot({ index }: { index: number }): ReactNode {
+  return h(
+    'span',
+    {
+      key: `dot${index}`,
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: space.lg,
+        height: space.lg,
+        flex: `0 0 ${space.lg}`,
+      },
+    },
+    h('span', {
+      style: { width: '4px', height: '4px', borderRadius: '2px', backgroundColor: muted },
+    })
+  )
 }
 
-export function Header({ kind, reference }: { kind: string; reference: string }): ReactNode {
+export function Dotted({ parts, align }: { parts: (string | null)[]; align?: 'right' }): ReactNode {
+  const kept = parts.filter((part): part is string => part !== null && part !== '')
+  if (kept.length === 0) return null
+  return h(
+    'div',
+    {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: align === 'right' ? 'flex-end' : 'flex-start',
+        gap: '2px',
+        minHeight: space.lg,
+      },
+    },
+    ...kept.flatMap((part, i) => [
+      ...(i === 0 ? [] : [h(Dot, { key: `d${i}`, index: i })]),
+      h(
+        'span',
+        { key: `p${i}`, style: type('micro', { color: muted, whiteSpace: 'nowrap' }) },
+        part
+      ),
+    ])
+  )
+}
+
+export function Header({
+  kind,
+  reference,
+  logo,
+  density = 'compact',
+}: {
+  kind: string
+  reference: string | null
+  logo: string
+  density?: Density
+}): ReactNode {
+  const pad = edge(density)
   return h(
     'header',
-    { style: { ...band, padding: `${space.lg} ${PAGE.gutter}px` } },
+    {
+      style: {
+        ...band,
+        padding: `${pad - PAGE.top}px ${PAGE.gutter}px ${pad}px`,
+      },
+    },
     h(
       'div',
-      { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' } },
-      h(Line, { step: 'h4', tone: 'ink', children: 'Dorado Metals Exchange' }),
+      {
+        style: {
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        },
+      },
+      h('img', {
+        src: logo,
+        width: LOGO.width,
+        height: LOGO.height,
+        alt: 'Dorado Metals Exchange',
+        style: { display: 'block', width: `${LOGO.width}px`, height: `${LOGO.height}px` },
+      }),
       h(
         'div',
-        { style: { textAlign: 'right' } },
+        { style: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' } },
         h(Eyebrow, { align: 'right', children: kind }),
-        h(Line, { step: 'small', tone: 'ink', align: 'right', weight: 500, children: reference })
+        ...(reference === null
+          ? []
+          : [
+              h(Line, {
+                key: 'reference',
+                step: 'small',
+                tone: 'ink',
+                align: 'right',
+                weight: 500,
+                children: reference,
+              }),
+            ])
       )
     ),
     h('div', { style: { paddingTop: space.lg } }, h(Rule, {}))
   )
 }
 
+export const PAGE_NUMBER = 'pageNumber'
+export const TOTAL_PAGES = 'totalPages'
+
+export function footerHeight(density: Density): number {
+  return edge(density) * 2 + 1 + Number.parseFloat(space.md) + 18
+}
+
 export function Footer({
   issued,
-  page = 'Page 1 of 1',
+  density = 'compact',
 }: {
   issued: string
-  page?: string
+  density?: Density
 }): ReactNode {
+  const pad = edge(density)
+  const micro = type('micro', { color: muted, margin: 0 })
   return h(
-    'footer',
-    { style: { ...band, padding: `${space.lg} ${PAGE.gutter}px` } },
-    h(Rule, {}),
+    'div',
+    {
+      style: {
+        width: `${PAGE.width}px`,
+        height: `${footerHeight(density)}px`,
+        boxSizing: 'border-box',
+        padding: `${pad}px ${PAGE.gutter}px`,
+        backgroundColor: paper.background,
+        fontFamily: fontStack,
+        WebkitPrintColorAdjust: 'exact',
+        printColorAdjust: 'exact',
+      },
+    },
+    h('div', { style: { height: stroke.hairline, backgroundColor: line } }),
     h(
       'div',
       {
@@ -113,9 +227,36 @@ export function Footer({
           paddingTop: space.md,
         },
       },
-      h(Line, { step: 'micro', children: issued }),
-      h(Line, { step: 'micro', align: 'right', children: page })
+      h('p', { style: micro }, issued),
+      h(
+        'p',
+        { style: { ...micro, textAlign: 'right' } },
+        'Page ',
+        h('span', { className: PAGE_NUMBER }),
+        ' of ',
+        h('span', { className: TOTAL_PAGES })
+      )
     )
+  )
+}
+
+export function NoteFooter({ note }: { note: string }): ReactNode {
+  return h(
+    'div',
+    {
+      style: {
+        width: `${PAGE.width}px`,
+        height: '100px',
+        boxSizing: 'border-box',
+        padding: `${space.lg} ${PAGE.gutter}px`,
+        backgroundColor: paper.background,
+        fontFamily: fontStack,
+        WebkitPrintColorAdjust: 'exact',
+        printColorAdjust: 'exact',
+      },
+    },
+    h('div', { style: { height: stroke.hairline, backgroundColor: line } }),
+    h('p', { style: type('micro', { color: muted, margin: 0, paddingTop: space.md }) }, note)
   )
 }
 
@@ -130,10 +271,10 @@ export function Hero({
 }): ReactNode {
   return h(
     'section',
-    { style: band },
+    { style: bandWith({ paddingTop: space.md }) },
     h(Eyebrow, { children: label }),
-    h(Line, { step: 'stat-sm', tone: 'ink', style: { paddingTop: '4px' }, children: value }),
-    h(Line, { step: 'small', style: { paddingTop: '4px' }, children: status })
+    h(Line, { step: 'stat-sm', tone: 'ink', style: { paddingTop: space['2xs'] }, children: value }),
+    h(Line, { step: 'small', style: { paddingTop: space['2xs'] }, children: status })
   )
 }
 
@@ -158,6 +299,7 @@ export function Table({
           display: 'flex',
           alignItems: 'flex-start',
           justifyContent: 'space-between',
+          gap: '14px',
           paddingTop: space.xs,
         },
       },
@@ -168,7 +310,16 @@ export function Table({
     ...rows.flatMap((row, i) => [
       h(
         'div',
-        { key: `row${i}`, style: { padding: '9px 0' } },
+        {
+          key: `row${i}`,
+          style: {
+            padding: `${space.xs} 0`,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '2px',
+            breakInside: 'avoid',
+          },
+        },
         h(
           'div',
           { style: { display: 'flex', alignItems: 'center', gap: '14px' } },
@@ -177,23 +328,69 @@ export function Table({
             { style: { flex: '1 0 0', minWidth: 0 } },
             h(Line, { step: 'small', tone: 'ink', weight: 500, children: row.name })
           ),
-          h(
-            'div',
-            { style: { width: '96px' } },
-            h(Line, {
-              step: 'small',
-              tone: 'ink',
-              weight: 500,
-              align: 'right',
-              children: row.figure,
-            })
-          )
+          h(Line, {
+            step: 'small',
+            tone: 'ink',
+            weight: 500,
+            align: 'right',
+            style: { whiteSpace: 'nowrap' },
+            children: row.figure,
+          })
         ),
-        h('div', { style: { paddingTop: '3px' } }, h(Dotted, { parts: row.facts }))
+        h(Dotted, { parts: row.facts })
       ),
       h(Rule, { key: `rule${i}` }),
     ])
   )
+}
+
+function Capped({ cap, children }: { cap: string; children: ReactNode }): ReactNode {
+  return h(
+    'section',
+    { style: bandWith({ breakInside: 'avoid' }) },
+    h(Eyebrow, { children: cap }),
+    h('div', { style: { paddingTop: '2px', paddingBottom: '2px' } }, h(Rule, {})),
+    h('div', { style: { paddingTop: space.sm } }, children)
+  )
+}
+
+export const QR_SIZE = 96
+
+export function NextStep({
+  cap,
+  title,
+  body,
+  qr,
+}: {
+  cap: string
+  title: string
+  body: string
+  qr: string
+}): ReactNode {
+  return h(Capped, {
+    cap,
+    children: h(
+      'div',
+      { style: { display: 'flex', alignItems: 'center', gap: space.lg } },
+      h('img', {
+        src: qr,
+        width: QR_SIZE,
+        height: QR_SIZE,
+        alt: '',
+        style: { display: 'block', width: `${QR_SIZE}px`, height: `${QR_SIZE}px`, flex: 'none' },
+      }),
+      h(
+        'div',
+        { style: { display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 } },
+        h(Line, { step: 'h4', tone: 'ink', children: title }),
+        h(Line, { step: 'micro', children: body })
+      )
+    ),
+  })
+}
+
+export function Note({ cap, body }: { cap: string; body: string }): ReactNode {
+  return h(Capped, { cap, children: h(Line, { step: 'small', children: body }) })
 }
 
 export type LedgerLine = { label: string; value: string }
@@ -211,14 +408,14 @@ export function Summary({
 }): ReactNode {
   return h(
     'section',
-    { style: band },
+    { style: bandWith({ breakInside: 'avoid' }) },
     h(
       'div',
       { style: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' } },
       h('div', { style: { flex: '1 0 0', minWidth: 0 } }, h(Eyebrow, { children: cap })),
       h(
         'div',
-        { style: { width: '320px' } },
+        { style: { width: '320px', display: 'flex', flexDirection: 'column', gap: space.xs } },
         ...lines.map((entry, i) =>
           h(
             'div',
@@ -235,7 +432,7 @@ export function Summary({
             h(Line, { step: 'small', tone: 'ink', align: 'right', children: entry.value })
           )
         ),
-        h(Rule, { weight: stroke.emphasis, color: ink }),
+        h(Rule, { weight: stroke.heavy, color: ink }),
         h(
           'div',
           {
@@ -264,20 +461,27 @@ export type EndBlock = {
 function End({ block, align }: { block: EndBlock; align?: 'right' }): ReactNode {
   return h(
     'div',
-    { style: { textAlign: align ?? 'left' } },
+    {
+      style: {
+        textAlign: align ?? 'left',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: align === 'right' ? 'flex-end' : 'flex-start',
+        gap: '2px',
+      },
+    },
     h(
       'p',
       {
-        style: {
-          ...type('micro', {
-            margin: 0,
-            color: muted,
-            fontSize: '14px',
-            lineHeight: '21px',
-            fontWeight: 600,
-          }),
+        style: type('micro', {
+          margin: 0,
+          color: muted,
+          fontSize: '14px',
+          lineHeight: '21px',
+          letterSpacing: '0px',
+          fontWeight: 600,
           textAlign: align ?? 'left',
-        },
+        }),
       },
       block.label
     ),
@@ -289,7 +493,7 @@ function End({ block, align }: { block: EndBlock; align?: 'right' }): ReactNode 
       children: block.who,
     }),
     ...(block.strong
-      ? [h(Line, { step: 'small', align, weight: 500, children: block.strong })]
+      ? [h(Line, { key: 'strong', step: 'small', align, weight: 500, children: block.strong })]
       : []),
     ...block.lines
       .filter((value): value is string => value !== null && value !== '')
@@ -312,30 +516,39 @@ export function Pair({
 }): ReactNode {
   return h(
     'section',
-    { style: band },
-    h(
-      'div',
-      { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' } },
-      h(Eyebrow, { children: cap }),
-      h(Dotted, { parts: facts })
-    ),
-    h('div', { style: { paddingTop: space['3xs'] } }, h(Rule, {})),
+    { style: bandWith({ breakInside: 'avoid' }) },
     h(
       'div',
       {
         style: {
           display: 'flex',
-          alignItems: 'flex-start',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: space.md,
+          minHeight: '18px',
+        },
+      },
+      h(Eyebrow, { children: cap }),
+      h(Dotted, { parts: facts, align: 'right' })
+    ),
+    h('div', { style: { paddingTop: '2px', paddingBottom: '2px' } }, h(Rule, {})),
+    h(
+      'div',
+      {
+        style: {
+          display: 'flex',
+          alignItems: connector ? 'center' : 'flex-start',
           justifyContent: 'space-between',
           gap: space.lg,
           paddingTop: space.sm,
+          minHeight: '112px',
         },
       },
       h(End, { block: left }),
       connector
-        ? h('div', { style: { width: '140px', paddingTop: '30px' } }, h(Rule, {}))
+        ? h('div', { style: { width: '140px', paddingTop: space.xl } }, h(Rule, {}))
         : h('div', { style: { flex: '1 0 0', minWidth: 0 } }),
-      h(End, { block: right, align: 'right' })
+      h(End, { block: right, align: connector ? undefined : 'right' })
     )
   )
 }
@@ -363,7 +576,7 @@ export function Instructions({
 }): ReactNode {
   return h(
     'section',
-    { style: { ...band, padding: `0 ${PAGE.gutter}px` } },
+    { style: { ...band, padding: `0 ${PAGE.gutter}px 10px` } },
     h(Line, { step: 'h2', tone: 'ink', children: lead }),
     h(Line, {
       step: 'body',
@@ -373,7 +586,15 @@ export function Instructions({
     h(Rule, {}),
     h(
       'div',
-      { style: { display: 'flex', gap: '28px', paddingTop: space.md, paddingBottom: space.lg } },
+      {
+        style: {
+          display: 'flex',
+          gap: space.lg,
+          paddingTop: space.md,
+          paddingBottom: space.lg,
+          breakInside: 'avoid',
+        },
+      },
       h(
         'div',
         { style: { flex: '1 0 0', minWidth: 0 } },
@@ -383,7 +604,7 @@ export function Instructions({
             'div',
             {
               key: `s${i}`,
-              style: { display: 'flex', gap: '12px', alignItems: 'baseline', paddingTop: space.md },
+              style: { display: 'flex', gap: space.sm, alignItems: 'center', paddingTop: space.md },
             },
             h(
               'p',
@@ -422,7 +643,7 @@ export function Instructions({
     h('div', { style: { paddingTop: space.md } }, h(Eyebrow, { children: closingCap })),
     h(
       'div',
-      { style: { display: 'flex', gap: space.lg, paddingTop: space.sm } },
+      { style: { display: 'flex', gap: space.lg, paddingTop: space.sm, breakInside: 'avoid' } },
       ...stages.map((stage, i) =>
         h(
           'div',
@@ -430,7 +651,7 @@ export function Instructions({
           h(Line, { step: 'small', tone: 'ink', weight: 500, children: stage.title }),
           h(
             'div',
-            { style: { paddingTop: '4px' } },
+            { style: { paddingTop: space['2xs'] } },
             h(Line, { step: 'micro', children: stage.body })
           )
         )

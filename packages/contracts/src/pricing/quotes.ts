@@ -131,6 +131,7 @@ export const OrderPricingLine = z.object({
   retier_premium: z.number().nullable(),
   unit_price: z.number(),
   line_total: z.number(),
+  spot: OrderSpot.shape.bid.nullable(),
 })
 export type OrderPricingLine = z.infer<typeof OrderPricingLine>
 
@@ -157,6 +158,8 @@ export const OrderPricing = z.object({
   sales_tax: z.number(),
   credit_applied: z.number(),
   total: z.number(),
+  card_fee: z.number(),
+  total_charged: z.number(),
   declared_value: z.number(),
 })
 export type OrderPricing = z.infer<typeof OrderPricing>

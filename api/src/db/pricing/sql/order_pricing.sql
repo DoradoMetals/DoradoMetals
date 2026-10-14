@@ -143,7 +143,9 @@ card AS (
          CASE WHEN ord.direction = 'sale' THEN COALESCE(t.sales_tax, 0)
               ELSE 0 END AS sales_tax,
          CASE WHEN ord.direction = 'sale' THEN COALESCE(t.funds, 0)
-              ELSE 0 END AS credit_applied
+              ELSE 0 END AS credit_applied,
+         CASE WHEN ord.direction = 'sale' THEN COALESCE(t.surcharge, 0)
+              ELSE 0 END AS card_fee
     FROM ord
    CROSS JOIN totals
     LEFT JOIN orders.transactions t ON t.order_id = ord.id
@@ -161,7 +163,13 @@ billed AS (
 SELECT jsonb_build_object(
          'order_id', ord.id,
          'direction', ord.direction,
-         'spots_at', to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+         'spots_at', to_char(
+           COALESCE(
+             CASE WHEN ord.spots_locked
+                  THEN (SELECT max(sl.created_at)
+                          FROM orders.spot_locks sl
+                         WHERE sl.order_id = ord.id AND sl.action = 'lock') END,
+             now()) AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
          'spots_locked', ord.spots_locked,
          'items', COALESCE(
            (SELECT jsonb_agg(
@@ -174,7 +182,8 @@ SELECT jsonb_build_object(
                        'premium', l.premium,
                        'retier_premium', l.retier_premium,
                        'unit_price', l.unit_price,
-                       'line_total', l.line_total)
+                       'line_total', l.line_total,
+                       'spot', l.spot)
                      ORDER BY l.id ASC)
               FROM lined l),
            '[]'::jsonb),
@@ -200,6 +209,8 @@ SELECT jsonb_build_object(
          'sales_tax', billed.sales_tax,
          'credit_applied', billed.credit_applied,
          'total', billed.total,
+         'card_fee', billed.card_fee,
+         'total_charged', billed.total + billed.card_fee,
          'declared_value', totals.scrap_total + totals.bullion_total
        ) AS pricing
   FROM ord

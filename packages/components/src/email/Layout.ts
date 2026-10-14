@@ -1,8 +1,13 @@
 import { createElement as h, type ReactNode } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { screen, type Palette } from './palette.ts'
-import { Footer, Header, NBSP } from './components.ts'
+import { Footer, Header } from './components.ts'
 import { GUTTER, WIDTH, fontStack, space } from './style.ts'
+
+const fontFaces = (media: string): string =>
+  `@font-face{font-family:'Geist';font-style:normal;font-weight:100 900;src:url(${media}/fonts/geist-latin.woff2) format('woff2');}
+@font-face{font-family:'Geist Mono';font-style:normal;font-weight:100 900;src:url(${media}/fonts/geist-mono-latin.woff2) format('woff2');}
+`
 
 const HEAD_STYLE = `body,table,td,a{-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;}
 table,td{mso-table-lspace:0pt;mso-table-rspace:0pt;}
@@ -14,10 +19,11 @@ body{margin:0 !important;padding:0 !important;width:100% !important;}
 export type LayoutProps = {
   preheader: string
   blocks: ReactNode[]
+  media: string
   palette?: Palette
 }
 
-export function Layout({ preheader, blocks, palette = screen }: LayoutProps): ReactNode {
+export function Layout({ preheader, blocks, media, palette = screen }: LayoutProps): ReactNode {
   const body = blocks
     .filter((block) => block !== null && block !== false && block !== '')
     .map((block, i, all) =>
@@ -28,7 +34,7 @@ export function Layout({ preheader, blocks, palette = screen }: LayoutProps): Re
           'td',
           {
             style: {
-              padding: `0 ${GUTTER} ${i === all.length - 1 ? '0' : space.md} ${GUTTER}`,
+              padding: `0 ${GUTTER} ${i === all.length - 1 ? GUTTER : space.md} ${GUTTER}`,
             },
           },
           block
@@ -48,7 +54,10 @@ export function Layout({ preheader, blocks, palette = screen }: LayoutProps): Re
       h('meta', { name: 'color-scheme', content: 'light dark' }),
       h('meta', { name: 'supported-color-schemes', content: 'light dark' }),
       h('title', null, 'Dorado Metals Exchange'),
-      h('style', { type: 'text/css', dangerouslySetInnerHTML: { __html: HEAD_STYLE } })
+      h('style', {
+        type: 'text/css',
+        dangerouslySetInnerHTML: { __html: fontFaces(media) + HEAD_STYLE },
+      })
     ),
     h(
       'body',
@@ -110,18 +119,9 @@ export function Layout({ preheader, blocks, palette = screen }: LayoutProps): Re
                     backgroundColor: palette.background,
                   },
                 },
-                h(Header, { palette }),
+                h(Header, { palette, media }),
                 h('tbody', null, body),
-                h(
-                  'tbody',
-                  null,
-                  h(
-                    'tr',
-                    null,
-                    h('td', { style: { height: GUTTER, lineHeight: GUTTER, fontSize: 0 } }, NBSP)
-                  )
-                ),
-                h(Footer, { palette })
+                h(Footer, { palette, media })
               )
             )
           )
@@ -137,7 +137,8 @@ const DOCTYPE =
 export function renderMailer(
   preheader: string,
   blocks: ReactNode[],
+  media: string,
   palette: Palette = screen
 ): string {
-  return DOCTYPE + renderToStaticMarkup(h(Layout, { preheader, blocks, palette }))
+  return DOCTYPE + renderToStaticMarkup(h(Layout, { preheader, blocks, media, palette }))
 }
