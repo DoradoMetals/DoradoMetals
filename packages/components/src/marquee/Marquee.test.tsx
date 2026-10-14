@@ -53,6 +53,8 @@ describe('Marquee at Layout=Desktop', () => {
     expect(bar.className).toContain('h-(--control-lg)')
     const row = bar.firstElementChild as HTMLElement
     expect(row.className).toContain('max-w-page')
+    expect(row.className).toContain('justify-between')
+    expect(row.className).toContain('px-lg')
   })
 
   it('under reduced motion the mobile band is a static, scrollable row', () => {
