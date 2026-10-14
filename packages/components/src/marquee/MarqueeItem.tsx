@@ -22,7 +22,7 @@ export type MarqueeItemProps = VariantProps<typeof deltaVariants> & {
 
 export function MarqueeItem({ label, value, delta, trend, className }: MarqueeItemProps) {
   return (
-    <div className={cn('flex items-center gap-2', className)}>
+    <div className={cn('flex items-center gap-xs', className)}>
       <span className="micro font-medium text-placeholder">{label}</span>
       <small className="font-medium" data-emphasis="default">
         {value}

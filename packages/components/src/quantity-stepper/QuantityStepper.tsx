@@ -46,7 +46,7 @@ const QuantityStepper = React.forwardRef<HTMLDivElement, QuantityStepperProps>(
         aria-valuemin={min}
         aria-valuemax={max}
         className={cn(
-          'inline-flex h-9 items-center overflow-hidden rounded-lg border border-border bg-card transition-colors focus-within:border-primary',
+          'inline-flex min-h-(--control-sm-plus) items-center overflow-hidden rounded-lg border border-border bg-card transition-colors focus-within:border-primary',
           disabled && 'pointer-events-none opacity-50',
           className
         )}
@@ -57,7 +57,7 @@ const QuantityStepper = React.forwardRef<HTMLDivElement, QuantityStepperProps>(
           disabled={disabled || atMin}
           onClick={() => step(-1)}
           className={cn(
-            'flex h-full w-8 items-center justify-center text-muted-foreground outline-none hover:bg-accent focus-visible:bg-accent disabled:pointer-events-none',
+            'flex w-(--control-sm) self-stretch items-center justify-center text-muted-foreground outline-none hover:bg-accent focus-visible:bg-accent disabled:pointer-events-none',
             !disabled && atMin && 'opacity-40'
           )}
         >
@@ -83,7 +83,7 @@ const QuantityStepper = React.forwardRef<HTMLDivElement, QuantityStepperProps>(
               step(-1)
             }
           }}
-          className="h-full w-7 cursor-text bg-transparent text-center text-small font-medium tabular-nums text-foreground outline-none disabled:text-foreground-disabled"
+          className="w-7 self-stretch cursor-text bg-transparent text-center text-small font-medium tabular-nums text-foreground outline-none disabled:text-foreground-disabled"
         />
         <button
           type="button"
@@ -91,7 +91,7 @@ const QuantityStepper = React.forwardRef<HTMLDivElement, QuantityStepperProps>(
           disabled={disabled || atMax}
           onClick={() => step(1)}
           className={cn(
-            'flex h-full w-8 items-center justify-center text-muted-foreground outline-none hover:bg-accent focus-visible:bg-accent disabled:pointer-events-none',
+            'flex w-(--control-sm) self-stretch items-center justify-center text-muted-foreground outline-none hover:bg-accent focus-visible:bg-accent disabled:pointer-events-none',
             !disabled && atMax && 'opacity-40'
           )}
         >

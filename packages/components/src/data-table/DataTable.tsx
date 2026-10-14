@@ -37,6 +37,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 export type DataTableColumnMeta = {
   numeric?: boolean
   primary?: boolean
+  fill?: boolean
 }
 
 const features = tableFeatures({
@@ -183,11 +184,12 @@ export function DataTable<T extends RowData>({
               {headerGroup.headers.map((header) => {
                 const canSort = header.column.getCanSort()
                 const sortDirection = header.column.getIsSorted()
-                const numeric = header.column.columnDef.meta?.numeric
+                const meta = header.column.columnDef.meta
                 return (
                   <TableHead
                     key={header.id}
-                    numeric={numeric}
+                    numeric={meta?.numeric}
+                    fill={meta?.fill}
                     sorted={canSort ? (sortDirection === false ? null : sortDirection) : undefined}
                     onSort={canSort ? () => header.column.toggleSorting() : undefined}
                   >
@@ -227,7 +229,12 @@ export function DataTable<T extends RowData>({
                 {row.getVisibleCells().map((cell) => {
                   const meta = cell.column.columnDef.meta
                   return (
-                    <TableCell key={cell.id} numeric={meta?.numeric} primary={meta?.primary}>
+                    <TableCell
+                      key={cell.id}
+                      numeric={meta?.numeric}
+                      primary={meta?.primary}
+                      fill={meta?.fill}
+                    >
                       <table.FlexRender cell={cell} />
                     </TableCell>
                   )

@@ -64,9 +64,9 @@ describe('Header', () => {
     const desktop = container.querySelector('.lg\\:flex') as HTMLElement
     expect(within(desktop).getByRole('navigation', { name: 'Primary' })).toBeTruthy()
     expect(within(desktop).getByText('Sign in')).toBeTruthy()
-    expect(desktop.querySelector('span.h-5.w-px')).toBeTruthy()
+    expect(desktop.querySelector('span.h-md-plus.w-px')).toBeTruthy()
     expect(getByRole('banner').className).toMatch(/h-18/)
-    expect(getByRole('banner').className).toMatch(/lg:h-16/)
+    expect(getByRole('banner').className).toMatch(/lg:h-3xl/)
   })
 
   it('drawerOpen replaces the desktop nav and trailing group with a single close button', async () => {

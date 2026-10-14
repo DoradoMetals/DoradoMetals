@@ -33,15 +33,14 @@ describe('OTPInput', () => {
     expect(onComplete).toHaveBeenCalledWith('123456')
   })
 
-  it('error cells are a 1px destructive border and the digit keeps its own colour (96:14)', () => {
+  it('error cells are a 1px destructive border and the digit is destructive too (96:14)', () => {
     const { container } = render(
       <OTPInput value="123" length={6} onValueChange={() => {}} invalid label="Code" />
     )
     const cells = container.querySelectorAll('[data-testid="otp-cell"]')
     const filledCell = cells[0] as HTMLElement
     expect(filledCell.className).toContain('border-destructive')
-    expect(filledCell.className).not.toContain('text-destructive')
-    expect(filledCell.className).toContain('text-foreground')
+    expect(filledCell.className).toContain('text-destructive')
     expect(filledCell.className).not.toContain('border-[1.5px]')
   })
 
@@ -111,7 +110,7 @@ describe('OTPInput', () => {
     expect(row.className).toContain('justify-between')
     container.querySelectorAll('[data-testid="otp-cell"]').forEach((cell) => {
       expect(cell.className).toContain('h-14')
-      expect(cell.className).toContain('max-w-[48px]')
+      expect(cell.className).toContain('max-w-(--control-xl)')
       expect(cell.className).toContain('rounded-lg')
       expect(cell.className).toContain('text-h3')
     })

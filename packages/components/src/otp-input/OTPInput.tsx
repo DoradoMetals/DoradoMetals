@@ -76,8 +76,8 @@ export function OTPInput({
   return (
     <div className={cn('flex flex-col gap-md', className)}>
       {(title != null || description != null) && (
-        <span className="flex flex-col gap-1">
-          {title != null && <span className="text-h5 font-semibold text-foreground">{title}</span>}
+        <span className="flex flex-col gap-2xs">
+          {title != null && <span className="text-h5 text-foreground">{title}</span>}
           {description != null && (
             <span className="text-small text-muted-foreground">{description}</span>
           )}
@@ -110,15 +110,15 @@ export function OTPInput({
                 key={i}
                 data-testid="otp-cell"
                 className={cn(
-                  'flex h-14 min-w-0 max-w-[48px] flex-1 items-center justify-center rounded-lg text-h3 font-semibold',
+                  'flex h-14 min-w-0 max-w-(--control-xl) flex-1 items-center justify-center rounded-lg text-h3',
                   disabled
                     ? 'bg-muted border border-border text-foreground-disabled opacity-50'
                     : cn(
                         'bg-card text-foreground',
                         invalid
-                          ? 'border border-destructive'
+                          ? 'border border-destructive text-destructive'
                           : isActive
-                            ? 'border-[1.5px] border-border-strong'
+                            ? 'border-(length:--stroke-emphasis) border-border-strong'
                             : 'border border-border'
                       )
                 )}
@@ -127,7 +127,7 @@ export function OTPInput({
                 {isActive && digit === undefined && (
                   <span
                     data-testid="otp-caret"
-                    className="animate-caret-blink h-7 w-[2px] bg-foreground"
+                    className="animate-caret-blink h-7 w-0.5 bg-foreground"
                   />
                 )}
               </span>

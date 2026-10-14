@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { ArrowDownWideNarrow, ArrowUpDown, ArrowUpNarrowWide, Funnel } from '@dorado/icons'
+import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '../cn'
 
 export function Table({ className, ...props }: React.TableHTMLAttributes<HTMLTableElement>) {
@@ -20,7 +21,7 @@ export function TableHeader({
   return (
     <thead
       className={cn(
-        '[&>tr]:h-10',
+        '[&>tr]:h-(--control-md)',
         surface === 'card' ? '[&>tr]:bg-card' : '[&>tr]:bg-muted',
         className
       )}
@@ -31,27 +32,30 @@ export function TableHeader({
 
 export function TableBody({ className, ...props }: React.HTMLAttributes<HTMLTableSectionElement>) {
   return (
-    <tbody
-      className={cn('[&>tr]:min-h-(--control-xl) [&>tr:hover]:bg-accent', className)}
-      {...props}
-    />
+    <tbody className={cn('[&>tr]:h-(--control-xl) [&>tr:hover]:bg-accent', className)} {...props} />
   )
 }
 
-const ROW_INTENTS = {
-  neutral: '',
-  success: 'bg-success-muted',
-  danger: 'bg-destructive-muted',
-  warning: 'bg-warning-muted',
-  info: 'bg-info-muted',
-} as const
+const rowVariants = cva('transition-colors data-[state=selected]:bg-muted', {
+  variants: {
+    intent: {
+      neutral: '',
+      success: 'bg-success-muted',
+      danger: 'bg-destructive-muted',
+      warning: 'bg-warning-muted',
+      info: 'bg-info-muted',
+    },
+  },
+})
+
+export type TableRowIntent = NonNullable<VariantProps<typeof rowVariants>['intent']>
 
 export type TableRowProps = React.HTMLAttributes<HTMLTableRowElement> & {
   selected?: boolean
   borderless?: boolean
   interactive?: boolean
   disabled?: boolean
-  intent?: keyof typeof ROW_INTENTS
+  intent?: TableRowIntent
 }
 
 export function TableRow({
@@ -70,8 +74,7 @@ export function TableRow({
       aria-disabled={disabled || undefined}
       className={cn(
         borderless ? 'border-b-0' : 'border-b border-border',
-        'transition-colors data-[state=selected]:bg-muted',
-        ROW_INTENTS[intent],
+        rowVariants({ intent }),
         interactive && 'cursor-pointer',
         disabled && 'pointer-events-none opacity-50',
         className
@@ -86,6 +89,7 @@ export type SortDirection = 'asc' | 'desc' | null
 export function TableHead({
   className,
   numeric,
+  fill,
   sorted,
   onSort,
   filter,
@@ -95,6 +99,7 @@ export function TableHead({
   ...props
 }: React.ThHTMLAttributes<HTMLTableCellElement> & {
   numeric?: boolean
+  fill?: boolean
   sorted?: SortDirection
   onSort?: () => void
   filter?: React.ReactNode
@@ -118,8 +123,9 @@ export function TableHead({
           : undefined
       }
       className={cn(
-        'px-sm align-middle text-micro font-medium text-muted-foreground',
+        'px-2xs-plus align-middle text-micro font-medium text-muted-foreground first:pl-sm last:pr-sm',
         numeric ? 'text-right' : 'text-left',
+        fill ? 'w-full' : 'whitespace-nowrap',
         className
       )}
       {...props}
@@ -132,7 +138,7 @@ export function TableHead({
             className="inline-flex cursor-pointer items-center gap-2xs hover:text-foreground"
           >
             {children}
-            <SortIcon aria-hidden className="size-3" />
+            <SortIcon aria-hidden className="size-sm" />
           </button>
         ) : (
           children
@@ -145,7 +151,7 @@ export function TableHead({
             aria-label="Filter"
             className="inline-flex cursor-pointer items-center text-muted-foreground hover:text-foreground aria-pressed:text-foreground"
           >
-            <Funnel aria-hidden className="size-3" />
+            <Funnel aria-hidden className="size-sm" />
           </button>
         )}
         {filter}
@@ -158,16 +164,19 @@ export function TableCell({
   className,
   numeric,
   primary,
+  fill,
   ...props
 }: React.TdHTMLAttributes<HTMLTableCellElement> & {
   numeric?: boolean
   primary?: boolean
+  fill?: boolean
 }) {
   return (
     <td
       className={cn(
-        'px-sm align-middle text-small',
+        'px-2xs-plus align-middle text-small first:pl-sm last:pr-sm',
         numeric ? 'text-right tabular-nums' : 'text-left',
+        fill ? 'w-full max-w-0 truncate' : 'whitespace-nowrap',
         primary ? 'font-medium text-foreground' : 'text-muted-foreground',
         className
       )}

@@ -12,6 +12,7 @@ export const SEMANTIC_TEXT_SIZES = [
   'body',
   'small',
   'micro',
+  'field',
 ] as const
 
 const twMerge = extendTailwindMerge({

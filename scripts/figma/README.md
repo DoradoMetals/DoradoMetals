@@ -177,10 +177,11 @@ are about to do the same thing, that is the bar — the growth is somebody else'
 file, the list is named and routed to whoever owns it, and the note says so. A
 raise to spare yourself the work is still the thing the rule forbids.
 
-What is left is `textStyle` at 94, and it is one pending decision rather than
-drift: 93 are Input, Select and Textarea needing a 16px Regular style that only
-Jacob can add to the ramp, and the 94th is a 24px title that became fixable
-only when `Stat/XSmall` landed.
+`textStyle` followed on 2026-10-13: the library gained `Field/Regular` (16px
+Regular on `size/field`, `line-height/field`, `letter-spacing/field`), every
+field value took it, and the re-capture measured **all six categories at zero
+over 4322 nodes**. Every budget is zero now; there is nothing left to ratchet
+down, only growth to refuse.
 
 ## The scale-true stroke rule
 

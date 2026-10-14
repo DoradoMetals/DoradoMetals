@@ -18,8 +18,8 @@ describe('Field chassis', () => {
   })
 
   it('trigger and option text bind to size/h5, not size/body (2026-09-04)', () => {
-    expect(fieldTrigger()).toContain('text-h5')
-    expect(fieldOption()).toContain('text-h5')
+    expect(fieldTrigger()).toContain('text-field')
+    expect(fieldOption()).toContain('text-field')
   })
 
   it('disabled is the normal chrome at 50%, not a muted fill (2026-09-05 convention)', () => {
@@ -34,8 +34,7 @@ describe('Field chassis', () => {
   })
 
   it('the field value is 16px at Regular - text-h5 alone would carry weight 600', () => {
-    expect(fieldTrigger()).toContain('text-h5')
-    expect(fieldTrigger()).toContain('font-normal')
+    expect(fieldTrigger()).toContain('text-field')
   })
 
   it('panel is the popover surface, option highlights with accent', () => {

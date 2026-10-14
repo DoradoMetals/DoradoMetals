@@ -18,7 +18,7 @@ const MenuContent = React.forwardRef<
       ref={ref}
       sideOffset={sideOffset}
       className={cn(
-        'z-50 flex min-w-[14rem] flex-col gap-3xs rounded-surface border border-border bg-popover p-2 text-popover-foreground',
+        'z-50 flex min-w-56 flex-col gap-3xs rounded-surface border border-border bg-popover p-xs text-popover-foreground',
         'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
         'data-[state=closed]:animate-out data-[state=closed]:fade-out-0',
         'motion-reduce:animate-none',
@@ -39,8 +39,8 @@ const MenuItem = React.forwardRef<
   <MenuPrimitive.Item
     ref={ref}
     className={cn(
-      'flex min-h-(--control-sm-plus) cursor-default select-none items-center gap-2 rounded-md px-2 text-small outline-none',
-      'data-[highlighted]:bg-accent data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+      'flex min-h-(--control-sm-plus) cursor-default select-none items-center gap-xs rounded-md px-xs text-small outline-none',
+      'data-[highlighted]:bg-secondary data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
       '[&_svg]:size-3.5 [&_svg]:shrink-0 [&_svg]:text-muted-foreground',
       intent === 'danger' && 'text-destructive [&_svg]:text-destructive',
       className
@@ -56,7 +56,7 @@ const MenuLabel = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <MenuPrimitive.Label
     ref={ref}
-    className={cn('eyebrow px-2 pb-1 pt-1.5 text-placeholder', className)}
+    className={cn('eyebrow py-2xs pl-xs text-placeholder', className)}
     {...props}
   />
 ))
@@ -68,7 +68,7 @@ const MenuSeparator = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <MenuPrimitive.Separator
     ref={ref}
-    className={cn('my-1.5 h-px bg-border', className)}
+    className={cn('my-2xs-plus h-px bg-border', className)}
     {...props}
   />
 ))

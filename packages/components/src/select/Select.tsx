@@ -35,7 +35,7 @@ export function Select({
 }: SelectProps) {
   const id = React.useId()
   return (
-    <div className={cn('flex w-full flex-col gap-0.5', className)}>
+    <div className={cn('flex w-full flex-col gap-3xs', className)}>
       {label != null && (
         <FieldLabel htmlFor={id} className={cn(invalid && 'text-destructive')}>
           {label}
@@ -70,7 +70,7 @@ export function Select({
             sideOffset={4}
             className={cn(fieldPanel(), 'w-[var(--radix-select-trigger-width)]')}
           >
-            <SelectPrimitive.Viewport className="flex flex-col gap-2">
+            <SelectPrimitive.Viewport className="flex flex-col gap-xs">
               {items.map((item) => (
                 <SelectPrimitive.Item
                   key={item.value}

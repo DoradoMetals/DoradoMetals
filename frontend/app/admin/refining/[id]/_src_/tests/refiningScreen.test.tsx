@@ -72,7 +72,7 @@ describe('a refiner sales order (we sell lots)', () => {
     expect(screen.getByText('Pool Oz Remediated')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Settlement' })).toBeTruthy()
     expect(screen.queryByText('Profit Breakdown')).toBeNull()
-    expect(screen.queryByText('Messages')).toBeNull()
+    expect(screen.queryByText('Chat')).toBeNull()
   })
 
   test('its spots carry no lock button - the prices are the refiner quote', () => {

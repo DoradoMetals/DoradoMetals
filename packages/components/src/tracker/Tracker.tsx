@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { Check, Clock, Ellipsis, TriangleAlert } from '@dorado/icons'
+import { cva } from 'class-variance-authority'
 import { cn } from '../cn'
 
 export type TrackerStepState = 'complete' | 'current' | 'upcoming' | 'exception'
@@ -23,54 +24,67 @@ export type TrackerProps = {
   className?: string
 }
 
-const NODE_ICON = {
-  complete: Check,
-  current: Ellipsis,
-  upcoming: Clock,
-  exception: TriangleAlert,
-} as const
+const nodeVariants = cva(
+  'flex min-h-(--control-xs) min-w-(--control-xs) shrink-0 items-center justify-center rounded-xl',
+  {
+    variants: {
+      state: {
+        complete: 'bg-primary text-primary-foreground',
+        current: 'bg-primary text-primary-foreground',
+        upcoming: 'border border-border-strong bg-muted text-muted-foreground',
+        exception: 'bg-destructive text-destructive-foreground',
+      },
+    },
+  }
+)
 
-const NODE_STYLES: Record<TrackerStepState, string> = {
-  complete: 'bg-primary text-primary-foreground',
-  current: 'bg-primary text-primary-foreground',
-  upcoming: 'border border-border-strong bg-muted text-muted-foreground',
-  exception: 'bg-destructive text-destructive-foreground',
-}
+const connectorVariants = cva('', {
+  variants: {
+    state: {
+      complete: 'bg-primary',
+      current: 'bg-border-strong',
+      upcoming: 'bg-border-strong',
+      exception: 'bg-destructive',
+    },
+  },
+})
 
-const CONNECTOR_STYLES: Record<TrackerStepState, string> = {
-  complete: 'bg-primary',
-  current: 'bg-border-strong',
-  upcoming: 'bg-border-strong',
-  exception: 'bg-destructive',
-}
+const labelVariants = cva('font-medium', {
+  variants: {
+    state: {
+      complete: 'text-foreground',
+      current: 'text-foreground',
+      upcoming: 'text-muted-foreground',
+      exception: 'text-destructive',
+    },
+  },
+})
 
-const LABEL_STYLES: Record<TrackerStepState, string> = {
-  complete: 'text-foreground',
-  current: 'text-foreground',
-  upcoming: 'text-muted-foreground',
-  exception: 'text-destructive',
-}
-
-const META_STYLES: Record<TrackerStepState, string> = {
-  complete: 'text-muted-foreground',
-  current: 'text-muted-foreground',
-  upcoming: 'text-placeholder',
-  exception: 'text-muted-foreground',
-}
+const metaVariants = cva('text-micro', {
+  variants: {
+    state: {
+      complete: 'text-muted-foreground',
+      current: 'text-muted-foreground',
+      upcoming: 'text-placeholder',
+      exception: 'text-muted-foreground',
+    },
+  },
+})
 
 const NODE_GLYPH_STROKE_WIDTH = (2 * 14) / 24
 
 function TrackerNode({ state }: { state: TrackerStepState }) {
-  const Icon = NODE_ICON[state]
+  const Icon =
+    state === 'complete'
+      ? Check
+      : state === 'current'
+        ? Ellipsis
+        : state === 'upcoming'
+          ? Clock
+          : TriangleAlert
   return (
-    <span
-      aria-hidden
-      className={cn(
-        'flex min-h-(--control-xs) min-w-(--control-xs) shrink-0 items-center justify-center rounded-xl',
-        NODE_STYLES[state]
-      )}
-    >
-      <Icon className="size-3.5" strokeWidth={NODE_GLYPH_STROKE_WIDTH} />
+    <span aria-hidden className={nodeVariants({ state })}>
+      <Icon className="size-sm-plus" strokeWidth={NODE_GLYPH_STROKE_WIDTH} />
     </span>
   )
 }
@@ -95,19 +109,17 @@ function TrackerRow({ step, connector }: { step: TrackerStepData; connector: boo
       <span className="flex shrink-0 flex-col items-center self-stretch">
         <TrackerNode state={state} />
         {connector && (
-          <span aria-hidden className={cn('w-0.5 min-h-px flex-1', CONNECTOR_STYLES[state])} />
+          <span aria-hidden className={cn('w-3xs min-h-px flex-1', connectorVariants({ state }))} />
         )}
       </span>
       <span className={cn('flex min-w-0 flex-1 flex-col gap-3xs', connector && 'pb-lg')}>
-        <small className={cn('w-full', LABEL_STYLES[state])}>{label}</small>
+        <small className={cn('w-full', labelVariants({ state }))}>{label}</small>
         {location != null && (
-          <span className={cn('w-full text-micro', META_STYLES[state])}>{location}</span>
+          <span className={cn('w-full', metaVariants({ state }))}>{location}</span>
         )}
       </span>
       {timestamp != null && (
-        <span
-          className={cn('shrink-0 whitespace-nowrap text-right text-micro', META_STYLES[state])}
-        >
+        <span className={cn('shrink-0 whitespace-nowrap text-right', metaVariants({ state }))}>
           {timestamp}
         </span>
       )}
@@ -137,14 +149,17 @@ function TrackerRail({ steps }: { steps: TrackerStepData[] }) {
               {!isFirst && (
                 <span
                   aria-hidden
-                  className={cn('h-0.5 min-w-px flex-1', CONNECTOR_STYLES[steps[i - 1].state])}
+                  className={cn(
+                    'h-3xs min-w-px flex-1',
+                    connectorVariants({ state: steps[i - 1].state })
+                  )}
                 />
               )}
               <TrackerNode state={step.state} />
               {!isLast && (
                 <span
                   aria-hidden
-                  className={cn('h-0.5 min-w-px flex-1', CONNECTOR_STYLES[step.state])}
+                  className={cn('h-3xs min-w-px flex-1', connectorVariants({ state: step.state }))}
                 />
               )}
             </span>
@@ -158,12 +173,12 @@ function TrackerRail({ steps }: { steps: TrackerStepData[] }) {
                     : 'items-center text-center'
               )}
             >
-              <small className={LABEL_STYLES[step.state]}>{step.label}</small>
+              <small className={labelVariants({ state: step.state })}>{step.label}</small>
               {location != null && (
-                <span className={cn('text-micro', META_STYLES[step.state])}>{location}</span>
+                <span className={metaVariants({ state: step.state })}>{location}</span>
               )}
               {timestamp != null && (
-                <span className={cn('text-micro', META_STYLES[step.state])}>{timestamp}</span>
+                <span className={metaVariants({ state: step.state })}>{timestamp}</span>
               )}
             </span>
           </li>
@@ -194,13 +209,17 @@ export function Tracker({
           {trackingNumber != null && (
             <span className="flex flex-col gap-3xs">
               <span className="text-micro text-muted-foreground">Tracking #</span>
-              <small data-emphasis="default">{trackingNumber}</small>
+              <small data-emphasis="default" className="font-medium">
+                {trackingNumber}
+              </small>
             </span>
           )}
           {eta != null && (
             <span className="flex flex-col items-end gap-3xs text-right">
               <span className="text-micro text-muted-foreground">{etaLabel}</span>
-              <small data-emphasis="default">{eta}</small>
+              <small data-emphasis="default" className="font-medium">
+                {eta}
+              </small>
             </span>
           )}
         </div>

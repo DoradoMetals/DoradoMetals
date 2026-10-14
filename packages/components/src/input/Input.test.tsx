@@ -37,8 +37,7 @@ describe('Input', () => {
   it('leading label is its own slot, text-sized rather than boxed like the icon (26:391, 599:0)', () => {
     const { getByText } = render(<Input label="Price" leadingLabel="$" />)
     const label = getByText('$')
-    expect(label.className).toContain('text-h5')
-    expect(label.className).toContain('font-normal')
+    expect(label.className).toContain('text-field')
     expect(label.className).not.toContain('size-4')
   })
 
@@ -99,7 +98,7 @@ describe('Input', () => {
 
   it('value text binds to size/h5, not size/body (26:391, 2026-09-04)', () => {
     const { getByLabelText } = render(<Input label="Weight" />)
-    expect((getByLabelText('Weight') as HTMLInputElement).className).toContain('text-h5')
+    expect((getByLabelText('Weight') as HTMLInputElement).className).toContain('text-field')
   })
 
   it('a number field hides its spinners and asks for the decimal keypad', () => {

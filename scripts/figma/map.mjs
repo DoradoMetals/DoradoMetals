@@ -125,6 +125,7 @@ export const SCALE = {
   // Print geometry, its own family. The letter-page margin a document is laid
   // out on; nothing on screen reads it.
   'page/margin-letter': '--page-margin-letter',
+  'chart/axis-y': '--chart-axis-y',
   'stroke/hairline': '--stroke-hairline',
   'stroke/emphasis': '--stroke-emphasis',
   'stroke/heavy': '--stroke-heavy',
@@ -185,6 +186,7 @@ export const TYPE_STEPS = [
   'h5',
   'h6',
   'body',
+  'field',
   'small',
   'micro',
 ]
@@ -208,6 +210,7 @@ export const TEXT_STYLES = {
   'Heading/H6': { step: 'h6', canonical: true },
   'Body/Regular': { step: 'body', canonical: true },
   'Body/Medium': { step: 'body', canonical: false },
+  'Field/Regular': { step: 'field', canonical: true },
   'Small/Regular': { step: 'small', canonical: true },
   'Small/Medium': { step: 'small', canonical: false },
   'Micro/Regular': { step: 'micro', canonical: true },
@@ -245,6 +248,7 @@ export const MOBILE_UNCHANGED = {
   h6: 'already 14px',
   'stat-2xs': 'already 20px; the floor of the Amount ladder, and it fits at 390',
   body: '15px is the reading size at every width',
+  field: '16px at every width; below 16 iOS zooms the page on focus',
   small: 'already 13px',
   micro: 'already 12px, the floor of the ramp',
 }
@@ -292,21 +296,7 @@ export const NOT_A_COMPONENT = {
 
 // Drawn in Figma, not built in packages/components yet. Each needs a reason so
 // the list stays a queue rather than a graveyard.
-export const PENDING = {
-  Breadcrumb: 'drawn 126:16; no code counterpart anywhere in the repo (see README)',
-  Popover: 'drawn 106:213; Field wears the same box, but the panel itself is not lifted',
-  // Drawn 2026-10-09/10, after the frontend nuke (ruling 99). Nothing imports
-  // any of them: the admin order screen carries its own local card chassis and
-  // the auth screens need none of this. Each waits for the surface that uses
-  // it, so it is built against a real call site rather than guessed.
-  Card: 'drawn 818:4; the admin order screen has its own local OrderCard chassis and nothing else needs one yet',
-  Estimator: 'drawn 905:193; the customer sell form and the admin Lead screen are both still nuked',
-  'Item Details':
-    'drawn 804:38; the middot item line, eight toggled parts - needs the order item surface',
-  'Photo Viewer': 'drawn 957:54; wears the Dialog chassis, needs the lead and order photo surfaces',
-  'Selection Bar':
-    'drawn 871:2335; needs a table with row selection, which no regrown surface has yet',
-}
+export const PENDING = {}
 
 // Directories in packages/components/src with no page of their own, and the
 // page that actually draws them.
@@ -315,6 +305,8 @@ export const DIR_TO_PAGE = {
   'slider-field': 'Slider',
   field: 'Input',
   chart: 'Chart',
+  'admin-header': 'Headers',
+  'entity-header': 'Headers',
 }
 
 // Component directories with no Figma drawing at all, and why.
@@ -366,7 +358,7 @@ export const HYGIENE_BUDGET = {
   radius: 0,
   // A TEXT node with raw font properties instead of a text style. The last
   // category off zero, and it is one pending decision - see the notes.
-  textStyle: 94,
+  textStyle: 0,
   // An icon instance carrying its own background fill.
   iconFill: 0,
   // An icon whose vector stroke is not 2 x (size/24).
@@ -376,10 +368,8 @@ export const HYGIENE_BUDGET = {
 // Things the hygiene sweep cannot fix from inside a component, recorded so the
 // number is understood rather than merely tracked.
 export const HYGIENE_NOTES = [
-  'FIVE OF SIX CATEGORIES ARE AT ZERO as of 2026-10-10, over 4287 component nodes - the most this file has ever been in agreement with itself. It did not get there quietly. The same day re-capture that added the Card, Estimator, Item Details, Photo Viewer and Selection Bar pages measured colour 5, spacing 72, iconWeight 44 and textStyle 95, and those four budgets had to be RAISED because every finding was inside the Figma file with nothing to fix from this repo. The library worker then bound all of it. The raise stood for about an hour, which is the argument for recording drift honestly rather than leaving a stale snapshot: the number is what got it fixed.',
-  "textStyle, 94, is one pending decision and not drift. 93 of them are Input 72, Select 11 and Textarea 10 - the 16px field-value change of 2026-09-04. The ramp has no 16px REGULAR text style, only Heading/H5 at 16 SemiBold, so the value text was typed raw rather than put on a style. Adding that one style clears all 93 and it is Jacob's call.",
-  'The 94th is the Admin Header / Mobile title, 24 SemiBold, and it is now fixable where it was not before: it was left raw because no 24px style existed, and Stat/XSmall (24 / 27.6 SemiBold) landed later the same day. Binding that one node takes this to 93.',
-  "The CODE half of the field-value defect is pinned, not drifting: Tailwind's text-h5 carries --text-h5--font-weight 600 and the field value is drawn Regular, so the components pin font-normal. Figma still wants the style.",
+  'ALL SIX CATEGORIES ARE AT ZERO as of 2026-10-13, over 4322 component nodes. textStyle went 94 -> 0 when Field/Regular (16 / 23.2 Regular, on size/field, line-height/field and letter-spacing/field) landed and every Input, Select and Textarea value took it, and the Admin Header / Mobile title was bound. Every budget is now zero, so any unbound value a new drawing adds fails the gate.',
+  'The CODE half of the field value is --text-field (text-field), generated from Field/Regular. Fields read text-field rather than text-h5 pinned font-normal.',
   'OPACITY, FIXED 2026-10-10: hover, scrim and soft were holding 0.85, 0.7 and 0.16, which a Figma opacity binding reads as fractions of a percent - 0.85% - which is why every Button and Icon Button Hover variant measured op=0.0085. All five opacity variables are on the 0-100 scale now and SCALE_PERCENT divides all five.',
   "Chat's Call button is drawn on primary/default (a Primary Button) while the component description says Secondary. Resolved in favour of the frame, which is the house rule for this file.",
 ]

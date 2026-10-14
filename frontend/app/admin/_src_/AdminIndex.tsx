@@ -38,6 +38,7 @@ const ordersColumns: DataTableColumn<OrderListItem>[] = [
   {
     id: 'customer',
     header: 'Customer',
+    meta: { fill: true },
     cell: ({ row }) => row.original.customer?.name ?? DASH,
   },
   {
@@ -72,6 +73,7 @@ const refiningColumns: DataTableColumn<RefiningOrderView>[] = [
   {
     id: 'refiner',
     header: 'Refiner',
+    meta: { fill: true },
     cell: ({ row }) => row.original.refiner?.organization?.name ?? DASH,
   },
   {

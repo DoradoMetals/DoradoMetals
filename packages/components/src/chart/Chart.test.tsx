@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { render } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
+import { fireEvent, render } from '@testing-library/react'
 import * as React from 'react'
 
 import { BarChart, DonutChart, LineChart, Sparkline } from './Chart'
@@ -43,5 +43,65 @@ describe('Charts', () => {
     )
     expect(queryByRole('heading')).toBeNull()
     expect(container.querySelector('.bg-card.border-border')).toBeNull()
+  })
+
+  it('range is a row of 1D/1W/1M/1Y Chips, controlled by value and onChange (57:60 Show range)', () => {
+    const onRangeChange = vi.fn()
+    const { getByRole } = render(
+      <LineChart
+        labels={['a', 'b']}
+        series={[{ label: 'Gold', data: [1, 2] }]}
+        label="Gold price"
+        title="Spot price"
+        range="1Y"
+        onRangeChange={onRangeChange}
+      />
+    )
+    const group = getByRole('group', { name: 'Range' })
+    expect(group.className).toContain('gap-xs')
+    const chips = group.querySelectorAll('button')
+    expect([...chips].map((c) => c.textContent)).toEqual(['1D', '1W', '1M', '1Y'])
+    expect(chips[3].getAttribute('aria-pressed')).toBe('true')
+    expect(chips[0].getAttribute('aria-pressed')).toBe('false')
+    fireEvent.click(chips[1])
+    expect(onRangeChange).toHaveBeenCalledWith('1W')
+  })
+
+  it('range options come from props, and no onRangeChange means no range row', () => {
+    const { getByRole, queryByRole, rerender } = render(
+      <BarChart
+        labels={['a']}
+        series={[{ label: 'Vol', data: [3] }]}
+        label="Volume"
+        range="5Y"
+        onRangeChange={() => {}}
+        rangeOptions={['1Y', '5Y']}
+      />
+    )
+    expect(getByRole('group', { name: 'Range' }).querySelectorAll('button').length).toBe(2)
+    rerender(<BarChart labels={['a']} series={[{ label: 'Vol', data: [3] }]} label="Volume" />)
+    expect(queryByRole('group', { name: 'Range' })).toBeNull()
+  })
+
+  it('yAxis renders without error on line and bar (57:60/57:36 Show y axis)', () => {
+    const { container } = render(
+      <div>
+        <LineChart labels={['a']} series={[{ label: 'G', data: [1] }]} label="G" yAxis />
+        <BarChart labels={['a']} series={[{ label: 'V', data: [1] }]} label="V" yAxis />
+      </div>
+    )
+    expect(container.querySelectorAll('canvas[role="img"]').length).toBe(2)
+  })
+
+  it('plots stretch to the full width of the chart (57:60)', () => {
+    const { container } = render(
+      <LineChart labels={['a']} series={[{ label: 'G', data: [1] }]} label="G" title="T" />
+    )
+    expect(container.querySelector('canvas')!.parentElement!.className).toContain('w-full')
+  })
+
+  it('sparkline takes an explicit direction (884:4)', () => {
+    const { container } = render(<Sparkline data={[1, 3, 2]} label="Trend" direction="down" />)
+    expect(container.querySelector('canvas[role="img"]')).toBeTruthy()
   })
 })

@@ -44,6 +44,6 @@ describe('Select', () => {
 
   it('the trigger binds to size/h5, not size/body (38:75, 2026-09-04)', () => {
     const { getByRole } = render(<Select label="Method" items={items} />)
-    expect(getByRole('combobox').className).toContain('text-h5')
+    expect(getByRole('combobox').className).toContain('text-field')
   })
 })

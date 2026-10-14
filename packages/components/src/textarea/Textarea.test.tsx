@@ -32,8 +32,7 @@ describe('Textarea', () => {
   it('value text binds to size/h5, not size/body (37:63, 2026-09-04)', () => {
     const { getByLabelText } = render(<Textarea label="Notes" />)
     const el = getByLabelText('Notes') as HTMLTextAreaElement
-    expect(el.className).toContain('text-h5')
-    expect(el.className).toContain('font-normal')
+    expect(el.className).toContain('text-field')
   })
 
   it('message and counter stack as two lines, not one split row (37:63)', () => {

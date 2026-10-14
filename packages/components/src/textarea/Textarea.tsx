@@ -43,7 +43,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
     const over = maxLength != null && count > maxLength
 
     return (
-      <div className={cn('flex h-full w-full flex-col gap-0.5', className)}>
+      <div className={cn('flex h-full w-full flex-col gap-3xs', className)}>
         {label != null && (
           <FieldLabel
             htmlFor={areaId}
@@ -66,7 +66,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
           aria-invalid={invalid || undefined}
           aria-describedby={message != null ? messageId : undefined}
           className={cn(
-            'min-h-24 w-full flex-1 resize-y rounded-lg border border-border bg-card px-3 py-2 text-h5 font-normal text-foreground outline-none transition-colors',
+            'min-h-24 w-full flex-1 resize-y rounded-lg border border-border bg-card px-sm py-xs text-field text-foreground outline-none transition-colors',
             'placeholder:text-placeholder focus-visible:border-primary',
             invalid && 'border-destructive',
             success && 'border-success',

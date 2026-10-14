@@ -14,7 +14,7 @@ export function Stepper({ steps, current, className }: StepperProps) {
   const n = labels.length
 
   return (
-    <ol className={cn('flex w-full items-center gap-2', className)}>
+    <ol className={cn('flex w-full items-center gap-xs', className)}>
       {labels.map((label, i) => {
         const state = i < current ? 'complete' : i === current ? 'current' : 'upcoming'
         return (
@@ -30,7 +30,7 @@ export function Stepper({ steps, current, className }: StepperProps) {
               )}
             >
               {state === 'complete' ? (
-                <Check aria-hidden className="size-3.5" strokeWidth={(2 * 14) / 24} />
+                <Check aria-hidden className="size-sm-plus" strokeWidth={(2 * 14) / 24} />
               ) : (
                 i + 1
               )}
@@ -39,7 +39,7 @@ export function Stepper({ steps, current, className }: StepperProps) {
               <span
                 aria-hidden
                 className={cn(
-                  'h-0.5 min-w-1 flex-1 rounded-full',
+                  'h-3xs min-w-2xs flex-1 rounded-full',
                   i < current ? 'bg-primary' : 'bg-border-strong'
                 )}
               />

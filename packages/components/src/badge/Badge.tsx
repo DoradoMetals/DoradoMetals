@@ -3,15 +3,15 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '../cn'
 
 const badgeVariants = cva(
-  'inline-flex items-center rounded-md whitespace-nowrap [&_svg]:shrink-0',
+  'inline-flex items-center rounded-md font-medium whitespace-nowrap [&_svg]:shrink-0',
   {
     variants: {
       variant: { solid: '', soft: '', outline: 'border' },
       intent: { neutral: '', success: '', danger: '', warning: '', info: '' },
       size: {
-        sm: 'gap-2xs px-1.5 py-3xs text-micro [&_svg]:size-2.5',
+        sm: 'gap-2xs px-2xs-plus py-3xs text-micro [&_svg]:size-2.5',
         default: 'gap-2xs px-xs py-3xs text-micro [&_svg]:size-3',
-        lg: 'gap-2xs px-2.5 py-1 text-small [&_svg]:size-3.5',
+        lg: 'gap-2xs px-xs-plus py-2xs text-small [&_svg]:size-3.5',
       },
     },
     compoundVariants: [

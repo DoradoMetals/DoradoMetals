@@ -7,7 +7,7 @@ import { Button } from '../button/Button'
 import { cva } from 'class-variance-authority'
 import { cn } from '../cn'
 
-const alertVariants = cva('flex w-full items-start gap-2 rounded-lg border p-3', {
+const alertVariants = cva('flex w-full items-start gap-xs rounded-lg border p-sm', {
   variants: {
     intent: {
       neutral: 'border-border bg-card',
@@ -62,12 +62,12 @@ export function Alert({
       className={cn(alertVariants({ intent }), className)}
     >
       {icon !== false && (
-        <span className={cn('mt-[2px] shrink-0', TITLE[intent])}>
+        <span className={cn('mt-3xs shrink-0', TITLE[intent])}>
           {icon ?? <DefaultIcon aria-hidden className="size-7" />}
         </span>
       )}
-      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <small className={TITLE[intent]}>{title}</small>
+      <span className="flex min-w-0 flex-1 flex-col gap-3xs">
+        <small className={cn('font-medium', TITLE[intent])}>{title}</small>
         {children != null && (
           <small data-emphasis={intent === 'neutral' ? undefined : 'default'}>{children}</small>
         )}
@@ -78,7 +78,7 @@ export function Alert({
           intent={intent}
           size="iconXs"
           aria-label="Dismiss"
-          className="-mr-1 shrink-0 self-center"
+          className="-mr-2xs shrink-0 self-center"
           onClick={onDismiss}
         >
           <X aria-hidden />

@@ -30,12 +30,12 @@ describe('Marquee', () => {
     expect(track.className).toContain('group-focus-within:[animation-play-state:paused]')
   })
 
-  it('insets the band px-6, matching the drawing', () => {
+  it('insets the band px-lg, matching the drawing', () => {
     const { container } = render(
       <Marquee>
         <span>x</span>
       </Marquee>
     )
-    expect(container.firstElementChild!.className).toContain('px-6')
+    expect(container.firstElementChild!.className).toContain('px-lg')
   })
 })

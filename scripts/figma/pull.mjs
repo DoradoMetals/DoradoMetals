@@ -234,6 +234,8 @@ for (const [figmaName, cssName] of Object.entries(M.SCALE)) {
     setDecl(BLOCKS.root, cssName, String(round4(want)), { family: '--opacity-' })
   } else if (figmaName.startsWith('control/')) {
     setDecl(BLOCKS.root, cssName, rem(want), { family: '--control-' })
+  } else if (figmaName.startsWith('chart/')) {
+    setDecl(BLOCKS.root, cssName, rem(want), { family: '--chart-' })
   } else if (figmaName.startsWith('page/')) {
     setDecl(BLOCKS.root, cssName, rem(want), { family: '--page-' })
   } else if (figmaName.startsWith('breakpoint/')) {

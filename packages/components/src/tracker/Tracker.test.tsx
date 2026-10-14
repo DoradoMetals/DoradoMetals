@@ -70,7 +70,7 @@ describe('Tracker', () => {
         header={false}
       />
     )
-    const connectors = [...container.querySelectorAll('li span[aria-hidden="true"].w-0\\.5')]
+    const connectors = [...container.querySelectorAll('li span[aria-hidden="true"].w-3xs')]
     expect(connectors).toHaveLength(2)
     expect(connectors[0].className).toContain('bg-primary')
     expect(connectors[1].className).toContain('bg-destructive')
@@ -80,7 +80,7 @@ describe('Tracker', () => {
     const { container } = render(<Tracker steps={steps} header={false} />)
     const rows = container.querySelectorAll('li')
     const last = rows[rows.length - 1]
-    expect(last.querySelector('span[aria-hidden="true"].w-0\\.5')).toBeNull()
+    expect(last.querySelector('span[aria-hidden="true"].w-3xs')).toBeNull()
     const content = last.querySelectorAll(':scope > span')[1]
     expect(content.className).not.toContain('pb-lg')
   })
@@ -90,6 +90,13 @@ describe('Tracker', () => {
       <Tracker steps={[{ label: 'Delivery Exception', state: 'exception' }]} header={false} />
     )
     expect(getByText('Delivery Exception').className).toContain('text-destructive')
+  })
+
+  it('labels are Small/Medium (542:1417)', () => {
+    const { getByText } = render(
+      <Tracker steps={[{ label: 'Picked Up', state: 'complete' }]} header={false} />
+    )
+    expect(getByText('Picked Up').className).toContain('font-medium')
   })
 
   describe('Orientation=Horizontal (597:108, rebuilt 2026-09-04): a single rail, markers evenly spaced', () => {
@@ -114,9 +121,9 @@ describe('Tracker', () => {
       )
       const stages = container.querySelectorAll('[aria-label="Shipment timeline"] > li')
       const firstRail = stages[0].querySelector(':scope > span')!
-      expect(firstRail.querySelectorAll('span[aria-hidden="true"].h-0\\.5').length).toBe(1)
+      expect(firstRail.querySelectorAll('span[aria-hidden="true"].h-3xs').length).toBe(1)
       const lastRail = stages[stages.length - 1].querySelector(':scope > span')!
-      expect(lastRail.querySelectorAll('span[aria-hidden="true"].h-0\\.5').length).toBe(1)
+      expect(lastRail.querySelectorAll('span[aria-hidden="true"].h-3xs').length).toBe(1)
     })
 
     it("a connector segment's colour comes from the state on its travelled side, same law as Vertical", () => {
@@ -125,7 +132,7 @@ describe('Tracker', () => {
       )
       const stages = container.querySelectorAll('[aria-label="Shipment timeline"] > li')
       const inTransitRail = stages[1].querySelector(':scope > span')!
-      const [left, right] = inTransitRail.querySelectorAll('span[aria-hidden="true"].h-0\\.5')
+      const [left, right] = inTransitRail.querySelectorAll('span[aria-hidden="true"].h-3xs')
       expect(left.className).toContain('bg-primary')
       expect(right.className).toContain('bg-border-strong')
     })

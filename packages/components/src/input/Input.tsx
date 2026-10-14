@@ -46,7 +46,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     const isNumber = type === 'number'
 
     return (
-      <div className={cn('flex w-full flex-col gap-0.5', className)}>
+      <div className={cn('flex w-full flex-col gap-3xs', className)}>
         {label != null && (
           <FieldLabel
             htmlFor={inputId}
@@ -71,7 +71,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             </span>
           )}
           {leadingLabel != null && (
-            <span className="flex shrink-0 items-center text-h5 font-normal text-muted-foreground">
+            <span className="flex shrink-0 items-center text-field text-muted-foreground">
               {leadingLabel}
             </span>
           )}
@@ -85,7 +85,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             type={type}
             inputMode={inputMode ?? (isNumber ? 'decimal' : undefined)}
             className={cn(
-              'min-w-0 flex-1 bg-transparent text-h5 font-normal text-foreground outline-none placeholder:text-placeholder',
+              'min-w-0 flex-1 bg-transparent text-field text-foreground outline-none placeholder:text-placeholder',
               'disabled:cursor-not-allowed disabled:text-foreground-disabled',
               'read-only:cursor-default',
               isNumber && NUMBER_FIELD,

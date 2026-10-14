@@ -68,7 +68,7 @@ describe('CallEvent', () => {
     expect(getByText('1:52 PM')).toBeTruthy()
   })
 
-  it("no answer is an outgoing call whose detail is static text, not a duration", () => {
+  it('no answer is an outgoing call whose detail is static text, not a duration', () => {
     const { getByText, queryByText } = render(
       <CallEvent kind="no-answer" detail="4m 12s" time="11:30 AM" />
     )
@@ -160,9 +160,23 @@ describe('Chat', () => {
     const { getByRole, queryByText } = render(
       <Chat phone="(512) 555-0148" messages={messages} defaultOpen={false} />
     )
-    expect(
-      getByRole('button', { name: /^Messages\(512\)/ }).getAttribute('aria-expanded')
-    ).toBe('false')
+    expect(getByRole('button', { name: /^Chat\(512\)/ }).getAttribute('aria-expanded')).toBe(
+      'false'
+    )
     expect(queryByText('Order received.')).toBeNull()
+  })
+
+  it('a call row shows the agent first on the sub line', () => {
+    const { getByText } = render(
+      <Chat
+        phone="(512) 555-0148"
+        defaultView="calls"
+        calls={[
+          { id: 'c1', kind: 'outgoing', detail: '4m 12s', agent: 'Jacob J.', time: '1:52 PM' },
+        ]}
+      />
+    )
+    expect(getByText('Jacob J.')).toBeTruthy()
+    expect(getByText('4m 12s')).toBeTruthy()
   })
 })

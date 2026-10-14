@@ -8,6 +8,7 @@ import { Button } from '../button/Button'
 import { EmptyState } from '../empty-state/EmptyState'
 import { fieldTrigger } from '../field/Field'
 import { cn } from '../cn'
+import { Divider } from '../divider/Divider'
 import { CallEvent, type CallKind } from './CallEvent'
 import { Message, type MessageDirection, type MessageStatus } from './Message'
 
@@ -25,6 +26,7 @@ export type ChatCall = {
   id: string
   kind: CallKind
   detail?: React.ReactNode
+  agent?: React.ReactNode
   time: React.ReactNode
 }
 
@@ -69,6 +71,13 @@ export function Chat({
   defaultOpen = true,
   className,
 }: ChatProps) {
+  const [uncontrolledOpen, setUncontrolledOpen] = React.useState(defaultOpen)
+  const isOpen = open ?? uncontrolledOpen
+  const toggle = () => {
+    if (open === undefined) setUncontrolledOpen(!uncontrolledOpen)
+    onToggle?.()
+  }
+
   const [uncontrolledView, setUncontrolledView] = React.useState<ChatView>(defaultView)
   const activeView = view ?? uncontrolledView
   const selectView = (next: ChatView) => {
@@ -93,44 +102,45 @@ export function Chat({
   const isMessages = activeView === 'messages'
   const isEmpty = isMessages ? messages.length === 0 : calls.length === 0
 
+  const switcher = (
+    <span className="flex items-center gap-3xs">
+      <Button
+        variant={isMessages ? 'secondary' : 'tertiary'}
+        size="iconSm"
+        aria-label="Messages"
+        aria-pressed={isMessages}
+        onClick={() => selectView('messages')}
+      >
+        <MessageSquare aria-hidden />
+      </Button>
+      <Button
+        variant={isMessages ? 'tertiary' : 'secondary'}
+        size="iconSm"
+        aria-label="Calls"
+        aria-pressed={!isMessages}
+        onClick={() => selectView('calls')}
+      >
+        <Phone aria-hidden />
+      </Button>
+    </span>
+  )
+
   return (
     <Accordion
-      label={VIEW_TITLE[activeView]}
+      label={isOpen ? VIEW_TITLE[activeView] : 'Chat'}
       trailing={phone}
       chevron="leading"
-      open={open}
-      onToggle={onToggle}
-      defaultOpen={defaultOpen}
+      open={isOpen}
+      onToggle={toggle}
+      actions={isOpen ? switcher : undefined}
+      flush
       className={className}
     >
-      <div className="-mx-1 flex w-full flex-col">
-        <div className="flex justify-end pb-xs">
-          <span className="flex items-center gap-3xs">
-            <Button
-              variant={isMessages ? 'secondary' : 'tertiary'}
-              size="iconSm"
-              aria-label="Messages"
-              aria-pressed={isMessages}
-              onClick={() => selectView('messages')}
-            >
-              <MessageSquare aria-hidden />
-            </Button>
-            <Button
-              variant={isMessages ? 'tertiary' : 'secondary'}
-              size="iconSm"
-              aria-label="Calls"
-              aria-pressed={!isMessages}
-              onClick={() => selectView('calls')}
-            >
-              <Phone aria-hidden />
-            </Button>
-          </span>
-        </div>
-
-        <div className="border-t border-border" />
+      <div className="flex w-full flex-col">
+        <Divider />
 
         {isEmpty ? (
-          <div className="py-lg">
+          <div className="flex flex-col justify-center px-sm">
             <EmptyState
               icon={isMessages ? <Send aria-hidden /> : <Phone aria-hidden />}
               title={isMessages ? 'No messages yet' : 'No calls yet'}
@@ -142,7 +152,7 @@ export function Chat({
             />
           </div>
         ) : isMessages ? (
-          <div className="flex w-full flex-col gap-sm py-sm">
+          <div className="flex w-full flex-col gap-sm p-sm">
             <span className="text-center text-micro text-muted-foreground">{dayLabel}</span>
             {messages.map((m) => (
               <Message key={m.id} direction={m.direction} status={m.status} time={m.time}>
@@ -151,19 +161,25 @@ export function Chat({
             ))}
           </div>
         ) : (
-          <ul className="flex w-full flex-col divide-y divide-border">
-            {calls.map((c) => (
+          <ul className="flex w-full flex-col px-sm">
+            {calls.map((c, index) => (
               <li key={c.id}>
-                <CallEvent kind={c.kind} detail={c.detail} time={c.time} />
+                <CallEvent
+                  kind={c.kind}
+                  detail={c.detail}
+                  agent={c.agent}
+                  time={c.time}
+                  className={index === calls.length - 1 ? 'border-b-0' : undefined}
+                />
               </li>
             ))}
           </ul>
         )}
 
-        <div className="border-t border-border" />
+        <Divider />
 
         {isMessages ? (
-          <div className="flex w-full items-center gap-xs pt-sm">
+          <div className="flex w-full items-center gap-xs p-sm">
             <Button variant="tertiary" size="icon" aria-label="Attach" onClick={onAttach}>
               <Paperclip aria-hidden />
             </Button>
@@ -178,14 +194,17 @@ export function Chat({
               }}
               aria-label={`Text ${phone}`}
               placeholder={placeholder}
-              className={cn(fieldTrigger(), 'h-10 font-normal placeholder:text-muted-foreground')}
+              className={cn(
+                fieldTrigger(),
+                'min-h-(--control-md) text-field placeholder:text-muted-foreground'
+              )}
             />
             <Button size="icon" aria-label="Send" onClick={send}>
               <Send aria-hidden />
             </Button>
           </div>
         ) : (
-          <div className="w-full pt-sm">
+          <div className="w-full p-sm">
             <Button className="w-full" icon={Phone} onClick={onCall}>
               {`Call ${phone}`}
             </Button>
