@@ -5,7 +5,9 @@ import * as MenuPrimitive from '@radix-ui/react-dropdown-menu'
 
 import { cn } from '../cn'
 
-const Menu = MenuPrimitive.Root
+const Menu = ({ modal = false, ...props }: React.ComponentProps<typeof MenuPrimitive.Root>) => (
+  <MenuPrimitive.Root modal={modal} {...props} />
+)
 const MenuTrigger = MenuPrimitive.Trigger
 const MenuGroup = MenuPrimitive.Group
 
