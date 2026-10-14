@@ -70,6 +70,7 @@ test('the invoice carries its own labels, the theme, and nothing broken', async 
   clean(html, 'invoice')
   wearsTheTheme(html, 'invoice')
   assert.ok(html.includes('Invoice'), 'the eyebrow is missing')
+  assert.ok(html.includes('>Issued '), 'the invoice footer does not say Issued')
   assert.ok(html.includes('Payment'), 'the Payment band cap is missing')
   assert.ok(html.includes('Items'), 'the Table cap is missing')
   assert.ok(html.includes('Payout'), 'the Table column head is missing')
@@ -140,6 +141,8 @@ for (const { name, build, eyebrow, stepsCap, steps } of instructionCases) {
     wearsTheTheme(html, name)
     assert.ok(html.includes(eyebrow), `${name}: the eyebrow is missing`)
     assert.ok(html.includes(stepsCap), `${name}: the Steps cap is missing`)
+    assert.ok(html.includes('>Sent '), `${name}: the footer does not say when it was sent`)
+    assert.ok(!html.includes('>Issued '), `${name}: an instruction sheet says Issued`)
     for (const step of steps) {
       assert.ok(carries(html, step), `${name}: step "${step}" is missing`)
     }
@@ -168,7 +171,7 @@ test('the rate sheet carries its own labels and the theme', async () => {
   }
 })
 
-test('the quote estimate names the customer, links the sell page and prints no order number', async () => {
+test('the quote estimate carries the checkout code, the fulfilment and payout options, and no order number', async () => {
   const order = orders.find((o) => o.lots.length > 0) ?? orders[0]
   const own = await inputs.quoteEstimateInputs(order.order.id)
   const html = buildQuoteEstimateHtml(own)
@@ -176,14 +179,18 @@ test('the quote estimate names the customer, links the sell page and prints no o
   wearsTheTheme(html, 'quote estimate')
   assert.ok(html.includes('Quote Estimate'), 'the eyebrow is missing')
   assert.ok(html.includes('Estimated quote'), 'the hero label is missing')
-  assert.ok(html.includes('Start your order'), 'the next step is missing')
-  assert.ok(html.includes('About this quote'), 'the notes are missing')
+  assert.ok(html.includes('Start your order'), 'the checkout header is missing')
+  assert.ok(html.includes('Scan with your phone'), 'the checkout prompt is missing')
+  assert.ok(html.includes('How To Send It'), 'the fulfilment options are missing')
+  assert.ok(html.includes('Getting Paid'), 'the payout options are missing')
+  for (const fee of own.fees)
+    assert.ok(carries(html, fee.label), `payout option ${fee.label} is missing`)
+  assert.ok(!html.includes('About this quote'), 'the retired notes block came back')
   assert.ok(html.includes('Shipping and payout fees are not included.'), 'the fee line is missing')
   assert.ok(html.includes('Quoted '), 'the footer does not say when it was quoted')
-  if (order.user?.name) assert.ok(carries(html, order.user.name), 'the customer is not named')
   assert.ok(!html.includes(order.reference), 'a quote printed an order number')
   assert.ok(!html.includes('Summary'), 'a quote grew a summary block')
-  assert.match(html, /<img src="data:image\/svg\+xml;base64,[^"]+" width="96"/, 'no vector QR code')
+  assert.match(html, /<img src="data:image\/svg\+xml;base64,[^"]+" width="48"/, 'no vector QR code')
   for (const lot of order.lots) assert.ok(carries(html, lot.name), `lot ${lot.name} is missing`)
 })
 
@@ -206,7 +213,7 @@ test('every document prints the mark and paginates through the footer template',
   for (const [name, html] of [
     ['invoice', buildInvoiceHtml(own)],
     ['intake receipt', buildIntakeReceiptHtml(own)],
-    ['quote estimate', buildQuoteEstimateHtml(own)],
+    ['quote estimate', buildQuoteEstimateHtml(await inputs.quoteEstimateInputs(order.order.id))],
     ['shipping instructions', buildShippingInstructionsHtml('PO-000041')],
   ] as const) {
     assert.ok(html.includes('data:image/svg+xml;base64,'), `${name} prints no logo`)

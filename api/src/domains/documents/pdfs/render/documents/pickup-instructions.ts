@@ -1,7 +1,7 @@
 import { createElement as h } from 'react'
 import { Instructions } from '@dorado/components/document'
 import { documentHtml } from '#documents/pdfs/render/documents/page.ts'
-import { formatIssued } from '#documents/pdfs/render/format.ts'
+import { formatSent } from '#documents/pdfs/render/format.ts'
 
 const LEAD = 'Your pickup takes four steps.'
 const SUB =
@@ -78,6 +78,6 @@ export function buildPickupInstructionsHtml(reference: string): string {
         stages: ARRIVAL,
       }),
     ],
-    footer: formatIssued(),
+    footer: formatSent(),
   })
 }

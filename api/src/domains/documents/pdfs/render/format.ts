@@ -43,6 +43,10 @@ export function formatCreated(date: Date = new Date()): string {
   return `Created ${longDate(date)}`
 }
 
+export function formatSent(date: Date = new Date()): string {
+  return `Sent ${longDate(date)}`
+}
+
 export function formatQuoted(date: Date = new Date()): string {
   return `Quoted ${longDate(date)}`
 }
