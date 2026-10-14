@@ -66,10 +66,12 @@ export type SpotTrend = z.infer<typeof SpotTrend>
 export const SpotTicker = SpotPrice.extend({ direction: SpotTrend })
 export type SpotTicker = z.infer<typeof SpotTicker>
 
-export const SpotBoard = z.object({
-  spots: z.array(SpotTicker),
-  paused: z.array(Metal.shape.id),
-})
+export const SpotBoard = z
+  .object({
+    spots: z.array(SpotTicker),
+    paused: z.array(Metal.shape.id),
+  })
+  .extend({ market_open: z.boolean() })
 export type SpotBoard = z.infer<typeof SpotBoard>
 
 export const SpotStreamEventName = z.enum(['board'])
@@ -83,6 +85,7 @@ export const MetalSpot = SpotTicker.extend({
   feed_bid: CurrentSpot.shape.bid.nullable(),
   feed_ask: CurrentSpot.shape.ask.nullable(),
   source_id: SpotSource.shape.id.nullable(),
+  market_open: z.boolean(),
   follows_default: z.boolean(),
   mode: SpotAdjustmentMode.nullable(),
   adjustment: SpotAdjustmentRead.nullable(),

@@ -27,7 +27,13 @@ test('the board lists every card in metal order and names the stale metals', asy
       await query(`UPDATE spots.current SET seen_at = now()`, [], c)
       await query(`UPDATE spots.current SET dollar_change = -3 WHERE metal_id = 'Silver'`, [], c)
       await aStaleSpot(c, 'Silver')
-      const { spots: cards, paused } = await spots.board(c)
+      const { spots: cards, paused, market_open } = await spots.board(c)
+      assert.equal(typeof market_open, 'boolean')
+      assert.equal(
+        market_open,
+        (await query<{ o: boolean }>(`SELECT spots.market_is_open() AS o`, [], c)).rows[0]!.o
+      )
+      assert.equal(typeof (await spots.metal('Gold', c))?.market_open, 'boolean')
       assert.equal(cards[0]?.id, 'Gold', 'the board is not in metals.metals.sort_order')
       assert.deepEqual(paused, ['Silver'])
       const silver = cards.find((s) => s.id === 'Silver')
