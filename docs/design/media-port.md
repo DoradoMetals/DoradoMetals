@@ -7,3 +7,5 @@ Design-vs-code gaps the port resolves: no PDF prints the logo (use the library L
 Missing designs (Jacob decides where): promo mailer, supplier sales-order email, sales-order invoice variant, return packing list. Upload-only kinds (settlement, lot manifest, lead document) need no design.
 
 Assets: emails reference `FRONTEND_URL/media/...` from `frontend/public/media/`; PDFs inline their assets. The Media worker exports the asset pack (logo black/white, mark) with Figma source ids before the lane starts.
+
+Ruling 2026-10-14 (Jacob): the Assay Results document becomes a **Quote Estimate** (estimated payout, spot per metal, one row per item with pre/post melt, purity, fine oz, spot, rate, unit price, line total; then shipping, payout fee, total). Every field exists on OrderPricing plus the lot row. Code lane: a quote/estimate PDF builder replaces assay-results.ts; the assay_results PdfKind stays until Jacob says to delete it. The assay summary never totals across metals.
