@@ -14,6 +14,13 @@ outside the repository and are written down here for the first time. `Spent`
 marks a ruling whose subject no longer exists; `Parked` marks one whose work
 was stopped. The number is kept in both cases so it is never reused.
 
+Rulings 97 to 126 were made between 2026-09-08 and 2026-09-22 and lived only in
+lane docs and the session memory file
+(`~/.claude/projects/-home-jtj60-dorado-exchange/memory/jacobs-design-law.md`,
+which `docs/waves/handoff-2026-09-13.md` names as their home). They are written
+down here for the first time, each with its source. `Text uncertain` marks a
+ruling whose sources disagree; both readings are given.
+
 ## Data and the database
 
 - **8 — Legacy code is disposable; legacy tables are not.** *"I no longer care
@@ -162,6 +169,8 @@ was stopped. The number is kept in both cases so it is never reused.
 - **84 — Application code lives under `api/src/`.** The domains are catalog,
   checkout, crm, accounts, logistics, orders, transactions, pricing and
   documents. `db/` keeps the Postgres names; URLs do not move. Refines 77.
+  The domain list is superseded in part: `refining` (98) and `inventory` (113)
+  make eleven.
 
 ## Types and contracts
 
@@ -255,15 +264,16 @@ was stopped. The number is kept in both cases so it is never reused.
 - **55 — The frontend is being deleted.** *"frontend tests can fail and it
   doesn't matter."* Lanes touch API, contracts and `@dorado/client` only, and
   the gate drops the frontend members. `@dorado/contracts` stays the seam.
-  Partly overtaken: 83 rebuilt the frontend and 91 starts its overhaul. The
-  gate still runs no frontend member.
+  Partly overtaken: 83 rebuilt the frontend and 91 starts its overhaul; 99
+  then nuked it to auth. The gate still runs no frontend member.
 - **62 — `@dorado/client` owns queries and mutations.**  One module per
   resource with hooks, keys and the fetch wrapper, typed only from
   `@dorado/contracts`. The app keeps UI.
 - **83 — The Next.js factor.** Business logic leaves the browser for the API;
   every route gets `error.tsx` and `loading.tsx`; `features/` goes and code
   moves under `_src_`. Stores hold UI state, never server data. The same ruling
-  parks lots as a write-up.
+  parks lots as a write-up. Superseded in part: 98 builds the lots, and 99
+  deletes the rebuilt surfaces.
 
 ## Process
 
@@ -290,7 +300,7 @@ was stopped. The number is kept in both cases so it is never reused.
   history in code. Explanation lives in the docs.
 - **86 — A major docs pass.** Rewrite the project documentation to the current
   truth and delete the docs no longer needed. The lots build waits for the
-  frontend designs.
+  frontend designs. That half is superseded by 98: build the lots now, API only.
 
 ## Auth, money and comms
 
@@ -335,7 +345,7 @@ and no wave has executed one.
   able to dial over api."* Amended: softphone from the start, no Google Voice
   and no business cell. The browser places the leg and Twilio dials the customer
   from the business number; an inbound call rings every admin with the app open,
-  else records voicemail and emails the employee on duty.
+  else records voicemail and emails the employee on duty. Refined by 107.
 - **94 — Cloudflare in front, against bots.** The client IP comes from
   `CF-Connecting-IP` only when `TRUST_CLOUDFLARE` is set; captcha sits behind a
   provider interface; webhook paths are allowlisted out of the bot rules; edge
@@ -347,7 +357,166 @@ and no wave has executed one.
   *"Don't build a frontend component for the call panel. If you think we need
   one, needs to be done in figma first with my approval."*
 
+## 97 to 126
+
+These thirty were recorded between 2026-09-08 and 2026-09-22. The source after
+each entry is where its text was recovered from; "memory" is the session memory
+file named at the top of this file.
+
+- **97 — The payment rails.** Stripe takes cards; Moov moves ACH and RTP in
+  and out and vaults counterparty bank details, so a refiner's bank numbers
+  never reach our database; Plaid Link feeds Moov and watches Truist for
+  matching; wires stay manual. A payout runs `Not sent -> Processing -> Sent`, a
+  charge `Due -> Processing -> Received`, and every provider sits behind an
+  interface with a fake. 2026-09-08. Source: memory; `docs/waves/payment-rails.md`.
+- **98 — Build the lots now, API only.** *"do the lots/refiner stuff. Where
+  order items are lots and can map to refiner orders. Where any given customer
+  order can send lots to multiple refiner orders."* The Figma Orders and
+  Inventory files are guidance, not final. 2026-09-08. Superseded in shape by
+  120 and 121. Source: `docs/waves/lots-build.md`; memory.
+- **99 — Nuke the frontend except auth.** *"fuck it, yeah go for it. might as
+  well remove associated tanstack while ur at it."* Each surface is rebuilt
+  against the API as it is, one at a time; TanStack Query stays inside
+  `@dorado/client`. 2026-09-08. Source: `docs/waves/frontend-nuke.md`; memory.
+- **100 — Build the admin order screens from Figma Orders, with all their
+  states.** *"lets try our hand at building the admin orders screen with all
+  it's states and such."* Dashboard, lots and customer pages come later.
+  2026-09-08. Source: `docs/waves/admin-orders-screen.md`; memory.
+- **101 — Refresh the component library from Figma.** *"might need to refresh
+  the component library from figma as well."* The "Themes and Components" file
+  is the source and the code follows it. 2026-09-08. Source:
+  `docs/waves/library-refresh.md`; memory.
+- **102 — The app layout from Figma, responsive design and typography.** *"I
+  want responsive design and typography, just remember that part."* A `Text`
+  component and a `useBreakpoint` hook carry the responsive type steps.
+  2026-09-11. Source: `docs/waves/app-shell.md`; memory.
+- **103 — The typography and breakpoint decision is the agent's.** *"You make
+  the decision, you know better than me bro."* Breakpoints go into Figma as
+  variables and Typography gets a Mobile mode; the value goes into Figma first,
+  then code, and agents may edit the library for this. 2026-09-11. Source:
+  `docs/waves/responsive-type.md`; memory.
+- **104 — Resend is the email provider.** *"lets do resend, tbh"* — it
+  overrode Postmark minutes after it was picked. Behind the existing email
+  interface, with a delivery-status webhook and the fake kept. 2026-09-11.
+  Source: `docs/waves/resend.md`; memory.
+- **105 — Fakes for now.** *"we'll worry about all the provider keys later once
+  we have everything working. Fakes for now."* Every provider runs on its
+  recording fake, and every new provider ships fake first. 2026-09-11. Source:
+  memory; `docs/design/communications-plan.md`.
+- **106 — Providers are named for the business.** *"Lets just name them the
+  actual businesses."* The PDF renderer is not a provider and moves into
+  documents. The category grouping it began with was reversed the same day:
+  providers sit flat, with no category folder until several businesses share
+  one. 2026-09-11. Source: `docs/waves/providers-by-business.md`; memory.
+- **107 — Port the Google Voice numbers into Twilio.** The customer-facing
+  number first, the menu line later as TwiML. Employees call out through a
+  dial-out bridge from allowlisted cells, and inbound texts and voicemail
+  forward to the on-duty cells and email with a reply bridge. 2026-09-11.
+  Source: memory; `docs/design/communications-plan.md`.
+- **108 — Every existing customer gets a sign-in number.** *"address phone
+  numbers should be sent to user phone numbers... it should be largely 1 to
+  1."* A migration fills `auth.users.phone_number` from the address book,
+  unverified until the first sign-in; sign-in returns to the previous page; the
+  seeded admin phone comes from `SEED_ADMIN_PHONE`. 2026-09-11. Source:
+  `docs/waves/phones-backfill.md`; memory.
+- **109 — No explanatory comments in the frontend or the components
+  either.** Extends 54 to `frontend/` and `packages/components`: a Figma
+  reference belongs in the lane doc, not the source. 2026-09-11. Source:
+  memory; `docs/waves/leads-api.md` ("ruling 54/109").
+- **110 — Documents and mailers wear the design system.** *"is there no way to
+  use our themes/components in the mailers/pdfs?"* Both read
+  `packages/theme`, and the hand-copied documents theme goes. 2026-09-11.
+  Source: `docs/waves/documents-on-the-theme.md`; memory.
+- **111 — The inventory model.** A lot has one derived position; inventory is
+  on-hand lots plus the pool; refiner orders are optionally many-to-many; a
+  sale is filled from a source per line. 2026-09-11. Its payout-timing policy
+  setting is superseded by 112. Source: memory; `docs/design/inventory-model.md`.
+- **112 — Statuses are decorative; the database stores facts.** *"Statuses
+  are great for look and feel, but they're not driving logic."* Facts are
+  timestamps and rows, a label is a SQL `CASE`, and the frontend never computes
+  state. Amended the same day: a refusal is `blocked` (a data error),
+  `override` (serious money: fresh step-up plus a stored reason) or `confirm`
+  (business judgment, allowed with a reason). 2026-09-12. Source:
+  `docs/waves/facts-and-positions.md`; migration 182; memory.
+- **113 — An `inventory` domain owns the lot.** Position, split, combine, the
+  lot view and its summary; orders keeps the order and pricing prices.
+  2026-09-12. As first stated, batches and the pool stayed with `refining`;
+  120 and 121 moved the pool to `inventory.pool`, so the law as built is:
+  `inventory` owns the lot, the lineage and the pool, `refining` owns the
+  refiner order, the batch and the settlement (`CLAUDE.md`). Source:
+  `docs/waves/facts-and-positions.md`; memory.
+- **114 — The API is designed to best practice.** *"I just want the nicest
+  structured, easily readable, best practice API... You're gonna know what to
+  do."* PATCH for an edit with no side effect; a POST action only for a side
+  effect or a multi-table write. 2026-09-12. Source: memory;
+  `docs/waves/write-fold.md`.
+- **115 — A provider's external routes live in its `constants.ts`.**
+  *"anything with provider external routes should live in constants.ts (the
+  colocated one)."* Every external URL, base and path sits in
+  `providers/<provider>/constants.ts`, never inline. 2026-09-12. Source: memory.
+- **116 — Business facts are rows, not constants.** Keep-in-mind, not work:
+  the CRM may one day serve other dealers, so a business fact is a row, one
+  resolver answers "the organization", and providers take config at
+  construction — but no tenant plumbing now. *"Do NOT think about that as
+  something that needs to happen atm."* 2026-09-12. Source: memory; migrations
+  232-264.
+- **117 — No mark-received button.** *"I don't think we'll ever need this mark
+  received button."* Arrival is the inbound fulfillment's done state, with no
+  `received_at` column; lot positions are derived and never shown as badges on
+  an order's Lots rows. 2026-09-12. Source: memory;
+  `docs/design/api-gaps-orders.md`; migrations 184-185.
+- **118 — On a refiner sale order, one `Settlement` card replaces Lots.** It
+  carries the refiner's figures beside ours. *"Refiners might combine some
+  lots without us telling them"*, so a combine is allowed at the refiner and
+  settled content allocates back pro rata. 2026-09-12. Source: memory.
+  `docs/design/inventory-tab.md` cites 117 and 118 for sparse badges, which
+  memory records as 117 and 119.
+- **119 — Badges are sparse.** *"Stop with the badges, they should be used
+  sparsely."* A badge sits only in a card title row or beside a header
+  eyebrow, never per row and never as a category label. A design brief starts
+  from Jacob's screen. 2026-09-12. Source: memory;
+  `docs/design/api-gaps-orders.md`.
+- **120 — The lot model.** *"all makes sense."* A refiner order's lines link
+  to our lots through one link table; the customer is always paid on our
+  figures, which an explicit `Adopt refiner assay` copies in; a refiner melt
+  combines on our side too by default. Price is derived, never stored.
+  2026-09-12. Source: `docs/waves/lot-model.md`; memory.
+- **121 — The lot model's schema.** *"3rd normal form man"* — values in one
+  place, links in another. One `inventory.lots`, one lineage table
+  `inventory.lot_sources`, and `orders.lots` and `refining.lots` as pure links.
+  2026-09-12. The first draft gave the lot a `kind` column and three edge
+  kinds; as built there is no kind column (a lot on `refining.lots` is a
+  refiner lot, and inventory never counts one) and the lineage kinds are
+  `split`, `combine`, `batch` and `sale`, the last for a lot minted from stock
+  to sell. The built form is the law (`docs/waves/lot-model.md`, `CLAUDE.md`).
+  Source: `docs/waves/lot-model.md`; memory.
+- **122 — No radio icons on admin screens.** A single choice is radio chips or
+  a Select; two filters are two chip rows, each single-select. 2026-09-13.
+  Source: memory; `docs/design/api-gaps-pricing.md`.
+- **123 — Order profit and the pool.** *"I suppose that makes sense."* Order
+  profit is what we paid the customer against assayed fine oz at the assay-day
+  spot, fixed on that day; a pool withdrawal realises
+  `oz x (withdrawal spot - assay-day spot)`, never attributed to an order.
+  2026-09-13. "No averages, no FIFO" governs order profit: an order's lots are
+  valued at their own assay-day spot, never averaged across orders. A pool
+  lock's credit-spot basis is a weighted average of the ounces it draws, which
+  is the pool's own figure and attributes nothing back to an order
+  (`docs/waves/pool-spot.md`). Source: memory; `docs/waves/pool-spot.md`.
+- **124 — The Admin Header is for list pages only.** *"Individual pages do not
+  use admin header!!"* An order, lot, customer, lead or refiner order keeps the
+  site Header and a breadcrumb. 2026-09-13. Source: memory;
+  `docs/design/inventory-tab.md`.
+- **125 — Four order prefixes, one sequence.** `PO-` customer purchase, `SO-`
+  customer sale, `RP-` refiner purchase, `RS-` refiner sale; customer numbers
+  are unchanged. 2026-09-13. Source: memory; `docs/design/api-gaps-orders.md`.
+- **126 — SMS consent is recorded, never enforced.** *"Once we're
+  bigger/have scaled we'll start enforcing it."* No refusal on texting without
+  consent; an `Ask for consent` text, the sign-up checkbox and an admin verbal
+  stamp record it. 2026-09-22. Source: memory;
+  `docs/design/people-comments-2026-10-07.md`. `docs/waves/sms-consent.md`
+  files the same decision under 112.
+
 ## Numbering
 
-Every number from 1 to 96 has an entry, plus 26b and 26c. Two rulings carry the
+Every number from 1 to 126 has an entry, plus 26b and 26c. Two rulings carry the
 number 39; both are listed. No number is ever reused.
