@@ -143,7 +143,9 @@ card AS (
          CASE WHEN ord.direction = 'sale' THEN COALESCE(t.sales_tax, 0)
               ELSE 0 END AS sales_tax,
          CASE WHEN ord.direction = 'sale' THEN COALESCE(t.funds, 0)
-              ELSE 0 END AS credit_applied
+              ELSE 0 END AS credit_applied,
+         CASE WHEN ord.direction = 'sale' THEN COALESCE(t.surcharge, 0)
+              ELSE 0 END AS card_fee
     FROM ord
    CROSS JOIN totals
     LEFT JOIN orders.transactions t ON t.order_id = ord.id
@@ -207,6 +209,8 @@ SELECT jsonb_build_object(
          'sales_tax', billed.sales_tax,
          'credit_applied', billed.credit_applied,
          'total', billed.total,
+         'card_fee', billed.card_fee,
+         'total_charged', billed.total + billed.card_fee,
          'declared_value', totals.scrap_total + totals.bullion_total
        ) AS pricing
   FROM ord

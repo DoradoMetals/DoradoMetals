@@ -23,6 +23,6 @@ Ruling 2026-10-14 (Jacob), built: quotes do not lock prices and are not stored, 
 
 Open decisions:
 
-- **Sales invoice card fee.** The frame's Total includes the card fee. The pricing view's sale total (`order_pricing.sql`) does not carry the card fee, so the sales invoice summary still reads stored `orders.transactions`. Moving it to pricing needs the fee added to the pricing view's sale total, which changes money semantics.
-- **Payout method copy is data.** The invoice, the payout email and the rate sheet now read `payments.methods.label` and `time_delay`, so they cannot disagree. If the copy is wrong, it is edited in the method rows.
+- **Sales invoice card fee.** Ruled and done: the pricing view gains `card_fee` (the stored card fee, 0 when none) and `total_charged` (total + card fee) without changing `total`. Every Sales Invoice summary row reads the pricing view, and the Total is `total_charged`.
+- **Payout method copy is data.** The invoice, the payout email (card rows and the one neutral lede, "Sent by {label} to the account ending {last4}.") and the rate sheet read `payments.methods.label` and `time_delay`, so they cannot disagree. If the copy is wrong, it is edited in the method rows.
 - **Document label.** Done: `orders/rules.ts` `documentsFor` names the `assay_results` document "Quote Estimate". The kind and route rename is in `FOLLOWUPS.md`.

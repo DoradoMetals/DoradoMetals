@@ -70,6 +70,8 @@ const pricing = (ask: number | null = 4000) =>
     sales_tax: 0,
     credit_applied: 0,
     total: 200,
+    card_fee: 0,
+    total_charged: 200,
     declared_value: 200,
   }) as OrderPricing
 

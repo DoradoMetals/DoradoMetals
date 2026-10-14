@@ -9,7 +9,6 @@ WITH ord AS (
 money AS (
   SELECT t.total                                                    AS paid,
          d.last_four                                                AS last_four,
-         m.type                                                     AS method,
          m.label                                                    AS method_label,
          m.time_delay                                               AS time_delay
     FROM ord
@@ -23,7 +22,7 @@ SELECT jsonb_build_object(
          'email', u.email,
          'name', u.name,
          'order_number', ord.number,
-         'method', money.method,
+         'method', money.method_label,
          'account_last4', money.last_four,
          'amount', COALESCE('$' || to_char(money.paid, 'FM999,999,990.00'), '-'),
          'rows', jsonb_build_array(

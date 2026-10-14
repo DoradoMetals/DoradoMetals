@@ -134,7 +134,7 @@ test('order received is direction-aware and says the same heading either way', (
 test('payout sent names the rail and the last four, and never more of the account', () => {
   const html = payoutSent.render({
     ...onOrder,
-    method: 'ACH',
+    method: 'ACH Transfer',
     account_last4: '6789',
     amount: '$12,480.36',
     rows: [
@@ -145,7 +145,10 @@ test('payout sent names the rail and the last four, and never more of the accoun
   isClean(html, 'payout sent')
   wearsTheShell(html, 'payout sent')
   assert.ok(html.includes('Your payout is on its way'), 'the heading is missing')
-  assert.ok(html.includes('Sent by ACH to the account ending 6789'), 'the route line is missing')
+  assert.ok(
+    html.includes('Sent by ACH Transfer to the account ending 6789.'),
+    'the route line is missing'
+  )
   assert.ok(html.includes('Amount sent'), 'the stat label is missing')
   assert.ok(html.includes('$12,480.36'), 'the figure is missing')
   assert.ok(html.includes('View your invoice'), 'the button is missing')
@@ -153,18 +156,27 @@ test('payout sent names the rail and the last four, and never more of the accoun
   assert.equal(body.split('$12,480.36').length - 1, 1, 'the amount printed more than once')
 })
 
-test('a payout to the balance says so instead of inventing a bank', () => {
-  const html = payoutSent.render({
+test('the payout lede names the method row and claims nothing the row does not say', () => {
+  const echeck = payoutSent.render({
+    ...onOrder,
+    method: 'Deluxe eCheck',
+    account_last4: null,
+    amount: '$50.00',
+    rows: [],
+  })
+  isClean(echeck, 'payout sent (eCheck)')
+  assert.ok(echeck.includes('Sent by Deluxe eCheck.'), 'the method label is missing')
+  assert.ok(!echeck.includes('Dorado balance'), 'an eCheck was called a balance credit')
+  assert.ok(!echeck.includes('account ending'), 'a payout with no account named one')
+
+  const unknown = payoutSent.render({
     ...onOrder,
     method: null,
     account_last4: null,
     amount: '$50.00',
     rows: [],
   })
-  isClean(html, 'payout sent (balance)')
-  assert.ok(html.includes('Added to your Dorado balance'), 'the balance wording is missing')
-  assert.ok(!html.includes('ACH'), 'a balance credit claimed to be a bank transfer')
-  assert.ok(!html.includes('account ending'), 'a balance credit named an account')
+  assert.ok(unknown.includes('Your payout was sent.'), 'the neutral lede is missing')
 })
 
 test('the shipment mailers carry the carrier facts and a tracking link', () => {

@@ -22,18 +22,18 @@ function purchaseSummary(pricing: OrderPricing): { ledger: LedgerLine[]; total: 
   }
 }
 
-function saleSummary(order: OrderView): { ledger: LedgerLine[]; total: string } {
-  const t = order.totals
+function saleSummary(pricing: OrderPricing): { ledger: LedgerLine[]; total: string } {
   const ledger: LedgerLine[] = [
-    { label: 'Items', value: formatCurrency(t?.items) },
-    { label: 'Shipping', value: formatCurrency(t?.shipping) },
+    { label: 'Items', value: formatCurrency(pricing.items_total) },
+    { label: 'Shipping', value: formatCurrency(pricing.shipping_charge) },
   ]
-  if (t?.used_funds) ledger.push({ label: 'Credit applied', value: minus(t?.funds) })
-  if ((t?.surcharge ?? 0) > 0)
-    ledger.push({ label: 'Card fee', value: formatCurrency(t?.surcharge) })
-  if ((t?.sales_tax ?? 0) > 0)
-    ledger.push({ label: 'Sales Tax', value: formatCurrency(t?.sales_tax) })
-  return { ledger, total: formatCurrency(t?.total) }
+  if (pricing.sales_tax > 0)
+    ledger.push({ label: 'Sales tax', value: formatCurrency(pricing.sales_tax) })
+  if (pricing.credit_applied > 0)
+    ledger.push({ label: 'Credit applied', value: minus(pricing.credit_applied) })
+  if (pricing.card_fee > 0)
+    ledger.push({ label: 'Card fee', value: formatCurrency(pricing.card_fee) })
+  return { ledger, total: formatCurrency(pricing.total_charged) }
 }
 
 function paymentPair({ order, parties }: PartiesDocumentInput) {
@@ -68,7 +68,7 @@ function paymentPair({ order, parties }: PartiesDocumentInput) {
 export function buildInvoiceHtml(input: PartiesDocumentInput): string {
   const { order, pricing } = input
   const isSale = order.order.direction === 'sale'
-  const { ledger, total } = isSale ? saleSummary(order) : purchaseSummary(pricing)
+  const { ledger, total } = isSale ? saleSummary(pricing) : purchaseSummary(pricing)
   const noun = isSale ? 'order total' : 'payout amount'
 
   return buildManifestHtml({
