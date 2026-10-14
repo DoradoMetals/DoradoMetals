@@ -8,7 +8,7 @@ Orders `ymmNlCDLVIfanpRQ7QHMIs` · People `5cEytffOkxIfqdRWFaTWpl` · Pricing `F
 
 ## Loop
 
-- Poll comments every 60 s as a background timer task (`run_in_background: true`; its completion re-invokes the worker; a foreground sleep is blocked). After 15 quiet minutes poll every 300 s; back to 60 s on a new comment. Keep the high-water mark on disk, never a retyped timestamp.
+- Poll comments every 30 s as a background timer task (`run_in_background: true`; its completion re-invokes the worker; a foreground sleep is blocked). After 15 quiet minutes poll every 300 s; back to 30 s on a new comment. Keep the high-water mark on disk, never a retyped timestamp.
 - Replies go out as the bot (REST, `FIGMA_BOT_TOKEN`; reads use `FIGMA_TOKEN`; both loaded by the script, never printed). One or two sentences. Node references only as links inside plain English sentences, one link per sentence, id read back from Figma first; never bare ids or URL lists.
 - Hit-test every pin against `node_offset` before acting; the words win over the pin. Jacob edits live: re-read structure every pass, never cache ids or child lists across a poll.
 - Report to the orchestrator only on a finished job or a ruling that changes scope.
