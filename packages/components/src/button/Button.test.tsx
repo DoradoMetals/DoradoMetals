@@ -145,4 +145,13 @@ describe('rendered Button', () => {
     const { container } = render(<Button size="iconXs" icon={ArrowLeft} aria-label="Back" />)
     expect(container.querySelector('svg')?.getAttribute('stroke-width')).toBe(String((2 * 16) / 24))
   })
+
+  it('iconStrokeWidth overrides the size-scaled stroke', () => {
+    const { container } = render(
+      <Button size="sm" icon={ArrowLeft} iconSize={14} iconStrokeWidth={2}>
+        Back
+      </Button>
+    )
+    expect(container.querySelector('svg')?.getAttribute('stroke-width')).toBe('2')
+  })
 })

@@ -111,11 +111,13 @@ interface IconProps {
 
   iconPlacement?: 'left' | 'right'
   iconSize?: number
+  iconStrokeWidth?: number
 }
 interface IconRefProps {
   icon?: never
   iconPlacement?: undefined
   iconSize?: never
+  iconStrokeWidth?: never
 }
 export type ButtonIconProps = IconProps | IconRefProps
 
@@ -129,13 +131,14 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps & ButtonIconProps
       icon: Icon,
       iconPlacement = 'left',
       iconSize,
+      iconStrokeWidth,
       asChild = false,
       ...props
     },
     ref
   ) => {
     const Comp = asChild ? Slot : 'button'
-    const strokeWidth = strokeWidthFor(ICON_PX_BY_SIZE[size ?? 'default'])
+    const strokeWidth = iconStrokeWidth ?? strokeWidthFor(ICON_PX_BY_SIZE[size ?? 'default'])
     return (
       <Comp
         className={cn(buttonVariants({ variant, intent, size, className }))}

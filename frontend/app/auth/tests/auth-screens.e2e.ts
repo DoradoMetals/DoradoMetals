@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 test.describe('the auth screens', () => {
-  test('sign-in asks for email first, with no phone toggle offered', async ({ page }) => {
+  test('sign-in asks for email first, and offers the phone code', async ({ page }) => {
     await page.goto('/auth/sign-in')
     await expect(page.getByText('Welcome back')).toBeVisible()
     await expect(
@@ -9,18 +9,19 @@ test.describe('the auth screens', () => {
     ).toBeVisible()
     await expect(page.getByRole('button', { name: 'Continue' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Google' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Apple' })).toHaveCount(0)
-    await expect(page.getByRole('button', { name: 'Facebook' })).toHaveCount(0)
-    await expect(page.getByRole('link', { name: 'Send the code there' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Apple' })).toBeDisabled()
+    await expect(page.getByRole('button', { name: 'Facebook' })).toBeDisabled()
+    await page.getByRole('link', { name: 'Send the code there' }).click()
+    await expect(page).toHaveURL(/\/auth\/sign-in\/phone$/)
   })
 
-  test('the phone channel is still reachable at its own URL, coming soon from the primary screen', async ({
-    page,
-  }) => {
+  test('the phone channel offers email back', async ({ page }) => {
     await page.goto('/auth/sign-in/phone')
     await expect(page.getByText('Welcome back')).toBeVisible()
     await expect(
-      page.getByText("Enter your phone number and we'll send you a sign-in code.")
+      page.getByText(
+        "Enter the phone number associated with your account and we'll send you a sign-in code."
+      )
     ).toBeVisible()
 
     await page.getByRole('link', { name: 'Send the code there' }).click()
