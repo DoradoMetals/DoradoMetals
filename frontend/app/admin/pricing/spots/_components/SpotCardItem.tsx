@@ -15,5 +15,13 @@ export function SpotCardItem({
   href: string
 }) {
   const sparkline = useSparkline(spot.id)
-  return <SpotCard spot={spot} sparkline={sparkline} footer={footer} href={href} />
+  return (
+    <SpotCard
+      spot={spot}
+      sparkline={sparkline.data}
+      sparklineDomain={sparkline.domain}
+      footer={footer}
+      href={href}
+    />
+  )
 }

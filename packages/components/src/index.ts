@@ -91,6 +91,7 @@ export {
   LineChart,
   Sparkline,
   CHART_RANGES,
+  type ChartDomain,
   type Series,
 } from './chart/Chart'
 export {

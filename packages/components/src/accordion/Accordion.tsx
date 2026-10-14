@@ -47,7 +47,7 @@ export function Accordion({
     <ChevronDown
       aria-hidden
       className={cn(
-        'size-4 shrink-0 text-muted-foreground transition-transform motion-reduce:transition-none',
+        'size-4 shrink-0 text-muted-foreground transition-[transform,color] group-hover:text-foreground motion-reduce:transition-none',
         'group-data-[state=open]:rotate-180'
       )}
     />
@@ -74,7 +74,7 @@ export function Accordion({
             <AccordionPrimitive.Trigger asChild>
               <Button
                 variant="tertiary"
-                className="group mx-0 h-auto min-w-0 flex-1 justify-start gap-xs rounded-none border-transparent p-sm text-left text-body hover:bg-accent hover:opacity-100 disabled:opacity-100"
+                className="group mx-0 h-auto min-w-0 flex-1 justify-start gap-xs rounded-none border-transparent p-sm text-left text-body hover:opacity-100 disabled:opacity-100"
               >
                 {chevronTrailing ? null : marker}
                 <span className="min-w-0 flex-1 font-medium text-foreground">{label}</span>

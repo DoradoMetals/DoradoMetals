@@ -35,59 +35,60 @@ export function Footer({
   className,
 }: FooterProps) {
   return (
-    <footer
-      className={cn(
-        'flex w-full flex-col items-center gap-sm border-t border-border bg-background px-lg pt-xl pb-lg',
-        'lg:items-stretch lg:gap-2xl lg:px-3xl lg:pt-2xl lg:pb-xl',
-        className
-      )}
-    >
-      <div className="flex w-full flex-col items-center gap-sm lg:flex-row lg:items-start lg:justify-between lg:gap-0">
-        <div className="flex flex-col items-center gap-md lg:w-[500px] lg:items-start">
-          {brand}
-          {tagline != null && <small data-emphasis="subtlest">{tagline}</small>}
-          {cta}
+    <footer className={cn('w-full border-t border-border bg-background', className)}>
+      <div
+        className={cn(
+          'mx-auto flex w-full max-w-page flex-col items-center gap-sm px-lg pt-xl pb-lg',
+          'lg:items-stretch lg:gap-2xl lg:px-3xl lg:pt-2xl lg:pb-xl'
+        )}
+      >
+        <div className="flex w-full flex-col items-center gap-sm lg:flex-row lg:items-start lg:justify-between lg:gap-0">
+          <div className="flex flex-col items-center gap-md lg:w-[500px] lg:items-start">
+            {brand}
+            {tagline != null && <small data-emphasis="subtlest">{tagline}</small>}
+            {cta}
+          </div>
+
+          <div className="grid w-full grid-cols-2 gap-x-lg gap-y-xl py-md lg:flex lg:w-auto lg:flex-1 lg:flex-nowrap lg:justify-between lg:gap-0 lg:py-0">
+            {columns.map((column) => (
+              <div key={column.heading} className="flex flex-col gap-sm lg:w-auto">
+                <h6 data-emphasis="subtlest">{column.heading}</h6>
+                {column.links.map((link, index) => (
+                  <React.Fragment key={index}>{link}</React.Fragment>
+                ))}
+              </div>
+            ))}
+            {legalLinks && legalLinks.length > 0 && (
+              <div className="flex flex-col gap-sm lg:hidden">
+                <h6 data-emphasis="subtlest">{legalHeading}</h6>
+                {legalLinks.map((link, index) => (
+                  <React.Fragment key={index}>{link}</React.Fragment>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="grid w-full grid-cols-2 gap-x-lg gap-y-xl py-md lg:flex lg:w-auto lg:flex-1 lg:flex-nowrap lg:justify-between lg:gap-0 lg:py-0">
-          {columns.map((column) => (
-            <div key={column.heading} className="flex flex-col gap-sm lg:w-auto">
-              <h6 data-emphasis="subtlest">{column.heading}</h6>
-              {column.links.map((link, index) => (
-                <React.Fragment key={index}>{link}</React.Fragment>
-              ))}
-            </div>
-          ))}
+        <div className="flex w-full items-center justify-between">
+          <small>{legal}</small>
+
           {legalLinks && legalLinks.length > 0 && (
-            <div className="flex flex-col gap-sm lg:hidden">
-              <h6 data-emphasis="subtlest">{legalHeading}</h6>
+            <div className="hidden items-center gap-md lg:flex">
               {legalLinks.map((link, index) => (
                 <React.Fragment key={index}>{link}</React.Fragment>
               ))}
             </div>
           )}
+
+          {social && <div className="flex items-center gap-sm lg:hidden">{social}</div>}
         </div>
-      </div>
 
-      <div className="flex w-full items-center justify-between">
-        <small>{legal}</small>
-
-        {legalLinks && legalLinks.length > 0 && (
-          <div className="hidden items-center gap-md lg:flex">
-            {legalLinks.map((link, index) => (
-              <React.Fragment key={index}>{link}</React.Fragment>
-            ))}
-          </div>
+        {notice != null && (
+          <small data-emphasis="subtlest" className="w-full">
+            {notice}
+          </small>
         )}
-
-        {social && <div className="flex items-center gap-sm lg:hidden">{social}</div>}
       </div>
-
-      {notice != null && (
-        <small data-emphasis="subtlest" className="w-full">
-          {notice}
-        </small>
-      )}
     </footer>
   )
 }

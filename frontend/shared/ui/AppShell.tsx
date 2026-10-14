@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import {
   Avatar,
+  Button,
   Drawer,
   Footer,
   Header,
@@ -25,8 +26,6 @@ import { MessagesMenu } from '@/shared/ui/MessagesMenu'
 import { signInHref } from '@/shared/utils/returnTo'
 
 const BARE_PREFIXES = ['/auth']
-
-const NO_FOOTER_PREFIXES = ['/admin']
 
 const isUnder = (pathname: string, prefixes: string[]) =>
   prefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`))
@@ -178,24 +177,130 @@ function MenuPanel({ pathname, onNavigate }: { pathname: string; onNavigate: () 
   )
 }
 
-function SiteFooter() {
-  const { account } = useChrome()
+const FOOTER_DESKTOP: { heading: string; links: Entry[] }[] = [
+  {
+    heading: 'Product',
+    links: [
+      { href: '/how-it-works', label: 'How it works' },
+      { href: '/pricing', label: 'Pricing' },
+      { href: '/what-we-buy', label: 'What we buy' },
+      { href: '/payouts', label: 'Payouts' },
+      { href: '/security', label: 'Security' },
+    ],
+  },
+  {
+    heading: 'Company',
+    links: [
+      { href: '/about', label: 'About' },
+      { href: '/locations', label: 'Locations' },
+      { href: '/careers', label: 'Careers' },
+    ],
+  },
+  {
+    heading: 'Resources',
+    links: [
+      { href: '/spot-prices', label: 'Spot prices' },
+      { href: '/purity-guide', label: 'Purity guide' },
+      { href: '/shipping', label: 'Shipping' },
+      { href: '/faq', label: 'FAQ' },
+      { href: '/support', label: 'Support' },
+    ],
+  },
+  {
+    heading: 'Connect',
+    links: [
+      { href: 'https://www.instagram.com/doradometals/', label: 'Instagram' },
+      { href: 'https://www.facebook.com/people/Dorado-Metals/61576361032653/', label: 'Facebook' },
+      { href: '/youtube', label: 'Youtube' },
+      { href: 'https://x.com/DoradoMetals', label: 'X' },
+      { href: '/linkedin', label: 'LinkedIn' },
+    ],
+  },
+]
 
+const FOOTER_MOBILE: { heading: string; links: Entry[] }[] = [
+  { heading: 'Product', links: FOOTER_DESKTOP[0].links.slice(0, 4) },
+  {
+    heading: 'Metals',
+    links: [
+      { href: '/metals/gold', label: 'Gold' },
+      { href: '/metals/silver', label: 'Silver' },
+      { href: '/metals/platinum', label: 'Platinum' },
+      { href: '/metals/scrap', label: 'Scrap' },
+    ],
+  },
+  FOOTER_DESKTOP[1],
+  {
+    heading: 'Connect',
+    links: [
+      { href: '/contact', label: 'Contact us' },
+      { href: '/support', label: 'Support' },
+    ],
+  },
+]
+
+const LEGAL: Entry[] = [
+  { href: '/privacy-policy', label: 'Privacy' },
+  { href: '/terms-and-conditions', label: 'Terms' },
+  { href: '/accessibility', label: 'Accessibility' },
+]
+
+const SOCIAL: Entry[] = [
+  { href: 'https://www.instagram.com/doradometals/', label: 'instagram' },
+  { href: 'https://www.facebook.com/people/Dorado-Metals/61576361032653/', label: 'facebook' },
+  { href: 'https://x.com/DoradoMetals', label: 'x' },
+  { href: '/youtube', label: 'youtube' },
+  { href: '/linkedin', label: 'linkedin' },
+]
+
+const footerLink = (entry: Entry) => (
+  <UILink key={entry.href} asChild>
+    <NextLink href={entry.href}>{entry.label}</NextLink>
+  </UILink>
+)
+
+function SiteFooter({ desktop }: { desktop: boolean }) {
+  const year = new Date().getFullYear()
   return (
     <Footer
-      brand={<BrandMark />}
-      tagline="Fast. Insured. Paid the day it arrives."
-      columns={[
-        {
-          heading: 'Account',
-          links: account.map((entry) => (
-            <UILink key={entry.href} asChild>
-              <NextLink href={entry.href}>{entry.label}</NextLink>
-            </UILink>
-          )),
-        },
-      ]}
-      legal={`© ${new Date().getFullYear()} Dorado Metals Exchange LLC`}
+      brand={
+        <NextLink href="/" aria-label="Dorado Metals Exchange">
+          <Image
+            src="/icons/branding/symbol/white/symbol.svg"
+            alt="Dorado Metals Exchange"
+            width={84}
+            height={42}
+            className="h-[42px] w-auto lg:h-6"
+          />
+        </NextLink>
+      }
+      tagline={
+        desktop ? 'Fast. Insured. Paid the day it arrives.' : 'Fast. Insured. Paid on arrival.'
+      }
+      cta={
+        <Button asChild size={desktop ? 'lg' : 'sm'}>
+          <NextLink href="/auth/sign-in">Get a Quote</NextLink>
+        </Button>
+      }
+      columns={(desktop ? FOOTER_DESKTOP : FOOTER_MOBILE).map((column) => ({
+        heading: column.heading,
+        links: column.links.map(footerLink),
+      }))}
+      legal={desktop ? `© Dorado Metals Exchange LLC ${year}` : `© ${year}`}
+      legalLinks={(desktop ? LEGAL : LEGAL.slice(0, 2)).map(footerLink)}
+      social={SOCIAL.map((entry) => (
+        <Button
+          key={entry.label}
+          asChild
+          variant="tertiary"
+          size="iconInline"
+          aria-label={entry.label}
+        >
+          <a href={entry.href}>
+            <Image src={`/icons/social/${entry.label}.svg`} alt="" width={16} height={16} />
+          </a>
+        </Button>
+      ))}
     />
   )
 }
@@ -237,9 +342,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <MenuPanel pathname={pathname} onNavigate={() => setDrawerOpen(false)} />
       </Drawer>
 
-      <main className="flex-1">{children}</main>
+      <main className="flex-1">
+        <div className="mx-auto w-full max-w-page">{children}</div>
+      </main>
 
-      {!isUnder(pathname, NO_FOOTER_PREFIXES) && <SiteFooter />}
+      <SiteFooter desktop={desktop} />
     </div>
   )
 }
