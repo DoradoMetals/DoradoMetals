@@ -8,7 +8,10 @@ import type {
   SpotAdjustmentChangeRead,
   SpotAdjustmentPatch,
   SpotAdjustmentRead,
+  SpotAdjustmentStatus,
   SpotBoard,
+  SpotCandle,
+  SpotCandleRange,
   SpotFreezeBody,
   SpotLock,
   SpotLockPage,
@@ -77,11 +80,34 @@ export function useMetalActivity(metalId: string, days = 7, options: { enabled?:
   })
 }
 
-export function useSpotAdjustments(options: { enabled?: boolean } = {}) {
+export function useSpotCandles(
+  metalId: string,
+  range: SpotCandleRange = '1D',
+  source: string | null = null,
+  options: { enabled?: boolean } = {}
+) {
+  return useQuery<SpotCandle[]>({
+    queryKey: keys.spots.candles(metalId, range, source),
+    enabled: (options.enabled ?? true) && metalId.length > 0,
+    queryFn: () =>
+      apiRequest<SpotCandle[]>(
+        'GET',
+        `/spots/metals/${encodeURIComponent(metalId)}/candles`,
+        undefined,
+        { range, source }
+      ),
+  })
+}
+
+export function useSpotAdjustments(
+  status: SpotAdjustmentStatus = 'active',
+  options: { enabled?: boolean } = {}
+) {
   return useQuery<SpotAdjustmentRead[]>({
-    queryKey: keys.spots.adjustments(),
+    queryKey: keys.spots.adjustments(status),
     enabled: options.enabled ?? true,
-    queryFn: () => apiRequest<SpotAdjustmentRead[]>('GET', '/spots/adjustments'),
+    queryFn: () =>
+      apiRequest<SpotAdjustmentRead[]>('GET', '/spots/adjustments', undefined, { status }),
   })
 }
 
@@ -142,8 +168,8 @@ function useSpotWrite<TVariables, TResult>(run: (variables: TVariables) => Promi
   })
 }
 
-export function useUpdateSpotSource(id: string) {
-  return useSpotWrite((patch: SpotSourcePatch) =>
+export function useUpdateSpotSource() {
+  return useSpotWrite(({ id, patch }: { id: string; patch: SpotSourcePatch }) =>
     apiRequest<SpotSourceRead>('PATCH', `/spots/sources/${encodeURIComponent(id)}`, patch)
   )
 }
@@ -164,8 +190,8 @@ export function useSetAdjustment(metalId: string, sourceId: string) {
   )
 }
 
-export function useRemoveAdjustment(metalId: string, sourceId: string) {
-  return useSpotWrite(() =>
+export function useRemoveAdjustment() {
+  return useSpotWrite(({ metalId, sourceId }: { metalId: string; sourceId: string }) =>
     apiRequest<void>(
       'DELETE',
       `/spots/adjustments/${encodeURIComponent(metalId)}/${encodeURIComponent(sourceId)}`

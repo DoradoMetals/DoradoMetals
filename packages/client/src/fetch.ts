@@ -32,6 +32,11 @@ const withQuery = (url: string, params?: Record<string, unknown>): string => {
   return query ? `${url}${url.includes('?') ? '&' : '?'}${query}` : url
 }
 
+const messageOf = (value: unknown): string | null =>
+  value && typeof value === 'object' && 'message' in value
+    ? String((value as { message: unknown }).message)
+    : null
+
 export async function apiRequest<T>(
   method: ApiMethod,
   url: string,
@@ -50,9 +55,9 @@ export async function apiRequest<T>(
 
   if (!response.ok) {
     const message =
-      (body && typeof body === 'object' && 'message' in body
-        ? String((body as { message: unknown }).message)
-        : null) ?? `${method} ${url} failed with ${response.status}`
+      messageOf(body) ??
+      messageOf(body && typeof body === 'object' && 'error' in body ? body.error : null) ??
+      `${method} ${url} failed with ${response.status}`
     throw new ApiError(response.status, message, body)
   }
   return body as T
@@ -89,9 +94,9 @@ export async function apiRequestForm<T>(
   const body: unknown = text ? JSON.parse(text) : null
   if (!response.ok) {
     const message =
-      (body && typeof body === 'object' && 'message' in body
-        ? String((body as { message: unknown }).message)
-        : null) ?? `${method} ${url} failed with ${response.status}`
+      messageOf(body) ??
+      messageOf(body && typeof body === 'object' && 'error' in body ? body.error : null) ??
+      `${method} ${url} failed with ${response.status}`
     throw new ApiError(response.status, message, body)
   }
   return body as T

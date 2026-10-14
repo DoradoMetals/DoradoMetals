@@ -209,3 +209,28 @@ test('freeze all holds every unfrozen metal on its own source and logs it', asyn
     )
   })
 })
+
+test('the list answers by status: active, expired once its instant passed, or all', async () => {
+  await inRollback(async (c: PoolClient) => {
+    await adjustments.create(
+      'Gold',
+      'nfusion',
+      { bid_amount: -1, reason: 'lapsed', expires_at: '2020-01-01T00:00:00Z' },
+      c
+    )
+    await adjustments.create('Silver', 'nfusion', { bid_amount: -1, reason: 'standing' }, c)
+
+    const key = (row: { metal_id: string; source_id: string }) => `${row.metal_id}:${row.source_id}`
+    const active = (await adjustments.list('active', c)).map(key)
+    const expired = await adjustments.list('expired', c)
+    const all = (await adjustments.list('all', c)).map(key)
+
+    assert.ok(active.includes('Silver:nfusion'))
+    assert.ok(!active.includes('Gold:nfusion'), 'a lapsed adjustment listed as active')
+    assert.deepEqual(
+      expired.filter((row) => row.metal_id === 'Gold').map((row) => row.expired),
+      [true]
+    )
+    assert.ok(all.includes('Gold:nfusion') && all.includes('Silver:nfusion'))
+  })
+})

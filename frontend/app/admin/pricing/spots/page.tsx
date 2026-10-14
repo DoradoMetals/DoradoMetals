@@ -1,5 +1,5 @@
-import { PricingPlaceholder } from '../_components'
+import { SpotsScreen } from './_components'
 
 export default function Page() {
-  return <PricingPlaceholder title="Spots" />
+  return <SpotsScreen />
 }

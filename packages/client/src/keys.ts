@@ -59,14 +59,17 @@ export const keys = {
     sources: () => ['spots', 'sources'] as const,
     metal: (metalId: string) => ['spots', 'metal', metalId] as const,
     activity: (metalId: string, days: number) => ['spots', 'activity', metalId, days] as const,
-    adjustments: () => ['spots', 'adjustments'] as const,
+    adjustments: (status: string) => ['spots', 'adjustments', status] as const,
     history: (days: number, metalId: string | null) => ['spots', 'history', days, metalId] as const,
     locks: (filters: Record<string, unknown>) => ['spots', 'locks', filters] as const,
     settings: () => ['spots', 'settings'] as const,
+    candles: (metalId: string, range: string, source: string | null) =>
+      ['spots', 'candles', metalId, range, source] as const,
   },
   rates: {
     all: () => ['rates'] as const,
     pay: (unit: string) => ['rates', 'pay', unit] as const,
+    admin: () => ['rates', 'admin'] as const,
     changes: (q: string | null, page: number) => ['rates', 'changes', q, page] as const,
   },
   users: {

@@ -75,12 +75,10 @@ export function AdminHeader({
             {(breadcrumb != null || search != null || action != null) && (
               <div className="flex flex-col items-end gap-xs">
                 {breadcrumb}
-                {(search != null || action != null) && (
-                  <div className="flex items-center gap-sm">
-                    {search}
-                    {action}
-                  </div>
-                )}
+                <div className="flex min-h-(--control-lg) items-center gap-sm">
+                  {search}
+                  {action}
+                </div>
               </div>
             )}
           </div>

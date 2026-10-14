@@ -41,6 +41,7 @@ export const SpotAdjustmentRead = SpotAdjustment.extend({
   mode: SpotAdjustmentMode,
   scope: SpotAdjustmentScope,
   expires_at_resolved: SpotAdjustment.shape.expires_at,
+  expired: z.boolean(),
 })
 export type SpotAdjustmentRead = z.infer<typeof SpotAdjustmentRead>
 
@@ -56,6 +57,12 @@ export const SpotAdjustmentPatch = SpotAdjustment.pick({
   .extend({ unit: SpotAdjustmentUnit, mode: SpotAdjustmentMode })
   .partial()
 export type SpotAdjustmentPatch = z.infer<typeof SpotAdjustmentPatch>
+
+export const SpotAdjustmentStatus = z.enum(['active', 'expired', 'all'])
+export type SpotAdjustmentStatus = z.infer<typeof SpotAdjustmentStatus>
+
+export const SpotAdjustmentFilter = z.object({ status: SpotAdjustmentStatus.default('active') })
+export type SpotAdjustmentFilter = z.infer<typeof SpotAdjustmentFilter>
 
 export const SpotFreezeBody = SpotAdjustment.pick({ reason: true })
 export type SpotFreezeBody = z.infer<typeof SpotFreezeBody>

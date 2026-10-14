@@ -107,7 +107,9 @@ add('GET /products/admin', c.BullionAdmin, () => productsService.listAdminProduc
 const spotsService = await import('#pricing/spots/service.ts')
 add('GET /spots', c.SpotBoard, async () => [await spotsService.board()])
 add('GET /spots/sources', c.SpotSourceRead, () => spotsService.listSources())
-add('GET /spots/adjustments', c.SpotAdjustmentRead, () => spotsService.listAdjustments())
+add('GET /spots/adjustments', c.SpotAdjustmentRead, () =>
+  spotsService.listAdjustments({ status: 'all' })
+)
 add('GET /spots/locks', c.SpotLockPage, async () => [await spotsService.listLocks({ page: 1 })])
 add('GET /spots/metals/:metal_id', c.MetalSpot, async () =>
   Promise.all((await spotsService.getSpotPrices()).map((s) => spotsService.getMetal(s.id)))

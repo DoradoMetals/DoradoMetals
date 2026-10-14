@@ -20,6 +20,7 @@ export const SpotSource = z.object({
   'updated_by_id': z.string().uuid().nullable(),
   'is_default': z.boolean(),
   'failed_polls': z.number().int(),
+  'name': z.string(),
 })
 export type SpotSource = z.infer<typeof SpotSource>
 // generated:end

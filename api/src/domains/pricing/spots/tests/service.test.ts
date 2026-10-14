@@ -220,7 +220,7 @@ test('a metal switched to another source leaves the first adjustment dormant', a
       assert.equal(moved.source_id, 'zz-test-feed')
       assert.equal(moved.follows_default, false)
 
-      const adjustments = await service.listAdjustments()
+      const adjustments = await service.listAdjustments({ status: 'active' })
       const dormant = adjustments.find(
         (row) => row.metal_id === 'Gold' && row.source_id === SOURCE_ID
       )

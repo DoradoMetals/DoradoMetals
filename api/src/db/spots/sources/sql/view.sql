@@ -4,6 +4,7 @@
 -- answer - the metal's override, else the default, else the next enabled
 -- source in sort_order - so a metal following the default counts for it.
 SELECT s.id,
+       s.name,
        s.enabled,
        s.is_default,
        s.sort_order,

@@ -3,7 +3,11 @@ import { buildUpdate } from '#shared/db/patch.ts'
 import { expression, sqlFrom } from '#shared/db/sql.ts'
 import { columnsOf } from '#shared/db/columns.ts'
 import type { Executor } from '#shared/db/executor.ts'
-import { SpotAdjustmentPatch, type SpotAdjustmentRead } from '@dorado/contracts'
+import {
+  SpotAdjustmentPatch,
+  type SpotAdjustmentRead,
+  type SpotAdjustmentStatus,
+} from '@dorado/contracts'
 
 const sql = sqlFrom(import.meta.dirname)
 const VIEW = expression(sql('view'))
@@ -12,8 +16,11 @@ const ONE_SQL = sql('get_one').replace('/*__view__*/', VIEW)
 
 export const PATCHABLE = columnsOf(SpotAdjustmentPatch)
 
-export async function list(executor?: Executor): Promise<SpotAdjustmentRead[]> {
-  const { rows } = await query<SpotAdjustmentRead>(LIST_SQL, [], executor)
+export async function list(
+  status: SpotAdjustmentStatus,
+  executor?: Executor
+): Promise<SpotAdjustmentRead[]> {
+  const { rows } = await query<SpotAdjustmentRead>(LIST_SQL, [status], executor)
   return rows
 }
 
