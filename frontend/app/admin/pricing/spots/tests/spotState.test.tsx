@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import { render, screen } from '@testing-library/react'
 
-import { FeedNotice } from '../../_components'
+import { FeedNotice } from '../_components'
 import { spotBadge } from '../_lib'
 
 describe('spot state', () => {

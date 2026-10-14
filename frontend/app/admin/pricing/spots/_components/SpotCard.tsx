@@ -2,7 +2,7 @@ import NextLink from 'next/link'
 import { Amount, Badge, Button, cn, Sparkline, Text } from '@dorado/components'
 import type { SpotTicker } from '@dorado/contracts'
 
-import { formatChange } from '../../_lib'
+import { formatChange } from '../_lib'
 import { changeTone, spotBadge } from '../_lib'
 
 export type SpotCardProps = {

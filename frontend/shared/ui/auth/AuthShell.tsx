@@ -42,7 +42,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
           <BackButton />
         </div>
         <div className="flex w-full flex-1 flex-col items-center gap-xl pt-xl lg:justify-center lg:pt-0">
-          <LogoSymbol className="h-[59px] w-[120px]" />
+          <LogoSymbol className="h-[51px] w-[104px] lg:h-[59px] lg:w-[120px]" />
           <div className="w-full">{children}</div>
         </div>
       </div>

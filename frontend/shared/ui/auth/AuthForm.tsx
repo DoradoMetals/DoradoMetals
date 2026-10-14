@@ -61,6 +61,7 @@ const IDENTITY = {
     heading: 'Welcome back',
     subhead:
       "Enter the phone number associated with your account and we'll send you a sign-in code.",
+    mobileSubhead: "Enter your phone number and we'll send you a sign-in code.",
     label: 'Phone',
     placeholder: '(214) 555-0134',
     submit: 'Continue',
@@ -119,8 +120,8 @@ const codeFooter = (view: VerificationView): { prose: string; label: string; hre
     return { prose: 'Changed your mind?', label: 'Cancel', href: '/account' }
   }
   return view.channel === 'sms'
-    ? { prose: 'Wrong number?', label: 'Change it', href: '/auth/sign-in/phone' }
-    : { prose: 'Wrong email?', label: 'Change it', href: '/auth/sign-in' }
+    ? { prose: 'Wrong number?', label: 'Change it', href: '/auth/sign-in' }
+    : { prose: 'Wrong email?', label: 'Change it', href: '/auth/sign-in/email' }
 }
 
 function Head({ title, children }: { title: string; children: React.ReactNode }) {
@@ -407,7 +408,16 @@ export function AuthForm(props: AuthFormProps) {
       onSubmit={submit}
       aria-labelledby={TITLE_ID}
     >
-      <Head title={copy.heading}>{copy.subhead}</Head>
+      <Head title={copy.heading}>
+        {'mobileSubhead' in copy ? (
+          <>
+            <span className="lg:hidden">{copy.mobileSubhead}</span>
+            <span className="hidden lg:inline">{copy.subhead}</span>
+          </>
+        ) : (
+          copy.subhead
+        )}
+      </Head>
       <div className="flex w-full flex-col gap-lg">
         <Input
           label={copy.label}
@@ -436,13 +446,13 @@ export function AuthForm(props: AuthFormProps) {
           />
           <FooterRow prose="New here?" label="Create an account" href="/auth/sign-up" />
           {state === 'sign-in' ? (
-            <FooterRow prose="Prefer email?" label="Send the code there" href="/auth/sign-in" />
-          ) : (
             <FooterRow
-              prose="Prefer a text?"
+              prose="Prefer email?"
               label="Send the code there"
-              href="/auth/sign-in/phone"
+              href="/auth/sign-in/email"
             />
+          ) : (
+            <FooterRow prose="Prefer a text?" label="Send the code there" href="/auth/sign-in" />
           )}
         </>
       )}

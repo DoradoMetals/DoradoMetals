@@ -15,6 +15,7 @@ export type AdminHeaderProps = {
   radioLabel?: React.ReactNode
   selects?: React.ReactNode
   reset?: React.ReactNode
+  count?: React.ReactNode
   className?: string
 }
 
@@ -31,6 +32,7 @@ export function AdminHeader({
   radioLabel,
   selects,
   reset,
+  count,
   className,
 }: AdminHeaderProps) {
   const mobile = layout === 'mobile'
@@ -43,7 +45,16 @@ export function AdminHeader({
     >
       {nav != null && (
         <div className={cn('pt-xs-plus', mobile ? 'px-md' : 'px-lg')}>
-          <div className="flex items-center gap-2xs border-b border-border">{nav}</div>
+          <div
+            className={cn(
+              'relative flex items-center gap-2xs',
+              '[&_[role=tablist]]:border-b-0 [&_[role=tab]:first-child]:pl-0',
+              mobile && '[&_[role=tab]:last-of-type]:pr-0'
+            )}
+          >
+            {nav}
+            <span aria-hidden className="absolute inset-x-0 bottom-0 h-px bg-border" />
+          </div>
         </div>
       )}
 
@@ -87,15 +98,16 @@ export function AdminHeader({
 
       {toolbar &&
         (mobile ? (
-          <div className="flex flex-col gap-xs-plus px-md py-sm">
-            <div aria-hidden className="h-px w-full bg-border" />
+          <div className="relative flex flex-col gap-xs-plus px-md py-sm">
+            <span aria-hidden className="absolute inset-x-md top-0 h-px bg-border" />
             {radio != null && <div className="flex flex-col">{radio}</div>}
             {selects != null && <div className="grid grid-cols-2 gap-xs">{selects}</div>}
             {reset != null && <div className="flex items-center justify-end gap-sm">{reset}</div>}
           </div>
         ) : (
-          <div className="px-lg pb-md">
-            <div className="flex items-end justify-between gap-lg border-t border-border pt-md">
+          <div className="relative px-lg py-md">
+            <span aria-hidden className="absolute inset-x-lg top-0 h-px bg-border" />
+            <div className="flex items-end justify-between gap-lg">
               <div className="flex flex-1 items-end gap-lg">
                 {radio != null && (
                   <div className="flex flex-col gap-3xs">
@@ -107,7 +119,12 @@ export function AdminHeader({
                 )}
                 {selects}
               </div>
-              {reset != null && <div className="flex flex-col items-end gap-2xs">{reset}</div>}
+              {reset != null && (
+                <div className="flex flex-col items-end gap-2xs">
+                  {reset}
+                  <p className="micro text-muted-foreground">{count ?? '\u00a0'}</p>
+                </div>
+              )}
             </div>
           </div>
         ))}

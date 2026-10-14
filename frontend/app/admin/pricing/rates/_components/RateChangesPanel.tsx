@@ -2,8 +2,9 @@ import { Badge, EmptyState, Input, Pagination, Skeleton, Text } from '@dorado/co
 import { Package, Search } from '@dorado/icons'
 import type { RateChangeRow } from '@dorado/contracts'
 
-import { Panel } from '../../_components'
-import { capitalize, formatStamp, rangeLabel, unitShort } from '../../_lib'
+import { Panel } from '@/shared/ui/Panel'
+import { capitalize, formatStamp } from '../../_lib'
+import { rangeLabel, unitShort } from '../_lib'
 import { changeText } from '../_lib'
 
 export type RateChangesPanelProps = {

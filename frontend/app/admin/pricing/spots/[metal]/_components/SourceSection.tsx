@@ -1,7 +1,7 @@
 import { Accordion, RadioGroup, RadioOption, Text } from '@dorado/components'
 import type { MetalSpot, SpotSourceRead } from '@dorado/contracts'
 
-import { formatAgo, sourceName } from '../../../_lib'
+import { formatAgo, sourceName } from '../../_lib'
 
 export type SourceSectionProps = {
   metal: MetalSpot

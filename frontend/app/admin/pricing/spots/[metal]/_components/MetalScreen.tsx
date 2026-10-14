@@ -4,6 +4,7 @@ import { useState } from 'react'
 import {
   Accordion,
   Badge,
+  ConfirmDialog,
   EmptyState,
   EntityHeader,
   Skeleton,
@@ -14,8 +15,9 @@ import type { SpotAdjustmentRead, SpotCandleRange, SpotLock } from '@dorado/cont
 
 import { useNow } from '@/shared/hooks/useNow'
 
-import { AdjustmentRows, ConfirmDialog, LockRows } from '../../../_components'
-import { formatAgo, formatMoney, sourceName } from '../../../_lib'
+import { AdjustmentRows, LockRows } from '../../_components'
+import { formatAgo, sourceName } from '../../_lib'
+import { formatMoney } from '../../../_lib'
 import {
   useActivity,
   useAdjustments,

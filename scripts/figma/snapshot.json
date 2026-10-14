@@ -334,6 +334,12 @@
       "modes": ["Default"],
       "variables": [
         {
+          "name": "blur/scrim",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 8
+        },
+        {
           "name": "breakpoint/2xl",
           "type": "FLOAT",
           "alias": null,
@@ -412,6 +418,24 @@
           "value": 24
         },
         {
+          "name": "drawer/lg",
+          "type": "FLOAT",
+          "alias": "breakpoint/lg",
+          "value": 1024
+        },
+        {
+          "name": "drawer/md",
+          "type": "FLOAT",
+          "alias": "breakpoint/md",
+          "value": 768
+        },
+        {
+          "name": "drawer/sm",
+          "type": "FLOAT",
+          "alias": "breakpoint/sm",
+          "value": 640
+        },
+        {
           "name": "opacity/disabled",
           "type": "FLOAT",
           "alias": null,
@@ -446,6 +470,12 @@
           "type": "FLOAT",
           "alias": null,
           "value": 72
+        },
+        {
+          "name": "page/max-width",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 1536
         },
         {
           "name": "radius/base",

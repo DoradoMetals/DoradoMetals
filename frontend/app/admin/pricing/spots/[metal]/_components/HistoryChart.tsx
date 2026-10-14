@@ -1,7 +1,7 @@
 import { CHART_RANGES, LineChart } from '@dorado/components'
 import type { SpotCandleRange } from '@dorado/contracts'
 
-import { formatAxisMoney } from '../../../_lib'
+import { formatAxisMoney } from '../../_lib'
 import { RANGE_TITLES } from '../_lib'
 
 export type HistoryChartProps = {

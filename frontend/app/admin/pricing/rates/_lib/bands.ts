@@ -1,6 +1,6 @@
 import type { RateBandsBody, RateChangeRow, RatePay } from '@dorado/contracts'
 
-import { formatFraction } from '../../_lib'
+import { formatFraction } from './format'
 
 export type DraftBand = { max: string; scrap: string; bullion: string }
 

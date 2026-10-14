@@ -64,6 +64,7 @@ export function Header({
           <Button
             variant="tertiary"
             size="icon"
+            className="size-(--control-xs) [&_svg]:size-(--control-xs)"
             aria-label={drawerOpen ? 'Close menu' : 'Open menu'}
             aria-expanded={drawerOpen}
             onClick={onDrawerToggle}

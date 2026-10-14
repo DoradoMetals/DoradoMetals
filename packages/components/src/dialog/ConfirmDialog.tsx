@@ -1,11 +1,5 @@
-import {
-  Button,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogTitle,
-} from '@dorado/components'
+import { Button } from '../button/Button'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from './Dialog'
 
 export type ConfirmDialogProps = {
   open: boolean

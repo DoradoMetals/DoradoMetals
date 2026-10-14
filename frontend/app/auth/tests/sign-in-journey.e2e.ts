@@ -12,6 +12,10 @@ test.describe('signing in through the screens', () => {
     await page.goto(START, { waitUntil: 'domcontentloaded', timeout: 60_000 })
     await page.waitForURL(/\/auth\/sign-in/, { timeout: 60_000 })
     expect(new URL(page.url()).searchParams.get('next')).toBe(START)
+    await page.goto(`/auth/sign-in/email${new URL(page.url()).search}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 60_000,
+    })
 
     const hasSiteKey = Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY)
     await expect(page.getByLabel('Email')).toBeVisible()
@@ -62,7 +66,7 @@ test.describe('the phone channel, parked as coming soon but still wired end to e
   }) => {
     test.setTimeout(60_000)
 
-    await page.goto('/auth/sign-in/phone', { waitUntil: 'domcontentloaded', timeout: 60_000 })
+    await page.goto('/auth/sign-in', { waitUntil: 'domcontentloaded', timeout: 60_000 })
     await expect(page.getByLabel('Phone')).toBeVisible()
 
     await page.getByLabel('Phone').fill(ROLES.admin.phone_number.replace('+1', ''))

@@ -19,6 +19,7 @@ export type PricingHeaderProps = {
   description: React.ReactNode
   selects?: React.ReactNode
   reset?: React.ReactNode
+  count?: React.ReactNode
 }
 
 export function PricingHeader({
@@ -27,6 +28,7 @@ export function PricingHeader({
   description,
   selects,
   reset,
+  count,
 }: PricingHeaderProps) {
   const router = useRouter()
   const current = SECTIONS.find((entry) => entry.value === section)
@@ -37,7 +39,7 @@ export function PricingHeader({
       layout={mobile ? 'mobile' : 'desktop'}
       nav={
         <Tabs value="pricing">
-          <TabsList aria-label="Admin" className="-mb-px">
+          <TabsList aria-label="Admin">
             <TabsTrigger value="orders" disabled>
               Orders
             </TabsTrigger>
@@ -77,6 +79,7 @@ export function PricingHeader({
       description={description}
       selects={selects}
       reset={reset}
+      count={count}
     />
   )
 }

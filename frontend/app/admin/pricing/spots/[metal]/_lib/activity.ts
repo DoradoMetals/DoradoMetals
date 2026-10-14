@@ -1,6 +1,7 @@
 import type { SpotActivity, SpotSourceRead } from '@dorado/contracts'
 
-import { capitalize, formatMoney, sourceName } from '../../../_lib'
+import { capitalize, formatMoney } from '../../../_lib'
+import { sourceName } from '../../_lib'
 
 export function activityTitle(entry: SpotActivity, sources: SpotSourceRead[]): string {
   if (entry.kind === 'lock') {

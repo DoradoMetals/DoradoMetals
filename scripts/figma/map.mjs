@@ -125,6 +125,7 @@ export const SCALE = {
   // Print geometry, its own family. The letter-page margin a document is laid
   // out on; nothing on screen reads it.
   'page/margin-letter': '--page-margin-letter',
+  'page/max-width': '--page-max-width',
   'chart/axis-y': '--chart-axis-y',
   'stroke/hairline': '--stroke-hairline',
   'stroke/emphasis': '--stroke-emphasis',
@@ -144,9 +145,15 @@ export const SCALE = {
   'breakpoint/lg': '--breakpoint-lg',
   'breakpoint/xl': '--breakpoint-xl',
   'breakpoint/2xl': '--breakpoint-2xl',
+  'blur/scrim': '--blur-scrim',
 }
 
-export const SCALE_ALIASES = { 'radius/lg': 'radius/base' }
+export const SCALE_ALIASES = {
+  'radius/lg': 'radius/base',
+  'drawer/sm': 'breakpoint/sm',
+  'drawer/md': 'breakpoint/md',
+  'drawer/lg': 'breakpoint/lg',
+}
 
 // Figma variables stored on a 0-100 PERCENT scale where the CSS carries a
 // 0-1 ratio. Divide the Figma value by 100 before comparing.
