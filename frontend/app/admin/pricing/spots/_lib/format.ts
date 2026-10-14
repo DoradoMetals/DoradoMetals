@@ -163,3 +163,18 @@ export const EASTERN_SLOTS = Array.from({ length: 48 }, (_, index) => {
   const value = `${hours}:${minutes}`
   return { value, label: `${slotLabel.format(new Date(`2000-01-01T${value}:00Z`))} ET` }
 })
+
+const RANGE_DAYS = { '1D': 1, '1W': 7, '1M': 30, '1Y': 365 }
+
+export function rangeWindow(
+  range: keyof typeof RANGE_DAYS,
+  now: number,
+  buckets: string[]
+): { x: number[]; min: number; max: number; format: (value: number) => string } {
+  return {
+    x: buckets.map((bucket) => Date.parse(bucket)),
+    min: now - RANGE_DAYS[range] * 86_400_000,
+    max: now,
+    format: (value: number) => candleLabel(new Date(value).toISOString(), range),
+  }
+}

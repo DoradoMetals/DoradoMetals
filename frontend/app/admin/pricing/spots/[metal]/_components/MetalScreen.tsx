@@ -116,8 +116,8 @@ export function MetalScreen({ metalId }: { metalId: string }) {
           <HistoryChart
             metalId={metal.metal_id}
             range={range}
-            labels={history.labels}
             closes={history.closes}
+            domain={history.domain}
             onRangeChange={setRange}
             className="order-1 lg:order-none"
           />

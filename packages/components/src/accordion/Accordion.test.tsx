@@ -72,14 +72,17 @@ describe('Accordion', () => {
     expect(getByRole('button').className).toMatch(/text-body/)
   })
 
-  it("hover fills the row with accent - the row language, not Button's opacity law", () => {
+  it('hover paints no background; only the chevron brightens to the default text colour', () => {
     const { getByRole } = render(
       <Accordion label="Shipping">
         <p>Details</p>
       </Accordion>
     )
     const trigger = getByRole('button')
-    expect(trigger.className).toMatch(/hover:bg-accent/)
+    expect(trigger.className).not.toMatch(/hover:bg-/)
     expect(trigger.className).toMatch(/hover:opacity-100/)
+    const chevron = trigger.querySelector('svg')
+    expect(chevron?.getAttribute('class')).toMatch(/text-muted-foreground/)
+    expect(chevron?.getAttribute('class')).toMatch(/group-hover:text-foreground/)
   })
 })

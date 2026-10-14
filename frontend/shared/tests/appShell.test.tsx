@@ -92,9 +92,14 @@ describe('the header, signed out', () => {
     expect(within(panel).queryByText('Sign out')).toBeNull()
   })
 
-  test('the footer Account column is the two ways in', () => {
+  test("the footer carries the Library main's columns and legal links", () => {
     shell()
-    expect(hrefsIn(footer())).toEqual(['/', '/auth/sign-in?next=%2F', '/auth/sign-up'])
+    for (const heading of ['Product', 'Metals', 'Company', 'Connect', 'Legal']) {
+      expect(within(footer()).getByText(heading)).toBeTruthy()
+    }
+    expect(hrefsIn(footer())).toContain('/privacy-policy')
+    expect(hrefsIn(footer())).toContain('/terms-and-conditions')
+    expect(hrefsIn(footer())).toContain('/auth/sign-in')
   })
 })
 
@@ -133,9 +138,9 @@ describe('the header, signed in', () => {
     ])
   })
 
-  test('the footer Account column follows the session', () => {
+  test('the footer does not change with the session', () => {
     shell()
-    expect(hrefsIn(footer())).toEqual(['/', '/settings/email', '/settings/phone'])
+    expect(hrefsIn(footer())).not.toContain('/settings/email')
   })
 })
 

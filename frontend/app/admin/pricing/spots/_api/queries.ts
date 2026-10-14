@@ -12,7 +12,7 @@ import {
 } from '@dorado/client'
 import type { SpotCandleRange, SpotLockStatus, SpotSourceRead } from '@dorado/contracts'
 
-import { candleLabel } from '../_lib'
+import { rangeWindow } from '../_lib'
 
 export { useSpotStream as useLiveBoard }
 
@@ -38,16 +38,27 @@ export function useLocks(filters: {
 }
 
 export function useSparkline(metalId: string) {
-  const query = useSpotCandles(metalId, '1D')
-  return query.data?.map((candle) => candle.close) ?? []
+  const candles = useSpotCandles(metalId, '1D').data ?? []
+  return {
+    data: candles.map((candle) => candle.close),
+    domain: rangeWindow(
+      '1D',
+      Date.now(),
+      candles.map((candle) => candle.bucket_start)
+    ),
+  }
 }
 
 export function useHistory(metalId: string, range: SpotCandleRange) {
   const query = useSpotCandles(metalId, range)
   const candles = query.data ?? []
   return {
-    labels: candles.map((candle) => candleLabel(candle.bucket_start, range)),
     closes: candles.map((candle) => candle.close),
+    domain: rangeWindow(
+      range,
+      Date.now(),
+      candles.map((candle) => candle.bucket_start)
+    ),
     isLoading: query.isLoading,
   }
 }

@@ -1,5 +1,5 @@
 import NextLink from 'next/link'
-import { Amount, Badge, Button, cn, Sparkline, Text } from '@dorado/components'
+import { Amount, Badge, Button, cn, Sparkline, Text, type ChartDomain } from '@dorado/components'
 import type { SpotTicker } from '@dorado/contracts'
 
 import { formatChange } from '../_lib'
@@ -8,6 +8,7 @@ import { changeTone, spotBadge } from '../_lib'
 export type SpotCardProps = {
   spot: SpotTicker
   sparkline: number[]
+  sparklineDomain?: ChartDomain
   footer: React.ReactNode
   href: string
 }
@@ -49,7 +50,7 @@ function Side({
   )
 }
 
-export function SpotCard({ spot, sparkline, footer, href }: SpotCardProps) {
+export function SpotCard({ spot, sparkline, sparklineDomain, footer, href }: SpotCardProps) {
   const badge = spotBadge(spot)
   const stale = spot.state === 'stale'
   return (
@@ -81,6 +82,7 @@ export function SpotCard({ spot, sparkline, footer, href }: SpotCardProps) {
         </div>
         <Sparkline
           data={sparkline}
+          domain={sparklineDomain}
           label={`${spot.id} today`}
           direction={spot.direction === 'down' ? 'down' : 'up'}
           className="w-full"

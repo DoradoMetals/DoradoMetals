@@ -72,11 +72,25 @@ function tokenLength(name: string, fallback: number): number {
   return v.endsWith('rem') ? n * (parseFloat(root.fontSize) || 16) : n
 }
 
-function axisScales(yAxis: boolean, yFormat?: (value: number) => string) {
+export type ChartDomain = {
+  x: number[]
+  min: number
+  max: number
+  format?: (value: number) => string
+}
+
+function axisScales(yAxis: boolean, yFormat?: (value: number) => string, domain?: ChartDomain) {
   return {
     x: {
+      ...(domain ? { type: 'linear' as const, min: domain.min, max: domain.max } : {}),
       grid: { display: false },
-      ticks: { color: C.mutedForeground, font: { size: 12 } },
+      ticks: {
+        color: C.mutedForeground,
+        font: { size: 12 },
+        ...(domain?.format
+          ? { callback: (value: string | number) => domain.format?.(Number(value)) }
+          : {}),
+      },
       border: { display: false },
     },
     y: {
@@ -116,6 +130,7 @@ export const CHART_RANGES = ['1D', '1W', '1M', '1Y'] as const
 type AxisChartProps = ChartBaseProps & {
   yAxis?: boolean
   yFormat?: (value: number) => string
+  domain?: ChartDomain
   range?: string
   onRangeChange?: (range: string) => void
   rangeOptions?: readonly string[]
@@ -195,6 +210,7 @@ function LineSeriesChart({
   area,
   yAxis = false,
   yFormat,
+  domain,
   range,
   onRangeChange,
   rangeOptions,
@@ -210,11 +226,12 @@ function LineSeriesChart({
         <Line
           aria-label={label}
           role="img"
-          options={{ ...baseOptions, scales: axisScales(yAxis, yFormat) }}
+          options={{ ...baseOptions, scales: axisScales(yAxis, yFormat, domain) }}
           data={{
-            labels,
+            labels: domain ? undefined : labels,
             datasets: series.map((s, i) => ({
               ...s,
+              data: domain ? s.data.map((y, idx) => ({ x: domain.x[idx], y })) : s.data,
               borderColor: i === 0 ? C.primary : C.mutedForeground,
               backgroundColor: area
                 ? 'color-mix(in srgb, var(--color-primary) 8%, transparent)'
@@ -311,11 +328,13 @@ export function Sparkline({
   data,
   label,
   direction,
+  domain,
   className,
 }: {
   data: number[]
   label: string
   direction?: 'up' | 'down'
+  domain?: ChartDomain
   className?: string
 }) {
   const up = direction ? direction === 'up' : data.length > 1 && data[data.length - 1] >= data[0]
@@ -326,14 +345,19 @@ export function Sparkline({
         role="img"
         options={{
           ...baseOptions,
-          scales: { x: { display: false }, y: { display: false } },
+          scales: {
+            x: domain
+              ? { type: 'linear' as const, display: false, min: domain.min, max: domain.max }
+              : { display: false },
+            y: { display: false },
+          },
           plugins: { legend: { display: false }, tooltip: { enabled: false } },
         }}
         data={{
-          labels: data.map((_, i) => String(i)),
+          labels: domain ? undefined : data.map((_, i) => String(i)),
           datasets: [
             {
-              data,
+              data: domain ? data.map((y, idx) => ({ x: domain.x[idx], y })) : data,
               borderColor: up ? C.success : C.destructive,
               borderWidth: 1.5,
               pointRadius: 0,
