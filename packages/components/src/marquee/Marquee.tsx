@@ -30,7 +30,7 @@ export function Marquee({
         data-layout="desktop"
         className={cn('h-(--control-lg) w-full border-y border-border', className)}
       >
-        <div className="mx-auto flex h-full w-full max-w-page items-center gap-xl overflow-hidden px-lg">
+        <div className="mx-auto flex h-full w-full max-w-page items-center justify-between gap-xl overflow-hidden px-lg">
           {children}
         </div>
       </section>
