@@ -23,7 +23,7 @@ export function buildQuoteEstimateHtml({ order, pricing, fees }: QuoteEstimateIn
       h(Hero, {
         label: 'Estimated quote',
         value: formatCurrency(pricing.items_total),
-        status: `Priced against spot at ${formatSpotsAt(pricing.spots_at)}. ${ABOUT}`,
+        status: `Priced against spot ${formatSpotsAt(pricing.spots_at)}. ${ABOUT}`,
       }),
       h(Table, {
         cap: 'Items',

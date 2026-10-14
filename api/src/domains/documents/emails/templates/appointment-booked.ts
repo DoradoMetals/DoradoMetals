@@ -1,4 +1,5 @@
 import { createElement as h } from 'react'
+import { timedRows } from '#shared/text/time.ts'
 import { renderMailer, Text, Card, Button } from '@dorado/components/email'
 import { calendarUrl, mediaUrl } from '#documents/emails/links.ts'
 import { orderLabel } from '#documents/emails/rules.ts'
@@ -19,7 +20,7 @@ export function render(mail: ScheduleMail): string {
           'Bring your items and a photo ID. We weigh and test everything in front of you, and you ' +
           'leave with a finalized price.',
       }),
-      h(Card, { rows: mail.rows }),
+      h(Card, { rows: timedRows(mail.rows) }),
       h(Button, {
         label: 'Add to calendar',
         href: calendarUrl('Dorado Metals Exchange appointment', mail.starts_at, mail.venue),

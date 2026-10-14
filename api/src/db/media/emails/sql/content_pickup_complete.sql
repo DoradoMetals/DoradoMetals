@@ -28,18 +28,9 @@ SELECT jsonb_build_object(
          'rows', jsonb_build_array(
                    jsonb_build_object(
                      'label', 'Collected',
-                     'value', COALESCE(
-                       to_char(COALESCE(booking.end_time, booking.start_time, booking.updated_at)
-                                 AT TIME ZONE 'America/Chicago', 'FMMon ')
-                         || to_char(COALESCE(booking.end_time, booking.start_time, booking.updated_at)
-                                      AT TIME ZONE 'America/Chicago', 'FMDD') || ', '
-                         || to_char(COALESCE(booking.end_time, booking.start_time, booking.updated_at)
-                                      AT TIME ZONE 'America/Chicago', 'FMHH12') || ':'
-                         || to_char(COALESCE(booking.end_time, booking.start_time, booking.updated_at)
-                                      AT TIME ZONE 'America/Chicago', 'MI') || ' '
-                         || to_char(COALESCE(booking.end_time, booking.start_time, booking.updated_at)
-                                      AT TIME ZONE 'America/Chicago', 'AM') || ' CT',
-                       '-')),
+                     'value', '-',
+                     'at', COALESCE(booking.end_time, booking.start_time, booking.updated_at),
+                     'shape', 'zoned'),
                    jsonb_build_object('label', 'Items',
                                       'value', lots.n::text || ' of ' || lots.n::text),
                    jsonb_build_object('label', 'Next step', 'value', 'Weighing and testing'))

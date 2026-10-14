@@ -19,17 +19,9 @@ SELECT jsonb_build_object(
                                                     'FM999,999,990') || ' KB', '')),
                    jsonb_build_object(
                      'label', 'Sent',
-                     'value', to_char(now() AT TIME ZONE 'America/Chicago', 'FMMon ')
-                                || to_char(now() AT TIME ZONE 'America/Chicago', 'FMDD')
-                                || ', '
-                                || to_char(now() AT TIME ZONE 'America/Chicago', 'YYYY')
-                                || ' - '
-                                || to_char(now() AT TIME ZONE 'America/Chicago', 'FMHH12')
-                                || ':'
-                                || to_char(now() AT TIME ZONE 'America/Chicago', 'MI')
-                                || ' '
-                                || to_char(now() AT TIME ZONE 'America/Chicago', 'AM')
-                                || ' CT'))
+                     'value', '-',
+                     'at', now(),
+                     'shape', 'zoned'))
        ) AS content
   FROM orders.orders o
   JOIN auth.users u ON u.id = o.user_id
