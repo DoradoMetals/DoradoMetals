@@ -1,8 +1,10 @@
 -- The rate change log: one page of eight, newest first, and the count over
--- every match. $1 search (metal or who changed it), $2 page. The band is the
--- one copied onto the change when it was made (migration 270), never today's.
+-- every match. $1 search (metal, or the current name of who changed it), $2
+-- page. The band is the one copied onto the change when it was made
+-- (migration 270), never today's. The name is searched, never returned
+-- (ruling 127): the row carries actor_id alone.
 WITH matched AS (
-  SELECT h.id, h.rate_id, h.field, h.old_value, h.new_value, h.actor_id, h.actor_name,
+  SELECT h.id, h.rate_id, h.field, h.old_value, h.new_value, h.actor_id,
          h.changed_at, h.metal_id, h.unit, h.min_qty, h.max_qty,
          CASE h.field WHEN 'scrap_pct' THEN 'scrap'
                       WHEN 'bullion_pct' THEN 'bullion'
@@ -10,7 +12,9 @@ WITH matched AS (
     FROM rates.rate_history h
    WHERE nullif(trim($1::text), '') IS NULL
       OR h.metal_id ILIKE '%' || trim($1::text) || '%'
-      OR h.actor_name ILIKE '%' || trim($1::text) || '%'
+      OR EXISTS (SELECT 1 FROM auth.users u
+                  WHERE u.id = h.actor_id
+                    AND u.name ILIKE '%' || trim($1::text) || '%')
 ),
 page AS (
   SELECT m.*

@@ -211,6 +211,16 @@ const TABLES = [
       sql: 'SELECT id FROM exchange.rates',
       why: 'a rate added after the pivot writes rates.rates only',
     },
+    native: {
+      scrap_pct:
+        "an admin edits a metal's rates after the pivot; exchange holds the rates at pivot time",
+      bullion_pct: 'same rate save, same write',
+      min_qty: 'same rate save: the band edges move',
+      max_qty: 'same rate save: the band edges move',
+      updated_at: 'same rate save, stamped by audit_stamp',
+      updated_by: 'same rate save, stamped by audit_stamp',
+      updated_by_id: 'same rate save, stamped by audit_stamp',
+    },
   },
   {
     name: 'reviews.reviews',

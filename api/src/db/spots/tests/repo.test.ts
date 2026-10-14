@@ -8,6 +8,7 @@ import * as spots from '#db/spots/repo.ts'
 import * as spotLocks from '#db/orders/spot-locks/repo.ts'
 import { LOCKS } from '#shared/testing/locks.ts'
 import { aStaleSpot, aUser, anOrder } from '#shared/testing/builders/index.ts'
+import { TEST_ACTOR } from '#shared/testing/actor.ts'
 
 beforeAll(async () => {
   assert.equal(
@@ -141,5 +142,33 @@ test('the ticker lists every metal in metal order with the board direction', asy
       }
     },
     { lock: LOCKS.SPOTS_SETTINGS }
+  )
+})
+
+test('an activity row names its actor by id and carries no stored name', async () => {
+  await inRollback(
+    async (c: PoolClient) => {
+      await query(
+        `INSERT INTO spots.adjustments (metal_id, source_id, bid_amount, reason)
+       VALUES ('Gold', 'nfusion', -1, 'moved')`,
+        [],
+        c
+      )
+      await query(`UPDATE spots.sources SET enabled = NOT enabled WHERE id = 'nfusion'`, [], c)
+
+      const rows = await spots.activity('Gold', 7, c)
+      const adjustment = rows.find((r) => r.kind === 'adjustment')
+      const source = rows.find(
+        (r) =>
+          r.kind === 'source' && (r.event === 'source turned on' || r.event === 'source turned off')
+      )
+      assert.equal(adjustment?.actor_id, TEST_ACTOR.id)
+      assert.equal(source?.actor_id, TEST_ACTOR.id)
+      assert.ok(
+        rows.every((r) => !('actor_name' in r)),
+        'an activity row still carries a stored name'
+      )
+    },
+    { lock: LOCKS.ORDERS }
   )
 })

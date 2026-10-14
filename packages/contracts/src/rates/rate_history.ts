@@ -12,12 +12,12 @@ export const RateChange = z.object({
   'old_value': z.string().nullable(),
   'new_value': z.string().nullable(),
   'actor_id': z.string().uuid().nullable(),
-  'actor_name': z.string().nullable(),
   'changed_at': z.string(),
   'metal_id': z.string().nullable(),
   'unit': z.string().nullable(),
   'min_qty': z.number().nullable(),
   'max_qty': z.number().nullable(),
+  'actor_name': z.string().nullable(),
 })
 export type RateChange = z.infer<typeof RateChange>
 // generated:end
@@ -25,7 +25,9 @@ export type RateChange = z.infer<typeof RateChange>
 export const RateChangeType = z.enum(['scrap', 'bullion', 'band'])
 export type RateChangeType = z.infer<typeof RateChangeType>
 
-export const RateChangeRow = RateChange.extend({ type: RateChangeType })
+export const RateChangeRow = RateChange.omit({ actor_name: true }).extend({
+  type: RateChangeType,
+})
 export type RateChangeRow = z.infer<typeof RateChangeRow>
 
 export const RateChangePage = z.object({ items: z.array(RateChangeRow) }).extend({

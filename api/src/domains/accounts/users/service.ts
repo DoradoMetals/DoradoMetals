@@ -3,7 +3,7 @@ import * as authUsers from '#db/auth/users/repo.ts'
 import * as assignmentsService from '#crm/assignments/service.ts'
 import * as rules from '#accounts/users/rules.ts'
 import withTransaction from '#shared/db/withTransaction.ts'
-import type { AdminUser, UserCreateFacts, UserPatch } from '@dorado/contracts'
+import type { AdminUser, UserCreateFacts, UserName, UserPatch } from '@dorado/contracts'
 import type { Executor } from '#shared/db/executor.ts'
 import type { PoolClient } from 'pg'
 
@@ -17,6 +17,10 @@ export async function getAllUsers(): Promise<AdminUser[]> {
 
 export async function getAdminUsers(): Promise<AdminUser[]> {
   return await users.getAdmins()
+}
+
+export async function names(ids: string[]): Promise<UserName[]> {
+  return await authUsers.names(ids)
 }
 
 export async function exists(id: string, executor?: Executor): Promise<boolean> {
