@@ -584,3 +584,10 @@ Detail in `docs/waves/auth-passwordless.md`.
 
 - The library bound the mobile Admin Header title to Stat/XSmall after the design-sync capture. The next `figma:pull` capture reads textStyle 93, so `HYGIENE_BUDGET.textStyle` in `scripts/figma/map.mjs` drops 94 -> 93 with it (ratchet), and the Chat "Secondary Button" note in HYGIENE_NOTES retires (the frame is Primary and the description now says so).
 - The remaining 93 unstyled text nodes are one decision for Jacob: a 16px Regular style for Input/Select/Textarea fields (Body/Large or Field/Regular; no new variables).
+
+## Pricing design review follow-ups for the API (2026-10-14)
+
+- Global default spot source: the design has a Global Default plus a per-metal override; the API has only `spots.active_sources` per metal. Decide: add a default-source fact (a row-level `is_default` on `spots.sources` or a `default_source_id` on `spots.settings`) and resolve per metal as override-else-default, or drop the global card.
+- Source events: the metal page Activity shows feed events ("recovered after 3 failed polls"); `spots.sources` carries only `last_tick_at`, `last_attempt_at`, `last_error`. Add a `spots.source_events` trail or drop feed events from the design.
+- Lock expiry: `orders.spot_locks` is an event log (lock, unlock) with no TTL. The design shows "Expires 18m"; confirm the expiry comes from the offer expiry (stale offers schedule) and expose it on the lock read, or the design shows Active / Released only.
+- Adjustment unit: the form must carry `unit` (percent | dollar) and signed amounts, matching `spots.adjustments`.
