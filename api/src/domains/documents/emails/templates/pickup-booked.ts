@@ -1,4 +1,5 @@
 import { createElement as h } from 'react'
+import { timedRows } from '#shared/text/time.ts'
 import { renderMailer, Text, Card, Button } from '@dorado/components/email'
 import { ordersUrl, mediaUrl } from '#documents/emails/links.ts'
 import { orderLabel } from '#documents/emails/rules.ts'
@@ -19,7 +20,7 @@ export function render(mail: ScheduleMail): string {
           'A Dorado driver will collect your metals at the door. Nothing needs wrapping or ' +
           'boxing — just have the items together.',
       }),
-      h(Card, { rows: mail.rows }),
+      h(Card, { rows: timedRows(mail.rows) }),
       h(Button, { label: 'View your order', href: ordersUrl() }),
       h(Text, {
         variant: 'note',

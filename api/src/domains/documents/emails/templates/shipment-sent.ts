@@ -1,4 +1,5 @@
 import { createElement as h } from 'react'
+import { timedRows } from '#shared/text/time.ts'
 import { renderMailer, Text, Card, Button } from '@dorado/components/email'
 import { trackingUrl, mediaUrl } from '#documents/emails/links.ts'
 import { orderLabel } from '#documents/emails/rules.ts'
@@ -18,7 +19,7 @@ export function render(mail: ShipmentMail): string {
         children:
           "FedEx collected your parcel — we'll email you again the moment it reaches our facility.",
       }),
-      h(Card, { rows: mail.rows }),
+      h(Card, { rows: timedRows(mail.rows) }),
       h(Button, { label: 'Track this shipment', href: trackingUrl(mail.tracking_number) }),
       h(Text, {
         variant: 'note',

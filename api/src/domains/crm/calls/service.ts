@@ -107,13 +107,22 @@ async function finishVoicemail(form: WebhookForm): Promise<string> {
     const recording = form.RecordingUrl ?? ''
     await withTransaction((tx) => callsRepo.markRecording(existing.id, recording, tx))
     await attempt('notify on-duty employees of a voicemail', () =>
-      notifyOnDutyOfVoicemail(existing.from_number, recording)
+      notifyOnDutyOfVoicemail(existing.from_number, recording, recordingSeconds(form))
     )
   }
   return voice.emptyResponse()
 }
 
-async function notifyOnDutyOfVoicemail(from_number: string, recording: string): Promise<void> {
+function recordingSeconds(form: WebhookForm): number | null {
+  const parsed = Number(form.RecordingDuration)
+  return form.RecordingDuration && Number.isFinite(parsed) ? parsed : null
+}
+
+async function notifyOnDutyOfVoicemail(
+  from_number: string,
+  recording: string,
+  duration_seconds: number | null
+): Promise<void> {
   const onDuty = await callsRepo.onDutyEmployees()
   const received_at = new Date().toISOString()
   for (const employee of onDuty) {
@@ -124,6 +133,7 @@ async function notifyOnDutyOfVoicemail(from_number: string, recording: string): 
       name: null,
       from_number,
       received_at,
+      duration_seconds,
       recording_url: recording === '' ? null : recording,
     })
   }

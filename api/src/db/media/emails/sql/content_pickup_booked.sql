@@ -32,20 +32,10 @@ SELECT jsonb_build_object(
          'rows', jsonb_build_array(
                    jsonb_build_object(
                      'label', 'Window',
-                     'value', COALESCE(
-                       to_char(booking.start_time AT TIME ZONE 'America/Chicago', 'FMDy, FMMon ')
-                         || to_char(booking.start_time AT TIME ZONE 'America/Chicago', 'FMDD')
-                         || ' - '
-                         || to_char(booking.start_time AT TIME ZONE 'America/Chicago', 'FMHH12')
-                         || ':' || to_char(booking.start_time AT TIME ZONE 'America/Chicago', 'MI')
-                         || ' ' || to_char(booking.start_time AT TIME ZONE 'America/Chicago', 'AM')
-                         || COALESCE(
-                              ' to '
-                                || to_char(booking.end_time AT TIME ZONE 'America/Chicago', 'FMHH12')
-                                || ':' || to_char(booking.end_time AT TIME ZONE 'America/Chicago', 'MI')
-                                || ' ' || to_char(booking.end_time AT TIME ZONE 'America/Chicago', 'AM'),
-                              ''),
-                       'To be confirmed')),
+                     'value', 'To be confirmed',
+                     'at', booking.start_time,
+                     'until', booking.end_time,
+                     'shape', 'window'),
                    jsonb_build_object(
                      'label', 'Address',
                      'value', COALESCE(booking.line_1 || ', ' || booking.city || ', ' || booking.state,

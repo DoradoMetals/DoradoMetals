@@ -39,10 +39,9 @@ SELECT jsonb_build_object(
                                       'value', COALESCE(leg.tracking_number, '-')),
                    jsonb_build_object(
                      'label', 'Expected arrival',
-                     'value', COALESCE(
-                       to_char(leg.est_delivery AT TIME ZONE 'America/Chicago', 'FMDy, FMMon ')
-                         || to_char(leg.est_delivery AT TIME ZONE 'America/Chicago', 'FMDD'),
-                       'When it arrives')))
+                     'value', 'When it arrives',
+                     'at', leg.est_delivery,
+                     'shape', 'date'))
        ) AS content
   FROM ord
   JOIN auth.users u ON u.id = ord.user_id

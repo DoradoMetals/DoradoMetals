@@ -20,6 +20,8 @@ import type { MailerRow } from '@dorado/contracts'
 
 process.env.FRONTEND_URL ??= 'https://example.test'
 
+const Y = new Date().getUTCFullYear()
+
 const to = { order_id: null, user_id: null, email: 'j.johnson@gmail.com', name: 'Jacob' }
 const onOrder = { ...to, order_id: '00000000-0000-4000-8000-000000000001', order_number: 4821 }
 
@@ -187,7 +189,7 @@ test('the shipment mailers carry the carrier facts and a tracking link', () => {
     rows: [
       { label: 'Carrier', value: 'FedEx Express Saver' },
       { label: 'Tracking', value: '771288904413' },
-      { label: 'Expected arrival', value: 'Thu, Sep 11' },
+      { label: 'Expected arrival', value: '-', at: `${Y}-09-11T05:00:00Z`, shape: 'date' },
     ],
   })
   isClean(sent, 'shipment sent')
@@ -201,11 +203,13 @@ test('the shipment mailers carry the carrier facts and a tracking link', () => {
     direction: 'purchase',
     tracking_number: null,
     rows: [
-      { label: 'Received', value: 'Sep 11, 9:42 AM CT' },
+      { label: 'Received', value: '-', at: `${Y}-09-11T14:42:00Z`, shape: 'zoned' },
       { label: 'Parcels', value: '1 of 1' },
       { label: 'Next step', value: 'Weighing and testing' },
     ],
   })
+  assert.ok(sent.includes('Sep 11<') && !sent.includes('Thu'), 'the expected arrival is wrong')
+  assert.ok(arrived.includes('Sep 11, 9:42 AM CT'), 'the received time is wrong')
   isClean(arrived, 'shipment received')
   wearsTheShell(arrived, 'shipment received')
   assert.ok(arrived.includes('Your metals arrived'), 'the heading is missing')
@@ -220,11 +224,18 @@ test('the pickup mailers print the window and what happened', () => {
     starts_at: '2026-09-09T18:00:00.000Z',
     venue: null,
     rows: [
-      { label: 'Window', value: 'Tue, Sep 9 - 1:00 PM to 3:00 PM' },
+      {
+        label: 'Window',
+        value: '-',
+        at: `${Y}-09-09T18:00:00Z`,
+        until: `${Y}-09-09T20:00:00Z`,
+        shape: 'window',
+      },
       { label: 'Address', value: '412 Oak Hollow Dr, Austin, TX' },
       { label: 'Driver', value: 'Marcus Lee' },
     ],
   })
+  assert.ok(booked.includes('Sep 9, 1:00 – 3:00 PM'), 'the window is wrong')
   isClean(booked, 'pickup booked')
   wearsTheShell(booked, 'pickup booked')
   assert.ok(booked.includes('Your pickup is booked'), 'the heading is missing')
@@ -236,11 +247,12 @@ test('the pickup mailers print the window and what happened', () => {
     direction: 'purchase',
     starts_at: null,
     venue: null,
-    rows: [{ label: 'Collected', value: 'Sep 9, 1:42 PM CT' }],
+    rows: [{ label: 'Collected', value: '-', at: `${Y}-09-09T18:42:00Z`, shape: 'zoned' }],
   })
   isClean(done, 'pickup complete')
   assert.ok(done.includes('We have your metals'), 'the heading is missing')
   assert.ok(done.includes('Sep 9, 1:42 PM CT'), 'the collected row is missing')
+  assert.ok(done.includes('collected at 1:42 PM'), 'the collected time is missing from the prose')
 })
 
 test('the appointment mailers link to a real calendar and to real directions', () => {
@@ -250,11 +262,12 @@ test('the appointment mailers link to a real calendar and to real directions', (
     starts_at: '2026-09-09T15:30:00.000Z',
     venue: 'Keller, 1255 Stanhope Ct',
     rows: [
-      { label: 'When', value: 'Tue, Sep 9 - 10:30 AM' },
+      { label: 'When', value: '-', at: `${Y}-09-09T15:30:00Z`, shape: 'datetime' },
       { label: 'Office', value: 'Keller - 1255 Stanhope Ct' },
       { label: 'With', value: 'Dana Whitlock' },
     ],
   })
+  assert.ok(booked.includes('Sep 9, 10:30 AM'), 'the slot is wrong')
   isClean(booked, 'appointment booked')
   wearsTheShell(booked, 'appointment booked')
   assert.ok(booked.includes('You&#x27;re booked') || booked.includes("You're booked"))
@@ -301,9 +314,10 @@ test('the document mailer names the document it carries', () => {
     rows: [
       { label: 'Document', value: 'Packing List' },
       { label: 'Format', value: 'PDF - 31 KB' },
-      { label: 'Sent', value: 'Sep 5, 2026 - 9:14 AM CT' },
+      { label: 'Sent', value: '-', at: `${Y}-09-05T14:14:00Z`, shape: 'zoned' },
     ],
   })
+  assert.ok(packing.includes('Sep 5, 9:14 AM CT'), 'the sent time is wrong')
   isClean(packing, 'document sent')
   wearsTheShell(packing, 'document sent')
   assert.ok(packing.includes('Your packing list is ready'), 'the heading is missing')

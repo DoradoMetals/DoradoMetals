@@ -7,13 +7,16 @@ import {
   ESTIMATE_HERO_STATUS,
 } from '#documents/pdfs/render/documents/manifest.ts'
 import { documentRows } from '#documents/pdfs/render/documents/rows.ts'
+import { timedEnd } from '#shared/text/time.ts'
 import { formatCurrency, formatCreated, minus } from '#documents/pdfs/render/format.ts'
 
 function appointmentPair({ parties }: PartiesDocumentInput) {
   return h(Pair, {
     cap: 'Appointment',
     left: parties?.office ?? { label: 'OFFICE', who: 'Dorado Metals Exchange', lines: [] },
-    right: parties?.appointment ?? { label: 'APPOINTMENT', who: 'To be confirmed', lines: [] },
+    right: timedEnd(
+      parties?.appointment ?? { label: 'APPOINTMENT', who: 'To be confirmed', lines: [] }
+    ),
   })
 }
 

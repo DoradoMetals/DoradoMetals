@@ -1,4 +1,5 @@
 import { createElement as h } from 'react'
+import { timedRows } from '#shared/text/time.ts'
 import { renderMailer, Text, Card, Button } from '@dorado/components/email'
 import { ordersUrl, mediaUrl } from '#documents/emails/links.ts'
 import { orderLabel, documentLede } from '#documents/emails/rules.ts'
@@ -17,7 +18,7 @@ export function render(mail: DocumentSentMail): string {
         children: `Your ${mail.document_label.toLowerCase()} is ready`,
       }),
       h(Text, { variant: 'lede', children: documentLede(mail.document_label) }),
-      h(Card, { rows: mail.rows }),
+      h(Card, { rows: timedRows(mail.rows) }),
       h(Button, { label: 'Open document', href: ordersUrl() }),
       h(Text, {
         variant: 'note',

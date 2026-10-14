@@ -1,8 +1,16 @@
 import { createElement as h } from 'react'
 import { renderMailer, Text, Card, Button } from '@dorado/components/email'
 import { mediaUrl } from '#documents/emails/links.ts'
+import { formatDateTimeZone, formatDuration } from '#shared/text/time.ts'
 import { maskPhone } from '#shared/text/mask.ts'
 import type { VoicemailReceivedMail } from '@dorado/contracts'
+
+function receivedLabel(mail: VoicemailReceivedMail): string {
+  const when = formatDateTimeZone(mail.received_at)
+  return mail.duration_seconds === null
+    ? when
+    : `${when} · ${formatDuration(mail.duration_seconds)} long`
+}
 
 export function subject(): string {
   return 'A caller left a voicemail'
@@ -20,7 +28,7 @@ export function render(mail: VoicemailReceivedMail): string {
       h(Card, {
         rows: [
           { label: 'From', value: maskPhone(mail.from_number) },
-          { label: 'Received', value: mail.received_at },
+          { label: 'Received', value: receivedLabel(mail) },
         ],
       }),
       ...(mail.recording_url

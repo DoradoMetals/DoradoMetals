@@ -8,13 +8,14 @@ import {
 } from '#documents/pdfs/render/documents/manifest.ts'
 import { documentRows } from '#documents/pdfs/render/documents/rows.ts'
 import { customerBlock } from '#documents/pdfs/render/documents/parties.ts'
+import { timedEnd } from '#shared/text/time.ts'
 import { formatCurrency, formatCreated, minus } from '#documents/pdfs/render/format.ts'
 
 function pickupPair({ order, parties }: PartiesDocumentInput) {
   return h(Pair, {
     cap: 'Pickup',
     left: customerBlock(order, 'CUSTOMER', 'visit'),
-    right: parties?.pickup ?? { label: 'PICKUP', who: 'To be confirmed', lines: [] },
+    right: timedEnd(parties?.pickup ?? { label: 'PICKUP', who: 'To be confirmed', lines: [] }),
   })
 }
 
