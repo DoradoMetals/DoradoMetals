@@ -42,7 +42,11 @@ export async function stampTick(id: string, executor?: Executor): Promise<boolea
   return rowCount === 1
 }
 
-export async function recordFailure(id: string, executor?: Executor): Promise<boolean> {
-  const { rowCount } = await query(sql('record_failure'), [id], executor)
+export async function recordFailure(
+  id: string,
+  error: string,
+  executor?: Executor
+): Promise<boolean> {
+  const { rowCount } = await query(sql('record_failure'), [id, error], executor)
   return rowCount === 1
 }
