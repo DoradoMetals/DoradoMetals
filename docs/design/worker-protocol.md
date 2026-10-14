@@ -29,3 +29,7 @@ Orders `ymmNlCDLVIfanpRQ7QHMIs` · People `5cEytffOkxIfqdRWFaTWpl` · Pricing `F
 - Clone trap: after `.clone()` the nested instance subtree is not enumerable until settled. `setBoundVariable(field, null)` leaves the number as a literal; the undo is `node.field = null`. `textTruncation` needs the font loaded.
 - A sweep counts missing binds, not wrong values: render to see (opacity tokens stored as fractions painted hover at 0.85 percent; black-on-black glyphs). Cross-read any banner against any list on the same screen. Detectors lie in both directions: guard them before believing a count.
 - After a library publish: clear explicit height overrides on placed Button and Icon Button instances (an instance ever given a height keeps drawing the old box) and re-render Hover states.
+
+## Code lanes porting a design (2026-10-14, Jacob)
+
+The designs are the business source of truth. The api and the frontend match them. A lane that leaves out anything a design shows (a field, a state, a control, a screen, a column) names it in its report with the reason, and the orchestrator surfaces it to Jacob; omission is the exception and is never silent. The same holds the other way: anything in code that no design shows is listed as code-only.

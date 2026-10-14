@@ -34,7 +34,9 @@ metal_spots AS (
   SELECT DISTINCT ON (li.metal_id)
          li.metal_id,
          CASE WHEN ord.spots_locked THEN COALESCE(os.bid, s.bid) ELSE s.bid END AS bid,
-         CASE WHEN ord.spots_locked THEN COALESCE(os.ask, s.ask) ELSE s.ask END AS ask
+         CASE WHEN ord.spots_locked THEN COALESCE(os.ask, s.ask) ELSE s.ask END AS ask,
+         s.state,
+         s.last_tick_at
     FROM orders.lots ol
     JOIN inventory.lots li ON li.id = ol.lot_id
    CROSS JOIN ord
@@ -186,7 +188,8 @@ SELECT jsonb_build_object(
          'spots', COALESCE(
            (SELECT jsonb_agg(
                      jsonb_build_object(
-                       'metal_id', ms.metal_id, 'bid', ms.bid, 'ask', ms.ask)
+                       'metal_id', ms.metal_id, 'bid', ms.bid, 'ask', ms.ask,
+                       'state', ms.state, 'last_tick_at', ms.last_tick_at)
                      ORDER BY mm.sort_order ASC, ms.metal_id ASC)
               FROM metal_spots ms
               JOIN metals.metals mm ON mm.id = ms.metal_id),

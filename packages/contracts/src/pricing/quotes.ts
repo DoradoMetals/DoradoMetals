@@ -9,6 +9,7 @@ import { OrderSpot } from '../orders/spots.js'
 import { Metal } from '../metals/metals.js'
 import { EstimateItem } from '../leads/estimate_items.js'
 import { Lead } from '../leads/leads.js'
+import { SpotPrice } from '../spots/spots.js'
 
 export const PriceSide = z.enum(['ask', 'bid'])
 export type PriceSide = z.infer<typeof PriceSide>
@@ -18,6 +19,13 @@ export type PriceKind = z.infer<typeof PriceKind>
 
 export const PaymentSurface = z.enum(['card', 'credit'])
 export type PaymentSurface = z.infer<typeof PaymentSurface>
+
+export const QuoteSpotState = z.object({
+  metal_id: Metal.shape.id,
+  state: SpotPrice.shape.state,
+  last_tick_at: SpotPrice.shape.last_tick_at,
+})
+export type QuoteSpotState = z.infer<typeof QuoteSpotState>
 
 export const ProductQuote = z.object({
   bullion_id: Bullion.shape.id,
@@ -29,6 +37,7 @@ export const ProductQuote = z.object({
   premium: z.number(),
   unit_price: z.number(),
   line_total: z.number(),
+  spot_states: z.array(QuoteSpotState),
 })
 export type ProductQuote = z.infer<typeof ProductQuote>
 
@@ -58,6 +67,7 @@ export const PurchaseQuote = z.object({
   checkout_id: Checkout.shape.id,
   spots_at: z.string(),
   items: z.array(PurchaseQuoteLine),
+  spot_states: z.array(QuoteSpotState),
   unpriceable: z.array(Lot.shape.id),
   scrap_total: z.number(),
   bullion_total: z.number(),
@@ -89,6 +99,7 @@ export const SaleQuote = z.object({
   checkout_id: Checkout.shape.id,
   spots_at: z.string(),
   items: z.array(SaleQuoteLine),
+  spot_states: z.array(QuoteSpotState),
   unpriceable: z.array(Lot.shape.id),
   item_total: z.number(),
   shipping_charge: z.number(),
@@ -124,7 +135,7 @@ export const OrderPricingLine = z.object({
 })
 export type OrderPricingLine = z.infer<typeof OrderPricingLine>
 
-export const OrderPricingSpot = z.object({
+export const OrderPricingSpot = QuoteSpotState.extend({
   metal_id: OrderSpot.shape.metal_id,
   bid: OrderSpot.shape.bid,
   ask: OrderSpot.shape.ask,
@@ -205,6 +216,7 @@ export const LeadEstimate = z.object({
   lead_id: Lead.shape.id,
   spots_at: z.string(),
   items: z.array(LeadEstimateLine),
+  spot_states: z.array(QuoteSpotState),
   unpriceable: z.array(EstimateItem.shape.id),
   total: z.number(),
 })

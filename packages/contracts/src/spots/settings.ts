@@ -9,6 +9,8 @@ export const SpotSettings = z.object({
   'id': z.boolean(),
   'stale_after_seconds': z.number().int(),
   'tick_seconds': z.number().int(),
+  'ticks_retention_days': z.number().int(),
+  'minute_candles_retention_days': z.number().int(),
 })
 export type SpotSettings = z.infer<typeof SpotSettings>
 // generated:end
@@ -16,5 +18,7 @@ export type SpotSettings = z.infer<typeof SpotSettings>
 export const SpotSettingsPatch = SpotSettings.pick({
   stale_after_seconds: true,
   tick_seconds: true,
+  ticks_retention_days: true,
+  minute_candles_retention_days: true,
 }).partial()
 export type SpotSettingsPatch = z.infer<typeof SpotSettingsPatch>

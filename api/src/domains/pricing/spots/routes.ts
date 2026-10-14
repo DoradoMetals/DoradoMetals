@@ -11,10 +11,12 @@ import {
   listSources,
   listSpots,
   metalActivity,
+  metalCandles,
   refreshSpots,
   removeAdjustment,
   setAdjustment,
   setMetalSource,
+  streamSpots,
   unlockLock,
   updateSettings,
   updateSource,
@@ -32,6 +34,7 @@ router.patch('/sources/:id', requireAdmin, updateSource)
 router.get('/metals/active-sources', requireAdmin, listActiveSources)
 router.get('/metals/:metal_id', requireAdmin, getMetal)
 router.get('/metals/:metal_id/activity', requireAdmin, metalActivity)
+router.get('/metals/:metal_id/candles', metalCandles)
 router.patch('/metals/:metal_id/source', requireAdmin, setMetalSource)
 router.get('/adjustments', requireAdmin, listAdjustments)
 router.get('/adjustments/history', requireAdmin, listAdjustmentHistory)
@@ -40,6 +43,7 @@ router.delete('/adjustments/:metal_id/:source_id', requireAdmin, removeAdjustmen
 router.delete('/adjustments/:metal_id', requireAdmin, cancelAdjustment)
 router.post('/freeze', requireAdmin, freezeAll)
 router.post('/refresh', requireAdmin, refreshSpots)
+router.get('/stream', streamSpots)
 router.get('/', listSpots)
 
 export default router

@@ -7,7 +7,9 @@ SELECT jsonb_build_object(
          'content', b.content,
          'premium', premium,
          'unit_price', unit_price,
-         'line_total', unit_price * $3::numeric
+         'line_total', unit_price * $3::numeric,
+         'spot_states', jsonb_build_array(jsonb_build_object(
+           'metal_id', b.metal_id, 'state', s.state, 'last_tick_at', s.last_tick_at))
        ) AS quote
   FROM products.bullion b
   JOIN spots.resolved s ON s.metal_id = b.metal_id

@@ -45,7 +45,7 @@ lines AS (
     JOIN refining.lots rl ON rl.refining_order_id = ord.id
     JOIN inventory.lots li ON li.id = rl.lot_id
     LEFT JOIN products.bullion b ON b.id = li.bullion_id
-    LEFT JOIN spots.spots sp ON sp.metal_id = li.metal_id
+    LEFT JOIN spots.resolved sp ON sp.metal_id = li.metal_id
     LEFT JOIN LATERAL (
            SELECT s.premium
              FROM inventory.lot_sources e

@@ -203,3 +203,5 @@ An app that builds, typechecks clean, and does exactly one thing. Each surface
 gets rebuilt against the API as it is now: write the `@dorado/client` resource
 module, add its `keys` namespace, build the screen out of `@dorado/components`,
 add its specs, and raise whichever floor the new files push up.
+
+**Admin prune (2026-10-14).** The leftover admin index tables, `admin/orders/[id]`, `admin/refining/[id]`, the order cards and their `shared` helpers (`actions`, `orderState`) were deleted (ruling 99: surfaces return one at a time from approved designs); `/admin` is now an `AdminHeader` with four area chips, only Pricing enabled.

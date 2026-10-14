@@ -104,7 +104,7 @@ test("the price a line is taxed on is the server's, not anything a client sent",
   await inPinnedTransaction(
     async (c: PoolClient) => {
       const [spot] = await outside<{ ask: number }>(
-        `SELECT s.ask FROM spots.spots s WHERE s.metal_id = 'Gold'`
+        `SELECT s.ask FROM spots.resolved s WHERE s.metal_id = 'Gold'`
       )
       assert.ok(spot, 'dev has a gold spot')
       const product = await aProduct(c, { metal_id: 'Gold', content: 1, ask_premium: 1 })
@@ -113,7 +113,7 @@ test("the price a line is taxed on is the server's, not anything a client sent",
       assert.equal(
         Number(q.items[0]!.unit_ask.toFixed(6)),
         Number(Number(spot.ask).toFixed(6)),
-        'the quote priced from spots.spots, which no request can write'
+        'the quote priced from spots.resolved, which no request can write'
       )
     },
     { actor: TEST_ACTOR.id, lock: SALE_LOCKS }

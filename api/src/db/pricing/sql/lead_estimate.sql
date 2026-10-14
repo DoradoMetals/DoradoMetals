@@ -31,7 +31,7 @@ lines AS (
     JOIN leads.weight_units u ON u.id = i.unit_id
     CROSS JOIN troy
     LEFT JOIN metals.purity_labels p ON p.id = i.purity_id
-    LEFT JOIN spots.spots s ON s.metal_id = i.metal_id
+    LEFT JOIN spots.resolved s ON s.metal_id = i.metal_id
 ),
 by_metal AS (
   SELECT l.metal_id, sum(l.content) AS total
@@ -82,6 +82,17 @@ SELECT jsonb_build_object(
                        'value', p.value)
                      ORDER BY p.id ASC)
               FROM priced p),
+           '[]'::jsonb),
+         'spot_states', COALESCE(
+           (SELECT jsonb_agg(
+                     jsonb_build_object(
+                       'metal_id', mm.id,
+                       'state', rs.state,
+                       'last_tick_at', rs.last_tick_at)
+                     ORDER BY mm.sort_order ASC, mm.id ASC)
+              FROM metals.metals mm
+              JOIN spots.resolved rs ON rs.metal_id = mm.id
+             WHERE mm.id IN (SELECT l.metal_id FROM lines l)),
            '[]'::jsonb),
          'unpriceable', coalesce(
            (SELECT jsonb_agg(p.id ORDER BY p.id ASC) FROM priced p WHERE p.bid IS NULL),

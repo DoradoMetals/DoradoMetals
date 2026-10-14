@@ -357,10 +357,10 @@ const replayed = first.ok ? await connect(scratchUrl) : null
 
 const PROJECTIONS = {
   relation: `SELECT n.nspname || '.' || c.relname || '  ' ||
-                    CASE c.relkind WHEN 'r' THEN 'table' WHEN 'v' THEN 'view'
+                    CASE c.relkind WHEN 'r' THEN 'table' WHEN 'p' THEN 'table' WHEN 'v' THEN 'view'
                                    WHEN 'S' THEN 'sequence' END AS k
                FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-              WHERE n.nspname = ANY($1) AND c.relkind IN ('r', 'v', 'S')`,
+              WHERE n.nspname = ANY($1) AND c.relkind IN ('r', 'p', 'v', 'S') AND NOT c.relispartition`,
 
   column: `SELECT n.nspname || '.' || c.relname || '.' || a.attname || '  #' ||
                   row_number() OVER (PARTITION BY a.attrelid ORDER BY a.attnum) ||
@@ -375,20 +375,20 @@ const PROJECTIONS = {
              JOIN pg_namespace n ON n.oid = c.relnamespace
              LEFT JOIN pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
             WHERE n.nspname = ANY($1) AND a.attnum > 0 AND NOT a.attisdropped
-              AND c.relkind IN ('r', 'v')`,
+              AND c.relkind IN ('r', 'p', 'v') AND NOT c.relispartition`,
 
   constraint: `SELECT n.nspname || '.' || c.relname || '  ' || con.conname || '  ' ||
                       pg_get_constraintdef(con.oid) AS k
                  FROM pg_constraint con
                  JOIN pg_class c ON c.oid = con.conrelid
                  JOIN pg_namespace n ON n.oid = c.relnamespace
-                WHERE n.nspname = ANY($1)`,
+                WHERE n.nspname = ANY($1) AND NOT c.relispartition`,
 
   index: `SELECT pg_get_indexdef(i.indexrelid) AS k
             FROM pg_index i
             JOIN pg_class c ON c.oid = i.indrelid
             JOIN pg_namespace n ON n.oid = c.relnamespace
-           WHERE n.nspname = ANY($1)`,
+           WHERE n.nspname = ANY($1) AND NOT c.relispartition`,
 
   type: `SELECT schema || '.' || name || '  ' || labels AS k
            FROM (SELECT n.nspname AS schema, t.typname AS name,
@@ -407,7 +407,7 @@ const PROJECTIONS = {
               FROM pg_trigger g
               JOIN pg_class c ON c.oid = g.tgrelid
               JOIN pg_namespace n ON n.oid = c.relnamespace
-             WHERE n.nspname = ANY($1) AND NOT g.tgisinternal`,
+             WHERE n.nspname = ANY($1) AND NOT g.tgisinternal AND NOT c.relispartition`,
 
   // The one that catches 169's class. A view's column list is only visible in
   // its definition and in the column projection above; its BODY is only here.

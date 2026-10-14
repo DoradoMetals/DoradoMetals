@@ -1,7 +1,5 @@
 import type { VerificationView } from '@dorado/contracts'
 
-export const PHONE_SIGN_IN_LIVE = false
-
 export type AuthFormState =
   | 'sign-in'
   | 'sign-in-email'

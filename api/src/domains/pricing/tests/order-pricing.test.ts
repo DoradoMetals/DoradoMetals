@@ -29,7 +29,7 @@ type SpotFixture = { metal_id: string; bid: number }
 let gold: SpotFixture
 
 beforeAll(async () => {
-  const spots = await outside<SpotFixture>(`SELECT s.metal_id, s.bid FROM spots.spots s`)
+  const spots = await outside<SpotFixture>(`SELECT s.metal_id, s.bid FROM spots.resolved s`)
   const found = spots.find((s) => s.metal_id === 'Gold')
   assert.ok(
     found?.bid,
@@ -48,7 +48,13 @@ async function aQuotableOrder(c: PoolClient) {
   const product = await aProduct(c, { metal_id: 'Gold', content: 1 })
 
   const specs = [
-    { bullion_id: null as string | null, metal_id: gold.metal_id, content: 2, premium: 1, quantity: 1 },
+    {
+      bullion_id: null as string | null,
+      metal_id: gold.metal_id,
+      content: 2,
+      premium: 1,
+      quantity: 1,
+    },
     {
       bullion_id: null as string | null,
       metal_id: gold.metal_id,

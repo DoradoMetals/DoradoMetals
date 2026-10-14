@@ -30,8 +30,8 @@ UPDATE inventory.lots li
        settled_spot = COALESCE(
                 a.settled_spot,
                 li.settled_spot,
-                (SELECT sp.bid FROM spots.spots sp WHERE sp.metal_id = li.metal_id),
-                (SELECT sp.ask FROM spots.spots sp WHERE sp.metal_id = li.metal_id)),
+                (SELECT sp.bid FROM spots.resolved sp WHERE sp.metal_id = li.metal_id),
+                (SELECT sp.ask FROM spots.resolved sp WHERE sp.metal_id = li.metal_id)),
        line_reference = COALESCE(a.line_reference, li.line_reference),
        settled_at = COALESCE(li.settled_at, now())
   FROM lines a

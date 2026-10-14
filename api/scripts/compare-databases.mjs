@@ -69,7 +69,7 @@ async function tables(db) {
   const { rows } = await db.query(
     `SELECT n.nspname AS schema, c.relname AS name
        FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-      WHERE c.relkind = 'r' AND ${SYSTEM}
+      WHERE c.relkind IN ('r', 'p') AND NOT c.relispartition AND ${SYSTEM}
       ORDER BY 1, 2`
   )
   return rows.map((r) => `${r.schema}.${r.name}`)

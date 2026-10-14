@@ -21,7 +21,7 @@ const TROY_GRAMS = 31.1034768
 
 async function bidFor(c: PoolClient, metal_id: string): Promise<number | null> {
   const { rows } = await c.query<{ bid: number | null }>(
-    `SELECT bid FROM spots.spots WHERE metal_id = $1`,
+    `SELECT bid FROM spots.resolved WHERE metal_id = $1`,
     [metal_id]
   )
   return rows[0]?.bid ?? null
@@ -149,11 +149,14 @@ test('a metal with no live bid is named in unpriceable rather than silently zero
       metal_id: 'Palladium',
       purity_id: await purityLabelId(c, 'Palladium', '.950'),
     })
-    await c.query(`UPDATE spots.spots SET bid = NULL WHERE metal_id = 'Palladium'`)
+    await c.query(`DELETE FROM spots.current WHERE metal_id = 'Palladium'`)
 
     const estimate = await pricing.leadEstimate(lead.id, c)
     assert.deepEqual(estimate?.unpriceable, [item.id])
     assert.equal(estimate?.total, 0)
+    assert.deepEqual(estimate?.spot_states, [
+      { metal_id: 'Palladium', state: 'stale', last_tick_at: null },
+    ])
   })
 })
 

@@ -22,7 +22,7 @@ const view = (over: Partial<VerificationView> = {}): VerificationView => ({
 const noop = () => {}
 
 describe('sign in by email - the default', () => {
-  test('is the primary screen, and offers no phone toggle - phone is coming soon', () => {
+  test('is the primary screen, and offers the phone code', () => {
     render(
       <AuthForm
         state="sign-in-email"
@@ -38,13 +38,16 @@ describe('sign in by email - the default', () => {
     expect(screen.getByRole('button', { name: 'Continue' })).toBeTruthy()
     expect(screen.getByText('or continue with')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Google' })).toBeTruthy()
-    expect(screen.queryByRole('link', { name: 'Send the code there' })).toBeNull()
+    expect(screen.getByText('Prefer a text?')).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Send the code there' }).getAttribute('href')).toBe(
+      '/auth/sign-in/phone'
+    )
     expect(screen.getByRole('link', { name: 'Create an account' }).getAttribute('href')).toBe(
       '/auth/sign-up'
     )
   })
 
-  test('carries no Apple or Facebook button - the marks do not exist yet', () => {
+  test('carries disabled Apple and Facebook buttons', () => {
     render(
       <AuthForm
         state="sign-in-email"
@@ -54,19 +57,23 @@ describe('sign in by email - the default', () => {
         onGoogle={noop}
       />
     )
-    expect(screen.queryByRole('button', { name: 'Apple' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Facebook' })).toBeNull()
+    expect((screen.getByRole('button', { name: 'Apple' }) as HTMLButtonElement).disabled).toBe(true)
+    expect((screen.getByRole('button', { name: 'Facebook' }) as HTMLButtonElement).disabled).toBe(
+      true
+    )
   })
 })
 
-describe('sign in by phone - parked coming soon, still fully wired', () => {
+describe('sign in by phone', () => {
   test('is the same screen keyed to phone, offering email back', () => {
     render(
       <AuthForm state="sign-in" value="" onValueChange={noop} onSubmit={noop} onGoogle={noop} />
     )
     expect(screen.getByText('Welcome back')).toBeTruthy()
     expect(
-      screen.getByText("Enter your phone number and we'll send you a sign-in code.")
+      screen.getByText(
+        "Enter the phone number associated with your account and we'll send you a sign-in code."
+      )
     ).toBeTruthy()
     expect(screen.getByLabelText('Phone')).toBeTruthy()
     expect(screen.getByText('Prefer email?')).toBeTruthy()

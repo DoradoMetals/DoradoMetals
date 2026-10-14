@@ -149,7 +149,7 @@ test('a sale line prices at content x ask x ask premium, and totals by quantity'
   await inPinnedTransaction(
     async (c: PoolClient) => {
       const [spot] = await outside<{ ask: number }>(
-        `SELECT s.ask FROM spots.spots s
+        `SELECT s.ask FROM spots.resolved s
         WHERE s.metal_id = 'Gold'`
       )
       assert.ok(spot, 'dev has a gold spot to price against')
@@ -226,7 +226,7 @@ test('a sell basket whose metal has no live bid is refused, not quoted at zero',
       assert.equal(priced.direction, 'purchase')
       assert.ok(priced.direction === 'purchase' && priced.total > 0, 'the fixture priced at all')
 
-      await c.query(`UPDATE spots.spots SET bid = NULL WHERE metal_id = 'Platinum'`)
+      await c.query(`DELETE FROM spots.current WHERE metal_id = 'Platinum'`)
 
       await assert.rejects(
         () => pricing.priceCheckout(cart.id),

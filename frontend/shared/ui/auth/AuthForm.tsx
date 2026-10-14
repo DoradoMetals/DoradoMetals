@@ -3,7 +3,7 @@
 import NextLink from 'next/link'
 import type { ChangeConfirmedView, VerificationView } from '@dorado/contracts'
 import { Alert, Button, Checkbox, Divider, Input, Link, OTPInput } from '@dorado/components'
-import { GoogleLogo, Phone } from '@dorado/icons'
+import { AppleMark, FacebookMark, GoogleMark, Phone } from '@dorado/icons'
 
 import { minutesUntil, secondsUntil } from '@/shared/utils/authForm'
 
@@ -59,7 +59,8 @@ export type AuthFormProps =
 const IDENTITY = {
   'sign-in': {
     heading: 'Welcome back',
-    subhead: "Enter your phone number and we'll send you a sign-in code.",
+    subhead:
+      "Enter the phone number associated with your account and we'll send you a sign-in code.",
     label: 'Phone',
     placeholder: '(214) 555-0134',
     submit: 'Continue',
@@ -167,8 +168,16 @@ function Alternatives({
           onClick={onGoogle}
           disabled={googlePending}
         >
-          <GoogleLogo />
+          <GoogleMark />
           Google
+        </Button>
+        <Button type="button" variant="secondary" className="flex-1" disabled>
+          <AppleMark />
+          Apple
+        </Button>
+        <Button type="button" variant="secondary" className="flex-1" disabled>
+          <FacebookMark />
+          Facebook
         </Button>
       </div>
     </div>
@@ -426,8 +435,14 @@ export function AuthForm(props: AuthFormProps) {
             googlePending={googlePending}
           />
           <FooterRow prose="New here?" label="Create an account" href="/auth/sign-up" />
-          {state === 'sign-in' && (
+          {state === 'sign-in' ? (
             <FooterRow prose="Prefer email?" label="Send the code there" href="/auth/sign-in" />
+          ) : (
+            <FooterRow
+              prose="Prefer a text?"
+              label="Send the code there"
+              href="/auth/sign-in/phone"
+            />
           )}
         </>
       )}

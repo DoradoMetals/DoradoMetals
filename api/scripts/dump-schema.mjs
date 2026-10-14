@@ -194,9 +194,10 @@ END $$;`)
 }
 
 const tables = await q(
-  `SELECT c.oid, n.nspname AS schema, c.relname AS name
+  `SELECT c.oid, n.nspname AS schema, c.relname AS name,
+          CASE WHEN c.relkind = 'p' THEN pg_get_partkeydef(c.oid) END AS partkey
    FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-   WHERE c.relkind = 'r' AND n.nspname = ANY($1)
+   WHERE c.relkind IN ('r', 'p') AND NOT c.relispartition AND n.nspname = ANY($1)
    ORDER BY n.nspname, c.relname`,
   [SCHEMAS]
 )
@@ -278,7 +279,7 @@ for (const t of tables) {
 
   say(`CREATE TABLE IF NOT EXISTS ${id(sch(t.schema))}.${id(t.name)} (`)
   say(lines.join(',\n'))
-  say(`);`)
+  say(t.partkey ? `) PARTITION BY ${t.partkey};` : `);`)
 
   for (const c of cols) {
     if (c.identity) continue
@@ -305,7 +306,7 @@ const constraints = await q(
    FROM pg_constraint con
    JOIN pg_class c ON c.oid = con.conrelid
    JOIN pg_namespace n ON n.oid = c.relnamespace
-   WHERE n.nspname = ANY($1)
+   WHERE n.nspname = ANY($1) AND NOT c.relispartition
    ORDER BY (con.contype = 'f'), n.nspname, c.relname, con.conname`,
   [SCHEMAS]
 )
@@ -330,7 +331,7 @@ const indexes = await q(
    JOIN pg_class c ON c.oid = i.indrelid
    JOIN pg_class ic ON ic.oid = i.indexrelid
    JOIN pg_namespace n ON n.oid = c.relnamespace
-   WHERE n.nspname = ANY($1)
+   WHERE n.nspname = ANY($1) AND NOT c.relispartition
      AND NOT EXISTS (SELECT 1 FROM pg_constraint con WHERE con.conindid = i.indexrelid)
    ORDER BY n.nspname, c.relname, ic.relname`,
   [SCHEMAS]
@@ -344,10 +345,10 @@ if (indexes.length) {
   say()
   for (const i of indexes) {
     say(
-      qualify(i.def).replace(
-        /^CREATE (UNIQUE )?INDEX /,
-        (m, u) => `CREATE ${u ?? ''}INDEX IF NOT EXISTS `
-      ) + ';'
+      qualify(i.def)
+        .replace(' ON ONLY ', ' ON ')
+        .replace(/^CREATE (UNIQUE )?INDEX /, (m, u) => `CREATE ${u ?? ''}INDEX IF NOT EXISTS `) +
+        ';'
     )
   }
   say()

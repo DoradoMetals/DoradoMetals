@@ -155,6 +155,17 @@ SELECT jsonb_build_object(
                      ORDER BY t.id ASC)
               FROM taxed t),
            '[]'::jsonb),
+         'spot_states', COALESCE(
+           (SELECT jsonb_agg(
+                     jsonb_build_object(
+                       'metal_id', mm.id,
+                       'state', rs.state,
+                       'last_tick_at', rs.last_tick_at)
+                     ORDER BY mm.sort_order ASC, mm.id ASC)
+              FROM metals.metals mm
+              JOIN spots.resolved rs ON rs.metal_id = mm.id
+             WHERE mm.id IN (SELECT t.metal_id FROM taxed t)),
+           '[]'::jsonb),
          'unpriceable', COALESCE(
            (SELECT jsonb_agg(t.id ORDER BY t.id ASC)
               FROM taxed t

@@ -4,7 +4,8 @@ import pool from '#pool'
 import { TEST_ACTOR } from '#shared/testing/actor.ts'
 import { LOCKS } from '#shared/testing/locks.ts'
 import { inPinnedTransaction, outside } from '#shared/testing/pinned-pool.ts'
-import { aUser, anOrder } from '#shared/testing/builders/index.ts'
+import { aStaleSpot, aUser, anOrder } from '#shared/testing/builders/index.ts'
+import type { SpotBoard } from '@dorado/contracts'
 
 vi.mock('#providers/nfusion/feed.ts', () => ({ SOURCE_ID: 'nfusion', fetchQuotes: vi.fn() }))
 
@@ -15,8 +16,9 @@ afterAll(async () => {
   await pool.end()
 })
 
-const aQuote = (metal_id: string, bid: number, ask: number) =>
-  new Map([[metal_id, { ask, bid, dollar_change: 1.5, percent_change: 0.1 }]])
+const aQuote = (metal_id: string, bid: number, ask: number) => [
+  { metal_id, ask, bid, dollar_change: 1.5, percent_change: 0.1 },
+]
 
 test('updateSpotPrices writes a quote for a metal the feed named', async () => {
   const [metal] = await outside<{ id: string }>(`SELECT id FROM metals.metals ORDER BY id LIMIT 1`)
@@ -29,9 +31,10 @@ test('updateSpotPrices writes a quote for a metal the feed named', async () => {
       const written = await service.updateSpotPrices()
       assert.ok(written >= 1, 'updateSpotPrices reported writing nothing for a known metal')
 
-      const { rows } = await c.query(`SELECT ask, bid FROM spots.spots WHERE metal_id = $1`, [
-        metal.id,
-      ])
+      const { rows } = await c.query(
+        `SELECT ask, bid FROM spots.current WHERE source_id = 'nfusion' AND metal_id = $1`,
+        [metal.id]
+      )
       assert.equal(Number(rows[0].ask), 1234.56)
       assert.equal(Number(rows[0].bid), 1230.12)
     },
@@ -66,7 +69,9 @@ test('updateSpotPrices keeps writing a metal that carries a standing adjustment'
       const written = await service.updateSpotPrices()
       assert.equal(written, 1, 'the feed skipped a metal carrying an adjustment')
 
-      const { rows } = await c.query(`SELECT bid FROM spots.spots WHERE metal_id = 'Palladium'`)
+      const { rows } = await c.query(
+        `SELECT bid FROM spots.current WHERE source_id = 'nfusion' AND metal_id = 'Palladium'`
+      )
       assert.equal(
         Number(rows[0].bid),
         998.88,
@@ -98,7 +103,8 @@ test('updateSpotPrices stamps the attempt and the tick on the source row', async
 
 test('setAdjustment puts a metal in adjust mode, removeAdjustment clears it and refuses a repeat', async () => {
   await inPinnedTransaction(
-    async () => {
+    async (c) => {
+      await c.query(`UPDATE spots.current SET seen_at = now()`)
       const row = await service.setAdjustment('Palladium', SOURCE_ID, {
         bid_amount: -0.2,
         ask_amount: 0.2,
@@ -200,6 +206,10 @@ test('a metal switched to another source leaves the first adjustment dormant', a
       await c.query(
         `INSERT INTO spots.sources (id, enabled, sort_order) VALUES ('zz-test-feed', true, 901)
          ON CONFLICT (id) DO NOTHING`
+      )
+      await c.query(
+        `INSERT INTO spots.current (source_id, metal_id, bid, ask, at, seen_at)
+         VALUES ('zz-test-feed', 'Gold', 1, 2, now(), now())`
       )
       await service.setAdjustment('Gold', SOURCE_ID, {
         bid_amount: -0.5,
@@ -379,9 +389,12 @@ test('a failed poll is counted and logged once, and the run ends on the next tic
       assert.equal(await service.updateSpotPrices(), 0)
       const [source] = (await service.listSources()).filter((s) => s.id === SOURCE_ID)
       assert.equal(source.failed_polls, 2)
+      assert.equal(source.last_error, 'feed down')
 
       vi.mocked(fetchQuotes).mockResolvedValueOnce(aQuote('Gold', 2000, 2010))
       await service.updateSpotPrices()
+      const [healed] = (await service.listSources()).filter((s) => s.id === SOURCE_ID)
+      assert.equal(healed.last_error, null)
       const activity = await service.metalActivity('Gold', 7)
       const feed = activity.filter((a) => a.kind === 'source').map((a) => a.event)
       assert.deepEqual(feed, ['feed recovered', 'feed failed'])
@@ -400,5 +413,113 @@ test('refresh polls once and answers the board', async () => {
       await assert.rejects(() => service.getMetal('Unobtainium'), /no spot for/)
     },
     { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] }
+  )
+})
+
+test('an unchanged poll ticks nothing, a moved one ticks once and the minute candle follows', async () => {
+  await inPinnedTransaction(
+    async (c) => {
+      const count = async () =>
+        (
+          await c.query(
+            `SELECT count(*)::int AS n FROM spots.ticks
+              WHERE source_id = $1 AND metal_id = 'Gold' AND at >= now()`,
+            [SOURCE_ID]
+          )
+        ).rows[0].n
+      vi.mocked(fetchQuotes).mockResolvedValueOnce(aQuote('Gold', 3001, 3002))
+      vi.mocked(fetchQuotes).mockResolvedValueOnce(aQuote('Gold', 3001, 3002))
+      vi.mocked(fetchQuotes).mockResolvedValueOnce(aQuote('Gold', 3003, 3004))
+      await service.updateSpotPrices()
+      assert.equal(await count(), 1)
+      await service.updateSpotPrices()
+      assert.equal(await count(), 1, 'a poll with the same pair appended a tick')
+      await service.updateSpotPrices()
+      assert.equal(await count(), 2)
+
+      const { rows } = await c.query(
+        `SELECT high, close FROM spots.candles
+          WHERE source_id = $1 AND metal_id = 'Gold' AND interval = '1m'
+          ORDER BY bucket_start DESC LIMIT 1`,
+        [SOURCE_ID]
+      )
+      assert.equal(rows[0].close, 3003)
+      const gold = await service.getMetal('Gold')
+      assert.equal(gold.state, 'live')
+      assert.equal(gold.bid, 3003)
+    },
+    { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.SPOTS_SETTINGS] }
+  )
+})
+
+test('an enabled source with no client never ticks and never takes a metal', async () => {
+  await inPinnedTransaction(
+    async (c) => {
+      await c.query(
+        `INSERT INTO spots.sources (id, enabled, sort_order) VALUES ('zz-kitco', true, 0)`
+      )
+      await c.query(`UPDATE spots.sources SET is_default = (id = 'zz-kitco')`)
+      vi.mocked(fetchQuotes).mockResolvedValueOnce(aQuote('Gold', 3100, 3101))
+      await service.updateSpotPrices()
+
+      const { rows } = await c.query(
+        `SELECT last_attempt_at, last_tick_at FROM spots.sources WHERE id = 'zz-kitco'`
+      )
+      assert.equal(rows[0].last_attempt_at, null, 'a source with no client was polled')
+      assert.equal(rows[0].last_tick_at, null)
+      const gold = await service.getMetal('Gold')
+      assert.equal(gold.source_id, SOURCE_ID, 'a default with no quote took the price away')
+      assert.equal(gold.bid, 3100)
+    },
+    { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.SPOTS_SETTINGS] }
+  )
+})
+
+test('a stale metal keeps pricing from its last good tick and says so', async () => {
+  await inPinnedTransaction(
+    async (c) => {
+      await aStaleSpot(c, 'Silver')
+      const silver = await service.getMetal('Silver')
+      assert.equal(silver.state, 'stale')
+      assert.ok(silver.bid !== null && silver.bid > 0, 'stale refused the price')
+      assert.ok(silver.last_tick_at, 'a stale metal says nothing about its last tick')
+      assert.ok((await service.board()).paused.includes('Silver'))
+    },
+    { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.SPOTS_SETTINGS] }
+  )
+})
+
+test('every poll publishes the board to the stream when it changed', async () => {
+  await inPinnedTransaction(
+    async () => {
+      const seen: SpotBoard[] = []
+      const stop = service.watchBoard((text) => seen.push(JSON.parse(text)))
+      vi.mocked(fetchQuotes).mockResolvedValueOnce(aQuote('Gold', 3201, 3202))
+      await service.updateSpotPrices()
+      vi.mocked(fetchQuotes).mockRejectedValueOnce(new Error('feed down'))
+      await service.updateSpotPrices()
+      stop()
+      assert.equal(seen.length, 1, 'an unchanged board was published again')
+      assert.equal(seen[0].spots.find((s) => s.id === 'Gold')?.bid, 3201)
+    },
+    { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.SPOTS_SETTINGS] }
+  )
+})
+
+test('candles read by range for the resolved source, and refuse an unknown metal or source', async () => {
+  await inPinnedTransaction(
+    async () => {
+      vi.mocked(fetchQuotes).mockResolvedValueOnce(aQuote('Gold', 3301, 3302))
+      await service.updateSpotPrices()
+      const day = await service.candlesFor('Gold', { range: '1D' })
+      assert.ok(day.length >= 1)
+      assert.equal(day[day.length - 1].close, 3301)
+      await assert.rejects(() => service.candlesFor('Unobtainium', { range: '1D' }), /no spot for/)
+      await assert.rejects(
+        () => service.candlesFor('Gold', { range: '1D', source: 'zz-none' }),
+        /no spot source/
+      )
+    },
+    { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.SPOTS_SETTINGS] }
   )
 })

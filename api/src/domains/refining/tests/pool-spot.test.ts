@@ -19,7 +19,9 @@ const close = (actual: unknown, expected: number, what: string): void =>
 
 const METALS = ['Platinum', 'Palladium', 'Silver', 'Gold']
 
-const aFreshRefinerMetal = async (c: PoolClient): Promise<{ refiner_id: string; metal_id: string }> => {
+const aFreshRefinerMetal = async (
+  c: PoolClient
+): Promise<{ refiner_id: string; metal_id: string }> => {
   const { rows } = await c.query<{ id: string }>('SELECT id FROM refiners.refiners ORDER BY id')
   assert.ok(rows.length >= 1, 'the test database has no refiner')
   for (const refiner_id of rows.map((r) => r.id)) {
@@ -37,10 +39,17 @@ const aFreshRefinerMetal = async (c: PoolClient): Promise<{ refiner_id: string; 
 const inOrders = <T>(fn: (c: PoolClient) => Promise<T>) =>
   inPinnedTransaction(fn, { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS })
 
-const setSpot = async (c: PoolClient, metal_id: string, bid: number, ask: number): Promise<void> => {
+const setSpot = async (
+  c: PoolClient,
+  metal_id: string,
+  bid: number,
+  ask: number
+): Promise<void> => {
   await c.query(
-    `INSERT INTO spots.spots (metal_id, bid, ask) VALUES ($1, $2, $3)
-       ON CONFLICT (metal_id) DO UPDATE SET bid = EXCLUDED.bid, ask = EXCLUDED.ask`,
+    `INSERT INTO spots.current (source_id, metal_id, bid, ask, dollar_change, percent_change, at, seen_at)
+     VALUES ('nfusion', $1, $2, $3, 0, 0, now(), now())
+       ON CONFLICT (source_id, metal_id) DO UPDATE
+         SET bid = EXCLUDED.bid, ask = EXCLUDED.ask, at = now(), seen_at = now()`,
     [metal_id, bid, ask]
   )
 }

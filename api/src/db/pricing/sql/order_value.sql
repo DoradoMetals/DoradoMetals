@@ -25,5 +25,5 @@
    FROM orders.lots eol
    JOIN inventory.lots li ON li.id = eol.lot_id
    LEFT JOIN orders.spots eos ON eos.order_id = eol.order_id AND eos.metal_id = li.metal_id
-   LEFT JOIN spots.spots esp ON esp.metal_id = li.metal_id
+   LEFT JOIN spots.resolved esp ON esp.metal_id = li.metal_id
   WHERE eol.order_id = o.id)

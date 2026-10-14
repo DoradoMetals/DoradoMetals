@@ -1,6 +1,5 @@
 import { test, afterAll, beforeAll } from 'vitest'
 import assert from 'node:assert/strict'
-import { randomUUID } from 'node:crypto'
 import type { PoolClient } from 'pg'
 import pool from '#pool'
 import query from '#shared/db/query.ts'
@@ -22,77 +21,25 @@ afterAll(async () => {
   await pool.end()
 })
 
-test("upsert rewrites a real metal's quote", async () => {
-  await inRollback(async (c: PoolClient) => {
-    const gold = 'Gold'
-
-    const written = await spots.upsert(gold, { bid: 2401.5, ask: 2415.25 }, c)
-    assert.equal(written, true, 'upsert reported no row written for Gold')
-
-    const rows = await spots.list(c)
-    const row = rows.find((r) => r.id === gold)
-    assert.equal(Number(row?.bid), 2401.5)
-    assert.equal(Number(row?.ask), 2415.25)
-  })
-})
-
-test('upsert writes the one row a metal was missing, honoring the one-per-metal constraint', async () => {
-  await inRollback(async (c: PoolClient) => {
-    const silver = 'Silver'
-    await query(`DELETE FROM spots.spots WHERE metal_id = $1`, [silver], c)
-
-    await spots.upsert(
-      silver,
-      { ask: 30.5, bid: 30.1, dollar_change: 0.2, percent_change: 0.65 },
-      c
-    )
-
-    const rows = await spots.list(c)
-    const created = rows.filter((r) => r.id === silver)
-    assert.equal(created.length, 1)
-    assert.equal(Number(created[0]?.ask), 30.5)
-  })
-})
-
-test('upsert derives a change figure for each side off the one tick the feed sends', async () => {
-  await inRollback(async (c: PoolClient) => {
-    await spots.upsert('Gold', { bid: 2000, ask: 2100, dollar_change: 100, percent_change: 5 }, c)
-
-    const row = (await spots.list(c)).find((r) => r.id === 'Gold')
-    assert.equal(Number(row?.bid_dollar_change), 100)
-    assert.equal(Number(row?.ask_dollar_change), 100)
-    assert.equal(
-      Number(row?.bid_percent_change).toFixed(4),
-      ((100 / 1900) * 100).toFixed(4),
-      'the bid percent is measured against the bid base'
-    )
-    assert.equal(
-      Number(row?.ask_percent_change).toFixed(4),
-      ((100 / 2000) * 100).toFixed(4),
-      'the ask percent is measured against the ask base, which is a different number'
-    )
-  })
-})
-
-test('upsert refuses a metal the reference data does not have', async () => {
-  await inRollback(async (c: PoolClient) => {
-    await assert.rejects(() => spots.upsert(randomUUID(), { bid: 1, ask: 2 }, c))
-  })
-})
-
 test('the board lists every card in metal order and names the stale metals', async () => {
   await inRollback(
     async (c: PoolClient) => {
-      await query(`UPDATE spots.spots SET updated_at = now()`, [], c)
-      await query(`UPDATE spots.spots SET dollar_change = -3 WHERE metal_id = 'Silver'`, [], c)
+      await query(`UPDATE spots.current SET seen_at = now()`, [], c)
+      await query(`UPDATE spots.current SET dollar_change = -3 WHERE metal_id = 'Silver'`, [], c)
       await aStaleSpot(c, 'Silver')
-      const { spots: cards, paused } = await spots.board(c)
+      const { spots: cards, paused, market_open } = await spots.board(c)
+      assert.equal(typeof market_open, 'boolean')
+      assert.equal(
+        market_open,
+        (await query<{ o: boolean }>(`SELECT spots.market_is_open() AS o`, [], c)).rows[0]!.o
+      )
+      assert.equal(typeof (await spots.metal('Gold', c))?.market_open, 'boolean')
       assert.equal(cards[0]?.id, 'Gold', 'the board is not in metals.metals.sort_order')
       assert.deepEqual(paused, ['Silver'])
       const silver = cards.find((s) => s.id === 'Silver')
       assert.equal(silver?.state, 'stale')
-      assert.equal(silver?.bid, null, 'a stale card carries a price that would be refused')
-      assert.ok(silver?.last_bid !== null, 'a stale card lost its last good bid')
+      assert.ok(silver?.bid !== null, 'a stale card stopped pricing from its last good tick')
+      assert.equal(silver?.bid, silver?.last_bid)
       assert.equal(silver?.direction, 'down')
       assert.ok(silver?.last_tick_at, 'a card carries no last tick')
     },
@@ -102,7 +49,7 @@ test('the board lists every card in metal order and names the stale metals', asy
 
 test('the metal read carries its source, its state and the adjustment in force', async () => {
   await inRollback(async (c: PoolClient) => {
-    await query(`UPDATE spots.spots SET updated_at = now()`, [], c)
+    await query(`UPDATE spots.current SET seen_at = now()`, [], c)
     const plain = await spots.metal('Gold', c)
     assert.equal(plain?.state, 'live')
     assert.equal(plain?.adjustment, null)

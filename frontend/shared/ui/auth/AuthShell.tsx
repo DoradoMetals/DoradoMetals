@@ -8,8 +8,14 @@ import { ChevronLeft } from '@dorado/icons'
 function BackButton() {
   const router = useRouter()
   return (
-    <Button variant="tertiary" size="sm" onClick={() => router.back()}>
-      <ChevronLeft aria-hidden />
+    <Button
+      variant="tertiary"
+      size="sm"
+      icon={ChevronLeft}
+      iconSize={14}
+      iconStrokeWidth={(2 * 24) / 14}
+      onClick={() => router.back()}
+    >
       Back
     </Button>
   )
@@ -18,10 +24,10 @@ function BackButton() {
 function LogoSymbol({ className }: { className: string }) {
   return (
     <Image
-      src="/icons/branding/symbol/white/symbol.svg"
+      src="/icons/branding/symbol/white/symbol-auth.svg"
       alt="Dorado Metals Exchange"
-      width={49}
-      height={24}
+      width={120}
+      height={59}
       priority
       className={className}
     />
@@ -36,7 +42,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
           <BackButton />
         </div>
         <div className="flex w-full flex-1 flex-col items-center gap-xl pt-xl lg:justify-center lg:pt-0">
-          <LogoSymbol className="h-[51px] w-auto lg:h-[59px]" />
+          <LogoSymbol className="h-[59px] w-[120px]" />
           <div className="w-full">{children}</div>
         </div>
       </div>

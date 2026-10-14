@@ -55,6 +55,7 @@ export const keys = {
   spots: {
     all: () => ['spots'] as const,
     board: () => ['spots', 'board'] as const,
+    stream: () => ['spots', 'stream'] as const,
     sources: () => ['spots', 'sources'] as const,
     metal: (metalId: string) => ['spots', 'metal', metalId] as const,
     activity: (metalId: string, days: number) => ['spots', 'activity', metalId, days] as const,

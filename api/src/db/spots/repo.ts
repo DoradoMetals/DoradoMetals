@@ -2,13 +2,7 @@ import path from 'node:path'
 import query from '#shared/db/query.ts'
 import { expression, sqlFrom } from '#shared/db/sql.ts'
 import type { Executor } from '#shared/db/executor.ts'
-import {
-  MetalSpot,
-  SpotBoard,
-  type SpotActivity,
-  type SpotPatch,
-  type SpotPrice,
-} from '@dorado/contracts'
+import { MetalSpot, SpotBoard, type SpotActivity, type SpotPrice } from '@dorado/contracts'
 
 const sql = sqlFrom(import.meta.dirname)
 const adjustmentsSql = sqlFrom(path.join(import.meta.dirname, 'adjustments'))
@@ -42,17 +36,4 @@ export async function activity(
 ): Promise<SpotActivity[]> {
   const { rows } = await query<SpotActivity>(ACTIVITY_SQL, [metal_id, days], executor)
   return rows
-}
-
-export async function upsert(
-  metal_id: string,
-  patch: SpotPatch,
-  executor?: Executor
-): Promise<boolean> {
-  const { rowCount } = await query(
-    sql('upsert'),
-    [metal_id, patch.ask, patch.bid, patch.dollar_change, patch.percent_change],
-    executor
-  )
-  return rowCount === 1
 }

@@ -290,6 +290,9 @@ const ENTITY = {
   'shipping.tracking': 'TrackingRecord',
 
   'spots.spots': 'Spot',
+  'spots.current': 'CurrentSpot',
+  'spots.ticks': 'SpotTick',
+  'spots.candles': 'SpotCandleRow',
   'spots.overrides': 'SpotOverride',
   'spots.settings': 'SpotSettings',
   'spots.sources': 'SpotSource',
@@ -362,6 +365,7 @@ for (const schema of SCHEMAS) {
   const { rows: tables } = await client.query(
     `SELECT table_name FROM information_schema.tables
      WHERE table_schema = $1 AND table_type = 'BASE TABLE'
+       AND format('%I.%I', table_schema, table_name)::regclass NOT IN (SELECT inhrelid FROM pg_inherits)
      ORDER BY table_name`,
     [schema]
   )
