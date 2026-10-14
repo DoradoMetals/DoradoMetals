@@ -72,7 +72,7 @@ function tokenLength(name: string, fallback: number): number {
   return v.endsWith('rem') ? n * (parseFloat(root.fontSize) || 16) : n
 }
 
-function axisScales(yAxis: boolean) {
+function axisScales(yAxis: boolean, yFormat?: (value: number) => string) {
   return {
     x: {
       grid: { display: false },
@@ -81,7 +81,12 @@ function axisScales(yAxis: boolean) {
     },
     y: {
       grid: { color: C.border },
-      ticks: { display: yAxis, color: C.subtle, font: { size: 12 } },
+      ticks: {
+        display: yAxis,
+        color: C.subtle,
+        font: { size: 12 },
+        ...(yFormat ? { callback: (value: string | number) => yFormat(Number(value)) } : {}),
+      },
       border: { display: false },
       afterFit: (scale: { width: number }) => {
         scale.width = yAxis ? tokenLength('--chart-axis-y', 48) : 0
@@ -110,6 +115,7 @@ export const CHART_RANGES = ['1D', '1W', '1M', '1Y'] as const
 
 type AxisChartProps = ChartBaseProps & {
   yAxis?: boolean
+  yFormat?: (value: number) => string
   range?: string
   onRangeChange?: (range: string) => void
   rangeOptions?: readonly string[]
@@ -188,6 +194,7 @@ function LineSeriesChart({
   className,
   area,
   yAxis = false,
+  yFormat,
   range,
   onRangeChange,
   rangeOptions,
@@ -203,7 +210,7 @@ function LineSeriesChart({
         <Line
           aria-label={label}
           role="img"
-          options={{ ...baseOptions, scales: axisScales(yAxis) }}
+          options={{ ...baseOptions, scales: axisScales(yAxis, yFormat) }}
           data={{
             labels,
             datasets: series.map((s, i) => ({

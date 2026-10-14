@@ -9,6 +9,8 @@ import type {
   SpotAdjustmentPatch,
   SpotAdjustmentRead,
   SpotBoard,
+  SpotCandle,
+  SpotCandleRange,
   SpotFreezeBody,
   SpotLock,
   SpotLockPage,
@@ -73,6 +75,25 @@ export function useMetalActivity(metalId: string, days = 7, options: { enabled?:
         `/spots/metals/${encodeURIComponent(metalId)}/activity`,
         undefined,
         { days }
+      ),
+  })
+}
+
+export function useSpotCandles(
+  metalId: string,
+  range: SpotCandleRange = '1D',
+  source: string | null = null,
+  options: { enabled?: boolean } = {}
+) {
+  return useQuery<SpotCandle[]>({
+    queryKey: keys.spots.candles(metalId, range, source),
+    enabled: (options.enabled ?? true) && metalId.length > 0,
+    queryFn: () =>
+      apiRequest<SpotCandle[]>(
+        'GET',
+        `/spots/metals/${encodeURIComponent(metalId)}/candles`,
+        undefined,
+        { range, source }
       ),
   })
 }
@@ -142,8 +163,8 @@ function useSpotWrite<TVariables, TResult>(run: (variables: TVariables) => Promi
   })
 }
 
-export function useUpdateSpotSource(id: string) {
-  return useSpotWrite((patch: SpotSourcePatch) =>
+export function useUpdateSpotSource() {
+  return useSpotWrite(({ id, patch }: { id: string; patch: SpotSourcePatch }) =>
     apiRequest<SpotSourceRead>('PATCH', `/spots/sources/${encodeURIComponent(id)}`, patch)
   )
 }
@@ -164,8 +185,8 @@ export function useSetAdjustment(metalId: string, sourceId: string) {
   )
 }
 
-export function useRemoveAdjustment(metalId: string, sourceId: string) {
-  return useSpotWrite(() =>
+export function useRemoveAdjustment() {
+  return useSpotWrite(({ metalId, sourceId }: { metalId: string; sourceId: string }) =>
     apiRequest<void>(
       'DELETE',
       `/spots/adjustments/${encodeURIComponent(metalId)}/${encodeURIComponent(sourceId)}`

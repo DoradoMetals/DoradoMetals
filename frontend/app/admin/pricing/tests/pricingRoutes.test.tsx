@@ -1,32 +1,24 @@
 import { describe, expect, test, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 
 import { protectedRoutes } from '@/shared/types/routes'
 
+const push = vi.fn()
 vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push }),
   usePathname: () => '/admin/pricing/rates',
   redirect: vi.fn(),
 }))
 
-const { PricingNav } = await import('../_components')
-const { default: SpotsPage } = await import('../spots/page')
-const { default: RatesPage } = await import('../rates/page')
+const { PricingHeader } = await import('../_components')
 
-describe('the pricing shell', () => {
-  test('links Spots and Rates and marks the current one', () => {
-    render(<PricingNav />)
-    expect(screen.getByRole('link', { name: 'Spots' }).getAttribute('href')).toBe(
-      '/admin/pricing/spots'
-    )
-    expect(screen.getByRole('link', { name: 'Rates' }).getAttribute('aria-current')).toBe('page')
-    expect(screen.getByRole('link', { name: 'Spots' }).getAttribute('aria-current')).toBeNull()
-  })
-
-  test('each page renders its placeholder', () => {
-    render(<SpotsPage />)
-    expect(screen.getByText('Spots are coming')).toBeTruthy()
-    render(<RatesPage />)
-    expect(screen.getByText('Rates are coming')).toBeTruthy()
+describe('the pricing header', () => {
+  test('marks the current section and moves to the other', () => {
+    render(<PricingHeader section="rates" mobile={false} description="Rates" />)
+    expect(screen.getByRole('button', { name: 'Rates' }).getAttribute('aria-current')).toBe('page')
+    expect(screen.getByRole('button', { name: 'Spots' }).getAttribute('aria-current')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Spots' }))
+    expect(push).toHaveBeenCalledWith('/admin/pricing/spots')
   })
 
   test('the routes are admin only', () => {

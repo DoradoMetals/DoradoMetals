@@ -1,7 +1,7 @@
 'use client'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { RateBandsBody, RateChangePage, RatePay } from '@dorado/contracts'
+import type { AdminRate, RateBandsBody, RateChangePage, RatePay } from '@dorado/contracts'
 
 import { apiRequest } from '../fetch'
 import { keys } from '../keys'
@@ -11,6 +11,14 @@ export function useRatePay(unit = 'troy_oz', options: { enabled?: boolean } = {}
     queryKey: keys.rates.pay(unit),
     enabled: options.enabled ?? true,
     queryFn: () => apiRequest<RatePay[]>('GET', '/rates', undefined, { unit }),
+  })
+}
+
+export function useAdminRates(options: { enabled?: boolean } = {}) {
+  return useQuery<AdminRate[]>({
+    queryKey: keys.rates.admin(),
+    enabled: options.enabled ?? true,
+    queryFn: () => apiRequest<AdminRate[]>('GET', '/rates/admin'),
   })
 }
 
@@ -27,10 +35,10 @@ export function useRateChanges(
   })
 }
 
-export function useReplaceRateBands(metalId: string, unit = 'troy_oz') {
+export function useReplaceRateBands(unit = 'troy_oz') {
   const client = useQueryClient()
   return useMutation({
-    mutationFn: (body: RateBandsBody) =>
+    mutationFn: ({ metalId, body }: { metalId: string; body: RateBandsBody }) =>
       apiRequest<RatePay[]>('PATCH', `/rates/${encodeURIComponent(metalId)}`, body, { unit }),
     onSettled: () => {
       client.invalidateQueries({ queryKey: keys.rates.all() })
