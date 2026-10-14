@@ -26,6 +26,11 @@ describe('Dialog', () => {
     expect(await axeViolations(document.body)).toEqual([])
   })
 
+  it('open dialog adds no body padding', () => {
+    openDialog()
+    expect(document.body.style.paddingRight).toBe('')
+  })
+
   it('Escape asks to close', () => {
     const onOpenChange = vi.fn()
     openDialog(onOpenChange)

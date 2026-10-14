@@ -49,6 +49,12 @@ describe('Menu', () => {
     expect(danger.className).toContain('text-destructive')
   })
 
+  it('open menu adds no body padding', () => {
+    openMenu()
+    expect(document.body.hasAttribute('data-scroll-locked')).toBe(false)
+    expect(document.body.style.paddingRight).toBe('')
+  })
+
   it('the trigger declares the popup relationship', () => {
     const { container } = openMenu()
     const trigger = container.querySelector('button') as HTMLElement
