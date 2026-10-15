@@ -647,7 +647,14 @@ file named at the top of this file.
   holds the card's own `actions[]`. *"Figure that one out."* The
   orchestrator's call, open to veto. 2026-10-15. Source: decision 17.
 
+- **152 — States live in the components, not in screens.** *"Having a
+  screen for every state gets cluttered fast, whereas it's more reasonable
+  at the component level."* Every empty, loading, error, mobile and
+  business state is a variant of the card or row it belongs to; a base screen
+  stays one per page and shows one state. Customer-facing account screens
+  are not designed yet. 2026-10-15. Source: Jacob, orders review §4.
+
 ## Numbering
 
-Every number from 1 to 151 has an entry, plus 26b and 26c. Two rulings carry the
+Every number from 1 to 152 has an entry, plus 26b and 26c. Two rulings carry the
 number 39; both are listed. No number is ever reused.
