@@ -86,28 +86,26 @@ States and screens the flow needs that no frame shows. The porter either gets a 
 - Refiner: partial settlement, disputed assay, returned lots, cancelled batch.
 - Operator needs with no frame and no fact: per-order audit trail (who changed what, when), notes with author and time, refunds and chargebacks, parcel claims and insurance, address change after a label, lot photos on intake as a set, customer purity disputes.
 
-## 5. Decisions for Jacob
+## 5. Decisions for Jacob (answered 2026-10-14; rulings 131-139)
 
-1. Placement locks spots today. Keep that, or stop locking at placement now that lock-on-demand is the ruling?
-2. Port target for the list: the proposed card 673:20375 or the base 620:5115?
-3. Header badge on the four base customer headers: on or off (the API always has a state)?
-4. `Awaiting Payout` means "not finalized": keep the label or rename it? A Cancelled chip on the state row?
-5. Partial payouts: a real case (then an amount input on the Payment card and the "above the total" dialog), or not?
-6. Admin cancel of a sales order (ruling 88's cancel half): build it.
-7. Removing a lot from a purchase: unlink and keep the lot, or a removal fact. Never delete.
-8. A return: its own fulfillment, or always the cancel path?
-9. Partial settlement: order stays open until every lot settles, or the first settle closes it?
-10. Pooled-sale totals: dollars or ounces, and where the refiner fee shows.
-11. Refiner-lot Qty: display only, or editable in the API?
-12. Document delete: only an unsent import, or a supersede that keeps the row? Refiner document Send: build it or remove the icon?
-13. Photos: one per lot or a set, per lot or per order, and who may view (admins cannot open each other's today).
-14. Audit trail: a read over existing facts, or field-level history? Notes: one text column, or `crm.notes` with `order_id`?
-15. Refunds (card only, or also to credit), parcel claims, address change after a label (and the sales-tax re-quote), signature on delivery, our receiving account on the Payment card: in scope or out. Each needs a fact before a screen.
-16. Concurrency: a precondition on edits, or last-write-wins?
-17. Context menu 619:4750 contents; selection bar label (Batch into vs Send to) and any bulk action beyond Batch.
-18. Mobile and the state frames in §4: designed before the port, or built code-only by the porter and listed?
-19. Messages per order: confirm the customer-thread default.
-20. `docs/rulings.md` stops at 96; rulings 97-126 are being written in from the lane docs. Confirm the text once it lands.
+Ruled: 1 sales lock at placement (131); 5 one payout method by default, "Add payout method" splits (132); 6 sale cancel only if nothing sent, refund first otherwise (133); 9 a purchase closes on the customer's payout, a sale when paid and delivered (134); 10 pooled sale shows ounces and dollars, refiner fee on the refiner order (135); 12 documents supersede, fixed set per kind (136); 13 photos many per lot, also on lead quote items (137); 18 mobile and state frames drawn first as component states (138); 19 Chat is the customer's thread (139); 20 done.
+
+Still open, re-asked with links:
+
+| # | Question | Default if unanswered |
+|---|---|---|
+| 2 | List card: proposed 673:20375 or base 620:5115 | proposed |
+| 3 | State badge in the order header: always or never | always |
+| 4a | Rename the API state "Awaiting Payout" (it means not finalized) | rename to Awaiting Finalize |
+| 4b | A Cancelled chip on the state filter row 715:38985 | yes |
+| 7 | Lot row trash on a purchase: unlink and keep, or remove the trash | unlink and keep |
+| 8 | A return outside cancel | no, cancel path only |
+| 9b | Refiner sale stays open until every lot settles | yes |
+| 11 | Refiner lot Qty display only | yes |
+| 14 | Audit trail as an activity read over existing facts, field history later | yes |
+| 15 | Refunds (card only or also to credit), parcel claim record, address change after label, signature on delivery, our receiving account on the sale card | card refund only; claim record yes; address change by void and relabel; signature above a value TBD; receiving account not shown |
+| 16 | Refuse a save from a stale screen (409) on order and lot edits | yes |
+| 17 | Context menu 619:4750 actions; selection bar label and bulk actions | menu = the card's actions; "Batch into"; Batch only |
 
 ## 6. Proposed port order
 

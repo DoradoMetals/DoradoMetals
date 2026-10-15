@@ -554,7 +554,44 @@ file named at the top of this file.
   mobile layout is exercised at 390. Unit tests and screenshot compares do
   not substitute. 2026-10-14. Source: Jacob, in session.
 
+- **131 — A sales order locks its spots at placement.** *"Yes, should lock on
+  sales order placement. We'll cancel orders that don't pay in time."*
+  Placement records the lock events beside the freeze; migration 283 gave
+  every placed sale its opening events. Customers cannot place sales orders
+  for now. 2026-10-14. Source: Jacob, orders port review decision 1.
+- **132 — One payout method by default; a split is an explicit add.** *"By
+  default it should only have one with no input."* A payout has one method
+  and no amount field; "Add payout method" opens a second (credit, then the
+  rest by eCheck, for example) and only then each method carries an amount.
+  2026-10-14. Source: decision 5.
+- **133 — A sale is cancelled only when nothing has been sent.** *"As long
+  as the money hasn't been sent. If it has, refund first."* Admin cancel of a
+  sale releases the credit reservation and voids the label; a sale with a
+  received charge is refunded first, then cancelled. 2026-10-14. Source:
+  decision 6.
+- **134 — What closes an order.** *"Customer purchase orders close when the
+  customer receives their payout. Customer sales orders close when we have
+  payment and they've received their items."* Refiner settlement on a
+  purchase is for the profit breakdown only and never gates completion.
+  2026-10-14. Source: decision 9.
+- **135 — A pooled refiner sale shows ounces and dollars; the refiner fee
+  belongs to the refiner order.** *"Just show both. Why would we need refiner
+  fees in pool?"* Nothing is attributed to the pool. 2026-10-14. Source:
+  decision 10.
+- **136 — Documents supersede, never delete.** *"Supersede. We know the exact
+  documents that will pertain to each one."* Each order kind has a fixed
+  document set; regenerating keeps the earlier rows. 2026-10-14. Source:
+  decision 12.
+- **137 — Photos are many to one with a lot**, and lead quote items carry
+  them too. 2026-10-14. Source: decision 13.
+- **138 — Mobile and state frames are designed before a port, as component
+  states.** *"Designed before the port; most of those should be living in
+  components."* 2026-10-14. Source: decision 18.
+- **139 — The order screen's Chat is the customer's thread**, the same one
+  the Inbox shows, so nobody goes back and forth. 2026-10-14. Source:
+  decision 19.
+
 ## Numbering
 
-Every number from 1 to 130 has an entry, plus 26b and 26c. Two rulings carry the
+Every number from 1 to 139 has an entry, plus 26b and 26c. Two rulings carry the
 number 39; both are listed. No number is ever reused.
