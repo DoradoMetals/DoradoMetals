@@ -29,6 +29,18 @@ describe('MarqueeItem', () => {
     expect(getByText('0.00').className).not.toContain('text-destructive')
   })
 
+  it('with an ask reads label, Bid, the bid, Ask and the muted ask', () => {
+    const { getByText } = render(
+      <MarqueeItem label="Gold" value="$2,411.20" ask="$2,412.80" delta="+0.8%" />
+    )
+    expect(getByText('Bid').className).toContain('text-placeholder')
+    expect(getByText('Ask').className).toContain('text-placeholder')
+    expect(getByText('$2,411.20').getAttribute('data-emphasis')).toBe('default')
+    expect(getByText('$2,412.80').getAttribute('data-emphasis')).toBe('subtlest')
+    const order = [...getByText('Gold').parentElement!.children].map((el) => el.textContent)
+    expect(order).toEqual(['Gold', 'Bid', '$2,411.20', 'Ask', '$2,412.80', '+0.8%'])
+  })
+
   it('is axe clean', async () => {
     const { container } = render(
       <MarqueeItem label="Gold" value="$2,411.20" delta="+12.34" trend="up" />

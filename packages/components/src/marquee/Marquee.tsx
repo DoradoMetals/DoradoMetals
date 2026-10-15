@@ -9,6 +9,7 @@ export type MarqueeProps = {
   layout?: 'desktop' | 'mobile'
   duration?: number
   label?: string
+  leading?: React.ReactNode
   className?: string
 }
 
@@ -21,6 +22,7 @@ export function Marquee({
   layout = 'mobile',
   duration = 30,
   label,
+  leading,
   className,
 }: MarqueeProps) {
   if (layout === 'desktop') {
@@ -30,8 +32,9 @@ export function Marquee({
         data-layout="desktop"
         className={cn('h-(--control-lg) w-full border-y border-border', className)}
       >
-        <div className="mx-auto flex h-full w-full max-w-page items-center justify-between gap-xl overflow-hidden px-lg">
-          {children}
+        <div className="mx-auto flex h-full w-full max-w-page items-center gap-xl overflow-hidden px-lg">
+          {leading}
+          <div className="ml-auto flex items-center gap-xl">{children}</div>
         </div>
       </section>
     )

@@ -41,6 +41,19 @@ describe('Marquee', () => {
 })
 
 describe('Marquee at Layout=Desktop', () => {
+  it('sits its cells right with the leading control on the far left', () => {
+    const { getByRole, getByText } = render(
+      <Marquee layout="desktop" label="Live spot prices" leading={<button>Show bid/ask</button>}>
+        <span>Gold</span>
+      </Marquee>
+    )
+    const row = getByRole('region', { name: 'Live spot prices' }).firstElementChild as HTMLElement
+    expect(row.firstElementChild?.textContent).toBe('Show bid/ask')
+    const cells = getByText('Gold').parentElement as HTMLElement
+    expect(cells.className).toContain('ml-auto')
+    expect(cells.className).toContain('gap-xl')
+  })
+
   it('is a static row inside the page width, with no seam copy and no motion', () => {
     const { container, getAllByText } = render(
       <Marquee layout="desktop" label="Live spot prices">
@@ -53,7 +66,6 @@ describe('Marquee at Layout=Desktop', () => {
     expect(bar.className).toContain('h-(--control-lg)')
     const row = bar.firstElementChild as HTMLElement
     expect(row.className).toContain('max-w-page')
-    expect(row.className).toContain('justify-between')
     expect(row.className).toContain('px-lg')
   })
 

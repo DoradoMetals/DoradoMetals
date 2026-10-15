@@ -59,6 +59,7 @@ export function useSpotTicker() {
       data.spots.map((s) => ({
         metal_id: s.id,
         price: s.bid,
+        ask: s.ask,
         percent_change: s.percent_change,
         direction: s.direction,
         at: s.updated_at,

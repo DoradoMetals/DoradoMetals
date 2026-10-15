@@ -37,6 +37,19 @@ for (const size of SIZES) {
     })
 
     if (size.name === 'desktop') {
+      test('the bar toggles bid and ask and remembers it', async ({ page }) => {
+        await page.goto('/admin/pricing/spots')
+        const bar = page.getByRole('region', { name: 'Live spot prices' })
+        await expect(bar.getByText('Gold').first()).toBeVisible({ timeout: 30_000 })
+        await expect(bar.getByText('Ask', { exact: true })).toHaveCount(0)
+        await bar.getByRole('button', { name: 'Show bid/ask' }).click()
+        await expect(bar.getByText('Ask', { exact: true })).toHaveCount(4)
+        await page.reload()
+        await expect(bar.getByRole('button', { name: 'Hide bid/ask' })).toBeVisible()
+        await bar.getByRole('button', { name: 'Hide bid/ask' }).click()
+        await expect(bar.getByText('Ask', { exact: true })).toHaveCount(0)
+      })
+
       test('the lock status filter switches the rows', async ({ page }) => {
         await page.goto('/admin/pricing/spots')
         const locks = page.getByRole('table', { name: 'Order locks' })

@@ -138,6 +138,7 @@ test('the ticker lists every metal in metal order with the board direction', asy
       for (const row of rows) {
         const card = cards.find((s) => s.id === row.metal_id)
         assert.equal(row.price, card?.bid)
+        assert.equal(row.ask, card?.ask)
         assert.equal(row.direction, card?.direction)
       }
     },

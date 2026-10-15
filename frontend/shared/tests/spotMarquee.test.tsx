@@ -1,13 +1,48 @@
 import { describe, expect, test, vi } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
+
+vi.mock('@dorado/components', async (original) => ({
+  ...(await original<typeof import('@dorado/components')>()),
+  useMediaUp: () => desktop.value,
+}))
+
+const desktop = { value: false }
 
 vi.mock('@dorado/client', () => ({
   useSpotTicker: () => ({
     data: [
-      { metal_id: 'Gold', price: 2411.2, percent_change: 0.8, direction: 'up', at: null },
-      { metal_id: 'Silver', price: 29.14, percent_change: -0.3, direction: 'down', at: null },
-      { metal_id: 'Platinum', price: 1022.75, percent_change: 1.2, direction: 'up', at: null },
-      { metal_id: 'Palladium', price: null, percent_change: 0.4, direction: 'up', at: null },
+      {
+        metal_id: 'Gold',
+        price: 2411.2,
+        ask: 2412.8,
+        percent_change: 0.8,
+        direction: 'up',
+        at: null,
+      },
+      {
+        metal_id: 'Silver',
+        price: 29.14,
+        ask: 29.2,
+        percent_change: -0.3,
+        direction: 'down',
+        at: null,
+      },
+      {
+        metal_id: 'Platinum',
+        price: 1022.75,
+        ask: 1025,
+        percent_change: 1.2,
+        direction: 'up',
+        at: null,
+      },
+      {
+        metal_id: 'Palladium',
+        price: null,
+        ask: null,
+        percent_change: 0.4,
+        direction: 'up',
+        at: null,
+      },
     ],
   }),
 }))
@@ -31,5 +66,28 @@ describe('the live spots bar', () => {
     const bar = screen.getByRole('region', { name: 'Live spot prices' })
     expect(within(bar).getAllByText('—').length).toBeGreaterThan(0)
     expect(within(bar).queryByText('+0.4%')).toBeNull()
+  })
+
+  test('on desktop the toggle shows bid and ask and is remembered per viewer', () => {
+    desktop.value = true
+    window.localStorage.removeItem('dorado.spots.bid-ask')
+    const { unmount } = render(<SpotMarquee />)
+    expect(screen.queryByText('$2,412.80')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Show bid/ask' }))
+    expect(screen.getAllByText('Bid').length).toBe(4)
+    expect(screen.getAllByText('Ask').length).toBe(4)
+    expect(screen.getByText('$2,412.80')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Hide bid/ask' })).toBeTruthy()
+    expect(window.localStorage.getItem('dorado.spots.bid-ask')).toBe('on')
+    unmount()
+    render(<SpotMarquee />)
+    expect(screen.getByText('$2,412.80')).toBeTruthy()
+    desktop.value = false
+  })
+
+  test('on mobile there is no toggle', () => {
+    desktop.value = false
+    render(<SpotMarquee />)
+    expect(screen.queryByRole('button', { name: /bid\/ask/ })).toBeNull()
   })
 })
