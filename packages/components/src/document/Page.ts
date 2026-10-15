@@ -86,6 +86,7 @@ export type DocumentFrame = {
   density?: Density
   footDensity?: Density
   checkout?: Checkout | null
+  contact?: string[]
 }
 
 export function renderFramed(frame: DocumentFrame, logo: string, fontFaces: string): string {
@@ -101,8 +102,8 @@ export function renderFramed(frame: DocumentFrame, logo: string, fontFaces: stri
       checkout: frame.checkout ?? null,
     }),
     body: frame.body,
-    foot: h(Footer, { issued: frame.footer, density: foot }),
-    footHeight: footerHeight(foot),
+    foot: h(Footer, { issued: frame.footer, density: foot, contact: frame.contact ?? [] }),
+    footHeight: footerHeight(foot, (frame.contact ?? []).length > 0),
     fontFaces,
     fontFamily: fontStack,
   })

@@ -8,13 +8,23 @@ Missing designs (Jacob decides where): promo mailer, supplier sales-order email,
 
 Assets: emails reference `FRONTEND_URL/media/...` from `frontend/public/media/`; PDFs inline their assets. The Media worker exports the asset pack (logo black/white, mark) with Figma source ids before the lane starts.
 
-Ruling 2026-10-14 (Jacob): the Assay Results document becomes a **Quote Estimate**, drawn at 225:2270. The frame is the spec. A quote is not stored, so it has no id, no order number and no customer name. The header uses the Header's Checkout variant (62:258): "Start your order", "Scan with your phone" and a 48 px vector QR code to `FRONTEND_URL/sell` (`links.ts` `sellUrl()`, generated at render time). The hero is "Estimated quote" with the items total; its status line is the spot time followed by the disclaimer. Next comes the invoice Items table with an ESTIMATE column (per row: weight, purity, premium and spot for scrap; units, premium and spot for bullion; no fine oz or unit price), then "How to send it" (317:2358) and "Getting paid" (317:2398). The quote and the rate sheet share those two sections (`render/documents/send-and-paid.ts`), and the payout lines come from the rate sheet's content SQL (`payments.methods`). The footer reads "Quoted {date}". Shipping and the payout fee are not in the figure, and there is no summary block. The assay_results PdfKind and route stay until Jacob renames them, and a sales order gets no quote estimate.
+Ruling 2026-10-14/15 (Jacob): the Assay Results document becomes a **Quote Estimate**, drawn at 225:2270. The frame is the spec. A quote is not stored.
+- **Header:** the Header's Checkout variant (62:258) shows "Start your order", "Scan with your phone" and a 48 px vector QR code to `FRONTEND_URL/sell` (`links.ts` `sellUrl()`, generated at render time).
+- **Hero:** "Estimated quote" with the items total. Opposite the label, the Hero's Reference switch (on for the quote only) shows "Quote Q-MMDD-HHMM", built from the quote's Central-time date and time, over "For {customer name}". The status line states spot once ("Priced against spot on {date, time CT}: gold $x and silver $y per oz."), then the disclaimer.
+- **Items:** the invoice table with an ESTIMATE column and labelled facts. Scrap rows read Gross weight · Purity · {Metal} weight (est.) · Price per oz (r% of spot). Bullion rows read Quantity · {Metal} weight · Price each (r% of spot). The fine weight and the per-ounce price come from the pricing view (`fine`, `oz_price`).
+- **Below the items:** "How to send it" (317:2358) and "Getting paid" (317:2398), shared with the rate sheet (`render/documents/send-and-paid.ts`). The payout lines come from `payments.methods`.
+- **Footer:** the Footer's Contact switch (on for the quote only) adds the office address, phone and email from the Dorado office location and its organization row, then "Quoted {date}".
+- Shipping and the payout fee are not in the figure, and there is no summary block. The assay_results PdfKind and route stay until Jacob renames them, and a sales order gets no quote estimate.
 
-Footers: instruction sheets read "Sent {date}", the Quote Estimate "Quoted {date}", and invoices "Issued {date}". The shipment, pickup and intake manifests still read "Created {date}", which is what their frames show.
+Footers use the short date the frames show ("Sep 2"): instruction sheets "Sent", the quote "Quoted", invoices "Issued", the shipment, pickup and intake manifests "Created".
+
+Ruling 140 (no "melt"): the quote prints "Gross weight". The invoice and manifest frames still print "post melt" and "pre melt" while Jacob names the term. Until he does, the code prints "Gross weight {n} g" there too: the post-processing weight on the invoice, the declared weight on the manifests.
 
 ## Port status (media-port lane, 2026-10-14)
 
 Omissions: the frames draw these, the code does not render them yet.
+
+- **Contact email in the quote footer.** It reads `organizations.organizations.email` for the Dorado office's organization, which is NULL in the data today, so the line shows address and phone only until that row is filled.
 
 - **YouTube and LinkedIn icons in the mailer footer.** The PNGs are in `frontend/public/media/`, but no account URL exists in the repo.
 - **"Sterling Silver".** The purity label in `metals.purity_labels` is ".925", so a lot prints ".925 Silver".

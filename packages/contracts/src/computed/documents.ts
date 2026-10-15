@@ -133,6 +133,13 @@ export const DocumentEnd = z.object({
 })
 export type DocumentEnd = z.infer<typeof DocumentEnd>
 
+export const DocumentContact = z.object({
+  address: z.string().nullable(),
+  phone: z.string().nullable(),
+  email: z.string().nullable(),
+})
+export type DocumentContact = z.infer<typeof DocumentContact>
+
 export const DocumentParties = z.object({
   order_id: Order.shape.id,
   office: DocumentEnd.nullable(),
@@ -141,6 +148,7 @@ export const DocumentParties = z.object({
   card: DocumentEnd.nullable(),
   payment: DocumentEnd.nullable(),
   payout: DocumentEnd.nullable(),
+  contact: DocumentContact.nullable(),
 })
 export type DocumentParties = z.infer<typeof DocumentParties>
 

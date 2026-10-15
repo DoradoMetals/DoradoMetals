@@ -31,6 +31,7 @@ export {
   pagePalette,
   type Checkout,
   type Density,
+  type HeroReference,
   type EndBlock,
   type LedgerLine,
   type Step,

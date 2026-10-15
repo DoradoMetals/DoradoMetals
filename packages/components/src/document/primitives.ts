@@ -212,16 +212,42 @@ export function Header({
 export const PAGE_NUMBER = 'pageNumber'
 export const TOTAL_PAGES = 'totalPages'
 
-export function footerHeight(density: Density): number {
-  return edge(density) * 2 + 1 + Number.parseFloat(space.md) + 18
+const CONTACT_HEIGHT = Number.parseFloat(space.lg)
+
+export function footerHeight(density: Density, contact = false): number {
+  return edge(density) * 2 + 1 + Number.parseFloat(space.md) + 18 + (contact ? CONTACT_HEIGHT : 0)
+}
+
+function ContactLine({ parts }: { parts: string[] }): ReactNode {
+  return h(
+    'div',
+    {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        height: `${CONTACT_HEIGHT}px`,
+      },
+    },
+    ...parts.flatMap((part, i) => [
+      ...(i === 0 ? [] : [h(Dot, { key: `d${i}`, index: i })]),
+      h(
+        'span',
+        { key: `c${i}`, style: type('micro', { color: muted, whiteSpace: 'nowrap' }) },
+        part
+      ),
+    ])
+  )
 }
 
 export function Footer({
   issued,
   density = 'compact',
+  contact = [],
 }: {
   issued: string
   density?: Density
+  contact?: string[]
 }): ReactNode {
   const pad = edge(density)
   const micro = type('micro', { color: muted, margin: 0 })
@@ -230,7 +256,7 @@ export function Footer({
     {
       style: {
         width: `${PAGE.width}px`,
-        height: `${footerHeight(density)}px`,
+        height: `${footerHeight(density, contact.length > 0)}px`,
         boxSizing: 'border-box',
         padding: `${pad}px ${PAGE.gutter}px`,
         backgroundColor: paper.background,
@@ -240,6 +266,7 @@ export function Footer({
       },
     },
     h('div', { style: { height: stroke.hairline, backgroundColor: line } }),
+    ...(contact.length > 0 ? [h(ContactLine, { key: 'contact', parts: contact })] : []),
     h(
       'div',
       {
@@ -283,19 +310,51 @@ export function NoteFooter({ note }: { note: string }): ReactNode {
   )
 }
 
+export type HeroReference = { number: string; customer: string | null }
+
 export function Hero({
   label,
   value,
   status,
+  reference = null,
 }: {
   label: string
   value: string
   status: string
+  reference?: HeroReference | null
 }): ReactNode {
   return h(
     'section',
     { style: bandWith({ paddingTop: space.md }) },
-    h(Eyebrow, { children: label }),
+    reference === null
+      ? h(Eyebrow, { children: label })
+      : h(
+          'div',
+          { style: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' } },
+          h(Eyebrow, { children: label }),
+          h(
+            'div',
+            {
+              style: {
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-end',
+                gap: '2px',
+              },
+            },
+            h(Eyebrow, { align: 'right', children: reference.number }),
+            ...(reference.customer
+              ? [
+                  h(Line, {
+                    key: 'for',
+                    step: 'small',
+                    align: 'right',
+                    children: reference.customer,
+                  }),
+                ]
+              : [])
+          )
+        ),
     h(Line, { step: 'stat-sm', tone: 'ink', style: { paddingTop: space['2xs'] }, children: value }),
     h(Line, { step: 'small', style: { paddingTop: space['2xs'] }, children: status })
   )

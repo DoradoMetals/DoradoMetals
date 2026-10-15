@@ -44,6 +44,19 @@ export function formatQuoted(date: Date = new Date()): string {
   return `Quoted ${longDate(date)}`
 }
 
+export function quoteNumber(date: Date): string {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: ZONE,
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(date)
+  const part = (type: string): string => parts.find((p) => p.type === type)?.value ?? '00'
+  return `Q-${part('month')}${part('day')}-${part('hour')}${part('minute')}`
+}
+
 export function formatMonth(date: Date = new Date()): string {
   return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: ZONE })
 }
@@ -57,15 +70,21 @@ function decimal(value: number, min: number, max: number): string {
   return value.toLocaleString('en-US', { minimumFractionDigits: min, maximumFractionDigits: max })
 }
 
-export function weightFact(
-  value: number | null | undefined,
-  unit: string | null,
-  label: string
-): string {
-  if (value == null) return [DASH, unit, label].filter(Boolean).join(' ')
-  const amount = decimal(value, 1, 1)
-  const withUnit = unit === 'g' ? `${amount}g` : unit ? `${amount} ${unit}` : amount
-  return `${withUnit} ${label}`
+export function labelled(label: string, value: string): string {
+  return `${label} ${value}`
+}
+
+export function grossFact(value: number | null | undefined, unit: string | null): string {
+  const amount = value == null ? DASH : decimal(value, 1, 1)
+  return labelled('Gross weight', [amount, unit].filter(Boolean).join(' '))
+}
+
+export function percent(value: number | null | undefined): string {
+  return value == null ? DASH : `${decimal(value * 100, 1, 1)}%`
+}
+
+export function ounces(value: number | null | undefined): string {
+  return value == null ? DASH : `${decimal(value, 3, 3)} oz`
 }
 
 export function rate(value: number | null | undefined): string {
@@ -82,6 +101,14 @@ export function rateFact(value: number | null | undefined, label: string): strin
 
 export function unitsFact(value: number | null | undefined): string {
   return `${value == null ? DASH : value} ${value === 1 ? 'unit' : 'units'}`
+}
+
+export function priceFact(
+  value: number | null | undefined,
+  per: string,
+  premium: number | null | undefined
+): string {
+  return `Price ${value == null ? DASH : formatCurrency(value)} ${per} (${rate(premium)} of spot)`
 }
 
 export function moneyFact(value: number | null | undefined, label: string): string {

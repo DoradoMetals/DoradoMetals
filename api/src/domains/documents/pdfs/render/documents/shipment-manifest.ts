@@ -61,7 +61,7 @@ function build(eyebrow: string, leg: 'inbound' | 'return', input: ShipmentManife
     middle: shippingPair(order, leg, box),
     tableCap: 'Items enclosed',
     tableColumn: 'Estimate',
-    rows: documentRows(order.lots, pricing, 'pre'),
+    rows: documentRows(order.lots, pricing, 'manifest'),
     ledger: [
       { label: 'Items', value: formatCurrency(pricing.items_total) },
       { label: 'Shipping', value: minus(pricing.shipping_charge) },

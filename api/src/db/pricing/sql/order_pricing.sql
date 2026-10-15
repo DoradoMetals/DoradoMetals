@@ -86,6 +86,8 @@ priced AS (
          COALESCE(t.stored_premium, t.retier_premium, 0) AS premium,
          t.retier_premium,
          t.spot,
+         t.weighed,
+         COALESCE(t.spot, 0) * COALESCE(t.stored_premium, t.retier_premium, 0) AS oz_price,
          t.content * (COALESCE(t.spot, 0) * COALESCE(t.stored_premium, t.retier_premium, 0)) AS unit_price
     FROM tiered t
 ),
@@ -183,7 +185,9 @@ SELECT jsonb_build_object(
                        'retier_premium', l.retier_premium,
                        'unit_price', l.unit_price,
                        'line_total', l.line_total,
-                       'spot', l.spot)
+                       'spot', l.spot,
+                       'fine', l.weighed,
+                       'oz_price', l.oz_price)
                      ORDER BY l.id ASC)
               FROM lined l),
            '[]'::jsonb),
