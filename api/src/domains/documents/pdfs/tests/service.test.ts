@@ -223,12 +223,12 @@ test('a scrap line with no recorded weight, purity or quantity shows a dash, nev
 
     const own = await inputs.invoiceInputs(order.id, c)
     const documents: Array<[string, string, string]> = [
-      ['packing list', pdf.buildPackingListHtml({ ...own, package: null }), 'Gross weight - g'],
-      ['invoice', pdf.buildInvoiceHtml(own), 'Gross weight - g'],
+      ['packing list', pdf.buildPackingListHtml({ ...own, package: null }), 'Weight - g'],
+      ['invoice', pdf.buildInvoiceHtml(own), 'Weight - g'],
       [
         'return packing list',
         pdf.buildReturnPackingListHtml({ ...own, package: null }),
-        'Gross weight - g',
+        'Weight - g',
       ],
     ]
 

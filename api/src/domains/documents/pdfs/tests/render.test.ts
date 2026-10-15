@@ -188,14 +188,15 @@ test('the quote estimate carries the checkout code, the fulfilment and payout op
   assert.ok(!html.includes('About this quote'), 'the retired notes block came back')
   assert.match(html, /Quote Q-\d{4}-\d{4}/, 'the quote reference is missing')
   if (order.user?.name)
-    assert.ok(carries(html, `For ${order.user.name}`), 'the customer is not named')
+    assert.ok(!carries(html, `For ${order.user.name}`), 'a quote named the customer')
   assert.ok(html.includes('Priced against spot on '), 'the spot line is missing')
   assert.ok(
     !/melt/i.test(html.replace(/<style[\s\S]*?<\/style>/g, '')),
     'the quote prints the word melt'
   )
   if (order.lots.some((lot) => lot.lot.bullion_id === null)) {
-    assert.ok(html.includes('Gross weight '), 'a scrap row lost its gross weight label')
+    assert.ok(html.includes('>Weight '), 'a scrap row lost its weight label')
+    assert.ok(!/gross|\(est\.\)/i.test(html), 'a scrap row still says gross or est.')
     assert.ok(html.includes(' per oz ('), 'a scrap row lost its per-oz price')
   }
   if (order.lots.some((lot) => lot.lot.bullion_id !== null)) {
