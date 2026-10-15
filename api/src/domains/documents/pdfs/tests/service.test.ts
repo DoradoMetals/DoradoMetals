@@ -223,12 +223,12 @@ test('a scrap line with no recorded weight, purity or quantity shows a dash, nev
 
     const own = await inputs.invoiceInputs(order.id, c)
     const documents: Array<[string, string, string]> = [
-      ['packing list', pdf.buildPackingListHtml({ ...own, package: null }), '- g pre melt'],
-      ['invoice', pdf.buildInvoiceHtml(own), '- g post melt'],
+      ['packing list', pdf.buildPackingListHtml({ ...own, package: null }), 'Gross weight - g'],
+      ['invoice', pdf.buildInvoiceHtml(own), 'Gross weight - g'],
       [
         'return packing list',
         pdf.buildReturnPackingListHtml({ ...own, package: null }),
-        '- g pre melt',
+        'Gross weight - g',
       ],
     ]
 
@@ -236,6 +236,10 @@ test('a scrap line with no recorded weight, purity or quantity shows a dash, nev
       assert.ok(!hasNaN(html), `${name} contains NaN for a null-shaped scrap line`)
       assert.ok(!/>\s*null\s*</.test(html), `${name} prints the literal word "null"`)
       assert.ok(html.includes(weight), `${name} does not show the weight as a dash`)
+      assert.ok(
+        !/melt/i.test(html.replace(/<style[\s\S]*?<\/style>/g, '')),
+        `${name} prints the word melt (ruling 140)`
+      )
     }
   })
 })

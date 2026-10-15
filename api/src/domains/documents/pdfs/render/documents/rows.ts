@@ -2,11 +2,15 @@ import type { TableRow } from '@dorado/components/document'
 import type { OrderLotView, OrderPricing, OrderPricingLine } from '@dorado/contracts'
 import {
   formatCurrency,
+  grossFact,
+  labelled,
   moneyFact,
+  ounces,
   pctFact,
+  percent,
+  priceFact,
   rateFact,
   unitsFact,
-  weightFact,
 } from '#documents/pdfs/render/format.ts'
 
 const priceFor = (prices: OrderPricingLine[], line: OrderLotView): OrderPricingLine | undefined =>
@@ -28,28 +32,40 @@ function named(lines: OrderLotView[], line: OrderLotView): string {
 
 const isBullion = (line: OrderLotView): boolean => line.lot.bullion_id !== null
 
-function melted(line: OrderLotView, melt: 'pre' | 'post'): number | null {
-  return melt === 'post'
-    ? (line.lot.post_melt ?? line.lot.pre_melt)
-    : (line.lot.pre_melt ?? line.lot.post_melt)
+function weighed(
+  line: OrderLotView,
+  layout: 'invoice' | 'manifest' | 'sale' | 'quote'
+): number | null {
+  return layout === 'manifest'
+    ? (line.lot.pre_melt ?? line.lot.post_melt)
+    : (line.lot.post_melt ?? line.lot.pre_melt)
 }
 
 function scrapRow(
   line: OrderLotView,
   name: string,
   pricing: OrderPricing,
-  melt: 'pre' | 'post'
+  layout: 'invoice' | 'manifest' | 'sale' | 'quote'
 ): TableRow {
   const price = priceFor(pricing.items, line)
+  const gross = grossFact(weighed(line, layout), line.lot.unit)
   return {
     name,
     figure: formatCurrency(price?.line_total),
-    facts: [
-      weightFact(melted(line, melt), line.lot.unit, `${melt} melt`),
-      pctFact(line.lot.purity, 'purity'),
-      rateFact(price?.premium ?? line.lot.premium, 'premium'),
-      moneyFact(spotFor(pricing, line), 'spot'),
-    ],
+    facts:
+      layout === 'quote'
+        ? [
+            gross,
+            labelled('Purity', percent(line.lot.purity)),
+            `${labelled(`${line.lot.metal_id} weight`, ounces(price?.fine))} (est.)`,
+            priceFact(price?.oz_price, 'per oz', price?.premium ?? line.lot.premium),
+          ]
+        : [
+            gross,
+            pctFact(line.lot.purity, 'purity'),
+            rateFact(price?.premium ?? line.lot.premium, 'premium'),
+            moneyFact(spotFor(pricing, line), 'spot'),
+          ],
   }
 }
 
@@ -57,31 +73,36 @@ function bullionRow(
   line: OrderLotView,
   name: string,
   pricing: OrderPricing,
-  sale: boolean
+  layout: 'invoice' | 'manifest' | 'sale' | 'quote'
 ): TableRow {
   const price = priceFor(pricing.items, line)
+  const rateOf = price?.premium ?? line.lot.premium
   return {
     name,
     figure: formatCurrency(price?.line_total),
-    facts: [
-      unitsFact(line.lot.quantity),
-      sale
-        ? moneyFact(price?.unit_price, 'each')
-        : rateFact(price?.premium ?? line.lot.premium, 'premium'),
-      moneyFact(spotFor(pricing, line), 'spot'),
-    ],
+    facts:
+      layout === 'quote'
+        ? [
+            labelled('Quantity', String(line.lot.quantity)),
+            labelled(`${line.lot.metal_id} weight`, ounces(price?.fine)),
+            priceFact(price?.unit_price, 'each', rateOf),
+          ]
+        : [
+            unitsFact(line.lot.quantity),
+            layout === 'sale' ? moneyFact(price?.unit_price, 'each') : rateFact(rateOf, 'premium'),
+            moneyFact(spotFor(pricing, line), 'spot'),
+          ],
   }
 }
 
 export function documentRows(
   lines: OrderLotView[],
   pricing: OrderPricing,
-  melt: 'pre' | 'post' = 'post',
-  sale = false
+  layout: 'invoice' | 'manifest' | 'sale' | 'quote' = 'invoice'
 ): TableRow[] {
   return lines.map((line) =>
     isBullion(line)
-      ? bullionRow(line, named(lines, line), pricing, sale)
-      : scrapRow(line, named(lines, line), pricing, melt)
+      ? bullionRow(line, named(lines, line), pricing, layout)
+      : scrapRow(line, named(lines, line), pricing, layout)
   )
 }

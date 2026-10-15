@@ -59,6 +59,8 @@ const pricing = (ask: number | null = 4000) =>
         unit_price: 100,
         line_total: 200,
         spot: 50,
+        fine: 2,
+        oz_price: 50,
       },
     ],
     unpriceable: [],

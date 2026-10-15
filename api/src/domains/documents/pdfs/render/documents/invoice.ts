@@ -86,7 +86,7 @@ export function buildInvoiceHtml(input: PartiesDocumentInput): string {
       : paymentPair(input),
     tableCap: 'Items',
     tableColumn: isSale ? 'Total' : 'Payout',
-    rows: documentRows(order.lots, pricing, 'post', isSale),
+    rows: documentRows(order.lots, pricing, isSale ? 'sale' : 'invoice'),
     ledger,
     total,
     footer: formatIssued(),

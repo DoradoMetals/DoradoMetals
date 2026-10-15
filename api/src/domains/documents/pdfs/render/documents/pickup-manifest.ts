@@ -31,7 +31,7 @@ export function buildPickupManifestHtml(input: PartiesDocumentInput): string {
     middle: pickupPair(input),
     tableCap: 'Items expected',
     tableColumn: 'Estimate',
-    rows: documentRows(order.lots, pricing, 'pre'),
+    rows: documentRows(order.lots, pricing, 'manifest'),
     ledger: [
       { label: 'Items', value: formatCurrency(pricing.items_total) },
       { label: 'Pickup', value: minus(pricing.shipping_charge) },

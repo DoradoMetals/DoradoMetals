@@ -47,6 +47,19 @@ credit AS (
     JOIN payments.methods m ON m.direction = 'sale' AND m.type = 'CREDIT'
    LIMIT 1
 ),
+office AS (
+  SELECT NULLIF(concat_ws(', ', a.line_1, a.line_2, a.city,
+                          NULLIF(concat_ws(' ', a.state, a.zip), '')), '') AS address,
+         regexp_replace(right(regexp_replace(COALESCE(l.label_phone_number, o.phone), '\D', '', 'g'), 10),
+                        '^(\d{3})(\d{3})(\d{4})$', '(\1) \2-\3') AS phone,
+         o.email
+    FROM places.locations l
+    JOIN organizations.organizations o ON o.id = l.organization_id
+    LEFT JOIN places.addresses a ON a.id = l.address_id
+   WHERE l.type = 'DORADO_OFFICE' AND l.enabled
+   ORDER BY l.name, l.id
+   LIMIT 1
+),
 payout AS (
   SELECT m.label, m.time_delay
     FROM ord
@@ -107,6 +120,10 @@ SELECT jsonb_build_object(
                     'label', 'METHOD',
                     'who', payout.label,
                     'lines', to_jsonb(array_remove(ARRAY[payout.time_delay], NULL)))
-             FROM payout)
+             FROM payout),
+         'contact', (
+           SELECT jsonb_build_object('address', office.address, 'phone', office.phone,
+                                     'email', office.email)
+             FROM office)
        ) AS content
   FROM ord

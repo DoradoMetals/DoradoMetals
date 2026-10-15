@@ -32,7 +32,7 @@ export function buildIntakeReceiptHtml(input: PartiesDocumentInput): string {
     middle: appointmentPair(input),
     tableCap: 'Items expected',
     tableColumn: 'Estimate',
-    rows: documentRows(order.lots, pricing, 'pre'),
+    rows: documentRows(order.lots, pricing, 'manifest'),
     ledger: [
       { label: 'Items', value: formatCurrency(pricing.items_total) },
       { label: 'Handling', value: minus(pricing.shipping_charge) },

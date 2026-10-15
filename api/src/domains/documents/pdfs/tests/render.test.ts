@@ -186,7 +186,29 @@ test('the quote estimate carries the checkout code, the fulfilment and payout op
   for (const fee of own.fees)
     assert.ok(carries(html, fee.label), `payout option ${fee.label} is missing`)
   assert.ok(!html.includes('About this quote'), 'the retired notes block came back')
-  assert.ok(html.includes('Shipping and payout fees are not included.'), 'the fee line is missing')
+  assert.match(html, /Quote Q-\d{4}-\d{4}/, 'the quote reference is missing')
+  if (order.user?.name)
+    assert.ok(carries(html, `For ${order.user.name}`), 'the customer is not named')
+  assert.ok(html.includes('Priced against spot on '), 'the spot line is missing')
+  assert.ok(
+    !/melt/i.test(html.replace(/<style[\s\S]*?<\/style>/g, '')),
+    'the quote prints the word melt'
+  )
+  if (order.lots.some((lot) => lot.lot.bullion_id === null)) {
+    assert.ok(html.includes('Gross weight '), 'a scrap row lost its gross weight label')
+    assert.ok(html.includes(' per oz ('), 'a scrap row lost its per-oz price')
+  }
+  if (order.lots.some((lot) => lot.lot.bullion_id !== null)) {
+    assert.ok(html.includes('Quantity '), 'a bullion row lost its quantity label')
+    assert.ok(html.includes(' each ('), 'a bullion row lost its price each')
+  }
+  if (own.parties?.contact?.address) {
+    assert.ok(carries(html, own.parties.contact.address), 'the contact line is missing')
+  }
+  assert.ok(
+    html.includes('subject to spot volatility and assay results.'),
+    'the disclaimer is missing'
+  )
   assert.ok(html.includes('Quoted '), 'the footer does not say when it was quoted')
   assert.ok(!html.includes(order.reference), 'a quote printed an order number')
   assert.ok(!html.includes('Summary'), 'a quote grew a summary block')
