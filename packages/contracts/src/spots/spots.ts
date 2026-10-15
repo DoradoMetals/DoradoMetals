@@ -69,6 +69,7 @@ export type SpotTicker = z.infer<typeof SpotTicker>
 export const SpotTickerRow = z.object({
   metal_id: Metal.shape.id,
   price: CurrentSpot.shape.bid.nullable(),
+  ask: CurrentSpot.shape.ask.nullable(),
   percent_change: CurrentSpot.shape.percent_change,
   direction: SpotTrend,
   at: CurrentSpot.shape.at.nullable(),

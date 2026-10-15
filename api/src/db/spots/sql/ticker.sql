@@ -1,7 +1,9 @@
 -- The public spots bar: one row per metal in metal order. Price is the
--- resolved bid, so adjustments and freezes apply; nothing admin-only.
+-- resolved bid and ask the resolved ask, so adjustments and freezes apply;
+-- nothing admin-only.
 SELECT r.metal_id,
        r.bid AS price,
+       r.ask,
        r.percent_change,
        CASE WHEN COALESCE(r.dollar_change, 0) = 0 THEN 'flat'
             WHEN r.dollar_change > 0 THEN 'up'
