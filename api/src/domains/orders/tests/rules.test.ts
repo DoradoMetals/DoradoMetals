@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import * as rules from '#orders/rules.ts'
 import { Conflict, Invalid } from '#shared/errors.ts'
-import type { OrderView } from '@dorado/contracts'
+import type { OrderView, OrderViewFacts } from '@dorado/contracts'
 
 test('sales tax is charged, never paid', () => {
   assert.equal(rules.chargesSalesTax('sale'), true)
@@ -174,7 +174,7 @@ test('an operation of the wrong direction is refused, naming both', () => {
   assert.throws(() => rules.assertDirection(null, 'purchase', 'cancelling'), Invalid)
 })
 
-type Facts = Parameters<typeof rules.actionsFor>[0]
+type Facts = OrderViewFacts
 
 const aLot = (confirmed: boolean, settled = true) =>
   ({
@@ -206,7 +206,7 @@ const facts = (over: Partial<Facts> = {}): Facts =>
     user: null,
     credited: false,
     reference: 'PO-1',
-    state: 'Awaiting Payout',
+    state: 'Awaiting Finalize',
     ...over,
   }) as Facts
 

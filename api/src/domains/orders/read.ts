@@ -2,6 +2,8 @@ import * as ordersRepo from '#db/orders/repo.ts'
 import * as rules from '#orders/rules.ts'
 import { withDecisions } from '#shared/views.ts'
 import type {
+  OrderActivity,
+  OrderActivityPage,
   OrderFilter,
   OrderList,
   OrderRead,
@@ -17,7 +19,12 @@ export async function sorts(executor?: Executor): Promise<OrderSort[]> {
 
 export async function list(filter: OrderFilter, executor?: Executor): Promise<OrderList> {
   rules.assertKnownSort(filter.sort ?? null, await ordersRepo.sorts(executor))
-  return await ordersRepo.list(filter, executor)
+  const facts = await ordersRepo.list(filter, executor)
+  return withDecisions(facts, {
+    items: facts.items.map((item) =>
+      withDecisions(item, { actions: rules.actionsFor(item.action_facts) })
+    ),
+  })
 }
 
 export async function search(q: string, executor?: Executor): Promise<SearchHit[]> {
@@ -32,4 +39,13 @@ export async function view(order_id: string, executor?: Executor): Promise<Order
   const facts = await ordersRepo.view(order_id, executor)
   if (!facts) return null
   return withDecisions(facts, { actions: rules.actionsFor(facts) })
+}
+
+export async function activity(
+  order_id: string,
+  page: OrderActivityPage,
+  executor?: Executor
+): Promise<OrderActivity[]> {
+  rules.assertOrder(await ordersRepo.getOne(order_id, executor), order_id)
+  return await ordersRepo.activity(order_id, page, executor)
 }

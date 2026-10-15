@@ -10,6 +10,8 @@ import type {
   RefiningLotPatch,
   RefiningLotsBody,
   RefiningOrder,
+  RefiningBatch,
+  RefiningBatchResult,
   RefiningDirection,
   RefiningOrderCreate,
   RefiningOrderPatch,
@@ -20,7 +22,7 @@ import type {
   SettlementLine,
 } from '@dorado/contracts'
 
-import { apiRequest, apiRequestForm } from '../fetch'
+import { apiRequest, apiRequestBlob, apiRequestForm, baseUrl } from '../fetch'
 import { keys } from '../keys'
 
 export function useRefiningOrders(
@@ -128,6 +130,12 @@ export function useCreateRefiningOrder() {
   )
 }
 
+export function useBatchRefiningOrders() {
+  return useRefiningWrite((body: RefiningBatch) =>
+    apiRequest<RefiningBatchResult>('POST', '/refining/orders/batch', body)
+  )
+}
+
 export function usePatchRefiningOrder(id: string) {
   return useRefiningWrite((patch: RefiningOrderPatch) =>
     apiRequest<RefiningOrderView>('PATCH', `/refining/orders/${id}`, patch)
@@ -176,4 +184,11 @@ export function useImportRefiningDocument(id: string) {
     form.append('file', file, file.name)
     return apiRequestForm<OrderDocument>('POST', `/refining/orders/${id}/documents/${kind}`, form)
   })
+}
+
+export const refiningDocumentUrl = (id: string, kind: string): string =>
+  `${baseUrl()}/refining/orders/${id}/documents/${kind}`
+
+export function downloadRefiningDocument(id: string, kind: string): Promise<Blob> {
+  return apiRequestBlob('GET', `/refining/orders/${id}/documents/${kind}`)
 }

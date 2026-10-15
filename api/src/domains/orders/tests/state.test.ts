@@ -139,7 +139,7 @@ test('purchase: received and not yet finalized awaits payout', async () => {
       const user = await aUser(c)
       const order = await anOrder(c, user, { direction: 'purchase' }).withLots(1).withFulfillment()
       await markDelivered(c, order.id)
-      await assertState(order.id, 'Awaiting Payout')
+      await assertState(order.id, 'Awaiting Finalize')
     },
     { actor: TEST_ACTOR.id, lock: LOCK }
   )

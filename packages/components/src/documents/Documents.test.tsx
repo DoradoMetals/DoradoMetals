@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render } from '@testing-library/react'
 import * as React from 'react'
 
-import { DOCUMENT_NAMES, Documents, type DocumentRow } from './Documents'
+import { DOCUMENT_NAMES, Documents, formatBytes, type DocumentRow } from './Documents'
 import { axeViolations } from '../test/axe'
 
 const documents: DocumentRow[] = [
@@ -49,29 +49,59 @@ describe('Documents', () => {
     expect(onDownload).toHaveBeenCalled()
   })
 
-  it('an Available row carries Send and Delete beside Download, per Figma defaults', () => {
+  it('an Available row carries Send beside Download and never a Delete (ruling 136)', () => {
     const onSend = vi.fn()
-    const onDelete = vi.fn()
-    const { getByRole } = render(
-      <Documents documents={[{ id: '1', name: 'Invoice', state: 'available', onSend, onDelete }]} />
+    const { getByRole, queryByRole } = render(
+      <Documents documents={[{ id: '1', name: 'Invoice', state: 'available', onSend }]} />
     )
     fireEvent.click(getByRole('button', { name: 'Send Invoice' }))
-    fireEvent.click(getByRole('button', { name: 'Delete Invoice' }))
     expect(onSend).toHaveBeenCalled()
-    expect(onDelete).toHaveBeenCalled()
+    expect(queryByRole('button', { name: /delete/i })).toBeNull()
   })
 
-  it('showSend and showDelete turn those two off without touching Download', () => {
+  it('showSend turns Send off without touching Download', () => {
     const { getByRole, queryByRole } = render(
+      <Documents documents={[{ id: '1', name: 'Invoice', state: 'available', showSend: false }]} />
+    )
+    expect(queryByRole('button', { name: 'Send Invoice' })).toBeNull()
+    expect(getByRole('button', { name: 'Download Invoice' })).toBeTruthy()
+  })
+
+  it('row meta is built from format, bytes and a caller-formatted date', () => {
+    const { getByText } = render(
       <Documents
         documents={[
-          { id: '1', name: 'Invoice', state: 'available', showSend: false, showDelete: false },
+          {
+            id: '1',
+            name: 'Invoice',
+            state: 'available',
+            format: 'PDF',
+            bytes: 31 * 1024,
+            date: 'Sep 1, 2026',
+          },
         ]}
       />
     )
-    expect(queryByRole('button', { name: 'Send Invoice' })).toBeNull()
-    expect(queryByRole('button', { name: 'Delete Invoice' })).toBeNull()
-    expect(getByRole('button', { name: 'Download Invoice' })).toBeTruthy()
+    expect(getByText('PDF · 31 KB · Sep 1, 2026')).toBeTruthy()
+  })
+
+  it('formatBytes steps through units', () => {
+    expect(formatBytes(512)).toBe('512 B')
+    expect(formatBytes(1536)).toBe('1.5 KB')
+    expect(formatBytes(2.4 * 1024 * 1024)).toBe('2.4 MB')
+  })
+
+  it('an explicit meta names the row state: Ready to generate, Awaiting refiner', () => {
+    const { getByText } = render(
+      <Documents
+        documents={[
+          { id: '1', name: 'Assay Results', state: 'unavailable', meta: 'Awaiting refiner' },
+          { id: '2', name: 'Invoice', state: 'unavailable', meta: 'Ready to generate' },
+        ]}
+      />
+    )
+    expect(getByText('Awaiting refiner')).toBeTruthy()
+    expect(getByText('Ready to generate')).toBeTruthy()
   })
 
   it('generating shows its own meta text and a disabled button, not a dead one', () => {
@@ -164,5 +194,32 @@ describe('Documents', () => {
     expect(getByText('3 documents')).toBeTruthy()
     fireEvent.click(getByRole('button', { name: /Documents/ }))
     expect(onToggle).toHaveBeenCalled()
+  })
+
+  it('loading shows skeleton rows, no count, and axe finds nothing', async () => {
+    const { container, getByRole, queryByText } = render(
+      <Documents documents={[]} status="loading" />
+    )
+    expect(getByRole('status', { name: 'Loading documents' })).toBeTruthy()
+    expect(queryByText('None yet')).toBeNull()
+    expect(await axeViolations(container)).toEqual([])
+  })
+
+  it('error shows the alert and Try again fires onRetry', async () => {
+    const onRetry = vi.fn()
+    const { container, getByRole, getByText } = render(
+      <Documents documents={[]} status="error" onRetry={onRetry} />
+    )
+    expect(getByText("Couldn't load documents")).toBeTruthy()
+    fireEvent.click(getByRole('button', { name: 'Try again' }))
+    expect(onRetry).toHaveBeenCalled()
+    expect(await axeViolations(container)).toEqual([])
+  })
+
+  it('empty body names the shipment manifest', () => {
+    const { getByText } = render(<Documents documents={[]} />)
+    expect(
+      getByText('Your invoice and shipment manifest appear here once the order is priced.')
+    ).toBeTruthy()
   })
 })

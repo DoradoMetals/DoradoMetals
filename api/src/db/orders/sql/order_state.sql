@@ -64,7 +64,7 @@ CASE
       WHEN NOT (o.spots_locked
                 AND EXISTS (SELECT 1 FROM orders.transactions tr
                              WHERE tr.order_id = o.id AND tr.total IS NOT NULL))
-      THEN 'Awaiting Payout'
+      THEN 'Awaiting Finalize'
       WHEN COALESCE((SELECT sum(t.amount) FROM payments.transfers t
                       WHERE t.order_id = o.id AND t.kind = 'payout'
                         AND t.state IN ('Sent', 'Received')), 0)

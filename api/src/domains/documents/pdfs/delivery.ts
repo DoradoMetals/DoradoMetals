@@ -4,8 +4,9 @@ import * as emails from '#documents/emails/service.ts'
 import * as inputs from '#documents/pdfs/order-inputs.ts'
 import * as pdfService from '#documents/pdfs/service.ts'
 import * as rules from '#documents/pdfs/rules.ts'
-import { latestPdf, persistPdf, storeUpload } from '#documents/pdfs/store.ts'
+import { latestForRefining, latestPdf, persistPdf, storeUpload } from '#documents/pdfs/store.ts'
 import { storedBytes } from '#documents/pdfs/serve.ts'
+import type { StoredReader } from '#documents/pdfs/serve.ts'
 import type { OrderDocument, PdfKind } from '@dorado/contracts'
 
 async function rendered(kind: PdfKind, order_id: string): Promise<Uint8Array | null> {
@@ -80,4 +81,32 @@ export async function importRefiningDocument(
   const written = (await refining.documentsFor(refining_order_id)).find((row) => row.kind === kind)
   rules.assertDocumentAvailable(written, kind)
   return written
+}
+
+export async function downloadOrderDocument(
+  order_id: string,
+  kind: PdfKind,
+  storage?: StoredReader
+): Promise<Uint8Array> {
+  const document = (await orders.documentsFor(order_id)).find((row) => row.kind === kind)
+  rules.assertDocumentAvailable(document, kind)
+  const fresh = await rendered(kind, order_id)
+  if (fresh) return fresh
+  const stored = document.pdf_id ? await latestPdf(kind, order_id) : null
+  const bytes = stored ? await storedBytes(stored, storage) : null
+  rules.assertRendered(bytes, document.name)
+  return bytes
+}
+
+export async function downloadRefiningDocument(
+  refining_order_id: string,
+  kind: PdfKind,
+  storage?: StoredReader
+): Promise<Uint8Array> {
+  const document = (await refining.documentsFor(refining_order_id)).find((row) => row.kind === kind)
+  rules.assertDocumentAvailable(document, kind)
+  const stored = document.pdf_id ? await latestForRefining(kind, refining_order_id) : null
+  const bytes = stored ? await storedBytes(stored, storage) : null
+  rules.assertRendered(bytes, document.name)
+  return bytes
 }

@@ -117,12 +117,21 @@ export { MaskedField, type MaskedFieldProps, type MaskKind } from './masked-fiel
 export {
   Documents,
   DOCUMENT_NAMES,
+  formatBytes,
   type DocumentsProps,
   type DocumentRow,
   type DocumentName,
   type DocumentState,
+  type DocumentsStatus,
 } from './documents/Documents'
-export { Chat, type ChatProps, type ChatView, type ChatMessage, type ChatCall } from './chat/Chat'
+export {
+  Chat,
+  type ChatProps,
+  type ChatView,
+  type ChatStatus,
+  type ChatMessage,
+  type ChatCall,
+} from './chat/Chat'
 export {
   Message,
   type MessageProps,
@@ -159,6 +168,7 @@ export {
   DrawerBody,
   DrawerFooter,
   type DrawerProps,
+  type DrawerSize,
   type DrawerHeaderProps,
   type DrawerBodyProps,
   type DrawerFooterProps,

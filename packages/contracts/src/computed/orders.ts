@@ -1,13 +1,16 @@
 import { z } from 'zod/v4'
 import { UserSummary } from '../auth/users.js'
 import { Pdf } from '../media/pdfs.js'
+import { EmailKind, EmailStatus } from '../media/enums.js'
+import { SpotLockEvent } from '../orders/spot_locks.js'
+import { Rail, TransferKind, TransferState } from '../payments/enums.js'
 
 export const OrderState = z.enum([
   'Cancelled',
   'Draft',
   'Awaiting Receipt',
   'At Refiner',
-  'Awaiting Payout',
+  'Awaiting Finalize',
   'Ready to Pay',
   'Awaiting Payment',
   'Preparing',
@@ -66,11 +69,72 @@ export const OrderDocument = z
     name: z.string(),
     available: z.boolean(),
   })
-  .extend({ pdf_id: Pdf.shape.id.nullable() })
+  .extend({
+    pdf_id: Pdf.shape.id.nullable(),
+    size_bytes: Pdf.shape.size_bytes,
+    created_at: Pdf.shape.created_at.nullable(),
+    created_by_id: Pdf.shape.created_by_id,
+  })
 export type OrderDocument = z.infer<typeof OrderDocument>
 
-export const StoredDocument = Pdf.pick({ id: true, kind: true })
+export const StoredDocument = Pdf.pick({
+  id: true,
+  kind: true,
+  size_bytes: true,
+  created_at: true,
+  created_by_id: true,
+})
 export type StoredDocument = z.infer<typeof StoredDocument>
 
 export const OrderViewUser = UserSummary.extend({ orders_to_date: z.number().int() })
 export type OrderViewUser = z.infer<typeof OrderViewUser>
+
+export const OrderActivityKind = z.enum([
+  'order_created',
+  'order_updated',
+  'order_cancelled',
+  'spots_locked',
+  'spots_unlocked',
+  'transfer_created',
+  'transfer_sent',
+  'transfer_completed',
+  'transfer_event',
+  'document_stored',
+  'email_sent',
+  'refiner_sent',
+  'refiner_settled',
+  'arrived',
+])
+export type OrderActivityKind = z.infer<typeof OrderActivityKind>
+
+export const OrderActivityDetail = z
+  .object({
+    metal_id: SpotLockEvent.shape.metal_id,
+    transfer_kind: TransferKind,
+    rail: Rail,
+    state: TransferState,
+    override_reason: z.string(),
+    event_type: z.string(),
+    document_kind: Pdf.shape.kind,
+    email_kind: EmailKind,
+    email_status: EmailStatus,
+  })
+  .partial()
+export type OrderActivityDetail = z.infer<typeof OrderActivityDetail>
+
+export const OrderActivity = z.object({
+  at: z.string(),
+  kind: OrderActivityKind,
+  actor_id: z.string().uuid().nullable(),
+  subject_id: z.string().uuid(),
+  detail: OrderActivityDetail.nullable(),
+})
+export type OrderActivity = z.infer<typeof OrderActivity>
+
+export const OrderActivityPage = z
+  .object({
+    limit: z.coerce.number().int().min(1).max(500).default(100),
+    before: z.iso.datetime({ offset: true }).optional(),
+  })
+  .strict()
+export type OrderActivityPage = z.infer<typeof OrderActivityPage>

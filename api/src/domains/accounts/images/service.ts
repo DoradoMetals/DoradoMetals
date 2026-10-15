@@ -61,8 +61,14 @@ export async function getUrl(image_id: string): Promise<string> {
   return await presign(img)
 }
 
-export async function getUrlFor(image_id: string, user_id?: string): Promise<string | null> {
-  const img = await ownedBy(image_id, user_id)
+export async function getUrlFor(
+  image_id: string,
+  user_id?: string,
+  is_admin = false
+): Promise<string | null> {
+  const img = is_admin
+    ? ((await images.getOne(image_id)) ?? null)
+    : await ownedBy(image_id, user_id)
   if (!img) return null
   return await presign(img)
 }

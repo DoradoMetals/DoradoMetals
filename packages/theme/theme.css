@@ -90,6 +90,11 @@
   --spacing-2xl: 3rem;
   --spacing-3xl: 4rem;
   --spacing-4xl: 6rem;
+  --floating-y: 0.5rem;
+  --floating-blur: 1.5rem;
+  --drawer-lg: 64rem;
+  --drawer-md: 48rem;
+  --drawer-sm: 40rem;
   --blur-scrim: 0.5rem;
 
   --max-width-page: var(--page-max-width);
@@ -291,6 +296,7 @@
   --page-margin-letter: 4.5rem;
   --page-max-width: 96rem;
   --chart-axis-y: 3rem;
+  --floating-shadow: #00000080;
 }
 
 @keyframes shine {

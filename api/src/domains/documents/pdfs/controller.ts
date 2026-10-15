@@ -173,3 +173,15 @@ export const importRefiningDocument = asyncHandler(async (req, res) => {
   )
   return res.status(201).json(written)
 })
+
+export const downloadOrderDocument = asyncHandler(async (req, res) => {
+  const kind = kindParam(req)
+  const bytes = await delivery.downloadOrderDocument(uuidParam(req, 'id'), kind)
+  sendPdf(res, bytes, `${kind}.pdf`)
+})
+
+export const downloadRefiningDocument = asyncHandler(async (req, res) => {
+  const kind = kindParam(req)
+  const bytes = await delivery.downloadRefiningDocument(uuidParam(req, 'id'), kind)
+  sendPdf(res, bytes, `${kind}.pdf`)
+})

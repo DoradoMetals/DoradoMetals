@@ -4,15 +4,19 @@ import * as React from 'react'
 import { MessageSquare, Paperclip, Phone, Send } from '@dorado/icons'
 
 import { Accordion } from '../accordion/Accordion'
+import { Alert } from '../alert/Alert'
 import { Button } from '../button/Button'
 import { EmptyState } from '../empty-state/EmptyState'
 import { fieldTrigger } from '../field/Field'
 import { cn } from '../cn'
 import { Divider } from '../divider/Divider'
+import { Skeleton } from '../skeleton/Skeleton'
 import { CallEvent, type CallKind } from './CallEvent'
 import { Message, type MessageDirection, type MessageStatus } from './Message'
 
 export type ChatView = 'messages' | 'calls'
+
+export type ChatStatus = 'ready' | 'loading' | 'error'
 
 export type ChatMessage = {
   id: string
@@ -32,6 +36,8 @@ export type ChatCall = {
 
 export type ChatProps = {
   phone: string
+  status?: ChatStatus
+  onRetry?: () => void
   view?: ChatView
   defaultView?: ChatView
   onViewChange?: (view: ChatView) => void
@@ -50,10 +56,53 @@ export type ChatProps = {
   className?: string
 }
 
-const VIEW_TITLE: Record<ChatView, string> = { messages: 'Messages', calls: 'Calls' }
+const VIEW_TITLE: Record<ChatView, string> = {
+  messages: 'Customer messages',
+  calls: 'Customer calls',
+}
+
+const ERROR_COPY: Record<ChatView, { title: string; body: string }> = {
+  messages: {
+    title: "Couldn't load messages",
+    body: "Something went wrong loading this customer's messages.",
+  },
+  calls: {
+    title: "Couldn't load calls",
+    body: "Something went wrong loading this customer's calls.",
+  },
+}
+
+const BUBBLE_WIDTH = ['w-[220px]', 'w-40', 'w-60']
+
+function LoadingThread({ view }: { view: ChatView }) {
+  return (
+    <div
+      role="status"
+      aria-busy="true"
+      aria-label={view === 'messages' ? 'Loading messages' : 'Loading calls'}
+      className="flex w-full flex-col gap-sm px-sm py-md"
+    >
+      {[0, 1, 2].map((row) =>
+        view === 'messages' ? (
+          <Skeleton key={row} shape="block" className={cn('h-10', BUBBLE_WIDTH[row])} />
+        ) : (
+          <div key={row} className="flex items-center gap-xs">
+            <Skeleton shape="circle" className="size-(--control-sm) shrink-0" />
+            <div className="flex min-w-0 flex-1 flex-col gap-xs">
+              <Skeleton shape="text" />
+              <Skeleton shape="text" className="w-1/2" />
+            </div>
+          </div>
+        )
+      )}
+    </div>
+  )
+}
 
 export function Chat({
   phone,
+  status = 'ready',
+  onRetry,
   view,
   defaultView = 'messages',
   onViewChange,
@@ -100,10 +149,10 @@ export function Chat({
   }
 
   const isMessages = activeView === 'messages'
-  const isEmpty = isMessages ? messages.length === 0 : calls.length === 0
+  const isEmpty = status === 'ready' && (isMessages ? messages.length === 0 : calls.length === 0)
 
   const switcher = (
-    <span className="flex items-center gap-3xs">
+    <span className="flex items-center gap-xs">
       <Button
         variant={isMessages ? 'secondary' : 'tertiary'}
         size="iconSm"
@@ -128,7 +177,7 @@ export function Chat({
   return (
     <Accordion
       label={isOpen ? VIEW_TITLE[activeView] : 'Chat'}
-      trailing={phone}
+      trailing={isOpen ? undefined : phone}
       chevron="leading"
       open={isOpen}
       onToggle={toggle}
@@ -139,14 +188,25 @@ export function Chat({
       <div className="flex w-full flex-col">
         <Divider />
 
-        {isEmpty ? (
+        {status === 'loading' ? (
+          <LoadingThread view={activeView} />
+        ) : status === 'error' ? (
+          <div className="flex w-full flex-col items-start gap-sm px-sm py-md">
+            <Alert intent="danger" title={ERROR_COPY[activeView].title} className="w-full">
+              {ERROR_COPY[activeView].body}
+            </Alert>
+            <Button variant="secondary" onClick={onRetry}>
+              Try again
+            </Button>
+          </div>
+        ) : isEmpty ? (
           <div className="flex flex-col justify-center px-sm">
             <EmptyState
               icon={isMessages ? <Send aria-hidden /> : <Phone aria-hidden />}
               title={isMessages ? 'No messages yet' : 'No calls yet'}
               description={
                 isMessages
-                  ? "Texts you send from here go to the customer's phone. Their replies land in this thread."
+                  ? 'Texts you send from here go to the customer’s phone. Their replies show up in this thread.'
                   : 'Calls to this customer are placed from here and logged below.'
               }
             />

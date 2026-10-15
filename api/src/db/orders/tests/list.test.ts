@@ -13,7 +13,7 @@ import {
   type BuiltOrder,
 } from '#shared/testing/builders/index.ts'
 import * as orders from '#db/orders/repo.ts'
-import { OrderList } from '@dorado/contracts'
+import { OrderListFacts } from '@dorado/contracts'
 
 beforeAll(() => {
   assert.equal(
@@ -56,7 +56,7 @@ async function sent(c: PoolClient, refining_order_id: string): Promise<void> {
   await c.query(`UPDATE refining.orders SET sent_at = now() WHERE id = $1`, [refining_order_id])
 }
 
-test('the list is one read, parsed through OrderList, with the counts beside the page', async () => {
+test('the list is one read, parsed through OrderListFacts, with the counts beside the page', async () => {
   await inRollback(async (c: PoolClient) => {
     const owner = await aUser(c)
     const first = await anOrder(c, owner, { direction: 'purchase' })
@@ -72,7 +72,7 @@ test('the list is one read, parsed through OrderList, with the counts beside the
     await placedAt(c, second.id, '2026-09-02T00:00:00Z')
 
     const raw = await orders.list({ user_id: owner.id }, c)
-    const list = OrderList.parse(raw)
+    const list = OrderListFacts.parse(raw)
 
     assert.equal(list.counts.orders, 2, 'the count is over the filter, not the page')
     assert.equal(list.counts.unassigned_lots, 2, 'both lots are on hand and unassigned')
@@ -82,7 +82,7 @@ test('the list is one read, parsed through OrderList, with the counts beside the
       'the default sort is newest first'
     )
     assert.equal(list.items[0]!.reference, `PO-${second.number}`)
-    assert.equal(list.items[0]!.state, 'Awaiting Payout')
+    assert.equal(list.items[0]!.state, 'Awaiting Finalize')
     assert.equal(list.items[0]!.customer?.id, owner.id)
     assert.equal(list.items[1]!.totals?.total, 10, 'the transaction row did not nest')
   })
@@ -330,6 +330,6 @@ test('placed_at is the order, arrived_at is the handover, and neither is invente
 
     const after = await orders.list({ user_id: owner.id }, c)
     assert.equal(after.items[0]!.arrived_at, '2026-09-02T10:00:00.000Z')
-    assert.equal(after.items[0]!.state, 'Awaiting Payout', 'the arrival did not move the state')
+    assert.equal(after.items[0]!.state, 'Awaiting Finalize', 'the arrival did not move the state')
   })
 })

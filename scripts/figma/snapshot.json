@@ -1,7 +1,7 @@
 {
   "fileKey": "8A73quhBLBqotJlX95jN9j",
   "fileName": "Themes and Components",
-  "capturedAt": "2026-10-14",
+  "capturedAt": "2026-10-15",
   "collections": {
     "Color": {
       "modes": ["Dark"],
@@ -49,6 +49,20 @@
           "opacity": 1
         },
         {
+          "name": "chart/series-1",
+          "type": "COLOR",
+          "alias": "primary/default",
+          "value": "#fafafa",
+          "opacity": 1
+        },
+        {
+          "name": "chart/series-2",
+          "type": "COLOR",
+          "alias": "brand/default",
+          "value": "#d9b559",
+          "opacity": 1
+        },
+        {
           "name": "focus/ring",
           "type": "COLOR",
           "alias": null,
@@ -82,6 +96,13 @@
           "alias": null,
           "value": "#f6f7f9",
           "opacity": 1
+        },
+        {
+          "name": "shadow/floating",
+          "type": "COLOR",
+          "alias": null,
+          "value": "#000000",
+          "opacity": 0.5
         },
         {
           "name": "status/destructive",
@@ -512,6 +533,18 @@
           "type": "FLOAT",
           "alias": null,
           "value": 12
+        },
+        {
+          "name": "shadow/floating-blur",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 24
+        },
+        {
+          "name": "shadow/floating-y",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 8
         },
         {
           "name": "spacing/2xl",

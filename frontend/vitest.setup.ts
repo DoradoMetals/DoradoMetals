@@ -49,3 +49,14 @@ if (ls) Object.defineProperty(globalThis, 'localStorage', { value: ls, configura
 import { afterEach } from 'vitest'
 import { cleanup } from '@testing-library/react'
 afterEach(cleanup)
+
+if (typeof Element !== 'undefined') {
+  if (typeof Element.prototype.scrollIntoView !== 'function') {
+    Element.prototype.scrollIntoView = () => {}
+  }
+  if (typeof Element.prototype.hasPointerCapture !== 'function') {
+    Element.prototype.hasPointerCapture = () => false
+    Element.prototype.setPointerCapture = () => {}
+    Element.prototype.releasePointerCapture = () => {}
+  }
+}

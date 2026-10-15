@@ -19,6 +19,14 @@ const DrawerContext = createContext<DrawerContextValue | null>(null)
 
 type DrawerAnchor = 'left' | 'right' | 'bottom'
 type DrawerSurface = 'highest' | 'card' | 'none'
+export type DrawerSize = 'sm' | 'md' | 'lg' | 'full'
+
+const SIZE_WIDTH: Record<DrawerSize, string> = {
+  sm: 'w-full sm:w-(--drawer-sm)',
+  md: 'w-full sm:w-(--drawer-md)',
+  lg: 'w-full sm:w-(--drawer-lg)',
+  full: 'w-full',
+}
 
 export type DrawerProps = {
   open: boolean
@@ -26,6 +34,7 @@ export type DrawerProps = {
   children: ReactNode
   anchor?: DrawerAnchor
   surface?: DrawerSurface
+  size?: DrawerSize
   className?: string
   label?: string
 }
@@ -36,6 +45,7 @@ export function Drawer({
   children,
   anchor = 'right',
   surface = 'highest',
+  size,
   className,
   label,
 }: DrawerProps) {
@@ -65,7 +75,7 @@ export function Drawer({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: shouldReduceMotion ? 0 : 0.3 }}
-            className="fixed inset-0 z-50 bg-background/50"
+            className="fixed inset-0 z-50 bg-background/70 backdrop-blur-sm"
             onClick={() => setOpen(false)}
             aria-hidden="true"
           />
@@ -98,14 +108,22 @@ export function Drawer({
                     'overflow-y-auto',
                     'flex flex-col',
                   ]
-                : [
-                    'fixed top-23 bottom-0 sm:top-0',
-                    'overflow-y-auto',
-                    'flex flex-col',
-                    'w-full sm:w-1/2 md:w-1/2 lg:w-2/5 xl:w-1/4',
-                    'max-w-full sm:max-w-1/2 md:max-w-1/2 lg:max-w-2/5 xl:max-w-1/4',
-                    anchor === 'right' ? 'right-0' : 'left-0',
-                  ],
+                : size
+                  ? [
+                      'fixed inset-y-0 max-w-full',
+                      'overflow-y-auto',
+                      'flex flex-col',
+                      SIZE_WIDTH[size],
+                      anchor === 'right' ? 'right-0' : 'left-0',
+                    ]
+                  : [
+                      'fixed top-23 bottom-0 sm:top-0',
+                      'overflow-y-auto',
+                      'flex flex-col',
+                      'w-full sm:w-1/2 md:w-1/2 lg:w-2/5 xl:w-1/4',
+                      'max-w-full sm:max-w-1/2 md:max-w-1/2 lg:max-w-2/5 xl:max-w-1/4',
+                      anchor === 'right' ? 'right-0' : 'left-0',
+                    ],
               'z-[70] will-change-transform',
               '[scrollbar-width:thin] [scrollbar-color:var(--border-strong)_transparent]',
               surface === 'highest' &&
@@ -202,7 +220,7 @@ export function DrawerFooter({ children, className }: DrawerFooterProps) {
   return (
     <div
       className={cn(
-        'mt-auto flex shrink-0 items-center justify-end gap-xs border-t border-border p-md',
+        'mt-auto flex shrink-0 flex-col-reverse items-stretch gap-xs border-t border-border p-md sm:flex-row sm:items-center sm:justify-end',
         className
       )}
     >

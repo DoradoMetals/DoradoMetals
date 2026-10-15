@@ -18,6 +18,7 @@ import type {
   OrderSpot,
   OrderSpotsPutBody,
   OrderView,
+  OrderActionFacts,
   OrderViewFacts,
   PdfKind,
   Position,
@@ -126,14 +127,14 @@ export function allLotsConfirmed(lots: Pick<OrderLotView, 'lot'>[]): boolean {
   return lots.length > 0 && lots.every((lot) => lot.lot.confirmed_at !== null)
 }
 
-export function finalizeBlockedBy(view: OrderViewFacts): string[] {
+export function finalizeBlockedBy(view: OrderActionFacts): string[] {
   const blocked: string[] = []
   if (view.order.direction !== 'purchase') blocked.push('this is not a purchase order')
   if (view.lots.length === 0) blocked.push('the order holds no lots')
   return blocked
 }
 
-export function finalizeConfirm(view: OrderViewFacts): string | null {
+export function finalizeConfirm(view: OrderActionFacts): string | null {
   const unconfirmed = view.lots.filter((lot) => lot.lot.confirmed_at === null).length
   const unpriced = view.lots.filter((lot) => lot.lot.content === null).length
   if (unpriced > 0) {
@@ -145,7 +146,7 @@ export function finalizeConfirm(view: OrderViewFacts): string | null {
   return null
 }
 
-export function payoutConfirm(view: OrderViewFacts): string | null {
+export function payoutConfirm(view: OrderActionFacts): string | null {
   const unsettled = view.lots.filter((lot) => lot.settled !== true).length
   if (unsettled > 0) {
     return `Refiner has not settled ${unsettled} of ${view.lots.length} lots`
@@ -154,7 +155,7 @@ export function payoutConfirm(view: OrderViewFacts): string | null {
   return null
 }
 
-export function shipConfirm(view: OrderViewFacts): string | null {
+export function shipConfirm(view: OrderActionFacts): string | null {
   if (view.order.direction !== 'sale') return null
   if (view.state === 'Awaiting Payment') return 'The customer has not paid for this order yet'
   return null
@@ -172,11 +173,11 @@ export function creditsToAccount(payoutMethod: string | null): boolean {
   return payoutMethod === 'DORADO_ACCOUNT'
 }
 
-export function isFinalized(view: OrderViewFacts): boolean {
+export function isFinalized(view: OrderActionFacts): boolean {
   return view.order.spots_locked && view.totals?.total != null
 }
 
-export function actionsFor(view: OrderViewFacts): OrderActions {
+export function actionsFor(view: OrderActionFacts): OrderActions {
   const purchase = view.order.direction === 'purchase'
   const sale = view.order.direction === 'sale'
   const cancelled = view.order.cancelled_at !== null
@@ -236,7 +237,12 @@ export function orderViewForCustomer(view: OrderView): OrderView {
 export function orderListForCustomer(list: OrderList): OrderList {
   return {
     counts: list.counts,
-    items: list.items.map((item) => ({ ...item, notes: null, assigned_to_id: null })),
+    items: list.items.map((item) => ({
+      ...item,
+      notes: null,
+      assigned_to_id: null,
+      actions: [],
+    })),
   }
 }
 
@@ -286,6 +292,9 @@ export function documentsFor(
       kind: row.kind,
       name: row.name,
       pdf_id: held?.id ?? null,
+      size_bytes: held?.size_bytes ?? null,
+      created_at: held?.created_at ?? null,
+      created_by_id: held?.created_by_id ?? null,
       available: FINALIZED.includes(row.kind) ? finalized || held !== null : true,
     }
   })

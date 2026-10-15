@@ -37,6 +37,10 @@ export function assertLot<T>(row: T | null | undefined, id: string): asserts row
   if (!row) throw new NotFound(`no lot ${id}`)
 }
 
+export function assertLotImage(linked: boolean, lot_id: string, image_id: string): void {
+  if (!linked) throw new NotFound(`no image ${image_id} on lot ${lot_id}`)
+}
+
 export function assertSplittable(position: Position | undefined, lot_id: string): void {
   if (position === undefined) throw new NotFound(`no lot ${lot_id}`)
   if (!SPLITTABLE.includes(position)) {

@@ -14,11 +14,13 @@ import {
   RatePayView,
   RefiningPricing,
   SaleQuote,
+  SelectionSummary,
 } from '@dorado/contracts'
 
 const sql = sqlFrom(import.meta.dirname)
 
 export const ORDER_VALUE = expression(sql('order_value'))
+const SELECTION_SQL = sql('selection').replaceAll('/*__order_estimated_value__*/', ORDER_VALUE)
 
 export async function directionOf(
   checkout_id: string,
@@ -113,4 +115,12 @@ export async function ratePay(
 ): Promise<RatePayView> {
   const { rows } = await query<{ view: unknown }>(sql('rate_pay'), [unit, metal_id], executor)
   return RatePayView.parse(rows[0]?.view)
+}
+
+export async function selection(
+  order_ids: readonly string[],
+  executor?: Executor
+): Promise<SelectionSummary> {
+  const { rows } = await query<{ selection: unknown }>(SELECTION_SQL, [order_ids], executor)
+  return SelectionSummary.parse(rows[0]?.selection)
 }

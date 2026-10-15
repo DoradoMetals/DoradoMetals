@@ -11,6 +11,7 @@ import type {
   ProductQuote,
   ProfitBreakdown,
   RefiningPricing,
+  SelectionSummary,
   SpotPrice,
 } from '@dorado/contracts'
 
@@ -72,4 +73,11 @@ export async function profitBreakdown(
   const breakdown = await pricing.profitBreakdown(order_id, executor)
   rules.assertPriced(breakdown, `order ${order_id}`)
   return breakdown
+}
+
+export async function selectionSummary(
+  order_ids: readonly string[],
+  executor?: Executor
+): Promise<SelectionSummary> {
+  return await pricing.selection(order_ids, executor)
 }

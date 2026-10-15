@@ -149,7 +149,10 @@ SELECT jsonb_build_object(
                             'customer',
                               (SELECT jsonb_build_object('id', u.id, 'name', u.name, 'email', u.email)
                                  FROM auth.users u
-                                WHERE u.id = o.user_id)) AS item
+                                WHERE u.id = o.user_id),
+                            'action_facts',
+                              /*__order_action_facts__*/
+                              || jsonb_build_object('state', p.state)) AS item
                   FROM page p
                   JOIN orders.orders o ON o.id = p.id
               ) card),

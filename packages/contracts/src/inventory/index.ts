@@ -3,6 +3,7 @@
 //
 // Every entity of the `inventory` schema, one namespace each.
 export * from './enums.js'
+export * from './lot_images.js'
 export * from './lot_sources.js'
 export * from './lots.js'
 export * from './pool.js'

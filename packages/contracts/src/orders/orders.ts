@@ -64,7 +64,23 @@ export const OrderCardLot = z
   })
 export type OrderCardLot = z.infer<typeof OrderCardLot>
 
-export const OrderListItem = OrderRead.extend({
+export const OrderActionFacts = z
+  .object({
+    order: Order.pick({ direction: true, cancelled_at: true, spots_locked: true, number: true }),
+    totals: OrderTotals.pick({ total: true }).nullable(),
+    lots: z.array(
+      OrderLotView.pick({ settled: true }).extend({
+        lot: Lot.pick({ confirmed_at: true, content: true }),
+      })
+    ),
+    address: Address.pick({ id: true }).nullable(),
+    shipments: z.array(OrderViewShipment.pick({ direction: true, tracking_number: true })),
+    payout: OrderViewPayout.pick({ method: true }).nullable(),
+  })
+  .extend({ credited: z.boolean(), state: OrderState })
+export type OrderActionFacts = z.infer<typeof OrderActionFacts>
+
+const OrderListItemBase = OrderRead.extend({
   reference: z.string(),
   state: OrderState,
   customer: UserSummary.nullable(),
@@ -76,6 +92,11 @@ export const OrderListItem = OrderRead.extend({
   arrived_at: Order.shape.created_at,
   placed_at: Order.shape.created_at,
 })
+
+export const OrderListItemFacts = OrderListItemBase.extend({ action_facts: OrderActionFacts })
+export type OrderListItemFacts = z.infer<typeof OrderListItemFacts>
+
+export const OrderListItem = OrderListItemFacts.extend({ actions: OrderActions })
 export type OrderListItem = z.infer<typeof OrderListItem>
 
 export const OrderListCounts = z.object({}).extend({
@@ -84,9 +105,12 @@ export const OrderListCounts = z.object({}).extend({
 })
 export type OrderListCounts = z.infer<typeof OrderListCounts>
 
-export const OrderList = z.object({ counts: OrderListCounts }).extend({
-  items: z.array(OrderListItem),
+export const OrderListFacts = z.object({ counts: OrderListCounts }).extend({
+  items: z.array(OrderListItemFacts),
 })
+export type OrderListFacts = z.infer<typeof OrderListFacts>
+
+export const OrderList = OrderListFacts.extend({ items: z.array(OrderListItem) })
 export type OrderList = z.infer<typeof OrderList>
 
 export const OrderFilter = z

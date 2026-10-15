@@ -6,6 +6,7 @@ import type {
   FulfillmentDropoff,
   Lot,
   LotSplit,
+  OrderActivity,
   OrderCancelBody,
   OrderDocument,
   OrderList,
@@ -24,7 +25,7 @@ import type {
   ShipmentView,
 } from '@dorado/contracts'
 
-import { apiRequest, apiRequestForm } from '../fetch'
+import { apiRequest, apiRequestBlob, apiRequestForm, baseUrl } from '../fetch'
 import { keys } from '../keys'
 
 export type OrderListFilters = {
@@ -119,6 +120,28 @@ export function useProfitBreakdown(id: string, options: { enabled?: boolean } = 
     queryFn: () =>
       apiRequest<ProfitBreakdown>('POST', '/quotes/profit_breakdown', { order_id: id }),
   })
+}
+
+export type OrderActivityPageParams = { limit?: number | null; before?: string | null }
+
+export function useOrderActivity(
+  id: string,
+  page: OrderActivityPageParams = {},
+  options: { enabled?: boolean } = {}
+) {
+  const params = { limit: page.limit ?? null, before: page.before ?? null }
+  return useQuery<OrderActivity[]>({
+    queryKey: keys.orders.activity(id, params),
+    enabled: (options.enabled ?? true) && id.length > 0,
+    queryFn: () => apiRequest<OrderActivity[]>('GET', `/orders/${id}/activity`, undefined, params),
+  })
+}
+
+export const orderDocumentUrl = (id: string, kind: string): string =>
+  `${baseUrl()}/orders/${id}/documents/${kind}`
+
+export function downloadOrderDocument(id: string, kind: string): Promise<Blob> {
+  return apiRequestBlob('GET', `/orders/${id}/documents/${kind}`)
 }
 
 function useOrderWrite<TVariables, TResult>(

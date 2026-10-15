@@ -16,7 +16,11 @@ export const uploadImage = asyncHandler(async (req, res) => {
 })
 
 export const getUrl = asyncHandler(async (req, res) => {
-  const result = await mediaService.getUrlFor(requiredParam(req.params.id, 'id'), callerId(req))
+  const result = await mediaService.getUrlFor(
+    requiredParam(req.params.id, 'id'),
+    callerId(req),
+    req.user?.role === 'admin'
+  )
   if (!result) return res.status(404).json({ error: 'Not Found' })
   return res.status(200).json(result)
 })

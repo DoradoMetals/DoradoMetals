@@ -114,6 +114,7 @@ export async function editLot(id: string, changes: OrderLotPatch): Promise<Order
 
   await withTransaction(async (tx) => {
     rules.assertLot(await lotsRepo.update(link.lot_id, changes, tx), link.lot_id)
+    if (changes.image_id) await inventoryService.coverImage(link.lot_id, changes.image_id, tx)
     if (rules.retiersAfterEdit(changes)) await retierPremiums(link.order_id, tx)
   })
 

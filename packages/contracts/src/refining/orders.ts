@@ -37,9 +37,10 @@ export const RefiningOrderCreate = RefiningOrder.pick({
   refiner_id: true,
   direction: true,
   settlement_type: true,
+  location_id: true,
 })
   .extend({ lot_ids: z.array(Lot.shape.id).min(1).optional() })
-  .partial({ settlement_type: true })
+  .partial({ settlement_type: true, location_id: true })
   .strict()
 export type RefiningOrderCreate = z.infer<typeof RefiningOrderCreate>
 
@@ -75,7 +76,8 @@ export type RefiningSettlement = z.infer<typeof RefiningSettlement>
 export const RefiningSupply = RefiningOrder.pick({ refiner_id: true }).strict()
 export type RefiningSupply = z.infer<typeof RefiningSupply>
 
-export const RefiningBatch = RefiningOrder.pick({ refiner_id: true })
+export const RefiningBatch = RefiningOrder.pick({ refiner_id: true, location_id: true })
+  .partial({ location_id: true })
   .extend({
     lot_ids: z.array(Lot.shape.id).min(1).optional(),
     order_ids: z.array(Lot.shape.id).min(1).optional(),

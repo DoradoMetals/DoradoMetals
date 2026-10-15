@@ -45,13 +45,19 @@ export function SelectionBar({
     >
       <div className="flex items-center gap-sm">
         {onDismiss && (
-          <Button variant="tertiary" size="iconXs" aria-label={dismissLabel} onClick={onDismiss}>
+          <Button
+            variant="tertiary"
+            size="iconXs"
+            className="text-foreground"
+            aria-label={dismissLabel}
+            onClick={onDismiss}
+          >
             <X aria-hidden />
           </Button>
         )}
         <div className="flex min-w-0 flex-1 flex-col gap-2xs">
           <p className="text-small text-foreground">{summary}</p>
-          {totals != null && <p className="text-micro text-subtle">{totals}</p>}
+          {totals != null && <p className="truncate text-micro text-subtle">{totals}</p>}
         </div>
       </div>
       {actions != null && (

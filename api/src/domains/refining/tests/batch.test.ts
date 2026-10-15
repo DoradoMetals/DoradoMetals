@@ -198,3 +198,32 @@ test('a lot removed from a refiner order is counted once in inventory, not twice
     })
   })
 })
+
+test('a batch writes its location onto the refiner order it creates', async () => {
+  await inRefining(async (c) => {
+    await asAdmin(TEST_ACTOR, async () => {
+      const refiner_id = await refinerId(c)
+      await c.query(
+        `UPDATE refining.orders SET cancelled_at = now()
+          WHERE refiner_id = $1 AND direction = 'sell' AND sent_at IS NULL AND cancelled_at IS NULL`,
+        [refiner_id]
+      )
+      const { rows } = await c.query<{ id: string }>(
+        'SELECT id FROM places.locations ORDER BY id LIMIT 1'
+      )
+      assert.ok(rows[0], 'the test database has no location')
+      const lot = await lots.create({ metal_id: 'Gold', pre_melt: 5, purity: 0.9 }, c)
+
+      const res = await request(app)
+        .post('/api/refining/orders/batch')
+        .send({ refiner_id, lot_ids: [lot.id], location_id: rows[0].id })
+      assert.equal(res.status, 201, res.text)
+      assert.equal(res.body.order.location_id, rows[0].id)
+
+      const unknown = await request(app)
+        .post('/api/refining/orders/batch')
+        .send({ refiner_id, lot_ids: [lot.id], location_id: 'nowhere' })
+      assert.equal(unknown.status, 400, unknown.text)
+    })
+  })
+})

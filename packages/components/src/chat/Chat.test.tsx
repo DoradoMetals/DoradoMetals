@@ -87,13 +87,52 @@ describe('CallEvent', () => {
 })
 
 describe('Chat', () => {
-  it('the title IS the view, the phone number is the trailing amount, and axe finds nothing', async () => {
-    const { container, getByRole, getByText } = render(
+  it('the open title IS the view, the phone number belongs to the closed header, and axe finds nothing', async () => {
+    const { container, getByRole, queryByText } = render(
       <Chat phone="(512) 555-0148" messages={messages} />
     )
-    expect(getByRole('button', { name: /^Messages\(512\)/ })).toBeTruthy()
-    expect(getByText('(512) 555-0148')).toBeTruthy()
+    expect(getByRole('button', { name: 'Customer messages' })).toBeTruthy()
+    expect(queryByText('(512) 555-0148')).toBeNull()
     expect(await axeViolations(container)).toEqual([])
+  })
+
+  it('the Calls view is titled Customer calls', () => {
+    const { getByRole } = render(<Chat phone="(512) 555-0148" defaultView="calls" calls={calls} />)
+    expect(getByRole('button', { name: 'Customer calls' })).toBeTruthy()
+  })
+
+  it('loading shows skeletons in both views and keeps the composer or Call button', async () => {
+    const { container, getByRole, rerender } = render(
+      <Chat phone="(512) 555-0148" status="loading" />
+    )
+    expect(getByRole('status', { name: 'Loading messages' })).toBeTruthy()
+    expect(getByRole('button', { name: 'Send' })).toBeTruthy()
+    expect(await axeViolations(container)).toEqual([])
+    rerender(<Chat phone="(512) 555-0148" status="loading" view="calls" />)
+    expect(getByRole('status', { name: 'Loading calls' })).toBeTruthy()
+    expect(getByRole('button', { name: 'Call (512) 555-0148' })).toBeTruthy()
+  })
+
+  it('error shows the view-specific alert and Try again fires onRetry', async () => {
+    const onRetry = vi.fn()
+    const { container, getByRole, getByText, rerender } = render(
+      <Chat phone="(512) 555-0148" status="error" onRetry={onRetry} />
+    )
+    expect(getByText("Couldn't load messages")).toBeTruthy()
+    fireEvent.click(getByRole('button', { name: 'Try again' }))
+    expect(onRetry).toHaveBeenCalled()
+    expect(await axeViolations(container)).toEqual([])
+    rerender(<Chat phone="(512) 555-0148" status="error" view="calls" onRetry={onRetry} />)
+    expect(getByText("Couldn't load calls")).toBeTruthy()
+  })
+
+  it('the empty messages copy matches the Library', () => {
+    const { getByText } = render(<Chat phone="(512) 555-0148" />)
+    expect(
+      getByText(
+        'Texts you send from here go to the customer’s phone. Their replies show up in this thread.'
+      )
+    ).toBeTruthy()
   })
 
   it('the switcher changes the view and the title with it', () => {

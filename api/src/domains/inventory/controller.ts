@@ -3,7 +3,7 @@ import { refuseWith } from '#shared/http/refuse.ts'
 import { strictBody, uuidParam } from '#shared/http/validate.ts'
 import { oneString, manyStrings } from '#shared/http/query.ts'
 import * as inventory from '#inventory/service.ts'
-import { LotCombine, LotKind, LotSplit, Position } from '@dorado/contracts'
+import { LotCombine, LotImageAdd, LotKind, LotSplit, Position } from '@dorado/contracts'
 import type { Request } from 'express'
 
 const positionsIn = (req: Request): Position[] | null => {
@@ -56,4 +56,17 @@ export const splitOrderLot = asyncHandler(async (req, res) => {
 
 export const getInventorySummary = asyncHandler(async (_req, res) => {
   return res.json(await inventory.summary())
+})
+
+export const getLotImages = asyncHandler(async (req, res) => {
+  return res.json(await inventory.images(uuidParam(req, 'id')))
+})
+
+export const addLotImage = asyncHandler(async (req, res) => {
+  const { image_id } = strictBody(LotImageAdd, req.body)
+  return res.status(201).json(await inventory.addImage(uuidParam(req, 'id'), image_id))
+})
+
+export const removeLotImage = asyncHandler(async (req, res) => {
+  return res.json(await inventory.removeImage(uuidParam(req, 'id'), uuidParam(req, 'imageId')))
 })

@@ -1,17 +1,21 @@
 import * as lotsRepo from '#db/inventory/lots/repo.ts'
 import * as lotSourcesRepo from '#db/inventory/lot-sources/repo.ts'
+import * as lotImagesRepo from '#db/inventory/lot-images/repo.ts'
+import * as imageService from '#accounts/images/service.ts'
 import * as orderLots from '#db/orders/lots/repo.ts'
 import * as rules from '#inventory/rules.ts'
 import * as pricing from '#pricing/index.ts'
 import * as refining from '#refining/service.ts'
 import { retierPremiums } from '#orders/service.ts'
 import withTransaction from '#shared/db/withTransaction.ts'
+import type { Executor } from '#shared/db/executor.ts'
 import { withDecisions } from '#shared/views.ts'
 import type {
   InventoryLotView,
   InventorySummary,
   LotDetail,
   LotFilter,
+  LotImageView,
   LotSplitPart,
   OrderLotView,
 } from '@dorado/contracts'
@@ -70,4 +74,30 @@ export async function summary(): Promise<InventorySummary> {
   const metals = await pricing.inventoryMetals()
   const pool = await refining.balances(null, null)
   return { metals, pool }
+}
+
+export async function images(lot_id: string): Promise<LotImageView[]> {
+  rules.assertLot(await lotsRepo.getOne(lot_id), lot_id)
+  const links = await lotImagesRepo.list(lot_id)
+  return await Promise.all(
+    links.map(async (link) =>
+      withDecisions(link, { url: await imageService.getUrl(link.image_id) })
+    )
+  )
+}
+
+export async function addImage(lot_id: string, image_id: string): Promise<LotImageView[]> {
+  rules.assertLot(await lotsRepo.getOne(lot_id), lot_id)
+  await withTransaction((tx) => lotImagesRepo.create(lot_id, image_id, tx))
+  return await images(lot_id)
+}
+
+export async function coverImage(lot_id: string, image_id: string, tx: Executor): Promise<void> {
+  await lotImagesRepo.cover(lot_id, image_id, tx)
+}
+
+export async function removeImage(lot_id: string, image_id: string): Promise<LotImageView[]> {
+  const removed = await withTransaction((tx) => lotImagesRepo.remove(lot_id, image_id, tx))
+  rules.assertLotImage(removed, lot_id, image_id)
+  return await images(lot_id)
 }
