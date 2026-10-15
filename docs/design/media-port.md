@@ -10,15 +10,15 @@ Assets: emails reference `FRONTEND_URL/media/...` from `frontend/public/media/`;
 
 Ruling 2026-10-14/15 (Jacob): the Assay Results document becomes a **Quote Estimate**, drawn at 225:2270. The frame is the spec. A quote is not stored.
 - **Header:** the Header's Checkout variant (62:258) shows "Start your order", "Scan with your phone" and a 48 px vector QR code to `FRONTEND_URL/sell` (`links.ts` `sellUrl()`, generated at render time).
-- **Hero:** "Estimated quote" with the items total. Opposite the label, the Hero's Reference switch (on for the quote only) shows "Quote Q-MMDD-HHMM", built from the quote's Central-time date and time, over "For {customer name}". The status line states spot once ("Priced against spot on {date, time CT}: gold $x and silver $y per oz."), then the disclaimer.
-- **Items:** the invoice table with an ESTIMATE column and labelled facts. Scrap rows read Gross weight · Purity · {Metal} weight (est.) · Price per oz (r% of spot). Bullion rows read Quantity · {Metal} weight · Price each (r% of spot). The fine weight and the per-ounce price come from the pricing view (`fine`, `oz_price`).
+- **Hero:** "Estimated quote" with the items total. On the label's line, the Hero's Reference switch (on for the quote only) shows "Quote Q-MMDD-HHMM", built from the quote's Central-time date and time. The quote names no customer. The status line states spot once ("Priced against spot on {date, time CT}: gold $x and silver $y per oz."), then the disclaimer.
+- **Items:** the invoice table with an ESTIMATE column and labelled facts. Scrap rows read "Weight {g} g · Purity {p}% · {Metal} weight {oz} oz · Price ${x} per oz ({r}% of spot)". Bullion rows read "Quantity {n} · {Metal} weight {oz} oz · Price ${x} each ({r}% of spot)", where the metal weight is the whole lot's (12 × 10 oz bars read 120.000 oz). The fine weight and the per-ounce price come from the pricing view (`fine`, `oz_price`).
 - **Below the items:** "How to send it" (317:2358) and "Getting paid" (317:2398), shared with the rate sheet (`render/documents/send-and-paid.ts`). The payout lines come from `payments.methods`.
 - **Footer:** the Footer's Contact switch (on for the quote only) adds the office address, phone and email from the Dorado office location and its organization row, then "Quoted {date}".
 - Shipping and the payout fee are not in the figure, and there is no summary block. The assay_results PdfKind and route stay until Jacob renames them, and a sales order gets no quote estimate.
 
 Footers use the short date the frames show ("Sep 2"): instruction sheets "Sent", the quote "Quoted", invoices "Issued", the shipment, pickup and intake manifests "Created".
 
-Ruling 140 (no "melt"): the quote prints "Gross weight". The invoice and manifest frames still print "post melt" and "pre melt" while Jacob names the term. Until he does, the code prints "Gross weight {n} g" there too: the post-processing weight on the invoice, the declared weight on the manifests.
+Ruling 140 (no "melt"): the quote prints "Weight". The invoice and manifest frames still print "post melt" and "pre melt" while Jacob names the term. Until he does, the code prints "Weight {n} g" there too: the post-processing weight on the invoice, the declared weight on the manifests.
 
 ## Port status (media-port lane, 2026-10-14)
 

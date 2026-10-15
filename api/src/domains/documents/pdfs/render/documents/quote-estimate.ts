@@ -51,7 +51,7 @@ export function buildQuoteEstimateHtml({
         status: `${spotLine(pricing)} ${DISCLAIMER}`,
         reference: {
           number: `Quote ${quoteNumber(quotedAt)}`,
-          customer: order.user?.name ? `For ${order.user.name}` : null,
+          customer: null,
         },
       }),
       h(Table, {

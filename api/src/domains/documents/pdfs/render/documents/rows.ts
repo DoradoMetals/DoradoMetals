@@ -2,7 +2,6 @@ import type { TableRow } from '@dorado/components/document'
 import type { OrderLotView, OrderPricing, OrderPricingLine } from '@dorado/contracts'
 import {
   formatCurrency,
-  grossFact,
   labelled,
   moneyFact,
   ounces,
@@ -11,6 +10,7 @@ import {
   priceFact,
   rateFact,
   unitsFact,
+  weightFact,
 } from '#documents/pdfs/render/format.ts'
 
 const priceFor = (prices: OrderPricingLine[], line: OrderLotView): OrderPricingLine | undefined =>
@@ -48,20 +48,20 @@ function scrapRow(
   layout: 'invoice' | 'manifest' | 'sale' | 'quote'
 ): TableRow {
   const price = priceFor(pricing.items, line)
-  const gross = grossFact(weighed(line, layout), line.lot.unit)
+  const weight = weightFact(weighed(line, layout), line.lot.unit)
   return {
     name,
     figure: formatCurrency(price?.line_total),
     facts:
       layout === 'quote'
         ? [
-            gross,
+            weight,
             labelled('Purity', percent(line.lot.purity)),
-            `${labelled(`${line.lot.metal_id} weight`, ounces(price?.fine))} (est.)`,
+            labelled(`${line.lot.metal_id} weight`, ounces(price?.fine)),
             priceFact(price?.oz_price, 'per oz', price?.premium ?? line.lot.premium),
           ]
         : [
-            gross,
+            weight,
             pctFact(line.lot.purity, 'purity'),
             rateFact(price?.premium ?? line.lot.premium, 'premium'),
             moneyFact(spotFor(pricing, line), 'spot'),

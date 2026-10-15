@@ -74,9 +74,9 @@ export function labelled(label: string, value: string): string {
   return `${label} ${value}`
 }
 
-export function grossFact(value: number | null | undefined, unit: string | null): string {
+export function weightFact(value: number | null | undefined, unit: string | null): string {
   const amount = value == null ? DASH : decimal(value, 1, 1)
-  return labelled('Gross weight', [amount, unit].filter(Boolean).join(' '))
+  return labelled('Weight', [amount, unit].filter(Boolean).join(' '))
 }
 
 export function percent(value: number | null | undefined): string {
