@@ -2100,3 +2100,5 @@ card are gone, replaced by far simpler components. Fewer frames, all bound.
 Stopping unrequested changes here. The file is coherent, both screens
 render correctly, and further polish would only add things Jacob has to
 notice and judge. Polling continues.
+
+2026-10-14, end of night: banner copy back to "Orders still price from the last good tick"; mobile type mode set to Mobile; Rate Changes shows OLD RANGE / NEW RANGE; empty states drawn as components (placement asked on pins); every time in AM/PM (102 texts); locks have three states (Active Info, Released Neutral, Settled Success); Marquee not placed (it moves into the Library Header); the Header check after the publish waits for tomorrow (baseline in tools/pricing/snapshots). Poll loop stopped.
