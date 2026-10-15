@@ -591,7 +591,14 @@ file named at the top of this file.
   the Inbox shows, so nobody goes back and forth. 2026-10-14. Source:
   decision 19.
 
+- **140 — The word "melt" never appears**, for legal reasons. Quote
+  Estimate rows read "Lot 1 · {g} gross weight · {n}% est. purity" and
+  bullion rows "{n} units · {oz} oz · ${x} each". The Invoice's "post melt"
+  and the manifests' "pre melt" change to a term Jacob names (asked on the
+  Media file); the renderer strings follow that answer. 2026-10-15. Source:
+  Jacob, Media file comment.
+
 ## Numbering
 
-Every number from 1 to 139 has an entry, plus 26b and 26c. Two rulings carry the
+Every number from 1 to 140 has an entry, plus 26b and 26c. Two rulings carry the
 number 39; both are listed. No number is ever reused.
