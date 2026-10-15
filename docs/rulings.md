@@ -592,7 +592,7 @@ file named at the top of this file.
   decision 19.
 
 - **140 — The word "melt" never appears**, for legal reasons. Quote
-  Estimate rows read "Lot 1 · {g} gross weight · {n}% est. purity" and
+  Estimate scrap rows keep their names ("14K Gold") and read "{g} gross weight · {n}% purity"; no ounces, no per-ounce price;
   bullion rows "{n} units · {oz} oz · ${x} each". The Invoice's "post melt"
   and the manifests' "pre melt" change to a term Jacob names (asked on the
   Media file); the renderer strings follow that answer. 2026-10-15. Source:
