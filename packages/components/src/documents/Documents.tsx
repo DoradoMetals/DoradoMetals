@@ -1,11 +1,13 @@
 'use client'
 
 import * as React from 'react'
-import { Download, FilePlus, FileText, Send, Trash2, Upload } from '@dorado/icons'
+import { Download, FilePlus, FileText, Send, Upload } from '@dorado/icons'
 
 import { Accordion } from '../accordion/Accordion'
+import { Alert } from '../alert/Alert'
 import { Button } from '../button/Button'
 import { Divider } from '../divider/Divider'
+import { Skeleton } from '../skeleton/Skeleton'
 import { cn } from '../cn'
 
 export const DOCUMENT_NAMES = [
@@ -29,20 +31,25 @@ export type DocumentRow = {
   id: string
   name: DocumentName
   meta?: React.ReactNode
+  format?: string
+  bytes?: number
+  date?: string
   state: DocumentState
   showSend?: boolean
-  showDelete?: boolean
   showImport?: boolean
   showGenerate?: boolean
   onDownload?: () => void
   onSend?: () => void
-  onDelete?: () => void
   onImport?: () => void
   onGenerate?: () => void
 }
 
+export type DocumentsStatus = 'ready' | 'loading' | 'error'
+
 export type DocumentsProps = {
   documents: DocumentRow[]
+  status?: DocumentsStatus
+  onRetry?: () => void
   open?: boolean
   onToggle?: () => void
   defaultOpen?: boolean
@@ -72,23 +79,44 @@ const META_FALLBACK: Partial<Record<DocumentState, React.ReactNode>> = {
   unavailable: 'Not yet available',
 }
 
+const UNITS = ['B', 'KB', 'MB', 'GB'] as const
+
+export function formatBytes(bytes: number) {
+  let value = bytes
+  let unit = 0
+  while (value >= 1024 && unit < UNITS.length - 1) {
+    value /= 1024
+    unit += 1
+  }
+  const rounded = unit === 0 || value >= 10 ? Math.round(value) : Math.round(value * 10) / 10
+  return `${rounded} ${UNITS[unit]}`
+}
+
+function rowMeta(doc: DocumentRow): React.ReactNode {
+  if (doc.meta != null) return doc.meta
+  if (doc.state !== 'available') return META_FALLBACK[doc.state]
+  const parts = [
+    doc.format,
+    doc.bytes != null ? formatBytes(doc.bytes) : undefined,
+    doc.date,
+  ].filter((part): part is string => part != null && part !== '')
+  return parts.length > 0 ? parts.join(' · ') : undefined
+}
+
 function RowAction({
   icon: Icon,
   label,
-  intent,
   disabled,
   onClick,
 }: {
   icon: React.ElementType
   label: string
-  intent?: 'neutral' | 'danger'
   disabled?: boolean
   onClick?: () => void
 }) {
   return (
     <Button
       variant="tertiary"
-      intent={intent}
       size="iconSm"
       aria-label={label}
       disabled={disabled}
@@ -102,19 +130,16 @@ function RowAction({
 function DocumentRowItem({ doc }: { doc: DocumentRow }) {
   const {
     name,
-    meta,
     state,
     showSend = true,
-    showDelete = true,
     showImport = false,
     showGenerate = false,
     onDownload,
     onSend,
-    onDelete,
     onImport,
     onGenerate,
   } = doc
-  const metaText = state === 'available' ? meta : META_FALLBACK[state]
+  const metaText = rowMeta(doc)
 
   return (
     <li className="flex w-full items-center gap-xs px-sm py-xs">
@@ -132,7 +157,7 @@ function DocumentRowItem({ doc }: { doc: DocumentRow }) {
           <span className={cn('truncate text-micro', META_STYLES[state])}>{metaText}</span>
         )}
       </span>
-      <span className="flex shrink-0 items-center gap-3xs">
+      <span className="flex shrink-0 items-center gap-md">
         {state === 'available' && showSend && (
           <RowAction icon={Send} label={`Send ${name}`} onClick={onSend} />
         )}
@@ -143,9 +168,6 @@ function DocumentRowItem({ doc }: { doc: DocumentRow }) {
             disabled={state === 'generating'}
             onClick={onDownload}
           />
-        )}
-        {state === 'available' && showDelete && (
-          <RowAction icon={Trash2} label={`Delete ${name}`} intent="danger" onClick={onDelete} />
         )}
         {state === 'unavailable' && showGenerate && (
           <RowAction icon={FilePlus} label={`Generate ${name}`} onClick={onGenerate} />
@@ -158,20 +180,47 @@ function DocumentRowItem({ doc }: { doc: DocumentRow }) {
   )
 }
 
+function LoadingRows() {
+  return (
+    <div
+      role="status"
+      aria-busy="true"
+      aria-label="Loading documents"
+      className="flex w-full flex-col gap-2xs py-2xs"
+    >
+      {[0, 1, 2].map((row) => (
+        <div key={row} className="flex w-full items-center gap-xs px-sm py-xs">
+          <Skeleton shape="block" className="size-(--control-sm) shrink-0 rounded-lg" />
+          <div className="flex min-w-0 flex-1 flex-col gap-xs">
+            <Skeleton shape="text" />
+            <Skeleton shape="text" className="w-1/2" />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export function Documents({
   documents,
+  status = 'ready',
+  onRetry,
   open,
   onToggle,
   defaultOpen = true,
   className,
 }: DocumentsProps) {
-  const isEmpty = documents.length === 0
+  const isEmpty = status === 'ready' && documents.length === 0
 
   return (
     <Accordion
       label="Documents"
       trailing={
-        isEmpty ? 'None yet' : `${documents.length} document${documents.length === 1 ? '' : 's'}`
+        status !== 'ready'
+          ? undefined
+          : isEmpty
+            ? 'None yet'
+            : `${documents.length} document${documents.length === 1 ? '' : 's'}`
       }
       chevron="leading"
       open={open}
@@ -181,12 +230,23 @@ export function Documents({
       className={className}
     >
       <Divider />
-      {isEmpty ? (
+      {status === 'loading' ? (
+        <LoadingRows />
+      ) : status === 'error' ? (
+        <div className="flex w-full flex-col items-start gap-sm p-md">
+          <Alert intent="danger" title="Couldn't load documents" className="w-full">
+            Something went wrong loading the documents for this order.
+          </Alert>
+          <Button variant="secondary" onClick={onRetry}>
+            Try again
+          </Button>
+        </div>
+      ) : isEmpty ? (
         <div className="flex w-full flex-col items-center gap-xs px-lg py-xl text-center">
           <FileText aria-hidden className="size-8 text-muted-foreground" />
           <span className="text-small font-medium text-muted-foreground">No documents yet</span>
           <span className="text-micro text-placeholder">
-            Your invoice and packing list appear here once the order is priced.
+            Your invoice and shipment manifest appear here once the order is priced.
           </span>
         </div>
       ) : (

@@ -52,7 +52,7 @@ describe('Drawer', () => {
   it('carries the scrim over the page ground', () => {
     openDrawer()
     const overlay = document.body.querySelector('[aria-hidden="true"]') as HTMLElement
-    expect(overlay.className).toContain('bg-background/50')
+    expect(overlay.className).toContain('bg-background/70')
   })
 
   it('the highest surface draws a single hairline on the attached edge, not a box border', () => {
@@ -165,5 +165,43 @@ describe('Drawer', () => {
     expect(footer.className).toContain('justify-end')
     expect(footer.className).toContain('border-t')
     expect(footer.className).toContain('gap-xs')
+  })
+
+  it.each([
+    ['sm', 'sm:w-(--drawer-sm)'],
+    ['md', 'sm:w-(--drawer-md)'],
+    ['lg', 'sm:w-(--drawer-lg)'],
+  ] as const)('size %s is full width on mobile and the Library width from sm up', (size, width) => {
+    openDrawer({ size })
+    const dialog = document.body.querySelector('[role="dialog"]') as HTMLElement
+    expect(dialog.className).toContain('w-full')
+    expect(dialog.className).toContain(width)
+    expect(dialog.className).toContain('right-0')
+  })
+
+  it('size full stays the whole viewport width at every breakpoint', () => {
+    openDrawer({ size: 'full' })
+    const dialog = document.body.querySelector('[role="dialog"]') as HTMLElement
+    expect(dialog.className).toContain('w-full')
+    expect(dialog.className).not.toContain('sm:w-')
+  })
+
+  it('the scrim blurs the page behind', () => {
+    openDrawer()
+    const overlay = document.body.querySelector('[aria-hidden="true"]') as HTMLElement
+    expect(overlay.className).toContain('backdrop-blur-sm')
+  })
+
+  it('the footer stacks on mobile and lines up on the right from sm', () => {
+    const { getByText } = render(
+      <Drawer open setOpen={vi.fn()}>
+        <DrawerFooter>
+          <span>Save</span>
+        </DrawerFooter>
+      </Drawer>
+    )
+    const footer = getByText('Save').parentElement as HTMLElement
+    expect(footer.className).toContain('flex-col')
+    expect(footer.className).toContain('sm:flex-row')
   })
 })

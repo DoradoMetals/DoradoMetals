@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import { cva } from 'class-variance-authority'
-import { ChevronLeft, ChevronRight, Download, ImageIcon, Trash2, X } from '@dorado/icons'
+import { ChevronLeft, ChevronRight, ImageIcon, X } from '@dorado/icons'
 import { Button } from '../button/Button'
 import { Thumbnail } from '../thumbnail/Thumbnail'
 import { cn } from '../cn'
@@ -67,13 +67,11 @@ export function PhotoViewer({
     <div className="flex items-center justify-end gap-xs">
       {onDownload && (
         <Button variant="tertiary" onClick={onDownload}>
-          <Download aria-hidden />
           Download
         </Button>
       )}
       {onDelete && (
         <Button variant="tertiary" intent="danger" onClick={onDelete}>
-          <Trash2 aria-hidden />
           Delete
         </Button>
       )}

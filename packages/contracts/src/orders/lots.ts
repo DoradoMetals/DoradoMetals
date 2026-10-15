@@ -34,6 +34,7 @@ export const OrderLotPatch = Lot.pick({
   confirmed_at: true,
   settled_spot: true,
   source: true,
+  image_id: true,
 })
   .partial()
   .strict()

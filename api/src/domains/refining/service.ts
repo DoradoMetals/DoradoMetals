@@ -99,7 +99,11 @@ export async function batch(body: RefiningBatch): Promise<RefiningBatchResult> {
   const open = await refiningOrders.findOpenSell(body.refiner_id)
   const target = await withTransaction(async (tx) => {
     const order =
-      open ?? (await refiningOrders.create({ refiner_id: body.refiner_id, direction: 'sell' }, tx))
+      open ??
+      (await refiningOrders.create(
+        { refiner_id: body.refiner_id, direction: 'sell', location_id: body.location_id },
+        tx
+      ))
     if (eligible.length > 0) {
       await refiningLots.assign(
         order.id,

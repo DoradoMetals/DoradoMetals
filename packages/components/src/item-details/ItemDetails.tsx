@@ -46,10 +46,10 @@ export function ItemDetails({
     ['name', name],
     ['displayName', displayName],
     ['weight', weight],
+    ['qty', qty],
     ['purity', purity],
     ['premium', premium],
     ['spot', spot],
-    ['qty', qty],
     ['destination', destination],
   ]
   const shown = parts.filter(([, value]) => value != null && value !== false && value !== '')

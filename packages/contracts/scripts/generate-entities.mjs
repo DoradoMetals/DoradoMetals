@@ -275,6 +275,7 @@ const ENTITY = {
 
   'inventory.lots': 'Lot',
   'inventory.lot_sources': 'LotSource',
+  'inventory.lot_images': 'LotImage',
   'inventory.pool': 'PoolEntry',
   'refining.orders': 'RefiningOrder',
   'refining.lots': 'RefiningLot',

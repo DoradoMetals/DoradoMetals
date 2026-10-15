@@ -1,7 +1,13 @@
-import { Direction, OrderQuoteBody, ProductQuoteBody, RefiningQuoteBody } from '@dorado/contracts'
+import {
+  Direction,
+  OrderQuoteBody,
+  ProductQuoteBody,
+  RefiningQuoteBody,
+  SelectionQuery,
+} from '@dorado/contracts'
 import { asyncHandler } from '#shared/middleware/asyncHandler.ts'
 import { callerId } from '#shared/http/caller.ts'
-import { oneString } from '#shared/http/query.ts'
+import { manyStrings, oneString } from '#shared/http/query.ts'
 import { parseStrict } from '#shared/http/validate.ts'
 import * as pricing from '#pricing/index.ts'
 import * as checkoutService from '#checkout/service.ts'
@@ -35,4 +41,13 @@ export const refiningOrderQuote = asyncHandler(async (req, res) => {
 export const profitBreakdown = asyncHandler(async (req, res) => {
   const body = parseStrict(OrderQuoteBody, req.body, 'quotes/profit_breakdown body')
   res.status(200).json(await pricing.profitBreakdown(body.order_id))
+})
+
+export const selectionSummary = asyncHandler(async (req, res) => {
+  const { order_ids } = parseStrict(
+    SelectionQuery,
+    { order_ids: manyStrings(req.query.order_ids) ?? [] },
+    'pricing/selection query'
+  )
+  res.status(200).json(await pricing.selectionSummary(order_ids))
 })

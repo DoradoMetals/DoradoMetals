@@ -229,3 +229,19 @@ export const LeadEstimateTotal = z.object({
   total: z.number(),
 })
 export type LeadEstimateTotal = z.infer<typeof LeadEstimateTotal>
+
+export const SelectionFineOz = z.object({ metal_id: Lot.shape.metal_id, oz: z.number() })
+export type SelectionFineOz = z.infer<typeof SelectionFineOz>
+
+export const SelectionSummary = z.object({
+  order_count: z.number().int(),
+  lot_count: z.number().int(),
+  estimated_value: z.number(),
+  fine_oz: z.array(SelectionFineOz),
+})
+export type SelectionSummary = z.infer<typeof SelectionSummary>
+
+export const SelectionQuery = z
+  .object({ order_ids: z.array(Order.shape.id).min(1).max(500) })
+  .strict()
+export type SelectionQuery = z.infer<typeof SelectionQuery>

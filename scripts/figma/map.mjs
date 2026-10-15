@@ -59,6 +59,7 @@ export const COLOR = {
   'surface/soft': '--surface-soft',
 
   'brand/default': '--brand',
+  'shadow/floating': '--floating-shadow',
 }
 
 // Figma variables that are aliases of another variable. They carry no value of
@@ -73,6 +74,8 @@ export const COLOR_ALIASES = {
   'text/success': 'status/success',
   'text/warning': 'status/warning',
   'text/info': 'status/info',
+  'chart/series-1': 'primary/default',
+  'chart/series-2': 'brand/default',
 }
 
 // CSS colour properties with no Figma variable, and why that is allowed.
@@ -146,13 +149,15 @@ export const SCALE = {
   'breakpoint/xl': '--breakpoint-xl',
   'breakpoint/2xl': '--breakpoint-2xl',
   'blur/scrim': '--blur-scrim',
+  'drawer/sm': '--drawer-sm',
+  'drawer/md': '--drawer-md',
+  'drawer/lg': '--drawer-lg',
+  'shadow/floating-blur': '--floating-blur',
+  'shadow/floating-y': '--floating-y',
 }
 
 export const SCALE_ALIASES = {
   'radius/lg': 'radius/base',
-  'drawer/sm': 'breakpoint/sm',
-  'drawer/md': 'breakpoint/md',
-  'drawer/lg': 'breakpoint/lg',
 }
 
 // Figma variables stored on a 0-100 PERCENT scale where the CSS carries a

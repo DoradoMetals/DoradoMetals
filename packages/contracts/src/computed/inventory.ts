@@ -1,6 +1,7 @@
 import { z } from 'zod/v4'
 import { InventoryLotView, Lot } from '../inventory/lots.js'
 import { LotEdge } from '../inventory/lot_sources.js'
+import { LotImage } from '../inventory/lot_images.js'
 import { PoolBalance } from '../inventory/pool.js'
 import { Action, OrderState } from './orders.js'
 
@@ -114,3 +115,12 @@ export const InventorySummary = z.object({
   pool: z.array(PoolBalance),
 })
 export type InventorySummary = z.infer<typeof InventorySummary>
+
+export const LotImageLink = LotImage.pick({ image_id: true, sort_order: true })
+export type LotImageLink = z.infer<typeof LotImageLink>
+
+export const LotImageView = LotImageLink.extend({ url: z.string() })
+export type LotImageView = z.infer<typeof LotImageView>
+
+export const LotImageAdd = LotImage.pick({ image_id: true }).strict()
+export type LotImageAdd = z.infer<typeof LotImageAdd>

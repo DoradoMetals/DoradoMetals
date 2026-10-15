@@ -10,5 +10,6 @@ export {
   priceProduct,
   priceRefiningOrder,
   profitBreakdown,
+  selectionSummary,
   spots,
 } from '#pricing/service.ts'

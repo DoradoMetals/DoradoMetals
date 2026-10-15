@@ -1,7 +1,7 @@
 import { callerId } from '#shared/http/caller.ts'
 import { asyncHandler } from '#shared/middleware/asyncHandler.ts'
 import { refuseWith } from '#shared/http/refuse.ts'
-import { strictBody, uuidParam } from '#shared/http/validate.ts'
+import { parseStrict, strictBody, uuidParam } from '#shared/http/validate.ts'
 import { manyStrings, oneString } from '#shared/http/query.ts'
 import * as orders from '#orders/service.ts'
 import * as orderRead from '#orders/read.ts'
@@ -13,6 +13,7 @@ import {
   AdminOrderCreate,
   AdoptAssayBody,
   OrderCancelBody,
+  OrderActivityPage,
   OrderCreateBody,
   OrderPatch,
   OrderState,
@@ -134,4 +135,13 @@ export const getAdoptAssayProposal = asyncHandler(async (req, res) => {
 export const adoptAssay = asyncHandler(async (req, res) => {
   const body = strictBody(AdoptAssayBody, req.body)
   return res.status(200).json(await orders.adoptAssay(uuidParam(req, 'id'), body))
+})
+
+export const getOrderActivity = asyncHandler(async (req, res) => {
+  const page = parseStrict(
+    OrderActivityPage,
+    { limit: oneString(req.query.limit), before: oneString(req.query.before) },
+    'order activity query'
+  )
+  return res.json(await orderRead.activity(uuidParam(req, 'id'), page))
 })

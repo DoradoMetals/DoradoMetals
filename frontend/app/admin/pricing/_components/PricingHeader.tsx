@@ -2,9 +2,11 @@
 
 import NextLink from 'next/link'
 import { useRouter } from 'next/navigation'
-import { AdminHeader, Breadcrumb, Chip, Tabs, TabsList, TabsTrigger } from '@dorado/components'
+import { AdminHeader, Breadcrumb, Chip } from '@dorado/components'
 
 import { protectedRoutes } from '@/shared/types/routes'
+
+import { AdminTabs } from '../../_components'
 
 type Section = 'spots' | 'rates'
 
@@ -37,24 +39,7 @@ export function PricingHeader({
     <AdminHeader
       title="Pricing"
       layout={mobile ? 'mobile' : 'desktop'}
-      nav={
-        <Tabs value="pricing">
-          <TabsList aria-label="Admin">
-            <TabsTrigger value="orders" disabled>
-              Orders
-            </TabsTrigger>
-            <TabsTrigger value="inventory" disabled>
-              Inventory
-            </TabsTrigger>
-            <TabsTrigger value="people" disabled>
-              People
-            </TabsTrigger>
-            <TabsTrigger value="pricing" onClick={() => router.push(protectedRoutes.admin.path)}>
-              Pricing
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-      }
+      nav={<AdminTabs active="pricing" />}
       breadcrumb={
         mobile ? undefined : (
           <Breadcrumb

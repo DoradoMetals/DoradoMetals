@@ -9,8 +9,10 @@ import type {
   Direction,
   Order,
   OrderFilter,
+  OrderActivity,
+  OrderActivityPage,
   OrderGuard,
-  OrderList,
+  OrderListFacts,
   OrderRead,
   OrderSort,
   OrderViewFacts,
@@ -21,8 +23,9 @@ import type {
 import type { Executor } from '#shared/db/executor.ts'
 import { columnsOf } from '#shared/db/columns.ts'
 import {
+  OrderActivity as Activity,
   OrderGuard as Guard,
-  OrderList as List,
+  OrderListFacts as List,
   OrderSort as Sort,
   OrderViewFacts as Facts,
   OrderWrite as Write,
@@ -40,6 +43,7 @@ const LIST_SQL = sql('list')
   .replaceAll('/*__order_state__*/', ORDER_STATE)
   .replaceAll('/*__lot_position__*/', LOT_POSITION)
   .replaceAll('/*__order_estimated_value__*/', ORDER_VALUE)
+  .replaceAll('/*__order_action_facts__*/', expression(sql('action_facts')))
 const VIEW_SQL = sql('view')
   .replace('/*__order_reference__*/', ORDER_REFERENCE)
   .replace('/*__order_state__*/', ORDER_STATE)
@@ -54,7 +58,7 @@ export async function directionOf(id: string, executor?: Executor): Promise<Dire
   return rows[0]?.direction ?? null
 }
 
-export async function list(filter: OrderFilter, executor?: Executor): Promise<OrderList> {
+export async function list(filter: OrderFilter, executor?: Executor): Promise<OrderListFacts> {
   const { rows } = await query<{ view: unknown }>(
     LIST_SQL,
     [
@@ -147,4 +151,17 @@ export async function createForCheckout(
 ): Promise<Order | undefined> {
   const { rows } = await query<Order>(sql('create_from_checkout'), [checkout_id], executor)
   return rows[0]
+}
+
+export async function activity(
+  order_id: string,
+  page: OrderActivityPage,
+  executor?: Executor
+): Promise<OrderActivity[]> {
+  const { rows } = await query(
+    sql('activity'),
+    [order_id, page.limit, page.before ?? null],
+    executor
+  )
+  return rows.map((row) => Activity.parse(row))
 }

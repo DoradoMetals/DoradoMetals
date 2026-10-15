@@ -9,6 +9,7 @@ import {
   finalizeOrder,
   getAdoptAssayProposal,
   getOrder,
+  getOrderActivity,
   getOrderDocuments,
   listOrderSorts,
   listOrders,
@@ -20,7 +21,11 @@ import spotRoutes from '#orders/spots/routes.ts'
 import addressRoutes from '#orders/addresses/routes.ts'
 
 import { sellToRefiner, supplyOrder } from '#refining/controller.ts'
-import { importOrderDocument, sendOrderDocument } from '#documents/pdfs/controller.ts'
+import {
+  downloadOrderDocument,
+  importOrderDocument,
+  sendOrderDocument,
+} from '#documents/pdfs/controller.ts'
 import { getFulfillmentByOrder } from '#logistics/fulfillments/controller.ts'
 import { getPickupsByOrder } from '#logistics/fulfillments/pickups/controller.ts'
 import { getDirectsByOrder } from '#logistics/fulfillments/directs/controller.ts'
@@ -43,7 +48,9 @@ router.use('/', spotRoutes)
 router.use('/', addressRoutes)
 
 router.get('/:id', requireUser, requireOwnOrderParam, getOrder)
+router.get('/:id/activity', requireAdmin, getOrderActivity)
 router.get('/:id/documents', requireUser, requireOwnOrderParam, getOrderDocuments)
+router.get('/:id/documents/:kind', requireUser, requireOwnOrderParam, downloadOrderDocument)
 router.post('/:id/documents/:kind/send', requireAdmin, sendOrderDocument)
 router.post(
   '/:id/documents/:kind',

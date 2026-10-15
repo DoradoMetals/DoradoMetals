@@ -189,7 +189,7 @@ skipped.
 
 | direction | ladder |
 |---|---|
-| purchase | `Cancelled` · `Awaiting Receipt` · `At Refiner` · `Awaiting Payout` · `Ready to Pay` · `Completed` |
+| purchase | `Cancelled` · `Awaiting Receipt` · `At Refiner` · `Awaiting Finalize` · `Ready to Pay` · `Completed` |
 | sale | `Cancelled` · `Awaiting Payment` · `Preparing` · `In Transit` · `Completed` |
 | refiner sell | unchanged: `Cancelled` · `Disputed` · `Settled` · `Pending assay` |
 | refiner buy | new: `Awaiting Delivery` · `Awaiting Payment` · `Settled`/`Completed` |

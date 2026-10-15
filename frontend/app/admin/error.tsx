@@ -4,7 +4,12 @@ import NextLink from 'next/link'
 import { Button, EmptyState } from '@dorado/components'
 import { TriangleAlert } from '@dorado/icons'
 
-export default function Error({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
+export default function Error({
+  reset,
+}: {
+  error: Error & { digest?: string }
+  reset: () => void
+}) {
   return (
     <EmptyState
       icon={<TriangleAlert />}

@@ -23,7 +23,7 @@ import {
 
 import { getRefiningPayment } from '#transactions/rails/controller.ts'
 import { getFulfillmentByRefiningOrder } from '#logistics/fulfillments/controller.ts'
-import { importRefiningDocument } from '#documents/pdfs/controller.ts'
+import { downloadRefiningDocument, importRefiningDocument } from '#documents/pdfs/controller.ts'
 import { requireAdmin } from '#shared/middleware/authMiddleware.ts'
 
 const router = express.Router()
@@ -46,6 +46,7 @@ router.get('/orders/:id/spots', requireAdmin, getRefiningSpots)
 router.get('/orders/:id/payment', requireAdmin, getRefiningPayment)
 router.get('/orders/:id/fulfillment', requireAdmin, getFulfillmentByRefiningOrder)
 router.get('/orders/:id/documents', requireAdmin, getRefiningDocuments)
+router.get('/orders/:id/documents/:kind', requireAdmin, downloadRefiningDocument)
 router.post(
   '/orders/:id/documents/:kind',
   requireAdmin,

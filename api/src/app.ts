@@ -43,6 +43,7 @@ import leadTimelineRoutes from '#crm/timeline/leads.routes.ts'
 import leadEstimatePricingRoutes from '#pricing/lead-estimates/routes.ts'
 import rateRoutes from '#pricing/rates/routes.ts'
 import quoteRoutes from '#pricing/routes.ts'
+import selectionRoutes from '#pricing/selection/routes.ts'
 import shippingRoutes from '#logistics/shipping/routes.ts'
 import carrierServiceRoutes from '#logistics/shipping/services/routes.ts'
 import fulfillmentRoutes from '#logistics/fulfillments/routes.ts'
@@ -129,6 +130,7 @@ app.use('/api/account', messageRoutes)
 app.use('/api/account', accountRoutes)
 app.use('/api/images', imageRoutes)
 app.use('/api/pricing/lead-estimates', leadEstimatePricingRoutes)
+app.use('/api/pricing', selectionRoutes)
 // Ahead of leadRoutes: its `/:id` would read "funnel" as a lead id.
 app.use('/api/leads', leadFunnelRoutes)
 app.use('/api/leads', leadEstimateItemRoutes)

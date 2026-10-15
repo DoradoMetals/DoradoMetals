@@ -290,6 +290,9 @@ export function documentsFor(
       kind: row.kind,
       name: row.name,
       pdf_id: held?.id ?? null,
+      size_bytes: held?.size_bytes ?? null,
+      created_at: held?.created_at ?? null,
+      created_by_id: held?.created_by_id ?? null,
       available: row.renderable ? sent || held !== null : held !== null,
     }
   })

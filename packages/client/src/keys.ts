@@ -16,6 +16,8 @@ export const keys = {
     profit: (id: string) => ['orders', 'profit', id] as const,
     sorts: () => ['orders', 'sorts'] as const,
     dropoffs: (id: string) => ['orders', 'dropoffs', id] as const,
+    activity: (id: string, page: { limit?: number | null; before?: string | null } = {}) =>
+      ['orders', 'activity', id, page.limit ?? null, page.before ?? null] as const,
   },
   search: {
     all: () => ['search'] as const,
@@ -82,6 +84,11 @@ export const keys = {
   lots: {
     all: () => ['lots'] as const,
     search: (q: string, unassigned: boolean) => ['lots', 'search', q, unassigned] as const,
+    images: (lotId: string) => ['lots', 'images', lotId] as const,
+  },
+  pricing: {
+    all: () => ['pricing'] as const,
+    selection: (orderIds: readonly string[]) => ['pricing', 'selection', orderIds] as const,
   },
   places: {
     all: () => ['places'] as const,
