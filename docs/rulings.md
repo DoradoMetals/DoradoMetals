@@ -598,7 +598,33 @@ file named at the top of this file.
   Media file); the renderer strings follow that answer. 2026-10-15. Source:
   Jacob, Media file comment.
 
+- **141 — The order list ports the proposed card with the state badge**
+  (673:20375, card 671:28586), not the base list's two-badge card.
+  2026-10-15. Source: Jacob, decision 2.
+- **142 — The order header always shows the state badge.** *"Yes state
+  badges there please."* The four base screens gain one. 2026-10-15.
+  Source: decision 3.
+- **143 — The state "Awaiting Payout" is renamed "Awaiting Finalize"**,
+  since it means priced but not finalized; and the state filter row gains a
+  Cancelled chip. 2026-10-15. Source: decisions 4a and 4b.
+- **144 — A lot is never deleted; it is combined or unlinked.** *"We
+  shouldn't be able to delete lots that we need... if it's a lot in a
+  purchase order that just arrived, we should be able to combine lots."* A
+  lot on hand in inventory or on a refiner order cannot be removed from its
+  order. On a purchase whose lots have not moved on, "remove" is a combine
+  (lineage `combine`, the sources consumed) or an unlink that keeps the row;
+  both leave an audit trail. 2026-10-15. Source: decision 7.
+- **145 — A return is part of cancel, and only when goods have moved.**
+  Cancelling an order whose label was never scanned needs no return;
+  cancelling after the parcel arrived creates the return leg. A customer who
+  keeps half and returns half gets a new order, not a partial return.
+  2026-10-15. Source: decision 8.
+- **146 — A refiner order stays open until every lot has settled.**
+  *"Most likely they will all be settled at the same time."* Settling stamps
+  the order only when no lot is left unsettled. 2026-10-15. Source:
+  decision 9b.
+
 ## Numbering
 
-Every number from 1 to 140 has an entry, plus 26b and 26c. Two rulings carry the
+Every number from 1 to 146 has an entry, plus 26b and 26c. Two rulings carry the
 number 39; both are listed. No number is ever reused.

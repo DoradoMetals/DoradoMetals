@@ -90,17 +90,12 @@ States and screens the flow needs that no frame shows. The porter either gets a 
 
 Ruled: 1 sales lock at placement (131); 5 one payout method by default, "Add payout method" splits (132); 6 sale cancel only if nothing sent, refund first otherwise (133); 9 a purchase closes on the customer's payout, a sale when paid and delivered (134); 10 pooled sale shows ounces and dollars, refiner fee on the refiner order (135); 12 documents supersede, fixed set per kind (136); 13 photos many per lot, also on lead quote items (137); 18 mobile and state frames drawn first as component states (138); 19 Chat is the customer's thread (139); 20 done.
 
+Ruled 2026-10-15 (141-146): 2 proposed card; 3 header badge always; 4a Awaiting Finalize; 4b Cancelled chip; 7 lots combine or unlink, never delete; 8 return only inside cancel and only when goods moved, partial = new order; 9b refiner stays open until every lot settles.
+
 Still open, re-asked with links:
 
 | # | Question | Default if unanswered |
 |---|---|---|
-| 2 | List card: proposed 673:20375 or base 620:5115 | proposed |
-| 3 | State badge in the order header: always or never | always |
-| 4a | Rename the API state "Awaiting Payout" (it means not finalized) | rename to Awaiting Finalize |
-| 4b | A Cancelled chip on the state filter row 715:38985 | yes |
-| 7 | Lot row trash on a purchase: unlink and keep, or remove the trash | unlink and keep |
-| 8 | A return outside cancel | no, cancel path only |
-| 9b | Refiner sale stays open until every lot settles | yes |
 | 11 | Refiner lot Qty display only | yes |
 | 14 | Audit trail as an activity read over existing facts, field history later | yes |
 | 15 | Refunds (card only or also to credit), parcel claim record, address change after label, signature on delivery, our receiving account on the sale card | card refund only; claim record yes; address change by void and relabel; signature above a value TBD; receiving account not shown |
