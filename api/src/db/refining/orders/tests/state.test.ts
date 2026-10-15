@@ -96,3 +96,31 @@ test('the lot detail reads its refiner order through the same state expression',
     assert.equal(after?.where.refining_order?.state, 'Pending Assay')
   })
 })
+
+test('a buy order whose parcel arrived and whose payout to the refiner is Sent is Completed', async () => {
+  await inRollback(async (c: PoolClient) => {
+    const buyer = await aUser(c)
+    const sale = await anOrder(c, buyer, { direction: 'sale' }).withLots(1)
+    const buy = await aRefiningOrder(c, sale, { direction: 'buy' })
+    await sent(c, buy.id)
+    await c.query(
+      `INSERT INTO fulfillments.fulfillments (method_id, refining_order_id, status)
+       SELECT id, $1, 'DROPPED_OFF' FROM fulfillments.methods
+        WHERE category <> 'SHIPMENT' ORDER BY id LIMIT 1`,
+      [buy.id]
+    )
+    assert.equal((await refiningOrders.view(buy.id, c))?.state, 'Awaiting Payment')
+
+    await c.query(
+      `INSERT INTO payments.transfers (refining_order_id, kind, rail, state, amount)
+       VALUES ($1, 'payout', 'ACH', 'Processing', 100)`,
+      [buy.id]
+    )
+    assert.equal((await refiningOrders.view(buy.id, c))?.state, 'Awaiting Payment')
+
+    await c.query(`UPDATE payments.transfers SET state = 'Sent' WHERE refining_order_id = $1`, [
+      buy.id,
+    ])
+    assert.equal((await refiningOrders.view(buy.id, c))?.state, 'Completed')
+  })
+})

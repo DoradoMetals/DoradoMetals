@@ -7,7 +7,9 @@
 -- Cancelled wins. Then Completed, when every fact of that direction is done.
 -- Otherwise the label names the EARLIEST missing fact, so an admin who pays
 -- before the refiner settles still sees what is outstanding rather than a rung
--- the order skipped.
+-- the order skipped. A purchase is Completed only once its Sent or Received
+-- payouts and its credit together reach the transaction total, so one partial
+-- payout still reads Ready to Pay.
 CASE
   WHEN o.cancelled_at IS NOT NULL THEN 'Cancelled'
   WHEN o.direction = 'sale' THEN
@@ -63,11 +65,12 @@ CASE
                 AND EXISTS (SELECT 1 FROM orders.transactions tr
                              WHERE tr.order_id = o.id AND tr.total IS NOT NULL))
       THEN 'Awaiting Payout'
-      WHEN NOT (EXISTS (SELECT 1 FROM payments.transfers t
-                         WHERE t.order_id = o.id AND t.kind = 'payout'
-                           AND t.state IN ('Sent', 'Received'))
-                OR EXISTS (SELECT 1 FROM payments.ledger l
-                            WHERE l.order_id = o.id AND l.type = 'Credit'))
+      WHEN COALESCE((SELECT sum(t.amount) FROM payments.transfers t
+                      WHERE t.order_id = o.id AND t.kind = 'payout'
+                        AND t.state IN ('Sent', 'Received')), 0)
+         + COALESCE((SELECT sum(l.amount) FROM payments.ledger l
+                      WHERE l.order_id = o.id AND l.type = 'Credit'), 0)
+         < (SELECT sum(tr.total) FROM orders.transactions tr WHERE tr.order_id = o.id)
       THEN 'Ready to Pay'
       ELSE 'Completed'
     END

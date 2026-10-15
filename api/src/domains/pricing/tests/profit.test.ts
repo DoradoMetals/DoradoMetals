@@ -291,6 +291,7 @@ test('a pooled order settled through the real flow prices off its own settled_sp
       const refiner_id = rows[0]!.id
       const seller = await aUser(c)
       const order = await anOrder(c, seller, { direction: 'purchase' })
+        .withArrival()
         .withLines({ metal_id: 'Gold', pre_melt: 10, purity: 0.9, unit: 't oz', premium: 0.9 })
         .withSpots({ bid: 2300, ask: 2310 })
         .withTotals({})

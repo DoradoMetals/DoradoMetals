@@ -192,6 +192,25 @@ class OrderPlan implements PromiseLike<BuiltOrder> {
     return this
   }
 
+  withArrival(method = 'CARRIER DROPOFF'): this {
+    this.withFulfillment(method)
+    this.steps.push(async (c, order) => {
+      await c.query(
+        `UPDATE fulfillments.fulfillments SET status = 'DROPPED_OFF' WHERE order_id = $1`,
+        [order.id]
+      )
+      await c.query(
+        `UPDATE shipping.shipments s
+            SET shipping_status = 'Delivered', delivered_at = now()
+           FROM fulfillments.shipments fs
+           JOIN fulfillments.fulfillments f ON f.id = fs.fulfillment_id
+          WHERE fs.shipment_id = s.id AND f.order_id = $1 AND s.direction = 'Inbound'`,
+        [order.id]
+      )
+    })
+    return this
+  }
+
   withAddress(address: { id: string }): this {
     this.steps.push(async (c, order) => {
       const snapshot = await c.query<{ id: string }>(

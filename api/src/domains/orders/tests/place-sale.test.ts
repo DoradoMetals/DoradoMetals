@@ -354,6 +354,29 @@ test('an order fully covered by credit is born Preparing, with no intent attache
   })
 })
 
+test('a placed sale has its spots locked, with one lock event per frozen metal', async () => {
+  await inPinned(async (c: PoolClient) => {
+    const f = await fixtures(c)
+    assert.ok(f, 'no fixtures')
+    const checkout_id = await primeSaleCheckout(c, f)
+    await query(`UPDATE auth.users SET dorado_funds = 10000000 WHERE id = $1`, [f.user_id], c)
+
+    const order = await place.place(checkout_id, NO_SIDE_EFFECTS)
+    assert.ok(order, 'no order came back')
+    assert.equal(order.order.spots_locked, true, 'a placed sale prices its lines at the live ask')
+
+    const { rows } = await query<{ frozen: number; locks: number }>(
+      `SELECT (SELECT count(*)::int FROM orders.spots WHERE order_id = $1) AS frozen,
+              (SELECT count(*)::int FROM orders.spot_locks
+                WHERE order_id = $1 AND action = 'lock') AS locks`,
+      [order.order.id],
+      c
+    )
+    assert.ok(rows[0]!.frozen > 0)
+    assert.equal(rows[0]!.locks, rows[0]!.frozen, 'the lock was not recorded per metal')
+  })
+})
+
 test('placing a sale empties the checkout row it came from', async () => {
   await inPinned(async (c: PoolClient) => {
     const f = await fixtures(c)

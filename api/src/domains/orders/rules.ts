@@ -216,14 +216,21 @@ export function actionsFor(view: OrderViewFacts): OrderActions {
   if (view.shipments.length > 0) offered.push(offer('update_tracking'))
   if (purchase && !view.order.spots_locked) offered.push(offer('edit_lots'))
   if (purchase) offered.push(offer('assign_lots', finalizeConfirm(view)))
-  if (!view.order.spots_locked) offered.push(offer('lock_spots'))
-  if (view.order.spots_locked && !isFinalized(view)) offered.push(offer('unlock_spots'))
+  if (purchase && !view.order.spots_locked) offered.push(offer('lock_spots'))
+  if (purchase && view.order.spots_locked && !isFinalized(view)) offered.push(offer('unlock_spots'))
 
   return offered
 }
 
 export function orderViewForCustomer(view: OrderView): OrderView {
-  return { ...view, order: { ...view.order, notes: null, assigned_to_id: null } }
+  return {
+    ...view,
+    order: { ...view.order, notes: null, assigned_to_id: null },
+    shipments: view.shipments.map((shipment) =>
+      shipment.direction === 'Inbound' ? { ...shipment, label: null } : shipment
+    ),
+    actions: [],
+  }
 }
 
 export function orderListForCustomer(list: OrderList): OrderList {

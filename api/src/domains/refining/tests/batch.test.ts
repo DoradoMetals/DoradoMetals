@@ -153,3 +153,48 @@ test('a batch by order_ids that names no lots still finds or opens the draft', a
     })
   })
 })
+
+test('a lot removed from a refiner order is counted once in inventory, not twice', async () => {
+  await inRefining(async (c) => {
+    await asAdmin(TEST_ACTOR, async () => {
+      const refiner_id = await refinerId(c)
+      const onHand = await lots.create({ metal_id: 'Gold', pre_melt: 7, purity: 0.9 }, c)
+      const goldOnHand = async () =>
+        (await lots.inventoryByMetal(c)).find((row) => row.metal_id === 'Gold')!
+
+      const before = await goldOnHand()
+
+      const created = await request(app)
+        .post('/api/refining/orders')
+        .send({ refiner_id, direction: 'sell' })
+      assert.equal(created.status, 201, created.text)
+      const assigned = await request(app)
+        .post(`/api/refining/orders/${created.body.id}/lots`)
+        .send({ lot_ids: [onHand.id] })
+      assert.equal(assigned.status, 201, assigned.text)
+      const link = assigned.body[0]
+      const removed = await request(app).delete(`/api/refining/lots/${link.id}`)
+      assert.ok(removed.status < 300, removed.text)
+
+      const after = await goldOnHand()
+      assert.equal(after.on_hand_lots, before.on_hand_lots, 'the refiner copy came back as stock')
+      assert.ok(Math.abs(Number(after.on_hand_content) - Number(before.on_hand_content)) < 1e-9)
+
+      const listed = await lots.list(
+        {
+          positions: ['on hand'],
+          metal_id: 'Gold',
+          kind: null,
+          order_id: null,
+          refiner_id: null,
+          q: null,
+          unassigned: null,
+        },
+        c
+      )
+      const ids = listed.map((row) => row.id)
+      assert.ok(ids.includes(onHand.id), 'the source lot is not back on hand')
+      assert.ok(!ids.includes(link.lot_id), 'the orphaned refiner copy is listed as stock')
+    })
+  })
+})

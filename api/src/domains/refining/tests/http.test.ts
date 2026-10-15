@@ -96,7 +96,7 @@ test('a refiner order reads back by id, and an unknown one is a 404', async () =
       assert.equal(read.body.number, created.number)
       assert.equal(read.body.state, 'Draft', 'an unsent buy order is not a draft')
       assert.deepEqual(read.body.lots, [])
-      assert.equal(read.body.variance, null, 'an order with no lots reported a variance')
+      assert.deepEqual(read.body.fine_oz, [], 'an order with no lots reported fine ounces')
 
       const missing = await request(app).get(`/api/refining/orders/${anUnknownId()}`)
       assert.equal(missing.status, 404, `answered ${missing.status}`)
@@ -143,12 +143,14 @@ test('a disputed settlement is a timestamp, and the state follows it', async () 
 
 test('lots are assigned, listed, assayed and removed while the order is open', async () => {
   await inRefining(async (c) => {
-    const order = await anOrder(c, await aUser(c), { direction: 'purchase' }).withLots(2, {
-      metal_id: 'Gold',
-      pre_melt: 10,
-      purity: 0.9,
-      unit: 't oz',
-    })
+    const order = await anOrder(c, await aUser(c), { direction: 'purchase' })
+      .withArrival()
+      .withLots(2, {
+        metal_id: 'Gold',
+        pre_melt: 10,
+        purity: 0.9,
+        unit: 't oz',
+      })
     await asAdmin(admin, async () => {
       const created = await opened(c, 'sell')
 
@@ -190,7 +192,9 @@ test('lots are assigned, listed, assayed and removed while the order is open', a
 
 test('an unknown lot cannot be assigned, and a lot on a sent order comes off with a warning', async () => {
   await inRefining(async (c) => {
-    const order = await anOrder(c, await aUser(c), { direction: 'purchase' }).withLots(1)
+    const order = await anOrder(c, await aUser(c), { direction: 'purchase' })
+      .withArrival()
+      .withLots(1)
     await asAdmin(admin, async () => {
       const created = await opened(c, 'sell')
       const nobody = await request(app)
@@ -237,7 +241,9 @@ test('an order holding no lots cannot be sent', async () => {
 
 test('a settlement refuses a stranger, and a subset of the order still settles', async () => {
   await inRefining(async (c) => {
-    const order = await anOrder(c, await aUser(c), { direction: 'purchase' }).withLots(2)
+    const order = await anOrder(c, await aUser(c), { direction: 'purchase' })
+      .withArrival()
+      .withLots(2)
     await asAdmin(admin, async () => {
       const created = await opened(c, 'sell')
       const assigned = await request(app)
@@ -278,12 +284,14 @@ test('a settlement refuses a stranger, and a subset of the order still settles',
 
 test('a pool lock names a positive weight, and locking past what is available still succeeds', async () => {
   await inRefining(async (c) => {
-    const order = await anOrder(c, await aUser(c), { direction: 'purchase' }).withLots(1, {
-      metal_id: 'Gold',
-      pre_melt: 10,
-      purity: 0.9,
-      unit: 't oz',
-    })
+    const order = await anOrder(c, await aUser(c), { direction: 'purchase' })
+      .withArrival()
+      .withLots(1, {
+        metal_id: 'Gold',
+        pre_melt: 10,
+        purity: 0.9,
+        unit: 't oz',
+      })
     await asAdmin(admin, async () => {
       const refiner_id = await refinerId(c)
       const created = await opened(c, 'sell')

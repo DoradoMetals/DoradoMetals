@@ -45,16 +45,21 @@ export const RefiningTotals = z.object({
 })
 export type RefiningTotals = z.infer<typeof RefiningTotals>
 
+export const RefiningFineOz = Lot.pick({ metal_id: true }).extend({
+  estimated_content: Lot.shape.content,
+  settled_content: Lot.shape.content,
+  variance: Lot.shape.content,
+  pool_oz: Lot.shape.content,
+})
+export type RefiningFineOz = z.infer<typeof RefiningFineOz>
+
 export const RefiningOrderView = RefiningOrder.extend({
   number: z.string(),
   state: OrderState,
   refiner: RefinerView.nullable(),
   lots: z.array(RefiningLotView),
   pool: z.array(PoolBalance),
-  estimated_content: Lot.shape.content,
-  settled_content: Lot.shape.content,
-  variance: Lot.shape.content,
-  pool_oz: Lot.shape.content,
+  fine_oz: z.array(RefiningFineOz),
 }).extend({
   totals: RefiningTotals,
   expected_settlement: RefiningOrder.shape.fee,

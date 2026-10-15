@@ -11,6 +11,9 @@
 -- whichever way it points. Before this a sell order read `Pending assay` and a
 -- buy order `Awaiting Delivery` while the refiner had not been told the metal
 -- exists.
+--
+-- A buy order whose parcel has arrived and whose payout to the refiner is Sent
+-- is Completed (statuses.md, refiner purchase ladder).
 CASE WHEN ro.cancelled_at IS NOT NULL THEN 'Cancelled'
      WHEN ro.disputed_at IS NOT NULL THEN 'Disputed'
      WHEN ro.settled_at IS NOT NULL THEN 'Settled'
@@ -19,5 +22,10 @@ CASE WHEN ro.cancelled_at IS NOT NULL THEN 'Cancelled'
           AND NOT EXISTS (SELECT 1 FROM fulfillments.arrivals a
                            WHERE a.refining_order_id = ro.id AND a.arrived)
        THEN 'Awaiting Delivery'
+     WHEN ro.direction = 'buy'
+          AND EXISTS (SELECT 1 FROM payments.transfers t
+                       WHERE t.refining_order_id = ro.id AND t.kind = 'payout'
+                         AND t.state = 'Sent')
+       THEN 'Completed'
      WHEN ro.direction = 'buy' THEN 'Awaiting Payment'
      ELSE 'Pending Assay' END

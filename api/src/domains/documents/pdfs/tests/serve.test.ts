@@ -1,49 +1,18 @@
-import { test, afterAll, beforeAll } from 'vitest'
+import { test, afterAll } from 'vitest'
 import assert from 'node:assert/strict'
 import type { PoolClient } from 'pg'
-import { createHash, randomUUID } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
 import pool from '#pool'
 import { serveOrderDocument } from '#documents/pdfs/serve.ts'
-import * as orderRead from '#orders/read.ts'
+import { TEST_ACTOR } from '#shared/testing/actor.ts'
 import { LOCKS } from '#shared/testing/locks.ts'
-import { rollbackIn } from '#shared/testing/rollback.ts'
-
-type OrderFixture = { id: string }
-
-const inOrders = rollbackIn({ lock: LOCKS.ORDERS })
-
-let order: OrderFixture
-let owner: { id: string; role: string }
-
-beforeAll(async () => {
-  const client = await pool.connect()
-  await client.query('SELECT pg_advisory_lock($1)', [LOCKS.ORDERS])
-  const orders = (await orderRead.list({ direction: 'purchase' }))
-    .items as unknown as OrderFixture[]
-  assert.ok(orders.length > 0, 'dev has no purchase orders')
-
-  for (const o of orders) {
-    const { rows } = await client.query('SELECT user_id FROM orders.orders WHERE id = $1', [o.id])
-    if (rows.length && rows[0].user_id) {
-      order = o
-      owner = { id: rows[0].user_id, role: 'user' }
-      break
-    }
-  }
-  await client.query('SELECT pg_advisory_unlock($1)', [LOCKS.ORDERS])
-  client.release()
-  assert.ok(order, 'no dev purchase order exists in orders.orders')
-  assert.ok(owner.id, 'the linkable order has no user_id to own it')
-})
+import { inPinnedTransaction } from '#shared/testing/pinned-pool.ts'
+import { aUser, anOrder, aProduct } from '#shared/testing/builders/index.ts'
 
 afterAll(async () => {
   await pool.end()
 })
 
-const sha256 = (bytes: Buffer | Uint8Array | string) =>
-  createHash('sha256').update(bytes).digest('hex')
-
-const STORED = Buffer.from('%PDF-1.4 the bytes the customer was actually sent')
 const RENDERED = Buffer.from('%PDF-1.4 a fresh render of the request body')
 
 const renderer = () => {
@@ -57,218 +26,141 @@ const renderer = () => {
   }
 }
 
-const reader = (bytes: Buffer | null) => {
-  const paths: string[] = []
-  return {
-    paths,
-    read: async (path: string) => {
-      paths.push(path)
-      if (bytes === null) throw new Error('NoSuchKey: object deleted out-of-band')
-      return bytes
-    },
+async function anOwnedOrder(c: PoolClient, finalized: boolean) {
+  const user = await aUser(c, { name: 'Serve Owner' })
+  const product = await aProduct(c)
+  let plan = anOrder(c, user, { direction: 'purchase' }).withBullion(product, 1)
+  if (finalized) plan = plan.withSpots().withTotals({ total: 5200, shipping: 24.5, items: 5000 })
+  const order = await plan
+  if (finalized) {
+    await c.query('UPDATE orders.orders SET spots_locked = true WHERE id = $1', [order.id])
   }
+  return { order, owner: { id: user.id, role: 'user' } }
 }
 
-async function insertRow(
-  c: PoolClient,
-  { path, checksum, hoursAgo }: { path: string; checksum: string; hoursAgo: number }
-) {
-  await c.query(
-    `INSERT INTO media.pdfs (kind, order_id, path, size_bytes, checksum, created_at)
-     VALUES ('invoice', $1, $2, $3, $4, now() - make_interval(hours => $5))`,
-    [order.id, path, STORED.length, checksum, hoursAgo]
-  )
-}
-
-const pdfRowCount = async (c: PoolClient) => {
+const pdfRowCount = async (c: PoolClient, order_id: string) => {
   const { rows } = await c.query('SELECT count(*)::int AS n FROM media.pdfs WHERE order_id = $1', [
-    order.id,
+    order_id,
   ])
-  return rows[0].n
+  return rows[0].n as number
 }
 
-test('the LATEST stored row of the kind is the one served', async () => {
-  await inOrders(async (c: PoolClient) => {
-    await insertRow(c, { path: 'pdfs/x/old.pdf', checksum: sha256('stale'), hoursAgo: 2 })
-    await insertRow(c, { path: 'pdfs/x/new.pdf', checksum: sha256(STORED), hoursAgo: 1 })
-
-    const r = renderer()
-    const storage = reader(STORED)
-    const served = await serveOrderDocument(
-      { kind: 'invoice', order_id: order.id, caller: owner, render: r.render },
-      storage.read,
-      c
-    )
-
-    assert.equal(served.source, 'stored')
-    assert.deepEqual(Buffer.from(served.bytes), STORED)
-    assert.deepEqual(storage.paths, ['pdfs/x/new.pdf'], "the newest row's object, nothing else")
-    assert.equal(r.calls.length, 0, 'a stored document must not be re-rendered')
-  })
-})
-
-test('an admin who does not own the order still gets the stored document', async () => {
-  await inOrders(async (c: PoolClient) => {
-    await insertRow(c, { path: 'pdfs/x/new.pdf', checksum: sha256(STORED), hoursAgo: 1 })
-
-    const r = renderer()
-    const served = await serveOrderDocument(
-      {
-        kind: 'invoice',
+test('every download renders fresh and nothing is persisted by downloading', async () => {
+  await inPinnedTransaction(
+    async (c: PoolClient) => {
+      const { order, owner } = await anOwnedOrder(c, true)
+      const r = renderer()
+      const input = {
+        kind: 'invoice' as const,
         order_id: order.id,
-        caller: { id: randomUUID(), role: 'admin' },
+        caller: owner,
         render: r.render,
-      },
-      reader(STORED).read,
-      c
-    )
-    assert.equal(served.source, 'stored')
-    assert.equal(r.calls.length, 0)
-  })
-})
-
-test('no stored row: the fallback renders live AND persists, so the second download reads the store', async () => {
-  await inOrders(async (c: PoolClient) => {
-    assert.equal(await pdfRowCount(c), 0, 'the fixture order already has rows')
-
-    const r = renderer()
-    const storage = reader(STORED)
-    const served = await serveOrderDocument(
-      { kind: 'invoice', order_id: order.id, caller: owner, render: r.render },
-      storage.read,
-      c
-    )
-
-    assert.equal(served.source, 'rendered')
-    assert.deepEqual(Buffer.from(served.bytes), RENDERED)
-    assert.equal(r.calls.length, 1)
-    assert.deepEqual(storage.paths, [], 'there was nothing stored to read')
-
-    const { rows } = await c.query(
-      'SELECT kind, checksum, size_bytes FROM media.pdfs WHERE order_id = $1',
-      [order.id]
-    )
-    assert.equal(rows.length, 1, 'the fallback did not persist its render')
-    assert.equal(rows[0].kind, 'invoice')
-    assert.equal(rows[0].checksum, sha256(RENDERED))
-    assert.equal(Number(rows[0].size_bytes), RENDERED.length)
-
-    const second = renderer()
-    const secondStorage = reader(RENDERED)
-    const again = await serveOrderDocument(
-      { kind: 'invoice', order_id: order.id, caller: owner, render: second.render },
-      secondStorage.read,
-      c
-    )
-    assert.equal(again.source, 'stored')
-    assert.equal(second.calls.length, 0)
-  })
-})
-
-test('a storage miss falls back to a live render, never a 500', async () => {
-  await inOrders(async (c: PoolClient) => {
-    await insertRow(c, { path: 'pdfs/x/gone.pdf', checksum: sha256(STORED), hoursAgo: 1 })
-
-    const r = renderer()
-    const served = await serveOrderDocument(
-      { kind: 'invoice', order_id: order.id, caller: owner, render: r.render },
-      reader(null).read,
-      c
-    )
-
-    assert.equal(served.source, 'rendered', 'the download must not break over bookkeeping')
-    assert.deepEqual(Buffer.from(served.bytes), RENDERED)
-    assert.equal(r.calls.length, 1)
-    assert.equal(await pdfRowCount(c), 1)
-  })
-})
-
-test('stored bytes that no longer match their checksum are a miss, not a serve', async () => {
-  await inOrders(async (c: PoolClient) => {
-    await insertRow(c, {
-      path: 'pdfs/x/new.pdf',
-      checksum: sha256('what was really sent'),
-      hoursAgo: 1,
-    })
-
-    const served = await serveOrderDocument(
-      { kind: 'invoice', order_id: order.id, caller: owner, render: renderer().render },
-      reader(STORED).read,
-      c
-    )
-    assert.equal(served.source, 'rendered', 'corrupt bytes must not be served as the stored truth')
-  })
-})
-
-test('a caller who does not own the order is refused - nothing is rendered, read or stored', async () => {
-  await inOrders(async (c: PoolClient) => {
-    await insertRow(c, { path: 'pdfs/x/new.pdf', checksum: sha256(STORED), hoursAgo: 1 })
-
-    const r = renderer()
-    const storage = reader(STORED)
-    await assert.rejects(
-      () =>
-        serveOrderDocument(
-          {
-            kind: 'invoice',
-            order_id: order.id,
-            caller: { id: randomUUID(), role: 'user' },
-            render: r.render,
-          },
-          storage.read,
-          c
-        ),
-      (e: Error & { kind?: string }) => {
-        assert.equal(e.kind, 'not_found', 'a stranger must not learn the order exists')
-        return true
       }
-    )
 
-    assert.deepEqual(storage.paths, [], 'the store answered a caller the order does not belong to')
-    assert.equal(r.calls.length, 0, "a stranger's document was rendered and handed back")
-    assert.equal(await pdfRowCount(c), 1, "a stranger's render must not enter the paper trail")
-  })
+      const first = await serveOrderDocument(input, c)
+      const second = await serveOrderDocument(input, c)
+
+      assert.deepEqual(Buffer.from(first.bytes), RENDERED)
+      assert.deepEqual(Buffer.from(second.bytes), RENDERED)
+      assert.equal(r.calls.length, 2, 'the second download was served from a stored copy')
+      assert.equal(await pdfRowCount(c, order.id), 0, 'a download entered the paper trail')
+    },
+    { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.ADDRESSES, LOCKS.USERS] }
+  )
+})
+
+test('a stored copy never shadows a fresh render', async () => {
+  await inPinnedTransaction(
+    async (c: PoolClient) => {
+      const { order, owner } = await anOwnedOrder(c, true)
+      await c.query(
+        `INSERT INTO media.pdfs (kind, order_id, path, size_bytes, checksum)
+       VALUES ('invoice', $1, 'pdfs/x/old.pdf', 5, 'abc')`,
+        [order.id]
+      )
+      const r = renderer()
+      const served = await serveOrderDocument(
+        { kind: 'invoice', order_id: order.id, caller: owner, render: r.render },
+        c
+      )
+      assert.deepEqual(Buffer.from(served.bytes), RENDERED)
+      assert.equal(r.calls.length, 1)
+    },
+    { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.ADDRESSES, LOCKS.USERS] }
+  )
+})
+
+test('an invoice that is not available is refused before anything is rendered', async () => {
+  await inPinnedTransaction(
+    async (c: PoolClient) => {
+      const { order, owner } = await anOwnedOrder(c, false)
+      const r = renderer()
+      await assert.rejects(
+        () =>
+          serveOrderDocument(
+            { kind: 'invoice', order_id: order.id, caller: owner, render: r.render },
+            c
+          ),
+        /not available yet/
+      )
+      assert.equal(r.calls.length, 0)
+      assert.equal(await pdfRowCount(c, order.id), 0)
+    },
+    { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.ADDRESSES, LOCKS.USERS] }
+  )
+})
+
+test('a caller who does not own the order is refused - nothing is rendered', async () => {
+  await inPinnedTransaction(
+    async (c: PoolClient) => {
+      const { order } = await anOwnedOrder(c, true)
+      const r = renderer()
+      await assert.rejects(
+        () =>
+          serveOrderDocument(
+            {
+              kind: 'invoice',
+              order_id: order.id,
+              caller: { id: randomUUID(), role: 'user' },
+              render: r.render,
+            },
+            c
+          ),
+        (e: Error & { kind?: string }) => e.kind === 'not_found'
+      )
+      assert.equal(r.calls.length, 0)
+    },
+    { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.ADDRESSES, LOCKS.USERS] }
+  )
 })
 
 test('an anonymous caller is refused, and an admin is not', async () => {
-  await inOrders(async (c: PoolClient) => {
-    const anonymous = renderer()
-    await assert.rejects(
-      () =>
-        serveOrderDocument(
-          { kind: 'invoice', order_id: order.id, caller: null, render: anonymous.render },
-          reader(STORED).read,
-          c
-        ),
-      /no order/
-    )
-    assert.equal(anonymous.calls.length, 0)
+  await inPinnedTransaction(
+    async (c: PoolClient) => {
+      const { order } = await anOwnedOrder(c, true)
+      const anonymous = renderer()
+      await assert.rejects(
+        () =>
+          serveOrderDocument(
+            { kind: 'invoice', order_id: order.id, caller: null, render: anonymous.render },
+            c
+          ),
+        /no order/
+      )
+      assert.equal(anonymous.calls.length, 0)
 
-    const admin = renderer()
-    const served = await serveOrderDocument(
-      {
-        kind: 'invoice',
-        order_id: order.id,
-        caller: { id: randomUUID(), role: 'admin' },
-        render: admin.render,
-      },
-      reader(STORED).read,
-      c
-    )
-    assert.equal(served.source, 'rendered')
-    assert.equal(admin.calls.length, 1)
-  })
-})
-
-test('the default reader refuses in a test run, and the download still answers', async () => {
-  await inOrders(async (c: PoolClient) => {
-    await insertRow(c, { path: 'pdfs/x/new.pdf', checksum: sha256(STORED), hoursAgo: 1 })
-
-    const served = await serveOrderDocument(
-      { kind: 'invoice', order_id: order.id, caller: owner, render: renderer().render },
-      undefined,
-      c
-    )
-    assert.equal(served.source, 'rendered')
-  })
+      const admin = renderer()
+      await serveOrderDocument(
+        {
+          kind: 'invoice',
+          order_id: order.id,
+          caller: { id: randomUUID(), role: 'admin' },
+          render: admin.render,
+        },
+        c
+      )
+      assert.equal(admin.calls.length, 1)
+    },
+    { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.ADDRESSES, LOCKS.USERS] }
+  )
 })

@@ -233,6 +233,12 @@ export async function addFunds(
   }
 
   await withTransaction(async (tx) => {
+    await credit.lockBalance(order.order.user_id, tx)
+    rules.assertCreditOverride(
+      await ledger.hasCreditFor(order_id, tx),
+      body.override_reason,
+      order.order.number
+    )
     await credit.addFunds(order.order.user_id, amount, tx)
     await ledger.addTransactionLog(
       { user_id: order.order.user_id, type: 'Credit', order_id, amount },

@@ -432,3 +432,32 @@ test('the documents a method prints, and the one that waits for finalization', (
     true
   )
 })
+
+test('spot lock actions are offered on a purchase only, since the spots PUT refuses a sale', () => {
+  const sold = rules.actionsFor(facts(order({ direction: 'sale', spots_locked: false })))
+  assert.equal(hasAction(sold, 'lock_spots'), false)
+  const soldLocked = rules.actionsFor(facts(order({ direction: 'sale', spots_locked: true })))
+  assert.equal(hasAction(soldLocked, 'unlock_spots'), false)
+  assert.equal(
+    hasAction(rules.actionsFor(facts(order({ spots_locked: false }))), 'lock_spots'),
+    true
+  )
+})
+
+test("a customer's copy carries no actions and no inbound label", () => {
+  const view = {
+    ...facts({
+      shipments: [
+        { direction: 'Inbound', tracking_number: '794', label: 'base64-label' },
+        { direction: 'Outbound', tracking_number: '795', label: 'outbound-label' },
+      ] as Facts['shipments'],
+    }),
+    actions: [
+      { name: 'send_payment', confirm: 'Refiner has not settled 2 of 5 lots', override: null },
+    ],
+  } as OrderView
+  const seen = rules.orderViewForCustomer(view)
+  assert.deepEqual(seen.actions, [])
+  assert.equal(seen.shipments[0]!.label, null)
+  assert.equal(seen.shipments[1]!.label, 'outbound-label')
+})

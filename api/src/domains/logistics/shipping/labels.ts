@@ -44,7 +44,7 @@ export async function sealForPlacement(
   const service = await carrierServices.labelServiceFor(shipment.carrier_service_id!, tx)
   const quote = await pricing.priceCheckout(checkout_id, tx)
   const declaredValue = await carrierServices.clampInsuredValue(
-    rules.declaredValue(quote.direction === 'purchase' ? quote.total : 0),
+    rules.declaredValue(quote.direction === 'purchase' ? quote.total : quote.item_total),
     service.code
   )
   const handoff = rules.handoffFor(await handoffsService.getHandoffs(), method_type)
