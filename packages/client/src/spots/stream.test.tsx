@@ -142,6 +142,7 @@ describe('useSpotTicker', () => {
       {
         metal_id: 'Gold',
         price: 10,
+        ask: 11,
         percent_change: 1,
         direction: 'up',
         at: '2026-01-01T00:00:00Z',
