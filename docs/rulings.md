@@ -624,7 +624,30 @@ file named at the top of this file.
   the order only when no lot is left unsettled. 2026-10-15. Source:
   decision 9b.
 
+- **147 — A refiner lot's quantity is display only** (Jacob unsure; the
+  orchestrator's default, open to veto): the Item Row / Refiner Qty cell
+  stops being an input. 2026-10-15. Source: decision 11.
+- **148 — The order audit trail is an activity read over stored facts.**
+  *"A now, yeah."* One read lists who placed, locked, priced, paid, sent and
+  settled, from the stamps and events that already exist; field-level
+  history comes later if ever. 2026-10-15. Source: decision 14.
+- **149 — Refunds, claims, relabel and signature.** Refunds are card refunds
+  through Stripe for now, modelled so other sale payment methods (crypto,
+  wire, ACH) can carry their own refund later. A lost or damaged parcel gets
+  a claim record on the shipment. An address change after a label voids it
+  and relabels; that is the only path. Sales order parcels require a
+  signature on delivery; purchase orders keep the prior business logic.
+  2026-10-15. Source: decision 15.
+- **150 — A save from a stale screen is refused** (409 on `expected_updated_at`)
+  for order, lot and refiner order edits. *"Sure."* 2026-10-15. Source:
+  decision 16.
+- **151 — Bulk actions are the actions every selected order shares.** The
+  selection bar offers "Batch into" and "Send to", each enabled only when
+  every selected order offers that action; the right-click context menu
+  holds the card's own `actions[]`. *"Figure that one out."* The
+  orchestrator's call, open to veto. 2026-10-15. Source: decision 17.
+
 ## Numbering
 
-Every number from 1 to 146 has an entry, plus 26b and 26c. Two rulings carry the
+Every number from 1 to 151 has an entry, plus 26b and 26c. Two rulings carry the
 number 39; both are listed. No number is ever reused.

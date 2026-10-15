@@ -92,15 +92,7 @@ Ruled: 1 sales lock at placement (131); 5 one payout method by default, "Add pay
 
 Ruled 2026-10-15 (141-146): 2 proposed card; 3 header badge always; 4a Awaiting Finalize; 4b Cancelled chip; 7 lots combine or unlink, never delete; 8 return only inside cancel and only when goods moved, partial = new order; 9b refiner stays open until every lot settles.
 
-Still open, re-asked with links:
-
-| # | Question | Default if unanswered |
-|---|---|---|
-| 11 | Refiner lot Qty display only | yes |
-| 14 | Audit trail as an activity read over existing facts, field history later | yes |
-| 15 | Refunds (card only or also to credit), parcel claim record, address change after label, signature on delivery, our receiving account on the sale card | card refund only; claim record yes; address change by void and relabel; signature above a value TBD; receiving account not shown |
-| 16 | Refuse a save from a stale screen (409) on order and lot edits | yes |
-| 17 | Context menu 619:4750 actions; selection bar label and bulk actions | menu = the card's actions; "Batch into"; Batch only |
+Ruled 2026-10-15 (147-151): 11 refiner Qty display only (default); 14 activity read over facts; 15 card refunds only for now, claim record yes, void and relabel, signature on sale parcels; 16 refuse stale saves; 17 bulk actions are the shared actions, Batch into and Send to. Every decision is answered.
 
 ## 6. Proposed port order
 
