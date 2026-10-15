@@ -132,12 +132,40 @@ SELECT
                        WHERE p.refiner_id = ro.refiner_id
                        GROUP BY p.refiner_id, p.metal_id) bal
                 LEFT JOIN spots.resolved sp ON sp.metal_id = bal.metal_id), '[]'::jsonb),
-            'estimated_content', sums.estimated,
-            'settled_content', sums.settled,
-            'variance', CASE WHEN sums.settled IS NULL OR sums.estimated IS NULL THEN NULL
-                             ELSE sums.settled - sums.estimated END,
-            'pool_oz', (SELECT sum(p.troy_oz) FROM inventory.pool p
-                         WHERE p.refining_order_id = ro.id),
+            'fine_oz', COALESCE((
+              SELECT jsonb_agg(jsonb_build_object(
+                       'metal_id', fm.metal_id,
+                       'estimated_content', est.oz,
+                       'settled_content', st.oz,
+                       'variance', CASE WHEN st.oz IS NULL OR est.oz IS NULL THEN NULL
+                                        ELSE st.oz - est.oz END,
+                       'pool_oz', pz.oz)
+                       ORDER BY fm.metal_id)
+                FROM (SELECT fli.metal_id
+                        FROM refining.lots frl
+                        JOIN inventory.lots fli ON fli.id = frl.lot_id
+                       WHERE frl.refining_order_id = ro.id
+                      UNION
+                      SELECT fp.metal_id FROM inventory.pool fp
+                       WHERE fp.refining_order_id = ro.id) fm
+                LEFT JOIN LATERAL (
+                       SELECT sum(sl.content * sl.quantity) AS oz
+                         FROM refining.lots rl2
+                         JOIN inventory.lot_sources e ON e.lot_id = rl2.lot_id AND e.kind = 'batch'
+                         JOIN inventory.lots sl ON sl.id = e.source_lot_id
+                        WHERE rl2.refining_order_id = ro.id AND sl.metal_id = fm.metal_id
+                     ) est ON TRUE
+                LEFT JOIN LATERAL (
+                       SELECT sum(li2.content * li2.quantity) AS oz
+                         FROM refining.lots rl2
+                         JOIN inventory.lots li2 ON li2.id = rl2.lot_id
+                        WHERE rl2.refining_order_id = ro.id AND li2.metal_id = fm.metal_id
+                          AND li2.settled_at IS NOT NULL
+                     ) st ON TRUE
+                LEFT JOIN LATERAL (
+                       SELECT sum(p.troy_oz) AS oz FROM inventory.pool p
+                        WHERE p.refining_order_id = ro.id AND p.metal_id = fm.metal_id
+                     ) pz ON TRUE), '[]'::jsonb),
             'expected_settlement', money.expected_settlement,
             'totals', jsonb_build_object(
               'fee', money.fee,
@@ -155,10 +183,11 @@ SELECT
                        'city', bound.city,
                        'stage', bound.stage))
                 FROM refining.lots rl3
-                JOIN inventory.lot_sources sale_edge ON sale_edge.source_lot_id = rl3.lot_id
-                                                     AND sale_edge.kind = 'sale'
-                JOIN orders.lots sol3 ON sol3.lot_id = sale_edge.lot_id
+                JOIN inventory.lot_sources batch_edge ON batch_edge.lot_id = rl3.lot_id
+                                                      AND batch_edge.kind = 'batch'
+                JOIN orders.lots sol3 ON sol3.lot_id = batch_edge.source_lot_id
                 JOIN orders.orders so ON so.id = sol3.order_id
+                                     AND so.direction = 'sale'
                 LEFT JOIN LATERAL (
                        SELECT bu.name,
                               (SELECT ba.city
@@ -179,7 +208,8 @@ SELECT
                          FROM auth.users bu
                         WHERE bu.id = so.user_id
                      ) bound ON TRUE
-               WHERE rl3.refining_order_id = ro.id), '[]'::jsonb),
+               WHERE rl3.refining_order_id = ro.id
+                 AND ro.direction = 'buy'), '[]'::jsonb),
             'payment', CASE WHEN ro.direction = 'sell' AND ro.settlement_type = 'pooled' THEN NULL
               ELSE jsonb_build_object(
                      'order_id', NULL,
@@ -214,18 +244,6 @@ SELECT
                          WHERE d.id = pmt.details_id))
               END) AS view
   FROM refining.orders ro
-  LEFT JOIN LATERAL (
-         SELECT
-           (SELECT sum(sl.content * sl.quantity)
-              FROM refining.lots rl2
-              JOIN inventory.lot_sources e ON e.lot_id = rl2.lot_id AND e.kind = 'batch'
-              JOIN inventory.lots sl ON sl.id = e.source_lot_id
-             WHERE rl2.refining_order_id = ro.id) AS estimated,
-           (SELECT sum(li2.content * li2.quantity)
-              FROM refining.lots rl2
-              JOIN inventory.lots li2 ON li2.id = rl2.lot_id
-             WHERE rl2.refining_order_id = ro.id) AS settled
-       ) sums ON TRUE
   LEFT JOIN refining.order_money money ON money.refining_order_id = ro.id
   LEFT JOIN LATERAL (
          SELECT * FROM payments.transfers pt

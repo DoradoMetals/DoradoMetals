@@ -38,6 +38,18 @@ export function assertDocumentAvailable(
   }
 }
 
+export function listedKind(kind: string): string {
+  return kind === 'sales_order_invoice' ? 'invoice' : kind
+}
+
+export function assertServable(document: OrderDocument | undefined, kind: string): void {
+  if (document && !document.available) {
+    throw new Invalid(
+      `the ${document.name} is not available yet - finalize the order before downloading ${kind}`
+    )
+  }
+}
+
 export function assertRendered(
   bytes: Uint8Array | null,
   name: string

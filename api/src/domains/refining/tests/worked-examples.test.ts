@@ -37,6 +37,7 @@ const aMixedOrder = async (c: PoolClient) => {
     purity: 0.999,
   })
   const order = await anOrder(c, seller, { direction: 'purchase' })
+    .withArrival()
     .withLines(
       { metal_id: 'Gold', pre_melt: 10, purity: 0.9, unit: 't oz', premium: 0.9 },
       { metal_id: 'Silver', pre_melt: 100, purity: 0.925, unit: 't oz', premium: 0.85 }
@@ -373,18 +374,23 @@ test('a pooled order takes the market spot automatically, and refuses one entere
   })
 })
 
-test('the settlement view sums estimated and settled fine oz, and their variance', async () => {
+test('the settlement view keeps fine oz per metal and counts only settled lots as settled', async () => {
   await inOrders(async (c) => {
     const { order } = await aMixedOrder(c)
     const [r1] = await refinerIds(c)
     const engagement = await refining.create({ refiner_id: r1!, direction: 'sell' })
-    const assigned = await refining.assignLots(engagement.id, [order.lots[0]!.lot_id])
+    await refining.assignLots(engagement.id, [order.lots[0]!.lot_id, order.lots[1]!.lot_id])
     await refining.send(engagement.id)
 
+    const goldLot = await c.query<{ lot_id: string }>(
+      `SELECT rl.lot_id FROM refining.lots rl JOIN inventory.lots li ON li.id = rl.lot_id
+        WHERE rl.refining_order_id = $1 AND li.metal_id = 'Gold'`,
+      [engagement.id]
+    )
     const settled = await refining.settle(engagement.id, {
       lots: [
         {
-          lot_id: assigned[0]!.lot_id,
+          lot_id: goldLot.rows[0]!.lot_id,
           post_melt: 10.5,
           purity: 0.9,
           unit: 't oz',
@@ -392,9 +398,18 @@ test('the settlement view sums estimated and settled fine oz, and their variance
         },
       ],
     })
-    close(settled.estimated_content, 9, 'the declared fine oz')
-    close(settled.settled_content, 10.5 * 0.9, 'the assayed fine oz')
-    close(settled.variance, 10.5 * 0.9 - 9, 'the variance is settled minus estimated')
+    assert.deepEqual(
+      settled.fine_oz.map((row) => row.metal_id),
+      ['Gold', 'Silver'],
+      'one fine-oz row per metal, never one sum across metals'
+    )
+    const [goldOz, silverOz] = settled.fine_oz
+    close(goldOz!.estimated_content, 9, 'the declared gold fine oz')
+    close(goldOz!.settled_content, 10.5 * 0.9, 'the assayed gold fine oz')
+    close(goldOz!.variance, 10.5 * 0.9 - 9, 'the variance is settled minus estimated')
+    close(silverOz!.estimated_content, 92.5, 'the declared silver fine oz')
+    assert.equal(silverOz!.settled_content, null, 'an unsettled lot counted as settled')
+    assert.equal(silverOz!.variance, null)
   })
 })
 
@@ -409,11 +424,6 @@ test("linked_orders derives a buy order's sales through lots, with no stored ord
     const engagement = await refining.supplyOrder(sale.id, r1!)
     const held = await refining.lotsFor(engagement.id)
     assert.equal(held.length, 1)
-
-    await c.query(
-      `INSERT INTO inventory.lot_sources (lot_id, source_lot_id, kind) VALUES ($1, $2, 'sale')`,
-      [sale.lots[0]!.lot_id, held[0]!.lot_id]
-    )
 
     const view = await refining.view(engagement.id)
     const linked = view.linked_orders.find((row) => row.id === sale.id)

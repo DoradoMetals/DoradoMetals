@@ -43,6 +43,7 @@ const anOrderToRender = async (c: PoolClient, direction: 'purchase' | 'sale') =>
     .withSpots()
     .withAddress(address)
     .withTotals({ total: 5200, shipping: 24.5, items: 5000 })
+  await c.query('UPDATE orders.orders SET spots_locked = true WHERE id = $1', [built.id])
   await aShipment(c, built, { method: direction === 'purchase' ? 'CARRIER DROPOFF' : 'DROPSHIP' })
   return { order: { id: built.id }, owner: user }
 }

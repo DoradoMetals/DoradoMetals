@@ -207,6 +207,7 @@ async function placeSale(checkout: Checkout, cart: Lot[], world: typeof LIVE): P
       (order, client) => orderLots.createSold(order, checkout.id, lines, client),
       tx
     )
+    await orderSpotsService.applyLock(id, true, tx)
     await orderTransactions.create(
       {
         order_id: id,

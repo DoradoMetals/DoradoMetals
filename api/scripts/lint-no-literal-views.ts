@@ -53,7 +53,6 @@ const ACCEPTED: Record<string, { count: number; why: string }> = {
   'domains/documents/pdfs/render/documents/invoice.ts': { count: 2, why: PROPS },
   'domains/documents/pdfs/render/documents/parties.ts': { count: 2, why: PROPS },
   'domains/documents/pdfs/render/documents/rows.ts': { count: 2, why: PROPS },
-  'domains/documents/pdfs/serve.ts': { count: 3, why: RESULT },
   'domains/orders/place.ts': { count: 3, why: RESULT },
   'domains/transactions/details/service.ts': { count: 2, why: CRUD },
   'domains/transactions/sweeps.ts': { count: 1, why: RESULT },

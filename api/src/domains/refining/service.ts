@@ -145,6 +145,9 @@ export async function settlementLinesFor(id: string): Promise<SettlementLine[]> 
 
 export async function patch(id: string, changes: RefiningOrderPatch): Promise<RefiningOrderRead> {
   rules.assertNamesAField(changes)
+  const order = await refiningOrders.getOne(id)
+  rules.assertRefiningOrder(order, id)
+  rules.assertPatchable(order, changes)
   const written = await withTransaction((tx) => refiningOrders.update(id, changes, tx))
   rules.assertRefiningOrder(written, id)
   return await view(id)
@@ -160,8 +163,12 @@ export async function assignLots(
 ): Promise<RefiningLot[]> {
   const order = await refiningOrders.getOne(refining_order_id)
   rules.assertRefiningOrder(order, refining_order_id)
+  rules.assertTakesLots(order)
   rules.assertLotsExist(await lots.getByIds(lot_ids), lot_ids)
   rules.assertUnassigned(await refiningLots.alreadyBatched(lot_ids), lot_ids)
+  rules.assertOnHandNamed(
+    (await lots.positionsOf(lot_ids)).filter((row) => row.position !== 'on hand')
+  )
 
   return await withTransaction((tx) => refiningLots.assign(refining_order_id, lot_ids, tx))
 }
@@ -171,6 +178,7 @@ export async function removeLot(id: string): Promise<void> {
   rules.assertRefiningLot(lot, id)
   const order = await refiningOrders.getOne(lot.refining_order_id)
   rules.assertRefiningOrder(order, lot.refining_order_id)
+  rules.assertLotRemovable(order)
   await withTransaction(async (tx) => rules.assertLotRemoved(await refiningLots.remove(id, tx), id))
 }
 

@@ -68,7 +68,7 @@ async function finalizeOrder(c: PoolClient, order_id: string, total = 1000): Pro
   await c.query(`UPDATE orders.orders SET spots_locked = true WHERE id = $1`, [order_id])
 }
 
-async function sendPayout(c: PoolClient, order: BuiltOrder): Promise<void> {
+async function sendPayout(c: PoolClient, order: BuiltOrder, amount = 1000): Promise<void> {
   await transfers.create(
     {
       order_id: order.id,
@@ -76,7 +76,7 @@ async function sendPayout(c: PoolClient, order: BuiltOrder): Promise<void> {
       kind: 'payout',
       rail: 'ACH',
       state: 'Sent',
-      amount: 1000,
+      amount,
       counterparty_user_id: order.user_id,
       details_id: null,
       bank_link_id: null,
@@ -100,9 +100,7 @@ test('purchase: cancelled wins over everything else', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
       const user = await aUser(c)
-      const order = await anOrder(c, user, { direction: 'purchase' })
-        .withLots(1)
-        .withFulfillment()
+      const order = await anOrder(c, user, { direction: 'purchase' }).withLots(1).withFulfillment()
       await c.query(`UPDATE orders.orders SET cancelled_at = now() WHERE id = $1`, [order.id])
       await assertState(order.id, 'Cancelled')
     },
@@ -114,9 +112,7 @@ test('purchase: a fresh order with an unreceived parcel awaits receipt', async (
   await inPinnedTransaction(
     async (c: PoolClient) => {
       const user = await aUser(c)
-      const order = await anOrder(c, user, { direction: 'purchase' })
-        .withLots(1)
-        .withFulfillment()
+      const order = await anOrder(c, user, { direction: 'purchase' }).withLots(1).withFulfillment()
       await assertState(order.id, 'Awaiting Receipt')
     },
     { actor: TEST_ACTOR.id, lock: LOCK }
@@ -127,9 +123,7 @@ test('purchase: metal at the refiner, unsettled', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
       const user = await aUser(c)
-      const order = await anOrder(c, user, { direction: 'purchase' })
-        .withLots(1)
-        .withFulfillment()
+      const order = await anOrder(c, user, { direction: 'purchase' }).withLots(1).withFulfillment()
       await markDelivered(c, order.id)
       const engagement = await aRefiningOrder(c, order, { direction: 'sell' })
       await c.query(`UPDATE refining.orders SET sent_at = now() WHERE id = $1`, [engagement.id])
@@ -143,9 +137,7 @@ test('purchase: received and not yet finalized awaits payout', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
       const user = await aUser(c)
-      const order = await anOrder(c, user, { direction: 'purchase' })
-        .withLots(1)
-        .withFulfillment()
+      const order = await anOrder(c, user, { direction: 'purchase' }).withLots(1).withFulfillment()
       await markDelivered(c, order.id)
       await assertState(order.id, 'Awaiting Payout')
     },
@@ -157,9 +149,7 @@ test('purchase: finalized with no payout sent is ready to pay', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
       const user = await aUser(c)
-      const order = await anOrder(c, user, { direction: 'purchase' })
-        .withLots(1)
-        .withFulfillment()
+      const order = await anOrder(c, user, { direction: 'purchase' }).withLots(1).withFulfillment()
       await markDelivered(c, order.id)
       await finalizeOrder(c, order.id)
       await assertState(order.id, 'Ready to Pay')
@@ -172,12 +162,29 @@ test('purchase: a sent payout completes the order', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
       const user = await aUser(c)
-      const order = await anOrder(c, user, { direction: 'purchase' })
-        .withLots(1)
-        .withFulfillment()
+      const order = await anOrder(c, user, { direction: 'purchase' }).withLots(1).withFulfillment()
       await markDelivered(c, order.id)
       await finalizeOrder(c, order.id)
       await sendPayout(c, order)
+      await assertState(order.id, 'Completed')
+    },
+    { actor: TEST_ACTOR.id, lock: LOCK }
+  )
+})
+
+test('purchase: a partial payout stays Ready to Pay until payouts and credit reach the total', async () => {
+  await inPinnedTransaction(
+    async (c: PoolClient) => {
+      const user = await aUser(c)
+      const order = await anOrder(c, user, { direction: 'purchase' }).withLots(1).withFulfillment()
+      await markDelivered(c, order.id)
+      await finalizeOrder(c, order.id, 1000)
+      await sendPayout(c, order, 400)
+      await assertState(order.id, 'Ready to Pay')
+      await c.query(
+        `INSERT INTO payments.ledger (user_id, type, order_id, amount) VALUES ($1, 'Credit', $2, 600)`,
+        [user.id, order.id]
+      )
       await assertState(order.id, 'Completed')
     },
     { actor: TEST_ACTOR.id, lock: LOCK }
@@ -188,9 +195,7 @@ test('purchase OUT OF ORDER: paid before the refiner settles still reads At Refi
   await inPinnedTransaction(
     async (c: PoolClient) => {
       const user = await aUser(c)
-      const order = await anOrder(c, user, { direction: 'purchase' })
-        .withLots(1)
-        .withFulfillment()
+      const order = await anOrder(c, user, { direction: 'purchase' }).withLots(1).withFulfillment()
       await markDelivered(c, order.id)
       const engagement = await aRefiningOrder(c, order, { direction: 'sell' })
       await c.query(`UPDATE refining.orders SET sent_at = now() WHERE id = $1`, [engagement.id])
@@ -291,9 +296,7 @@ test('send_payment names the unsettled lots, and drops the reason once every one
   await inPinnedTransaction(
     async (c: PoolClient) => {
       const user = await aUser(c)
-      const order = await anOrder(c, user, { direction: 'purchase' })
-        .withLots(1)
-        .withFulfillment()
+      const order = await anOrder(c, user, { direction: 'purchase' }).withLots(1).withFulfillment()
       await markDelivered(c, order.id)
       await finalizeOrder(c, order.id)
       const engagement = await aRefiningOrder(c, order, { direction: 'sell' })

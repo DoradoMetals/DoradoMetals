@@ -16,6 +16,7 @@ import type {
   RefiningLotView,
   RefiningOrder,
   RefiningOrderActions,
+  RefiningOrderPatch,
   RefiningOrderRead,
   RefiningOrderView,
   RefiningSettlementLot,
@@ -83,6 +84,44 @@ export function assertCancellable(order: RefiningOrder): void {
   }
   if (order.cancelled_at !== null) {
     throw new Conflict(`refiner order ${order.number} is already cancelled`)
+  }
+}
+
+export function assertTakesLots(order: RefiningOrder): void {
+  if (order.cancelled_at !== null) {
+    throw new Conflict(`refiner order ${order.number} is cancelled, so it takes no lots`)
+  }
+  if (order.settled_at !== null) {
+    throw new Conflict(`refiner order ${order.number} is settled, so it takes no lots`)
+  }
+  if (order.direction !== 'sell') {
+    throw new Invalid(
+      `refiner order ${order.number} is a ${order.direction} order - stock goes out on a sell ` +
+        `order, and a buy order takes its lots from the sales order it supplies`
+    )
+  }
+}
+
+export function assertLotRemovable(order: RefiningOrder): void {
+  if (order.settled_at !== null) {
+    throw new Conflict(
+      `refiner order ${order.number} is settled - its lots are the refiner's figures now`
+    )
+  }
+}
+
+export function assertPatchable(order: RefiningOrder, changes: RefiningOrderPatch): void {
+  const changed = (key: keyof RefiningOrderPatch) =>
+    changes[key] !== undefined && changes[key] !== order[key]
+  if (order.settled_at !== null && changed('settlement_type')) {
+    throw new Conflict(
+      `refiner order ${order.number} is settled, so its settlement type cannot change`
+    )
+  }
+  if (order.sent_at !== null && (changed('refiner_id') || changed('location_id'))) {
+    throw new Conflict(
+      `refiner order ${order.number} has been sent, so its refiner and location cannot change`
+    )
   }
 }
 
@@ -263,7 +302,6 @@ export function actionsFor(view: RefiningOrderView): RefiningOrderActions {
   if (open && view.sent_at !== null) {
     offered.push(offer('settle', settlementConfirm(view.lots) ?? premiumConfirm(view.lots)))
   }
-  if (open && view.sent_at !== null) offered.push(offer('dispute'))
   if (open) offered.push(offer('cancel'))
   if (view.settled_at !== null) offered.push(offer('lock_ounces'))
   if (notCancelled && view.direction === 'buy') {

@@ -65,6 +65,7 @@ const aPurchaseOrder = async (
 ) => {
   const seller = await aUser(c)
   const order = await anOrder(c, seller, { direction: 'purchase' })
+    .withArrival()
     .withLines({ metal_id, pre_melt, purity, unit: 't oz', premium })
     .withSpots({ bid, ask })
     .withTotals({})

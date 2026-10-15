@@ -21,6 +21,7 @@ const lines = async (c: PoolClient) => {
   const customer = await aUser(c)
   const product = await aProduct(c)
   const order = await anOrder(c, customer, { direction: 'purchase' })
+    .withArrival()
     .withBullion(product, 1)
     .withLots(1, { metal_id: 'Gold', pre_melt: 10, purity: 0.585 })
     .withSpots()
@@ -95,15 +96,15 @@ test('an unassigned lot names no refiner order, and an assigned one names it', a
         const before = await request(app).get(`/api/orders/${item.order_id}/lots`)
         assert.equal(before.status, 200, `answered ${before.status}`)
         assert.ok(
-          before.body.every((row: { refining_order_number: number | null }) =>
-            row.refining_order_number === null
+          before.body.every(
+            (row: { refining_order_number: number | null }) => row.refining_order_number === null
           ),
           'a freshly placed lot already claims a refiner order'
         )
 
         const created = await request(app)
           .post('/api/refining/orders')
-          .send({ refiner_id: (await refinerId(client)), direction: 'sell' })
+          .send({ refiner_id: await refinerId(client), direction: 'sell' })
         assert.equal(created.status, 201, `answered ${created.status}`)
 
         const assigned = await request(app)
@@ -189,7 +190,9 @@ test('DELETE removes the link and the lot together', async () => {
         const link = await client.query(`SELECT 1 FROM orders.lots WHERE id = $1`, [scrapItem.id])
         assert.equal(link.rows.length, 0, 'the order link survived')
 
-        const lot = await client.query(`SELECT 1 FROM inventory.lots WHERE id = $1`, [scrapItem.lot_id])
+        const lot = await client.query(`SELECT 1 FROM inventory.lots WHERE id = $1`, [
+          scrapItem.lot_id,
+        ])
         assert.equal(lot.rows.length, 0, 'the physical lot survived its only link')
       })
     },

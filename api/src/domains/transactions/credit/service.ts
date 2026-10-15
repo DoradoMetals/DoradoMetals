@@ -40,6 +40,11 @@ export async function getBalance(user_id: string): Promise<number | null | undef
   return await users.balance(user_id)
 }
 
+export async function lockBalance(user_id: string | null, tx: Executor): Promise<void> {
+  if (!user_id) return
+  await users.balanceForUpdate(user_id, tx)
+}
+
 export async function addFunds(
   user_id: string | null,
   total: number | null,

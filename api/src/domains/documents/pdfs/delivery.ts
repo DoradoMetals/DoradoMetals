@@ -4,7 +4,7 @@ import * as emails from '#documents/emails/service.ts'
 import * as inputs from '#documents/pdfs/order-inputs.ts'
 import * as pdfService from '#documents/pdfs/service.ts'
 import * as rules from '#documents/pdfs/rules.ts'
-import { latestPdf, storeUpload } from '#documents/pdfs/store.ts'
+import { latestPdf, persistPdf, storeUpload } from '#documents/pdfs/store.ts'
 import { storedBytes } from '#documents/pdfs/serve.ts'
 import type { OrderDocument, PdfKind } from '@dorado/contracts'
 
@@ -41,19 +41,19 @@ async function rendered(kind: PdfKind, order_id: string): Promise<Uint8Array | n
   return null
 }
 
-async function bytesForOrder(order_id: string, document: OrderDocument): Promise<Uint8Array> {
-  const stored = document.pdf_id ? await latestPdf(document.kind, order_id) : null
-  const bytes =
-    (stored ? await storedBytes(stored) : null) ?? (await rendered(document.kind, order_id))
-  rules.assertRendered(bytes, document.name)
-  return bytes
-}
-
 export async function sendOrderDocument(order_id: string, kind: PdfKind): Promise<OrderDocument> {
   const document = (await orders.documentsFor(order_id)).find((row) => row.kind === kind)
   rules.assertDocumentAvailable(document, kind)
-  const bytes = await bytesForOrder(order_id, document)
-  await emails.sendDocument(order_id, document.name, bytes, document.pdf_id)
+  const fresh = await rendered(document.kind, order_id)
+  if (fresh) {
+    const pdf_id = await persistPdf(document.kind, order_id, fresh)
+    await emails.sendDocument(order_id, document.name, fresh, pdf_id)
+    return document
+  }
+  const stored = document.pdf_id ? await latestPdf(document.kind, order_id) : null
+  const bytes = stored ? await storedBytes(stored) : null
+  rules.assertRendered(bytes, document.name)
+  await emails.sendDocument(order_id, document.name, bytes, stored?.id ?? null)
   return document
 }
 

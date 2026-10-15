@@ -4,8 +4,7 @@ import type { PoolClient } from 'pg'
 import minio from '#providers/s3/minio.ts'
 import { isTestRun } from '#shared/testing/is-test-run.ts'
 import { orderOwnedBy } from '#shared/middleware/ownership.ts'
-import { linkableOrderId } from '#documents/emails/record.ts'
-import { latestPdf, persistPdf } from '#documents/pdfs/store.ts'
+import * as orders from '#orders/service.ts'
 import type { PdfRow } from '#db/media/pdfs/repo.ts'
 import type { PdfKind } from '#documents/pdfs/store.ts'
 import { attempt } from '#shared/attempt.ts'
@@ -34,7 +33,6 @@ type ServeInput = {
 
 type ServedDocument = {
   bytes: Uint8Array
-  source: 'stored' | 'rendered'
 }
 
 export async function storedBytes(
@@ -51,7 +49,6 @@ export async function storedBytes(
 
 export async function serveOrderDocument(
   { kind, order_id, caller, render }: ServeInput,
-  storage: StoredReader = readFromStorage,
   executor?: PoolClient
 ): Promise<ServedDocument> {
   const orderId = typeof order_id === 'string' && UUID.test(order_id) ? order_id : null
@@ -63,23 +60,13 @@ export async function serveOrderDocument(
 
   rules.assertEntitled(entitled, orderId)
 
-  const row = await latestPdf(kind, orderId, executor)
+  const listed = rules.listedKind(kind)
+  rules.assertServable(
+    (await orders.documentsFor(orderId)).find((row) => row.kind === listed),
+    kind
+  )
 
-  if (row) {
-    const bytes = await attempt(`read stored ${kind} ${row.id} for order ${orderId}`, async () => {
-      const b = await storage(row.path)
-      if (row.checksum) rules.assertChecksum(sha256(b) === row.checksum, row.checksum)
-      return b
-    })
-    if (bytes) return { bytes, source: 'stored' }
-    return { bytes: await render(), source: 'rendered' }
-  }
-
-  const bytes = await render()
-  if (await linkableOrderId(orderId, executor)) {
-    await persistPdf(kind, orderId, bytes, executor)
-  }
-  return { bytes, source: 'rendered' }
+  return { bytes: await render() }
 }
 
 const sha256 = (bytes: Uint8Array): string => createHash('sha256').update(bytes).digest('hex')
