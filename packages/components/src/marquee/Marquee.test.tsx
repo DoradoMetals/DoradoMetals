@@ -56,7 +56,7 @@ describe('Marquee at Layout=Desktop', () => {
     expect(row.firstElementChild?.textContent).toBe('Show bid')
     const cells = getByText('Gold').parentElement as HTMLElement
     expect(cells.className).toContain('ml-auto')
-    expect(cells.className).toContain('gap-xl')
+    expect(cells.className).toContain('gap-2xl')
   })
 
   it('is a static row inside the page width, with no seam copy and no motion', () => {

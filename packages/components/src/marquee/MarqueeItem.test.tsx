@@ -17,16 +17,23 @@ describe('MarqueeItem', () => {
 
   it('uses tabular digits and reserved widths on value and delta', () => {
     const { getByText } = render(<MarqueeItem label="Gold" value="$2,411.20" delta="+0.8%" />)
-    for (const [text, min] of [
-      ['$2,411.20', 'min-w-[9ch]'],
-      ['+0.8%', 'min-w-[5ch]'],
-    ]) {
+    for (const text of ['$2,411.20', '+0.8%']) {
       const cls = getByText(text).className
       expect(cls).toContain('tabular-nums')
-      expect(cls).toContain('inline-block')
-      expect(cls).toContain('text-right')
-      expect(cls).toContain(min)
+      expect(cls).not.toContain('min-w-')
     }
+    expect(getByText('Gold').parentElement!.className).toContain('gap-3xs')
+  })
+
+  it('aligns to the centre line and renders a coloured move before the delta', () => {
+    const { getByText } = render(
+      <MarqueeItem label="Gold" value="$2,411.20" move="$4.20" delta="(0.8%)" trend="down" />
+    )
+    expect(getByText('Gold').parentElement!.className).toContain('items-center')
+    const move = getByText('$4.20')
+    for (const c of ['tabular-nums', 'text-destructive']) expect(move.className).toContain(c)
+    const order = [...getByText('Gold').parentElement!.children].map((el) => el.textContent)
+    expect(order).toEqual(['Gold', '$2,411.20', '$4.20', '(0.8%)'])
   })
 
   it('colours the delta by trend', () => {

@@ -5,6 +5,7 @@ SELECT r.metal_id,
        r.bid AS price,
        r.ask,
        r.percent_change,
+       r.dollar_change,
        CASE WHEN COALESCE(r.dollar_change, 0) = 0 THEN 'flat'
             WHEN r.dollar_change > 0 THEN 'up'
             ELSE 'down' END AS direction,

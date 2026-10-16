@@ -40,7 +40,7 @@ export function Marquee({
       >
         <div className="mx-auto flex h-full w-full max-w-page items-center gap-xl overflow-hidden px-lg py-sm">
           {leading}
-          <div className="ml-auto flex items-center gap-xl">{children}</div>
+          <div className="ml-auto flex items-center gap-2xl">{children}</div>
         </div>
       </section>
     )
