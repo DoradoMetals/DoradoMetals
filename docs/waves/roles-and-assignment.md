@@ -43,7 +43,9 @@ lane runs test-first under ruling 153.
   `crm.assignment_rule_members (rule_id, employee_user_id, weight)`. The
   owning service (`leads`, `orders`, `accounts`) calls
   `crm.assignments.autoAssign(kind, subject_id, tx)` after the insert, in the
-  same transaction; it picks by strategy, writes `assigned_to_id` through the
+  same transaction; it inherits the parent's assignee when there is one
+  (lead → customer on conversion, customer → order), otherwise picks by
+  strategy, writes `assigned_to_id` through the
   owning repo, and records a `crm.assignments` row with `rule_id`. Manual
   assignment goes through the same service with `rule_id` null.
   `crm.assignments` gains `order_id`, `refining_order_id`, `rule_id`
@@ -84,9 +86,15 @@ The test agent writes these before any implementation and proves each fails:
   sees theirs with Contact.
 - Playwright: one spec per viewer for the employee screen and the leads card.
 
-## Open for Jacob
+## Decided (Jacob, 2026-10-16: "whatever is best practice")
 
-- 403 or 404 for an unassigned read by an employee (spec says 403).
-- Does a customer inherit the assignee of their first order or lead, or is a
-  customer assigned on their own? Spec: on their own, by the customer rule.
-- Owner-only set above: anything to add or remove.
+- An employee reading a row not assigned to them gets 403 (`NotAssigned`).
+  Employees are trusted staff and ids are uuids, so existence is not a
+  secret; 403 tells them to ask the owner. Customers keep 404 on anything
+  not their own.
+- Assignment follows the relationship. A lead converted into a customer
+  keeps the lead's assignee; an order placed by a customer who has an
+  assignee gets that assignee; only a subject with no parent assignee goes
+  through its own rule (customer rule, order rule). Reassigning a customer
+  does not move their existing orders.
+- The owner-only set stands as listed above.

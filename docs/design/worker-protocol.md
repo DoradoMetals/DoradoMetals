@@ -43,3 +43,7 @@ on the node marked "NEW: asked by the <lane> lane, not yet approved", and the
 code lane builds it only after the worker reports the node ids. Jacob's
 approval is not required before building, only the comment; he vetoes on the
 pin. "Code-only" never appears in a lane report as a settled state.
+
+## Payments file (2026-10-16)
+
+Payments `GPSOCeWTjc7pDsQBs4gFt4` is the eighth file. It holds the bank link component (Purpose: Payout | Payment) and the Payout Accounts screen moved from People. Tooling: `tools/payments/`; log: `docs/design/payments-comments-log.md`; polled by `tools/all/loop.sh`.
