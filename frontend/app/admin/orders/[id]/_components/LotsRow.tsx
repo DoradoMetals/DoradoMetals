@@ -54,6 +54,7 @@ export function LotsRow({
     const fixed = key === 'post_melt'
     return (
       <DecimalField
+        className="w-full min-w-0"
         label={layout === 'mobile' ? label : undefined}
         ariaLabel={layout === 'mobile' ? undefined : `${label}, ${lot.name}`}
         value={ratio ? ratioToPercent(raw) : raw}
@@ -130,8 +131,8 @@ export function LotsRow({
 
   return (
     <TableRow data-type={bullion ? 'bullion' : 'scrap'} selected={selected} className="h-auto">
-      <TableCell className="w-4 py-xs">{check}</TableCell>
-      <TableCell fill className="py-xs">
+      <TableCell className="w-10 py-xs">{check}</TableCell>
+      <TableCell className="max-w-0 truncate py-xs">
         <div className="flex flex-col gap-3xs">
           {lotHref ? (
             <Link href={lotHref(lot.lot_id)}>{lot.name}</Link>
