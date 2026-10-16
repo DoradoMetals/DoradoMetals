@@ -666,7 +666,18 @@ file named at the top of this file.
   role and never collapses two into one agent. 2026-10-16. Source: Jacob, in
   session.
 
+- **154 — Nothing in the frontend exists without its Figma counterpart.**
+  *"If an agent decides it needs extra UI, it needs to ask the figma agent
+  for that page to make the change there first. I don't necessarily need to
+  approve it, but the figma agent should leave a comment saying this is a
+  new thing."* A code lane that needs a state, control, card, row or screen
+  the design lacks sends the ask to that file's Figma worker, which draws it
+  from Library components and pins a comment on it marked as new, and only
+  then does the code lane build it. No "code-only" UI survives a merge; the
+  omission lists shrink to things that cannot be drawn. 2026-10-16. Source:
+  Jacob, in session.
+
 ## Numbering
 
-Every number from 1 to 153 has an entry, plus 26b and 26c. Two rulings carry the
+Every number from 1 to 154 has an entry, plus 26b and 26c. Two rulings carry the
 number 39; both are listed. No number is ever reused.

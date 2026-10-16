@@ -4,7 +4,7 @@ Every design worker (one per file) follows this. It lived in the session scratch
 
 ## Files
 
-Orders `ymmNlCDLVIfanpRQ7QHMIs` · People `5cEytffOkxIfqdRWFaTWpl` · Pricing `FdBKQiTCRJNS3uJeD1n5zd` · Inventory `ZgJF9JWNY6BwxmWABRZ6I7` · Media (emails + PDFs) `WkbKhVaAYmxKTsbmAQEwmk` · Auth `hZ5Ajr9Hn1h2Q2XFRa1NYY` · Library "Themes and Components" `8A73quhBLBqotJlX95jN9j` (read-only for file workers; asks are pinned there; only Jacob publishes).
+Orders `ymmNlCDLVIfanpRQ7QHMIs` · People `5cEytffOkxIfqdRWFaTWpl` · Pricing `FdBKQiTCRJNS3uJeD1n5zd` · Inventory `ZgJF9JWNY6BwxmWABRZ6I7` · Media (emails + PDFs) `WkbKhVaAYmxKTsbmAQEwmk` · Auth `hZ5Ajr9Hn1h2Q2XFRa1NYY` · Admin (overview) `RAmZ5RfxfW3sE9oM4uuhor` · Library "Themes and Components" `8A73quhBLBqotJlX95jN9j` (read-only for file workers; asks are pinned there; only Jacob publishes).
 
 ## Loop
 
@@ -33,3 +33,13 @@ Orders `ymmNlCDLVIfanpRQ7QHMIs` · People `5cEytffOkxIfqdRWFaTWpl` · Pricing `F
 ## Code lanes porting a design (2026-10-14, Jacob)
 
 The designs are the business source of truth. The api and the frontend match them. A lane that leaves out anything a design shows (a field, a state, a control, a screen, a column) names it in its report with the reason, and the orchestrator surfaces it to Jacob; omission is the exception and is never silent. The same holds the other way: anything in code that no design shows is listed as code-only.
+
+## Code lanes and new UI (ruling 154, 2026-10-16, Jacob)
+
+A code lane never invents UI. When it needs a state, control, card, row or
+screen the frames lack, it asks that file's Figma worker (through the
+orchestrator), the worker draws it from Library components and pins a comment
+on the node marked "NEW: asked by the <lane> lane, not yet approved", and the
+code lane builds it only after the worker reports the node ids. Jacob's
+approval is not required before building, only the comment; he vetoes on the
+pin. "Code-only" never appears in a lane report as a settled state.
