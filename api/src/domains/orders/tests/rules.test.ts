@@ -207,6 +207,10 @@ const facts = (over: Partial<Facts> = {}): Facts =>
     credited: false,
     reference: 'PO-1',
     state: 'Awaiting Finalize',
+    payment: { received: 0, refunded: 0, refundable: 0, charge_received: false },
+    adopt: { assayed_lots: 0, combining_lots: 0 },
+    cases: { claims: 0, open_claims: 0, open_disputes: 0 },
+    payout_methods: [],
     ...over,
   }) as Facts
 
@@ -254,7 +258,19 @@ test('the direction decides which half of the action surface exists', () => {
   assert.equal(hasAction(sold, 'supply'), true)
   assert.equal(hasAction(sold, 'finalize'), false)
   assert.equal(hasAction(sold, 'edit_lots'), false)
-  assert.equal(hasAction(sold, 'cancel'), false)
+  assert.equal(
+    hasAction(sold, 'cancel'),
+    true,
+    'an unpaid sale was not offered cancel (ruling 133)'
+  )
+  const paid = rules.actionsFor(
+    facts({
+      ...order({ direction: 'sale' }),
+      payment: { received: 100, refunded: 0, refundable: 100, charge_received: true },
+    })
+  )
+  assert.equal(hasAction(paid, 'cancel'), false, 'a paid sale was offered cancel before a refund')
+  assert.equal(hasAction(paid, 'refund'), true)
 })
 
 test('a label is offered only while the inbound parcel has none', () => {
@@ -396,7 +412,7 @@ test('a cancelled order can be reopened, and only a cancelled one', () => {
 })
 
 test('the documents a method prints, and the one that waits for finalization', () => {
-  const shipment = rules.documentsFor('SHIPMENT', false, [])
+  const shipment = rules.documentsFor('SHIPMENT', 'purchase', false, [])
   assert.deepEqual(
     shipment.map((d) => d.name),
     [
@@ -408,29 +424,52 @@ test('the documents a method prints, and the one that waits for finalization', (
     ]
   )
   assert.equal(shipment[0]!.available, false, 'an invoice was offered before finalization')
-  assert.equal(rules.documentsFor('SHIPMENT', true, [])[0]!.available, true)
+  assert.equal(rules.documentsFor('SHIPMENT', 'purchase', true, [])[0]!.available, true)
   assert.deepEqual(
-    rules.documentsFor('PICKUP', true, []).map((d) => d.name),
+    rules.documentsFor('PICKUP', 'purchase', true, []).map((d) => d.name),
     ['Invoice', 'Pickup Manifest', 'Pickup Instructions', 'Quote Estimate']
   )
   assert.deepEqual(
-    rules.documentsFor('DIRECT', true, []).map((d) => d.name),
+    rules.documentsFor('DIRECT', 'purchase', true, []).map((d) => d.name),
     ['Invoice', 'Intake Receipt', 'Appointment Instructions', 'Quote Estimate']
   )
   assert.deepEqual(
-    rules.documentsFor('DROPOFF', true, []).map((d) => d.name),
+    rules.documentsFor('DROPOFF', 'purchase', true, []).map((d) => d.name),
     ['Invoice', 'Quote Estimate']
   )
-  const finalGated = rules.documentsFor('SHIPMENT', false, [])
+  const finalGated = rules.documentsFor('SHIPMENT', 'purchase', false, [])
   assert.equal(
     finalGated.find((d) => d.kind === 'assay_results')!.available,
     false,
     'assay results were offered before the lots were confirmed'
   )
   assert.equal(
-    rules.documentsFor('SHIPMENT', true, []).find((d) => d.kind === 'assay_results')!.available,
+    rules.documentsFor('SHIPMENT', 'purchase', true, []).find((d) => d.kind === 'assay_results')!
+      .available,
     true
   )
+})
+
+test('a sale prints its own documents, and its invoice waits on nothing but placement', () => {
+  const shipped = rules.documentsFor('SHIPMENT', 'sale', false, [])
+  assert.deepEqual(
+    shipped.map((d) => [d.kind, d.name]),
+    [
+      ['sales_order_invoice', 'Sales Invoice'],
+      ['packing_list', 'Shipment Manifest'],
+    ]
+  )
+  assert.equal(shipped[0]!.available, true, 'a sale invoice waited on finalization')
+  assert.deepEqual(
+    rules.documentsFor('DIRECT', 'sale', false, []).map((d) => d.kind),
+    ['sales_order_invoice', 'intake_receipt', 'appointment_instructions']
+  )
+  const kinds = ['SHIPMENT', 'PICKUP', 'DIRECT', 'DROPOFF'].flatMap((c) =>
+    rules.documentsFor(c, 'sale', true, []).map((d) => d.kind)
+  )
+  for (const kind of ['assay_results', 'return_packing_list', 'shipping_instructions', 'invoice']) {
+    assert.ok(!kinds.includes(kind as never), `a sale listed ${kind}`)
+  }
 })
 
 test('spot lock actions are offered on a purchase only, since the spots PUT refuses a sale', () => {
@@ -442,6 +481,19 @@ test('spot lock actions are offered on a purchase only, since the spots PUT refu
     hasAction(rules.actionsFor(facts(order({ spots_locked: false }))), 'lock_spots'),
     true
   )
+})
+
+test('a spot lock and unlock are confirm class, with text that says what each does', () => {
+  const lock = rules
+    .actionsFor(facts(order({ spots_locked: false })))
+    .find((a) => a.name === 'lock_spots')
+  assert.match(lock?.confirm ?? '', /freezes/)
+  assert.equal(lock?.override, null)
+  const locked = facts(order({ spots_locked: true }))
+  const unlock = rules
+    .actionsFor({ ...locked, totals: null })
+    .find((a) => a.name === 'unlock_spots')
+  assert.match(unlock?.confirm ?? '', /releases/)
 })
 
 test("a customer's copy carries no actions and no inbound label", () => {
@@ -460,4 +512,142 @@ test("a customer's copy carries no actions and no inbound label", () => {
   assert.deepEqual(seen.actions, [])
   assert.equal(seen.shipments[0]!.label, null)
   assert.equal(seen.shipments[1]!.label, 'outbound-label')
+})
+
+test('edit_spots is offered on a locked, unfinalized purchase, as an override that keeps the reason', () => {
+  const locked = { ...order({ spots_locked: true }), totals: null }
+  const offered = actionNamed(rules.actionsFor(facts(locked)), 'edit_spots')
+  assert.ok(offered, 'a locked purchase with no total was not offered edit_spots')
+  assert.match(offered.override ?? '', /frozen bid/)
+  assert.equal(
+    hasAction(rules.actionsFor(facts(order({ spots_locked: true }))), 'edit_spots'),
+    false
+  )
+  assert.equal(hasAction(rules.actionsFor(facts({ totals: null })), 'edit_spots'), false)
+  assert.equal(
+    hasAction(
+      rules.actionsFor(facts({ ...locked, ...order({ direction: 'sale', spots_locked: true }) })),
+      'edit_spots'
+    ),
+    false
+  )
+})
+
+test('edit_charges needs a parcel or a payout, and a charged sale makes it an override', () => {
+  assert.equal(hasAction(rules.actionsFor(facts()), 'edit_charges'), false)
+  assert.equal(hasAction(rules.actionsFor(facts(paidBy('ACH'))), 'edit_charges'), true)
+  assert.equal(
+    hasAction(rules.actionsFor(facts({ shipments: [parcel('Return', null)] })), 'edit_charges'),
+    false
+  )
+  const unpaid = actionNamed(
+    rules.actionsFor(
+      facts({ ...order({ direction: 'sale' }), shipments: [parcel('Outbound', null)] })
+    ),
+    'edit_charges'
+  )
+  assert.equal(unpaid?.override, null)
+  const charged = actionNamed(
+    rules.actionsFor(
+      facts({
+        ...order({ direction: 'sale' }),
+        shipments: [parcel('Outbound', null)],
+        payment: { received: 100, refunded: 0, refundable: 100, charge_received: true },
+      })
+    ),
+    'edit_charges'
+  )
+  assert.match(charged?.override ?? '', /has been charged/)
+  assert.equal(
+    hasAction(
+      rules.actionsFor(
+        facts({ ...paidBy('ACH'), ...order({ cancelled_at: '2024-01-01T00:00:00.000Z' }) })
+      ),
+      'edit_charges'
+    ),
+    false
+  )
+})
+
+test('open_claim needs a tracked parcel and no open claim; update_claim needs a claim', () => {
+  const tracked = { shipments: [parcel('Outbound', '7731')] }
+  assert.equal(hasAction(rules.actionsFor(facts(tracked)), 'open_claim'), true)
+  assert.equal(
+    hasAction(rules.actionsFor(facts({ shipments: [parcel('Outbound', null)] })), 'open_claim'),
+    false
+  )
+  assert.equal(
+    hasAction(rules.actionsFor(facts({ shipments: [parcel('Return', '7731')] })), 'open_claim'),
+    false
+  )
+  const open = { ...tracked, cases: { claims: 1, open_claims: 1, open_disputes: 0 } }
+  assert.equal(hasAction(rules.actionsFor(facts(open)), 'open_claim'), false)
+  assert.equal(hasAction(rules.actionsFor(facts(open)), 'update_claim'), true)
+  assert.equal(hasAction(rules.actionsFor(facts(tracked)), 'update_claim'), false)
+})
+
+test('a purity dispute opens on a purchase lot without one, and resolves while one is open', () => {
+  assert.equal(hasAction(rules.actionsFor(facts()), 'open_dispute'), true)
+  assert.equal(hasAction(rules.actionsFor(facts()), 'resolve_dispute'), false)
+  const disputed = { cases: { claims: 0, open_claims: 0, open_disputes: 1 } }
+  assert.equal(hasAction(rules.actionsFor(facts(disputed)), 'open_dispute'), false)
+  assert.equal(hasAction(rules.actionsFor(facts(disputed)), 'resolve_dispute'), true)
+  assert.equal(
+    hasAction(rules.actionsFor(facts(order({ direction: 'sale' }))), 'open_dispute'),
+    false
+  )
+})
+
+test('add_lot stops at finalize on a purchase and once the parcel moves on a sale', () => {
+  assert.equal(hasAction(rules.actionsFor(facts({ totals: null })), 'add_lot'), true)
+  assert.equal(hasAction(rules.actionsFor(facts(order({ spots_locked: true }))), 'add_lot'), false)
+  const sale = order({ direction: 'sale' })
+  assert.equal(hasAction(rules.actionsFor(facts(sale)), 'add_lot'), true)
+  const shipped = {
+    ...sale,
+    shipments: [
+      {
+        direction: 'Outbound',
+        tracking_number: '1',
+        shipped_at: '2024-01-01T00:00:00.000Z',
+        delivered_at: null,
+      },
+    ] as Facts['shipments'],
+  }
+  assert.equal(hasAction(rules.actionsFor(facts(shipped)), 'add_lot'), false)
+})
+
+test('remove_lots confirms on a purchase and is an override on a charged sale', () => {
+  assert.match(
+    actionNamed(rules.actionsFor(facts()), 'remove_lots')?.confirm ?? '',
+    /combine it instead/
+  )
+  assert.equal(hasAction(rules.actionsFor(facts({ lots: [] })), 'remove_lots'), false)
+  const charged = actionNamed(
+    rules.actionsFor(
+      facts({
+        ...order({ direction: 'sale' }),
+        payment: { received: 100, refunded: 0, refundable: 100, charge_received: true },
+      })
+    ),
+    'remove_lots'
+  )
+  assert.equal(charged?.confirm, null)
+  assert.match(charged?.override ?? '', /removing a line/)
+})
+
+test('edit_payout_method is offered until the payout is credited or the order completes', () => {
+  assert.equal(hasAction(rules.actionsFor(facts(paidBy('ACH'))), 'edit_payout_method'), true)
+  assert.equal(hasAction(rules.actionsFor(facts()), 'edit_payout_method'), false)
+  assert.equal(
+    hasAction(rules.actionsFor(facts({ ...paidBy('ACH'), credited: true })), 'edit_payout_method'),
+    false
+  )
+  assert.equal(
+    hasAction(
+      rules.actionsFor(facts({ ...paidBy('ACH'), state: 'Completed' })),
+      'edit_payout_method'
+    ),
+    false
+  )
 })

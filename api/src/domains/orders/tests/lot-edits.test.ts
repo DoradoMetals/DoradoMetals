@@ -178,22 +178,25 @@ test("the assay columns are refused on the line's own patch", async () => {
   )
 })
 
-test('DELETE removes the link and the lot together', async () => {
+test('unlink refuses a lot already on hand and keeps link and lot (ruling 144)', async () => {
   await inPinnedTransaction(
     async (client: PoolClient) => {
       const { scrapItem } = await lines(client)
       await asAdmin(admin, async () => {
-        const res = await request(app).delete(`/api/orders/lots/${scrapItem.id}`)
+        const res = await request(app)
+          .post(`/api/orders/lots/${scrapItem.id}/unlink`)
+          .send({ reason: 'declared on the wrong order' })
 
-        assert.equal(res.status, 204, `answered ${res.status}: ${JSON.stringify(res.body)}`)
+        assert.equal(res.status, 409, `answered ${res.status}: ${JSON.stringify(res.body)}`)
+        assert.match(res.body.error.message, /on hand/)
 
         const link = await client.query(`SELECT 1 FROM orders.lots WHERE id = $1`, [scrapItem.id])
-        assert.equal(link.rows.length, 0, 'the order link survived')
+        assert.equal(link.rows.length, 1, 'a refused unlink removed the link')
 
         const lot = await client.query(`SELECT 1 FROM inventory.lots WHERE id = $1`, [
           scrapItem.lot_id,
         ])
-        assert.equal(lot.rows.length, 0, 'the physical lot survived its only link')
+        assert.equal(lot.rows.length, 1, 'the physical lot was deleted with its link')
       })
     },
     { actor: TEST_ACTOR.id }

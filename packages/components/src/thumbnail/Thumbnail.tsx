@@ -12,6 +12,7 @@ export type ThumbnailProps = Omit<React.ButtonHTMLAttributes<HTMLButtonElement>,
   alt?: string
   size?: ThumbnailSize
   showGlyph?: boolean
+  overflow?: number
 }
 
 const thumbnailVariants = cva('', {
@@ -27,7 +28,7 @@ const glyphVariants = cva('', {
 })
 
 export const Thumbnail = React.forwardRef<HTMLButtonElement, ThumbnailProps>(
-  ({ src, alt = '', size = 'md', showGlyph = true, className, ...props }, ref) => (
+  ({ src, alt = '', size = 'md', showGlyph = true, overflow, className, ...props }, ref) => (
     <button
       ref={ref}
       type="button"
@@ -39,7 +40,9 @@ export const Thumbnail = React.forwardRef<HTMLButtonElement, ThumbnailProps>(
       )}
       {...props}
     >
-      {src != null ? (
+      {overflow != null ? (
+        <span className="micro font-medium text-foreground">{`+${overflow}`}</span>
+      ) : src != null ? (
         <img src={src} alt={alt} className="size-full object-cover" />
       ) : (
         showGlyph && (

@@ -1,4 +1,4 @@
-export { OrderState, orderStates, type OrderStateProps } from './OrderState'
+export { OrderState, orderStates, type OrderStateProps, type OrderHeaderState } from './OrderState'
 export { OrderCard, type OrderCardProps, type OrderCardLot } from './OrderCard'
 export {
   OrderFilterBar,
@@ -25,7 +25,15 @@ export { RemoveLotDialog, type RemoveLotDialogProps } from './RemoveLotDialog'
 export { OrdersScreen } from './OrdersScreen'
 export { OrderSearch, type OrderSearchProps } from './OrderSearch'
 export { OrdersEmpty, OrdersFailed, OrdersSkeleton } from './OrdersStates'
-export { OrderHeader } from './OrderHeader'
+export { OrderHeader, type OrderHeaderProps } from './OrderHeader'
+export { OrderHeaderView, headerActionLooks, type OrderHeaderViewProps } from './OrderHeaderView'
+export {
+  OrderActionButtons,
+  offeredActions,
+  type ActionLook,
+  type OfferedAction,
+  type OrderActionButtonsProps,
+} from './OrderActionButtons'
 export { OrderDocuments } from './OrderDocuments'
 export { OrderChat } from './OrderChat'
 export { OrderPhotos, type OrderPhotosProps } from './OrderPhotos'

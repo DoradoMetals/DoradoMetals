@@ -4,6 +4,7 @@
 // Every entity of the `shipping` schema, one namespace each.
 export * from './enums.js'
 export * from './carriers.js'
+export * from './claims.js'
 export * from './packages.js'
 export * from './pickups.js'
 export * from './services.js'

@@ -19,6 +19,9 @@ describe('RemoveLotDialog', () => {
   it('desktop (1199:23340) is the small dialog with Cancel then Remove in a row', async () => {
     open()
     expect(dialog().className).toContain('max-w-80')
+    const footer = dialog().querySelector('.justify-end') as HTMLElement
+    expect(footer.className).toContain('gap-md')
+    expect(footer.className).not.toContain('gap-xs')
     expect(dialog().textContent).toContain('Remove from this order?')
     expect(dialog().textContent).toContain('The lot is kept.')
     const labels = [...dialog().querySelectorAll('button')].map(
@@ -63,5 +66,24 @@ describe('RemoveLotDialog', () => {
   it('renders nothing when closed', () => {
     render(<RemoveLotDialog open={false} onConfirm={() => {}} onCancel={() => {}} />)
     expect(dialog()).toBeNull()
+  })
+
+  it('askReason (ruling 144): Remove waits for a reason and confirms with the unlink body', () => {
+    const { onConfirm } = open({ askReason: true })
+    const remove = [...dialog().querySelectorAll('button')].find(
+      (b) => b.textContent === 'Remove'
+    ) as HTMLButtonElement
+    expect(remove.disabled).toBe(true)
+    fireEvent.change(dialog().querySelector('input') as HTMLInputElement, {
+      target: { value: '  Entered on the wrong order  ' },
+    })
+    expect(remove.disabled).toBe(false)
+    fireEvent.click(remove)
+    expect(onConfirm).toHaveBeenCalledWith({ reason: 'Entered on the wrong order' })
+  })
+
+  it('without askReason there is no reason field', () => {
+    open()
+    expect(dialog().querySelector('input')).toBeNull()
   })
 })

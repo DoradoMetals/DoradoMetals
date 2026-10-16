@@ -150,7 +150,11 @@ test('a purchase order splits every line three ways, per metal and per category'
       // The card's own header rows: what the customer was paid, what paying
       // them cost, and one row per lot it lists.
       close(b.payout, 1425.5, 'payout is the order transaction total')
-      close(b.fees, 24.5 + 20, 'fees are the customer carriage and the payout fee')
+      close(b.fees.shipping, 24.5, 'fees.shipping is the customer carriage')
+      close(b.fees.payout_fee, 20, 'fees.payout_fee is the payout fee')
+      close(b.fees.total, 24.5 + 20, 'fees.total is the carriage and the payout fee')
+      close(b.profit, 427.5, "profit is Dorado's total")
+      assert.equal(b.profit_party, 'dorado')
       assert.equal(b.lots.length, b.total_lots, 'the denominator does not count the rows listed')
       assert.deepEqual(
         b.lots.map((lot) => lot.reference).sort(),
@@ -233,8 +237,8 @@ test('a sale has no refiner: the customer owns all of it and Dorado keeps the ca
 
       const b = await profitBreakdown(order.id)
 
-      assert.equal(b.total_lots, 0, 'a sale with no refiner lot has nothing pending')
-      assert.equal(b.settled_lots, 0)
+      assert.equal(b.total_lots, 1, 'every order lot is counted, a sale lot too')
+      assert.equal(b.settled_lots, 1, "a sale order's own lot is sold, so it is settled")
       assert.equal(b.basis, 'realized', 'nothing outstanding is realized by default')
 
       close(shareOf(b, 'total', 'customer', 'Gold')?.content, 2, 'customer content')

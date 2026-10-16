@@ -7,6 +7,7 @@ import { TEST_ACTOR } from '#shared/testing/actor.ts'
 import { inPinnedTransaction } from '#shared/testing/pinned-pool.ts'
 import { aUser, anOrder } from '#shared/testing/builders/index.ts'
 import * as orders from '#orders/service.ts'
+import * as orderRead from '#orders/read.ts'
 import * as orderLots from '#db/orders/lots/repo.ts'
 import * as refiningOrdersRepo from '#db/refining/orders/repo.ts'
 
@@ -116,6 +117,43 @@ test('the proposal allocates a shared refiner lot pro rata by declared content',
       )
       assert.equal(Number(first.proposed.purity), 0.995, 'purity is not carried unscaled')
       assert.equal(Number(second.proposed.purity), 0.995, 'purity is not carried unscaled')
+    },
+    { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS }
+  )
+})
+
+test('the proposal names each lot as the order screen does and the action confirms a combine', async () => {
+  await inPinnedTransaction(
+    async (c: PoolClient) => {
+      const user = await aUser(c)
+      const order = await anOrder(c, user, { direction: 'purchase' })
+
+      const quiet = await orderRead.view(order.id)
+      assert.ok(!quiet?.actions.some((a) => a.name === 'adopt_assay'), 'offered with no assay')
+
+      const { refinerLotId } = await aBatchedPair(c, order.id, [
+        { pre_melt: 10, purity: 0.9 },
+        { pre_melt: 5, purity: 0.9 },
+      ])
+      await c.query(
+        `UPDATE inventory.lots SET assayed_at = now(), line_reference = 'ELM-88433' WHERE id = $1`,
+        [refinerLotId]
+      )
+
+      const proposal = await orders.adoptAssayProposal(order.id)
+      assert.deepEqual(proposal.lots.map((row) => row.reference).sort(), [
+        `Lot ${order.number}-A`,
+        `Lot ${order.number}-B`,
+      ])
+      for (const row of proposal.lots) {
+        assert.equal(row.line_reference, 'ELM-88433')
+        assert.ok(row.name.length > 0, 'a proposal lot has no name')
+      }
+
+      const view = await orderRead.view(order.id)
+      const adopt = view?.actions.find((a) => a.name === 'adopt_assay')
+      assert.ok(adopt, 'adopt_assay is not offered once the refiner assayed')
+      assert.match(adopt.confirm ?? '', /combines them into one lot/)
     },
     { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS }
   )

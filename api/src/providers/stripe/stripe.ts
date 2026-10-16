@@ -71,6 +71,61 @@ export async function cancelIntent(paymentIntentId: string): Promise<Stripe.Paym
   }
 }
 
+export type RefundRequest = {
+  paymentIntentId: string
+  amountCents: number
+  idempotencyKey: string
+  metadata: Record<string, string>
+}
+
+export type RefundOutcome = {
+  provider_ref: string | null
+  status: string
+  failure_reason: string | null
+}
+
+export type RefundIssuer = (request: RefundRequest) => Promise<RefundOutcome>
+
+const NOTHING_MOVED = new Set(['StripeInvalidRequestError', 'StripeCardError'])
+
+async function refundAlreadyIssued(request: RefundRequest): Promise<Stripe.Refund | null> {
+  for await (const refund of stripeClient.refunds.list({
+    payment_intent: request.paymentIntentId,
+    limit: 100,
+  })) {
+    if (refund.metadata?.refund_id === request.metadata.refund_id) return refund
+  }
+  return null
+}
+
+export async function createRefund(request: RefundRequest): Promise<RefundOutcome> {
+  try {
+    const refund =
+      (await refundAlreadyIssued(request)) ??
+      (await stripeClient.refunds.create(
+        {
+          payment_intent: request.paymentIntentId,
+          amount: request.amountCents,
+          metadata: request.metadata,
+        },
+        { idempotencyKey: request.idempotencyKey }
+      ))
+    return {
+      provider_ref: refund.id,
+      status: refund.status ?? 'pending',
+      failure_reason: refund.failure_reason ?? null,
+    }
+  } catch (err) {
+    const type = (err as { type?: string }).type ?? ''
+    if (!NOTHING_MOVED.has(type)) throw err
+    return {
+      provider_ref: null,
+      status: 'failed',
+      failure_reason: err instanceof Error ? err.message : type,
+    }
+  }
+}
+
 export function createCustomer({ name, email }: { name?: string | null; email?: string | null }) {
   return stripeClient.customers.create({ name: name ?? '', email: email ?? '' })
 }

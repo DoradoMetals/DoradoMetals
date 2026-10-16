@@ -5,7 +5,7 @@ import {
 } from '@dorado/contracts'
 import { asyncHandler } from '#shared/middleware/asyncHandler.ts'
 import { oneString } from '#shared/http/query.ts'
-import { parseStrict, uuidLike } from '#shared/http/validate.ts'
+import { parseStrict } from '#shared/http/validate.ts'
 import { refuseWith } from '#shared/http/refuse.ts'
 import * as stripe from '#providers/stripe/stripe.ts'
 import * as stripeService from '#transactions/service.ts'
@@ -82,11 +82,6 @@ export const updatePaymentIntent = asyncHandler(async (req, res) => {
   const body = parseStrict(UpdatePaymentIntentBody, req.body, 'stripe/update_payment_intent body')
   const paymentIntent = await stripeService.updatePaymentIntent(callerOf(req), body)
   res.json(paymentIntent.client_secret)
-})
-
-export const getPaymentIntentFromSalesOrderId = asyncHandler(async (req, res) => {
-  const order_id = parseStrict(uuidLike, req.query.order_id, 'order_id')
-  res.json(await stripeService.getPaymentIntentFromSalesOrderId(order_id))
 })
 
 export const cancelPaymentIntent = asyncHandler(async (req, res) => {

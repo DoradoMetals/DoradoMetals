@@ -52,4 +52,10 @@ describe('Thumbnail', () => {
     rerender(<Thumbnail size="lg" aria-label="Open photo" />)
     expect(container.querySelector('svg')?.getAttribute('class')).toContain('size-lg')
   })
+
+  it('the Overflow state shows the count of hidden photos in place of the image', () => {
+    const { container } = render(<Thumbnail overflow={4} aria-label="4 more photos" />)
+    expect(container.textContent).toContain('+4')
+    expect(container.querySelector('img')).toBeNull()
+  })
 })

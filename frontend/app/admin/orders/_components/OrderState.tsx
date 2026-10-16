@@ -4,6 +4,8 @@ import { Badge, type BadgeProps } from '@dorado/components'
 
 type Look = Pick<NonNullable<BadgeProps>, 'intent' | 'variant'>
 
+export type OrderHeaderState = OrderStateValue | 'Expired' | 'Awaiting Stock' | 'Backorder'
+
 const looks: Record<OrderStateValue, Look> = {
   'Awaiting Receipt': { intent: 'warning', variant: 'soft' },
   'Awaiting Finalize': { intent: 'warning', variant: 'soft' },
@@ -21,13 +23,20 @@ const looks: Record<OrderStateValue, Look> = {
   Draft: { intent: 'neutral', variant: 'outline' },
 }
 
+const headerLooks: Record<OrderHeaderState, Look> = {
+  ...looks,
+  Expired: { intent: 'neutral', variant: 'soft' },
+  'Awaiting Stock': { intent: 'warning', variant: 'soft' },
+  Backorder: { intent: 'warning', variant: 'soft' },
+}
+
 export type OrderStateProps = Omit<BadgeProps, 'intent' | 'variant' | 'children'> & {
-  state: OrderStateValue
+  state: OrderHeaderState
 }
 
 export function OrderState({ state, ...props }: OrderStateProps) {
   return (
-    <Badge {...looks[state]} {...props}>
+    <Badge {...headerLooks[state]} {...props}>
       {state}
     </Badge>
   )

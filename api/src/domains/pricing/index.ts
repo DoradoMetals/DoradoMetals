@@ -5,6 +5,7 @@ export {
 
 export {
   inventoryMetals,
+  payoutSplitGapCents,
   priceCheckout,
   priceOrder,
   priceProduct,

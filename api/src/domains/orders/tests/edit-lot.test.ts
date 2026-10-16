@@ -190,29 +190,39 @@ test("adding bullion re-tiers the order's scrap by their combined content", asyn
   }
 })
 
-test('deleting a link removes the lot with it', async () => {
+test('unlinking a link keeps the lot and records why', async () => {
   const fixture = await anOrderWithScrap(client)
   try {
-    await orders.removeLot(fixture.itemId)
+    const left = await orders.unlinkLot(fixture.itemId, { reason: 'declared twice by mistake' })
 
     const item = await client.query('SELECT 1 FROM orders.lots WHERE id = $1', [fixture.itemId])
-    const refiner = await client.query('SELECT 1 FROM inventory.lots WHERE id = $1', [fixture.lotId])
+    const lot = await client.query('SELECT 1 FROM inventory.lots WHERE id = $1', [fixture.lotId])
+    const trail = await client.query(
+      'SELECT order_id, reason FROM orders.lot_unlinks WHERE lot_id = $1',
+      [fixture.lotId]
+    )
+    assert.equal(left.length, 0, 'the order still lists the unlinked lot')
     assert.equal(item.rows.length, 0, 'the order link survived')
-    assert.equal(refiner.rows.length, 0, 'the refiner counterpart survived the cascade')
+    assert.equal(lot.rows.length, 1, 'the inventory lot was deleted')
+    assert.equal(trail.rows.length, 1, 'no audit row was written')
+    assert.equal(trail.rows[0].order_id, fixture.orderId)
+    assert.equal(trail.rows[0].reason, 'declared twice by mistake')
   } finally {
+    await client.query('DELETE FROM orders.lot_unlinks WHERE order_id = $1', [fixture.orderId])
+    await client.query('DELETE FROM inventory.lots WHERE id = $1', [fixture.lotId])
     await cleanup(client, fixture)
   }
 })
 
-test('a line that does not exist is refused and nothing is deleted', async () => {
+test('a line that does not exist is refused and nothing is unlinked', async () => {
   const fixture = await anOrderWithScrap(client)
   try {
     await assert.rejects(
-      () => orders.removeLot('00000000-0000-4000-8000-000000000000'),
+      () => orders.unlinkLot('00000000-0000-4000-8000-000000000000', { reason: 'probe' }),
       /no order lot/
     )
     const item = await client.query('SELECT 1 FROM orders.lots WHERE id = $1', [fixture.itemId])
-    assert.equal(item.rows.length, 1, 'a refused delete removed a different line')
+    assert.equal(item.rows.length, 1, 'a refused unlink removed a different line')
   } finally {
     await cleanup(client, fixture)
   }

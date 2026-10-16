@@ -191,7 +191,7 @@ test('purchase: a partial payout stays Ready to Pay until payouts and credit rea
   )
 })
 
-test('purchase OUT OF ORDER: paid before the refiner settles still reads At Refiner, not Completed', async () => {
+test('purchase paid before the refiner settles reads Completed: settlement never gates completion (ruling 134)', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
       const user = await aUser(c)
@@ -201,7 +201,7 @@ test('purchase OUT OF ORDER: paid before the refiner settles still reads At Refi
       await c.query(`UPDATE refining.orders SET sent_at = now() WHERE id = $1`, [engagement.id])
       await finalizeOrder(c, order.id)
       await sendPayout(c, order)
-      await assertState(order.id, 'At Refiner')
+      await assertState(order.id, 'Completed')
     },
     { actor: TEST_ACTOR.id, lock: LOCK }
   )

@@ -35,6 +35,12 @@ export class Conflict extends DomainError {
   }
 }
 
+export class StaleWrite extends Conflict {
+  constructor(message: string) {
+    super(message)
+  }
+}
+
 export class Invalid extends DomainError {
   constructor(message: string) {
     super('invalid', message)

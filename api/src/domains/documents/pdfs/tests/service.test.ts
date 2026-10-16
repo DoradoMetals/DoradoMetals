@@ -8,6 +8,7 @@ import * as inputs from '#documents/pdfs/order-inputs.ts'
 import { documentRows } from '#documents/pdfs/render/documents/rows.ts'
 import { formatCurrency } from '#documents/pdfs/render/format.ts'
 import { LOCKS } from '#shared/testing/locks.ts'
+import { ordersHoldingAnUnlockedMetal } from '#shared/testing/unlocked-metals.ts'
 import { rollbackIn } from '#shared/testing/rollback.ts'
 import { aUser, anOrder } from '#shared/testing/builders/index.ts'
 import type { PoolClient } from 'pg'
@@ -20,7 +21,9 @@ let salesOrders: OrderView[]
 
 const viewsOf = async (direction: 'purchase' | 'sale') => {
   const out: OrderView[] = []
+  const blocked = await ordersHoldingAnUnlockedMetal()
   for (const row of (await orderRead.list({ direction })).items) {
+    if (blocked.has(row.id)) continue
     const view = await orderRead.view(row.id)
     if (view) out.push(view)
   }
@@ -42,6 +45,12 @@ beforeAll(async () => {
   await lockClient.query('SELECT pg_advisory_unlock($1)', [LOCKS.ORDERS])
   lockClient.release()
   assert.ok(orders.length > 0, 'dev has no purchase orders to render')
+})
+
+test('an order holding a metal with no spot lock is refused, not priced off the live feed', async () => {
+  for (const id of await ordersHoldingAnUnlockedMetal()) {
+    await assert.rejects(() => inputs.invoiceInputs(id), /no spot lock/)
+  }
 })
 
 afterAll(async () => {

@@ -11,7 +11,7 @@ import {
 import type { MoovEvent } from '#providers/moov/types.ts'
 import type { Executor } from '#shared/db/executor.ts'
 import { reportError } from '#shared/observability/report.ts'
-import type { PaymentView, Transfer, TransferState } from '@dorado/contracts'
+import type { OrderPaymentView, PaymentView, Transfer, TransferState } from '@dorado/contracts'
 
 const MOOV = 'moov'
 const STRIPE = 'stripe'
@@ -131,7 +131,7 @@ export async function getTransfer(id: string): Promise<Transfer> {
   return assertTransfer(id, await transfers.getOne(id))
 }
 
-export async function paymentView(order_id: string): Promise<PaymentView> {
+export async function paymentView(order_id: string): Promise<OrderPaymentView> {
   return assertViewable(order_id, await transfers.view(order_id))
 }
 

@@ -7,7 +7,8 @@ export function assertPriced<T>(row: T | null | undefined, what: string): assert
 export function assertPriceable(unpriceable: string[], what: string): void {
   if (unpriceable.length > 0) {
     throw new Invalid(
-      `${what} cannot be priced - no live quote for ${unpriceable.length} line(s): ` +
+      `${what} cannot be priced - no spot lock or live quote for ${unpriceable.length} ` +
+        `line(s): ` +
         unpriceable.join(', ')
     )
   }

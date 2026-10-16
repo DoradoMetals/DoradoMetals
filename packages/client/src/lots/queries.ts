@@ -1,7 +1,7 @@
 'use client'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { LotImageAdd, LotImageView, LotView } from '@dorado/contracts'
+import type { InventoryLotView, LotImageAdd, LotImageView, LotView } from '@dorado/contracts'
 
 import { apiRequest } from '../fetch'
 import { keys } from '../keys'
@@ -15,6 +15,15 @@ export function useLotSearch(q: string, unassigned: boolean, options: { enabled?
         q,
         unassigned: unassigned ? 'true' : '',
       }),
+  })
+}
+
+export function useStockLotSearch(q: string, options: { enabled?: boolean } = {}) {
+  return useQuery<InventoryLotView[]>({
+    queryKey: keys.lots.stock(q),
+    enabled: (options.enabled ?? true) && q.trim().length > 0,
+    queryFn: () =>
+      apiRequest<InventoryLotView[]>('GET', '/lots', undefined, { q, position: 'on hand' }),
   })
 }
 

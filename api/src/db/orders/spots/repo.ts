@@ -33,6 +33,19 @@ export async function setBidsFromFeed(
   return rowCount ?? 0
 }
 
+export async function coverMetals(
+  order_id: string,
+  reason: string,
+  executor?: Executor
+): Promise<string[]> {
+  const { rows } = await query<Pick<OrderSpot, 'metal_id'>>(
+    sql('cover_metals'),
+    [order_id, reason],
+    executor
+  )
+  return rows.map((row) => row.metal_id)
+}
+
 export const PATCHABLE = columnsOf(OrderSpotPatch)
 
 export async function update(

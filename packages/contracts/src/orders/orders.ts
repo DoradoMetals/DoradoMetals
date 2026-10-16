@@ -32,6 +32,7 @@ import { OrderLot, OrderLotView } from './lots.js'
 import { Lot } from '../inventory/lots.js'
 import { Bullion } from '../products/bullion.js'
 import { Address } from '../places/addresses.js'
+import { OrderAddressLink } from './addresses.js'
 import { OrderViewShipment, Shipment } from '../shipping/shipments.js'
 import { ShipmentPickup } from '../shipping/pickups.js'
 import { OrderViewPayout } from '../payments/details.js'
@@ -43,8 +44,17 @@ import { FulfillmentPatchBody } from '../fulfillments/fulfillments.js'
 import { CarrierService } from '../shipping/services.js'
 import { Package } from '../shipping/packages.js'
 import { Refiner } from '../refiners/refiners.js'
-import { OrderActions, OrderState, OrderViewUser } from '../computed/orders.js'
+import {
+  OrderActions,
+  OrderAdoptFacts,
+  OrderCaseFacts,
+  OrderPaymentFacts,
+  OrderState,
+  OrderViewUser,
+} from '../computed/orders.js'
 import { UserSummary } from '../auth/users.js'
+import { ActionReasonText } from './action_reasons.js'
+import { OrderPayoutMethod } from './payout_methods.js'
 
 export const OrderRead = Order.extend({ totals: OrderTotals.nullable() })
 export type OrderRead = z.infer<typeof OrderRead>
@@ -74,10 +84,24 @@ export const OrderActionFacts = z
       })
     ),
     address: Address.pick({ id: true }).nullable(),
-    shipments: z.array(OrderViewShipment.pick({ direction: true, tracking_number: true })),
+    shipments: z.array(
+      OrderViewShipment.pick({
+        direction: true,
+        tracking_number: true,
+        shipped_at: true,
+        delivered_at: true,
+      })
+    ),
     payout: OrderViewPayout.pick({ method: true }).nullable(),
   })
-  .extend({ credited: z.boolean(), state: OrderState })
+  .extend({
+    credited: z.boolean(),
+    state: OrderState,
+    payment: OrderPaymentFacts,
+    adopt: OrderAdoptFacts,
+    cases: OrderCaseFacts,
+    payout_methods: z.array(OrderPayoutMethod),
+  })
 export type OrderActionFacts = z.infer<typeof OrderActionFacts>
 
 const OrderListItemBase = OrderRead.extend({
@@ -91,6 +115,7 @@ const OrderListItemBase = OrderRead.extend({
   estimated_value: z.number(),
   arrived_at: Order.shape.created_at,
   placed_at: Order.shape.created_at,
+  completed_at: Order.shape.cancelled_at,
 })
 
 export const OrderListItemFacts = OrderListItemBase.extend({ action_facts: OrderActionFacts })
@@ -136,12 +161,17 @@ export const OrderViewShipmentDetail = OrderViewShipment.extend({
 })
 export type OrderViewShipmentDetail = z.infer<typeof OrderViewShipmentDetail>
 
+export const OrderViewAddress = Address.extend({
+  source_address_id: OrderAddressLink.shape.source_address_id,
+})
+export type OrderViewAddress = z.infer<typeof OrderViewAddress>
+
 export const OrderViewFacts = z
   .object({
     order: Order,
     totals: OrderTotals.nullable(),
     lots: z.array(OrderLotView),
-    address: Address.nullable(),
+    address: OrderViewAddress.nullable(),
     shipments: z.array(OrderViewShipmentDetail),
     pickup: ShipmentPickup.nullable(),
     payout: OrderViewPayout.nullable(),
@@ -151,6 +181,11 @@ export const OrderViewFacts = z
     credited: z.boolean(),
     reference: z.string(),
     state: OrderState,
+    payment: OrderPaymentFacts,
+    adopt: OrderAdoptFacts,
+    cases: OrderCaseFacts,
+    completed_at: Order.shape.cancelled_at,
+    payout_methods: z.array(OrderPayoutMethod),
   })
 export type OrderViewFacts = z.infer<typeof OrderViewFacts>
 
@@ -166,6 +201,11 @@ export const OrderPatch = Order.pick({
   .partial()
   .strict()
 export type OrderPatch = z.infer<typeof OrderPatch>
+
+export const OrderPatchBody = OrderPatch.extend({
+  expected_updated_at: Order.shape.updated_at.unwrap().optional(),
+}).strict()
+export type OrderPatchBody = z.infer<typeof OrderPatchBody>
 
 export const OrderCreateBody = z.object({ checkout_id: Checkout.shape.id }).strict()
 export type OrderCreateBody = z.infer<typeof OrderCreateBody>
@@ -212,7 +252,10 @@ export const OrderCancelBody = z
     carrier_service_id: CarrierService.shape.id,
     package_id: Package.shape.id,
   })
-  .extend({ bill_return_to_customer: Shipment.shape.bill_return_to_customer })
+  .extend({
+    bill_return_to_customer: Shipment.shape.bill_return_to_customer,
+    reason: ActionReasonText,
+  })
   .partial()
   .strict()
 export type OrderCancelBody = z.infer<typeof OrderCancelBody>

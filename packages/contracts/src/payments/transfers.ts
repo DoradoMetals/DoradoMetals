@@ -39,6 +39,7 @@ import { OrderTotals } from '../orders/transactions.js'
 import { RefiningOrder } from '../refining/orders.js'
 import { BankLink } from './bank_links.js'
 import { PaymentDetails } from './details.js'
+import { PaymentSettlement } from './settlements.js'
 
 export const Payout = Transfer.extend({ kind: z.literal('payout') })
 export type Payout = z.infer<typeof Payout>
@@ -121,6 +122,17 @@ export const PayoutAccount = PaymentDetails.pick({
 }).extend({ method: z.string().nullable() })
 export type PayoutAccount = z.infer<typeof PayoutAccount>
 
+export const IntentStatus = z.enum([
+  'requires_payment_method',
+  'requires_confirmation',
+  'requires_action',
+  'processing',
+  'requires_capture',
+  'canceled',
+  'succeeded',
+])
+export type IntentStatus = z.infer<typeof IntentStatus>
+
 export const PaymentView = z
   .object({
     order_id: Order.shape.id.nullable(),
@@ -143,3 +155,11 @@ export const PaymentView = z
   })
   .extend({ refining_order_id: RefiningOrder.shape.id.nullable() })
 export type PaymentView = z.infer<typeof PaymentView>
+
+export const OrderPaymentView = PaymentView.extend({
+  intent_status: IntentStatus.nullable(),
+  card_brand: PaymentDetails.shape.card_brand,
+  card_last4: PaymentDetails.shape.last_four,
+  amount_received: PaymentSettlement.shape.settled_amount.nullable(),
+})
+export type OrderPaymentView = z.infer<typeof OrderPaymentView>

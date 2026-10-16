@@ -3,18 +3,23 @@
 import * as React from 'react'
 import {
   Button,
+  Input,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogTitle,
 } from '@dorado/components'
+import type { LotUnlinkBody } from '@dorado/contracts'
+
+import { MIN_REASON } from '../[id]/_components/OverrideReasonBody'
 
 export type RemoveLotDialogProps = {
   open: boolean
-  onConfirm: () => void
+  onConfirm: (body: LotUnlinkBody) => void
   onCancel: () => void
   pending?: boolean
+  askReason?: boolean
   layout?: 'desktop' | 'mobile'
   title?: React.ReactNode
   body?: React.ReactNode
@@ -27,6 +32,7 @@ export function RemoveLotDialog({
   onConfirm,
   onCancel,
   pending = false,
+  askReason = false,
   layout = 'desktop',
   title = 'Remove from this order?',
   body = 'The lot is kept.',
@@ -34,16 +40,32 @@ export function RemoveLotDialog({
   cancelLabel = 'Cancel',
 }: RemoveLotDialogProps) {
   const mobile = layout === 'mobile'
+  const [reason, setReason] = React.useState('')
+  const trimmed = reason.trim()
+  const missing = askReason && trimmed.length < MIN_REASON
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onCancel()}>
       <DialogContent size="sm" data-layout={layout} className={mobile ? 'max-w-none' : undefined}>
         <DialogTitle>{title}</DialogTitle>
         <DialogDescription>{body}</DialogDescription>
-        <DialogFooter stacked={mobile} className={mobile ? '[&>button]:w-full' : 'gap-xs'}>
+        {askReason && (
+          <Input
+            label="Reason"
+            placeholder="Why is this lot leaving the order?"
+            message="Required · at least 10 characters"
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+          />
+        )}
+        <DialogFooter stacked={mobile} className={mobile ? '[&>button]:w-full' : undefined}>
           <Button variant="secondary" onClick={onCancel}>
             {cancelLabel}
           </Button>
-          <Button intent="danger" disabled={pending} onClick={onConfirm}>
+          <Button
+            intent="danger"
+            disabled={pending || missing}
+            onClick={() => onConfirm({ reason: trimmed })}
+          >
             {confirmLabel}
           </Button>
         </DialogFooter>

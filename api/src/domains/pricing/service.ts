@@ -81,3 +81,8 @@ export async function selectionSummary(
 ): Promise<SelectionSummary> {
   return await pricing.selection(order_ids, executor)
 }
+
+export function payoutSplitGapCents(amounts: readonly number[], total: number): number {
+  const split = amounts.reduce((sum, amount) => sum + Math.round(Number(amount) * 100), 0)
+  return Math.round(Number(total) * 100) - split
+}

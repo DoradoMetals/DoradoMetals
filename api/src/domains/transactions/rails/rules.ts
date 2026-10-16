@@ -227,7 +227,7 @@ export function assertFeedToken(access_token: string | undefined): string {
   return access_token
 }
 
-export function assertViewable(order_id: string, view: PaymentView | undefined): PaymentView {
+export function assertViewable<T extends PaymentView>(order_id: string, view: T | undefined): T {
   if (!view) throw new NotFound(`no order ${order_id}`)
   return view
 }

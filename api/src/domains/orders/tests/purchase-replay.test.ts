@@ -3,10 +3,12 @@ import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import request from 'supertest'
 import pool from '#pool'
-import { mockSessions, restoreSessions, as } from '#shared/testing/session.ts'
+import { mockSessions, restoreSessions, as, asAdmin } from '#shared/testing/session.ts'
 import { TEST_ACTOR, TEST_CUSTOMER } from '#shared/testing/actor.ts'
 import { aUser, anOrder, aPayout } from '#shared/testing/builders/index.ts'
 import type { PoolClient } from 'pg'
+import { aSessionRow } from '#accounts/auth/tests/harness.ts'
+import * as authSessions from '#db/auth/sessions/repo.ts'
 import { inPinnedTransaction, assertNothingEscaped } from '#shared/testing/pinned-pool.ts'
 
 await mockSessions()
@@ -130,6 +132,7 @@ test('locking spots freezes them and unlocking releases them', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
       const order = await aBuiltOrder(c)
+      await c.query('UPDATE orders.transactions SET total = NULL WHERE order_id = $1', [order.id])
 
       await as(admin, async () => {
         const locked = await request(app).put(`/api/orders/${order.id}/spots`).send({ lock: true })
@@ -164,8 +167,13 @@ test('changing a spot price lands on that order and no other', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {
       const order = await aBuiltOrder(c)
+      await c.query('UPDATE orders.transactions SET total = NULL WHERE order_id = $1', [order.id])
 
-      await as(admin, async () => {
+      const session_id = await aSessionRow(c, admin.id, 0)
+      await authSessions.update(session_id, { stepped_up_at: new Date().toISOString() }, c)
+      await asAdmin({ ...admin, session_id }, async () => {
+        const locked = await request(app).put(`/api/orders/${order.id}/spots`).send({ lock: true })
+        assert.equal(locked.status, 200, JSON.stringify(locked.body))
         const metals = await request(app).get(`/api/orders/${order.id}/spots`)
         assert.equal(metals.status, 200, JSON.stringify(metals.body))
         assert.ok(Array.isArray(metals.body) && metals.body.length > 0, 'the order has no spots')
@@ -178,7 +186,7 @@ test('changing a spot price lands on that order and no other', async () => {
 
         const res = await request(app)
           .put(`/api/orders/${order.id}/spots`)
-          .send({ set: [{ metal_id: spot.metal_id, bid: sentinel }] })
+          .send({ set: [{ metal_id: spot.metal_id, bid: sentinel }], reason: 'replay probe' })
         assert.equal(res.status, 200, JSON.stringify(res.body))
 
         const after = await request(app).get(`/api/orders/${order.id}/spots`)

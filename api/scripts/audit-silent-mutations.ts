@@ -86,6 +86,8 @@ const ACCEPTED: Record<string, string> = {
     'same as smsRepo.attachToUser beside it: zero prior calls on that number is a normal outcome for a fresh lead.',
   'domains/crm/leads/service.ts::notes.repointLeadToUser':
     "the third of the same shape, beside the two attachToUser calls: a lead nobody wrote a note about has nothing to hand over, convert still succeeds, and the customer's own GET /api/notes is the observation rather than this write.",
+  'domains/orders/service.ts::payoutMethods.removeFor':
+    'replacing a payout split clears the old lines first, and an order still on its one default method (ruling 132) has none to clear; the inserts beside it in the same transaction and the payout-methods read are the observation.',
 }
 const acceptedHit = new Set<string>()
 
@@ -297,7 +299,7 @@ if (FAIL_ON_FINDINGS && (discarded || unobservable)) process.exit(1)
 // direct, and cancelling a refiner order releases its lots. Zero rows is the
 // correct outcome for each - a fulfillment has one detail row of one kind, and
 // a refiner order may hold no lots at all.
-const CEILING = 16
+const CEILING = 15
 if (!FAIL_ON_FINDINGS) {
   const total = discarded + unobservable
   if (total > CEILING) {

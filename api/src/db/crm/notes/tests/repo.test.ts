@@ -145,7 +145,7 @@ test('the database refuses a row with two subjects', async () => {
         lead.id,
         'both',
       ]),
-      /notes_one_subject/
+      /notes_exactly_one_subject/
     )
   })
 })
@@ -158,7 +158,7 @@ test('the database refuses a row with no subject', async () => {
         null,
         'neither',
       ]),
-      /notes_one_subject/
+      /notes_exactly_one_subject/
     )
   })
 })

@@ -88,6 +88,7 @@ SELECT jsonb_build_object(
                             'cancelled_at', to_char(o.cancelled_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
                             'placed_at', to_char(o.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
                             'arrived_at', to_char(p.arrived_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+                            'completed_at', to_char((/*__order_completed_at__*/) AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
                             'totals',
                               (SELECT to_jsonb(t)
                                       || jsonb_build_object(

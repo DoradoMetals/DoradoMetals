@@ -42,6 +42,7 @@ SELECT to_jsonb(ol)
                                          WHERE ls.source_lot_id = ol.lot_id
                                            AND ls.kind = 'batch'
                                            AND rlot.settled_at IS NOT NULL) END,
+            'source_reference', /*__lot_source_reference__*/,
             'refining_order_number',
               (SELECT ro.number FROM inventory.lot_sources ls
                  JOIN refining.lots rl ON rl.lot_id = ls.lot_id
@@ -60,11 +61,10 @@ SELECT to_jsonb(ol)
   CROSS JOIN LATERAL (
     SELECT CASE WHEN li.content IS NULL OR li.premium IS NULL THEN NULL
                 ELSE li.content * li.premium
-                     * COALESCE(
+                     *
                          CASE WHEN o.direction = 'sale'
-                              THEN CASE WHEN o.spots_locked THEN COALESCE(os.ask, sp.ask) ELSE sp.ask END
-                              ELSE CASE WHEN o.spots_locked THEN COALESCE(os.bid, sp.bid) ELSE sp.bid END END,
-                         0)
+                              THEN CASE WHEN o.spots_locked THEN os.ask ELSE sp.ask END
+                              ELSE CASE WHEN o.spots_locked THEN os.bid ELSE sp.bid END END
            END AS price
   ) pr
  ORDER BY ol.seat ASC

@@ -7,6 +7,9 @@ import type {
   PackageRead,
   ShipmentActualCostBody,
   ShipmentChargeBody,
+  ShipmentClaimOpenBody,
+  ShipmentClaimPatchBody,
+  ShipmentClaimView,
   ShipmentPatch,
   ShipmentTrackingBody,
   ShipmentView,
@@ -50,6 +53,14 @@ export function useTracking(shipmentId: string, options: { enabled?: boolean } =
   })
 }
 
+export function useShipmentClaims(shipmentId: string, options: { enabled?: boolean } = {}) {
+  return useQuery<ShipmentClaimView[]>({
+    queryKey: keys.shipping.claims(shipmentId),
+    enabled: (options.enabled ?? true) && shipmentId.length > 0,
+    queryFn: () => apiRequest<ShipmentClaimView[]>('GET', `/shipments/${shipmentId}/claims`),
+  })
+}
+
 function useShipmentWrite<TVariables, TResult>(
   orderId: string,
   run: (variables: TVariables) => Promise<TResult>
@@ -60,6 +71,7 @@ function useShipmentWrite<TVariables, TResult>(
     onSettled: () => {
       client.invalidateQueries({ queryKey: keys.orders.shipments(orderId) })
       client.invalidateQueries({ queryKey: keys.orders.fulfillment(orderId) })
+      client.invalidateQueries({ queryKey: keys.orders.claims(orderId) })
       client.invalidateQueries({ queryKey: keys.shipping.all() })
     },
   })
@@ -106,5 +118,25 @@ export function useBuyLabel(orderId: string) {
 export function useCancelLabel(orderId: string) {
   return useShipmentWrite(orderId, (body: ShippingCancelLabelBody) =>
     apiRequest<unknown>('POST', '/shipping/cancel_label', body)
+  )
+}
+
+export function useOpenShipmentClaim(orderId: string) {
+  return useShipmentWrite(
+    orderId,
+    ({ shipment_id, ...body }: { shipment_id: string } & ShipmentClaimOpenBody) =>
+      apiRequest<ShipmentClaimView>('POST', `/shipments/${shipment_id}/claims`, body)
+  )
+}
+
+export function usePatchShipmentClaim(orderId: string) {
+  return useShipmentWrite(
+    orderId,
+    ({
+      shipment_id,
+      claim_id,
+      ...body
+    }: { shipment_id: string; claim_id: string } & ShipmentClaimPatchBody) =>
+      apiRequest<ShipmentClaimView>('PATCH', `/shipments/${shipment_id}/claims/${claim_id}`, body)
   )
 }

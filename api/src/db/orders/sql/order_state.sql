@@ -9,7 +9,8 @@
 -- before the refiner settles still sees what is outstanding rather than a rung
 -- the order skipped. A purchase is Completed only once its Sent or Received
 -- payouts and its credit together reach the transaction total, so one partial
--- payout still reads Ready to Pay.
+-- payout still reads Ready to Pay. That check comes before At Refiner:
+-- refiner settlement never gates a purchase's completion (ruling 134).
 CASE
   WHEN o.cancelled_at IS NOT NULL THEN 'Cancelled'
   WHEN o.direction = 'sale' THEN
@@ -51,6 +52,16 @@ CASE
     CASE
       WHEN NOT /*__fulfillment_arrived__*/
       THEN 'Awaiting Receipt'
+      WHEN o.spots_locked
+       AND EXISTS (SELECT 1 FROM orders.transactions tr
+                    WHERE tr.order_id = o.id AND tr.total IS NOT NULL)
+       AND COALESCE((SELECT sum(t.amount) FROM payments.transfers t
+                      WHERE t.order_id = o.id AND t.kind = 'payout'
+                        AND t.state IN ('Sent', 'Received')), 0)
+         + COALESCE((SELECT sum(l.amount) FROM payments.ledger l
+                      WHERE l.order_id = o.id AND l.type = 'Credit'), 0)
+         >= (SELECT sum(tr.total) FROM orders.transactions tr WHERE tr.order_id = o.id)
+      THEN 'Completed'
       WHEN EXISTS (SELECT 1 FROM orders.lots ol
                      JOIN inventory.lot_sources ls ON ls.source_lot_id = ol.lot_id
                                                    AND ls.kind = 'batch'

@@ -13,3 +13,10 @@ export const OrderAddressLink = z.object({
 })
 export type OrderAddressLink = z.infer<typeof OrderAddressLink>
 // generated:end
+
+import { ActionReasonText } from './action_reasons.js'
+
+export const OrderAddressChangeBody = OrderAddressLink.pick({ address_id: true })
+  .extend({ reason: ActionReasonText })
+  .strict()
+export type OrderAddressChangeBody = z.infer<typeof OrderAddressChangeBody>

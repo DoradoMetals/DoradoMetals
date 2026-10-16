@@ -55,6 +55,11 @@ const VIEW_MEMBERS = [
   'reference',
   'state',
   'actions',
+  'payment',
+  'adopt',
+  'cases',
+  'payout_methods',
+  'completed_at',
 ]
 
 test('the order view carries exactly the members it declares', async () => {

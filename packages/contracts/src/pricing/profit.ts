@@ -42,6 +42,13 @@ export const ProfitLot = z.object({
 })
 export type ProfitLot = z.infer<typeof ProfitLot>
 
+export const ProfitFees = z.object({
+  shipping: z.number(),
+  payout_fee: z.number(),
+  total: z.number(),
+})
+export type ProfitFees = z.infer<typeof ProfitFees>
+
 export const ProfitBreakdown = z.object({
   order_id: Order.shape.id,
   spots_at: z.string(),
@@ -49,7 +56,9 @@ export const ProfitBreakdown = z.object({
   settled_lots: z.number().int(),
   total_lots: z.number().int(),
   payout: z.number(),
-  fees: z.number(),
+  fees: ProfitFees,
+  profit: z.number(),
+  profit_party: ProfitParty,
   lots: z.array(ProfitLot),
   shares: z.array(ProfitShare),
   parties: z.array(ProfitPartyTotal),

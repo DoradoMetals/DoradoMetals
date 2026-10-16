@@ -37,6 +37,7 @@ export type Shipment = z.infer<typeof Shipment>
 import { Carrier } from './carriers.js'
 import { Address } from '../places/addresses.js'
 import { OrderTotals } from '../orders/transactions.js'
+import { OverrideBody } from '../computed/orders.js'
 
 export const OrderViewShipment = Shipment.omit({ user_id: true }).extend({
   direction: z.string(),
@@ -54,6 +55,7 @@ export type ShipmentPatch = z.infer<typeof ShipmentPatch>
 
 export const ShipmentChargeBody = z
   .object({ shipping_charge: Shipment.shape.cost.unwrap() })
+  .extend({ override_reason: OverrideBody.shape.override_reason })
   .strict()
 export type ShipmentChargeBody = z.infer<typeof ShipmentChargeBody>
 

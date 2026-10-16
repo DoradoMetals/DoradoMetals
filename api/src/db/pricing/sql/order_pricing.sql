@@ -12,11 +12,13 @@ lines AS (
          li.premium AS stored_premium,
          -- PRICE IS NEVER STORED (ruling 120). Every line prices off the
          -- order's own frozen spot for that metal - bid for a purchase, ask
-         -- for a sale - falling back to the live feed while the order has not
-         -- frozen one yet.
+         -- for a sale - and off the live feed while the order is unlocked. A
+         -- locked order never falls back to the feed: a metal it holds with no
+         -- lock prices NULL, lands in `unpriceable`, and the read is refused
+         -- (ruling 2026-10-14, spot locks only for the order's metals).
          CASE WHEN ord.direction = 'sale'
-              THEN CASE WHEN ord.spots_locked THEN COALESCE(os.ask, s.ask) ELSE s.ask END
-              ELSE CASE WHEN ord.spots_locked THEN COALESCE(os.bid, s.bid) ELSE s.bid END END AS spot,
+              THEN CASE WHEN ord.spots_locked THEN os.ask ELSE s.ask END
+              ELSE CASE WHEN ord.spots_locked THEN os.bid ELSE s.bid END END AS spot,
          CASE WHEN li.bullion_id IS NULL
               THEN COALESCE(li.content, 0)
               ELSE COALESCE(li.content, 0) * li.quantity END AS weighed
@@ -33,8 +35,8 @@ lines AS (
 metal_spots AS (
   SELECT DISTINCT ON (li.metal_id)
          li.metal_id,
-         CASE WHEN ord.spots_locked THEN COALESCE(os.bid, s.bid) ELSE s.bid END AS bid,
-         CASE WHEN ord.spots_locked THEN COALESCE(os.ask, s.ask) ELSE s.ask END AS ask,
+         CASE WHEN ord.spots_locked THEN os.bid ELSE s.bid END AS bid,
+         CASE WHEN ord.spots_locked THEN os.ask ELSE s.ask END AS ask,
          s.state,
          s.last_tick_at
     FROM orders.lots ol
@@ -215,7 +217,10 @@ SELECT jsonb_build_object(
          'total', billed.total,
          'card_fee', billed.card_fee,
          'total_charged', billed.total + billed.card_fee,
-         'declared_value', totals.scrap_total + totals.bullion_total
+         'declared_value', totals.scrap_total + totals.bullion_total,
+         'refunded_total', COALESCE((SELECT sum(r.amount) FROM payments.refunds r
+                                      WHERE r.order_id = ord.id
+                                        AND r.state = 'Succeeded'), 0)
        ) AS pricing
   FROM ord
  CROSS JOIN totals
