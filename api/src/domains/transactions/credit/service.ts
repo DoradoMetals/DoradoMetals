@@ -86,6 +86,15 @@ export async function releaseReservation(order_id: string, tx: Executor): Promis
   return amount
 }
 
+export async function refundDebit(order_id: string, tx: Executor): Promise<number> {
+  const refunded = await ledger.refundDebit(order_id, tx)
+  if (!refunded) return 0
+  const amount = Number(refunded.amount ?? 0)
+  const owner = assertReservationOwner(refunded.user_id, order_id)
+  assertCreditSubject(owner, await users.adjustCredit(owner, 'add', amount, tx))
+  return amount
+}
+
 export async function settleReservation(order_id: string, tx: Executor): Promise<boolean> {
   return (await ledger.resolveReservation(order_id, 'Debit', tx)) !== undefined
 }

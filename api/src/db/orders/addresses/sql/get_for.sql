@@ -1,3 +1,3 @@
-SELECT id, order_id, address_id, source_address_id
+SELECT id, order_id, address_id, source_address_id, previous_address_id
   FROM orders.addresses
  WHERE order_id = $1

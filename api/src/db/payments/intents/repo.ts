@@ -54,6 +54,11 @@ export async function update(
   return rowCount === 1
 }
 
+export async function lockOrder(intent_id: string, executor: Executor): Promise<boolean> {
+  const { rows } = await query(sql('lock_order'), [intent_id], executor)
+  return rows.length > 0
+}
+
 export async function remove(id: string, executor?: Executor): Promise<boolean> {
   const { rowCount } = await query(sql('delete'), [id], executor)
   return rowCount === 1

@@ -131,7 +131,7 @@ describe('useOrderWrites', () => {
   test('a refund sends the refundable amount and the stored reason', async () => {
     const calls = stubApi({ [`POST /orders/${ORDER_ID}/refunds`]: [] })
     const view = orderView('sale', {
-      payment: { received: 40, refunded: 0, refundable: 40, charge_received: true },
+      payment: { received: 40, refunded: 0, refundable: 40, credit: 0, charge_received: true },
     })
     const hook = writes(view)
     await run(() => hook.result.current.run(act('refund'), 'Damaged in transit, refund all'))
@@ -322,7 +322,7 @@ describe('useOrderWrites: the screen gaps', () => {
   test('refund sends the chosen amount, else the refundable amount', async () => {
     const calls = stubApi({ [`POST /orders/${ORDER_ID}/refunds`]: [] })
     const view = orderView('sale', {
-      payment: { received: 25, refunded: 0, refundable: 25, charge_received: true },
+      payment: { received: 25, refunded: 0, refundable: 25, credit: 0, charge_received: true },
     })
     const hook = writes(view)
     await run(() =>

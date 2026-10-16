@@ -123,11 +123,19 @@ export async function cancel(id: string): Promise<RefiningOrderRead> {
   rules.assertCancellable(order)
   const held = await refiningLots.getFor(id)
   rules.assertNoLotSettled(order, await lots.getByIds(held.map((link) => link.lot_id)))
-  const moved = await refiningOrders.goodsMoved(id)
-
   await withTransaction(async (tx) => {
-    await refiningLots.releaseFor(id, moved, tx)
+    await refiningLots.releaseFor(id, tx)
     rules.assertRefiningOrder(await refiningOrders.cancel(id, tx), id)
+  })
+  return await view(id)
+}
+
+export async function markReturned(id: string): Promise<RefiningOrderRead> {
+  const order = await refiningOrders.getOne(id)
+  rules.assertRefiningOrder(order, id)
+  rules.assertReturnable(order, await refiningOrders.goodsMoved(id))
+  await withTransaction(async (tx) => {
+    rules.assertReturnedSome(order, await refiningLots.markReturned(id, tx))
   })
   return await view(id)
 }

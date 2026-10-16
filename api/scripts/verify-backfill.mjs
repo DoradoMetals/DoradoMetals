@@ -129,6 +129,11 @@ const TABLES = [
     absentInDev: 'an attempt goes with the intent whose native row was deleted',
   },
   {
+    name: 'payments.settlements',
+    key: 'id',
+    cols: 'id, attempt_id, settled_amount, provider, provider_ref',
+  },
+  {
     name: 'payments.details',
     key: 'id',
     cols: 'id, user_id, method_id, account_holder, bank_name, account_type, email_to, provider, provider_ref, last_four, card_brand',
@@ -453,11 +458,6 @@ const TABLES = [
 ]
 
 const NOT_REBUILT = {
-  'payments.settlements':
-    'a card sale placed natively after the pivot settles natively. The rows 074 ' +
-    'derives come from payments.stripe_charges, which 055 seeds from a Stripe ' +
-    'export rather than from exchange: exchange marks 1 of the 4 settled intents ' +
-    'succeeded, so no exchange-only population can name them.',
   'refiners.orders':
     'created and seeded by 093/094/096 from the ledger; invariant pinned by refiner-edits.test.ts',
   'refining.orders':

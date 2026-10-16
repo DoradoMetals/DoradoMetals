@@ -52,10 +52,6 @@ export function assertRefundable(
   }
 }
 
-export function refundCents(amount: number): number {
-  return Math.round(amount * 100)
-}
-
 export function refundKeyFor(refund_id: string): string {
   return `refund_${refund_id}`
 }

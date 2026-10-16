@@ -78,9 +78,7 @@ test('pooled: the refiner order that held it has settled', async () => {
     const refiningOrder = await refiningOrdersRepo.create({ refiner_id, direction: 'sell' }, c)
     await refiningLotsRepo.assign(refiningOrder.id, [order.lots[0]!.lot_id], c)
     await refiningOrdersRepo.send(refiningOrder.id, c)
-    await c.query(`UPDATE refining.orders SET settled_at = now() WHERE id = $1`, [
-      refiningOrder.id,
-    ])
+    await c.query(`UPDATE refining.orders SET settled_at = now() WHERE id = $1`, [refiningOrder.id])
 
     assert.equal(await positionOf(c, order.lots[0]!.lot_id), 'pooled')
   })
@@ -90,6 +88,69 @@ test('sold: a lot placed on a sale order', async () => {
   await inPositions(async (c) => {
     const order = await anOrder(c, await aUser(c), { direction: 'sale' }).withLots(1)
     assert.equal(await positionOf(c, order.lots[0]!.lot_id), 'sold')
+  })
+})
+
+test('sold: stock behind a sale edge frees when the sale order is cancelled', async () => {
+  await inPositions(async (c) => {
+    const stock = await anOrder(c, await aUser(c), { direction: 'purchase' }).withLots(1)
+    const sale = await anOrder(c, await aUser(c), { direction: 'sale' }).withLots(1)
+    const stock_id = stock.lots[0]!.lot_id
+    await c.query(`DELETE FROM orders.lots WHERE lot_id = $1`, [stock_id])
+    await c.query(
+      `INSERT INTO inventory.lot_sources (lot_id, source_lot_id, kind) VALUES ($1, $2, 'sale')`,
+      [sale.lots[0]!.lot_id, stock_id]
+    )
+    assert.equal(await positionOf(c, stock_id), 'sold')
+
+    await c.query(`UPDATE orders.orders SET cancelled_at = now() WHERE id = $1`, [sale.id])
+    assert.equal(await positionOf(c, stock_id), 'on hand')
+  })
+})
+
+const droppedOff = async (c: PoolClient, refining_order_id: string) => {
+  await c.query(
+    `INSERT INTO fulfillments.fulfillments (method_id, refining_order_id, status)
+     SELECT id, $1, 'DROPPED_OFF' FROM fulfillments.methods
+      WHERE category <> 'SHIPMENT' ORDER BY id LIMIT 1`,
+    [refining_order_id]
+  )
+}
+
+test('on hand: a link cancelled before its metal moved is back on hand, not at the refiner', async () => {
+  await inPositions(async (c) => {
+    const order = await anOrder(c, await aUser(c), { direction: 'purchase' }).withLots(1)
+    const lot_id = order.lots[0]!.lot_id
+    const refiningOrder = await refiningOrdersRepo.create(
+      { refiner_id: await aRefiner(c), direction: 'sell' },
+      c
+    )
+    await refiningLotsRepo.assign(refiningOrder.id, [lot_id], c)
+    await refiningOrdersRepo.send(refiningOrder.id, c)
+    await refiningLotsRepo.releaseFor(refiningOrder.id, c)
+    await refiningOrdersRepo.cancel(refiningOrder.id, c)
+    assert.notEqual(await positionOf(c, lot_id), 'at refiner')
+  })
+})
+
+test('at refiner: a cancelled order keeps a sent lot out until it is returned', async () => {
+  await inPositions(async (c) => {
+    const order = await anOrder(c, await aUser(c), { direction: 'purchase' }).withLots(1)
+    const lot_id = order.lots[0]!.lot_id
+    const refiningOrder = await refiningOrdersRepo.create(
+      { refiner_id: await aRefiner(c), direction: 'sell' },
+      c
+    )
+    await refiningLotsRepo.assign(refiningOrder.id, [lot_id], c)
+    await refiningOrdersRepo.send(refiningOrder.id, c)
+    await droppedOff(c, refiningOrder.id)
+    await refiningLotsRepo.releaseFor(refiningOrder.id, c)
+    await refiningOrdersRepo.cancel(refiningOrder.id, c)
+    assert.equal(await positionOf(c, lot_id), 'at refiner')
+
+    assert.equal(await refiningLotsRepo.markReturned(refiningOrder.id, c), 1)
+    assert.notEqual(await positionOf(c, lot_id), 'at refiner')
+    assert.equal(await refiningLotsRepo.markReturned(refiningOrder.id, c), 0)
   })
 })
 

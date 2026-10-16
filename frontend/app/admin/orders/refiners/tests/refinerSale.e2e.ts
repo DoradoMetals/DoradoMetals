@@ -262,8 +262,15 @@ for (const size of SIZES) {
     test('a dispute set by PATCH resolves through its confirm', async ({ page }) => {
       const request = await api()
       const start = await readOrder(request, orderId)
-      test.skip(start.state === 'Cancelled', 'the sales order is cancelled')
-      test.skip(start.disputed_at !== null, 'the sales order is already disputed')
+      expect(start.state, 'the setup picks a sales order that is not cancelled').not.toBe(
+        'Cancelled'
+      )
+      if (start.disputed_at !== null) {
+        const cleared = await request.patch(`${API}/refining/orders/${orderId}`, {
+          data: { disputed_at: null, dispute_note: null },
+        })
+        expect(cleared.ok(), `PATCH clear dispute answered ${cleared.status()}`).toBeTruthy()
+      }
       const note = 'e2e dispute: assay out of tolerance'
       const disputed = await request.patch(`${API}/refining/orders/${orderId}`, {
         data: { disputed_at: new Date().toISOString(), dispute_note: note },
@@ -300,8 +307,8 @@ for (const size of SIZES) {
     })
 
     test('the Cancel confirm opens and Keep order closes it', async ({ page }) => {
+      test.fixme(true, 'no fixture path creates a sales order that offers cancel')
       const { order } = await openOrder(page, orderId)
-      test.skip(!offers(order, 'cancel'), 'the API does not offer cancel on this sales order')
       await page.getByRole('button', { name: 'Cancel', exact: true }).click()
       const dialog = page.getByRole('dialog', { name: `Cancel ${order.number}?` })
       await expect(dialog).toBeVisible()
@@ -312,13 +319,13 @@ for (const size of SIZES) {
     })
 
     test('the Match drawer opens from the settlement Import row', async ({ page }) => {
+      test.fixme(
+        true,
+        'no fixture path guarantees an order whose settlement file is not yet imported'
+      )
       const { docs } = await openOrder(page, orderId)
       const settlementDoc = docs.find((doc) => doc.kind === 'settlement')
-      test.skip(!settlementDoc, 'the documents read has no settlement row')
-      test.skip(
-        settlementDoc!.available,
-        'a settlement file is already imported, so the row draws Download and no Import'
-      )
+      expect(settlementDoc, 'the documents read has a settlement row').toBeTruthy()
       await page.route(
         new RegExp(`/refining/orders/${orderId}/documents/settlement$`),
         async (route) => {

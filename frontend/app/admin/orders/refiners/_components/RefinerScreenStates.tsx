@@ -1,5 +1,7 @@
 import { Alert, Button, Skeleton } from '@dorado/components'
 
+import { CardNotice } from '../../_components/CardNotice'
+
 export function RefinerOrderSkeleton() {
   return (
     <div
@@ -38,20 +40,20 @@ export function RefinerOrderFailed({ onRetry }: { onRetry: () => void }) {
 export function RefinerSaveFailed({
   stale,
   message,
-  onDismiss,
+  onReload,
+  onRetry,
 }: {
   stale: boolean
   message?: string
-  onDismiss: () => void
+  onReload: () => void
+  onRetry: () => void
 }) {
   return (
-    <Alert
-      intent="danger"
-      title={stale ? 'This order changed since you opened it' : 'That change did not save'}
-      className="w-full"
-      onDismiss={onDismiss}
-    >
-      {stale ? 'The latest figures are loaded. Make the change again.' : (message ?? 'Try again.')}
-    </Alert>
+    <CardNotice
+      kind={stale ? 'stale' : 'error'}
+      message={message}
+      onReload={onReload}
+      onRetry={onRetry}
+    />
   )
 }

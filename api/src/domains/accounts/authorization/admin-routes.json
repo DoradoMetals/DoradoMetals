@@ -168,6 +168,7 @@
   "POST /api/refining/orders/:id/cancel",
   "POST /api/refining/orders/:id/documents/:kind",
   "POST /api/refining/orders/:id/lots",
+  "POST /api/refining/orders/:id/returned",
   "POST /api/refining/orders/:id/send",
   "POST /api/refining/orders/:id/settle",
   "POST /api/refining/orders/:id/settlement-lines/parse",

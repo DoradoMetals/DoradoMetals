@@ -207,7 +207,7 @@ const facts = (over: Partial<Facts> = {}): Facts =>
     credited: false,
     reference: 'PO-1',
     state: 'Awaiting Finalize',
-    payment: { received: 0, refunded: 0, refundable: 0, charge_received: false },
+    payment: { received: 0, refunded: 0, refundable: 0, credit: 0, charge_received: false },
     adopt: { assayed_lots: 0, combining_lots: 0 },
     cases: { claims: 0, open_claims: 0, open_disputes: 0 },
     payout_methods: [],
@@ -266,7 +266,7 @@ test('the direction decides which half of the action surface exists', () => {
   const paid = rules.actionsFor(
     facts({
       ...order({ direction: 'sale' }),
-      payment: { received: 100, refunded: 0, refundable: 100, charge_received: true },
+      payment: { received: 100, refunded: 0, refundable: 100, credit: 0, charge_received: true },
     })
   )
   assert.equal(hasAction(paid, 'cancel'), false, 'a paid sale was offered cancel before a refund')
@@ -552,7 +552,7 @@ test('edit_charges needs a parcel or a payout, and a charged sale makes it an ov
       facts({
         ...order({ direction: 'sale' }),
         shipments: [parcel('Outbound', null)],
-        payment: { received: 100, refunded: 0, refundable: 100, charge_received: true },
+        payment: { received: 100, refunded: 0, refundable: 100, credit: 0, charge_received: true },
       })
     ),
     'edit_charges'
@@ -627,7 +627,7 @@ test('remove_lots confirms on a purchase and is an override on a charged sale', 
     rules.actionsFor(
       facts({
         ...order({ direction: 'sale' }),
-        payment: { received: 100, refunded: 0, refundable: 100, charge_received: true },
+        payment: { received: 100, refunded: 0, refundable: 100, credit: 0, charge_received: true },
       })
     ),
     'remove_lots'

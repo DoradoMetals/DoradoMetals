@@ -38,7 +38,7 @@ describe('OrderHeader', () => {
     expect(await screen.findByText('Marguerite Whitfield')).toBeTruthy()
     expect(screen.getByText('Purchase order')).toBeTruthy()
     expect(screen.getByText('At Refiner')).toBeTruthy()
-    expect(screen.getByText('PO-2481')).toBeTruthy()
+    expect(screen.getAllByText('PO-2481')).toHaveLength(2)
     expect(screen.getByText('7 orders to date')).toBeTruthy()
     expect(screen.getByRole('combobox', { name: 'Assigned to' })).toBeTruthy()
   })

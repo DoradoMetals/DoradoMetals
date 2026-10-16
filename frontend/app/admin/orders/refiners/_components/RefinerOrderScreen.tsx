@@ -28,7 +28,12 @@ import { AddLotDialog } from './AddLotDialog'
 import { LinkedFulfillment } from './LinkedFulfillment'
 import { MatchLinesDrawer } from './MatchLinesDrawer'
 import { RefinerCharges } from './RefinerCharges'
-import { RefinerConfirm, refinerConfirmCopy, type RefinerConfirmActionName } from './RefinerConfirm'
+import {
+  RefinerConfirm,
+  refinerConfirmCopy,
+  type PartialSettle,
+  type RefinerConfirmActionName,
+} from './RefinerConfirm'
 import { RefinerDocuments } from './RefinerDocuments'
 import { RefinerHeader } from './RefinerHeader'
 import { RefinerLots } from './RefinerLots'
@@ -38,7 +43,7 @@ import { RefinerSettlement } from './RefinerSettlement'
 import { RefinerSpots } from './RefinerSpots'
 import { RefinerTotals } from './RefinerTotals'
 
-type Pending = { action: Action; run: () => void; body?: string }
+type Pending = { action: Action; run: () => void; body?: string; partial?: PartialSettle }
 
 const ALWAYS_CONFIRM = new Set(['cancel', 'send_payment'])
 
@@ -53,15 +58,17 @@ export function RefinerOrderScreen({ orderId }: { orderId: string }) {
   if (order.isError) return <RefinerOrderFailed onRetry={() => order.refetch()} />
   if (!view) return <RefinerOrderSkeleton />
 
-  return <RefinerOrderBody view={view} layout={layout} />
+  return <RefinerOrderBody view={view} layout={layout} onReload={() => order.refetch()} />
 }
 
 function RefinerOrderBody({
   view,
   layout,
+  onReload,
 }: {
   view: RefiningOrderRead
   layout: 'desktop' | 'mobile'
+  onReload: () => void
 }) {
   const mobile = layout === 'mobile'
   const sell = view.direction === 'sell'
@@ -84,9 +91,9 @@ function RefinerOrderBody({
 
   const fail = { onError: (error: unknown) => setFailure(error) }
 
-  const onAction = (action: Action, run: () => void, body?: string) =>
+  const onAction = (action: Action, run: () => void, body?: string, partial?: PartialSettle) =>
     action.confirm !== null || action.override !== null || ALWAYS_CONFIRM.has(action.name)
-      ? setPending({ action, run, body })
+      ? setPending({ action, run, body, partial })
       : run()
 
   const editLots = offered(view.actions, 'edit_lots')
@@ -143,8 +150,14 @@ function RefinerOrderBody({
               { lots: toSettle.map((row) => ({ lot_id: row.lot_id })) },
               { ...fail, onSuccess: () => setChosen(new Set()) }
             ),
+          undefined,
           picked.length > 0 && picked.length < open.length
-            ? `${picked.length} of ${open.length} open lots are marked settled at the refiner’s figures. The rest stay open.`
+            ? {
+                references: picked.map((row) => row.lot.reference ?? row.lot.product_name ?? ''),
+                total: open.length,
+                refiner: view.refiner?.organization.name ?? null,
+                order: view.number,
+              }
             : undefined
         )
       }
@@ -211,7 +224,11 @@ function RefinerOrderBody({
       {failure !== null && (
         <RefinerSaveFailed
           stale={failure instanceof ApiError && failure.status === 409}
-          onDismiss={() => setFailure(null)}
+          onReload={() => {
+            setFailure(null)
+            onReload()
+          }}
+          onRetry={() => setFailure(null)}
         />
       )}
       {mobile ? (
@@ -271,6 +288,7 @@ function RefinerOrderBody({
           action={{ ...pending.action, name: pending.action.name }}
           reference={view.number}
           body={pending.body}
+          partial={pending.partial}
           layout={layout}
           onCancel={() => setPending(null)}
           onConfirm={() => {

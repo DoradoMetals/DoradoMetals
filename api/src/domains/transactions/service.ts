@@ -140,6 +140,7 @@ export async function updateFromProvider(
   const attempt = await attempts.findByProviderRef(paymentIntent.id, tx)
   if (!attempt) return false
   const { id: attempt_id, intent_id } = attempt
+  await intents.lockOrder(intent_id, tx)
 
   const { status, amount_received } = paymentIntent
   const amount_expected = toDollars(paymentIntent.amount)

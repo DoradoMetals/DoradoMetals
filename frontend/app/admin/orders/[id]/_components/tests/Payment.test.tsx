@@ -234,6 +234,7 @@ describe('Payment (170:2316 / 170:2477)', () => {
         received: 14120,
         refunded: 1105.2,
         refundable: 13014.8,
+        credit: 0,
         charge_received: true,
       },
       lines: [{ key: 'one', method: 'ACH' }],

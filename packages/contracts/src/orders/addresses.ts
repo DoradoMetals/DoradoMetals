@@ -10,6 +10,7 @@ export const OrderAddressLink = z.object({
   'address_id': z.string().uuid(),
   'order_id': z.string().uuid(),
   'source_address_id': z.string().uuid().nullable(),
+  'previous_address_id': z.string().uuid().nullable(),
 })
 export type OrderAddressLink = z.infer<typeof OrderAddressLink>
 // generated:end

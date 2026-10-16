@@ -17,6 +17,7 @@ export {
   type StepUpGate,
   type UseActionFlowOptions,
 } from './useActionFlow'
+export { AdoptAssayDrawer, type AdoptAssayDrawerProps } from './AdoptAssayDrawer'
 export { AddressChangeDialog, type AddressChangeDialogProps } from './AddressChangeDialog'
 export { Payment, BALANCE_METHOD, type MatchCandidate, type PaymentProps } from './Payment'
 export {

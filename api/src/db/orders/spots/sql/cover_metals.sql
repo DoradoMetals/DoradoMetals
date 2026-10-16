@@ -4,7 +4,8 @@
 -- feed and a `lock` event is written for that metal alone, carrying the reason
 -- ($2), so the metal prices at discovery time and the log says why (ruling
 -- 2026-10-14). On an unlocked order the row is empty and the next lock fills
--- it. Metals the order already holds are left untouched.
+-- it. A row a lock or unlock cleared to NULL is filled the same way when a lot
+-- of that metal returns. Metals whose row already holds a bid are left untouched.
 WITH held AS (
   SELECT DISTINCT li.metal_id
     FROM orders.lots ol
@@ -19,7 +20,9 @@ added AS (
     FROM held h
     JOIN orders.orders o ON o.id = $1
     LEFT JOIN spots.resolved s ON s.metal_id = h.metal_id
-  ON CONFLICT (order_id, metal_id) DO NOTHING
+  ON CONFLICT (order_id, metal_id) DO UPDATE
+     SET bid = EXCLUDED.bid, ask = EXCLUDED.ask
+   WHERE orders.spots.bid IS NULL AND EXCLUDED.bid IS NOT NULL
   RETURNING order_id, metal_id, ask, bid
 )
 INSERT INTO orders.spot_locks (order_id, metal_id, action, bid, ask, reason)

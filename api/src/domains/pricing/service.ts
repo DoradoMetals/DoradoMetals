@@ -86,3 +86,7 @@ export function payoutSplitGapCents(amounts: readonly number[], total: number): 
   const split = amounts.reduce((sum, amount) => sum + Math.round(Number(amount) * 100), 0)
   return Math.round(Number(total) * 100) - split
 }
+
+export function refundCents(amount: number): number {
+  return Math.round(Number(amount) * 100)
+}

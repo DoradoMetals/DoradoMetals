@@ -34,6 +34,19 @@ describe('RefinerOrderScreen header', () => {
     expect(screen.getByRole('combobox', { name: 'Assigned to' })).toBeTruthy()
   })
 
+  test('the header carries the breadcrumb Admin > Orders > reference', async () => {
+    stubApi(routesFor(order()))
+    wrap(<RefinerOrderScreen orderId={ORDER} />)
+    await screen.findByText('Elemetal Refining')
+    const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' })
+    expect(within(crumbs).getByRole('link', { name: 'Admin' }).getAttribute('href')).toBe('/admin')
+    expect(within(crumbs).getByRole('link', { name: 'Orders' }).getAttribute('href')).toBe(
+      '/admin/orders'
+    )
+    expect(within(crumbs).getByText('RS-2493')).toBeTruthy()
+    expect(within(crumbs).queryByRole('link', { name: 'RS-2493' })).toBeNull()
+  })
+
   test('draws Send only while the order is unsent', async () => {
     stubApi(routesFor(order({ direction: 'buy', number: 'RP-2493', actions: [action('send')] })))
     wrap(<RefinerOrderScreen orderId={ORDER} />)

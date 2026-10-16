@@ -128,7 +128,7 @@ function lotColumns({
                   onCommit={(text) => commit(row.original, { post_melt: parseWeight(text) })}
                 />
               ),
-            meta: { line: 2, cardLabel: 'Post Melt' },
+            meta: { line: 2, cardLabel: 'Weight' },
           }),
           column.display({
             id: 'purity',

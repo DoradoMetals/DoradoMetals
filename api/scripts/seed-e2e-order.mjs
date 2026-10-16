@@ -16,7 +16,6 @@ import * as addressService from '#accounts/places/addresses/service.ts'
 import * as orderSpotsService from '#orders/spots/service.ts'
 import * as orderService from '#orders/service.ts'
 import * as orderRead from '#orders/read.ts'
-import * as pricing from '#pricing/index.ts'
 import { place } from '#orders/place.ts'
 
 // The seed exists so a disposable order can be minted without buying a real
@@ -66,12 +65,6 @@ const products = await one(
   'no product in dev to put on the order'
 )
 
-const [{ id: sale_product_id }] = await one(
-  `SELECT id FROM products.bullion WHERE display = true ORDER BY name LIMIT 1`,
-  [],
-  'no displayed product in dev to sell'
-)
-
 const [{ id: service_id }] = await one(
   `SELECT id FROM shipping.services WHERE carrier_id IS NOT NULL ORDER BY name LIMIT 1`,
   [],
@@ -93,12 +86,6 @@ const methodOf = async (direction, type) =>
       `no ${type} ${direction} fulfillment method in dev`
     )
   )[0].id
-
-const [{ id: card_method_id }] = await one(
-  `SELECT id FROM payments.methods WHERE direction = 'sale' AND type = 'CARD' AND enabled LIMIT 1`,
-  [],
-  'no enabled CARD sale payment method in dev'
-)
 
 // The address book is places.user_addresses now, keyed by `label` - the
 // frozen exchange.addresses row this used to look for is not what the API
@@ -135,6 +122,14 @@ async function findMarked(marker) {
     [user_id, marker]
   )
   return rows[0]?.id ?? null
+}
+
+async function findAllMarked(marker, limit) {
+  const { rows } = await query(
+    `SELECT id FROM orders.orders WHERE user_id = $1 AND notes = $2 ORDER BY created_at LIMIT $3`,
+    [user_id, marker, limit]
+  )
+  return rows.map((row) => row.id)
 }
 
 async function mark(order_id, marker) {
@@ -181,70 +176,6 @@ async function normalizePurchase(order_id) {
   }
 }
 
-async function plantCardPayment(amount) {
-  await query(
-    `UPDATE payments.intents i SET status = 'canceled'
-      WHERE i.user_id = $1 AND i.order_id IS NULL AND i.status <> 'canceled'
-        AND EXISTS (SELECT 1 FROM payments.attempts a
-                     WHERE a.intent_id = i.id AND a.provider_ref LIKE 'pi_e2e_%')`,
-    [user_id]
-  )
-  const {
-    rows: [card],
-  } = await query(
-    `INSERT INTO payments.details (user_id, method_id, last_four, card_brand, provider, provider_ref)
-     VALUES ($1, $2, '4242', 'visa', 'stripe', 'pm_e2e_' || replace(gen_random_uuid()::text, '-', ''))
-     RETURNING id`,
-    [user_id, card_method_id]
-  )
-  const {
-    rows: [intent],
-  } = await query(
-    `INSERT INTO payments.intents (user_id, method_id, details_id, amount_expected, status, type)
-     VALUES ($1, $2, $3, $4, 'succeeded', 'sales_order_checkout') RETURNING id`,
-    [user_id, card_method_id, card.id, amount]
-  )
-  const {
-    rows: [attempt],
-  } = await query(
-    `INSERT INTO payments.attempts (intent_id, method_id, provider, provider_ref, amount, status)
-     VALUES ($1, $2, 'stripe', 'pi_e2e_' || replace(gen_random_uuid()::text, '-', ''), $3, 'succeeded')
-     RETURNING id`,
-    [intent.id, card_method_id, amount]
-  )
-  await query(
-    `INSERT INTO payments.settlements (attempt_id, settled_amount, provider, provider_ref, settled_at)
-     VALUES ($1, $2, 'stripe', 'ch_e2e_' || replace(gen_random_uuid()::text, '-', ''), now())`,
-    [attempt.id, amount]
-  )
-}
-
-async function placeSale() {
-  const { id: checkout_row_id } = await checkoutService.getRowFor(user_id, 'sale')
-  const draft = await fulfillmentDrafts.createForCheckout(
-    { checkout_id: checkout_row_id, method_id: await methodOf('sale', 'DROPSHIP') },
-    user_id,
-    false
-  )
-  await fulfillmentService.patchChoices(draft.fulfillment.id, {
-    shipment: { package_id, carrier_service_id: service_id },
-  })
-  await checkoutService.patchCheckout(user_id, 'sale', {
-    payment_method_id: card_method_id,
-    recipient_address_id: address_id,
-  })
-  await checkoutService.replaceLots(user_id, 'sale', [{ bullion_id: sale_product_id, quantity: 1 }])
-  const { id: checkout_id } = await checkoutService.getRowFor(user_id, 'sale')
-  const quote = await pricing.priceCheckout(checkout_id)
-  const amount = Number(quote?.post_charges_amount)
-  if (!Number.isFinite(amount) || amount <= 0) {
-    console.error(`the sale checkout priced no card charge (${amount})`)
-    process.exit(1)
-  }
-  await plantCardPayment(amount)
-  return (await place(checkout_id, world)).order.id
-}
-
 async function normalizeSale(order_id) {
   await query(
     `UPDATE shipping.shipments s
@@ -268,20 +199,22 @@ async function standing(marker, build, normalize) {
 }
 
 const purchase = await standing(MARKERS.purchase, placePurchase, normalizePurchase)
-const sale = await standing(MARKERS.sale, placeSale, normalizeSale)
+const sale = await findMarked(MARKERS.sale)
+if (sale) await normalizeSale(sale)
 
 const WIDTHS = ['desktop', 'mobile']
+const found_purchases = await findAllMarked(MARKERS.disposablePurchase, WIDTHS.length)
+const found_sales = await findAllMarked(MARKERS.disposableSale, WIDTHS.length)
 const disposable_purchases = {}
 const disposable_sales = {}
-for (const width of WIDTHS) {
-  const purchase_id = await placePurchase()
-  await mark(purchase_id, MARKERS.disposablePurchase)
+for (const [index, width] of WIDTHS.entries()) {
+  const purchase_id = found_purchases[index] ?? (await placePurchase())
+  if (!found_purchases[index]) await mark(purchase_id, MARKERS.disposablePurchase)
   await normalizePurchase(purchase_id)
   disposable_purchases[width] = purchase_id
 
-  const sale_id = await placeSale()
-  await mark(sale_id, MARKERS.disposableSale)
-  await normalizeSale(sale_id)
+  const sale_id = found_sales[index] ?? null
+  if (sale_id) await normalizeSale(sale_id)
   disposable_sales[width] = sale_id
 }
 const disposablePurchase = disposable_purchases.desktop

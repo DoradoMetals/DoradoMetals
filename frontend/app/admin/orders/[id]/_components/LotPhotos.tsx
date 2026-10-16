@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { Thumbnail } from '@dorado/components'
+import { Spinner, Text, Thumbnail } from '@dorado/components'
 
 export type LotPhoto = { url: string; alt?: string }
 
@@ -10,13 +10,38 @@ export type LotPhotosProps = {
   label: string
   onOpen?: (index: number) => void
   max?: number
+  uploading?: number
 }
 
-export function LotPhotos({ photos, label, onOpen, max = 3 }: LotPhotosProps) {
-  if (photos.length === 0) {
+export function LotPhotos({ photos, label, onOpen, max = 3, uploading = 0 }: LotPhotosProps) {
+  const pending = uploading > 0 && (
+    <>
+      {Array.from({ length: uploading }, (_, index) => (
+        <Thumbnail
+          key={`uploading-${index}`}
+          aria-label={`Uploading photo of ${label}`}
+          disabled
+          showGlyph={false}
+          className="opacity-50"
+        />
+      ))}
+      <Spinner size="sm" label="Uploading" />
+      <Text variant="micro" className="text-muted-foreground">
+        {`${uploading} uploading`}
+      </Text>
+    </>
+  )
+  if (photos.length === 0 && !pending) {
     return (
       <span data-count="none" className="flex items-center gap-xs">
         <Thumbnail aria-label={`No photos of ${label}`} disabled />
+      </span>
+    )
+  }
+  if (photos.length === 0) {
+    return (
+      <span data-count="uploading" className="flex items-center gap-xs">
+        {pending}
       </span>
     )
   }
@@ -42,6 +67,7 @@ export function LotPhotos({ photos, label, onOpen, max = 3 }: LotPhotosProps) {
           onClick={() => onOpen?.(shown.length)}
         />
       )}
+      {pending}
     </span>
   )
 }

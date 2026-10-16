@@ -78,4 +78,24 @@ describe('LotsRow', () => {
       true
     )
   })
+
+  test('Lots Row Mobile: the select checkbox is off by default and shows on Show select', () => {
+    const onSelectedChange = vi.fn()
+    const { unmount } = render(
+      <LotsRow lot={scrapLot} kind="scrap" layout="mobile" onSelectedChange={onSelectedChange} />
+    )
+    expect(screen.queryByRole('checkbox')).toBeNull()
+    unmount()
+    render(
+      <LotsRow
+        lot={scrapLot}
+        kind="scrap"
+        layout="mobile"
+        showSelect
+        onSelectedChange={onSelectedChange}
+      />
+    )
+    fireEvent.click(screen.getByRole('checkbox'))
+    expect(onSelectedChange).toHaveBeenCalledWith(true)
+  })
 })

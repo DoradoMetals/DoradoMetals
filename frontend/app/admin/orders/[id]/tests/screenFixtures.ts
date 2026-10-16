@@ -53,7 +53,7 @@ export const orderView = (direction: Direction, over: Partial<OrderView> = {}): 
   credited: false,
   reference: direction === 'sale' ? 'SO-1112' : 'PO-2481',
   state: direction === 'sale' ? 'Awaiting Payment' : 'Awaiting Finalize',
-  payment: { received: 0, refunded: 0, refundable: 0, charge_received: false },
+  payment: { received: 0, refunded: 0, refundable: 0, credit: 0, charge_received: false },
   adopt: { assayed_lots: 0, combining_lots: 0 },
   cases: { claims: 0, open_claims: 0, open_disputes: 0 },
   completed_at: null,

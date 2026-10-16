@@ -4,6 +4,7 @@ import * as ledger from '#transactions/ledger/service.ts'
 import * as stepUp from '#accounts/auth/step-up.ts'
 import * as stripe from '#providers/stripe/stripe.ts'
 import * as rules from '#transactions/refunds/rules.ts'
+import * as pricing from '#pricing/index.ts'
 import withTransaction from '#shared/db/withTransaction.ts'
 import { attempt } from '#shared/attempt.ts'
 import type { RefundIssuer } from '#providers/stripe/stripe.ts'
@@ -67,7 +68,7 @@ async function issueRefund(pending: Refund, issue: RefundIssuer): Promise<void> 
   const outcome = await attempt(`stripe refund ${pending.id}`, () =>
     issue({
       paymentIntentId: pending.payment_ref as string,
-      amountCents: rules.refundCents(pending.amount),
+      amountCents: pricing.refundCents(pending.amount),
       idempotencyKey: rules.refundKeyFor(pending.id),
       metadata: { refund_id: pending.id, order_id: pending.order_id },
     })

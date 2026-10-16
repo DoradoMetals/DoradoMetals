@@ -86,7 +86,7 @@ describe('RefinerOrderScreen stale saves', () => {
     const input = await screen.findByRole('textbox', { name: 'Premium, 14K Gold' })
     fireEvent.change(input, { target: { value: '90' } })
     fireEvent.blur(input)
-    expect(await screen.findByText('This order changed since you opened it')).toBeTruthy()
+    expect(await screen.findByText('This order changed since you opened it.')).toBeTruthy()
   })
 
   test('a 409 on an order patch says the order changed', async () => {
@@ -95,7 +95,7 @@ describe('RefinerOrderScreen stale saves', () => {
     failWith(`PATCH /refining/orders/${ORDER}`, 409)
     wrap(<RefinerOrderScreen orderId={ORDER} />)
     fireEvent.click(await screen.findByRole('button', { name: 'Pooled' }))
-    expect(await screen.findByText('This order changed since you opened it')).toBeTruthy()
+    expect(await screen.findByText('This order changed since you opened it.')).toBeTruthy()
   })
 
   test('any other failure says the change did not save', async () => {
@@ -106,7 +106,7 @@ describe('RefinerOrderScreen stale saves', () => {
     wrap(<RefinerOrderScreen orderId={ORDER} />)
     fireEvent.click(await screen.findByRole('checkbox', { name: 'Select 14K Gold' }))
     fireEvent.click(screen.getByRole('button', { name: 'Remove selected lots' }))
-    expect(await screen.findByText('That change did not save')).toBeTruthy()
+    expect(await screen.findByText('Couldn’t save your change.')).toBeTruthy()
   })
 })
 
@@ -137,13 +137,33 @@ describe('RefinerOrderScreen settlement', () => {
     wrap(<RefinerOrderScreen orderId={ORDER} />)
     fireEvent.click(await screen.findByRole('checkbox', { name: 'Select 14K Gold' }))
     fireEvent.click(screen.getByRole('button', { name: 'Record settlement' }))
-    const dialog = await screen.findByRole('dialog', { name: 'Settle RS-2493?' })
-    expect(within(dialog).getByText(/1 of 2 open lots are marked settled/)).toBeTruthy()
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Settle' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Settle 1 of 2 lots now?' })
+    expect(
+      within(dialog).getByText(/The other 1 lot stays open and RS-2493 stays open/)
+    ).toBeTruthy()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Settle 1 lot' }))
     await waitFor(() => expect(calls.some((c) => c.url.pathname.endsWith('/settle'))).toBe(true))
     expect(calls.find((c) => c.url.pathname.endsWith('/settle'))!.body).toEqual({
       lots: [{ lot_id: view.lots[0]!.lot_id }],
     })
+  })
+
+  test('the proposed chips stay live on a partial order and are disabled once Settled or Cancelled', async () => {
+    const partial = order({
+      lots: [lot(1, { settled_at: '2026-09-09T15:00:00Z' }), lot(2)],
+      settlement: { state: 'Partial', settled_lots: 1, lot_count: 2 },
+    })
+    stubApi(routesFor(partial))
+    const { unmount } = wrap(<RefinerOrderScreen orderId={ORDER} />)
+    expect(await screen.findByRole('button', { name: 'Pooled' })).toHaveProperty('disabled', false)
+    unmount()
+    const settled = order({
+      settled_at: '2026-09-10T15:00:00Z',
+      settlement: { state: 'Settled', settled_lots: 2, lot_count: 2 },
+    })
+    stubApi(routesFor(settled))
+    wrap(<RefinerOrderScreen orderId={ORDER} />)
+    expect(await screen.findByRole('button', { name: 'Pooled' })).toHaveProperty('disabled', true)
   })
 
   test('a partial order reads N of M settled with the settled amount', async () => {
@@ -293,7 +313,7 @@ describe('RefinerOrderScreen documents', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Import Settlement' }))
     const file = new File(['%PDF'], 'statement.pdf', { type: 'application/pdf' })
     fireEvent.change(screen.getByLabelText('Import document'), { target: { files: [file] } })
-    expect(await screen.findByText('That change did not save')).toBeTruthy()
+    expect(await screen.findByText('Couldn’t save your change.')).toBeTruthy()
   })
 })
 

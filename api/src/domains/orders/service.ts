@@ -347,8 +347,13 @@ export async function setPayoutMethods(
     return await chooseOneMethod(order, body.methods[0]!.method_id, standing?.state ?? null)
   }
   rules.assertSplitEditable(order, standing?.state ?? null)
+  const known = await paymentMethods.list()
+  const types = body.methods.map(
+    (line) => known.find((method) => method.id === line.method_id)?.type ?? null
+  )
   rules.assertSplitShape(
     body.methods,
+    types,
     pricing.payoutSplitGapCents(
       body.methods.map((row) => row.amount ?? 0),
       order.totals.total
@@ -359,6 +364,9 @@ export async function setPayoutMethods(
   await withTransaction(async (tx) => {
     await payoutMethods.removeFor(order_id, tx)
     for (const line of body.methods) await payoutMethods.create(order_id, line, tx)
+    const transfer = types.find((type) => type !== 'DORADO_ACCOUNT')
+    const details_id = order.totals.payout_details_id
+    if (transfer && details_id) await paymentDetails.setMethod(details_id, transfer, tx)
   })
 
   return await viewOf(order_id)
@@ -444,10 +452,13 @@ export async function cancelSale(
 ): Promise<OrderView> {
   const order = await viewOf(order_id)
   rules.assertDirection(order.order.direction, 'sale', 'cancelling a sale')
-  rules.assertSaleCancellable(order)
   rules.assertReasonGiven(choices.reason, `cancelling order ${order.order.number}`)
 
   await withTransaction(async (tx) => {
+    await ordersRepo.lock(order_id, tx)
+    const current = await orderRead.view(order_id, tx)
+    rules.assertOrder(current, order_id)
+    rules.assertSaleCancellable(current)
     await sweeps.cancelPendingSale(order_id, tx)
     await actionReasons.create({ order_id, action: 'cancel', reason: choices.reason as string }, tx)
   })

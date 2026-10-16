@@ -185,6 +185,12 @@ export function useCancelRefiningOrder(id: string) {
   )
 }
 
+export function useMarkRefiningOrderReturned(id: string) {
+  return useRefiningWrite(() =>
+    apiRequest<RefiningOrderRead>('POST', `/refining/orders/${id}/returned`, {})
+  )
+}
+
 export function useImportRefiningDocument(id: string) {
   return useRefiningWrite(({ kind, file }: { kind: string; file: File }) => {
     const form = new FormData()

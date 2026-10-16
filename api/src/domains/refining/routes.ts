@@ -15,6 +15,7 @@ import {
   getRefiningSettlementLines,
   getRefiningSpots,
   listRefiningOrders,
+  markRefiningOrderReturned,
   patchRefiningLot,
   patchRefiningOrder,
   sendRefiningOrder,
@@ -43,6 +44,7 @@ router.get('/orders/:id', requireAdmin, getRefiningOrder)
 router.patch('/orders/:id', requireAdmin, patchRefiningOrder)
 router.post('/orders/:id/send', requireAdmin, sendRefiningOrder)
 router.post('/orders/:id/cancel', requireAdmin, cancelRefiningOrder)
+router.post('/orders/:id/returned', requireAdmin, markRefiningOrderReturned)
 router.get('/orders/:id/spots', requireAdmin, getRefiningSpots)
 router.get('/orders/:id/payment', requireAdmin, getRefiningPayment)
 router.get('/orders/:id/fulfillment', requireAdmin, getFulfillmentByRefiningOrder)

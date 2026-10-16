@@ -18,6 +18,7 @@ export type LotsRowProps = {
   layout?: 'desktop' | 'mobile'
   editable?: boolean
   selected?: boolean
+  showSelect?: boolean
   onSelectedChange?: (selected: boolean) => void
   onEdit?: (id: string, patch: OrderLotPatch) => void
   onAllocate?: (id: string) => void
@@ -32,6 +33,7 @@ export function LotsRow({
   layout = 'desktop',
   editable = false,
   selected = false,
+  showSelect = false,
   onSelectedChange,
   onEdit,
   onAllocate,
@@ -97,7 +99,7 @@ export function LotsRow({
       >
         <div className="flex items-center justify-between gap-3xs">
           <span className="flex items-center gap-xs">
-            {check}
+            {showSelect && check}
             <Text variant="small">{lot.name}</Text>
           </span>
           <Text variant="micro" className="text-muted-foreground">

@@ -68,6 +68,8 @@ export function Lots({
   const some = selected.length > 0
   const editable = offers(actions, ORDER_ACTIONS.editLots)
   const canAdd = offers(actions, ORDER_ACTIONS.addLot) && onAdd != null
+  const canCombineLots = offers(actions, ORDER_ACTIONS.combineLots)
+  const canRemoveLots = offers(actions, ORDER_ACTIONS.removeLots)
   const canCombine = some && offers(actions, ORDER_ACTIONS.combineLots) && onCombine != null
   const canRemove = some && offers(actions, ORDER_ACTIONS.removeLots) && onRemove != null
   const removeAction = findAction(actions, ORDER_ACTIONS.removeLots)
@@ -121,6 +123,7 @@ export function Lots({
       layout={layout}
       editable={editable}
       selected={selected.includes(lot.id)}
+      showSelect={onSelectedChange != null && (canCombineLots || canRemoveLots)}
       onSelectedChange={onSelectedChange ? (on) => toggle(lot.id, on) : undefined}
       onEdit={onEdit}
       onAllocate={onAllocate}

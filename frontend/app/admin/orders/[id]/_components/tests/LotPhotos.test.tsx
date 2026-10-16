@@ -40,4 +40,11 @@ describe('LotPhotos', () => {
     fireEvent.click(screen.getByLabelText('2 more photos of Lot 2481-A'))
     expect(onOpen).toHaveBeenCalledWith(3)
   })
+
+  test('Count=Uploading: faded tiles, a spinner and the uploading count', () => {
+    const { container } = render(<LotPhotos photos={[]} uploading={1} label="Lot 2481-A" />)
+    expect(container.querySelector('[data-count="uploading"]')).toBeTruthy()
+    expect(screen.getByLabelText('Uploading photo of Lot 2481-A')).toBeTruthy()
+    expect(screen.getByText('1 uploading')).toBeTruthy()
+  })
 })

@@ -88,6 +88,25 @@ export function assertCancellable(order: RefiningOrder): void {
   }
 }
 
+export function assertReturnable(order: RefiningOrder, moved: boolean): void {
+  if (order.cancelled_at === null) {
+    throw new Conflict(
+      `refiner order ${order.number} is not cancelled - there is nothing to return`
+    )
+  }
+  if (!moved) {
+    throw new Conflict(
+      `refiner order ${order.number} was cancelled before its metal moved - nothing is out to return`
+    )
+  }
+}
+
+export function assertReturnedSome(order: RefiningOrder, stamped: number): void {
+  if (stamped === 0) {
+    throw new Conflict(`refiner order ${order.number} has no lot out at the refiner to return`)
+  }
+}
+
 export function assertTakesLots(order: RefiningOrder): void {
   if (order.cancelled_at !== null) {
     throw new Conflict(`refiner order ${order.number} is cancelled, so it takes no lots`)
