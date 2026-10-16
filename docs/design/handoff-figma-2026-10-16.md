@@ -105,3 +105,31 @@ Payments
 | Orders | 2026-10-16T19:39:30.678Z |
 | Auth | 2026-10-16T19:34:09.057Z |
 | Pricing | 2026-10-14T21:56:04.754Z |
+
+## 7. End of day (replacement worker, 2026-10-16 evening)
+
+Scope grew to People, Admin and the Library, then all eight files for the Table; Jacob then narrowed the work to the Leads table only.
+
+People
+- Entity screens in their own sections: Lead 477:11505 (Leads page), Customer 477:11506 (Users page). Employees was already split.
+- Breadcrumbs: one crumb in the Entity Header (Admin > Leads/Customers/Employees > name); page crumbs hidden, not deleted.
+- Attach on every Estimate row (12 copies) is Icon Button Subtle with the paperclip; all People Chart / Line instances moved to the published chart (y axis hugs its labels).
+- Top customers: By profit removed, last-row border removed, View all annotated (drilldown of all customers waits for the Table). Mobile employee header: Message and Call removed, Disable is Secondary Danger. Estimate open header hides the amount. Performance View all annotated.
+- Superseded sets recorded (not deleted): tools/people/snapshots/superseded-2026-10-16.json.
+
+Admin
+- Uncontacted Leads Header 45:788: "Leads" + "4 new"; Controls row (chips All/Unassigned/Uncontacted, sort radio chips Newest/Oldest/Est. value, owner-only Employee select, BOOLEANs Controls and Show employee filter). Lead Row 22:325 has an Estimate line. Divider 48:507 under the header. The card set has one variant.
+
+Library (unpublished since Jacob's last publish, which covered Icon Button Subtle and Chart / Line)
+- Marquee 1091:19 rows baseline-aligned.
+- Table (ruling 157) on page Table: Table 1101:444 (In card x Layout Desktop/Mobile x State Default/Empty/Loading/Error x Scrolling Paginated/Virtualized), Table Header 1172:254 (Layout x Stacked), Table Actions 1186:1440 (Selection None/Selected), Table Footer 1172:298, Table Head 1176:1238, Table Sort 1171:109, Table Row 56:33 (Cells/Fixed; Default/Hover/Selected/Expanded/Editing/Loading), Table Cell 1120:4194 (+ Input), Table Row Actions 1174:1120, Table Group Row 1176:6625. Per-column width variables: collections "Table · col 2..10", modes M/S/L/XS. New Multiselect 1183:127 (page Select). Empty State 127:49 gained Title/Body.
+- Jacob's frames: Leads Table (Main Screen) 1172:5649 (Leads designs), Tables in use 1179:9297, Leads table · functionality 1187:8714, header doc 1184:6343.
+- After the next publish: Orders Activity 1207:15065 and Refunds 1207:15238 lose their head labels (Head 1-6 TEXT props removed); labels in tools/library/snapshots/orders-table-heads-pre-publish-2026-10-16.json.
+
+Waiting on Jacob
+- Approve the Leads design and publish; then port the People Leads list, then the employee Customers drilldown.
+- Admin Header filter bar vs the Table Header's (his call; Admin Header unchanged).
+- Sort as chips or dropdown for Leads (both shown).
+- Assigned Work card (1970296424), Orders divider (1970300073), Inline Upload removal, superseded People sets, Narrow y axis option on Chart / Line (now redundant).
+
+High-water at stop: People 2026-10-16T21:51:57.322Z, Admin 2026-10-16T21:51:39.611Z, Library 2026-10-16T22:21:17.511Z.
