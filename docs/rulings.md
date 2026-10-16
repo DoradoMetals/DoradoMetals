@@ -677,7 +677,38 @@ file named at the top of this file.
   omission lists shrink to things that cannot be drawn. 2026-10-16. Source:
   Jacob, in session.
 
+- **155 — Two staff roles: owner and employee. Owners see everything; an
+  employee sees what is assigned to them.** *"Owners can see everything.
+  Employees can only see what's been assigned to them."* — and which
+  resources: *"essentially all of them."* The ladder is `user` <
+  `verified_user` < `employee` < `owner`; `admin` is renamed `owner` by
+  migration. Every admin list query takes the viewer and, for an employee,
+  filters in SQL on `assigned_to_id` (orders, refiner orders, leads,
+  customers) or on the assigned parent for rows reached through one (lots,
+  documents, notes, activity, transactions). A single read of a row not
+  assigned to the employee is refused with 403. Assignment and reassignment,
+  employee management, auto-assign rules, the bank reveal and pricing
+  configuration are owner-only (`requireOwner`); the rest of the admin
+  surface is `requireEmployee`. The Admin "Assigned to" filter is a choice
+  for an owner and fixed to self for an employee; an owner's lists include
+  unassigned rows, and an unassigned row can be assigned and an assigned one
+  reassigned. 2026-10-16. Source: Jacob, in session and Admin comment
+  1970225944.
+
+- **156 — New work is auto-assigned by rules an owner configures.** *"Owners
+  can configure new leads/orders/customers etc that come in and be auto
+  assigned to employees."* `crm.assignment_rules` holds one rule per subject
+  kind (lead, order, customer): a strategy (`round_robin`, `least_open` or
+  `fixed`), the eligible employees and an enabled flag. The owning domain's
+  service calls the crm service at creation, and every assignment, manual or
+  automatic, writes a `crm.assignments` row with the actor id and the rule
+  id. The employee screen in People is one screen with viewer variants: the
+  owner reviews and configures the employee (status, rules, load); the
+  employee opening their own chip gets the same view with no actions,
+  because the view carries its actions and the Entity Header renders only
+  those. 2026-10-16. Source: Jacob, in session.
+
 ## Numbering
 
-Every number from 1 to 154 has an entry, plus 26b and 26c. Two rulings carry the
+Every number from 1 to 156 has an entry, plus 26b and 26c. Two rulings carry the
 number 39; both are listed. No number is ever reused.
