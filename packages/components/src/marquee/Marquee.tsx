@@ -30,9 +30,9 @@ export function Marquee({
       <section
         aria-label={label}
         data-layout="desktop"
-        className={cn('h-(--control-lg) w-full border-y border-border', className)}
+        className={cn('h-(--control-lg) w-full border-y border-border bg-card', className)}
       >
-        <div className="mx-auto flex h-full w-full max-w-page items-center gap-xl overflow-hidden px-lg">
+        <div className="mx-auto flex h-full w-full max-w-page items-center gap-xl overflow-hidden px-lg py-2xs-plus">
           {leading}
           <div className="ml-auto flex items-center gap-xl">{children}</div>
         </div>
@@ -45,7 +45,7 @@ export function Marquee({
       aria-label={label}
       data-layout="mobile"
       className={cn(
-        'group flex h-(--control-lg) w-full items-center overflow-x-auto border-y border-border px-lg',
+        'group flex h-(--control-lg) w-full items-center overflow-x-auto border-y border-border bg-card px-lg',
         'motion-safe:overflow-hidden',
         className
       )}
