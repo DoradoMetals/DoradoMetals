@@ -73,6 +73,19 @@ export function OTPInput({
     if (clean.length === length && clean !== value) onComplete?.(clean)
   }
 
+  const paste = (event: React.ClipboardEvent) => {
+    if (disabled) return
+    const pasted = (event.clipboardData?.getData('text') ?? '').replace(/\D/g, '')
+    if (!pasted) return
+    event.preventDefault()
+    set(pasted)
+    const el = inputRef.current
+    if (!el) return
+    el.focus()
+    const end = Math.min(pasted.length, length)
+    requestAnimationFrame(() => el.setSelectionRange(end, end))
+  }
+
   return (
     <div className={cn('flex flex-col gap-md', className)}>
       {(title != null || description != null) && (
@@ -83,22 +96,21 @@ export function OTPInput({
           )}
         </span>
       )}
-      <div className="relative">
+      <div className="relative" onPaste={paste}>
         <input
           ref={inputRef}
           value={value}
           onChange={(e) => set(e.target.value)}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
-          onSelect={toEnd}
           onClick={toEnd}
+          onKeyDown={toEnd}
           disabled={disabled}
           aria-label={label}
           aria-invalid={invalid || undefined}
           autoComplete="one-time-code"
           inputMode="numeric"
-          pattern="\d*"
-          maxLength={length}
+          pattern="[0-9]*"
           className="absolute inset-0 z-10 h-full w-full cursor-default opacity-0"
         />
         <div aria-hidden className="flex items-center justify-between gap-sm">

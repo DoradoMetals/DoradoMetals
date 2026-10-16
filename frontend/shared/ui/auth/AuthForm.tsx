@@ -363,8 +363,14 @@ export function AuthForm(props: AuthFormProps) {
               onCheckedChange={(next) => onTermsChange(next === true)}
             />
             <label htmlFor="accepted-terms" className="micro">
-              I agree to the <NextLink href="/terms-and-conditions">Terms and Conditions</NextLink>{' '}
-              and <NextLink href="/privacy-policy">Privacy Policy</NextLink>
+              I agree to the{' '}
+              <Link asChild className="text-micro">
+                <NextLink href="/terms-and-conditions">Terms and Conditions</NextLink>
+              </Link>{' '}
+              and{' '}
+              <Link asChild className="text-micro">
+                <NextLink href="/privacy-policy">Privacy Policy</NextLink>
+              </Link>
             </label>
           </div>
           <div className="flex w-full items-center gap-xs">

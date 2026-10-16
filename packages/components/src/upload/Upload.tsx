@@ -3,6 +3,7 @@
 import * as React from 'react'
 import { File as FileIcon, UploadCloud } from '@dorado/icons'
 import { cn } from '../cn'
+import { linkVariants } from '../link/Link'
 import { ScrollArea } from '../scroll-area/ScrollArea'
 
 export type UploadError = {
@@ -145,8 +146,7 @@ export function Upload({
                 'Maximum files reached'
               ) : (
                 <>
-                  {prompt}{' '}
-                  <span className="cursor-pointer underline-offset-4 hover:underline">browse</span>
+                  {prompt} <span className={linkVariants()}>browse</span>
                 </>
               )}
             </span>
@@ -180,11 +180,7 @@ export function Upload({
           {maxFiles != null ? `${count} of ${maxFiles}` : `${count} file${count === 1 ? '' : 's'}`}
         </span>
         {onClearAll != null && (
-          <button
-            type="button"
-            onClick={onClearAll}
-            className="cursor-pointer text-small font-medium text-foreground underline-offset-4 hover:underline"
-          >
+          <button type="button" onClick={onClearAll} className={linkVariants()}>
             Clear all
           </button>
         )}

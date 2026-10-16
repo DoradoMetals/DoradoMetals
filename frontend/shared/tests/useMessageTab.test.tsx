@@ -84,4 +84,38 @@ describe('useMessageTab', () => {
     ).rejects.toThrow('nope')
     expect(tab.close).toHaveBeenCalled()
   })
+
+  test('an SMS send opens no tab when only the email fake records', async () => {
+    fakes.data = { sms: false, email: true }
+    const open = vi.spyOn(window, 'open')
+    const { result } = renderHook(() => useMessageTab())
+    expect(await result.current.run(async () => 'sent', 'sms')).toBe('sent')
+    expect(open).not.toHaveBeenCalled()
+  })
+
+  test('an SMS send points the tab at the new text, never at a fresh email', async () => {
+    fakes.data = { sms: true, email: true }
+    const tab = fakeTab()
+    vi.spyOn(window, 'open').mockReturnValue(tab as unknown as Window)
+    const email = { ...message('fake-1@dorado.invalid'), channel: 'email' }
+    accountMessages.mockResolvedValueOnce([]).mockResolvedValueOnce([email, message('SMnew')])
+
+    const { result } = renderHook(() => useMessageTab())
+    await result.current.run(async () => 'sent', 'sms')
+    await vi.waitFor(() => expect(tab.location.href).toBe('/api/account/messages/SMnew'))
+  })
+
+  test('a send that recorded no new text shows the newest one, whose code is still live', async () => {
+    fakes.data = { sms: true, email: false }
+    const tab = fakeTab()
+    vi.spyOn(window, 'open').mockReturnValue(tab as unknown as Window)
+    accountMessages.mockResolvedValue([message('SMlive'), message('SMolder')])
+
+    const { result } = renderHook(() => useMessageTab())
+    await result.current.run(async () => 'sent', 'sms')
+    await vi.waitFor(() => expect(tab.location.href).toBe('/api/account/messages/SMlive'), {
+      timeout: 2000,
+    })
+    expect(tab.close).not.toHaveBeenCalled()
+  })
 })

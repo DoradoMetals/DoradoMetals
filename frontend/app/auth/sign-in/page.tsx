@@ -26,8 +26,14 @@ function SignIn() {
   const submit = async () => {
     const phone_number = `+1${digits}`
     try {
-      const view = await messageTab.run(async () =>
-        sendCode.mutateAsync({ channel: 'sms', phone_number, captcha_token: await captcha.token() })
+      const view = await messageTab.run(
+        async () =>
+          sendCode.mutateAsync({
+            channel: 'sms',
+            phone_number,
+            captcha_token: await captcha.token(),
+          }),
+        'sms'
       )
       setVerification({ view, channel: 'sms', phone_number, next: nextFrom(params) ?? undefined })
       router.push(view.status === 'locked' ? '/auth/locked' : '/auth/verify')

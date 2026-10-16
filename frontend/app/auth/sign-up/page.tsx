@@ -31,15 +31,17 @@ function SignUp() {
     if (!acceptedTerms) return
     const phone_number = digits ? `+1${digits}` : undefined
     try {
-      const view = await messageTab.run(async () =>
-        signUp.mutateAsync({
-          name,
-          email,
-          phone_number,
-          accepted_terms: true,
-          sms_consent: smsConsent,
-          captcha_token: await captcha.token(),
-        })
+      const view = await messageTab.run(
+        async () =>
+          signUp.mutateAsync({
+            name,
+            email,
+            phone_number,
+            accepted_terms: true,
+            sms_consent: smsConsent,
+            captcha_token: await captcha.token(),
+          }),
+        phone_number ? 'sms' : 'email'
       )
       const smsConsentPending = Boolean(smsConsent && phone_number)
       setVerification(
