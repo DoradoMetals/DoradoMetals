@@ -16,7 +16,9 @@ export type OrderSearchProps = {
 }
 
 export function OrderSearch({ value, onValueChange, q, mobile }: OrderSearchProps) {
-  const hits = (useOrderSearch(q).data ?? []).filter((hit) => hit.kind === 'order')
+  const hits = (useOrderSearch(q).data ?? []).filter(
+    (hit) => hit.kind === 'order' || hit.kind === 'refining_order'
+  )
   return (
     <div className={mobile ? 'relative w-full' : 'relative w-100'}>
       <Input
@@ -34,7 +36,7 @@ export function OrderSearch({ value, onValueChange, q, mobile }: OrderSearchProp
           {hits.map((hit) => (
             <li key={hit.id}>
               <NextLink
-                href={`${protectedRoutes.adminOrders.path}/${hit.id}`}
+                href={`${protectedRoutes.adminOrders.path}/${hit.kind === 'refining_order' ? 'refiners/' : ''}${hit.id}`}
                 className="flex flex-col rounded-md px-xs py-2xs text-small text-foreground hover:bg-muted"
               >
                 {hit.reference}

@@ -23,7 +23,7 @@ export const OrderState = z.enum([
 ])
 export type OrderState = z.infer<typeof OrderState>
 
-export const SearchKind = z.enum(['order', 'customer', 'lead', 'lot'])
+export const SearchKind = z.enum(['order', 'refining_order', 'customer', 'lead', 'lot'])
 export type SearchKind = z.infer<typeof SearchKind>
 
 export const SearchHit = z.object({

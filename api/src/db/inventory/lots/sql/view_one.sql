@@ -127,7 +127,7 @@ SELECT jsonb_build_object(
           LIMIT 1
        ) batch_edge ON TRUE
   LEFT JOIN inventory.lots flot ON flot.id = batch_edge.refiner_lot_id
-  LEFT JOIN refining.lots rl ON rl.lot_id = batch_edge.refiner_lot_id
+  LEFT JOIN refining.lots rl ON rl.lot_id = batch_edge.refiner_lot_id AND rl.released_at IS NULL
   LEFT JOIN refining.orders ro ON ro.id = rl.refining_order_id
   LEFT JOIN refiners.refiners rf ON rf.id = ro.refiner_id
   LEFT JOIN organizations.organizations org ON org.id = rf.organization_id

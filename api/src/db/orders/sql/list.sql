@@ -128,7 +128,7 @@ SELECT jsonb_build_object(
                                                 SELECT (CASE ro.direction WHEN 'buy' THEN 'RP-' ELSE 'RS-' END)
                                                        || ro.number AS reference
                                                   FROM inventory.lot_sources ls
-                                                  JOIN refining.lots rl ON rl.lot_id = ls.lot_id
+                                                  JOIN refining.lots rl ON rl.lot_id = ls.lot_id AND rl.released_at IS NULL
                                                   JOIN refining.orders ro ON ro.id = rl.refining_order_id
                                                  WHERE ls.source_lot_id = ol.lot_id AND ls.kind = 'batch'
                                                  UNION ALL

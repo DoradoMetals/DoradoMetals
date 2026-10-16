@@ -1,7 +1,9 @@
 -- Settlement writes each named refiner lot's own figures onto inventory.lots
 -- - the mint at batch time created that row, and settling is what corrects
 -- it (ruling 120/121). A lot the statement does not name keeps the figures
--- it already has, so a partial settlement leaves the rest alone.
+-- it already has, so a partial settlement leaves the rest alone (ruling 146):
+-- each call settles the lots it names, a lot already settled is not written
+-- again, and the order is stamped only once none is left.
 --
 -- settled_spot is per pricing event, stamped here, not passed down from the
 -- order, and now the SAME for both settlement types (ruling 123): the
@@ -38,7 +40,11 @@ UPDATE inventory.lots li
   JOIN refining.lots rl ON rl.lot_id = a.lot_id
  WHERE li.id = a.lot_id
    AND rl.refining_order_id = $1
+   AND rl.released_at IS NULL
+   AND li.settled_at IS NULL
 RETURNING rl.id, rl.refining_order_id, rl.lot_id,
           to_char(rl.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS created_at,
           to_char(rl.updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS updated_at,
-          rl.created_by_id, rl.updated_by_id
+          rl.created_by_id, rl.updated_by_id,
+          to_char(rl.released_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS released_at,
+          to_char(rl.returned_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS returned_at

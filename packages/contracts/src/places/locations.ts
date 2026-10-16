@@ -39,3 +39,8 @@ export const HoldAtLocation = z
   })
   .extend({ code: z.string() })
 export type HoldAtLocation = z.infer<typeof HoldAtLocation>
+
+export const LocationView = Location.extend(
+  Address.pick({ line_1: true, city: true, state: true }).shape
+)
+export type LocationView = z.infer<typeof LocationView>

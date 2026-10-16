@@ -1,6 +1,28 @@
--- Every refiner order, filtered by counterparty, direction and state. See
--- view_one.sql for what each field means - the two stay in lockstep by hand
--- since a view built once in TypeScript is what ruling 71 forbids.
+-- One refiner order as its view, built once and substituted through
+-- the refining_view placeholder into view_one.sql and list.sql, so the single read and
+-- every card on the list cannot drift apart. It carries no WHERE; the caller
+-- adds one on `ro`.
+--
+-- The counterparty, its lots with their own figures and which customer lots
+-- they were batched from, the pool balance for that refiner, the settlement
+-- figures and the customer sales orders this metal is bound for. `state` is a
+-- label and drives nothing.
+--
+-- A refiner lot's `lot_id` points at the MINTED lot (ruling 120): its own
+-- weights, purity, content and premium live on `inventory.lots`. `sources`
+-- walks back over the `batch` edge to the customer lot it was minted from. A
+-- source with no `orders.lots` seat of its own - a lot combined or split from
+-- others - reads its PARENTS' seats through lot_parents.sql, so it carries
+-- their references and their order instead of reading as nobody's.
+--
+-- A link stamped `released_at` (cancel, or one lot taken off - rulings 144,
+-- 145) is no longer on the order: it is out of every count, sum and ounce. A
+-- cancelled order still LISTS the links it held, each with its release and,
+-- where the metal had reached the refiner, its return.
+--
+-- `settlement` is the order's settlement progress (ruling 146): `Partial` while
+-- some held lots are settled and the order itself is not. Money for it comes
+-- from pricing, never from here.
 SELECT
        to_jsonb(ro)
        || jsonb_build_object(
@@ -13,6 +35,20 @@ SELECT
             'updated_at', to_char(ro.updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
             'cancelled_at', to_char(ro.cancelled_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
             'state', /*__refining_state__*/,
+            'location',
+              (SELECT jsonb_build_object('id', loc.id, 'name', loc.name, 'line_1', la.line_1,
+                                         'city', la.city, 'state', la.state)
+                 FROM places.locations loc
+                 LEFT JOIN places.addresses la ON la.id = loc.address_id
+                WHERE loc.id = ro.location_id),
+            'settlement', jsonb_build_object(
+              'state', CASE WHEN ro.cancelled_at IS NOT NULL THEN 'Cancelled'
+                            WHEN ro.disputed_at IS NOT NULL THEN 'Disputed'
+                            WHEN ro.settled_at IS NOT NULL THEN 'Settled'
+                            WHEN tally.settled_lots > 0 THEN 'Partial'
+                            ELSE 'Pending' END,
+              'settled_lots', tally.settled_lots,
+              'lot_count', tally.lot_count),
             'orders_to_date',
               (SELECT count(*) FROM refining.orders peer
                 WHERE peer.refiner_id = ro.refiner_id),
@@ -37,6 +73,9 @@ SELECT
                            'created_at', to_char(rl.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
                            'updated_at', to_char(rl.updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
                            'created_by_id', rl.created_by_id, 'updated_by_id', rl.updated_by_id,
+                           'released_at', to_char(rl.released_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+                           'returned_at', to_char(rl.returned_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+                           'settled_at', to_char(li.settled_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
                            'lot', to_jsonb(li)
                                   || jsonb_build_object(
                                        'created_at', to_char(li.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
@@ -72,12 +111,15 @@ SELECT
                                                           AND src.total_content <> 0
                                                      THEN sl.content / src.total_content
                                                      ELSE NULL END,
-                                      'order_id', sod.id, 'order_number', sod.number,
-                                      'order_direction', sod.direction::text,
+                                      'order_id', COALESCE(sod.id, up.order_id),
+                                      'order_number', COALESCE(sod.number, up.order_number),
+                                      'order_direction', COALESCE(sod.direction::text, up.order_direction),
                                       'order_reference',
-                                        CASE WHEN sod.number IS NULL THEN NULL
-                                             ELSE (CASE WHEN sod.direction = 'sale' THEN 'SO-'
-                                                        ELSE 'PO-' END) || sod.number END,
+                                        CASE WHEN sod.number IS NOT NULL
+                                               THEN (CASE WHEN sod.direction = 'sale' THEN 'SO-'
+                                                          ELSE 'PO-' END) || sod.number
+                                             ELSE up.order_reference END,
+                                      'parents', COALESCE(up.parents, '[]'::jsonb),
                                       'premium', sl.premium)
                                     ORDER BY src.created_at, src.id) AS edges
                              FROM (
@@ -101,8 +143,18 @@ SELECT
                                                 ELSE 'Lot ' || sod.number || '-'
                                                      || chr(64 + sseat.n::int) END AS reference
                                   ) sref ON TRUE
+                             LEFT JOIN LATERAL (
+                                    SELECT jsonb_agg(par.parent ORDER BY par.created_at, par.lot_id) AS parents,
+                                           (array_agg(par.order_id ORDER BY par.created_at, par.lot_id))[1] AS order_id,
+                                           (array_agg(par.order_number ORDER BY par.created_at, par.lot_id))[1] AS order_number,
+                                           (array_agg(par.order_direction ORDER BY par.created_at, par.lot_id))[1] AS order_direction,
+                                           (array_agg(par.parent ->> 'order_reference' ORDER BY par.created_at, par.lot_id))[1] AS order_reference
+                                      FROM (/*__lot_parents__*/) par
+                                     WHERE sol.id IS NULL
+                                  ) up ON TRUE
                          ) batch ON TRUE
                    WHERE rl.refining_order_id = ro.id
+                     AND (rl.released_at IS NULL OR ro.cancelled_at IS NOT NULL)
                 ) lots_agg), '[]'::jsonb),
             'pool', COALESCE((
               SELECT jsonb_agg(jsonb_build_object(
@@ -144,7 +196,7 @@ SELECT
                 FROM (SELECT fli.metal_id
                         FROM refining.lots frl
                         JOIN inventory.lots fli ON fli.id = frl.lot_id
-                       WHERE frl.refining_order_id = ro.id
+                       WHERE frl.refining_order_id = ro.id AND frl.released_at IS NULL
                       UNION
                       SELECT fp.metal_id FROM inventory.pool fp
                        WHERE fp.refining_order_id = ro.id) fm
@@ -153,13 +205,15 @@ SELECT
                          FROM refining.lots rl2
                          JOIN inventory.lot_sources e ON e.lot_id = rl2.lot_id AND e.kind = 'batch'
                          JOIN inventory.lots sl ON sl.id = e.source_lot_id
-                        WHERE rl2.refining_order_id = ro.id AND sl.metal_id = fm.metal_id
+                        WHERE rl2.refining_order_id = ro.id AND rl2.released_at IS NULL
+                          AND sl.metal_id = fm.metal_id
                      ) est ON TRUE
                 LEFT JOIN LATERAL (
                        SELECT sum(li2.content * li2.quantity) AS oz
                          FROM refining.lots rl2
                          JOIN inventory.lots li2 ON li2.id = rl2.lot_id
-                        WHERE rl2.refining_order_id = ro.id AND li2.metal_id = fm.metal_id
+                        WHERE rl2.refining_order_id = ro.id AND rl2.released_at IS NULL
+                          AND li2.metal_id = fm.metal_id
                           AND li2.settled_at IS NOT NULL
                      ) st ON TRUE
                 LEFT JOIN LATERAL (
@@ -209,6 +263,7 @@ SELECT
                         WHERE bu.id = so.user_id
                      ) bound ON TRUE
                WHERE rl3.refining_order_id = ro.id
+                 AND rl3.released_at IS NULL
                  AND ro.direction = 'buy'), '[]'::jsonb),
             'payment', CASE WHEN ro.direction = 'sell' AND ro.settlement_type = 'pooled' THEN NULL
               ELSE jsonb_build_object(
@@ -245,13 +300,16 @@ SELECT
               END) AS view
   FROM refining.orders ro
   LEFT JOIN refining.order_money money ON money.refining_order_id = ro.id
+  CROSS JOIN LATERAL (
+         SELECT count(*)::int AS lot_count,
+                (count(*) FILTER (WHERE tli.settled_at IS NOT NULL))::int AS settled_lots
+           FROM refining.lots trl
+           JOIN inventory.lots tli ON tli.id = trl.lot_id
+          WHERE trl.refining_order_id = ro.id AND trl.released_at IS NULL
+       ) tally
   LEFT JOIN LATERAL (
          SELECT * FROM payments.transfers pt
           WHERE pt.refining_order_id = ro.id AND pt.state <> 'Failed'
           ORDER BY pt.created_at DESC, pt.id DESC
           LIMIT 1
        ) pmt ON TRUE
- WHERE ($1::uuid IS NULL OR ro.refiner_id = $1::uuid)
-   AND ($2::refining.direction IS NULL OR ro.direction = $2::refining.direction)
-   AND ($3::text IS NULL OR $3::text = /*__refining_state__*/)
- ORDER BY ro.number DESC

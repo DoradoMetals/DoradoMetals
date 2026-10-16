@@ -25,6 +25,7 @@ import { getRefiningPayment } from '#transactions/rails/controller.ts'
 import { getFulfillmentByRefiningOrder } from '#logistics/fulfillments/controller.ts'
 import { downloadRefiningDocument, importRefiningDocument } from '#documents/pdfs/controller.ts'
 import { requireAdmin } from '#shared/middleware/authMiddleware.ts'
+import { parseRefiningSettlement } from '#refining/settlement-parse/controller.ts'
 
 const router = express.Router()
 
@@ -54,6 +55,7 @@ router.post(
   importRefiningDocument
 )
 router.get('/orders/:id/settlement-lines', requireAdmin, getRefiningSettlementLines)
+router.post('/orders/:id/settlement-lines/parse', requireAdmin, parseRefiningSettlement)
 router.post('/orders/:id/settle', requireAdmin, settleRefiningOrder)
 router.get('/orders/:id/lots', requireAdmin, getRefiningLots)
 router.post('/orders/:id/lots', requireAdmin, assignRefiningLots)

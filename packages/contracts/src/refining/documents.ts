@@ -5,6 +5,7 @@
 // Postgres table: refining.documents
 import { z } from 'zod/v4'
 import { PdfKind } from '../media/enums.js'
+import { RefiningDirection } from './enums.js'
 
 export const RefiningDocument = z.object({
   'id': z.string().uuid(),
@@ -16,6 +17,7 @@ export const RefiningDocument = z.object({
   'updated_at': z.string(),
   'created_by_id': z.string().uuid().nullable(),
   'updated_by_id': z.string().uuid().nullable(),
+  'direction': RefiningDirection.nullable(),
 })
 export type RefiningDocument = z.infer<typeof RefiningDocument>
 // generated:end

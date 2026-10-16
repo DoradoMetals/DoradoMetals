@@ -1,6 +1,6 @@
 import { asyncHandler } from '#shared/middleware/asyncHandler.ts'
 import { refuseWith } from '#shared/http/refuse.ts'
-import { strictBody, uuidParam } from '#shared/http/validate.ts'
+import { strictBody, uuidLike, uuidParam } from '#shared/http/validate.ts'
 import * as refining from '#refining/service.ts'
 import {
   OrderState,
@@ -8,10 +8,10 @@ import {
   PoolLockCreate,
   RefiningBatch,
   RefiningDirection,
-  RefiningLotPatch,
+  RefiningLotPatchBody,
   RefiningLotsBody,
   RefiningOrderCreate,
-  RefiningOrderPatch,
+  RefiningOrderPatchBody,
   RefiningSettlement,
   RefiningSupply,
 } from '@dorado/contracts'
@@ -19,6 +19,20 @@ import type { Request } from 'express'
 
 const named = (req: Request, key: string): string | null =>
   typeof req.query[key] === 'string' ? (req.query[key] as string) : null
+
+const countIn = (req: Request, key: string): number | null => {
+  const raw = named(req, key)
+  if (raw === null) return null
+  const value = Number(raw)
+  if (!Number.isInteger(value) || value < 0) refuseWith(400, `"${key}" is a whole number`)
+  return value
+}
+
+const idIn = (req: Request, key: string): string | null => {
+  const raw = named(req, key)
+  if (raw !== null && !uuidLike.safeParse(raw).success) refuseWith(400, `"${key}" must be a uuid`)
+  return raw
+}
 
 export const listRefiningOrders = asyncHandler(async (req, res) => {
   const direction = named(req, 'direction')
@@ -29,7 +43,19 @@ export const listRefiningOrders = asyncHandler(async (req, res) => {
   if (state !== null && !OrderState.safeParse(state).success) {
     refuseWith(400, `"state" is one of ${OrderState.options.join(', ')}`)
   }
-  return res.json(await refining.list(named(req, 'refiner_id'), direction as never, state as never))
+  const limit = countIn(req, 'limit')
+  if (limit === 0) refuseWith(400, '"limit" is at least 1')
+  return res.json(
+    await refining.list({
+      refiner_id: idIn(req, 'refiner_id') ?? undefined,
+      direction: direction as never,
+      state: state as never,
+      assigned_to_id: idIn(req, 'assigned_to_id'),
+      sort: named(req, 'sort'),
+      limit,
+      offset: countIn(req, 'offset'),
+    })
+  )
 })
 
 export const getRefiningOrder = asyncHandler(async (req, res) => {
@@ -45,8 +71,8 @@ export const batchRefiningOrders = asyncHandler(async (req, res) => {
 })
 
 export const patchRefiningOrder = asyncHandler(async (req, res) => {
-  const changes = strictBody(RefiningOrderPatch, req.body)
-  return res.json(await refining.patch(uuidParam(req, 'id'), changes))
+  const body = strictBody(RefiningOrderPatchBody, req.body)
+  return res.json(await refining.patch(uuidParam(req, 'id'), body))
 })
 
 export const sendRefiningOrder = asyncHandler(async (req, res) => {
@@ -89,8 +115,8 @@ export const assignRefiningLots = asyncHandler(async (req, res) => {
 })
 
 export const patchRefiningLot = asyncHandler(async (req, res) => {
-  const changes = strictBody(RefiningLotPatch, req.body)
-  return res.json(await refining.recordAssay(uuidParam(req, 'id'), changes))
+  const body = strictBody(RefiningLotPatchBody, req.body)
+  return res.json(await refining.recordAssay(uuidParam(req, 'id'), body))
 })
 
 export const deleteRefiningLot = asyncHandler(async (req, res) => {

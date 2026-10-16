@@ -2,20 +2,27 @@ import query from '#shared/db/query.ts'
 import { buildUpdate } from '#shared/db/patch.ts'
 import { expression, sqlFrom } from '#shared/db/sql.ts'
 import { columnsOf, returningOf } from '#shared/db/columns.ts'
+import { LOT_PARENTS } from '#db/refining/lots/repo.ts'
 import {
   RefiningOrder,
   RefiningOrderCreate,
+  RefiningOrderListFacts,
   RefiningOrderPatch,
   RefiningOrderView,
   RefiningSpot,
 } from '@dorado/contracts'
-import type { RefiningDirection } from '@dorado/contracts'
+import type { RefiningOrderFilter } from '@dorado/contracts'
 import type { Executor } from '#shared/db/executor.ts'
 
 const sql = sqlFrom(import.meta.dirname)
 export const REFINING_STATE = expression(sql('refining_state'))
-const VIEW_ONE_SQL = sql('view_one').replaceAll('/*__refining_state__*/', REFINING_STATE)
-const VIEW_ALL_SQL = sql('view_all').replaceAll('/*__refining_state__*/', REFINING_STATE)
+const REFINING_VIEW = expression(sql('view_body'))
+  .replaceAll('/*__refining_state__*/', REFINING_STATE)
+  .replaceAll('/*__lot_parents__*/', LOT_PARENTS)
+const VIEW_ONE_SQL = sql('view_one').replaceAll('/*__refining_view__*/', REFINING_VIEW)
+const LIST_SQL = sql('list')
+  .replaceAll('/*__refining_view__*/', REFINING_VIEW)
+  .replaceAll('/*__refining_state__*/', REFINING_STATE)
 
 export const PATCHABLE = columnsOf(RefiningOrderPatch)
 const RETURNING = returningOf(RefiningOrder)
@@ -39,7 +46,13 @@ export async function create(
 ): Promise<RefiningOrder> {
   const { rows } = await query<RefiningOrder>(
     sql('create'),
-    [row.refiner_id, row.direction, row.settlement_type ?? null, row.location_id ?? null],
+    [
+      row.refiner_id,
+      row.direction,
+      row.settlement_type ?? null,
+      row.location_id ?? null,
+      row.assigned_to_id ?? null,
+    ],
     executor
   )
   return rows[0]
@@ -54,17 +67,23 @@ export async function view(
 }
 
 export async function list(
-  refiner_id: string | null,
-  direction: RefiningDirection | null,
-  state: string | null,
+  filter: RefiningOrderFilter,
   executor?: Executor
-): Promise<RefiningOrderView[]> {
+): Promise<RefiningOrderListFacts> {
   const { rows } = await query<{ view: unknown }>(
-    VIEW_ALL_SQL,
-    [refiner_id, direction, state],
+    LIST_SQL,
+    [
+      filter.refiner_id ?? null,
+      filter.direction ?? null,
+      filter.state ?? null,
+      filter.assigned_to_id ?? null,
+      filter.sort ?? null,
+      filter.limit ?? null,
+      filter.offset ?? null,
+    ],
     executor
   )
-  return rows.map((row) => RefiningOrderView.parse(row.view))
+  return RefiningOrderListFacts.parse(rows[0]?.view)
 }
 
 export async function update(
@@ -101,6 +120,11 @@ export async function settle(
     executor
   )
   return rows[0]
+}
+
+export async function goodsMoved(id: string, executor?: Executor): Promise<boolean> {
+  const { rows } = await query<{ moved: boolean }>(sql('goods_moved'), [id], executor)
+  return rows[0]?.moved === true
 }
 
 export async function cancel(id: string, executor?: Executor): Promise<RefiningOrder | undefined> {

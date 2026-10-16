@@ -7,15 +7,15 @@ import type {
   PaymentView,
   RefinerView,
   RefiningLot,
-  RefiningLotPatch,
   RefiningLotsBody,
-  RefiningOrder,
   RefiningBatch,
   RefiningBatchResult,
   RefiningDirection,
+  RefiningLotPatchBody,
   RefiningOrderCreate,
-  RefiningOrderPatch,
-  RefiningOrderView,
+  RefiningOrderList,
+  RefiningOrderPatchBody,
+  RefiningOrderRead,
   RefiningPricing,
   RefiningSettlement,
   RefiningSpot,
@@ -25,34 +25,41 @@ import type {
 import { apiRequest, apiRequestBlob, apiRequestForm, baseUrl } from '../fetch'
 import { keys } from '../keys'
 
+export type RefiningOrderListFilters = {
+  refiner_id?: string | null
+  direction?: RefiningDirection | null
+  state?: string | null
+  assigned_to_id?: string | null
+  sort?: string | null
+  limit?: number | null
+  offset?: number | null
+}
+
 export function useRefiningOrders(
-  filters: {
-    refiner_id?: string | null
-    direction?: RefiningDirection | null
-    state?: string | null
-  } = {},
+  filters: RefiningOrderListFilters = {},
   options: { enabled?: boolean } = {}
 ) {
-  const refiner_id = filters.refiner_id ?? null
-  const direction = filters.direction ?? null
-  const state = filters.state ?? null
-  return useQuery<RefiningOrderView[]>({
-    queryKey: keys.refining.list(refiner_id, direction, state),
+  const params = {
+    refiner_id: filters.refiner_id ?? null,
+    direction: filters.direction ?? null,
+    state: filters.state ?? null,
+    assigned_to_id: filters.assigned_to_id ?? null,
+    sort: filters.sort ?? null,
+    limit: filters.limit ?? null,
+    offset: filters.offset ?? null,
+  }
+  return useQuery<RefiningOrderList>({
+    queryKey: keys.refining.list(params),
     enabled: options.enabled ?? true,
-    queryFn: () =>
-      apiRequest<RefiningOrderView[]>('GET', '/refining/orders', undefined, {
-        refiner_id,
-        direction,
-        state,
-      }),
+    queryFn: () => apiRequest<RefiningOrderList>('GET', '/refining/orders', undefined, params),
   })
 }
 
 export function useRefiningOrder(id: string, options: { enabled?: boolean } = {}) {
-  return useQuery<RefiningOrderView>({
+  return useQuery<RefiningOrderRead>({
     queryKey: keys.refining.view(id),
     enabled: (options.enabled ?? true) && id.length > 0,
-    queryFn: () => apiRequest<RefiningOrderView>('GET', `/refining/orders/${id}`),
+    queryFn: () => apiRequest<RefiningOrderRead>('GET', `/refining/orders/${id}`),
   })
 }
 
@@ -126,7 +133,7 @@ function useRefiningWrite<TVariables, TResult>(run: (variables: TVariables) => P
 
 export function useCreateRefiningOrder() {
   return useRefiningWrite((body: RefiningOrderCreate) =>
-    apiRequest<RefiningOrder>('POST', '/refining/orders', body)
+    apiRequest<RefiningOrderRead>('POST', '/refining/orders', body)
   )
 }
 
@@ -137,20 +144,20 @@ export function useBatchRefiningOrders() {
 }
 
 export function usePatchRefiningOrder(id: string) {
-  return useRefiningWrite((patch: RefiningOrderPatch) =>
-    apiRequest<RefiningOrderView>('PATCH', `/refining/orders/${id}`, patch)
+  return useRefiningWrite((patch: RefiningOrderPatchBody) =>
+    apiRequest<RefiningOrderRead>('PATCH', `/refining/orders/${id}`, patch)
   )
 }
 
 export function useSendRefiningOrder(id: string) {
   return useRefiningWrite(() =>
-    apiRequest<RefiningOrderView>('POST', `/refining/orders/${id}/send`, {})
+    apiRequest<RefiningOrderRead>('POST', `/refining/orders/${id}/send`, {})
   )
 }
 
 export function useSettleRefiningOrder(id: string) {
   return useRefiningWrite((body: RefiningSettlement) =>
-    apiRequest<RefiningOrderView>('POST', `/refining/orders/${id}/settle`, body)
+    apiRequest<RefiningOrderRead>('POST', `/refining/orders/${id}/settle`, body)
   )
 }
 
@@ -161,7 +168,7 @@ export function useAssignRefiningLots(id: string) {
 }
 
 export function usePatchRefiningLot() {
-  return useRefiningWrite(({ lot_id, patch }: { lot_id: string; patch: RefiningLotPatch }) =>
+  return useRefiningWrite(({ lot_id, patch }: { lot_id: string; patch: RefiningLotPatchBody }) =>
     apiRequest<Lot>('PATCH', `/refining/lots/${lot_id}`, patch)
   )
 }
@@ -174,7 +181,7 @@ export function useDeleteRefiningLot() {
 
 export function useCancelRefiningOrder(id: string) {
   return useRefiningWrite(() =>
-    apiRequest<RefiningOrderView>('POST', `/refining/orders/${id}/cancel`, {})
+    apiRequest<RefiningOrderRead>('POST', `/refining/orders/${id}/cancel`, {})
   )
 }
 

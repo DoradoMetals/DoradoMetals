@@ -250,7 +250,7 @@ test('the pool is a ledger: a lock is negative, and available is balance minus l
   })
 })
 
-test('a refiner order that has been sent warns about new lots, settles partially, and settles only once', async () => {
+test('a refiner order that has been sent warns about new lots, settles in parts, and closes on the last lot', async () => {
   await inOrders(async (c) => {
     const { order } = await aMixedOrder(c)
     const [r1] = await refinerIds(c)
@@ -275,13 +275,40 @@ test('a refiner order that has been sent warns about new lots, settles partially
     const partial = await refining.settle(engagement.id, {
       lots: [{ lot_id: firstAssigned[0]!.lot_id, premium: 0.95 }],
     })
-    assert.equal(partial.state, 'Settled', 'a partial settlement still closes the order')
+    assert.equal(partial.settled_at, null, 'a partial settlement closed the order (ruling 146)')
+    assert.equal(partial.state, 'Pending Assay', 'a partly settled order is still open')
+    assert.deepEqual(
+      partial.settlement,
+      { state: 'Partial', settled_lots: 1, lot_count: 2 },
+      'the settlement block counts the settled lots'
+    )
+    assert.ok(
+      partial.actions.some((a) => a.name === 'settle'),
+      'settle stays offered for the lots still open'
+    )
     const [settledLot, unsettledLot] = [
       partial.lots.find((l) => l.lot_id === firstAssigned[0]!.lot_id)!,
       partial.lots.find((l) => l.lot_id === secondAssigned[0]!.lot_id)!,
     ]
-    assert.ok(settledLot.lot.settled_at !== null, 'a named lot settled')
-    assert.equal(unsettledLot.lot.settled_at, null, 'a partial settlement touched an unnamed lot')
+    assert.ok(settledLot.settled_at !== null, 'a named lot settled')
+    assert.equal(unsettledLot.settled_at, null, 'a partial settlement touched an unnamed lot')
+
+    await assert.rejects(
+      () =>
+        refining.settle(engagement.id, {
+          lots: [{ lot_id: firstAssigned[0]!.lot_id, premium: 0.9 }],
+        }),
+      /already settled - a correction is a new pool entry/,
+      'a lot settles once; a correction is a new pool entry'
+    )
+
+    const closed = await refining.settle(engagement.id, {
+      lots: [{ lot_id: secondAssigned[0]!.lot_id, premium: 0.95 }],
+    })
+    assert.ok(closed.settled_at !== null, 'settling the last lot closes the order')
+    assert.equal(closed.state, 'Settled')
+    assert.deepEqual(closed.settlement, { state: 'Settled', settled_lots: 2, lot_count: 2 })
+    assert.ok(!closed.actions.some((a) => a.name === 'settle'), 'a settled order offers no settle')
 
     await assert.rejects(
       () =>
@@ -289,7 +316,7 @@ test('a refiner order that has been sent warns about new lots, settles partially
           lots: [{ lot_id: secondAssigned[0]!.lot_id, premium: 0.95 }],
         }),
       /a correction is a new pool entry/,
-      'settling is one event on the order - a second call corrects, it does not extend'
+      'a settled order takes no further settlement'
     )
   })
 })

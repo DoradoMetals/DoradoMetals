@@ -158,6 +158,7 @@
   "POST /api/refining/orders/:id/lots",
   "POST /api/refining/orders/:id/send",
   "POST /api/refining/orders/:id/settle",
+  "POST /api/refining/orders/:id/settlement-lines/parse",
   "POST /api/refining/orders/batch",
   "POST /api/refining/pool/locks",
   "POST /api/reviews",

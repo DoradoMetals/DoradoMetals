@@ -44,7 +44,7 @@ SELECT to_jsonb(ol)
                                            AND rlot.settled_at IS NOT NULL) END,
             'refining_order_number',
               (SELECT ro.number FROM inventory.lot_sources ls
-                 JOIN refining.lots rl ON rl.lot_id = ls.lot_id
+                 JOIN refining.lots rl ON rl.lot_id = ls.lot_id AND rl.released_at IS NULL
                  JOIN refining.orders ro ON ro.id = rl.refining_order_id
                 WHERE ls.source_lot_id = ol.lot_id AND ls.kind = 'batch'
                 LIMIT 1)) AS view

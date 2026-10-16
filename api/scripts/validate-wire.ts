@@ -139,23 +139,26 @@ add('GET /orders/:id/spots', c.OrderSpot, async () => {
 })
 const refining = await import('#refining/service.ts')
 add('GET /suppliers/get_all', c.RefinerView, () => refining.allRefiners())
-add('GET /refining/orders', c.RefiningOrderView, () => refining.list(null, null, null))
+add('GET /refining/orders', c.RefiningOrderList, async () => [await refining.list({ limit: 500 })])
 add('GET /refining/pool', c.PoolBalance, () => refining.balances(null, null))
 add('GET /refining/pool/entries', c.PoolEntryView, () => refining.entries(null, null, null))
 const refiningOrdersRepo = await import('#db/refining/orders/repo.ts')
 const refiningLotsRepo = await import('#db/refining/lots/repo.ts')
 const refiningDocumentsRepo = await import('#db/refining/documents/repo.ts')
 add('GET /refining/orders/:id/lots', c.RefiningLot, async () => {
-  const all = await refiningOrdersRepo.list(null, null, null)
+  const all = (await refiningOrdersRepo.list({ limit: 500 })).items
   const lists = await Promise.all(all.map((o) => refiningLotsRepo.getFor(o.id)))
   return lists.flat()
 })
 add('GET /refining/orders/:id/settlement-lines', c.SettlementLine, async () => {
-  const all = await refiningOrdersRepo.list(null, null, null)
+  const all = (await refiningOrdersRepo.list({ limit: 500 })).items
   const lists = await Promise.all(all.map((o) => refiningLotsRepo.settlementLines(o.id)))
   return lists.flat()
 })
-add('GET /refining/orders/:id/documents', c.RefiningDocument, () => refiningDocumentsRepo.list())
+add('GET /refining/orders/:id/documents', c.RefiningDocument, async () => [
+  ...(await refiningDocumentsRepo.list('sell')),
+  ...(await refiningDocumentsRepo.list('buy')),
+])
 const fulfillmentPickups = await import('#logistics/fulfillments/pickups/service.ts')
 const fulfillmentDirects = await import('#logistics/fulfillments/directs/service.ts')
 add('GET /orders/:orderId/fulfillments', c.FulfillmentView, async () => {
@@ -281,7 +284,7 @@ add(
 
 add('GET /orders/sorts', c.OrderSort, () => orderRead.sorts())
 add('POST /quotes/refining_order', c.RefiningPricing, async () => {
-  const all = await refiningOrdersRepo.list(null, null, null)
+  const all = (await refiningOrdersRepo.list({ limit: 500 })).items
   return await Promise.all(all.slice(0, 5).map((o) => pricing.priceRefiningOrder(o.id)))
 })
 

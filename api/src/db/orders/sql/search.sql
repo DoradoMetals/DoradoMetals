@@ -1,6 +1,6 @@
 -- THE HEADER SEARCH, one read. $1 = what the operator typed.
 --
--- Four kinds, one flat row each (ruling: `kind`, `id`, `reference`, `title`),
+-- Five kinds, one flat row each (ruling: `kind`, `id`, `reference`, `title`),
 -- unioned - three per-tab searches would be three places to keep indexed.
 --
 -- Every clause is a PREFIX against an indexed expression (migration 265): a
@@ -8,6 +8,8 @@
 -- a prefix is what a header box types. The order number is matched with its
 -- `PO-`/`SO-`/`RP-`/`RS-`/`LEAD-` prefix stripped off the TYPING, not off the
 -- column, so the right-hand side stays a constant the index can seek to.
+-- A refiner order (`refining_order`, migration 291's prefix index) answers to
+-- `RS-`/`RP-` or a bare number, never to a typed `PO-`/`SO-`.
 WITH typed AS (
   SELECT lower($1::text) AS q,
          regexp_replace(lower($1::text), '^(po|so|rp|rs|lot|lead)[- ]*', '') AS n
@@ -19,6 +21,16 @@ SELECT 'order' AS kind,
   FROM typed, orders.orders o
   LEFT JOIN auth.users u ON u.id = o.user_id
  WHERE (o.number)::text LIKE typed.n || '%'
+ UNION ALL
+SELECT 'refining_order' AS kind,
+       ro.id,
+       (CASE WHEN ro.direction = 'buy' THEN 'RP-' ELSE 'RS-' END) || ro.number AS reference,
+       COALESCE(og.name, 'No refiner') AS title
+  FROM typed, refining.orders ro
+  LEFT JOIN refiners.refiners rf ON rf.id = ro.refiner_id
+  LEFT JOIN organizations.organizations og ON og.id = rf.organization_id
+ WHERE (ro.number)::text LIKE typed.n || '%'
+   AND typed.q !~ '^(po|so)[- ]*[0-9]'
  UNION ALL
 SELECT 'customer' AS kind,
        u.id,

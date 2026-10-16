@@ -7,7 +7,9 @@
 -- inventory.lots through the link, not off refining.lots, which no longer
 -- carries them. spot is the fine-ounce-weighted average of those same lots'
 -- own settled_spot (ruling 123) - the assay-day price this credit is fixed
--- at forever.
+-- at forever. $2 names the lots this settle call wrote: a refiner order may
+-- settle in parts (ruling 146), and each lot is credited once, by the call
+-- that settled it.
 INSERT INTO inventory.pool (refiner_id, metal_id, entry, troy_oz, spot, refining_order_id)
 SELECT ro.refiner_id, li.metal_id, 'credit',
        sum(li.content * li.premium * li.quantity),
@@ -20,6 +22,8 @@ SELECT ro.refiner_id, li.metal_id, 'credit',
   JOIN refining.lots rl ON rl.refining_order_id = ro.id
   JOIN inventory.lots li ON li.id = rl.lot_id
  WHERE ro.id = $1
+   AND rl.lot_id = ANY($2::uuid[])
+   AND rl.released_at IS NULL
    AND ro.direction = 'sell'
    AND ro.settlement_type = 'pooled'
    AND li.content IS NOT NULL
