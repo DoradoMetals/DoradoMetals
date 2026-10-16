@@ -654,7 +654,19 @@ file named at the top of this file.
   stays one per page and shows one state. Customer-facing account screens
   are not designed yet. 2026-10-15. Source: Jacob, orders review §4.
 
+- **153 — A port is test-driven, with three roles.** *"When a design from
+  Figma is ready to port, one dedicated test agent writes tests from the
+  specs; then the lane agent writes the code; then the dedicated review agent
+  reviews and suggests fixes to the lane agent."* For every port: (1) a test
+  agent writes the failing tests first from the frames, the rulings and the
+  contracts: api repo and http tests, component and screen tests, Playwright
+  specs; (2) the lane agent implements until they pass, matching the frames
+  node for node; (3) an independent review agent reads the diff and routes
+  findings back to the lane before merge. The orchestrator delegates each
+  role and never collapses two into one agent. 2026-10-16. Source: Jacob, in
+  session.
+
 ## Numbering
 
-Every number from 1 to 152 has an entry, plus 26b and 26c. Two rulings carry the
+Every number from 1 to 153 has an entry, plus 26b and 26c. Two rulings carry the
 number 39; both are listed. No number is ever reused.
