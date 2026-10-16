@@ -20,6 +20,7 @@ export type OrderLot = z.infer<typeof OrderLot>
 import { Lot, LotPatch, LotView } from '../inventory/lots.js'
 import { Bullion } from '../products/bullion.js'
 import { RefiningOrder } from '../refining/orders.js'
+import { OverrideBody } from '../computed/orders.js'
 
 export const OrderLotPatch = Lot.pick({
   bullion_id: true,
@@ -40,6 +41,12 @@ export const OrderLotPatch = Lot.pick({
   .strict()
 export type OrderLotPatch = z.infer<typeof OrderLotPatch>
 
+export const OrderLotEditBody = OrderLotPatch.extend({
+  expected_updated_at: Lot.shape.updated_at.optional(),
+  override_reason: OverrideBody.shape.override_reason,
+}).strict()
+export type OrderLotEditBody = z.infer<typeof OrderLotEditBody>
+
 export const OrderLotView = OrderLot.extend({
   lot: LotView,
   name: z.string(),
@@ -48,6 +55,7 @@ export const OrderLotView = OrderLot.extend({
   line_total: Lot.shape.content,
   settled: z.boolean(),
   refining_order_number: RefiningOrder.shape.number.nullable(),
+  source_reference: z.string().nullable(),
 })
 export type OrderLotView = z.infer<typeof OrderLotView>
 
@@ -68,6 +76,9 @@ export const AdoptAssayCandidate = z
     refiner: LotPatch.nullable(),
     share: Lot.shape.content,
     proposed: LotPatch,
+    reference: z.string(),
+    name: z.string(),
+    line_reference: Lot.shape.line_reference,
     product_name: Bullion.shape.name.nullable(),
     metal_id: Lot.shape.metal_id,
     form: z.string(),

@@ -12,6 +12,8 @@ const SALE_LOCKS = [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.ADDRESSES]
 
 const methodIdOf = new Map<string, string>()
 
+const cents = (value: number) => Math.round(Number((value * 100).toFixed(6))) / 100
+
 beforeAll(async () => {
   const methods = await outside<{ id: string; type: string }>(
     `SELECT id, type FROM payments.methods WHERE direction = 'sale'`
@@ -113,8 +115,8 @@ test("a sliver below Stripe's minimum is charged, not waved through", async () =
       )
       assert.equal(q.payment_surface, 'card')
       assert.equal(
-        Number(q.charges_amount.toFixed(6)),
-        Number((0.5 * 0.005).toFixed(6)),
+        q.charges_amount,
+        cents(0.5 * 0.005),
         "ACH's own surcharge row is what was taken"
       )
     },
@@ -131,8 +133,8 @@ test("the surcharge is the payment method row's, not a number in code", async ()
       ] as const) {
         const q = await aBasket(c, 0, type)
         assert.equal(
-          Number(q.charges_amount.toFixed(6)),
-          Number((q.subject_to_charges_amount * percent).toFixed(6)),
+          q.charges_amount,
+          cents(q.subject_to_charges_amount * percent),
           `${type} did not take the surcharge its row advertises`
         )
         assert.equal(
@@ -164,7 +166,7 @@ test('a sale line prices at content x ask x ask premium, and totals by quantity'
         Number((2 * (Number(spot.ask) * 1.1)).toFixed(6))
       )
       assert.equal(Number(line.line_total.toFixed(6)), Number((line.unit_ask * 3).toFixed(6)))
-      assert.equal(Number(q.item_total.toFixed(6)), Number(line.line_total.toFixed(6)))
+      assert.equal(q.item_total, cents(line.line_total))
     },
     { actor: TEST_ACTOR.id, lock: SALE_LOCKS }
   )
@@ -199,8 +201,8 @@ test('a method that cannot take the charge does not set its surcharge', async ()
       assert.equal(credit.payment_surface, 'card', 'this basket is charged either way')
       assert.ok(credit.charges_amount > 0, 'naming CREDIT waived the surcharge on a card charge')
       assert.equal(
-        Number(credit.charges_amount.toFixed(6)),
-        Number((credit.subject_to_charges_amount * 0.029).toFixed(6)),
+        credit.charges_amount,
+        cents(credit.subject_to_charges_amount * 0.029),
         'the surcharge is not the card default'
       )
       assert.equal(
@@ -235,5 +237,34 @@ test('a sell basket whose metal has no live bid is refused, not quoted at zero',
       )
     },
     { actor: TEST_ACTOR.id, lock: [...SALE_LOCKS, LOCKS.USERS] }
+  )
+})
+
+test('every amount placement stores is whole cents, on a card with an odd premium', async () => {
+  await inPinnedTransaction(
+    async (c: PoolClient) => {
+      const product = await aProduct(c, { metal_id: 'Gold', content: 0.3215, ask_premium: 1.0737 })
+      const cart = await aCart(c, await aUser(c, { funds: 0 }), { direction: 'sale' })
+        .withBullion(product, 3)
+        .withRow({ payment_method_id: methodIdOf.get('CARD') })
+      const q = await saleQuote(cart.id)
+      assert.ok(q.item_total > 0, 'the fixture priced at the live gold ask')
+      const stored = {
+        order_total: q.order_total,
+        item_total: q.item_total,
+        shipping_charge: q.shipping_charge,
+        sales_tax: q.sales_tax,
+        base_total: q.base_total,
+        pre_charges_amount: q.pre_charges_amount,
+        subject_to_charges_amount: q.subject_to_charges_amount,
+        charges_amount: q.charges_amount,
+        post_charges_amount: q.post_charges_amount,
+      }
+      for (const [name, value] of Object.entries(stored)) {
+        assert.equal(value, cents(value), `${name} is ${value}, not whole cents`)
+      }
+      assert.equal(q.order_total, Number((q.base_total + q.charges_amount).toFixed(2)))
+    },
+    { actor: TEST_ACTOR.id, lock: SALE_LOCKS }
   )
 })

@@ -3,7 +3,9 @@ CASE
                 WHERE s.source_lot_id = li.id AND s.kind IN ('split', 'combine'))
     THEN 'consumed'
   WHEN EXISTS (SELECT 1 FROM inventory.lot_sources s
-                WHERE s.source_lot_id = li.id AND s.kind = 'sale')
+                WHERE s.source_lot_id = li.id AND s.kind = 'sale'
+                  AND NOT (EXISTS (SELECT 1 FROM orders.lot_unlinks u WHERE u.lot_id = s.lot_id)
+                           AND NOT EXISTS (SELECT 1 FROM orders.lots sl WHERE sl.lot_id = s.lot_id)))
     OR EXISTS (SELECT 1 FROM orders.lots ol
                 JOIN orders.orders o ON o.id = ol.order_id
                WHERE ol.lot_id = li.id AND o.direction = 'sale')
@@ -35,6 +37,9 @@ CASE
                  AND ro.settled_at IS NULL
                  AND ro.cancelled_at IS NULL)
     THEN 'at refiner'
+  WHEN NOT EXISTS (SELECT 1 FROM orders.lots ol WHERE ol.lot_id = li.id)
+   AND EXISTS (SELECT 1 FROM orders.lot_unlinks u WHERE u.lot_id = li.id)
+    THEN 'removed'
   WHEN NOT EXISTS (SELECT 1 FROM orders.lots ol WHERE ol.lot_id = li.id)
     THEN 'on hand'
   WHEN EXISTS (SELECT 1 FROM orders.lots ol

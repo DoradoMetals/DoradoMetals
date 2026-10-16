@@ -18,9 +18,23 @@ export const SpotLockEvent = z.object({
   'updated_by': z.string(),
   'created_by_id': z.string().uuid().nullable(),
   'updated_by_id': z.string().uuid().nullable(),
+  'reason': z.string().nullable(),
 })
 export type SpotLockEvent = z.infer<typeof SpotLockEvent>
 // generated:end
 
 export const SpotLockAction = z.enum(['lock', 'unlock'])
 export type SpotLockAction = z.infer<typeof SpotLockAction>
+
+export const OrderSpotLockEvent = SpotLockEvent.pick({
+  id: true,
+  order_id: true,
+  metal_id: true,
+  action: true,
+  bid: true,
+  ask: true,
+  reason: true,
+  created_at: true,
+  created_by_id: true,
+})
+export type OrderSpotLockEvent = z.infer<typeof OrderSpotLockEvent>

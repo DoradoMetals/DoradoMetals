@@ -18,6 +18,8 @@ export const OrderSpot = z.object({
 })
 export type OrderSpot = z.infer<typeof OrderSpot>
 // generated:end
+import { SpotLockEvent } from './spot_locks.js'
+
 export const OrderSpotWrite = z
   .object({
     metal_id: OrderSpot.shape.metal_id,
@@ -28,7 +30,10 @@ export type OrderSpotWrite = z.infer<typeof OrderSpotWrite>
 
 export const OrderSpotsPutBody = z
   .object({ set: z.array(OrderSpotWrite).optional() })
-  .extend({ lock: z.boolean().optional() })
+  .extend({
+    lock: z.boolean().optional(),
+    reason: SpotLockEvent.shape.reason.unwrap().optional(),
+  })
   .strict()
 export type OrderSpotsPutBody = z.infer<typeof OrderSpotsPutBody>
 

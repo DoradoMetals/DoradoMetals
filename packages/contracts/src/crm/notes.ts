@@ -14,21 +14,25 @@ export const Note = z.object({
   'updated_at': z.string(),
   'created_by_id': z.string().uuid().nullable(),
   'updated_by_id': z.string().uuid().nullable(),
+  'order_id': z.string().uuid().nullable(),
 })
 export type Note = z.infer<typeof Note>
 // generated:end
-import { User } from '../auth/users.js'
 
 export const NoteCreateBody = Note.pick({ body: true })
   .extend({
     user_id: Note.shape.user_id.unwrap().optional(),
     lead_id: Note.shape.lead_id.unwrap().optional(),
+    order_id: Note.shape.order_id.unwrap().optional(),
   })
   .strict()
-  .refine((v) => Boolean(v.user_id) !== Boolean(v.lead_id), {
-    message: 'exactly one of user_id or lead_id is required',
+  .refine((v) => [v.user_id, v.lead_id, v.order_id].filter(Boolean).length === 1, {
+    message: 'exactly one of user_id, lead_id or order_id is required',
   })
 export type NoteCreateBody = z.infer<typeof NoteCreateBody>
+
+export const OrderNoteCreateBody = Note.pick({ body: true }).strict()
+export type OrderNoteCreateBody = z.infer<typeof OrderNoteCreateBody>
 
 export const NotePatch = Note.pick({ body: true }).partial().strict()
 export type NotePatch = z.infer<typeof NotePatch>
@@ -36,8 +40,9 @@ export type NotePatch = z.infer<typeof NotePatch>
 export const NoteSubject = z.object({
   user_id: Note.shape.user_id,
   lead_id: Note.shape.lead_id,
+  order_id: Note.shape.order_id.optional(),
 })
 export type NoteSubject = z.infer<typeof NoteSubject>
 
-export const NoteView = Note.extend({ author_name: User.shape.name })
+export const NoteView = Note.extend({ author_id: Note.shape.created_by_id })
 export type NoteView = z.infer<typeof NoteView>

@@ -306,3 +306,40 @@ test('a step-up code stamps the session rather than minting a new one', async ()
     { actor: TEST_ACTOR.id, lock: LOCKS.USERS }
   )
 })
+
+test('a step-up with no identifier proves the code against the session owner', async () => {
+  await inPinnedTransaction(
+    async (c: PoolClient) => {
+      stubAuthApi(c)
+      const built = await aUser(c, { phone_number: NUMBER })
+      const user = await users.getOne(built.id)
+      rules.assertUser(user)
+      const session_id = await aSessionRow(c, user.id, 3600)
+      const channel = rules.stepUpChannel(user)
+      const identifier = rules.identifierFor(rules.STEP_UP_OTP_TYPE, rules.stepUpDestination(user))
+      await mintFor(c, identifier)
+
+      const [view, cookies] = await service.verifyCode({ channel, code: CODE }, session_id)
+      assert.equal(view.purpose, 'step_up')
+      assert.equal(view.status, 'verified')
+      assert.deepEqual(cookies, [])
+      assert.notEqual(
+        view.destination,
+        rules.stepUpDestination(user),
+        'the destination stays masked'
+      )
+      assert.ok(
+        (await authSessions.getOne(session_id))?.stepped_up_at,
+        'the session was not stamped'
+      )
+    },
+    { actor: TEST_ACTOR.id, lock: LOCKS.USERS }
+  )
+})
+
+test('a verify with no identifier and no session is refused', async () => {
+  await assert.rejects(
+    service.verifyCode({ channel: 'email', code: CODE }, null),
+    /email address is required/
+  )
+})

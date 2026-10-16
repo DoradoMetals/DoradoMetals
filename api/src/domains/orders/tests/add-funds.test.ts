@@ -85,7 +85,9 @@ test('a spot write just before the credit does not reach the ledger', async () =
   await inPinnedTransaction(
     async (client: PoolClient) => {
       const order = await anOrderWorthSomething(client)
-      await asAdmin(admin, async () => {
+      const session_id = await aSessionRow(client, admin.id, 0)
+      await authSessions.update(session_id, { stepped_up_at: new Date().toISOString() }, client)
+      await asAdmin({ ...admin, session_id }, async () => {
         const countOf = async () =>
           Number(
             (
@@ -104,8 +106,11 @@ test('a spot write just before the credit does not reach the ledger', async () =
         } = await client.query(`SELECT id FROM metals.metals WHERE id = 'Gold'`)
         const zeroed = await request(app)
           .put(`/api/orders/${order.id}/spots`)
-          .send({ set: [{ metal_id: gold.id, bid: 0 }] })
-        assert.equal(zeroed.status, 200, `the spot write answered ${zeroed.status}`)
+          .send({ set: [{ metal_id: gold.id, bid: 0 }], reason: 'probe' })
+        assert.ok(
+          [409, 422].includes(zeroed.status),
+          `a hand-set bid on a priced, unlocked order answered ${zeroed.status}`
+        )
 
         const res = await request(app).post(`/api/orders/${order.id}/add_funds`).send({})
         assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`)

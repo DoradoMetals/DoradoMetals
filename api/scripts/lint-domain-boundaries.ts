@@ -39,15 +39,17 @@ const LANES: { dir: string; forbidden: string[]; why: string }[] = [
     forbidden: ['checkout', 'fulfillments'],
     why:
       'a refiner order joins a customer order through the LOT and nothing else ' +
-      '(ruling 42); its handover is logistics\' to describe',
+      "(ruling 42); its handover is logistics' to describe",
   },
 ]
 
 const ACCEPTED: Record<string, { count: number; why: string }> = {
   'domains/orders/service.ts': {
-    count: 15,
+    count: 17,
     why:
-      'the ADMIN cancel and the hand-entered tracking number. `cancel` takes ' +
+      'the ADMIN cancel and the hand-entered tracking number. `cancelSale` ' +
+      "voids each labelled Outbound parcel after commit through shipping's own " +
+      'cancelLabel (ruling 133), naming the parcel only to pick which to void. `cancel` takes ' +
       "OrderCancelBody's carrier_service_id + package_id - an admin choosing the " +
       "RETURN parcel's box and service, which no fulfillment draft describes " +
       'because a return leg is not a handover the customer made; updateTracking ' +
@@ -56,9 +58,10 @@ const ACCEPTED: Record<string, { count: number; why: string }> = {
       "shipping's to write - what is named here is the admin's INPUT.",
   },
   'domains/orders/rules.ts': {
-    count: 3,
+    count: 8,
     why:
-      '`OrderActions.buy_label` and `update_tracking` are answered from the ' +
+      '`OrderActions.buy_label`, `update_tracking`, `open_claim`, the sale `cancel` and ' +
+      '`change_address` (rulings 133, 149) are answered from the ' +
       "parcel's own state (ruling 67: 'the parcel exists and carries no label, " +
       "so POST /api/shipments/:id/label will accept'). Reading tracking_number " +
       "to decide whether a BUTTON is offered is the admin drawer's question, " +

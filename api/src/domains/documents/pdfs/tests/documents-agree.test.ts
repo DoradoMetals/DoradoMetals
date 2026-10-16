@@ -8,6 +8,7 @@ import { documentRows } from '#documents/pdfs/render/documents/rows.ts'
 import { buildInvoiceHtml } from '#documents/pdfs/render/documents/invoice.ts'
 import { buildPackingListHtml } from '#documents/pdfs/render/documents/shipment-manifest.ts'
 import { LOCKS } from '#shared/testing/locks.ts'
+import { ordersHoldingAnUnlockedMetal } from '#shared/testing/unlocked-metals.ts'
 import { inRollback } from '#shared/testing/rollback.ts'
 import { aProduct, aUser, anOrder } from '#shared/testing/builders/index.ts'
 import type { OrderView, OrderLotView, OrderPricing } from '@dorado/contracts'
@@ -22,7 +23,10 @@ beforeAll(async () => {
   lockClient = await pool.connect()
   await lockClient.query('SELECT pg_advisory_lock($1)', [LOCKS.ORDERS])
 
-  const ids = (await orderRead.list({ direction: 'purchase' })).items.map((o) => o.id)
+  const blocked = await ordersHoldingAnUnlockedMetal()
+  const ids = (await orderRead.list({ direction: 'purchase' })).items
+    .map((o) => o.id)
+    .filter((id) => !blocked.has(id))
   orders = []
   for (const id of ids) {
     const view = await orderRead.view(id)

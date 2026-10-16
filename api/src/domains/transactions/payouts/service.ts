@@ -1,6 +1,12 @@
 import withTransaction from '#shared/db/withTransaction.ts'
 import { attempt } from '#shared/attempt.ts'
-import { orders, paymentTransfers as transfers, bankLinks, refiningOrders } from '#db'
+import {
+  orders,
+  orderPayoutMethods,
+  paymentTransfers as transfers,
+  bankLinks,
+  refiningOrders,
+} from '#db'
 import * as moov from '#providers/moov/index.ts'
 import * as rails from '#transactions/rails/service.ts'
 import * as rules from '#transactions/payouts/rules.ts'
@@ -46,7 +52,9 @@ export async function openPayout(
 
   const order_id = body.order_id as string
   const order = await orders.getOne(order_id)
-  const owed = assertOpenable(order_id, order?.totals?.total)
+  const owed =
+    (await orderPayoutMethods.shares(order_id)).transfer ??
+    assertOpenable(order_id, order?.totals?.total)
   const excess = payoutOverrideFor(owed, body.amount)
   const standing = await transfers.getForOrder(order_id, 'payout')
   const second =

@@ -11,6 +11,7 @@ export {
   BadgeAlert,
   Ban,
   Banknote,
+  Boxes,
   Building2,
   Calculator,
   Calendar,

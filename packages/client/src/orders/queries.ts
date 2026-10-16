@@ -2,27 +2,47 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type {
+  Address,
+  AdoptAssayBody,
+  AdoptAssayProposal,
   Direction,
   FulfillmentDropoff,
   Lot,
   LotSplit,
+  LotUnlinkBody,
+  NoteView,
   OrderActivity,
+  OrderAddressChangeBody,
   OrderCancelBody,
   OrderDocument,
   OrderList,
+  OrderLotEditBody,
+  OrderLotLine,
   OrderLotPatch,
   OrderLotView,
-  OrderPatch,
+  OrderNoteCreateBody,
+  OrderPatchBody,
+  OrderPricing,
   OrderSpot,
+  OrderSpotLockEvent,
   OrderSpotsPutBody,
   OrderSort,
   OrderState,
   OrderSupplyBody,
   OrderView,
+  PayoutMethodsPutBody,
   ProfitBreakdown,
+  PurityDispute,
+  PurityDisputeOpenBody,
+  PurityDisputeResolveBody,
   RefiningOrderView,
+  RefundBody,
+  RefundView,
   SearchHit,
+  ShipmentClaimView,
   ShipmentView,
+  PaymentDetailsPatch,
+  PaymentDetailsView,
 } from '@dorado/contracts'
 
 import { apiRequest, apiRequestBlob, apiRequestForm, baseUrl } from '../fetch'
@@ -159,7 +179,7 @@ function useOrderWrite<TVariables, TResult>(
 }
 
 export function usePatchOrder(id: string) {
-  return useOrderWrite(id, (patch: OrderPatch) =>
+  return useOrderWrite(id, (patch: OrderPatchBody) =>
     apiRequest<OrderView>('PATCH', `/orders/${id}`, patch)
   )
 }
@@ -191,19 +211,21 @@ export function usePutOrderSpots(id: string) {
 }
 
 export function useCreateOrderLot(id: string) {
-  return useOrderWrite(id, (patch: OrderLotPatch) =>
+  return useOrderWrite(id, (patch: OrderLotPatch | OrderLotLine) =>
     apiRequest<OrderLotView>('POST', `/orders/${id}/lots`, patch)
   )
 }
 
 export function usePatchOrderLot(id: string) {
-  return useOrderWrite(id, ({ lot_id, patch }: { lot_id: string; patch: OrderLotPatch }) =>
+  return useOrderWrite(id, ({ lot_id, patch }: { lot_id: string; patch: OrderLotEditBody }) =>
     apiRequest<OrderLotView | Lot>('PATCH', `/orders/lots/${lot_id}`, patch)
   )
 }
 
-export function useDeleteOrderLot(id: string) {
-  return useOrderWrite(id, (lot_id: string) => apiRequest<null>('DELETE', `/orders/lots/${lot_id}`))
+export function useUnlinkOrderLot(id: string) {
+  return useOrderWrite(id, ({ lot_id, ...body }: { lot_id: string } & LotUnlinkBody) =>
+    apiRequest<OrderLotView[]>('POST', `/orders/lots/${lot_id}/unlink`, body)
+  )
 }
 
 export function useSplitOrderLot(id: string) {
@@ -229,5 +251,129 @@ export function useImportOrderDocument(id: string) {
 export function useCreateRefiningSale(id: string) {
   return useOrderWrite(id, (body: OrderSupplyBody) =>
     apiRequest<RefiningOrderView>('POST', `/orders/${id}/refining-sale`, body)
+  )
+}
+
+export function useOrderPricing(id: string, options: { enabled?: boolean } = {}) {
+  return useQuery<OrderPricing>({
+    queryKey: keys.orders.pricing(id),
+    enabled: (options.enabled ?? true) && id.length > 0,
+    queryFn: () => apiRequest<OrderPricing>('POST', '/quotes/order', { order_id: id }),
+  })
+}
+
+export function useOrderSpotLocks(id: string, options: { enabled?: boolean } = {}) {
+  return useQuery<OrderSpotLockEvent[]>({
+    queryKey: keys.orders.spotLocks(id),
+    enabled: (options.enabled ?? true) && id.length > 0,
+    queryFn: () => apiRequest<OrderSpotLockEvent[]>('GET', `/orders/${id}/spot_locks`),
+  })
+}
+
+export function useOrderNotes(id: string, options: { enabled?: boolean } = {}) {
+  return useQuery<NoteView[]>({
+    queryKey: keys.orders.notes(id),
+    enabled: (options.enabled ?? true) && id.length > 0,
+    queryFn: () => apiRequest<NoteView[]>('GET', `/orders/${id}/notes`),
+  })
+}
+
+export function useAddOrderNote(id: string) {
+  return useOrderWrite(id, (body: OrderNoteCreateBody) =>
+    apiRequest<NoteView>('POST', `/orders/${id}/notes`, body)
+  )
+}
+
+export function usePutPayoutMethods(id: string) {
+  return useOrderWrite(id, (body: PayoutMethodsPutBody) =>
+    apiRequest<OrderView>('PUT', `/orders/${id}/payout_methods`, body)
+  )
+}
+
+export function usePatchPaymentDetails(id: string) {
+  return useOrderWrite(
+    id,
+    ({ details_id, ...patch }: { details_id: string } & PaymentDetailsPatch) =>
+      apiRequest<PaymentDetailsView>('PATCH', `/payments/details/${details_id}`, patch)
+  )
+}
+
+export function useOrderRefunds(id: string, options: { enabled?: boolean } = {}) {
+  return useQuery<RefundView[]>({
+    queryKey: keys.orders.refunds(id),
+    enabled: (options.enabled ?? true) && id.length > 0,
+    queryFn: () => apiRequest<RefundView[]>('GET', `/orders/${id}/refunds`),
+  })
+}
+
+export function useRefundOrder(id: string) {
+  return useOrderWrite(id, (body: RefundBody) =>
+    apiRequest<RefundView[]>('POST', `/orders/${id}/refunds`, body)
+  )
+}
+
+export function useIssueOrderRefund(id: string) {
+  return useOrderWrite(id, (refund_id: string) =>
+    apiRequest<RefundView[]>('POST', `/orders/${id}/refunds/${refund_id}/issue`, {})
+  )
+}
+
+export function useOrderClaims(id: string, options: { enabled?: boolean } = {}) {
+  return useQuery<ShipmentClaimView[]>({
+    queryKey: keys.orders.claims(id),
+    enabled: (options.enabled ?? true) && id.length > 0,
+    queryFn: () => apiRequest<ShipmentClaimView[]>('GET', `/orders/${id}/claims`),
+  })
+}
+
+export function useAdoptAssayProposal(id: string, options: { enabled?: boolean } = {}) {
+  return useQuery<AdoptAssayProposal>({
+    queryKey: keys.orders.adoptAssay(id),
+    enabled: (options.enabled ?? true) && id.length > 0,
+    queryFn: () => apiRequest<AdoptAssayProposal>('GET', `/orders/${id}/adopt_assay`),
+  })
+}
+
+export function useAdoptAssay(id: string) {
+  return useOrderWrite(id, (body: AdoptAssayBody) =>
+    apiRequest<OrderLotView[]>('POST', `/orders/${id}/adopt_assay`, body)
+  )
+}
+
+export function useOrderAddress(id: string, options: { enabled?: boolean } = {}) {
+  return useQuery<Address>({
+    queryKey: keys.orders.address(id),
+    enabled: (options.enabled ?? true) && id.length > 0,
+    queryFn: () => apiRequest<Address>('GET', `/orders/${id}/address`),
+  })
+}
+
+export function useChangeOrderAddress(id: string) {
+  return useOrderWrite(id, (body: OrderAddressChangeBody) =>
+    apiRequest<OrderView>('POST', `/orders/${id}/address`, body)
+  )
+}
+
+export function useOrderDisputes(id: string, options: { enabled?: boolean } = {}) {
+  return useQuery<PurityDispute[]>({
+    queryKey: keys.orders.disputes(id),
+    enabled: (options.enabled ?? true) && id.length > 0,
+    queryFn: () => apiRequest<PurityDispute[]>('GET', `/orders/${id}/disputes`),
+  })
+}
+
+export function useOpenLotDispute(id: string) {
+  return useOrderWrite(
+    id,
+    ({ order_lot_id, ...body }: { order_lot_id: string } & PurityDisputeOpenBody) =>
+      apiRequest<PurityDispute>('POST', `/orders/lots/${order_lot_id}/disputes`, body)
+  )
+}
+
+export function useResolveDispute(id: string) {
+  return useOrderWrite(
+    id,
+    ({ dispute_id, ...body }: { dispute_id: string } & PurityDisputeResolveBody) =>
+      apiRequest<PurityDispute>('PATCH', `/orders/disputes/${dispute_id}`, body)
   )
 }

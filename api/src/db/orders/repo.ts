@@ -38,15 +38,35 @@ export const ORDER_STATE = expression(sql('order_state')).replaceAll(
   '/*__fulfillment_arrived__*/',
   ARRIVED
 )
+export const PAYMENT_FACTS = expression(sql('payment_facts'))
+export const SOURCE_REFERENCE = expression(sql('source_reference'))
+const ADOPT_FACTS = expression(sql('adopt_facts'))
+const CASE_FACTS = expression(sql('case_facts'))
+const COMPLETED_AT = expression(sql('completed_at'))
+const PAYOUT_METHODS = expression(sql('payout_methods'))
 const LIST_SQL = sql('list')
   .replaceAll('/*__order_reference__*/', ORDER_REFERENCE)
   .replaceAll('/*__order_state__*/', ORDER_STATE)
   .replaceAll('/*__lot_position__*/', LOT_POSITION)
   .replaceAll('/*__order_estimated_value__*/', ORDER_VALUE)
-  .replaceAll('/*__order_action_facts__*/', expression(sql('action_facts')))
+  .replaceAll('/*__order_completed_at__*/', COMPLETED_AT.replace('/*__state__*/', 'p.state'))
+  .replaceAll(
+    '/*__order_action_facts__*/',
+    expression(sql('action_facts'))
+      .replace('/*__order_payment_facts__*/', PAYMENT_FACTS)
+      .replace('/*__order_adopt_facts__*/', ADOPT_FACTS)
+      .replace('/*__order_case_facts__*/', CASE_FACTS)
+      .replace('/*__order_payout_methods__*/', PAYOUT_METHODS)
+  )
 const VIEW_SQL = sql('view')
   .replace('/*__order_reference__*/', ORDER_REFERENCE)
   .replace('/*__order_state__*/', ORDER_STATE)
+  .replace('/*__order_payment_facts__*/', PAYMENT_FACTS)
+  .replace('/*__lot_source_reference__*/', SOURCE_REFERENCE)
+  .replace('/*__order_adopt_facts__*/', ADOPT_FACTS)
+  .replace('/*__order_case_facts__*/', CASE_FACTS)
+  .replace('/*__order_payout_methods__*/', PAYOUT_METHODS)
+  .replace('/*__order_completed_at__*/', COMPLETED_AT.replace('/*__state__*/', ORDER_STATE))
 
 export async function exists(id: string, executor?: Executor): Promise<boolean> {
   const { rows } = await query<{ present: boolean }>(sql('exists'), [id], executor)

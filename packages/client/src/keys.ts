@@ -18,6 +18,14 @@ export const keys = {
     dropoffs: (id: string) => ['orders', 'dropoffs', id] as const,
     activity: (id: string, page: { limit?: number | null; before?: string | null } = {}) =>
       ['orders', 'activity', id, page.limit ?? null, page.before ?? null] as const,
+    pricing: (id: string) => ['orders', 'pricing', id] as const,
+    notes: (id: string) => ['orders', 'notes', id] as const,
+    refunds: (id: string) => ['orders', 'refunds', id] as const,
+    claims: (id: string) => ['orders', 'claims', id] as const,
+    adoptAssay: (id: string) => ['orders', 'adopt_assay', id] as const,
+    address: (id: string) => ['orders', 'address', id] as const,
+    disputes: (id: string) => ['orders', 'disputes', id] as const,
+    spotLocks: (id: string) => ['orders', 'spot_locks', id] as const,
   },
   search: {
     all: () => ['search'] as const,
@@ -50,6 +58,7 @@ export const keys = {
   shipping: {
     all: () => ['shipping'] as const,
     tracking: (shipmentId: string) => ['shipping', 'tracking', shipmentId] as const,
+    claims: (shipmentId: string) => ['shipping', 'claims', shipmentId] as const,
     services: () => ['shipping', 'services'] as const,
     packages: () => ['shipping', 'packages'] as const,
     handoffs: () => ['shipping', 'handoffs'] as const,
@@ -85,6 +94,7 @@ export const keys = {
     all: () => ['lots'] as const,
     search: (q: string, unassigned: boolean) => ['lots', 'search', q, unassigned] as const,
     images: (lotId: string) => ['lots', 'images', lotId] as const,
+    stock: (q: string) => ['lots', 'stock', q] as const,
   },
   pricing: {
     all: () => ['pricing'] as const,
@@ -94,6 +104,7 @@ export const keys = {
     all: () => ['places'] as const,
     locations: (organizationId: string | null = null) =>
       ['places', 'locations', organizationId] as const,
+    addresses: (userId: string) => ['places', 'addresses', userId] as const,
   },
   employees: {
     all: () => ['employees'] as const,

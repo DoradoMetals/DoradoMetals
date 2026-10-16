@@ -2,8 +2,14 @@ import query from '#shared/db/query.ts'
 import { buildUpdate } from '#shared/db/patch.ts'
 import { sqlFrom } from '#shared/db/sql.ts'
 import { columnsOf } from '#shared/db/columns.ts'
-import { PaymentView as View, TransferGuard as Guard, TransferPatch } from '@dorado/contracts'
+import {
+  OrderPaymentView as OrderView,
+  PaymentView as View,
+  TransferGuard as Guard,
+  TransferPatch,
+} from '@dorado/contracts'
 import type {
+  OrderPaymentView,
   PaymentView,
   Transfer,
   TransferGuard,
@@ -18,7 +24,10 @@ const sql = sqlFrom(import.meta.dirname)
 export const PATCHABLE = columnsOf(TransferPatch)
 const GUARDABLE = columnsOf(Guard)
 
-export async function create(row: TransferWrite, executor?: Executor): Promise<Transfer | undefined> {
+export async function create(
+  row: TransferWrite,
+  executor?: Executor
+): Promise<Transfer | undefined> {
   const { rows } = await query<Transfer>(
     sql(row.refining_order_id ? 'create_refining' : 'create'),
     [
@@ -73,9 +82,12 @@ export async function listForOrder(order_id: string, executor?: Executor): Promi
   return rows
 }
 
-export async function view(order_id: string, executor?: Executor): Promise<PaymentView | undefined> {
+export async function view(
+  order_id: string,
+  executor?: Executor
+): Promise<OrderPaymentView | undefined> {
   const { rows } = await query(sql('payment_view'), [order_id], executor)
-  return rows[0] === undefined ? undefined : View.parse(rows[0])
+  return rows[0] === undefined ? undefined : OrderView.parse(rows[0])
 }
 
 export async function viewRefining(

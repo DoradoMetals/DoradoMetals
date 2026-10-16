@@ -67,6 +67,7 @@ SELECT to_jsonb(o)
                                             WHERE ls.source_lot_id = ol.lot_id
                                               AND ls.kind = 'batch'
                                               AND rlot.settled_at IS NOT NULL) END,
+                        'source_reference', /*__lot_source_reference__*/,
                         'refining_order_number',
                           (SELECT ro.number FROM inventory.lot_sources ls
                              JOIN refining.lots rl ON rl.lot_id = ls.lot_id AND rl.released_at IS NULL
@@ -86,23 +87,21 @@ SELECT to_jsonb(o)
             CROSS JOIN LATERAL (
               SELECT CASE WHEN li.content IS NULL OR li.premium IS NULL THEN NULL
                           ELSE li.content * li.premium
-                               * COALESCE(
+                               *
                                    CASE WHEN o.direction = 'sale'
-                                        THEN CASE WHEN o.spots_locked THEN COALESCE(os.ask, sp.ask) ELSE sp.ask END
-                                        ELSE CASE WHEN o.spots_locked THEN COALESCE(os.bid, sp.bid) ELSE sp.bid END END,
-                                   0)
+                                        THEN CASE WHEN o.spots_locked THEN os.ask ELSE sp.ask END
+                                        ELSE CASE WHEN o.spots_locked THEN os.bid ELSE sp.bid END END
                      END AS price
             ) pr),
          '[]'::jsonb) AS lots,
        (SELECT to_jsonb(a)
                || jsonb_build_object(
                     'created_at', to_char(a.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
-                    'updated_at', to_char(a.updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'))
+                    'updated_at', to_char(a.updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+                    'source_address_id', oa.source_address_id)
           FROM orders.addresses oa
           JOIN places.addresses a ON a.id = oa.address_id
-         WHERE oa.order_id = o.id
-         ORDER BY oa.id ASC
-         LIMIT 1) AS address,
+         WHERE oa.order_id = o.id) AS address,
        COALESCE(
          (SELECT jsonb_agg(
                    jsonb_build_object(
@@ -181,10 +180,15 @@ SELECT to_jsonb(o)
        -- with list.sql via order_reference.sql so the two cannot drift.
        /*__order_reference__*/ AS reference,
        /*__order_state__*/ AS state,
+       /*__order_adopt_facts__*/ AS adopt,
+       /*__order_case_facts__*/ AS cases,
+       /*__order_payout_methods__*/ AS payout_methods,
+       to_char((/*__order_completed_at__*/) AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS completed_at,
        -- Whether this order's payout has already been credited to the
        -- customer's balance. The add_funds action turns itself off from it, and
        -- the endpoint refuses on it (MP F4).
        EXISTS (SELECT 1 FROM payments.ledger l
-                WHERE l.order_id = o.id AND l.type = 'Credit') AS credited
+                WHERE l.order_id = o.id AND l.type = 'Credit') AS credited,
+       /*__order_payment_facts__*/ AS payment
   FROM orders.orders o
  WHERE o.id = $1

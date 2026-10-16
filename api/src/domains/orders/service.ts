@@ -4,6 +4,10 @@ import * as orderLots from '#db/orders/lots/repo.ts'
 import * as lotsRepo from '#db/inventory/lots/repo.ts'
 import * as lotSourcesRepo from '#db/inventory/lot-sources/repo.ts'
 import * as orderSpots from '#db/orders/spots/repo.ts'
+import * as payoutMethods from '#db/orders/payout-methods/repo.ts'
+import * as lotUnlinks from '#db/orders/lot-unlinks/repo.ts'
+import * as transfers from '#db/payments/transfers/repo.ts'
+import * as paymentMethods from '#db/payments/methods/repo.ts'
 import * as orderTransactions from '#db/orders/transactions/repo.ts'
 import * as orderTransactionsService from '#orders/transactions/service.ts'
 import * as packagesRepo from '#db/shipping/packages/repo.ts'
@@ -16,6 +20,7 @@ import * as carrierServices from '#logistics/shipping/services/service.ts'
 import * as shippingLabels from '#logistics/shipping/labels.ts'
 import * as credit from '#transactions/credit/service.ts'
 import * as ledger from '#transactions/ledger/service.ts'
+import * as paymentDetails from '#transactions/details/service.ts'
 import * as orderRead from '#orders/read.ts'
 import * as orderSpotsService from '#orders/spots/service.ts'
 import * as rules from '#orders/rules.ts'
@@ -26,6 +31,11 @@ import * as refiningService from '#refining/service.ts'
 import * as inventoryService from '#inventory/service.ts'
 
 import withTransaction from '#shared/db/withTransaction.ts'
+import { attempt } from '#shared/attempt.ts'
+import * as actionReasons from '#db/orders/action-reasons/repo.ts'
+import * as paymentsService from '#transactions/service.ts'
+import * as sweeps from '#transactions/sweeps.ts'
+import * as shippingOperations from '#logistics/shipping/operations/service.ts'
 import type { Executor } from '#shared/db/executor.ts'
 import type {
   LotSplitPart,
@@ -36,17 +46,28 @@ import type {
   OrderLotView,
   OrderPatch,
   OrderView,
+  PayoutMethodsPutBody,
+  LotUnlinkBody,
   LotView,
   Lot,
 } from '@dorado/contracts'
 
-export async function patch(order_id: string, changes: OrderPatch): Promise<OrderView> {
+export async function patch(
+  order_id: string,
+  changes: OrderPatch,
+  expected_updated_at: string | null = null
+): Promise<OrderView> {
   rules.assertNamesAField(changes)
   if (changes.cancelled_at !== undefined) {
     rules.assertClearsCancellation(changes.cancelled_at)
     rules.assertReopenable(await viewOf(order_id))
   }
-  const written = await withTransaction((tx) => ordersRepo.update(order_id, changes, {}, tx))
+  const written = await withTransaction(async (tx) => {
+    const current = await ordersRepo.getOne(order_id, tx)
+    rules.assertOrder(current, order_id)
+    rules.assertFresh(current.updated_at, expected_updated_at, `order ${current.number}`)
+    return await ordersRepo.update(order_id, changes, {}, tx)
+  })
   rules.assertOrder(written || null, order_id)
   return await viewOf(order_id)
 }
@@ -83,6 +104,7 @@ export async function addLot(order_id: string, input: OrderLotPatch): Promise<Or
       ? await mintFromCatalogue(input.bullion_id, input.quantity ?? null, tx)
       : await lotsRepo.create(rules.declaredLot(input), tx)
     const link = await orderLots.link(order_id, lot.id, tx)
+    await orderSpotsService.coverMetals(order_id, 'lot added', tx)
     await retierPremiums(order_id, tx)
     return link.id
   })
@@ -98,10 +120,45 @@ async function mintFromCatalogue(bullion_id: string, quantity: number | null, tx
   return created
 }
 
-export async function editLot(id: string, changes: OrderLotPatch): Promise<OrderLotView | Lot> {
+export async function guardChargedSale(
+  order_id: string,
+  override_reason: string | null | undefined,
+  session_id: string | null,
+  what: string
+): Promise<string | null> {
+  const facts = await viewOf(order_id)
+  rules.assertChargedSaleOverride(facts, override_reason, what)
+  if (!rules.chargedSale(facts)) return null
+  await accounts.assertSteppedUp(session_id)
+  return override_reason as string
+}
+
+export async function recordActionReason(
+  order_id: string,
+  action: string,
+  reason: string | null,
+  tx: Executor
+): Promise<void> {
+  if (reason === null) return
+  await actionReasons.create({ order_id, action, reason }, tx)
+}
+
+export async function editLot(
+  id: string,
+  changes: OrderLotPatch,
+  expected_updated_at: string | null = null,
+  override_reason: string | null = null,
+  session_id: string | null = null
+): Promise<OrderLotView | Lot> {
   rules.assertNamesAField(changes)
   const link = await orderLots.getOne(id)
   if (!link) return await refiningService.recordAssay(id, changes)
+  const overridden = await guardChargedSale(
+    link.order_id,
+    override_reason,
+    session_id,
+    'editing a lot'
+  )
 
   const lot = await lotsRepo.getOne(link.lot_id)
   rules.assertLot(lot, link.lot_id)
@@ -113,7 +170,12 @@ export async function editLot(id: string, changes: OrderLotPatch): Promise<Order
   )
 
   await withTransaction(async (tx) => {
+    const current = await lotsRepo.getOne(link.lot_id, tx)
+    rules.assertLot(current, link.lot_id)
+    rules.assertFresh(current.updated_at, expected_updated_at, `lot ${link.lot_id}`)
     rules.assertLot(await lotsRepo.update(link.lot_id, changes, tx), link.lot_id)
+    await recordActionReason(link.order_id, 'edit_lot', overridden, tx)
+    if (changes.metal_id) await orderSpotsService.coverMetals(link.order_id, 'lot edited', tx)
     if (changes.image_id) await inventoryService.coverImage(link.lot_id, changes.image_id, tx)
     if (rules.retiersAfterEdit(changes)) await retierPremiums(link.order_id, tx)
   })
@@ -154,6 +216,7 @@ export async function adoptAssay(order_id: string, body: AdoptAssayBody): Promis
       const link = links.find((row) => row.id === entry.id)!
       rules.assertLot(await lotsRepo.update(link.lot_id, entry.figures, tx), link.lot_id)
     }
+    await orderSpotsService.coverMetals(order_id, 'refiner assay adopted', tx)
   })
 
   if (body.combine !== false) {
@@ -181,15 +244,34 @@ export async function adoptAssay(order_id: string, body: AdoptAssayBody): Promis
   return await orderLots.viewFor(order_id)
 }
 
-export async function removeLot(id: string): Promise<void> {
+export async function unlinkLot(
+  id: string,
+  body: LotUnlinkBody,
+  session_id: string | null = null
+): Promise<OrderLotView[]> {
   const link = await orderLots.getOne(id)
   rules.assertLot(link, id)
+  const sale = (await ordersRepo.directionOf(link.order_id)) === 'sale'
+  const overridden = sale
+    ? await guardChargedSale(link.order_id, body.override_reason, session_id, 'removing a line')
+    : null
+  if (!sale) {
+    const [position] = await lotsRepo.positionsOf([link.lot_id])
+    const edges = await lotSourcesRepo.sourcesOf([link.lot_id])
+    rules.assertUnlinkable(position?.position, edges, link.lot_id)
+  }
 
   await withTransaction(async (tx) => {
     rules.assertRemoved(await orderLots.remove(id, tx), link.order_id, id)
-    await lotsRepo.remove(link.lot_id, tx)
-    await retierPremiums(link.order_id, tx)
+    await lotUnlinks.create(
+      { order_id: link.order_id, lot_id: link.lot_id, reason: body.reason },
+      tx
+    )
+    await recordActionReason(link.order_id, 'unlink_lot', overridden, tx)
+    if (!sale) await retierPremiums(link.order_id, tx)
   })
+
+  return await orderLots.viewFor(link.order_id)
 }
 
 export async function finalize(order_id: string): Promise<OrderView> {
@@ -211,6 +293,7 @@ export async function documentsFor(order_id: string): Promise<OrderDocument[]> {
   const order = await viewOf(order_id)
   return rules.documentsFor(
     await fulfillmentService.categoryOfOrder(order_id),
+    order.order.direction,
     rules.isFinalized(order),
     await pdfs.storedKinds(order_id, null)
   )
@@ -224,9 +307,10 @@ export async function addFunds(
   const order = await viewOf(order_id)
   rules.assertDirection(order.order.direction, 'purchase', 'adding funds')
 
-  const amount = order.totals?.total ?? null
+  const shares = await payoutMethods.shares(order_id)
+  const amount = shares.split ? shares.account : (order.totals?.total ?? null)
   rules.assertCreditable(amount, order.order.number)
-  rules.assertPayableToAccount(order.payout?.method ?? null, order.order.number)
+  if (!shares.split) rules.assertPayableToAccount(order.payout?.method ?? null, order.order.number)
 
   if (await ledger.hasCreditFor(order_id)) {
     rules.assertCreditOverride(true, body.override_reason, order.order.number)
@@ -252,12 +336,58 @@ export async function addFunds(
   return await viewOf(order_id)
 }
 
+export async function setPayoutMethods(
+  order_id: string,
+  body: PayoutMethodsPutBody
+): Promise<OrderView> {
+  const order = await viewOf(order_id)
+  rules.assertDirection(order.order.direction, 'purchase', 'splitting a payout')
+  const standing = await transfers.getForOrder(order_id, 'payout')
+  if (rules.choosesOneMethod(body.methods)) {
+    return await chooseOneMethod(order, body.methods[0]!.method_id, standing?.state ?? null)
+  }
+  rules.assertSplitEditable(order, standing?.state ?? null)
+  rules.assertSplitShape(
+    body.methods,
+    pricing.payoutSplitGapCents(
+      body.methods.map((row) => row.amount ?? 0),
+      order.totals.total
+    ),
+    order.order.number
+  )
+
+  await withTransaction(async (tx) => {
+    await payoutMethods.removeFor(order_id, tx)
+    for (const line of body.methods) await payoutMethods.create(order_id, line, tx)
+  })
+
+  return await viewOf(order_id)
+}
+
+async function chooseOneMethod(
+  order: OrderView,
+  method_id: string,
+  payout_state: string | null
+): Promise<OrderView> {
+  const details_id = rules.assertOneMethodChangeable(order, payout_state)
+  const method = await paymentMethods.getOne(method_id)
+  rules.assertPayoutMethod(method, method_id)
+
+  await withTransaction(async (tx) => {
+    await payoutMethods.removeFor(order.order.id, tx)
+    await paymentDetails.setMethod(details_id, method.type, tx)
+  })
+
+  return await viewOf(order.order.id)
+}
+
 export async function cancel(
   order_id: string,
   choices: OrderCancelBody,
   buy: (shipment_id: string) => Promise<void> = shippingLabels.buyReturnLabel
 ): Promise<OrderView> {
   const order = await viewOf(order_id)
+  if (order.order.direction === 'sale') return await cancelSale(order_id, choices)
   rules.assertDirection(order.order.direction, 'purchase', 'cancelling')
   rules.assertReturnable(order)
 
@@ -296,6 +426,40 @@ export async function cancel(
   })
 
   if (shipment_id) await buy(shipment_id)
+
+  return await viewOf(order_id)
+}
+
+export const SALE_CANCEL_WORLD = {
+  openIntentRefFor: paymentsService.openIntentRefFor,
+  cancelIntent: paymentsService.cancelIntentByRef,
+  voidLabel: (shipment_id: string) =>
+    shippingOperations.cancelLabel({ shipment_id, carrier_id: undefined }).then(() => undefined),
+}
+
+export async function cancelSale(
+  order_id: string,
+  choices: OrderCancelBody,
+  world: typeof SALE_CANCEL_WORLD = SALE_CANCEL_WORLD
+): Promise<OrderView> {
+  const order = await viewOf(order_id)
+  rules.assertDirection(order.order.direction, 'sale', 'cancelling a sale')
+  rules.assertSaleCancellable(order)
+  rules.assertReasonGiven(choices.reason, `cancelling order ${order.order.number}`)
+
+  await withTransaction(async (tx) => {
+    await sweeps.cancelPendingSale(order_id, tx)
+    await actionReasons.create({ order_id, action: 'cancel', reason: choices.reason as string }, tx)
+  })
+
+  const intent_ref = await world.openIntentRefFor(order_id)
+  if (intent_ref) {
+    await attempt(`cancel intent of order ${order_id}`, () => world.cancelIntent(intent_ref))
+  }
+  for (const shipment of order.shipments) {
+    if (shipment.direction !== 'Outbound' || !shipment.tracking_number) continue
+    await attempt(`void label of shipment ${shipment.id}`, () => world.voidLabel(shipment.id))
+  }
 
   return await viewOf(order_id)
 }

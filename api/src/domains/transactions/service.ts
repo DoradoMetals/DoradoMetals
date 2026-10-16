@@ -229,8 +229,8 @@ export async function cancelIntentByRef(provider_ref: string): Promise<void> {
   await withTransaction((tx) => updateFromProvider(canceled, tx))
 }
 
-export async function getPaymentIntentFromSalesOrderId(
-  order_id: string
-): Promise<PaymentIntentView | undefined> {
-  return await intents.findForOrder(order_id)
+export async function openIntentRefFor(order_id: string): Promise<string | null> {
+  const intent = await intents.findForOrder(order_id)
+  if (!intent?.attempt?.provider_ref || !isOpen(intent.status)) return null
+  return intent.attempt.provider_ref
 }

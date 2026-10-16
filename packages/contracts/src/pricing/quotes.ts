@@ -163,6 +163,7 @@ export const OrderPricing = z.object({
   card_fee: z.number(),
   total_charged: z.number(),
   declared_value: z.number(),
+  refunded_total: z.number(),
 })
 export type OrderPricing = z.infer<typeof OrderPricing>
 

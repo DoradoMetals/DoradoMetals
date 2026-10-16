@@ -9,7 +9,7 @@ import { inPinnedTransaction, outside } from '#shared/testing/pinned-pool.ts'
 import { anUnknownId, aUser, anOrder } from '#shared/testing/builders/index.ts'
 import * as paymentsService from '#transactions/service.ts'
 import { LOCKS } from '#shared/testing/locks.ts'
-import { PaymentIntentView } from '@dorado/contracts'
+import { OrderPaymentView } from '@dorado/contracts'
 
 await mockSessions()
 const { default: app } = await import('#app')
@@ -50,14 +50,11 @@ test('every route refuses an anonymous caller', async () => {
         const calls = [
           [
             'retrieve_payment_intent',
-            request(app).get('/api/stripe/retrieve_payment_intent').query({ type: 'sales_order_checkout' }),
-          ],
-          [
-            'get_sales_order_payment_intent',
             request(app)
-              .get('/api/stripe/get_sales_order_payment_intent')
-              .query({ order_id: randomUUID() }),
+              .get('/api/stripe/retrieve_payment_intent')
+              .query({ type: 'sales_order_checkout' }),
           ],
+          ['payments/view', request(app).get(`/api/payments/view/${randomUUID()}`)],
           [
             'update_payment_intent',
             request(app).post('/api/stripe/update_payment_intent').send({}),
@@ -120,12 +117,7 @@ test('the two admin-only routes refuse a signed-in customer', async () => {
     async () => {
       await as(Object.assign({}, customer, { role: 'user' }), async () => {
         const calls = [
-          [
-            'get_sales_order_payment_intent',
-            request(app)
-              .get('/api/stripe/get_sales_order_payment_intent')
-              .query({ order_id: randomUUID() }),
-          ],
+          ['payments/view', request(app).get(`/api/payments/view/${randomUUID()}`)],
           [
             'cancel_payment_intent',
             request(app).post('/api/stripe/cancel_payment_intent').send({ id: 'pi_nope' }),
@@ -150,7 +142,7 @@ test('the refused requests created no payment intent', async () => {
   )
 })
 
-test("an admin reading a sales order's payment intent gets it, in the nested wire shape", async () => {
+test("an admin reads a sale's card state on the payment view, typed and in dollars", async () => {
   await inPinnedTransaction(
     async (c) => {
       const buyer = await aUser(c)
@@ -167,29 +159,24 @@ test("an admin reading a sales order's payment intent gets it, in the nested wir
         await paymentsService.attachOrder(providerRef, order.id, c),
         'the built intent did not attach to the built order'
       )
+      await paymentsService.updateFromProvider(
+        { id: providerRef, status: 'succeeded', amount: 25000, amount_received: 25000 },
+        c
+      )
 
       await as(Object.assign({}, admin, { role: 'admin' }), async () => {
-        const res = await request(app)
-          .get('/api/stripe/get_sales_order_payment_intent')
-          .query({ order_id: order.id })
+        const res = await request(app).get(`/api/payments/view/${order.id}`)
 
         assert.equal(res.status, 200, `answered ${res.status} to an admin`)
-        assert.ok(res.body && typeof res.body === 'object', 'the body was not an object')
-
-        const parsed = PaymentIntentView.safeParse(res.body)
+        const parsed = OrderPaymentView.safeParse(res.body)
         assert.ok(
           parsed.success,
-          'the response does not satisfy the nested contract: ' +
+          'the response does not satisfy the contract: ' +
             JSON.stringify(parsed.error?.issues?.slice(0, 4))
         )
-
-        assert.equal(res.body.attempt?.provider_ref, providerRef, 'a different intent came back')
-
-        assert.equal(Number(res.body.amount_expected), 250, 'the wire is not in dollars')
-
-        assert.ok(!('payment_intent_id' in res.body), 'the legacy names came back to the wire')
-        assert.ok(!('payment_status' in res.body), 'the legacy names came back to the wire')
-        assert.ok(!/"routing"/.test(JSON.stringify(res.body)), 'a routing key reached the wire')
+        assert.equal(res.body.intent_status, 'succeeded')
+        assert.equal(Number(res.body.amount_received), 250, 'the wire is not in dollars')
+        assert.ok(!JSON.stringify(res.body).includes(providerRef), 'the full intent ref leaked')
       })
     },
     { actor: TEST_ACTOR.id, lock: PAYMENTS_LOCKS }

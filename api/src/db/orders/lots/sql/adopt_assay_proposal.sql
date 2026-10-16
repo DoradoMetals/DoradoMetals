@@ -7,14 +7,21 @@
 -- nothing here writes anything: POST /api/orders/:id/adopt_assay takes the
 -- figures an employee confirms, never a recomputation of this read.
 --
--- `product_name`, `form` and `metal_id` are derived the same way view.sql
--- derives them, so the dialog names a lot exactly as the order screen does.
-WITH batched AS (
-  SELECT ol.id, ol.lot_id, li.declared_content, ls.lot_id AS refiner_lot_id
-    FROM orders.lots ol
+-- `product_name`, `form`, `metal_id`, `name` and `reference` are derived the
+-- same way view.sql derives them, so the dialog names a lot exactly as the
+-- order screen does ("Lot 2481-A", "14K Gold"; R-4), and `line_reference` is
+-- the refiner's own line ("ELM-88433").
+WITH seated AS (
+  SELECT l.*,
+         row_number() OVER (PARTITION BY l.order_id ORDER BY l.created_at ASC, l.id ASC) AS seat
+    FROM orders.lots l
+   WHERE l.order_id = $1
+),
+batched AS (
+  SELECT ol.id, ol.lot_id, ol.seat, li.declared_content, ls.lot_id AS refiner_lot_id
+    FROM seated ol
     JOIN inventory.lots li ON li.id = ol.lot_id
     JOIN inventory.lot_sources ls ON ls.source_lot_id = ol.lot_id AND ls.kind = 'batch'
-   WHERE ol.order_id = $1
 ),
 grouped AS (
   SELECT refiner_lot_id, sum(COALESCE(declared_content, 0)) AS total_declared, count(*) AS n
@@ -22,7 +29,7 @@ grouped AS (
    GROUP BY refiner_lot_id
 ),
 shared AS (
-  SELECT b.id, b.lot_id, b.refiner_lot_id,
+  SELECT b.id, b.lot_id, b.seat, b.refiner_lot_id,
          CASE WHEN g.total_declared > 0
               THEN COALESCE(b.declared_content, 0) / g.total_declared
               ELSE 1.0 / g.n END AS share
@@ -41,6 +48,16 @@ SELECT jsonb_build_object(
                        'refiner', jsonb_build_object(
                          'pre_melt', rl.pre_melt, 'post_melt', rl.post_melt,
                          'purity', rl.purity, 'unit', rl.unit, 'premium', rl.premium),
+                       'reference', 'Lot ' || o.number || '-' || chr(64 + s.seat::int),
+                       'name', COALESCE(b.name,
+                                     (SELECT p.label || ' ' || li.metal_id
+                                        FROM metals.purity_labels p
+                                       WHERE p.metal_id = li.metal_id
+                                         AND abs(p.purity - li.purity) <= p.tolerance
+                                       ORDER BY abs(p.purity - li.purity)
+                                       LIMIT 1),
+                                     li.metal_id),
+                       'line_reference', rl.line_reference,
                        'product_name', b.name,
                        'form', COALESCE(b.type, 'Scrap'),
                        'metal_id', li.metal_id,
@@ -57,6 +74,7 @@ SELECT jsonb_build_object(
               FROM shared s
               JOIN inventory.lots li ON li.id = s.lot_id
               JOIN inventory.lots rl ON rl.id = s.refiner_lot_id
+              JOIN orders.orders o ON o.id = $1
               LEFT JOIN products.bullion b ON b.id = li.bullion_id),
            '[]'::jsonb)
        ) AS proposal

@@ -192,6 +192,10 @@ export async function buyReturnLabel(shipment_id: string): Promise<void> {
   )
 }
 
+export const buyOutboundLabel = buyReturnLabel
+
+export const voidTracking = shippingOperations.voidTracking
+
 async function claim(shipment_id: string): Promise<void> {
   const claimed = await withTransaction((tx) => shipmentsRepo.claimForLabel(shipment_id, tx))
   rules.assertClaimed(claimed, shipment_id)

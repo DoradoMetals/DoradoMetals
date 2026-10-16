@@ -1,4 +1,4 @@
-import { NoteCreateBody, NotePatch } from '@dorado/contracts'
+import { NoteCreateBody, NotePatch, OrderNoteCreateBody } from '@dorado/contracts'
 import { strictBody, uuidParam } from '#shared/http/validate.ts'
 import { oneString } from '#shared/http/query.ts'
 import { asyncHandler } from '#shared/middleware/asyncHandler.ts'
@@ -8,6 +8,7 @@ export const getAll = asyncHandler(async (req, res) => {
   const subject = {
     user_id: oneString(req.query.user_id) ?? null,
     lead_id: oneString(req.query.lead_id) ?? null,
+    order_id: oneString(req.query.order_id) ?? null,
   }
   return res.status(200).json(await service.forSubject(subject))
 })
@@ -28,4 +29,14 @@ export const remove = asyncHandler(async (req, res) => {
   const removed = await service.remove(id)
   if (!removed) return res.status(404).json({ message: 'no such note' })
   return res.status(200).json({ message: 'Note deleted' })
+})
+
+export const getForOrder = asyncHandler(async (req, res) => {
+  const order_id = uuidParam(req, 'id')
+  return res.status(200).json(await service.forSubject({ user_id: null, lead_id: null, order_id }))
+})
+
+export const createForOrder = asyncHandler(async (req, res) => {
+  const { body } = strictBody(OrderNoteCreateBody, req.body)
+  return res.status(201).json(await service.create({ order_id: uuidParam(req, 'id'), body }))
 })

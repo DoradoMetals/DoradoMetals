@@ -266,6 +266,14 @@ export async function voidLabel(trackingNumber: string | undefined | null): Prom
   )
 }
 
+export async function voidTracking(trackingNumber: string): Promise<boolean> {
+  const voided = await attempt(`VOID SHIPPING LABEL ${trackingNumber}`, async () => {
+    await shippingHandler.cancelLabel(await carrierIdOr(null), undefined, { trackingNumber })
+    return true
+  })
+  return voided === true
+}
+
 export async function labelBufferOrVoid(
   labelData: CarrierLabel,
   cancel: typeof voidLabel = voidLabel

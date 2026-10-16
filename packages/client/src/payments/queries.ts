@@ -10,7 +10,7 @@ import type {
   OpenPayoutBody,
   PayTo,
   PaymentMethod,
-  PaymentView,
+  OrderPaymentView,
   RecordWireBody,
   RequestChargeBody,
   Transfer,
@@ -20,10 +20,10 @@ import { apiRequest } from '../fetch'
 import { keys } from '../keys'
 
 export function usePaymentView(orderId: string, options: { enabled?: boolean } = {}) {
-  return useQuery<PaymentView>({
+  return useQuery<OrderPaymentView>({
     queryKey: keys.payments.view(orderId),
     enabled: (options.enabled ?? true) && orderId.length > 0,
-    queryFn: () => apiRequest<PaymentView>('GET', `/payments/view/${orderId}`),
+    queryFn: () => apiRequest<OrderPaymentView>('GET', `/payments/view/${orderId}`),
   })
 }
 

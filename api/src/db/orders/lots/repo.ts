@@ -1,11 +1,13 @@
 import query from '#shared/db/query.ts'
 import { sqlFrom } from '#shared/db/sql.ts'
+import { SOURCE_REFERENCE } from '#db/orders/repo.ts'
 import { OrderLotView } from '@dorado/contracts'
 import type { OrderLot } from '@dorado/contracts'
 import type { SoldLotPrice } from '@dorado/contracts'
 import type { Executor } from '#shared/db/executor.ts'
 
 const sql = sqlFrom(import.meta.dirname)
+const VIEW_FOR = sql('view_for').replace('/*__lot_source_reference__*/', SOURCE_REFERENCE)
 
 export async function getOne(id: string, executor?: Executor): Promise<OrderLot | undefined> {
   const { rows } = await query<OrderLot>(sql('get_one'), [id], executor)
@@ -23,7 +25,7 @@ export async function getFor(order_id: string, executor?: Executor): Promise<Ord
 }
 
 export async function viewFor(order_id: string, executor?: Executor): Promise<OrderLotView[]> {
-  const { rows } = await query<{ view: unknown }>(sql('view_for'), [order_id], executor)
+  const { rows } = await query<{ view: unknown }>(VIEW_FOR, [order_id], executor)
   return rows.map((row) => OrderLotView.parse(row.view))
 }
 

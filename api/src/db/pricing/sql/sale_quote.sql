@@ -101,11 +101,11 @@ taxed AS (
          ) rule ON TRUE
 ),
 money AS (
-  SELECT aggregate.item_total,
+  SELECT round(aggregate.item_total::numeric, 2) AS item_total,
          carriage.name AS shipping_service,
          CASE WHEN aggregate.item_total > 1000 THEN 0
-              ELSE COALESCE(carriage.price, 0) END AS shipping_charge,
-         COALESCE((SELECT sum(t.unit_ask * t.quantity * t.sales_tax_rate) FROM taxed t), 0)
+              ELSE round(COALESCE(carriage.price, 0)::numeric, 2) END AS shipping_charge,
+         round(COALESCE((SELECT sum(t.unit_ask * t.quantity * t.sales_tax_rate) FROM taxed t), 0)::numeric, 2)
            AS sales_tax,
          delivery.state AS sales_tax_state,
          settlement.balance,
@@ -130,7 +130,7 @@ charged AS (
   SELECT applied.*,
          applied.base_total - applied.pre_charges_amount AS subject_to_charges_amount,
          CASE WHEN applied.base_total - applied.pre_charges_amount > 0
-              THEN (applied.base_total - applied.pre_charges_amount) * applied.surcharge_percent
+              THEN round(((applied.base_total - applied.pre_charges_amount) * applied.surcharge_percent)::numeric, 2)
               ELSE 0 END AS charges_amount
     FROM applied
 )

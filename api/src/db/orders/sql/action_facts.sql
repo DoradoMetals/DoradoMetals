@@ -32,12 +32,12 @@ jsonb_build_object(
   'address', (SELECT jsonb_build_object('id', a.id)
                 FROM orders.addresses oa
                 JOIN places.addresses a ON a.id = oa.address_id
-               WHERE oa.order_id = o.id
-               ORDER BY oa.id ASC
-               LIMIT 1),
+               WHERE oa.order_id = o.id),
   'shipments', COALESCE(
                  (SELECT jsonb_agg(jsonb_build_object('direction', s.direction::text,
-                                                      'tracking_number', s.tracking_number))
+                                                      'tracking_number', s.tracking_number,
+                                                      'shipped_at', to_char(s.shipped_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+                                                      'delivered_at', to_char(s.delivered_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')))
                     FROM shipping.shipments s
                     JOIN fulfillments.shipments fs ON fs.shipment_id = s.id
                     JOIN fulfillments.fulfillments f ON f.id = fs.fulfillment_id
@@ -49,5 +49,9 @@ jsonb_build_object(
                LEFT JOIN payments.methods m ON m.id = d.method_id
               WHERE t.order_id = o.id),
   'credited', EXISTS (SELECT 1 FROM payments.ledger l
-                       WHERE l.order_id = o.id AND l.type = 'Credit')
+                       WHERE l.order_id = o.id AND l.type = 'Credit'),
+  'payment', /*__order_payment_facts__*/,
+  'adopt', /*__order_adopt_facts__*/,
+  'cases', /*__order_case_facts__*/,
+  'payout_methods', /*__order_payout_methods__*/
 )

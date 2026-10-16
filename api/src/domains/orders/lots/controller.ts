@@ -2,7 +2,7 @@ import { z } from 'zod/v4'
 import { asyncHandler } from '#shared/middleware/asyncHandler.ts'
 import { strictBody, uuidParam } from '#shared/http/validate.ts'
 import * as orders from '#orders/service.ts'
-import { OrderLotLine, OrderLotPatch } from '@dorado/contracts'
+import { LotUnlinkBody, OrderLotEditBody, OrderLotLine, OrderLotPatch } from '@dorado/contracts'
 
 const CreateOrderLotBody = z.union([OrderLotLine, OrderLotPatch])
 
@@ -21,11 +21,22 @@ export const createOrderLot = asyncHandler(async (req, res) => {
 })
 
 export const patchOrderLot = asyncHandler(async (req, res) => {
-  const changes = strictBody(OrderLotPatch, req.body)
-  return res.json(await orders.editLot(uuidParam(req, 'id'), changes))
+  const { expected_updated_at, override_reason, ...changes } = strictBody(
+    OrderLotEditBody,
+    req.body
+  )
+  return res.json(
+    await orders.editLot(
+      uuidParam(req, 'id'),
+      changes,
+      expected_updated_at ?? null,
+      override_reason ?? null,
+      req.sessionId ?? null
+    )
+  )
 })
 
-export const deleteOrderLot = asyncHandler(async (req, res) => {
-  await orders.removeLot(uuidParam(req, 'id'))
-  return res.status(204).end()
+export const unlinkOrderLot = asyncHandler(async (req, res) => {
+  const body = strictBody(LotUnlinkBody, req.body)
+  return res.json(await orders.unlinkLot(uuidParam(req, 'id'), body, req.sessionId ?? null))
 })

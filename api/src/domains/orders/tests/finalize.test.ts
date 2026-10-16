@@ -215,7 +215,11 @@ test('finalizing refreshes the frozen ask alongside the bid', async () => {
           `SELECT os.metal_id, os.ask, os.bid, s.ask AS feed_ask, s.bid AS feed_bid
              FROM orders.spots os
              JOIN spots.resolved s ON s.metal_id = os.metal_id
-            WHERE os.order_id = $1`,
+            WHERE os.order_id = $1
+              AND os.metal_id IN (SELECT li.metal_id
+                                    FROM orders.lots ol
+                                    JOIN inventory.lots li ON li.id = ol.lot_id
+                                   WHERE ol.order_id = $1)`,
           [order.id]
         )
         assert.ok(rows.length > 0, 'the fixture order froze no spots')

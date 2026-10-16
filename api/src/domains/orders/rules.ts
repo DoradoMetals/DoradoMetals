@@ -1,4 +1,4 @@
-import { Conflict, Invalid, NotFound } from '#shared/errors.ts'
+import { Conflict, Invalid, NotFound, StaleWrite } from '#shared/errors.ts'
 import { WeightUnit } from '@dorado/contracts'
 import { isSettled } from '#transactions/rules.ts'
 
@@ -12,6 +12,8 @@ import type {
   OrderActions,
   OrderDocument,
   OrderList,
+  OrderRead,
+  PayoutMethodLine,
   OrderSort,
   OrderLotPatch,
   OrderLotView,
@@ -22,6 +24,7 @@ import type {
   OrderViewFacts,
   PdfKind,
   Position,
+  LotSource,
   StoredDocument,
   PaymentIntentFacts,
   PaymentMethod,
@@ -173,6 +176,15 @@ export function creditsToAccount(payoutMethod: string | null): boolean {
   return payoutMethod === 'DORADO_ACCOUNT'
 }
 
+export function paysIntoAccount(
+  view: Pick<OrderActionFacts, 'payout' | 'payout_methods'>
+): boolean {
+  if (view.payout_methods.some((row) => row.amount !== null)) {
+    return view.payout_methods.some((row) => creditsToAccount(row.method))
+  }
+  return creditsToAccount(view.payout?.method ?? null)
+}
+
 export function isFinalized(view: OrderActionFacts): boolean {
   return view.order.spots_locked && view.totals?.total != null
 }
@@ -185,11 +197,18 @@ export function actionsFor(view: OrderActionFacts): OrderActions {
   const offered: Action[] = []
 
   if (purchase && !cancelled && view.address !== null) offered.push(offer('cancel'))
+  if (sale && !cancelled && saleCancelBlockedBy(view) === null) {
+    offered.push(offer('cancel', saleCancelConfirm(view)))
+  }
+  if (view.payment.refundable > 0) offered.push(offer('refund', null, refundOverride(view)))
+  if (!cancelled && view.address !== null && !parcelMoving(view)) {
+    offered.push(offer('change_address', changeAddressConfirm(view)))
+  }
   if (cancelled) offered.push(offer('reopen'))
   if (finalizeBlockedBy(view).length === 0 && !view.order.spots_locked) {
     offered.push(offer('finalize', finalizeConfirm(view)))
   }
-  if (purchase && view.totals?.total != null && creditsToAccount(view.payout?.method ?? null)) {
+  if (purchase && view.totals?.total != null && paysIntoAccount(view)) {
     offered.push(
       offer(
         'add_funds',
@@ -217,10 +236,186 @@ export function actionsFor(view: OrderActionFacts): OrderActions {
   if (view.shipments.length > 0) offered.push(offer('update_tracking'))
   if (purchase && !view.order.spots_locked) offered.push(offer('edit_lots'))
   if (purchase) offered.push(offer('assign_lots', finalizeConfirm(view)))
-  if (purchase && !view.order.spots_locked) offered.push(offer('lock_spots'))
-  if (purchase && view.order.spots_locked && !isFinalized(view)) offered.push(offer('unlock_spots'))
+  if (purchase && !view.order.spots_locked)
+    offered.push(offer('lock_spots', lockSpotsConfirm(view)))
+  if (purchase && view.order.spots_locked && !isFinalized(view)) {
+    offered.push(offer('unlock_spots', unlockSpotsConfirm(view)))
+  }
+  if (purchase && !cancelled && view.adopt.assayed_lots > 0) {
+    offered.push(offer('adopt_assay', adoptConfirm(view)))
+  }
+  if (purchase && isFinalized(view) && view.state !== 'Completed') {
+    offered.push(offer('add_payout_method'))
+  }
+  if (
+    purchase &&
+    !cancelled &&
+    view.payout !== null &&
+    !view.credited &&
+    view.state !== 'Completed'
+  ) {
+    offered.push(offer('edit_payout_method'))
+  }
+  if (purchase && !cancelled && view.order.spots_locked && !isFinalized(view)) {
+    offered.push(offer('edit_spots', null, editSpotsOverride(view)))
+  }
+  if (!cancelled && (chargeableShipment(view) || (purchase && view.payout !== null))) {
+    offered.push(offer('edit_charges', null, chargedSaleOverride(view, 'a new shipping charge')))
+  }
+  if (addLotOpen(view)) offered.push(offer('add_lot'))
+  if (!cancelled && view.lots.length > 0) {
+    offered.push(
+      offer(
+        'remove_lots',
+        purchase ? REMOVE_LOT_CONFIRM : null,
+        chargedSaleOverride(view, 'removing a line')
+      )
+    )
+  }
+  if (claimOpenable(view)) offered.push(offer('open_claim'))
+  if (view.cases.claims > 0) offered.push(offer('update_claim'))
+  if (purchase && !cancelled && view.lots.length > view.cases.open_disputes) {
+    offered.push(offer('open_dispute'))
+  }
+  if (view.cases.open_disputes > 0) offered.push(offer('resolve_dispute'))
 
   return offered
+}
+
+export function lockSpotsConfirm(view: Pick<OrderActionFacts, 'order'>): string {
+  return (
+    `Locking freezes today's spot bids on order ${view.order.number}. ` +
+    `Its lots price on the frozen bids, not the live feed, and the lots cannot be edited until you unlock`
+  )
+}
+
+export function unlockSpotsConfirm(view: Pick<OrderActionFacts, 'order'>): string {
+  return (
+    `Unlocking releases the frozen spot bids on order ${view.order.number}. ` +
+    `Its lots price on the live feed again, so the total can move`
+  )
+}
+
+export const REMOVE_LOT_CONFIRM =
+  'The lot row is kept with your reason. A lot that has arrived or gone to a refiner cannot leave its order - combine it instead'
+
+export function editSpotsOverride(view: Pick<OrderActionFacts, 'order'>): string {
+  return (
+    `Setting a frozen bid by hand reprices order ${view.order.number}. ` +
+    `The lock log keeps your reason`
+  )
+}
+
+export function chargedSaleOverride(
+  view: Pick<OrderActionFacts, 'order' | 'payment'>,
+  what: string
+): string | null {
+  if (!chargedSale(view)) return null
+  return `Order ${view.order.number} has been charged, so ${what} changes money the customer paid`
+}
+
+export function chargeableShipment(view: Pick<OrderActionFacts, 'shipments'>): boolean {
+  return view.shipments.some((s) => s.direction !== 'Return')
+}
+
+export function addLotOpen(view: OrderActionFacts): boolean {
+  if (view.order.cancelled_at !== null) return false
+  if (view.order.direction === 'purchase') return !isFinalized(view)
+  if (view.order.direction === 'sale') return !parcelMoving(view)
+  return false
+}
+
+export function claimOpenable(view: Pick<OrderActionFacts, 'shipments' | 'cases'>): boolean {
+  return (
+    view.cases.open_claims === 0 &&
+    view.shipments.some((s) => s.direction !== 'Return' && s.tracking_number)
+  )
+}
+
+export function parcelMoving(view: Pick<OrderActionFacts, 'shipments'>): boolean {
+  return view.shipments.some(
+    (s) => s.direction !== 'Return' && (s.shipped_at !== null || s.delivered_at !== null)
+  )
+}
+
+export function saleCancelBlockedBy(
+  view: Pick<OrderActionFacts, 'payment' | 'shipments' | 'order'>
+): string | null {
+  if (parcelMoving(view)) return `order ${view.order.number} has shipped, so it cannot be cancelled`
+  if (view.payment.received > view.payment.refunded) {
+    return (
+      `order ${view.order.number} has ${view.payment.received.toFixed(2)} received and ` +
+      `${view.payment.refunded.toFixed(2)} refunded - refund the money first, then cancel ` +
+      `(ruling 133)`
+    )
+  }
+  return null
+}
+
+export function saleCancelConfirm(view: Pick<OrderActionFacts, 'shipments'>): string {
+  const labelled = view.shipments.some((s) => s.direction === 'Outbound' && s.tracking_number)
+  return labelled
+    ? 'Cancelling releases the credit reservation, cancels the card payment and voids the label'
+    : 'Cancelling releases the credit reservation and cancels the card payment'
+}
+
+export function refundOverride(view: Pick<OrderActionFacts, 'payment'>): string {
+  return `Up to ${view.payment.refundable.toFixed(2)} can go back to the customer's card`
+}
+
+export function changeAddressConfirm(view: Pick<OrderActionFacts, 'shipments'>): string | null {
+  const labelled = view.shipments.find((s) => s.direction !== 'Return' && s.tracking_number)
+  if (!labelled) return null
+  return (
+    `Voids the label and relabels. FedEx ${labelled.tracking_number} stops working and a new ` +
+    `label is bought for the new address`
+  )
+}
+
+export function chargedSale(view: Pick<OrderActionFacts, 'order' | 'payment'>): boolean {
+  return view.order.direction === 'sale' && view.payment.charge_received
+}
+
+export function assertSaleCancellable(
+  view: Pick<OrderActionFacts, 'payment' | 'shipments' | 'order'>
+): void {
+  if (view.order.cancelled_at !== null) {
+    throw new Conflict(`order ${view.order.number} is already cancelled`)
+  }
+  const blocked = saleCancelBlockedBy(view)
+  if (blocked) throw new Conflict(blocked)
+}
+
+export function assertReasonGiven(
+  reason: string | null | undefined,
+  what: string
+): asserts reason is string {
+  if (!reason || reason.trim().length < 10) {
+    throw new Invalid(`${what} needs a written reason of at least 10 characters`)
+  }
+}
+
+export function assertChargedSaleOverride(
+  view: Pick<OrderActionFacts, 'order' | 'payment'>,
+  override_reason: string | null | undefined,
+  what: string
+): void {
+  if (!chargedSale(view)) return
+  if (!override_reason || override_reason.trim().length < 10) {
+    throw new Conflict(
+      `order ${view.order.number} has been charged, so ${what} changes money the customer ` +
+        `paid. It needs a written override_reason of at least 10 characters AND a session ` +
+        `stepped up in the last five minutes (POST /api/account/step_up)`
+    )
+  }
+}
+
+export function adoptConfirm(view: Pick<OrderActionFacts, 'adopt'>): string | null {
+  if (view.adopt.combining_lots < 2) return null
+  return (
+    `${view.adopt.combining_lots} lots were melted together at the refiner, so adopting ` +
+    `the assay combines them into one lot`
+  )
 }
 
 export function orderViewForCustomer(view: OrderView): OrderView {
@@ -281,12 +476,27 @@ const BY_CATEGORY: Record<string, { kind: PdfKind; name: string }[]> = {
   DROPOFF: [INVOICE, ASSAY],
 }
 
+const SALE_INVOICE = { kind: 'sales_order_invoice' as PdfKind, name: 'Sales Invoice' }
+
+const SALE_BY_CATEGORY: Record<string, { kind: PdfKind; name: string }[]> = {
+  SHIPMENT: [SALE_INVOICE, { kind: 'packing_list', name: 'Shipment Manifest' }],
+  PICKUP: [SALE_INVOICE, { kind: 'pickup_manifest', name: 'Pickup Manifest' }],
+  DIRECT: [
+    SALE_INVOICE,
+    { kind: 'intake_receipt', name: 'Intake Receipt' },
+    { kind: 'appointment_instructions', name: 'Appointment Instructions' },
+  ],
+  DROPOFF: [SALE_INVOICE],
+}
+
 export function documentsFor(
   category: string | null,
+  direction: string | null,
   finalized: boolean,
   stored: StoredDocument[]
 ): OrderDocument[] {
-  return (BY_CATEGORY[category ?? 'SHIPMENT'] ?? BY_CATEGORY.SHIPMENT!).map((row) => {
+  const lists = direction === 'sale' ? SALE_BY_CATEGORY : BY_CATEGORY
+  return (lists[category ?? 'SHIPMENT'] ?? lists.SHIPMENT!).map((row) => {
     const held = stored.find((file) => file.kind === row.kind) ?? null
     return {
       kind: row.kind,
@@ -306,6 +516,21 @@ export function assertNamesAField(patch: object): void {
   }
 }
 
+export function assertFresh(
+  stored: string | Date | null | undefined,
+  expected: string | null | undefined,
+  what: string
+): void {
+  if (expected === null || expected === undefined) return
+  const held = stored === null || stored === undefined ? NaN : new Date(stored).getTime()
+  if (held !== new Date(expected).getTime()) {
+    throw new StaleWrite(
+      `${what} changed since this screen loaded it (expected_updated_at ${expected}) - ` +
+        `reload and make the edit again`
+    )
+  }
+}
+
 export function assertOrder<T>(row: T | null | undefined, order_id: string): asserts row is T {
   if (!row) throw new NotFound(`no order ${order_id}`)
 }
@@ -316,8 +541,44 @@ export function assertNamesASpotField(body: OrderSpotsPutBody): void {
   }
 }
 
+export function assertSpotsSettable(
+  order: Pick<OrderRead, 'number' | 'spots_locked' | 'totals'>,
+  reason: string | null | undefined
+): void {
+  if (!order.spots_locked) {
+    throw new Invalid(
+      `order ${order.number} is unlocked, so it prices at the live feed - lock its spots ` +
+        `before setting a frozen bid`
+    )
+  }
+  if (order.totals?.total != null) {
+    throw new Conflict(
+      `order ${order.number} is finalized, so its frozen bids are what it was paid on`
+    )
+  }
+  if (!reason || reason.trim().length === 0) {
+    throw new Invalid('setting a frozen bid by hand needs a reason, which the lock log keeps')
+  }
+}
+
 export function assertLot<T>(row: T | null | undefined, lot_id: string): asserts row is T {
   if (!row) throw new NotFound(`no order lot ${lot_id}`)
+}
+
+export function assertUnlinkable(
+  position: Position | undefined,
+  edges: Pick<LotSource, 'kind' | 'source_lot_id'>[],
+  lot_id: string
+): void {
+  if (position === undefined) throw new NotFound(`no lot ${lot_id}`)
+  if (edges.some((edge) => edge.source_lot_id === lot_id && edge.kind === 'batch')) {
+    throw new Conflict(`lot ${lot_id} is on a refiner order, so it cannot leave its order`)
+  }
+  if (position !== 'incoming') {
+    throw new Conflict(
+      `lot ${lot_id} is ${position}, so it cannot leave its order - combine it instead`
+    )
+  }
 }
 
 export function assertOnHand(position: Position | undefined, lot_id: string): void {
@@ -383,6 +644,85 @@ export function assertRemoved(removed: boolean, order_id: string, line_id: strin
   if (!removed) {
     throw new Error(
       `order ${order_id}: line ${line_id} was not removed - this ` + `transaction must not commit`
+    )
+  }
+}
+
+export function assertSplitEditable(
+  view: Pick<OrderViewFacts, 'order' | 'totals' | 'credited'>,
+  payout_state: string | null
+): asserts view is typeof view & { totals: { total: number } } {
+  if (view.totals?.total == null) {
+    throw new Invalid(
+      `order ${view.order.number} is not finalized, so it has no total to split a payout across`
+    )
+  }
+  if (
+    view.credited ||
+    (payout_state !== null && !['Not sent', 'Due', 'Failed'].includes(payout_state))
+  ) {
+    throw new Conflict(
+      `order ${view.order.number} has already paid out money, so its payout methods are fixed`
+    )
+  }
+}
+
+export function choosesOneMethod(methods: PayoutMethodLine[]): boolean {
+  return methods.length === 1 && methods[0]?.amount == null
+}
+
+export function assertOneMethodChangeable(
+  view: Pick<OrderViewFacts, 'order' | 'totals' | 'credited'>,
+  payout_state: string | null
+): string {
+  if (view.order.cancelled_at !== null) {
+    throw new Conflict(`order ${view.order.number} is cancelled, so its payout method is fixed`)
+  }
+  if (
+    view.credited ||
+    (payout_state !== null && !['Not sent', 'Due', 'Failed'].includes(payout_state))
+  ) {
+    throw new Conflict(
+      `order ${view.order.number} has already paid out money, so its payout method is fixed`
+    )
+  }
+  const details_id = view.totals?.payout_details_id ?? null
+  if (!details_id) {
+    throw new Invalid(
+      `order ${view.order.number} has no payout details, so it has no payout method to change`
+    )
+  }
+  return details_id
+}
+
+export function assertPayoutMethod<T>(
+  method: T | undefined,
+  method_id: string
+): asserts method is T {
+  if (!method) throw new NotFound(`no payout method ${method_id}`)
+}
+
+export function assertSplitShape(
+  methods: PayoutMethodLine[],
+  gap_cents: number,
+  number: string | number | null
+): void {
+  if (methods.length === 0) return
+  if (methods.length < 2) {
+    throw new Invalid(
+      'a split pays by two or more methods - send an empty list to pay by the one chosen method'
+    )
+  }
+  if (new Set(methods.map((row) => row.method_id)).size !== methods.length) {
+    throw new Invalid('a split names each payout method once')
+  }
+  if (methods.some((row) => !(Number(row.amount) > 0))) {
+    throw new Invalid('every method in a split carries an amount above zero')
+  }
+  if (gap_cents !== 0) {
+    throw new Invalid(
+      `the split amounts must sum to order ${number}'s total - they are off by ` +
+        `${(gap_cents / 100).toFixed(2)}`
     )
   }
 }

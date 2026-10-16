@@ -6,7 +6,7 @@ export function assertNote<T>(row: T | null | undefined, id: string): asserts ro
 }
 
 export function assertOneSubject(subject: NoteSubject): void {
-  if (Boolean(subject.user_id) === Boolean(subject.lead_id)) {
-    throw new Invalid('a note read names exactly one of user_id or lead_id')
+  if ([subject.user_id, subject.lead_id, subject.order_id].filter(Boolean).length !== 1) {
+    throw new Invalid('a note read names exactly one of user_id, lead_id or order_id')
   }
 }

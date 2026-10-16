@@ -75,6 +75,7 @@ const pricing = (ask: number | null = 4000) =>
     card_fee: 0,
     total_charged: 200,
     declared_value: 200,
+    refunded_total: 0,
   }) as OrderPricing
 
 test('the supplier email renders the order it was given', () => {

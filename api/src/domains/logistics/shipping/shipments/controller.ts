@@ -24,7 +24,12 @@ export const patchShipment = asyncHandler(async (req, res) => {
 export const chargeShipment = asyncHandler(async (req, res) => {
   const id = uuidParam(req, 'id')
   const body = strictBody(ShipmentChargeBody, req.body)
-  await shipmentActions.chargeForOrder(id, body.shipping_charge)
+  await shipmentActions.chargeForOrder(
+    id,
+    body.shipping_charge,
+    body.override_reason ?? null,
+    req.sessionId ?? null
+  )
   return res.status(200).json(await shipmentView.getById(id, isAdmin(req)))
 })
 

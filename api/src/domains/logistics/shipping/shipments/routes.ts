@@ -8,10 +8,13 @@ import {
   recordShipmentActualCost,
   recordShipmentTracking,
 } from '#logistics/shipping/shipments/controller.ts'
+import claimRoutes from '#logistics/shipping/claims/routes.ts'
 import { requireAdmin, requireUser } from '#shared/middleware/authMiddleware.ts'
 import { requireOwnShipment } from '#shared/middleware/ownership.ts'
 
 const router = express.Router()
+
+router.use('/', claimRoutes)
 
 router.get('/:id', requireUser, requireOwnShipment, getShipment)
 

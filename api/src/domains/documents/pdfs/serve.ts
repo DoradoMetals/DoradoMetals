@@ -62,7 +62,7 @@ export async function serveOrderDocument(
 
   const listed = rules.listedKind(kind)
   rules.assertServable(
-    (await orders.documentsFor(orderId)).find((row) => row.kind === listed),
+    (await orders.documentsFor(orderId)).find((row) => row.kind === kind || row.kind === listed),
     kind
   )
 

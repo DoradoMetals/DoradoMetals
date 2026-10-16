@@ -41,6 +41,27 @@ export const Action = z.object({
 })
 export type Action = z.infer<typeof Action>
 
+export const OrderPaymentFacts = z.object({
+  received: z.number(),
+  refunded: z.number(),
+  refundable: z.number(),
+  charge_received: z.boolean(),
+})
+export type OrderPaymentFacts = z.infer<typeof OrderPaymentFacts>
+
+export const OrderAdoptFacts = z.object({
+  assayed_lots: z.number().int(),
+  combining_lots: z.number().int(),
+})
+export type OrderAdoptFacts = z.infer<typeof OrderAdoptFacts>
+
+export const OrderCaseFacts = z.object({
+  claims: z.number().int(),
+  open_claims: z.number().int(),
+  open_disputes: z.number().int(),
+})
+export type OrderCaseFacts = z.infer<typeof OrderCaseFacts>
+
 export const OverrideBody = z.object({ override_reason: z.string().nullable() }).partial().strict()
 export type OverrideBody = z.infer<typeof OverrideBody>
 

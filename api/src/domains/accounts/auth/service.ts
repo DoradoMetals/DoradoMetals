@@ -224,16 +224,29 @@ async function checkCode(
   })
 }
 
+async function verifyTarget(
+  body: VerifyCodeBody,
+  session_id: string | null
+): Promise<[OtpChannel, string]> {
+  if (session_id && !body.phone_number && !body.email) {
+    const session = await authSessions.getOne(session_id)
+    rules.assertSession(session)
+    const user = await users.getOne(session.userId)
+    rules.assertUser(user)
+    return [rules.stepUpChannel(user), rules.stepUpDestination(user)]
+  }
+  return [
+    body.channel,
+    rules.destinationOf(body.channel, body.phone_number ?? null, body.email ?? null),
+  ]
+}
+
 export async function verifyCode(
   body: VerifyCodeBody,
   session_id: string | null
 ): Promise<[VerificationView, string[]]> {
-  const destination = rules.destinationOf(
-    body.channel,
-    body.phone_number ?? null,
-    body.email ?? null
-  )
-  const kind = rules.kindOf(body.channel)
+  const [channel, destination] = await verifyTarget(body, session_id)
+  const kind = rules.kindOf(channel)
   const subject = rules.subjectOf(kind, destination)
 
   const stepUpIdentifier = rules.identifierFor(rules.STEP_UP_OTP_TYPE, destination)
@@ -242,9 +255,9 @@ export async function verifyCode(
     : undefined
 
   const known =
-    body.channel === 'sms' ? await users.byPhone(destination) : await users.byEmail(destination)
+    channel === 'sms' ? await users.byPhone(destination) : await users.byEmail(destination)
   const pending =
-    body.channel === 'sms'
+    channel === 'sms'
       ? await pendingSignups.byPhone(destination)
       : await pendingSignups.byEmail(destination)
 
@@ -252,14 +265,14 @@ export async function verifyCode(
   const purpose = stepping ? 'step_up' : known || !pending ? 'sign_in' : 'sign_up'
   const identifier = stepping
     ? stepUpIdentifier
-    : body.channel === 'sms'
+    : channel === 'sms'
       ? destination
       : rules.identifierFor(rules.SIGN_IN_OTP_TYPE, destination)
 
   const [row, status] = await checkCode(subject, kind, identifier, body.code)
   const now = Date.now()
   if (status !== 'verified') {
-    return [rules.verificationView(purpose, body.channel, destination, row, status, now), []]
+    return [rules.verificationView(purpose, channel, destination, row, status, now), []]
   }
 
   if (stepping && session_id) {
@@ -269,14 +282,14 @@ export async function verifyCode(
       const stepped = await authSessions.update(session_id, { stepped_up_at: rules.stamp(now) }, tx)
       rules.assertApplied(stepped, 'the step-up stamp')
     })
-    return [rules.verificationView(purpose, body.channel, destination, row, status, now), []]
+    return [rules.verificationView(purpose, channel, destination, row, status, now), []]
   }
 
-  const cookies = await mintSession(body.channel, destination, body.code, pending?.name)
+  const cookies = await mintSession(channel, destination, body.code, pending?.name)
 
   if (purpose === 'sign_up' && pending) {
     const created =
-      body.channel === 'sms' ? await users.byPhone(destination) : await users.byEmail(destination)
+      channel === 'sms' ? await users.byPhone(destination) : await users.byEmail(destination)
     if (created) {
       await withTransaction(async (tx) => {
         if (pending.sms_consent) {
@@ -288,7 +301,7 @@ export async function verifyCode(
           )
           rules.assertApplied(consented, 'the sms consent stamp')
         }
-        if (body.channel === 'sms') {
+        if (channel === 'sms') {
           const named = await users.update(
             created.id,
             { email: pending.email, name: pending.name, emailVerified: true },
@@ -319,10 +332,7 @@ export async function verifyCode(
     }
   }
 
-  return [
-    rules.verificationView(purpose, body.channel, destination, row, status, Date.now()),
-    cookies,
-  ]
+  return [rules.verificationView(purpose, channel, destination, row, status, Date.now()), cookies]
 }
 
 async function mintSession(

@@ -231,40 +231,71 @@ parties AS (
    CROSS JOIN spot_net sn
     LEFT JOIN metals_profit mp ON mp.party = w.party
 ),
--- basis is 'realized' once every refiner-assayed lot on the order carries
--- its own settled_spot (ruling 123); one unsettled lot, priced off the live
--- feed in refiner_spot above, makes the whole order 'estimated'.
-lot_status AS (
-  SELECT count(*) AS total_lots,
-         count(*) FILTER (WHERE a.settled_spot IS NOT NULL) AS settled_lots
-    FROM assay a
-),
--- The rows the card LISTS, and therefore the rows `total_lots` counts (ruling
--- 123, and the Q4 default: only refiner-assayed lots carry a settled spot, so
--- only they can be valued against one). A lot the refiner has not settled is
--- valued at the refiner's own live feed and says so through `estimated`.
+-- EVERY ORDER LOT IS LISTED AND COUNTED (R-7, the Q4 ruling on the design
+-- side: "keep all lots"). A scrap lot is settled once the refiner lot it was
+-- batched into carries a settled_spot (ruling 123), and is valued against that
+-- spot, or the refiner's feed until then. A lot that never went to a refiner
+-- is valued at what it holds at the order's own frozen bid: a bullion lot is
+-- `estimated` until it is confirmed or sold (a `sale` edge, or a sale order's
+-- own lot), and a scrap lot stays estimated until a refiner settles it. One
+-- estimated lot makes the whole order 'estimated'.
 --
 -- The basis is the one the split already uses: a scrap lot is worth what the
--- refiner assayed, a catalogue lot what it was declared to hold (a minted
--- refiner lot carries no content_snapshot, so its `content` is NULL and the
--- customer lot's own figure is the only one there is).
-lot_values AS (
-  SELECT a.lot_id, a.reference, a.metal_id, a.settled_at, a.settled_spot,
-         (CASE WHEN a.bullion_id IS NULL THEN COALESCE(a.content, a.declared)
-               ELSE a.declared END)
-           * COALESCE(a.premium, a.customer_premium, 1)
-           * COALESCE(a.settled_spot, rs.bid, 0) AS value,
-         a.settled_spot IS NULL AS estimated
-    FROM assay a
-    LEFT JOIN refiner_spot rs ON rs.metal_id = a.metal_id
+-- refiner assayed, a catalogue lot what it was declared to hold.
+every_lot AS (
+  SELECT ol.lot_id,
+         'Lot ' || o.number || '-' || chr(64 + seat.n::int) AS reference,
+         li.metal_id,
+         li.bullion_id,
+         CASE WHEN a.lot_id IS NOT NULL THEN a.settled_at
+              WHEN li.bullion_id IS NOT NULL THEN li.confirmed_at END AS settled_at,
+         a.settled_spot,
+         (CASE WHEN li.bullion_id IS NULL THEN COALESCE(a.content, li.content, 0)
+               ELSE COALESCE(li.content, 0) * li.quantity END)
+           * COALESCE(a.premium, li.premium, 1)
+           * COALESCE(CASE WHEN a.lot_id IS NOT NULL THEN COALESCE(a.settled_spot, rs.bid)
+                           ELSE os.bid END, 0) AS value,
+         CASE WHEN a.lot_id IS NOT NULL THEN a.settled_spot IS NULL
+              WHEN li.bullion_id IS NULL THEN true
+              ELSE li.confirmed_at IS NULL
+                   AND o.direction <> 'sale'
+                   AND NOT EXISTS (SELECT 1 FROM inventory.lot_sources sale
+                                    WHERE sale.kind = 'sale'
+                                      AND NOT (EXISTS (SELECT 1 FROM orders.lot_unlinks u
+                                                        WHERE u.lot_id = sale.lot_id)
+                                               AND NOT EXISTS (SELECT 1 FROM orders.lots sl
+                                                                WHERE sl.lot_id = sale.lot_id))
+                                      AND (sale.source_lot_id = ol.lot_id
+                                           OR sale.lot_id = ol.lot_id)) END AS estimated
+    FROM orders.lots ol
+    JOIN orders.orders o ON o.id = ol.order_id
+    JOIN inventory.lots li ON li.id = ol.lot_id
+    LEFT JOIN assay a ON a.lot_id = ol.lot_id
+    LEFT JOIN refiner_spot rs ON rs.metal_id = li.metal_id
+    LEFT JOIN order_spot os ON os.metal_id = li.metal_id
+   CROSS JOIN LATERAL (
+          SELECT count(*) AS n
+            FROM orders.lots peer
+           WHERE peer.order_id = ol.order_id
+             AND (peer.created_at, peer.id) <= (ol.created_at, ol.id)
+        ) seat
+   WHERE ol.order_id = $1::uuid
 ),
--- What the customer was paid, and what it cost us to pay them. Both are
--- already loaded: `payout` is the order's own transaction total and `fees` is
--- the customer-side pair the `fees` CTE computes for the split.
+lot_status AS (
+  SELECT count(*) AS total_lots,
+         count(*) FILTER (WHERE NOT e.estimated) AS settled_lots
+    FROM every_lot e
+),
+-- What the customer was paid, and what it cost us to pay them: the customer's
+-- carriage and the payout fee, each its own figure on the card (R-8). The
+-- profit the card prints is Dorado's total (the `dorado` party).
 card AS (
   SELECT COALESCE((SELECT t.total FROM orders.transactions t WHERE t.order_id = $1::uuid), 0)
            AS payout,
-         f.customer_shipping + f.payout_fee AS fees
+         f.customer_shipping AS shipping,
+         f.payout_fee,
+         f.customer_shipping + f.payout_fee AS fees,
+         (SELECT p.total_profit FROM parties p WHERE p.party = 'dorado') AS profit
     FROM fees f
 )
 SELECT jsonb_build_object(
@@ -275,7 +306,12 @@ SELECT jsonb_build_object(
          'settled_lots', ls.settled_lots,
          'total_lots', ls.total_lots,
          'payout', card.payout,
-         'fees', card.fees,
+         'fees', jsonb_build_object(
+           'shipping', card.shipping,
+           'payout_fee', card.payout_fee,
+           'total', card.fees),
+         'profit', card.profit,
+         'profit_party', 'dorado',
          'lots', COALESCE(
            (SELECT jsonb_agg(
                      jsonb_build_object(
@@ -287,7 +323,7 @@ SELECT jsonb_build_object(
                        'value', v.value,
                        'estimated', v.estimated)
                      ORDER BY v.reference ASC)
-              FROM lot_values v),
+              FROM every_lot v),
            '[]'::jsonb),
          'shares', COALESCE(
            (SELECT jsonb_agg(

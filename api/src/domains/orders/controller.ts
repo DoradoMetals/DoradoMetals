@@ -15,9 +15,10 @@ import {
   OrderCancelBody,
   OrderActivityPage,
   OrderCreateBody,
-  OrderPatch,
+  OrderPatchBody,
   OrderState,
   OverrideBody,
+  PayoutMethodsPutBody,
 } from '@dorado/contracts'
 import type { OrderState as State } from '@dorado/contracts'
 import type { Request } from 'express'
@@ -89,8 +90,10 @@ export const getOrder = asyncHandler(async (req, res) => {
 })
 
 export const patchOrder = asyncHandler(async (req, res) => {
-  const changes = strictBody(OrderPatch, req.body)
-  return res.status(200).json(await orders.patch(uuidParam(req, 'id'), changes))
+  const { expected_updated_at, ...changes } = strictBody(OrderPatchBody, req.body)
+  return res
+    .status(200)
+    .json(await orders.patch(uuidParam(req, 'id'), changes, expected_updated_at ?? null))
 })
 
 export const createOrder = asyncHandler(async (req, res) => {
@@ -144,4 +147,9 @@ export const getOrderActivity = asyncHandler(async (req, res) => {
     'order activity query'
   )
   return res.json(await orderRead.activity(uuidParam(req, 'id'), page))
+})
+
+export const putPayoutMethods = asyncHandler(async (req, res) => {
+  const body = strictBody(PayoutMethodsPutBody, req.body)
+  return res.status(200).json(await orders.setPayoutMethods(uuidParam(req, 'id'), body))
 })
