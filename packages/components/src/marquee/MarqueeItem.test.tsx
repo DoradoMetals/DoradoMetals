@@ -33,7 +33,11 @@ describe('MarqueeItem', () => {
     const move = getByText('$4.20')
     for (const c of ['tabular-nums', 'text-destructive']) expect(move.className).toContain(c)
     const order = [...getByText('Gold').parentElement!.children].map((el) => el.textContent)
-    expect(order).toEqual(['Gold', '$2,411.20', '$4.20', '(0.8%)'])
+    expect(order).toEqual(['Gold', '$2,411.20', '$4.20(0.8%)'])
+    const pair = move.parentElement!
+    expect(pair.className).toContain('inline-flex')
+    expect(pair.className).toContain('gap-3xs')
+    expect([...pair.children].map((el) => el.textContent)).toEqual(['$4.20', '(0.8%)'])
   })
 
   it('sets the price in body text, medium weight', () => {

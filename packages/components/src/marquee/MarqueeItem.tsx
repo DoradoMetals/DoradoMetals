@@ -30,8 +30,12 @@ export function MarqueeItem({ label, value, move, delta, trend, className }: Mar
       <p className="font-medium tabular-nums" data-emphasis="default">
         {value}
       </p>
-      {move ? <span className={deltaVariants({ trend })}>{move}</span> : null}
-      {delta ? <span className={deltaVariants({ trend })}>{delta}</span> : null}
+      {move || delta ? (
+        <span className="inline-flex items-center gap-3xs">
+          {move ? <span className={deltaVariants({ trend })}>{move}</span> : null}
+          {delta ? <span className={deltaVariants({ trend })}>{delta}</span> : null}
+        </span>
+      ) : null}
     </div>
   )
 }
