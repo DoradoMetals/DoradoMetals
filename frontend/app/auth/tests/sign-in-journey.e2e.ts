@@ -82,11 +82,50 @@ test.describe('the phone channel, parked as coming soon but still wired end to e
     await page.getByLabel('One-time code').fill(code!)
     await page.getByRole('button', { name: 'Verify' }).click()
 
-    await page.waitForTimeout(2000)
-    const cookies = await context.cookies()
-    expect(
-      cookies.some((c) => c.name.includes('session')),
-      'the phone channel must still mint a session'
-    ).toBeTruthy()
+    await expect(page.getByText('Code verified')).toBeVisible()
+    await expect
+      .poll(async () => (await context.cookies()).some((c) => c.name.includes('session')), {
+        message: 'the phone channel must still mint a session',
+      })
+      .toBe(true)
+  })
+})
+
+test.describe('pasting the code on a phone', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true })
+
+  test('a six-digit code pasted from the clipboard fills the boxes and verifies', async ({
+    page,
+    context,
+  }) => {
+    test.setTimeout(120_000)
+    await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+
+    await page.goto('/auth/sign-in/email', { waitUntil: 'domcontentloaded', timeout: 60_000 })
+    await page.getByLabel('Email').fill(ROLES.admin.email)
+    if (process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY) await page.waitForTimeout(3000)
+    await page.getByRole('button', { name: 'Continue' }).click()
+    await page.waitForURL('**/auth/verify', { timeout: 20_000 })
+
+    const input = page.getByLabel('One-time code')
+    await expect(input).toHaveAttribute('autocomplete', 'one-time-code')
+    await expect(input).toHaveAttribute('inputmode', 'numeric')
+    await expect(input).toHaveAttribute('pattern', '[0-9]*')
+
+    const read = await context.request.get(`${API}/account/last_code`)
+    expect(read.ok(), `/account/last_code answered ${read.status()}`).toBeTruthy()
+    const { code } = (await read.json()) as { code: string | null }
+    expect(code, 'no code was recorded').toBeTruthy()
+
+    await page.evaluate((text) => navigator.clipboard.writeText(text), `Code: ${code}`)
+    await input.focus()
+    await page.keyboard.press('ControlOrMeta+V')
+
+    await expect(page.getByTestId('otp-cell')).toHaveText(code!.split(''))
+    await expect(input).toBeFocused()
+    expect(await input.evaluate((el: HTMLInputElement) => el.selectionStart)).toBe(code!.length)
+
+    await page.getByRole('button', { name: 'Verify' }).click()
+    await expect(page.getByText('Code verified')).toBeVisible({ timeout: 20_000 })
   })
 })

@@ -7,6 +7,14 @@ import { TEST_CUSTOMER } from '#shared/testing/actor.ts'
 import * as fakeEmail from '#providers/resend/fake.ts'
 import * as fakeSms from '#providers/twilio/fake.ts'
 import { messagesEnabled } from '#accounts/messages/routes.ts'
+import type { PoolClient } from 'pg'
+import { auth } from '#accounts/auth/client.ts'
+import { LAST_CODE_COOKIE } from '#accounts/auth/rules.ts'
+import { CODE, mintFor, restoreAuthApi, stubAuthApi } from '#accounts/auth/tests/harness.ts'
+import { inPinnedTransaction } from '#shared/testing/pinned-pool.ts'
+import { TEST_ACTOR } from '#shared/testing/actor.ts'
+import { LOCKS } from '#shared/testing/locks.ts'
+import { aUser } from '#shared/testing/builders/index.ts'
 
 await mockSessions()
 const { default: app } = await import('#app')
@@ -28,6 +36,7 @@ afterEach(() => {
   fakeSms.reset()
 })
 afterAll(async () => {
+  restoreAuthApi()
   restoreSessions()
   await pool.end()
 })
@@ -187,4 +196,47 @@ test('the message routes do not exist when both real providers are in use', asyn
     process.env.NODE_ENV = savedEnv
     vi.resetModules()
   }
+})
+
+test('a phone sign-in drops the cookie that lists and opens the text it sent', async () => {
+  await inPinnedTransaction(
+    async (c: PoolClient) => {
+      stubAuthApi(c)
+      const api = auth.api as unknown as Record<string, unknown>
+      api.sendPhoneNumberOTP = async ({ body }: { body: { phoneNumber: string } }) => {
+        await mintFor(c, body.phoneNumber)
+        await fakeSms.send(body.phoneNumber, `${CODE} is your Dorado Metals code.`)
+        return { message: 'code sent' }
+      }
+      const phone = '+15125559457'
+      await aUser(c, { phone_number: phone })
+
+      const sent = await anonymous(() =>
+        request(app)
+          .post('/api/account/send_code')
+          .send({ channel: 'sms', phone_number: phone, captcha_token: 't' })
+      )
+      assert.equal(sent.status, 200, sent.text)
+      const setCookie = sent.headers['set-cookie'] as unknown as string[] | string | undefined
+      const lines = Array.isArray(setCookie) ? setCookie : setCookie ? [setCookie] : []
+      const cookie = lines.find((line) => line.startsWith(`${LAST_CODE_COOKIE}=`))?.split(';')[0]
+      assert.ok(cookie, 'send_code by phone dropped no read-back cookie')
+
+      const list = await anonymous(() =>
+        request(app).get('/api/account/messages').set('Cookie', cookie!)
+      )
+      assert.equal(list.status, 200)
+      assert.equal(list.body.length, 1, 'the text sent to the phone is listed')
+      assert.equal(list.body[0].channel, 'sms')
+      assert.equal(list.body[0].to, phone)
+
+      const shown = await anonymous(() =>
+        request(app).get(`/api/account/messages/${list.body[0].message_id}`).set('Cookie', cookie!)
+      )
+      assert.equal(shown.status, 200)
+      assert.match(shown.text, /data-testid="sms-message"/)
+      assert.match(shown.text, new RegExp(CODE))
+    },
+    { actor: TEST_ACTOR.id, lock: LOCKS.USERS }
+  )
 })

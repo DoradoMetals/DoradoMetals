@@ -1,7 +1,7 @@
 'use client'
 
 import { accountMessageUrl, accountMessages, useAuthFakes } from '@dorado/client'
-import type { AccountMessage } from '@dorado/contracts'
+import type { AccountMessage, OtpChannel } from '@dorado/contracts'
 
 const RETRY_MS = 500
 
@@ -15,13 +15,17 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 const knownIds = async (): Promise<string[]> =>
   (await accountMessages().catch((): AccountMessage[] => [])).map((m) => m.message_id)
 
-async function newMessageId(before: string[]): Promise<string | null> {
+async function newMessageId(before: string[], channel?: OtpChannel): Promise<string | null> {
+  const mine = (list: AccountMessage[]) =>
+    channel ? list.filter((message) => message.channel === channel) : list
   const fresh = (list: AccountMessage[]) =>
     list.find((message) => !before.includes(message.message_id))?.message_id ?? null
-  const first = fresh(await accountMessages().catch((): AccountMessage[] => []))
-  if (first) return first
+  const first = mine(await accountMessages().catch((): AccountMessage[] => []))
+  const found = fresh(first)
+  if (found) return found
   await wait(RETRY_MS)
-  return fresh(await accountMessages().catch((): AccountMessage[] => []))
+  const second = mine(await accountMessages().catch((): AccountMessage[] => []))
+  return fresh(second) ?? second[0]?.message_id ?? null
 }
 
 export function openMessageIn(tab: Window, message_id: string | null) {
@@ -41,15 +45,16 @@ export function useMessageTab() {
   const fakes = useAuthFakes()
   const active = Boolean(fakes.data?.sms || fakes.data?.email)
 
-  const run = async <T>(send: () => Promise<T>): Promise<T> => {
-    if (!active) return send()
+  const run = async <T>(send: () => Promise<T>, channel?: OtpChannel): Promise<T> => {
+    const recorded = channel ? Boolean(fakes.data?.[channel]) : active
+    if (!recorded) return send()
     const tab = reserveTab()
     const before = tab ? await knownIds() : []
     const result = await send().catch((err: unknown) => {
       tab?.close()
       throw err
     })
-    if (tab) void newMessageId(before).then((id) => openMessageIn(tab, id))
+    if (tab) void newMessageId(before, channel).then((id) => openMessageIn(tab, id))
     return result
   }
 

@@ -76,12 +76,14 @@ export default function Page() {
   }
 
   const resend = async () => {
-    const next = await messageTab.run(() =>
-      sendCode.mutateAsync({
-        channel: verification.channel,
-        phone_number: verification.phone_number,
-        email: verification.email,
-      })
+    const next = await messageTab.run(
+      () =>
+        sendCode.mutateAsync({
+          channel: verification.channel,
+          phone_number: verification.phone_number,
+          email: verification.email,
+        }),
+      verification.channel
     )
     setVerification({ ...verification, view: next })
     setCode('')

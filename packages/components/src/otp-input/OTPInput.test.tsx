@@ -148,4 +148,54 @@ describe('OTPInput', () => {
     const cells = [...container.querySelectorAll('[data-testid="otp-cell"]')]
     expect(cells.map((c) => c.textContent)).toEqual(['9', '8', '7', '6', '5', '4'])
   })
+
+  it('a paste anywhere in the group spreads the digits and puts the cursor after the last one', () => {
+    const onValueChange = vi.fn()
+    const onComplete = vi.fn()
+    const { container } = render(
+      <OTPInput
+        value=""
+        onValueChange={onValueChange}
+        onComplete={onComplete}
+        label="Code"
+        autoFocus={false}
+      />
+    )
+    const input = container.querySelector('input')!
+    const cell = container.querySelectorAll('[data-testid="otp-cell"]')[3]!
+    fireEvent.paste(cell, { clipboardData: { getData: () => 'Your code: 123 456' } })
+    expect(onValueChange).toHaveBeenCalledWith('123456')
+    expect(onComplete).toHaveBeenCalledWith('123456')
+    expect(document.activeElement).toBe(input)
+  })
+
+  it('a short paste fills only the cells it has digits for', () => {
+    const onValueChange = vi.fn()
+    const { container } = render(<OTPInput value="" onValueChange={onValueChange} label="Code" />)
+    fireEvent.paste(container.querySelector('input')!, {
+      clipboardData: { getData: () => '12-3' },
+    })
+    expect(onValueChange).toHaveBeenCalledWith('123')
+  })
+
+  it('the input offers the SMS code on iOS and Android, and no maxlength cuts a spaced paste', () => {
+    const { container } = render(<OTPInput value="" onValueChange={() => {}} label="Code" />)
+    const input = container.querySelector('input')!
+    expect(input.getAttribute('autocomplete')).toBe('one-time-code')
+    expect(input.getAttribute('inputmode')).toBe('numeric')
+    expect(input.getAttribute('pattern')).toBe('[0-9]*')
+    expect(input.hasAttribute('maxlength')).toBe(false)
+  })
+
+  it('a seventh typed digit is dropped and backspace removes the last digit', () => {
+    const onValueChange = vi.fn()
+    const { container } = render(
+      <OTPInput value="123456" onValueChange={onValueChange} label="Code" />
+    )
+    const input = container.querySelector('input')!
+    fireEvent.change(input, { target: { value: '1234567' } })
+    expect(onValueChange).toHaveBeenLastCalledWith('123456')
+    fireEvent.change(input, { target: { value: '12345' } })
+    expect(onValueChange).toHaveBeenLastCalledWith('12345')
+  })
 })

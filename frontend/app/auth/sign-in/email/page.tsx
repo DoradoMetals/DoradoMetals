@@ -24,8 +24,10 @@ function SignInEmail() {
 
   const submit = async () => {
     try {
-      const view = await messageTab.run(async () =>
-        sendCode.mutateAsync({ channel: 'email', email, captcha_token: await captcha.token() })
+      const view = await messageTab.run(
+        async () =>
+          sendCode.mutateAsync({ channel: 'email', email, captcha_token: await captcha.token() }),
+        'email'
       )
       setVerification({ view, channel: 'email', email, next: nextFrom(params) ?? undefined })
       router.push(view.status === 'locked' ? '/auth/locked' : '/auth/verify')

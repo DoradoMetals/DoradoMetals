@@ -56,4 +56,43 @@ describe('Link', () => {
     )
     expect(getByRole('link').className).toContain('text-subtle')
   })
+
+  it('rest has no underline; hover and keyboard focus add a 1px underline, on every variant', () => {
+    const { getAllByRole } = render(
+      <>
+        <Link href="/rates">Inline</Link>
+        <Link href="/orders" variant="nav">
+          Nav
+        </Link>
+      </>
+    )
+    for (const link of getAllByRole('link')) {
+      const classes = link.className.split(/\s+/)
+      expect(classes).toContain('hover:underline')
+      expect(classes).toContain('focus-visible:underline')
+      expect(classes).toContain('underline-offset-4')
+      expect(classes).toContain('decoration-1')
+      expect(classes).not.toContain('underline')
+    }
+  })
+
+  it('the label is Small/Semibold at rest, on hover and when disabled', () => {
+    const { getAllByRole } = render(
+      <>
+        <Link href="/rates">Inline</Link>
+        <Link href="/orders" variant="nav">
+          Nav
+        </Link>
+        <Link href="/rates" aria-disabled="true">
+          Disabled
+        </Link>
+      </>
+    )
+    for (const link of getAllByRole('link')) {
+      const classes = link.className.split(/\s+/)
+      expect(classes).toContain('font-semibold')
+      expect(classes).not.toContain('font-medium')
+      expect(classes.some((c) => c.startsWith('hover:font-'))).toBe(false)
+    }
+  })
 })

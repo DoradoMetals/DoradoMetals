@@ -82,10 +82,11 @@
         *
     ) {
     color: var(--text, var(--foreground));
-    text-decoration: underline;
-    text-underline-offset: 0.2em;
+    font-weight: var(--font-weight-semibold);
+    text-decoration: none;
+    text-underline-offset: 4px;
     text-decoration-thickness: 1px;
-    text-decoration-color: var(--border-strong);
+    text-decoration-color: currentColor;
   }
 
   :is(p, li, blockquote, td, dd, label, small)
@@ -102,8 +103,8 @@
           [cmdk-list]
         )
         *
-    ):hover {
-    text-decoration-color: var(--foreground);
+    ):is(:hover, :focus-visible) {
+    text-decoration-line: underline;
   }
 
   small {
@@ -302,6 +303,6 @@
     font-size: var(--text-small);
     line-height: var(--text-small--line-height);
     letter-spacing: var(--text-small--letter-spacing);
-    font-weight: 500;
+    font-weight: var(--font-weight-semibold);
   }
 }
