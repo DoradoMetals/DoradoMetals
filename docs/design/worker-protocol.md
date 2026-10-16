@@ -47,3 +47,32 @@ pin. "Code-only" never appears in a lane report as a settled state.
 ## Payments file (2026-10-16)
 
 Payments `GPSOCeWTjc7pDsQBs4gFt4` is the eighth file. It holds the bank link component (Purpose: Payout | Payment) and the Payout Accounts screen moved from People. Tooling: `tools/payments/`; log: `docs/design/payments-comments-log.md`; polled by `tools/all/loop.sh`.
+
+## Verify with a fresh render before replying (2026-10-16)
+
+MCP screenshots can be stale and show an older state of the file. Before a
+worker replies "done" on any layout change, it renders the affected screen with
+the REST `image` command in `tools/<file>/figma-comments.mjs` and checks that
+render, not the MCP screenshot. A reply about layout carries the fresh render.
+Jacob, after a false "fixed" on the People employees table: "stop fucking
+around please."
+
+## Page structure (Jacob, 2026-10-16, People comments 1970251230, 1970287049, 1970310680; Admin 1970278874, 1970303308)
+
+Every feature file page is laid out the same way, with no parent "Screens" or
+"Components" frame:
+
+- **Main screens**: one frame holding the main list screens, desktop and mobile.
+- **One frame per entity screen** (the customer, the lead, the employee, the
+  order), desktop and mobile together. Entity screens are not inside Main
+  screens.
+- **One frame per drilldown screen**, named for its feature.
+- **One frame per component feature** (Header, Rows, Cards, Drawers, Charts,
+  Estimate, …). Drawers, dialogs and status variants live inside their
+  component sets, never loose.
+- **Granular components, states inside the parts.** A card composes small
+  parts (a source line, a status badge, a stat, a select, a button, a row)
+  and each part carries its own states (Default, Loading, Empty, Disabled,
+  per-kind). A card itself has only viewer and layout variants.
+- Move nodes, never recreate them; ids and instance links stay. Verify the
+  page with a fresh REST render after a restructure.

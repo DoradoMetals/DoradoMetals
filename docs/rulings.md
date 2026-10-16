@@ -708,7 +708,21 @@ file named at the top of this file.
   because the view carries its actions and the Entity Header renders only
   those. 2026-10-16. Source: Jacob, in session.
 
+- **157 — One Table in the Library, with every list part optional.** *"Go
+  look at all the pages where we have table structures. And then we need to
+  unify on a design that contains optional pagination, filtering, sorting,
+  the fucking works. In our global component library. The rows themselves
+  (at least for mobile) will be pass through children because that can
+  differ there. But desktop layouts we largely have the same thing going
+  on."* The Library Table carries the toolbar (search, filter chips and
+  selects, sort), sortable headers, the selection column and bar, row
+  actions, pagination, and its own Empty and Loading states, each switched
+  on per instance. Desktop rows are the standard cell row; the mobile row is
+  a children slot the feature fills. No screen draws its own table, and the
+  code Table in `@dorado/components` (ruling 128) mirrors the same parts.
+  2026-10-16. Source: Jacob, People comment 1970305108.
+
 ## Numbering
 
-Every number from 1 to 156 has an entry, plus 26b and 26c. Two rulings carry the
+Every number from 1 to 157 has an entry, plus 26b and 26c. Two rulings carry the
 number 39; both are listed. No number is ever reused.
