@@ -24,6 +24,7 @@ export type SelectionActionsProps = {
   dismissLabel?: string
   layout?: 'desktop' | 'mobile'
   className?: string
+  ref?: React.Ref<HTMLDivElement>
 }
 
 function ActionRow({ action, layout }: { action: SelectionAction; layout: 'desktop' | 'mobile' }) {
@@ -63,9 +64,11 @@ export function SelectionActions({
   dismissLabel,
   layout = 'desktop',
   className,
+  ref,
 }: SelectionActionsProps) {
   return (
     <SelectionBar
+      ref={ref}
       layout={layout}
       summary={summary}
       totals={totals}
