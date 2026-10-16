@@ -87,7 +87,7 @@ rows across two tables — 14 payouts in `exchange.payouts` (7 ACH, 7 WIRE, 9
 customers) and 10 January-residue rows in `payments.details` (8 customers).
 Re-measure with `audit:plaintext-secrets --prod` before trusting that count on
 the day.
-- **Migration 294 gives finalized orders an opening spot-lock event per metal the order holds** (orders-customer lane; it supersedes 292, which also wrote events for metals the order does not hold). 292 inserted 0 rows on dev (counted read-only 2026-10-16). Production is unchecked: count it read-only before the day; it runs inside `migrate` in order. Placed sales stored before `sale_quote.sql` rounded to cents may also hold sub-cent totals; check with a read-only count.
+- **Migrations 292 and 294 give finalized orders an opening spot-lock event per metal the order holds.** 292 first shipped without the orders.lots join and was corrected in place on 2026-10-16 before production ever ran it (dev had applied it with 0 rows; its checksum was reconciled; replay green). 294 is the same statement and stays as a second idempotent pass. Production is unchecked: count it read-only before the day; it runs inside `migrate` in order. Placed sales stored before `sale_quote.sql` rounded to cents may also hold sub-cent totals; check with a read-only count.
 - **Twilio keys must be configured before dev merges to master.** Sign-in defaults to the phone form (`/auth/sign-in`, ruling D216 and the Auth frame); without the Twilio keys the api uses the fake SMS sender and the default sign-in form cannot deliver a code. Staging delivers through the fake on purpose.
 
 ## 3. Waiting on Jacob

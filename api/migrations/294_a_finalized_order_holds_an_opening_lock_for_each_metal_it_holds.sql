@@ -1,11 +1,10 @@
 -- A FINALIZED ORDER HOLDS AN OPENING LOCK EVENT FOR EACH METAL IT HOLDS.
 --
--- This SUPERSEDES migration 292. 292 inserted an opening lock event for every
--- frozen orders.spots row of a finalized order, with no join to orders.lots,
--- so it also wrote events for metals the order does not hold (rows left behind
--- by a lot that went or changed metal). Ruling 2026-10-14: a lock covers only
--- the order's metals. 292 is immutable and stays; this is the corrected form.
--- Where 292 already ran, its extra events are not removed (insert-only).
+-- Same statement as 292. 292 first shipped without the orders.lots join and
+-- would have written events for metals an order does not hold; it was
+-- corrected in place on 2026-10-16 before production ever ran it (dev had
+-- applied it with 0 rows). This migration stays as a second idempotent pass:
+-- ruling 2026-10-14, a lock covers only the order's metals.
 --
 -- THE EVENT IS THE OPENING LOCK, derived as 243 derived it: the frozen bid and
 -- ask from the order's own orders.spots row, dated at finalize and attributed
