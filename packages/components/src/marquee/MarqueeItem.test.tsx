@@ -15,6 +15,20 @@ describe('MarqueeItem', () => {
     expect(getByText('+12.34')).toBeTruthy()
   })
 
+  it('uses tabular digits and reserved widths on value and delta', () => {
+    const { getByText } = render(<MarqueeItem label="Gold" value="$2,411.20" delta="+0.8%" />)
+    for (const [text, min] of [
+      ['$2,411.20', 'min-w-[9ch]'],
+      ['+0.8%', 'min-w-[5ch]'],
+    ]) {
+      const cls = getByText(text).className
+      expect(cls).toContain('tabular-nums')
+      expect(cls).toContain('inline-block')
+      expect(cls).toContain('text-right')
+      expect(cls).toContain(min)
+    }
+  })
+
   it('colours the delta by trend', () => {
     const { getByText, rerender } = render(
       <MarqueeItem label="Gold" value="$2,411.20" delta="+12.34" trend="up" />
