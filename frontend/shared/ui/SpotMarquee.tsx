@@ -2,7 +2,15 @@
 
 import { useEffect, useState } from 'react'
 import { useSpotTicker } from '@dorado/client'
-import { Button, Marquee, MarqueeItem, useMediaUp } from '@dorado/components'
+import {
+  Button,
+  Marquee,
+  MarqueeItem,
+  Tooltip,
+  TooltipProvider,
+  useMediaUp,
+} from '@dorado/components'
+import { ArrowLeftRight } from '@dorado/icons'
 
 const price = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })
 const change = new Intl.NumberFormat('en-US', {
@@ -50,9 +58,19 @@ export function SpotMarquee() {
       label="Live spot prices"
       leading={
         desktop ? (
-          <Button variant="secondary" size="sm" onClick={toggle}>
-            {showBid ? 'Show ask' : 'Show bid'}
-          </Button>
+          <TooltipProvider>
+            <Tooltip content={showBid ? 'Show ask' : 'Show bid'}>
+              <Button
+                variant="secondary"
+                intent="neutral"
+                size="iconSm"
+                icon={ArrowLeftRight}
+                iconSize={16}
+                aria-label={showBid ? 'Show ask' : 'Show bid'}
+                onClick={toggle}
+              />
+            </Tooltip>
+          </TooltipProvider>
         ) : undefined
       }
     >

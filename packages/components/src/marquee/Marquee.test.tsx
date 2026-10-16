@@ -44,7 +44,11 @@ describe('Marquee', () => {
 describe('Marquee at Layout=Desktop', () => {
   it('sits its cells right with the leading control on the far left', () => {
     const { getByRole, getByText } = render(
-      <Marquee layout="desktop" label="Live spot prices" leading={<button>Show bid</button>}>
+      <Marquee
+        layout="desktop"
+        label="Live spot prices"
+        leading={<button aria-label="Show bid">Show bid</button>}
+      >
         <span>Gold</span>
       </Marquee>
     )
