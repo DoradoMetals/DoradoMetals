@@ -1,0 +1,18 @@
+# People file comments log (5cEytffOkxIfqdRWFaTWpl)
+
+## 2026-10-16 (single all-files worker) · Jacob's 03:51-04:08Z review, 14 threads, all answered
+(Earlier context: docs/design/people-comments-2026-10-07.md, which also carries the first six of these.)
+- 1968936323 / 6528 / 6600 / 6964 / 7211 (Lead Estimate): Estimate Item Row 410:6243 and Estimate set 181:3143: View images button, attach next to trash, Rate column, row spacing, Items summary line removed.
+- 1968937859: Upload card removed from both Lead screens (216:5430, 216:5533); Library Upload Drawer 1138:193.
+- 1968930408 (Employee graphs + buttons): new set Employee Performance 438:5721 (Tab=Lead conversion|Account profitability x Layout; variants 438:5536, 438:5586, 438:5627, 438:5674), clones of the two cards with the Library Tab Bar (third tab hidden) and header "Performance". Screens: 423:7310 and 423:7498 swapped to it (resetOverrides), 416:6732 and 416:6816 removed (list tools/people/snapshots/employee-performance-2026-10-16.json). Every Title row in Components · Employees (13) and its Right frame counter-centred. Old sets Employee Lead Conversion 425:5583 and Employee Account Profitability 416:6446 left in place, unused; delete on Jacob's word.
+- 1968938171 (Credit header text when open): open Credit instances 195:6429 / 195:6461 and main already had Amount ""; render is clean. Replied with the rule: no balance in the open header.
+- 1968939221: Payout Account Row 172:5826: Badge moved into Account right after Method, Spacer FILL, Last four hug + right; Method hugs.
+- 1968939422: Add Payout Account Form 440:9356 (Select Method, Inputs Bank / Account holder / Routing number / Account number, Checkbox + "Make this the default payout account") in set Add Payout Account · Drawer 440:9586 (Desktop Drawer SM, Mobile Full; footer labels follow button emphasis).
+- 1968939618: Add Note Form 440:9414 (Textarea "Note", counter 0 / 500, stray char-count hidden) in set Add Note · Drawer 440:9643.
+- 1968940338: Customer Timeline 198:6448 / 198:6455: header Amount cleared (and on screen instances); new Pager frame with Library Pagination centred under the rows (padding mirrors the Orders card).
+- 1968940563: Customer Header State=Active 172:5921: Show badge off (Banned 172:5936 keeps its badge).
+- 1968941820: Customer Header both states: reference "Customer since Mar 2025   ·   Austin, TX", meta "14 orders to date", matching the order header.
+- High-water tools/people/high-water.txt: already past 2026-10-16T04:08Z (advanced by the combined loop).
+- 1970231823 + 1970232268 (pin 78:2727 @519,406, "why background fucky? chips instead of tabs" / "just Profitability and Conversion"): the odd background was the Library Tab Bar's own filled box. Employee Performance 438:5721: Tabs instance replaced by a Filters frame (gap spacing/xs) of two Library Chips, Profitability then Conversion, Selected=True on the shown one, no dismiss; variants renamed Tab=Conversion|Profitability. Replied.
+- 1970233290 (in 1968936600, "horizontal gaps are weird"): Estimate Item Row 410:6243 and both Estimate heads: Photos 96 fixed, Weight/Purity/Rate/Value 80 fixed each, numeric text right-aligned (header too), row gap stays spacing/sm 12; Item absorbs the rest. Replied.
+- 1970235054 (in 1966781433, "not really seeing the nodes"): the 2026-10-14 reply promised nodes after a publish but they were never switched on. Customer Value 404:5011 charts 406:5460 / 406:5505 and the screen instances I404:6380;406:5460, I404:6504;406:5505: Chart / Line Show points on, Show tooltip on, Tooltip slot = Chart Order Card 411:6415 (one hovered point with the card). Replied with page and section in words.

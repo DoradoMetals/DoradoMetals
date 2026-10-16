@@ -1908,3 +1908,9 @@ neither**, and they cannot all be bound today: our hand-set line heights are 20,
 no size token below 12 at all. Binding them means re-measuring every text block
 and accepting a fractional reflow on every card, which is a second measured pass,
 not a blind one. Logged in the same library comment.
+
+## 2026-10-16 (single all-files worker) · Jacob's 03:51-04:08Z review, 14 root comments
+Done and replied:
+- 1968936323 / 1968936528 / 1968936600 / 1968936964 / 1968937211 (Lead Estimate): Estimate Item Row 410:6243: thumbnails removed, Tertiary SM "View images" button (opens the Library Photo Viewer), Attach photo moved into a new Actions frame beside Delete, Rate text column after Purity (88/90/85%), row padding spacing/sm, Item gap spacing/3xs. Estimate set 181:3143: Rate header (desktop), Delete slot 40 wide, Summary "Items" line removed (both layouts), Body gap 0, Summary padding top spacing/md. Mobile: Rate hidden, Photos hugs, Photos header hidden.
+- 1968937859 (Upload card): Upload instances 216:5430 and 216:5533 removed from both Lead screens (id list tools/people/snapshots/delete-upload-2026-10-16.json); Library gained Upload Drawer 1138:193.
+OPEN (not yet worked, no reply yet): 1968930408 Employee 78:2727 graphs into one tabbed component + button layout; 1968938171 Customer 37:2248 Credit accordion header text shown when open; 1968939221 Payout account row (badge right after "ACH · Chase", card number far right); 1968939422 Add account drawer component; 1968939618 Add note drawer component; 1968940338 Timeline "Last 30 days" out, pagination for long timelines; 1968940563 remove the Active badge in the Customer header; 1968941820 header shows "Customer since March 2024 | Austin, TX" and "8 orders to date" like the order header.
