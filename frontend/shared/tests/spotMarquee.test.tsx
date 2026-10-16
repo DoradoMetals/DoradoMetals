@@ -16,6 +16,7 @@ vi.mock('@dorado/client', () => ({
         price: 2411.2,
         ask: 2412.8,
         percent_change: 0.8,
+        dollar_change: 1.6,
         direction: 'up',
         at: null,
       },
@@ -24,6 +25,7 @@ vi.mock('@dorado/client', () => ({
         price: 29.14,
         ask: 29.2,
         percent_change: -0.3,
+        dollar_change: -0.06,
         direction: 'down',
         at: null,
       },
@@ -32,6 +34,7 @@ vi.mock('@dorado/client', () => ({
         price: 1022.75,
         ask: 1025,
         percent_change: 1.2,
+        dollar_change: 12,
         direction: 'up',
         at: null,
       },
@@ -40,6 +43,7 @@ vi.mock('@dorado/client', () => ({
         price: null,
         ask: null,
         percent_change: 0.4,
+        dollar_change: 0.1,
         direction: 'up',
         at: null,
       },
@@ -57,15 +61,18 @@ describe('the live spots bar', () => {
       expect(within(bar).getAllByText(metal).length).toBeGreaterThan(0)
     }
     expect(within(bar).getAllByText('$2,412.80').length).toBeGreaterThan(0)
-    expect(within(bar).getAllByText('+0.8%').length).toBeGreaterThan(0)
-    expect(within(bar).getAllByText('-0.3%').length).toBeGreaterThan(0)
+    expect(within(bar).getAllByText('(0.8%)').length).toBeGreaterThan(0)
+    expect(within(bar).getAllByText('(0.3%)').length).toBeGreaterThan(0)
+    expect(within(bar).getAllByText('$1.60').length).toBeGreaterThan(0)
+    expect(within(bar).getAllByText('$0.06').length).toBeGreaterThan(0)
   })
 
   test('a stale metal shows a dash and no change', () => {
     render(<SpotMarquee />)
     const bar = screen.getByRole('region', { name: 'Live spot prices' })
     expect(within(bar).getAllByText('—').length).toBeGreaterThan(0)
-    expect(within(bar).queryByText('+0.4%')).toBeNull()
+    expect(within(bar).queryByText('(0.4%)')).toBeNull()
+    expect(within(bar).queryByText('$0.10')).toBeNull()
   })
 
   test('on desktop the button switches ask and bid and is remembered per viewer', () => {

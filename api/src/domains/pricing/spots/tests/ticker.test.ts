@@ -21,6 +21,7 @@ test('the ticker answers without a session, is cacheable, and carries only the b
   const fields = Object.keys(SpotTickerRow.shape).sort()
   for (const row of res.body) {
     assert.deepEqual(Object.keys(row).sort(), fields)
+    assert.ok('dollar_change' in row)
     SpotTickerRow.parse(row)
   }
 })

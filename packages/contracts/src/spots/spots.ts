@@ -71,6 +71,7 @@ export const SpotTickerRow = z.object({
   price: CurrentSpot.shape.bid.nullable(),
   ask: CurrentSpot.shape.ask.nullable(),
   percent_change: CurrentSpot.shape.percent_change,
+  dollar_change: CurrentSpot.shape.dollar_change,
   direction: SpotTrend,
   at: CurrentSpot.shape.at.nullable(),
 })

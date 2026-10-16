@@ -61,6 +61,7 @@ export function useSpotTicker() {
         price: s.bid,
         ask: s.ask,
         percent_change: s.percent_change,
+        dollar_change: s.dollar_change,
         direction: s.direction,
         at: s.updated_at,
       })),

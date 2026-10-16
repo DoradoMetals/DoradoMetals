@@ -56,7 +56,7 @@ describe('Marquee at Layout=Desktop', () => {
     expect(row.firstElementChild?.textContent).toBe('Show bid')
     const cells = getByText('Gold').parentElement as HTMLElement
     expect(cells.className).toContain('ml-auto')
-    expect(cells.className).toContain('gap-xl')
+    expect(cells.className).toContain('gap-2xl')
   })
 
   it('is a static row inside the page width, with no seam copy and no motion', () => {
@@ -73,7 +73,7 @@ describe('Marquee at Layout=Desktop', () => {
     const row = bar.firstElementChild as HTMLElement
     expect(row.className).toContain('max-w-page')
     expect(row.className).toContain('px-lg')
-    expect(row.className).toContain('py-2xs-plus')
+    expect(row.className).toContain('py-sm')
   })
 
   it('under reduced motion the mobile band is a static, scrollable row', () => {
@@ -88,5 +88,26 @@ describe('Marquee at Layout=Desktop', () => {
     const seam = container.querySelector('[aria-hidden="true"]') as HTMLElement
     expect(seam.className).toContain('hidden')
     expect(seam.className).toContain('motion-safe:flex')
+  })
+
+  it('drops the hairlines when showBorders is off', () => {
+    const on = render(
+      <Marquee layout="desktop" label="On">
+        <span>a</span>
+      </Marquee>
+    )
+    expect(on.getByRole('region', { name: 'On' }).className).toContain('border-y')
+    const off = render(
+      <Marquee layout="desktop" label="Off" showBorders={false}>
+        <span>a</span>
+      </Marquee>
+    )
+    expect(off.getByRole('region', { name: 'Off' }).className).not.toContain('border-y')
+    const mob = render(
+      <Marquee label="Mob" showBorders={false}>
+        <span>a</span>
+      </Marquee>
+    )
+    expect(mob.getByRole('region', { name: 'Mob' }).className).not.toContain('border-y')
   })
 })

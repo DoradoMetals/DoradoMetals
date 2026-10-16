@@ -15,6 +15,38 @@ describe('MarqueeItem', () => {
     expect(getByText('+12.34')).toBeTruthy()
   })
 
+  it('uses tabular digits and reserved widths on value and delta', () => {
+    const { getByText } = render(<MarqueeItem label="Gold" value="$2,411.20" delta="+0.8%" />)
+    for (const text of ['$2,411.20', '+0.8%']) {
+      const cls = getByText(text).className
+      expect(cls).toContain('tabular-nums')
+      expect(cls).not.toContain('min-w-')
+    }
+    expect(getByText('Gold').parentElement!.className).toContain('gap-xs')
+  })
+
+  it('aligns to the centre line and renders a coloured move before the delta', () => {
+    const { getByText } = render(
+      <MarqueeItem label="Gold" value="$2,411.20" move="$4.20" delta="(0.8%)" trend="down" />
+    )
+    expect(getByText('Gold').parentElement!.className).toContain('items-center')
+    const move = getByText('$4.20')
+    for (const c of ['tabular-nums', 'text-destructive']) expect(move.className).toContain(c)
+    const order = [...getByText('Gold').parentElement!.children].map((el) => el.textContent)
+    expect(order).toEqual(['Gold', '$2,411.20', '$4.20(0.8%)'])
+    const pair = move.parentElement!
+    expect(pair.className).toContain('inline-flex')
+    expect(pair.className).toContain('gap-3xs')
+    expect([...pair.children].map((el) => el.textContent)).toEqual(['$4.20', '(0.8%)'])
+  })
+
+  it('sets the price in body text, medium weight', () => {
+    const { getByText } = render(<MarqueeItem label="Gold" value="$2,411.20" />)
+    const price = getByText('$2,411.20')
+    expect(price.tagName).toBe('P')
+    expect(price.className).toContain('font-medium')
+  })
+
   it('colours the delta by trend', () => {
     const { getByText, rerender } = render(
       <MarqueeItem label="Gold" value="$2,411.20" delta="+12.34" trend="up" />

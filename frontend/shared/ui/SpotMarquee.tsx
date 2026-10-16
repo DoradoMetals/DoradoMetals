@@ -16,7 +16,13 @@ const price = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD
 const change = new Intl.NumberFormat('en-US', {
   minimumFractionDigits: 1,
   maximumFractionDigits: 1,
-  signDisplay: 'exceptZero',
+  signDisplay: 'never',
+})
+
+const dollars = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+  signDisplay: 'never',
 })
 
 export const BID_ASK_KEY = 'dorado.spots.bid-ask'
@@ -61,7 +67,7 @@ export function SpotMarquee() {
           <TooltipProvider>
             <Tooltip content={showBid ? 'Show ask' : 'Show bid'}>
               <Button
-                variant="secondary"
+                variant="tertiary"
                 intent="neutral"
                 size="iconSm"
                 icon={ArrowLeftRight}
@@ -79,10 +85,15 @@ export function SpotMarquee() {
           key={row.metal_id}
           label={row.metal_id}
           value={money(bid ? row.price : row.ask)}
+          move={
+            (bid ? row.price : row.ask) == null || row.dollar_change == null
+              ? undefined
+              : dollars.format(row.dollar_change)
+          }
           delta={
             (bid ? row.price : row.ask) == null || row.percent_change == null
               ? undefined
-              : `${change.format(row.percent_change)}%`
+              : `(${change.format(row.percent_change)}%)`
           }
           trend={(bid ? row.price : row.ask) == null ? 'flat' : row.direction}
         />
