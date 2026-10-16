@@ -25,17 +25,18 @@ describe('MarqueeItem', () => {
     expect(getByText('Gold').parentElement!.className).toContain('gap-xs')
   })
 
-  it('aligns to the centre line and renders a coloured move before the delta', () => {
+  it('aligns to the baseline and renders a coloured move before the delta', () => {
     const { getByText } = render(
       <MarqueeItem label="Gold" value="$2,411.20" move="$4.20" delta="(0.8%)" trend="down" />
     )
-    expect(getByText('Gold').parentElement!.className).toContain('items-center')
+    expect(getByText('Gold').parentElement!.className).toContain('items-baseline')
     const move = getByText('$4.20')
     for (const c of ['tabular-nums', 'text-destructive']) expect(move.className).toContain(c)
     const order = [...getByText('Gold').parentElement!.children].map((el) => el.textContent)
     expect(order).toEqual(['Gold', '$2,411.20', '$4.20(0.8%)'])
     const pair = move.parentElement!
     expect(pair.className).toContain('inline-flex')
+    expect(pair.className).toContain('items-baseline')
     expect(pair.className).toContain('gap-3xs')
     expect([...pair.children].map((el) => el.textContent)).toEqual(['$4.20', '(0.8%)'])
   })

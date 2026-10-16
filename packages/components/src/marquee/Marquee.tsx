@@ -16,6 +16,7 @@ export type MarqueeProps = {
 
 const TRACK = 'flex shrink-0 items-center gap-xl pr-xl'
 const MOVING =
+  'will-change-transform transform-gpu ' +
   'motion-safe:animate-marquee group-hover:[animation-play-state:paused] group-focus-within:[animation-play-state:paused]'
 
 export function Marquee({
