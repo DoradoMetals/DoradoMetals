@@ -56,7 +56,7 @@ describe('the live spots bar', () => {
     for (const metal of ['Gold', 'Silver', 'Platinum', 'Palladium']) {
       expect(within(bar).getAllByText(metal).length).toBeGreaterThan(0)
     }
-    expect(within(bar).getAllByText('$2,411.20').length).toBeGreaterThan(0)
+    expect(within(bar).getAllByText('$2,412.80').length).toBeGreaterThan(0)
     expect(within(bar).getAllByText('+0.8%').length).toBeGreaterThan(0)
     expect(within(bar).getAllByText('-0.3%').length).toBeGreaterThan(0)
   })
@@ -68,26 +68,28 @@ describe('the live spots bar', () => {
     expect(within(bar).queryByText('+0.4%')).toBeNull()
   })
 
-  test('on desktop the toggle shows bid and ask and is remembered per viewer', () => {
+  test('on desktop the button switches ask and bid and is remembered per viewer', () => {
     desktop.value = true
     window.localStorage.removeItem('dorado.spots.bid-ask')
     const { unmount } = render(<SpotMarquee />)
-    expect(screen.queryByText('$2,412.80')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Show bid/ask' }))
-    expect(screen.getAllByText('Bid').length).toBe(4)
-    expect(screen.getAllByText('Ask').length).toBe(4)
     expect(screen.getByText('$2,412.80')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Hide bid/ask' })).toBeTruthy()
+    expect(screen.queryByText('$2,411.20')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Show bid' }))
+    expect(screen.getByText('$2,411.20')).toBeTruthy()
+    expect(screen.queryByText('$2,412.80')).toBeNull()
+    expect(screen.queryByText('Bid')).toBeNull()
+    expect(screen.queryByText('Ask')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Show ask' })).toBeTruthy()
     expect(window.localStorage.getItem('dorado.spots.bid-ask')).toBe('on')
     unmount()
     render(<SpotMarquee />)
-    expect(screen.getByText('$2,412.80')).toBeTruthy()
+    expect(screen.getByText('$2,411.20')).toBeTruthy()
     desktop.value = false
   })
 
   test('on mobile there is no toggle', () => {
     desktop.value = false
     render(<SpotMarquee />)
-    expect(screen.queryByRole('button', { name: /bid\/ask/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Show (bid|ask)/ })).toBeNull()
   })
 })

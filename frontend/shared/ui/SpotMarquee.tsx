@@ -34,14 +34,14 @@ const money = (value: number | null | undefined) => (value == null ? '—' : pri
 export function SpotMarquee() {
   const desktop = useMediaUp('md')
   const rows = useSpotTicker().data ?? []
-  const [bidAsk, setBidAsk] = useState(false)
+  const [showBid, setShowBid] = useState(false)
 
-  useEffect(() => setBidAsk(readBidAsk()), [])
+  useEffect(() => setShowBid(readBidAsk()), [])
 
-  const both = desktop && bidAsk
+  const bid = desktop && showBid
   const toggle = () => {
-    writeBidAsk(!bidAsk)
-    setBidAsk(!bidAsk)
+    writeBidAsk(!showBid)
+    setShowBid(!showBid)
   }
 
   return (
@@ -50,8 +50,8 @@ export function SpotMarquee() {
       label="Live spot prices"
       leading={
         desktop ? (
-          <Button variant="tertiary" size="sm" aria-pressed={bidAsk} onClick={toggle}>
-            {bidAsk ? 'Hide bid/ask' : 'Show bid/ask'}
+          <Button variant="secondary" size="sm" onClick={toggle}>
+            {showBid ? 'Show ask' : 'Show bid'}
           </Button>
         ) : undefined
       }
@@ -60,14 +60,13 @@ export function SpotMarquee() {
         <MarqueeItem
           key={row.metal_id}
           label={row.metal_id}
-          value={money(row.price)}
-          ask={both ? money(row.ask) : undefined}
+          value={money(bid ? row.price : row.ask)}
           delta={
-            row.price == null || row.percent_change == null
+            (bid ? row.price : row.ask) == null || row.percent_change == null
               ? undefined
               : `${change.format(row.percent_change)}%`
           }
-          trend={row.price == null ? 'flat' : row.direction}
+          trend={(bid ? row.price : row.ask) == null ? 'flat' : row.direction}
         />
       ))}
     </Marquee>

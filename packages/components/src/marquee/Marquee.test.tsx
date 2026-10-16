@@ -37,18 +37,19 @@ describe('Marquee', () => {
       </Marquee>
     )
     expect(container.firstElementChild!.className).toContain('px-lg')
+    expect(container.firstElementChild!.className).toContain('bg-card')
   })
 })
 
 describe('Marquee at Layout=Desktop', () => {
   it('sits its cells right with the leading control on the far left', () => {
     const { getByRole, getByText } = render(
-      <Marquee layout="desktop" label="Live spot prices" leading={<button>Show bid/ask</button>}>
+      <Marquee layout="desktop" label="Live spot prices" leading={<button>Show bid</button>}>
         <span>Gold</span>
       </Marquee>
     )
     const row = getByRole('region', { name: 'Live spot prices' }).firstElementChild as HTMLElement
-    expect(row.firstElementChild?.textContent).toBe('Show bid/ask')
+    expect(row.firstElementChild?.textContent).toBe('Show bid')
     const cells = getByText('Gold').parentElement as HTMLElement
     expect(cells.className).toContain('ml-auto')
     expect(cells.className).toContain('gap-xl')
@@ -64,9 +65,11 @@ describe('Marquee at Layout=Desktop', () => {
     expect(container.querySelector('.motion-safe\\:animate-marquee')).toBeNull()
     const bar = container.firstElementChild as HTMLElement
     expect(bar.className).toContain('h-(--control-lg)')
+    expect(bar.className).toContain('bg-card')
     const row = bar.firstElementChild as HTMLElement
     expect(row.className).toContain('max-w-page')
     expect(row.className).toContain('px-lg')
+    expect(row.className).toContain('py-2xs-plus')
   })
 
   it('under reduced motion the mobile band is a static, scrollable row', () => {
