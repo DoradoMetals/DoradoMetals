@@ -54,7 +54,7 @@ export default defineConfig({
     env: sharedEnv,
     testTimeout: 20_000,
     hookTimeout: 20_000,
-    maxWorkers: 12,
+    maxWorkers: 4,
     exclude: ['node_modules/**', 'tests/external/**'],
     projects: [
       project('unit', layers.unit),
