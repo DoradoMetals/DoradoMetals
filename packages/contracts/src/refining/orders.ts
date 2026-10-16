@@ -26,11 +26,13 @@ export const RefiningOrder = z.object({
   'location_id': z.string().uuid().nullable(),
   'cancelled_at': z.string().nullable(),
   'settlement_type': SettlementType,
+  'dispute_note': z.string().nullable(),
 })
 export type RefiningOrder = z.infer<typeof RefiningOrder>
 // generated:end
 
 import { Lot } from '../inventory/lots.js'
+import { OrderState } from '../computed/orders.js'
 import { RefiningLot, RefiningLotPatch } from './lots.js'
 
 export const RefiningOrderCreate = RefiningOrder.pick({
@@ -38,9 +40,10 @@ export const RefiningOrderCreate = RefiningOrder.pick({
   direction: true,
   settlement_type: true,
   location_id: true,
+  assigned_to_id: true,
 })
   .extend({ lot_ids: z.array(Lot.shape.id).min(1).optional() })
-  .partial({ settlement_type: true, location_id: true })
+  .partial({ settlement_type: true, location_id: true, assigned_to_id: true })
   .strict()
 export type RefiningOrderCreate = z.infer<typeof RefiningOrderCreate>
 
@@ -53,11 +56,31 @@ export const RefiningOrderPatch = RefiningOrder.pick({
   assay_lab: true,
   expected_settlement_on: true,
   disputed_at: true,
+  dispute_note: true,
   settlement_type: true,
 })
   .partial()
   .strict()
 export type RefiningOrderPatch = z.infer<typeof RefiningOrderPatch>
+
+export const RefiningOrderPatchBody = RefiningOrderPatch.extend({
+  expected_updated_at: RefiningOrder.shape.updated_at.optional(),
+}).strict()
+export type RefiningOrderPatchBody = z.infer<typeof RefiningOrderPatchBody>
+
+export const RefiningOrderFilter = RefiningOrder.pick({
+  refiner_id: true,
+  direction: true,
+  assigned_to_id: true,
+})
+  .extend({
+    state: OrderState.nullable(),
+    sort: z.string().nullable(),
+    limit: z.number().int().positive().nullable(),
+    offset: z.number().int().nonnegative().nullable(),
+  })
+  .partial()
+export type RefiningOrderFilter = z.infer<typeof RefiningOrderFilter>
 
 export const RefiningSettlementLot = RefiningLotPatch.extend({
   lot_id: RefiningLot.shape.lot_id,

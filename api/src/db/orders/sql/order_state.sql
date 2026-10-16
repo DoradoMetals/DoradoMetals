@@ -54,7 +54,7 @@ CASE
       WHEN EXISTS (SELECT 1 FROM orders.lots ol
                      JOIN inventory.lot_sources ls ON ls.source_lot_id = ol.lot_id
                                                    AND ls.kind = 'batch'
-                     JOIN refining.lots rl ON rl.lot_id = ls.lot_id
+                     JOIN refining.lots rl ON rl.lot_id = ls.lot_id AND rl.released_at IS NULL
                      JOIN refining.orders ro ON ro.id = rl.refining_order_id
                     WHERE ol.order_id = o.id
                       AND ro.sent_at IS NOT NULL

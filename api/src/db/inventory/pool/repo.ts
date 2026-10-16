@@ -48,8 +48,9 @@ export async function lock(row: PoolLockCreate, executor?: Executor): Promise<Po
 
 export async function credit(
   refining_order_id: string,
+  lot_ids: string[],
   executor?: Executor
 ): Promise<PoolEntry[]> {
-  const { rows } = await query<PoolEntry>(sql('credit'), [refining_order_id], executor)
+  const { rows } = await query<PoolEntry>(sql('credit'), [refining_order_id, lot_ids], executor)
   return rows
 }

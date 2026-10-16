@@ -1,5 +1,5 @@
--- The refiner order's one label, derived. Substituted into view_one.sql and
--- into both the projection and the WHERE of view_all.sql, and into the lot
+-- The refiner order's one label, derived. Substituted into view_body.sql and
+-- into both the projection and the WHERE of list.sql, and into the lot
 -- detail's refining card, through /*__refining_state__*/, so the label a
 -- filter matches and the label a screen draws cannot drift apart. `ro` is
 -- refining.orders.

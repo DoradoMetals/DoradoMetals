@@ -189,6 +189,7 @@ export const RefiningPricing = z.object({
   spots_at: z.string(),
   lots: z.array(RefiningPricingLine),
   expected_settlement: z.number().nullable(),
+  settled_amount: z.number().nullable(),
   fee: z.number().nullable(),
   shipping: z.number().nullable(),
   payment_charge: z.number().nullable(),

@@ -1,6 +1,6 @@
 import query from '#shared/db/query.ts'
 import { buildUpdate } from '#shared/db/patch.ts'
-import { sqlFrom } from '#shared/db/sql.ts'
+import { expression, sqlFrom } from '#shared/db/sql.ts'
 import { columnsOf, returningOf } from '#shared/db/columns.ts'
 import * as inventoryLots from '#db/inventory/lots/repo.ts'
 import { Lot, RefiningLot, RefiningLotPatch, SettlementLine } from '@dorado/contracts'
@@ -8,6 +8,8 @@ import type { RefiningSettlementLot } from '@dorado/contracts'
 import type { Executor } from '#shared/db/executor.ts'
 
 const sql = sqlFrom(import.meta.dirname)
+export const LOT_PARENTS = expression(sql('lot_parents'))
+const SETTLEMENT_LINES_SQL = sql('settlement_lines').replaceAll('/*__lot_parents__*/', LOT_PARENTS)
 
 export const PATCHABLE = columnsOf(RefiningLotPatch)
 const LOT_RETURNING = returningOf(Lot)
@@ -45,7 +47,7 @@ export async function settlementLines(
   refining_order_id: string,
   executor?: Executor
 ): Promise<SettlementLine[]> {
-  const { rows } = await query(sql('settlement_lines'), [refining_order_id], executor)
+  const { rows } = await query(SETTLEMENT_LINES_SQL, [refining_order_id], executor)
   return rows.map((row) => SettlementLine.parse(row))
 }
 
@@ -101,12 +103,20 @@ export async function settle(
   return rows
 }
 
-export async function removeFor(refining_order_id: string, executor?: Executor): Promise<number> {
-  const { rowCount } = await query(sql('delete_for_order'), [refining_order_id], executor)
+export async function releaseFor(
+  refining_order_id: string,
+  returned: boolean,
+  executor?: Executor
+): Promise<number> {
+  const { rowCount } = await query(
+    sql('release_for_order'),
+    [refining_order_id, returned],
+    executor
+  )
   return rowCount ?? 0
 }
 
-export async function remove(id: string, executor?: Executor): Promise<boolean> {
-  const { rowCount } = await query(sql('delete'), [id], executor)
+export async function release(id: string, executor?: Executor): Promise<boolean> {
+  const { rowCount } = await query(sql('release'), [id], executor)
   return rowCount === 1
 }

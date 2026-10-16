@@ -8,6 +8,7 @@ SELECT li.metal_id,
           FROM refining.lots srl
           JOIN inventory.lots s ON s.id = srl.lot_id
          WHERE srl.refining_order_id = ro.id
+           AND srl.released_at IS NULL
            AND s.metal_id = li.metal_id
            AND s.settled_spot IS NOT NULL
          ORDER BY s.settled_at DESC NULLS LAST, s.id DESC
@@ -18,6 +19,7 @@ SELECT li.metal_id,
   JOIN refining.lots rl ON rl.refining_order_id = ro.id
   JOIN inventory.lots li ON li.id = rl.lot_id
  WHERE ro.id = $1
+   AND rl.released_at IS NULL
  GROUP BY ro.id, ro.settlement_type, li.metal_id
  ORDER BY array_position(ARRAY['Gold','Silver','Platinum','Palladium'], li.metal_id) NULLS LAST,
           li.metal_id ASC

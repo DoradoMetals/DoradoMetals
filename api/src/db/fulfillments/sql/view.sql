@@ -85,6 +85,7 @@ SELECT to_jsonb(f)
           JOIN orders.orders od ON od.id = ol.order_id
          WHERE rl.refining_order_id = f.refining_order_id
            AND ro.direction = 'buy'
+           AND (rl.released_at IS NULL OR ro.cancelled_at IS NOT NULL)
          ORDER BY od.number ASC
          LIMIT 1) AS linked_order
   FROM fulfillments.fulfillments f

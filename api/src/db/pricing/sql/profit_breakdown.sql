@@ -47,7 +47,7 @@ assay AS (
     JOIN orders.orders co ON co.id = ol.order_id
     JOIN inventory.lot_sources ls ON ls.source_lot_id = ol.lot_id AND ls.kind = 'batch'
     JOIN inventory.lots rlot ON rlot.id = ls.lot_id
-    JOIN refining.lots rl ON rl.lot_id = rlot.id
+    JOIN refining.lots rl ON rl.lot_id = rlot.id AND rl.released_at IS NULL
    CROSS JOIN LATERAL (
           SELECT count(*) AS n
             FROM orders.lots peer

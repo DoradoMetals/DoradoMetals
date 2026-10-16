@@ -13,6 +13,8 @@ export const RefiningLot = z.object({
   'updated_at': z.string(),
   'created_by_id': z.string().uuid().nullable(),
   'updated_by_id': z.string().uuid().nullable(),
+  'released_at': z.string().nullable(),
+  'returned_at': z.string().nullable(),
 })
 export type RefiningLot = z.infer<typeof RefiningLot>
 // generated:end
@@ -31,6 +33,11 @@ export const RefiningLotPatch = Lot.pick({
   .partial()
   .strict()
 export type RefiningLotPatch = z.infer<typeof RefiningLotPatch>
+
+export const RefiningLotPatchBody = RefiningLotPatch.extend({
+  expected_updated_at: Lot.shape.updated_at.optional(),
+}).strict()
+export type RefiningLotPatchBody = z.infer<typeof RefiningLotPatchBody>
 
 export const RefiningLotsBody = z.object({ lot_ids: z.array(Lot.shape.id).min(1) }).strict()
 export type RefiningLotsBody = z.infer<typeof RefiningLotsBody>

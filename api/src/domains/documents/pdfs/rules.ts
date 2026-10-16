@@ -26,6 +26,13 @@ export function assertChecksum(matches: boolean, checksum: string): void {
   if (!matches) throw new Error(`bytes do not match stored checksum ${checksum}`)
 }
 
+export function assertDocumentOffered(
+  document: OrderDocument | undefined,
+  kind: string
+): asserts document is OrderDocument {
+  if (!document) throw new NotFound(`no ${kind} document on this order`)
+}
+
 export function assertDocumentAvailable(
   document: OrderDocument | undefined,
   kind: string

@@ -8,6 +8,17 @@ import { ROLES, statePath } from './roles'
 
 for (const [role, account] of Object.entries(ROLES)) {
   setup(`authenticate as ${role}`, async ({ playwright, baseURL }) => {
+    const stored = statePath(role as keyof typeof ROLES)
+    if (fs.existsSync(stored)) {
+      const reuse = await playwright.request.newContext({ storageState: stored })
+      const session = await reuse.get(`${API}/auth/get-session`)
+      const body = session.ok()
+        ? ((await session.json()) as { user?: { email?: string } } | null)
+        : null
+      await reuse.dispose()
+      if (body?.user?.email === account.email) return
+    }
+
     const api = await playwright.request.newContext({ baseURL })
 
     const sent = await api.post(`${API}/account/send_code`, {

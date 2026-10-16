@@ -7,6 +7,7 @@ import type {
   LotPosition,
   OrderDocument,
   OrderRead,
+  OrderSort,
   PaymentView,
   RefiningBatch,
   RefiningBatchResult,
@@ -102,10 +103,49 @@ export function assertTakesLots(order: RefiningOrder): void {
   }
 }
 
-export function assertLotRemovable(order: RefiningOrder): void {
+export function assertLotRemovable(order: RefiningOrder, link: RefiningLot, lot: Lot): void {
   if (order.settled_at !== null) {
     throw new Conflict(
       `refiner order ${order.number} is settled - its lots are the refiner's figures now`
+    )
+  }
+  if (link.released_at !== null) {
+    throw new Conflict(`refiner lot ${link.id} is already off refiner order ${order.number}`)
+  }
+  if (lot.settled_at !== null) {
+    throw new Conflict(
+      `refiner lot ${link.id} is settled - a correction is a new pool entry, not a removal`
+    )
+  }
+}
+
+export function assertNoLotSettled(order: RefiningOrder, current: Lot[]): void {
+  const settled = current.filter((lot) => lot.settled_at !== null).length
+  if (settled > 0) {
+    throw new Conflict(
+      `${settled} lot(s) on refiner order ${order.number} are settled - a correction is a ` +
+        `new pool entry, not a cancel`
+    )
+  }
+}
+
+export function assertFresh(current: string, expected: string | undefined, subject: string): void {
+  if (expected !== undefined && expected !== current) {
+    throw new Conflict(
+      `${subject} changed since this screen read it (${current}, not ${expected}) - reload and ` +
+        `save again`
+    )
+  }
+}
+
+export function assertUnsettled(current: Lot[], named: RefiningSettlementLot[]): void {
+  const settled = named.find(
+    (line) => current.find((lot) => lot.id === line.lot_id)?.settled_at != null
+  )
+  if (settled) {
+    throw new Conflict(
+      `lot ${settled.lot_id} is already settled - a correction is a new pool entry, not a ` +
+        `second settlement`
     )
   }
 }
@@ -139,6 +179,18 @@ export function assertNoOpenSellOrder(open: RefiningOrder | undefined): void {
       `refiner order ${open.number} is already open for this refiner - add the lots to it`
     )
   }
+}
+
+export function cancelConfirm(order: RefiningOrderView): string {
+  return (
+    `Cancelling refiner order ${order.number} releases its ${order.settlement.lot_count} ` +
+    `lot(s) back to inventory`
+  )
+}
+
+export function resolveDisputeConfirm(order: RefiningOrderView): string {
+  const note = order.dispute_note ? ` (${order.dispute_note})` : ''
+  return `Resolving clears the dispute on refiner order ${order.number}${note}`
 }
 
 export function sentConfirm(order: RefiningOrderView): string | null {
@@ -302,7 +354,10 @@ export function actionsFor(view: RefiningOrderView): RefiningOrderActions {
   if (open && view.sent_at !== null) {
     offered.push(offer('settle', settlementConfirm(view.lots) ?? premiumConfirm(view.lots)))
   }
-  if (open) offered.push(offer('cancel'))
+  if (open) offered.push(offer('cancel', cancelConfirm(view)))
+  if (notCancelled && view.disputed_at !== null) {
+    offered.push(offer('resolve_dispute', resolveDisputeConfirm(view)))
+  }
   if (view.settled_at !== null) offered.push(offer('lock_ounces'))
   if (notCancelled && view.direction === 'buy') {
     offered.push(offer('send_payment', sendPaymentConfirm(view), sendPaymentOverride(view.payment)))
@@ -315,6 +370,12 @@ export function actionsFor(view: RefiningOrderView): RefiningOrderActions {
     }
   }
   return offered
+}
+
+export function assertKnownSort(sort: string | null, known: OrderSort[]): void {
+  if (sort !== null && !known.some((row) => row.key === sort)) {
+    throw new Invalid(`"sort" is one of ${known.map((row) => row.key).join(', ')}`)
+  }
 }
 
 export function documentsFor(

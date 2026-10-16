@@ -12,10 +12,10 @@ import * as rules from '#refining/rules.ts'
 import withTransaction from '#shared/db/withTransaction.ts'
 import { withDecisions } from '#shared/views.ts'
 import type { Executor } from '#shared/db/executor.ts'
+import { RefiningLotPatch, RefiningOrderPatch } from '@dorado/contracts'
 import type {
   Lot,
   OrderDocument,
-  OrderState,
   PoolBalance,
   PoolEntry,
   PoolEntryKind,
@@ -24,24 +24,24 @@ import type {
   RefinerView,
   RefiningBatch,
   RefiningBatchResult,
-  RefiningDirection,
   RefiningLot,
-  RefiningLotPatch,
+  RefiningLotPatchBody,
   RefiningOrderCreate,
-  RefiningOrderPatch,
-  RefiningOrderView,
+  RefiningOrderFilter,
+  RefiningOrderList,
+  RefiningOrderPatchBody,
   RefiningOrderRead,
   RefiningSettlement,
   RefiningSpot,
   SettlementLine,
 } from '@dorado/contracts'
 
-export async function list(
-  refiner_id: string | null,
-  direction: RefiningDirection | null,
-  state: OrderState | null
-): Promise<RefiningOrderView[]> {
-  return await refiningOrders.list(refiner_id, direction, state)
+export async function list(filter: RefiningOrderFilter): Promise<RefiningOrderList> {
+  rules.assertKnownSort(filter.sort ?? null, await ordersRepo.sorts())
+  const facts = await refiningOrders.list(filter)
+  return withDecisions(facts, {
+    items: facts.items.map((item) => withDecisions(item, { actions: rules.actionsFor(item) })),
+  })
 }
 
 export async function view(id: string, executor?: Executor): Promise<RefiningOrderRead> {
@@ -121,9 +121,12 @@ export async function cancel(id: string): Promise<RefiningOrderRead> {
   const order = await refiningOrders.getOne(id)
   rules.assertRefiningOrder(order, id)
   rules.assertCancellable(order)
+  const held = await refiningLots.getFor(id)
+  rules.assertNoLotSettled(order, await lots.getByIds(held.map((link) => link.lot_id)))
+  const moved = await refiningOrders.goodsMoved(id)
 
   await withTransaction(async (tx) => {
-    await refiningLots.removeFor(id, tx)
+    await refiningLots.releaseFor(id, moved, tx)
     rules.assertRefiningOrder(await refiningOrders.cancel(id, tx), id)
   })
   return await view(id)
@@ -138,7 +141,7 @@ export async function documentsFor(id: string): Promise<OrderDocument[]> {
   const order = await refiningOrders.getOne(id)
   rules.assertRefiningOrder(order, id)
   const stored = await pdfs.storedKinds(null, id)
-  const offered = await refiningDocuments.list()
+  const offered = await refiningDocuments.list(order.direction)
   return rules.documentsFor(order.sent_at !== null, stored, offered)
 }
 
@@ -147,10 +150,12 @@ export async function settlementLinesFor(id: string): Promise<SettlementLine[]> 
   return await refiningLots.settlementLines(id)
 }
 
-export async function patch(id: string, changes: RefiningOrderPatch): Promise<RefiningOrderRead> {
+export async function patch(id: string, body: RefiningOrderPatchBody): Promise<RefiningOrderRead> {
+  const changes = RefiningOrderPatch.strip().parse(body)
   rules.assertNamesAField(changes)
   const order = await refiningOrders.getOne(id)
   rules.assertRefiningOrder(order, id)
+  rules.assertFresh(order.updated_at, body.expected_updated_at, `refiner order ${order.number}`)
   rules.assertPatchable(order, changes)
   const written = await withTransaction((tx) => refiningOrders.update(id, changes, tx))
   rules.assertRefiningOrder(written, id)
@@ -182,16 +187,22 @@ export async function removeLot(id: string): Promise<void> {
   rules.assertRefiningLot(lot, id)
   const order = await refiningOrders.getOne(lot.refining_order_id)
   rules.assertRefiningOrder(order, lot.refining_order_id)
-  rules.assertLotRemovable(order)
-  await withTransaction(async (tx) => rules.assertLotRemoved(await refiningLots.remove(id, tx), id))
+  const current = await lots.getOne(lot.lot_id)
+  rules.assertRefiningLot(current, lot.lot_id)
+  rules.assertLotRemovable(order, lot, current)
+  await withTransaction(async (tx) =>
+    rules.assertLotRemoved(await refiningLots.release(id, tx), id)
+  )
 }
 
-export async function recordAssay(id: string, changes: RefiningLotPatch): Promise<Lot> {
+export async function recordAssay(id: string, body: RefiningLotPatchBody): Promise<Lot> {
+  const changes = RefiningLotPatch.strip().parse(body)
   rules.assertNamesAField(changes)
   const link = await refiningLots.getOne(id)
   rules.assertRefiningLot(link, id)
   const current = await lots.getOne(link.lot_id)
   rules.assertRefiningLot(current, link.lot_id)
+  rules.assertFresh(current.updated_at, body.expected_updated_at, `refiner lot ${id}`)
   rules.assertWeighable(changes, current)
 
   const written = await withTransaction((tx) => refiningLots.update(id, changes, tx))
@@ -218,6 +229,7 @@ export async function settle(id: string, body: RefiningSettlement): Promise<Refi
   rules.assertSettling(held, body.lots)
 
   const current = await lots.getByIds(held.map((lot) => lot.lot_id))
+  rules.assertUnsettled(current, body.lots)
   for (const line of body.lots) {
     rules.assertWeighable(
       line,
@@ -232,7 +244,11 @@ export async function settle(id: string, body: RefiningSettlement): Promise<Refi
       await refiningOrders.settle(id, body.fee ?? null, body.statement_reference ?? null, tx),
       id
     )
-    await pool.credit(id, tx)
+    await pool.credit(
+      id,
+      settled.map((link) => link.lot_id),
+      tx
+    )
   })
 
   return await view(id)

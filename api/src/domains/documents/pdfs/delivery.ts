@@ -76,7 +76,10 @@ export async function importRefiningDocument(
   bytes: Uint8Array | null
 ): Promise<OrderDocument> {
   rules.assertUpload(bytes)
-  await refining.documentsFor(refining_order_id)
+  rules.assertDocumentOffered(
+    (await refining.documentsFor(refining_order_id)).find((row) => row.kind === kind),
+    kind
+  )
   await storeUpload(kind, null, refining_order_id, bytes)
   const written = (await refining.documentsFor(refining_order_id)).find((row) => row.kind === kind)
   rules.assertDocumentAvailable(written, kind)

@@ -15,6 +15,11 @@
 -- pending row can print a dash without the client deciding what pending
 -- means.
 --
+-- `settled_amount` is the same lines summed over the lots already settled, so
+-- a partly settled order (ruling 146) reads "settled of expected" from one
+-- source. A released lot (rulings 144, 145) is off the order and priced
+-- nowhere.
+--
 -- A `pooled` sell order has no cash settlement at all: what it yields is
 -- ounces, priced later by a pool lock, so every price on it is NULL - the
 -- same withholding `order_money` already applies to `expected_settlement`.
@@ -42,7 +47,7 @@ lines AS (
                    * COALESCE(li.premium, src.premium, 1)
                    * COALESCE(li.settled_spot, sp.bid, sp.ask) END AS price
     FROM ord
-    JOIN refining.lots rl ON rl.refining_order_id = ord.id
+    JOIN refining.lots rl ON rl.refining_order_id = ord.id AND rl.released_at IS NULL
     JOIN inventory.lots li ON li.id = rl.lot_id
     LEFT JOIN products.bullion b ON b.id = li.bullion_id
     LEFT JOIN spots.resolved sp ON sp.metal_id = li.metal_id
@@ -85,6 +90,10 @@ SELECT jsonb_build_object(
               FROM lines l),
            '[]'::jsonb),
          'expected_settlement', money.expected_settlement,
+         'settled_amount',
+           CASE WHEN ord.direction = 'sell' AND ord.settlement_type = 'pooled' THEN NULL
+                ELSE (SELECT COALESCE(sum(l.price), 0) FROM lines l
+                       WHERE l.settled_at IS NOT NULL) END,
          'fee', money.fee,
          'shipping', money.shipping,
          'payment_charge', money.payment_charge,

@@ -25,8 +25,7 @@ export const keys = {
   },
   refining: {
     all: () => ['refining'] as const,
-    list: (refinerId: string | null, direction: string | null, state: string | null) =>
-      ['refining', 'list', refinerId, direction, state] as const,
+    list: (params: Record<string, string | number | null>) => ['refining', 'list', params] as const,
     view: (id: string) => ['refining', 'view', id] as const,
     lots: (id: string) => ['refining', 'lots', id] as const,
     refiners: () => ['refining', 'refiners'] as const,
@@ -35,6 +34,7 @@ export const keys = {
     payment: (id: string) => ['refining', 'payment', id] as const,
     pricing: (id: string) => ['refining', 'pricing', id] as const,
     settlementLines: (id: string) => ['refining', 'settlement_lines', id] as const,
+    settlementParse: (id: string) => ['refining', 'settlement_parse', id] as const,
   },
   payments: {
     all: () => ['payments'] as const,
@@ -92,7 +92,8 @@ export const keys = {
   },
   places: {
     all: () => ['places'] as const,
-    locations: () => ['places', 'locations'] as const,
+    locations: (organizationId: string | null = null) =>
+      ['places', 'locations', organizationId] as const,
   },
   employees: {
     all: () => ['employees'] as const,

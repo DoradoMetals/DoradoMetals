@@ -60,7 +60,7 @@ SELECT li.id, li.bullion_id, li.metal_id, li.unit, li.quantity,
           ORDER BY bs.created_at DESC, bs.id DESC
           LIMIT 1
        ) batch ON TRUE
-  LEFT JOIN refining.lots rl ON rl.lot_id = batch.refiner_lot_id
+  LEFT JOIN refining.lots rl ON rl.lot_id = batch.refiner_lot_id AND rl.released_at IS NULL
   LEFT JOIN refining.orders ro ON ro.id = rl.refining_order_id
   LEFT JOIN refiners.refiners rf ON rf.id = ro.refiner_id
   LEFT JOIN organizations.organizations org ON org.id = rf.organization_id
@@ -77,6 +77,8 @@ SELECT li.id, li.bullion_id, li.metal_id, li.unit, li.quantity,
         OR od.number::text ILIKE '%' || $6::text || '%')
    AND ($7::boolean IS NOT TRUE
         OR (NOT EXISTS (SELECT 1 FROM inventory.lot_sources held
+                           JOIN refining.lots hrl ON hrl.lot_id = held.lot_id
+                                                 AND hrl.released_at IS NULL
                          WHERE held.source_lot_id = li.id AND held.kind = 'batch')
             AND NOT EXISTS (SELECT 1 FROM refining.lots held2 WHERE held2.lot_id = li.id)))
    AND /*__own_lot__*/

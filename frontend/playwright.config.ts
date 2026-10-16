@@ -33,7 +33,13 @@ if (/doradometals\.com/i.test(baseURL) && !process.env.I_MEANT_PRODUCTION) {
 
 export default defineConfig({
   testDir: '.',
-  testMatch: ['**/tests/*.e2e.ts', '**/tests/**/*.e2e.ts', '**/tests/auth.setup.ts'],
+  testMatch: [
+    '**/tests/*.e2e.ts',
+    '**/tests/**/*.e2e.ts',
+    '**/tests/auth.setup.ts',
+    '**/tests/refiners.setup.ts',
+    '**/tests/refiners.teardown.ts',
+  ],
   testIgnore: ['**/node_modules/**', '**/.next/**'],
   retries: process.env.CI ? 2 : 1,
   workers: process.env.CI ? 2 : undefined,
@@ -52,7 +58,7 @@ export default defineConfig({
     {
       name: 'public',
       use: { ...devices['Desktop Chrome'] },
-      testIgnore: [/\/authed\//, /auth\.setup\.ts$/, /app\/admin\//],
+      testIgnore: [/\/authed\//, /\.setup\.ts$/, /\.teardown\.ts$/, /app\/admin\//],
     },
 
     {
@@ -60,6 +66,23 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['setup'],
       testMatch: /app\/admin\/.*\.e2e\.ts$/,
+      testIgnore: /app\/admin\/orders\/refiners\//,
+    },
+
+    {
+      name: 'refiners-setup',
+      testMatch: /refiners\.setup\.ts$/,
+      dependencies: ['setup'],
+      teardown: 'refiners-teardown',
+    },
+
+    { name: 'refiners-teardown', testMatch: /refiners\.teardown\.ts$/ },
+
+    {
+      name: 'refiners',
+      use: { ...devices['Desktop Chrome'] },
+      dependencies: ['refiners-setup'],
+      testMatch: /app\/admin\/orders\/refiners\/.*\.e2e\.ts$/,
     },
   ],
 

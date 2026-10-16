@@ -8,6 +8,7 @@ import { TEST_ACTOR } from '#shared/testing/actor.ts'
 import { inPinnedTransaction } from '#shared/testing/pinned-pool.ts'
 import { LOCKS } from '#shared/testing/locks.ts'
 import { aUser, anOrder, anUnknownId } from '#shared/testing/builders/index.ts'
+import { RefiningOrderList } from '@dorado/contracts'
 
 await mockSessions()
 const { default: app } = await import('#app')
@@ -66,18 +67,56 @@ test('the list filters by counterparty, direction and state, and refuses a stran
 
       const mine = await request(app).get('/api/refining/orders').query({ refiner_id })
       assert.equal(mine.status, 200, mine.text)
+      const list = RefiningOrderList.parse(mine.body)
       assert.ok(
-        mine.body.some((row: { id: string }) => row.id === created.id),
+        list.items.some((row) => row.id === created.id),
         'the refiner filter dropped the order just made for it'
+      )
+      assert.ok(list.counts.orders >= list.items.length, 'the count measures the filter')
+      assert.ok(
+        list.items.every((row) => Array.isArray(row.actions)),
+        'each card carries its actions'
       )
 
       const buys = await request(app).get('/api/refining/orders').query({ direction: 'buy' })
-      assert.ok(buys.body.every((row: { direction: string }) => row.direction === 'buy'))
+      assert.ok(RefiningOrderList.parse(buys.body).items.every((row) => row.direction === 'buy'))
 
       const pending = await request(app)
         .get('/api/refining/orders')
         .query({ state: 'Pending Assay' })
-      assert.ok(pending.body.every((row: { state: string }) => row.state === 'Pending Assay'))
+      assert.ok(
+        RefiningOrderList.parse(pending.body).items.every((row) => row.state === 'Pending Assay')
+      )
+
+      const oldest = await request(app)
+        .get('/api/refining/orders')
+        .query({ refiner_id, sort: 'oldest' })
+      const newest = await request(app)
+        .get('/api/refining/orders')
+        .query({ refiner_id, sort: 'newest' })
+      assert.equal(oldest.status, 200, oldest.text)
+      const oldIds = RefiningOrderList.parse(oldest.body).items.map((row) => row.id)
+      const newIds = RefiningOrderList.parse(newest.body).items.map((row) => row.id)
+      assert.deepEqual(oldIds, [...newIds].reverse(), 'oldest is newest reversed')
+      const firstPage = await request(app).get('/api/refining/orders').query({ limit: 1 })
+      assert.equal(firstPage.status, 200, firstPage.text)
+      assert.ok(RefiningOrderList.parse(firstPage.body).items.length <= 1, 'limit pages the list')
+
+      const owned = await request(app)
+        .post('/api/refining/orders')
+        .send({ refiner_id, direction: 'buy', assigned_to_id: admin.id })
+      assert.equal(owned.status, 201, owned.text)
+      assert.equal(owned.body.assigned_to_id, admin.id, 'create takes assigned_to_id')
+      const assigned = await request(app)
+        .get('/api/refining/orders')
+        .query({ assigned_to_id: admin.id })
+      assert.equal(assigned.status, 200, assigned.text)
+      const mineOnly = RefiningOrderList.parse(assigned.body).items
+      assert.ok(mineOnly.some((row) => row.id === owned.body.id))
+      assert.ok(mineOnly.every((row) => row.assigned_to_id === admin.id))
+
+      const badSort = await request(app).get('/api/refining/orders').query({ sort: 'sideways' })
+      assert.equal(badSort.status, 422, `answered ${badSort.status}`)
 
       const bad = await request(app).get('/api/refining/orders').query({ direction: 'sideways' })
       assert.equal(bad.status, 400, `answered ${bad.status}`)

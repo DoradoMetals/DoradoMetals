@@ -140,7 +140,19 @@ test('cancelling releases the lots and frees the refiner for a new sell order', 
       const cancelled = await request(app).post(`/api/refining/orders/${made.body.id}/cancel`)
       assert.equal(cancelled.status, 200, cancelled.text)
       assert.equal(cancelled.body.state, 'Cancelled')
-      assert.deepEqual(cancelled.body.lots, [], 'a cancelled order kept its lots')
+      assert.ok(cancelled.body.lots.length > 0, 'a cancelled order still lists what it held')
+      assert.ok(
+        cancelled.body.lots.every(
+          (l: { released_at: string | null; returned_at: string | null }) =>
+            l.released_at !== null && l.returned_at === null
+        ),
+        'every link is released, and none returned when the metal never moved (ruling 145)'
+      )
+      const { rows: kept } = await c.query(
+        `SELECT count(*)::int AS n FROM refining.lots WHERE refining_order_id = $1`,
+        [made.body.id]
+      )
+      assert.equal(kept[0].n, cancelled.body.lots.length, 'cancel deleted a link (ruling 144)')
 
       const again = await request(app)
         .post(`/api/orders/${order.id}/refining-sale`)
@@ -262,7 +274,7 @@ test('a refiner order has a Payment card of its own, and a payout can be opened 
   })
 })
 
-test('a refiner order names its one document, and an imported file is what makes it available', async () => {
+test('a refiner order offers its direction set, and an import supersedes without deleting', async () => {
   await inRefining(async (c) => {
     await asAdmin(TEST_ACTOR, async () => {
       const made = await request(app)
@@ -272,8 +284,9 @@ test('a refiner order names its one document, and an imported file is what makes
       const listed = await request(app).get(`/api/refining/orders/${made.body.id}/documents`)
       assert.equal(listed.status, 200, listed.text)
       assert.deepEqual(
-        listed.body.map((row: { name: string }) => row.name),
-        ['Refiner Invoice', 'Packing List', 'Settlement', 'Shipping Instructions']
+        listed.body.map((row: { kind: string }) => row.kind),
+        ['invoice', 'packing_list'],
+        'a buy order offers the refiner invoice and the packing list'
       )
       assert.equal(listed.body.find((r: { kind: string }) => r.kind === 'invoice').available, false)
 
@@ -288,6 +301,43 @@ test('a refiner order names its one document, and an imported file is what makes
       assert.equal(
         after.body.find((r: { kind: string }) => r.kind === 'invoice').pdf_id,
         imported.body.pdf_id
+      )
+
+      await c.query(
+        `UPDATE media.pdfs SET created_at = created_at - interval '1 minute' WHERE id = $1`,
+        [imported.body.pdf_id]
+      )
+      const again = await request(app)
+        .post(`/api/refining/orders/${made.body.id}/documents/invoice`)
+        .set('content-type', `multipart/form-data; boundary=${BOUNDARY}`)
+        .send(upload('statement-2.pdf', '%PDF-1.4 corrected statement'))
+      assert.equal(again.status, 201, again.text)
+      assert.notEqual(again.body.pdf_id, imported.body.pdf_id, 'the newer import is the one listed')
+      const { rows: files } = await c.query(
+        `SELECT count(*)::int AS n FROM media.pdfs WHERE refining_order_id = $1 AND kind = 'invoice'`,
+        [made.body.id]
+      )
+      assert.equal(files[0].n, 2, 'an import supersedes and keeps the earlier file (ruling 136)')
+
+      const stranger = await request(app)
+        .post(`/api/refining/orders/${made.body.id}/documents/lot_manifest`)
+        .set('content-type', `multipart/form-data; boundary=${BOUNDARY}`)
+        .send(upload('manifest.pdf', '%PDF-1.4 manifest'))
+      assert.equal(stranger.status, 404, stranger.text)
+      const { rows: none } = await c.query(
+        `SELECT count(*)::int AS n FROM media.pdfs WHERE refining_order_id = $1 AND kind = 'lot_manifest'`,
+        [made.body.id]
+      )
+      assert.equal(none[0].n, 0, 'a kind outside the set is refused before anything is stored')
+
+      const sell = await request(app)
+        .post('/api/refining/orders')
+        .send({ refiner_id: await refinerId(c), direction: 'sell' })
+      const sellDocs = await request(app).get(`/api/refining/orders/${sell.body.id}/documents`)
+      assert.deepEqual(
+        sellDocs.body.map((row: { kind: string }) => row.kind),
+        ['invoice', 'lot_manifest', 'settlement'],
+        'a sell order offers the rendered invoice, the lot manifest and the settlement'
       )
     })
   })
