@@ -23,13 +23,13 @@ export type MarqueeItemProps = VariantProps<typeof deltaVariants> & {
 
 export function MarqueeItem({ label, value, move, delta, trend, className }: MarqueeItemProps) {
   return (
-    <div className={cn('flex items-center gap-3xs', className)}>
+    <div className={cn('flex items-center gap-xs', className)}>
       <span className="micro font-medium text-placeholder [--text:var(--color-placeholder)]">
         {label}
       </span>
-      <small className="font-medium tabular-nums" data-emphasis="default">
+      <p className="font-medium tabular-nums" data-emphasis="default">
         {value}
-      </small>
+      </p>
       {move ? <span className={deltaVariants({ trend })}>{move}</span> : null}
       {delta ? <span className={deltaVariants({ trend })}>{delta}</span> : null}
     </div>
