@@ -30,6 +30,23 @@ describe('Marquee', () => {
     expect(track.className).toContain('group-focus-within:[animation-play-state:paused]')
   })
 
+  it('keeps both moving tracks on the compositor and animates the tracks, not the scroller', () => {
+    const { container } = render(
+      <Marquee>
+        <span>x</span>
+      </Marquee>
+    )
+    const tracks = container.querySelectorAll('.motion-safe\\:animate-marquee')
+    expect(tracks).toHaveLength(2)
+    tracks.forEach((t) => {
+      expect(t.className).toContain('will-change-transform')
+      expect(t.className).toContain('transform-gpu')
+    })
+    const section = container.firstElementChild as HTMLElement
+    expect(section.className).toContain('motion-safe:overflow-hidden')
+    expect(section.className).not.toContain('animate-marquee')
+  })
+
   it('insets the band px-lg, matching the drawing', () => {
     const { container } = render(
       <Marquee>
