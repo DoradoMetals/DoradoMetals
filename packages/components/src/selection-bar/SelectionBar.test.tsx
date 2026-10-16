@@ -26,11 +26,21 @@ describe('SelectionBar', () => {
     expect(queryByRole('button')).toBeNull()
   })
 
+  it('is fixed to the bottom on the raised surface with a top hairline', () => {
+    const { getByRole } = render(<SelectionBar summary="x" />)
+    const cls = getByRole('region').className
+    expect(cls).toContain('fixed')
+    expect(cls).toContain('bottom-0')
+    expect(cls).toContain('bg-surface-raised')
+    expect(cls).toContain('border-t')
+    expect(cls).toContain('var(--floating-shadow)')
+  })
+
   it('mobile stacks and fills the actions', () => {
     const { getByRole, getByText } = render(
       <SelectionBar summary="x" layout="mobile" actions={<button>Go</button>} />
     )
-    expect(getByRole('region').className).toContain('flex-col')
+    expect(getByRole('region').firstElementChild!.className).toContain('flex-col')
     expect(getByText('Go').parentElement!.className).toContain('w-full')
   })
 })

@@ -111,8 +111,51 @@ describe('the orders screen', () => {
       ).toBe(true)
     )
     const last = calls.filter((c) => c.url.pathname.endsWith('/orders')).at(-1)!
-    expect(last.url.searchParams.get('limit')).toBe('50')
+    expect(last.url.searchParams.get('limit')).toBe('24')
     expect(last.url.searchParams.get('offset')).toBe('0')
+  })
+
+  test('Show defaults to In progress and sends every state but Completed and Cancelled', async () => {
+    const calls = stubApi(routes())
+    mount()
+    await screen.findByText('PO-2481')
+    const first = calls.find((c) => c.url.pathname.endsWith('/orders'))!
+    const states = first.url.searchParams.getAll('state')
+    expect(states.length).toBeGreaterThan(0)
+    expect(states).not.toContain('Completed')
+    expect(states).not.toContain('Cancelled')
+    expect(states).toContain('Awaiting Receipt')
+    await choose(screen.getByRole('combobox', { name: 'Show' }), 'All')
+    await waitFor(() => {
+      const last = calls.filter((c) => c.url.pathname.endsWith('/orders')).at(-1)!
+      expect(last.url.searchParams.getAll('state')).toEqual([])
+    })
+  })
+
+  test('pagination is always visible and drives offset from the filtered total', async () => {
+    const calls = stubApi(
+      routes({
+        'GET /orders': {
+          counts: { orders: 50, unassigned_lots: 3 },
+          items: [item(ID_A, 2481, ['cancel'])],
+        },
+      })
+    )
+    mount()
+    await screen.findByText('PO-2481')
+    expect(screen.getAllByText('50 orders · 3 unassigned lots').length).toBeGreaterThan(0)
+    fireEvent.click(screen.getByRole('button', { name: 'Page 2' }))
+    await waitFor(() => {
+      const last = calls.filter((c) => c.url.pathname.endsWith('/orders')).at(-1)!
+      expect(last.url.searchParams.get('offset')).toBe('24')
+    })
+  })
+
+  test('shows pagination for a single page', async () => {
+    stubApi(routes())
+    mount()
+    await screen.findByText('PO-2481')
+    expect(screen.getByRole('button', { name: 'Page 1' })).toBeTruthy()
   })
 
   test('Show maps to has_unassigned_lots and Assigned to to assigned_to_id', async () => {
@@ -221,7 +264,7 @@ describe('the orders screen', () => {
     expect(screen.getByRole('status', { name: 'Loading orders' })).toBeTruthy()
   })
 
-  test('pages by 50 over counts.orders', async () => {
+  test('pages by 24 over counts.orders', async () => {
     const calls = stubApi(
       routes({
         'GET /orders': {
@@ -236,7 +279,7 @@ describe('the orders screen', () => {
     await waitFor(() =>
       expect(
         calls.some(
-          (c) => c.url.pathname.endsWith('/orders') && c.url.searchParams.get('offset') === '50'
+          (c) => c.url.pathname.endsWith('/orders') && c.url.searchParams.get('offset') === '24'
         )
       ).toBe(true)
     )

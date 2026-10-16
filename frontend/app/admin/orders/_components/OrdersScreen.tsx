@@ -1,7 +1,7 @@
 'use client'
 
 import NextLink from 'next/link'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import * as React from 'react'
 import {
   AdminHeader,
@@ -14,7 +14,7 @@ import {
   useDebounce,
   useMediaUp,
 } from '@dorado/components'
-import type { Direction, OrderListItem, OrderState as OrderStateValue } from '@dorado/contracts'
+import { OrderState, type Direction, type OrderListItem } from '@dorado/contracts'
 
 import { formatStamp } from '@/shared/utils/formatStamp'
 import { protectedRoutes } from '@/shared/types/routes'
@@ -52,15 +52,23 @@ import { OrderSearch } from './OrderSearch'
 import { OrdersEmpty, OrdersFailed, OrdersSkeleton } from './OrdersStates'
 import { SelectionActions } from './SelectionActions'
 
-const PAGE_SIZE = 50
+const PAGE_SIZE = 24
+
+const IN_PROGRESS = OrderState.options.filter(
+  (value) => value !== 'Completed' && value !== 'Cancelled'
+)
 
 const DESCRIPTION =
   'Every purchase and sale, and the lots inside each one — what is still to place and what has settled.'
 
 const SHOW_ITEMS = [
+  { value: 'in_progress', label: 'In progress' },
   { value: 'all', label: 'All' },
   { value: 'unassigned', label: 'Unassigned' },
 ]
+
+const SHOW_VALUES = SHOW_ITEMS.map((entry) => entry.value)
+const STATE_VALUES: string[] = OrderState.options
 
 const DIRECTIONS: { value: Direction; label: string }[] = [
   { value: 'purchase', label: 'Purchases' },
@@ -71,13 +79,29 @@ export function OrdersScreen() {
   const router = useRouter()
   const mobile = !useMediaUp('lg')
 
-  const [direction, setDirection] = React.useState<Direction>('purchase')
-  const [state, setState] = React.useState<OrderFilterValue>('all')
-  const [show, setShow] = React.useState('all')
+  const pathname = usePathname()
+  const params = useSearchParams()
+
+  const [direction, setDirection] = React.useState<Direction>(() =>
+    params.get('direction') === 'sale' ? 'sale' : 'purchase'
+  )
+  const [state, setState] = React.useState<OrderFilterValue>(() => {
+    const value = params.get('state')
+    return value && STATE_VALUES.includes(value) ? (value as OrderFilterValue) : 'all'
+  })
+  const [show, setShow] = React.useState(() => {
+    const value = params.get('show')
+    return value && SHOW_VALUES.includes(value) ? value : 'in_progress'
+  })
   const [assignee, setAssignee] = React.useState('anyone')
   const [sort, setSort] = React.useState('')
   const [search, setSearch] = React.useState('')
-  const [page, setPage] = React.useState(1)
+  const [page, setPage] = React.useState(() => {
+    const value = Number(params.get('page'))
+    return Number.isInteger(value) && value > 0 ? value : 1
+  })
+  const [barHeight, setBarHeight] = React.useState(0)
+  const barRef = React.useRef<HTMLDivElement>(null)
   const [selected, setSelected] = React.useState<string[]>([])
   const [destination, setDestination] = React.useState<string | undefined>()
   const q = useDebounce(search, 300)
@@ -87,9 +111,19 @@ export function OrdersScreen() {
   const refiners = useRefinerOptions().data ?? []
   const locations = useRefinerLocations().data ?? []
 
+  React.useEffect(() => {
+    const next = new URLSearchParams()
+    if (direction !== 'purchase') next.set('direction', direction)
+    if (state !== 'all') next.set('state', state)
+    if (show !== 'in_progress') next.set('show', show)
+    if (page > 1) next.set('page', String(page))
+    const query = next.toString()
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
+  }, [direction, state, show, page, pathname, router])
+
   const list = useOrderList({
     direction,
-    state: state === 'all' ? null : [state as OrderStateValue],
+    state: state !== 'all' ? [state] : show === 'in_progress' ? IN_PROGRESS : null,
     assigned_to_id: assignee === 'anyone' ? null : assignee,
     has_unassigned_lots: show === 'unassigned' ? true : null,
     sort: sort === '' ? null : sort,
@@ -102,6 +136,20 @@ export function OrdersScreen() {
   const counts = list.data?.counts
   const pageCount = Math.max(1, Math.ceil((counts?.orders ?? 0) / PAGE_SIZE))
   const picked = items.filter((item) => selected.includes(item.id))
+  const barOpen = picked.length > 0
+
+  React.useLayoutEffect(() => {
+    const node = barRef.current
+    if (!barOpen || !node) {
+      setBarHeight(0)
+      return
+    }
+    const measure = () => setBarHeight(node.getBoundingClientRect().height)
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [barOpen, mobile])
   const summary = useSelection(picked.map((item) => item.id)).data
 
   const clear = () => {
@@ -119,7 +167,7 @@ export function OrdersScreen() {
 
   const reset = () => {
     setState('all')
-    setShow('all')
+    setShow('in_progress')
     setAssignee('anyone')
     setSort('')
     setSearch('')
@@ -323,17 +371,15 @@ export function OrdersScreen() {
         </div>
       )}
 
-      {pageCount > 1 && (
-        <Pagination
-          page={page}
-          pageCount={pageCount}
-          onPageChange={(next) => {
-            setPage(next)
-            clear()
-          }}
-          className="self-center"
-        />
-      )}
+      <Pagination
+        page={Math.min(page, pageCount)}
+        pageCount={pageCount}
+        onPageChange={(next) => {
+          setPage(next)
+          clear()
+        }}
+        className="self-center"
+      />
 
       {batch.isError && (
         <Alert intent="danger" title="Couldn't batch these orders">
@@ -341,9 +387,12 @@ export function OrdersScreen() {
         </Alert>
       )}
 
-      {picked.length > 0 && (
-        <div className="sticky bottom-0 z-10 lg:bottom-md">
+      {barOpen && <div aria-hidden style={{ height: barHeight }} />}
+
+      {barOpen && (
+        <>
           <SelectionActions
+            ref={barRef}
             layout={mobile ? 'mobile' : 'desktop'}
             summary={selectionSummary}
             totals={totals}
@@ -366,7 +415,7 @@ export function OrdersScreen() {
               },
             ]}
           />
-        </div>
+        </>
       )}
     </>
   )

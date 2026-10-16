@@ -53,6 +53,27 @@ for (const size of SIZES) {
       ).toBeVisible()
     })
 
+    test('defaults to In progress, shows pagination and keeps the choice in the URL', async ({
+      page,
+    }) => {
+      const listed = page.waitForResponse(isList)
+      await page.goto('/admin/orders')
+      const url = new URL((await listed).url())
+      const states = url.searchParams.getAll('state')
+      expect(states.length).toBeGreaterThan(0)
+      expect(states).not.toContain('Completed')
+      expect(states).not.toContain('Cancelled')
+      expect(url.searchParams.get('limit')).toBe('24')
+      await expect(page.getByRole('combobox', { name: 'Show' })).toContainText('In progress', {
+        timeout: 30_000,
+      })
+      await expect(page.getByRole('button', { name: 'Page 1' })).toBeVisible()
+      const reloaded = page.waitForResponse(isList)
+      await page.goto('/admin/orders?show=all')
+      expect(new URL((await reloaded).url()).searchParams.getAll('state')).toEqual([])
+      await expect(page.getByRole('combobox', { name: 'Show' })).toContainText('All')
+    })
+
     test('the state chips filter the list', async ({ page }) => {
       await openList(page)
       const filtered = page.waitForResponse(
@@ -106,6 +127,16 @@ for (const size of SIZES) {
         })
       ).toBeVisible()
       await expect(bar.getByText(/est\./)).toBeVisible()
+
+      const box = await bar.boundingBox()
+      expect(box).not.toBeNull()
+      expect(box!.x).toBeLessThanOrEqual(1)
+      expect(box!.width).toBeGreaterThanOrEqual(size.width - 20)
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+      const scrolled = await bar.boundingBox()
+      expect(Math.abs(scrolled!.y + scrolled!.height - size.height)).toBeLessThanOrEqual(1)
+      const lastPagination = await page.getByRole('button', { name: 'Page 1' }).boundingBox()
+      expect(lastPagination!.y + lastPagination!.height).toBeLessThanOrEqual(scrolled!.y + 1)
 
       const picked = body.items.slice(0, 2)
       const allOffer = picked.every((item) => item.actions.some((a) => a.name === 'assign_lots'))

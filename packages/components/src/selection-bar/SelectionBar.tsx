@@ -6,7 +6,7 @@ import { X } from '@dorado/icons'
 import { Button } from '../button/Button'
 import { cn } from '../cn'
 
-const barVariants = cva('flex rounded-lg border border-border bg-card p-md', {
+const innerVariants = cva('mx-auto flex w-full max-w-page p-md', {
   variants: {
     layout: {
       desktop: 'items-center justify-between gap-lg',
@@ -23,6 +23,7 @@ export type SelectionBarProps = Omit<React.HTMLAttributes<HTMLDivElement>, 'chil
   onDismiss?: () => void
   dismissLabel?: string
   layout?: 'desktop' | 'mobile'
+  ref?: React.Ref<HTMLDivElement>
 }
 
 export function SelectionBar({
@@ -33,6 +34,7 @@ export function SelectionBar({
   dismissLabel = 'Clear selection',
   layout = 'desktop',
   className,
+  ref,
   ...props
 }: SelectionBarProps) {
   return (
@@ -40,33 +42,40 @@ export function SelectionBar({
       role="region"
       aria-label="Selection"
       data-layout={layout}
-      className={cn(barVariants({ layout }), className)}
+      ref={ref}
+      className={cn(
+        'fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface-raised',
+        'shadow-[0_calc(-1*var(--floating-y))_var(--floating-blur)_var(--floating-shadow)]',
+        className
+      )}
       {...props}
     >
-      <div className="flex items-center gap-sm">
-        {onDismiss && (
-          <Button
-            variant="tertiary"
-            size="iconXs"
-            className="text-foreground"
-            aria-label={dismissLabel}
-            onClick={onDismiss}
+      <div className={innerVariants({ layout })}>
+        <div className="flex items-center gap-sm">
+          {onDismiss && (
+            <Button
+              variant="tertiary"
+              size="iconXs"
+              className="text-foreground"
+              aria-label={dismissLabel}
+              onClick={onDismiss}
+            >
+              <X aria-hidden />
+            </Button>
+          )}
+          <div className="flex min-w-0 flex-1 flex-col gap-2xs">
+            <p className="text-small text-foreground">{summary}</p>
+            {totals != null && <p className="truncate text-micro text-subtle">{totals}</p>}
+          </div>
+        </div>
+        {actions != null && (
+          <div
+            className={cn('flex items-center gap-xs', layout === 'mobile' && 'w-full [&>*]:flex-1')}
           >
-            <X aria-hidden />
-          </Button>
+            {actions}
+          </div>
         )}
-        <div className="flex min-w-0 flex-1 flex-col gap-2xs">
-          <p className="text-small text-foreground">{summary}</p>
-          {totals != null && <p className="truncate text-micro text-subtle">{totals}</p>}
-        </div>
       </div>
-      {actions != null && (
-        <div
-          className={cn('flex items-center gap-xs', layout === 'mobile' && 'w-full [&>*]:flex-1')}
-        >
-          {actions}
-        </div>
-      )}
     </div>
   )
 }
