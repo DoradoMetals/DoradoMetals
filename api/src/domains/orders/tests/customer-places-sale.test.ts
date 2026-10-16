@@ -43,8 +43,7 @@ async function aReadySaleCheckout(
     request(app)
       .put('/api/checkout/lots')
       .query({ direction: 'sale' })
-      .send({ lots: [{ bullion_id: product.id, quantity: 1 }],
-      })
+      .send({ lots: [{ bullion_id: product.id, quantity: 1 }] })
   )
   assert.equal(basket.status, 200, basket.text)
 
@@ -78,6 +77,11 @@ test('a signed-in customer places their own sale order', async () => {
       assert.equal(placed.body.order.direction, 'sale')
       assert.equal(placed.body.order.user_id, buyer.id, 'the order belongs to somebody else')
       assert.equal(placed.body.lots.length, 1)
+      assert.deepEqual(placed.body.actions, [], 'the customer was handed admin actions')
+      assert.equal(placed.body.order.notes, null)
+      assert.ok(!('adopt' in placed.body), 'the customer read the adopt facts')
+      assert.ok(!('cases' in placed.body), 'the customer read the case facts')
+      assert.ok(!('source_reference' in placed.body.lots[0]), 'the customer read a lot source')
     },
     { actor: TEST_ACTOR.id, lock: [LOCKS.ORDERS, LOCKS.ADDRESSES, LOCKS.USERS] }
   )

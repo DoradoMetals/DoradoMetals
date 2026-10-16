@@ -130,7 +130,10 @@ export function useOrderWrites(id: string, view: OrderView | undefined, refetch:
     setNotice({ kind: 'error', message: messageOf(error) })
   }
 
+  const last = React.useRef<{ name: string; work: () => Promise<unknown> } | null>(null)
+
   const track = async (name: string, work: () => Promise<unknown>) => {
+    last.current = { name, work }
     setPending(name)
     setNotice(null)
     await work().then(
@@ -249,6 +252,15 @@ export function useOrderWrites(id: string, view: OrderView | undefined, refetch:
     notice,
     revision,
     dismiss: () => setNotice(null),
+    reload: () => {
+      setNotice(null)
+      refetch()
+    },
+    retry: () => {
+      const again = last.current
+      if (again) void track(again.name, again.work)
+      else setNotice(null)
+    },
     pending,
     run,
     editOrder: (patch: OrderPatch) =>

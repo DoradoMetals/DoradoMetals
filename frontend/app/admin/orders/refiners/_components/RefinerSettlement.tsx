@@ -95,7 +95,7 @@ export function RefinerSettlement({
   const state = order?.settlement.state ?? 'Pending'
   const cancelled = state === 'Cancelled'
   const pooled = order?.settlement_type === 'pooled'
-  const locked = cancelled || order?.settled_at != null || (order?.settlement.settled_lots ?? 0) > 0
+  const locked = cancelled || order?.settled_at != null || state === 'Settled'
   const rows = order?.fine_oz ?? []
   const left = order ? order.settlement.lot_count - order.settlement.settled_lots : 0
   const returned = order?.lots.some((lot) => lot.returned_at != null) ?? false

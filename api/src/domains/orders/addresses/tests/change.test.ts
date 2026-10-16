@@ -167,3 +167,30 @@ test('a second change shows the newest address, with the book id it came from', 
     assert.equal(rows.rowCount, 1)
   })
 })
+
+test('a change keeps the previous address row and records its id', async () => {
+  await run(async (c) => {
+    const w = await world(c)
+    const before = await c.query(`SELECT address_id FROM orders.addresses WHERE order_id = $1`, [
+      w.order.id,
+    ])
+    const oldId = before.rows[0].address_id
+    const noop = async () => true
+    const buy = async () => {}
+    await addressService.change(
+      w.order.id,
+      { address_id: w.next.id, reason: REASON },
+      noop,
+      buy,
+      buy
+    )
+    const after = await c.query(
+      `SELECT address_id, previous_address_id FROM orders.addresses WHERE order_id = $1`,
+      [w.order.id]
+    )
+    assert.equal(after.rows[0].previous_address_id, oldId)
+    assert.notEqual(after.rows[0].address_id, oldId)
+    const kept = await c.query(`SELECT 1 FROM places.addresses WHERE id = $1`, [oldId])
+    assert.equal(kept.rowCount, 1)
+  })
+})

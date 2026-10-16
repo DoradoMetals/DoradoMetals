@@ -129,3 +129,33 @@ test('freezing the same order twice does not raise', async () => {
     assert.equal(after, before, 'a duplicate freeze added a row')
   })
 })
+
+test('a lot of a metal whose frozen row a lock cleared re-freezes it and logs the lock', async () => {
+  await inRollback(async (c: PoolClient) => {
+    const order = await anOrder(c, await aUser(c), { direction: 'purchase' })
+      .withLots(1, { metal_id: 'Silver' })
+      .withSpots()
+    await c.query('UPDATE orders.orders SET spots_locked = true WHERE id = $1', [order.id])
+    await c.query(
+      `UPDATE orders.spots SET bid = NULL, ask = NULL WHERE order_id = $1 AND metal_id = 'Silver'`,
+      [order.id]
+    )
+
+    await spots.coverMetals(order.id, 'lot added', c)
+
+    const { rows } = await c.query(
+      `SELECT os.bid, (SELECT s.bid FROM spots.resolved s WHERE s.metal_id = 'Silver') AS feed
+         FROM orders.spots os WHERE os.order_id = $1 AND os.metal_id = 'Silver'`,
+      [order.id]
+    )
+    assert.notEqual(rows[0].bid, null, 'the cleared Silver row stayed without a bid')
+    assert.equal(Number(rows[0].bid), Number(rows[0].feed))
+    const events = await c.query(
+      `SELECT reason FROM orders.spot_locks
+        WHERE order_id = $1 AND metal_id = 'Silver' AND action = 'lock'`,
+      [order.id]
+    )
+    assert.equal(events.rowCount, 1, 'no discovery lock event was written')
+    assert.equal(events.rows[0].reason, 'lot added')
+  })
+})

@@ -57,6 +57,7 @@ export const paymentFacts = (over: Partial<OrderPaymentFacts> = {}): OrderPaymen
   received: 14120,
   refunded: 0,
   refundable: 14120,
+  credit: 0,
   charge_received: true,
   ...over,
 })

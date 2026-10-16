@@ -88,6 +88,10 @@ export const cancelRefiningOrder = asyncHandler(async (req, res) => {
   return res.json(await refining.cancel(uuidParam(req, 'id')))
 })
 
+export const markRefiningOrderReturned = asyncHandler(async (req, res) => {
+  return res.json(await refining.markReturned(uuidParam(req, 'id')))
+})
+
 export const getRefiningSpots = asyncHandler(async (req, res) => {
   return res.json(await refining.spotsFor(uuidParam(req, 'id')))
 })

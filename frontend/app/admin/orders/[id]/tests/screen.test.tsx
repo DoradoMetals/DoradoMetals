@@ -53,7 +53,11 @@ describe('OrderScreen composition', () => {
     expect(cardsIn('order-aside')).toEqual(['totals', 'profit', 'documents', 'chat', 'notes'])
     const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' })
     expect(within(crumbs).getByText('PO-2481')).toBeTruthy()
-    expect(within(crumbs).getByText('Orders')).toBeTruthy()
+    expect(within(crumbs).getByRole('link', { name: 'Admin' }).getAttribute('href')).toBe('/admin')
+    expect(within(crumbs).getByRole('link', { name: 'Orders' }).getAttribute('href')).toBe(
+      '/admin/orders'
+    )
+    expect(within(crumbs).queryByRole('link', { name: 'PO-2481' })).toBeNull()
   })
 
   test('a sale draws the SO-1112 columns and drops the profit breakdown', async () => {
@@ -171,7 +175,7 @@ describe('OrderScreen actions', () => {
 
   test('an override-class action takes a reason, steps up, then runs', async () => {
     const view = orderView('sale', {
-      payment: { received: 25, refunded: 0, refundable: 25, charge_received: true },
+      payment: { received: 25, refunded: 0, refundable: 25, credit: 0, charge_received: true },
       actions: [act('refund', { override: "Up to 25.00 can go back to the customer's card" })],
     })
     const calls = stubOrder(

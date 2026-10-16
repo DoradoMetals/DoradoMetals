@@ -82,7 +82,7 @@ export const usePayToFor = (userId: string | null, direction: Direction | null |
 export const useAdoptCandidates = (id: string, open: boolean) =>
   useAdoptAssayProposal(id, { enabled: open })
 
-export const useLotPictures = (lotId: string) => useLotImages(lotId)
+export const useLotPictures = (lotId: string, enabled = true) => useLotImages(lotId, { enabled })
 
 export const useActorNames = (ids: readonly (string | null | undefined)[]) => useUserNames(ids)
 

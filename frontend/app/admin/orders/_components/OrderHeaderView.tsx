@@ -1,6 +1,9 @@
 import * as React from 'react'
+import NextLink from 'next/link'
 import type { Action } from '@dorado/contracts'
-import { EntityHeader, Select, type SelectItemShape } from '@dorado/components'
+import { Breadcrumb, EntityHeader, Select, type SelectItemShape } from '@dorado/components'
+
+import { protectedRoutes } from '@/shared/types/routes'
 
 import { OrderActionButtons, type ActionLook } from './OrderActionButtons'
 import { OrderState, type OrderHeaderState } from './OrderState'
@@ -64,6 +67,16 @@ export function OrderHeaderView({
   return (
     <EntityHeader
       layout={layout}
+      breadcrumb={
+        <Breadcrumb
+          linkComponent={NextLink}
+          items={[
+            { label: 'Admin', href: protectedRoutes.admin.path },
+            { label: 'Orders', href: protectedRoutes.adminOrders.path },
+            { label: reference },
+          ]}
+        />
+      }
       eyebrow={sale ? 'Sales order' : 'Purchase order'}
       badge={<OrderState state={state} />}
       title={name}

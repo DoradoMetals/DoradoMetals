@@ -103,7 +103,8 @@ export const createOrder = asyncHandler(async (req, res) => {
   if (checkout.user_id !== callerId(req) && req.user?.role !== 'admin') {
     throw new Forbidden(`checkout ${checkout_id} is not yours`)
   }
-  return res.status(201).json(await place.place(checkout_id))
+  const view = await place.place(checkout_id)
+  return res.status(201).json(req.user?.role === 'admin' ? view : rules.orderViewForCustomer(view))
 })
 
 export const adminCreateOrder = asyncHandler(async (req, res) => {

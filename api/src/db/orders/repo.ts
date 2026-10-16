@@ -117,6 +117,11 @@ export async function view(id: string, executor?: Executor): Promise<OrderViewFa
   return rows[0] === undefined ? undefined : Facts.parse(rows[0])
 }
 
+export async function lock(id: string, executor: Executor): Promise<boolean> {
+  const { rows } = await query(sql('lock'), [id], executor)
+  return rows.length > 0
+}
+
 export async function ownerOf(id: string, executor?: Executor): Promise<string | null> {
   const { rows } = await query<{ user_id: string | null }>(sql('owner_of'), [id], executor)
   return rows[0]?.user_id ?? null

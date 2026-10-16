@@ -87,11 +87,13 @@ rows across two tables — 14 payouts in `exchange.payouts` (7 ACH, 7 WIRE, 9
 customers) and 10 January-residue rows in `payments.details` (8 customers).
 Re-measure with `audit:plaintext-secrets --prod` before trusting that count on
 the day.
-- **Migration 292 gives finalized orders an opening spot-lock event per frozen metal** (orders-customer lane). It inserted 0 rows on dev (counted read-only 2026-10-16). Production is unchecked: count it read-only before the day; it runs inside `migrate` in order. Placed sales stored before `sale_quote.sql` rounded to cents may also hold sub-cent totals; check with a read-only count.
+- **Migration 294 gives finalized orders an opening spot-lock event per metal the order holds** (orders-customer lane; it supersedes 292, which also wrote events for metals the order does not hold). 292 inserted 0 rows on dev (counted read-only 2026-10-16). Production is unchecked: count it read-only before the day; it runs inside `migrate` in order. Placed sales stored before `sale_quote.sql` rounded to cents may also hold sub-cent totals; check with a read-only count.
 - **Twilio keys must be configured before dev merges to master.** Sign-in defaults to the phone form (`/auth/sign-in`, ruling D216 and the Auth frame); without the Twilio keys the api uses the fake SMS sender and the default sign-in form cannot deliver a code. Staging delivers through the fake on purpose.
 
 ## 3. Waiting on Jacob
 
+- **`previous_address_id` sits on the address link row (migration 295)**, so a second address change overwrites the first. It belongs on the change fact (`orders.action_reasons`); a later migration moves it there.
+- **A sale paid on two cards cannot be cancelled.** `refundable` counts only the newest payment (the one a Stripe refund goes through), while the cancel rule counts every payment received, so the older card's money can never be refunded through the screen and the cancel stays refused. Decision pending: refund across intents, or a manual path for the older charge.
 - **Run the production sequence.** Everything in section 2.
 - **Clean the two corrupt product rows.** Two production products carry
   `E'\n\tBar'` — a newline and a tab before "Bar" — as their type, and they are

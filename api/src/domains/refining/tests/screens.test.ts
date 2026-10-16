@@ -166,6 +166,43 @@ test('cancelling releases the lots and frees the refiner for a new sell order', 
   })
 })
 
+test('the returned action stamps a cancelled, moved order once and refuses otherwise', async () => {
+  await inRefining(async (c) => {
+    const order = await aFinalizedOrder(c)
+    const refiner_id = await refinerId(c)
+
+    await asAdmin(TEST_ACTOR, async () => {
+      const made = await request(app)
+        .post(`/api/orders/${order.id}/refining-sale`)
+        .send({ refiner_id })
+      assert.equal(made.status, 201, made.text)
+      const url = `/api/refining/orders/${made.body.id}/returned`
+
+      const early = await request(app).post(url)
+      assert.equal(early.status, 409, early.text)
+
+      const cancelled = await request(app).post(`/api/refining/orders/${made.body.id}/cancel`)
+      assert.equal(cancelled.status, 200, cancelled.text)
+
+      const unmoved = await request(app).post(url)
+      assert.equal(unmoved.status, 409, 'nothing was out, so nothing is returned')
+
+      await c.query(
+        `INSERT INTO fulfillments.fulfillments (method_id, refining_order_id, status)
+         SELECT id, $1, 'DROPPED_OFF' FROM fulfillments.methods
+          WHERE category <> 'SHIPMENT' ORDER BY id LIMIT 1`,
+        [made.body.id]
+      )
+      const done = await request(app).post(url)
+      assert.equal(done.status, 200, done.text)
+      assert.ok(done.body.lots.every((l: { returned_at: string | null }) => l.returned_at !== null))
+
+      const twice = await request(app).post(url)
+      assert.equal(twice.status, 409, twice.text)
+    })
+  })
+})
+
 test('the spots read answers a row per metal, and reports settlement counts before anything settles', async () => {
   await inRefining(async (c) => {
     const order = await aFinalizedOrder(c)

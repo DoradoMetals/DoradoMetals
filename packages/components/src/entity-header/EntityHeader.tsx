@@ -16,6 +16,8 @@ export type EntityHeaderProps = {
   assignedTo?: React.ReactNode
   buttons?: React.ReactNode
   actions?: React.ReactNode
+  breadcrumb?: React.ReactNode
+  showBreadcrumb?: boolean
   className?: string
 }
 
@@ -31,10 +33,14 @@ export function EntityHeader({
   assignedTo,
   buttons,
   actions,
+  breadcrumb,
+  showBreadcrumb = true,
   className,
 }: EntityHeaderProps) {
   const mobile = layout === 'mobile'
+  const crumb = showBreadcrumb && breadcrumb != null ? breadcrumb : null
   const hasActions = assignedTo != null || buttons != null || actions != null
+  const hasColumn = hasActions || (crumb != null && !mobile)
 
   const identityBlock = (
     <div className={cn('flex min-w-0 flex-col', mobile ? 'gap-2xs' : 'flex-1 gap-xs')}>
@@ -64,10 +70,22 @@ export function EntityHeader({
     </div>
   )
 
-  const actionsBlock = hasActions && (
-    <div className={cn('flex flex-col', mobile ? 'gap-sm' : 'shrink-0 gap-xs')}>
-      {assignedTo}
-      {buttons != null && <div className="flex gap-sm *:flex-1">{buttons}</div>}
+  const actionsBlock = hasColumn && (
+    <div className={cn('flex flex-col', mobile ? 'gap-sm' : 'shrink-0 items-end gap-xs')}>
+      {!mobile && crumb}
+      {mobile ? (
+        <>
+          {assignedTo}
+          {buttons != null && <div className="flex gap-sm *:flex-1">{buttons}</div>}
+        </>
+      ) : (
+        (assignedTo != null || buttons != null) && (
+          <div className="flex items-end gap-sm">
+            {assignedTo != null && <div className="w-70 shrink-0">{assignedTo}</div>}
+            {buttons != null && <div className="flex gap-sm">{buttons}</div>}
+          </div>
+        )
+      )}
       {actions}
     </div>
   )
@@ -77,12 +95,13 @@ export function EntityHeader({
       data-layout={layout}
       className={cn(
         'flex flex-col gap-sm rounded-lg border border-border bg-card',
-        mobile ? 'px-md py-lg' : 'p-md',
+        mobile ? 'px-md py-lg' : 'min-h-[9.6875rem] p-md',
         className
       )}
     >
       {mobile ? (
         <>
+          {crumb}
           {identityBlock}
           {hasActions && <Divider />}
           {actionsBlock}

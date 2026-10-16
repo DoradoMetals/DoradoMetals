@@ -3,6 +3,8 @@ import { WeightUnit } from '@dorado/contracts'
 import { isSettled } from '#transactions/rules.ts'
 
 import type {
+  CustomerOrderLotView,
+  CustomerOrderView,
   Action,
   CheckoutMissing,
   CheckoutQuote,
@@ -342,9 +344,10 @@ export function saleCancelBlockedBy(
   view: Pick<OrderActionFacts, 'payment' | 'shipments' | 'order'>
 ): string | null {
   if (parcelMoving(view)) return `order ${view.order.number} has shipped, so it cannot be cancelled`
-  if (view.payment.received > view.payment.refunded) {
+  if (view.payment.received > view.payment.refunded + view.payment.credit) {
     return (
-      `order ${view.order.number} has ${view.payment.received.toFixed(2)} received and ` +
+      `order ${view.order.number} has ${view.payment.received.toFixed(2)} received ` +
+      `(${view.payment.credit.toFixed(2)} of it credit the cancel gives back) and ` +
       `${view.payment.refunded.toFixed(2)} refunded - refund the money first, then cancel ` +
       `(ruling 133)`
     )
@@ -355,8 +358,8 @@ export function saleCancelBlockedBy(
 export function saleCancelConfirm(view: Pick<OrderActionFacts, 'shipments'>): string {
   const labelled = view.shipments.some((s) => s.direction === 'Outbound' && s.tracking_number)
   return labelled
-    ? 'Cancelling releases the credit reservation, cancels the card payment and voids the label'
-    : 'Cancelling releases the credit reservation and cancels the card payment'
+    ? 'Cancelling returns the credit to the balance, cancels the card payment and voids the label'
+    : 'Cancelling returns the credit to the balance and cancels the card payment'
 }
 
 export function refundOverride(view: Pick<OrderActionFacts, 'payment'>): string {
@@ -418,15 +421,21 @@ export function adoptConfirm(view: Pick<OrderActionFacts, 'adopt'>): string | nu
   )
 }
 
-export function orderViewForCustomer(view: OrderView): OrderView {
+export function orderViewForCustomer(view: OrderView): CustomerOrderView {
+  const { adopt: _adopt, cases: _cases, ...shared } = view
   return {
-    ...view,
+    ...shared,
     order: { ...view.order, notes: null, assigned_to_id: null },
+    lots: orderLotsForCustomer(view.lots),
     shipments: view.shipments.map((shipment) =>
       shipment.direction === 'Inbound' ? { ...shipment, label: null } : shipment
     ),
     actions: [],
   }
+}
+
+export function orderLotsForCustomer(lots: OrderLotView[]): CustomerOrderLotView[] {
+  return lots.map(({ source_reference: _source, ...lot }) => lot)
 }
 
 export function orderListForCustomer(list: OrderList): OrderList {
@@ -704,6 +713,7 @@ export function assertPayoutMethod<T>(
 
 export function assertSplitShape(
   methods: PayoutMethodLine[],
+  types: (string | null)[],
   gap_cents: number,
   number: string | number | null
 ): void {
@@ -718,6 +728,15 @@ export function assertSplitShape(
   }
   if (methods.some((row) => !(Number(row.amount) > 0))) {
     throw new Invalid('every method in a split carries an amount above zero')
+  }
+  if (types.some((type) => type === null)) {
+    throw new NotFound('a split names a payout method that does not exist')
+  }
+  if (types.filter((type) => type !== 'DORADO_ACCOUNT').length > 1) {
+    throw new Invalid(
+      'a payout sends one transfer, so a split is the Dorado balance plus one other method ' +
+        '- two transfer methods cannot both be paid'
+    )
   }
   if (gap_cents !== 0) {
     throw new Invalid(

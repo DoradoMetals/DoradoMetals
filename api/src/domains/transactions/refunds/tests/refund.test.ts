@@ -216,3 +216,48 @@ test('http: admin reads the refunds, a customer is refused, a bad body is 400', 
     { actor: opts.actor, lock: opts.lock }
   )
 })
+
+test('only the newest intent, the one Stripe refunds through, counts as refundable', async () => {
+  await inPinnedTransaction(
+    async (c) => {
+      const sale = await aPaidSale(c, 10000)
+      await c.query(
+        `UPDATE payments.intents SET created_at = now() - interval '1 day'
+          WHERE order_id = $1`,
+        [sale.order.id]
+      )
+      const newer = `pi_${anUnknownId().slice(0, 24)}`
+      const intent = { id: newer, status: 'succeeded', amount: 4000, amount_received: 4000 }
+      await paymentsService.recordIntent(
+        intent,
+        { session_id: anUnknownId(), user_id: sale.buyer.id },
+        'sales_order_checkout',
+        undefined,
+        c
+      )
+      assert.ok(await paymentsService.attachOrder(newer, sale.order.id, c))
+      await paymentsService.updateFromProvider(intent, c)
+
+      const { calls, issue } = issuer('succeeded')
+      await assert.rejects(
+        refunds.refund(
+          sale.order.id,
+          { amount: 40.01, reason: 'more than the newest charge' },
+          sale.session,
+          issue
+        ),
+        /40\.00 left to refund/
+      )
+      assert.equal(calls.length, 0)
+      await refunds.refund(
+        sale.order.id,
+        { amount: 40, reason: 'the newest charge in full' },
+        sale.session,
+        issue
+      )
+      assert.equal(calls[0]!.paymentIntentId, newer)
+      assert.equal(calls[0]!.amountCents, 4000)
+    },
+    { actor: opts.actor, lock: opts.lock }
+  )
+})

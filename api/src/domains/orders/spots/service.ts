@@ -3,6 +3,7 @@ import * as ordersRepo from '#db/orders/repo.ts'
 import * as spotsRepo from '#db/orders/spots/repo.ts'
 import * as spotLocks from '#db/orders/spot-locks/repo.ts'
 import * as rules from '#orders/rules.ts'
+import * as spotRules from '#orders/spots/rules.ts'
 import withTransaction from '#shared/db/withTransaction.ts'
 import * as stepUp from '#accounts/auth/step-up.ts'
 import type { OrderSpot, OrderSpotLockEvent, OrderSpotsPutBody } from '@dorado/contracts'
@@ -24,6 +25,11 @@ export async function setSpots(
 ): Promise<OrderSpot[]> {
   rules.assertDirection(await ordersRepo.directionOf(orderId), 'purchase', 'the spots PUT')
   rules.assertNamesASpotField(body)
+  if (body.lock !== undefined) {
+    const current = await ordersRepo.getOne(orderId)
+    rules.assertOrder(current, orderId)
+    spotRules.assertLockMovable(current)
+  }
   if (body.set) await stepUp.assertSteppedUp(session_id)
 
   await withTransaction(async (tx) => {

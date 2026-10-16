@@ -59,6 +59,9 @@ export const OrderLotView = OrderLot.extend({
 })
 export type OrderLotView = z.infer<typeof OrderLotView>
 
+export const CustomerOrderLotView = OrderLotView.omit({ source_reference: true })
+export type CustomerOrderLotView = z.infer<typeof CustomerOrderLotView>
+
 export const OrderLotLine = OrderLot.pick({ lot_id: true })
 export type OrderLotLine = z.infer<typeof OrderLotLine>
 

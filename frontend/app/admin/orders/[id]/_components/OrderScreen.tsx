@@ -1,8 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import NextLink from 'next/link'
-import { Alert, Breadcrumb, Input, cn, useMediaUp, type SelectItemShape } from '@dorado/components'
+import { Input, cn, useMediaUp, type SelectItemShape } from '@dorado/components'
 import type {
   Action,
   AdoptAssayLot,
@@ -13,7 +12,6 @@ import type {
 } from '@dorado/contracts'
 
 import { formatDay } from '@/shared/utils/formatStamp'
-import { protectedRoutes } from '@/shared/types/routes'
 
 import { formatTotal } from '../../_lib'
 
@@ -64,7 +62,10 @@ import {
 } from '../_lib'
 import { ActionConfirmDialog } from './ActionConfirmDialog'
 import { Activity } from './Activity'
+import { CardNotice } from '../../_components/CardNotice'
 import { AddressChange } from './AddressChange'
+import { AddressChangeDialog } from './AddressChangeDialog'
+import { AdoptAssayDrawer } from './AdoptAssayDrawer'
 import { AddingLot } from './AddingLot'
 import { AdoptAssayBody } from './AdoptAssayBody'
 import { AppointmentCard } from './AppointmentCard'
@@ -183,6 +184,7 @@ function FulfillmentSlot({
   }
   const tracks = offers(view.actions, 'update_tracking')
   const rows = shipments.data ?? []
+  const voidingTracking = rows.find((row) => row.shipment.id === voiding)?.shipment.tracking_number
   const flow = fulfillment.data ?? null
   const category = flow?.method.category ?? null
   const onAction = (action: Action) => flow && ask(action, { fulfillment_id: flow.fulfillment.id })
@@ -215,8 +217,8 @@ function FulfillmentSlot({
         <ActionConfirmDialog
           open={voiding != null}
           layout={layout}
-          title="Void this label?"
-          body="The carrier label stops working. Buy a new label to ship again."
+          title="Void the FedEx label?"
+          body={`${voidingTracking ? `FedEx ${voidingTracking}` : 'The label'} stops working. Buy a new label before the parcel ships.`}
           confirmLabel="Void label"
           cancelLabel="Keep label"
           intent="danger"
@@ -446,7 +448,15 @@ export function OrderScreen({ orderId }: { orderId: string }) {
   const [draft, setDraft] = React.useState<PayoutLine[] | null>(null)
   const [payToId, setPayToId] = React.useState<string | null>(null)
 
+  const [addressAsk, setAddressAsk] = React.useState<{ action: Action; extra: ActionInput } | null>(
+    null
+  )
+
   const ask = (action: Action, extra: ActionInput = {}) => {
+    if (action.name === 'change_address' && !action.override && extra.address_id) {
+      setAddressAsk({ action, extra })
+      return
+    }
     if (action.name === 'adopt_assay') {
       adopt.show()
       return
@@ -908,14 +918,6 @@ export function OrderScreen({ orderId }: { orderId: string }) {
         data-layout={layout}
         className="flex flex-col gap-md lg:gap-lg"
       >
-        <Breadcrumb
-          linkComponent={NextLink}
-          items={[
-            { label: 'Admin', href: protectedRoutes.admin.path },
-            { label: 'Orders', href: protectedRoutes.adminOrders.path },
-            { label: view.reference },
-          ]}
-        />
         <OrderHeader
           orderId={orderId}
           onAction={(action) => ask(action)}
@@ -923,13 +925,13 @@ export function OrderScreen({ orderId }: { orderId: string }) {
         />
         {writes.notice && (
           <div data-testid="order-notice" data-kind={writes.notice.kind}>
-            <Alert
-              intent={writes.notice.kind === 'stale' ? 'warning' : 'danger'}
-              title={writes.notice.kind === 'stale' ? 'This order changed' : 'That did not save'}
-              onDismiss={writes.dismiss}
-            >
-              {writes.notice.message}
-            </Alert>
+            <CardNotice
+              kind={writes.notice.kind}
+              message={writes.notice.message}
+              layout={layout}
+              onReload={writes.reload}
+              onRetry={writes.retry}
+            />
           </div>
         )}
         <div
@@ -946,6 +948,27 @@ export function OrderScreen({ orderId }: { orderId: string }) {
           </div>
         </div>
         {flow.dialogs}
+        <AddressChangeDialog
+          open={addressAsk != null}
+          layout={layout}
+          trackingLabel={
+            outbound?.shipment.tracking_number
+              ? `FedEx ${outbound.shipment.tracking_number}`
+              : 'The label'
+          }
+          currentAddress={addressItems.find((item) => item.value === currentAddress)?.label}
+          newAddress={String(
+            addressItems.find((item) => item.value === addressAsk?.extra.address_id)?.label ?? ''
+          )}
+          reason={addressAsk?.extra.address_reason}
+          pending={writes.pending === 'change_address'}
+          onCancel={() => setAddressAsk(null)}
+          onConfirm={(address_reason) => {
+            if (addressAsk)
+              writes.run(addressAsk.action, null, { ...addressAsk.extra, address_reason })
+            setAddressAsk(null)
+          }}
+        />
         <ActionConfirmDialog
           open={resolving != null}
           layout={layout}
@@ -967,23 +990,13 @@ export function OrderScreen({ orderId }: { orderId: string }) {
             setResolving(null)
           }}
         />
-        <ActionConfirmDialog
+        <AdoptAssayDrawer
           open={adopt.open}
           layout={layout}
-          size="lg"
-          title="Adopt the refiner’s assay?"
-          body={
-            <span className="flex flex-col gap-md">
-              {adopt.action?.confirm}
-              <AdoptAssayBody
-                candidates={adopt.candidates}
-                layout={layout}
-                onFiguresChange={adopt.change}
-              />
-            </span>
-          }
-          confirmLabel="Adopt assay"
+          confirm={adopt.action?.confirm}
+          candidates={adopt.candidates}
           pending={writes.pending === 'adopt_assay'}
+          onFiguresChange={adopt.change}
           onCancel={adopt.hide}
           onConfirm={() => {
             if (adopt.action && adopt.lots.length > 0) {

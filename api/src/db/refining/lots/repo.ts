@@ -103,16 +103,16 @@ export async function settle(
   return rows
 }
 
-export async function releaseFor(
+export async function releaseFor(refining_order_id: string, executor?: Executor): Promise<number> {
+  const { rowCount } = await query(sql('release_for_order'), [refining_order_id], executor)
+  return rowCount ?? 0
+}
+
+export async function markReturned(
   refining_order_id: string,
-  returned: boolean,
   executor?: Executor
 ): Promise<number> {
-  const { rowCount } = await query(
-    sql('release_for_order'),
-    [refining_order_id, returned],
-    executor
-  )
+  const { rowCount } = await query(sql('mark_returned'), [refining_order_id], executor)
   return rowCount ?? 0
 }
 

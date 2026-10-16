@@ -65,6 +65,20 @@ describe('Lots', () => {
     expect(onSelectedChange).toHaveBeenCalledWith([scrapLot.id, bullionLot.id])
   })
 
+  test('Lots / Mobile Selection=Some (468:10990): a checkbox per row once combine or remove is offered', () => {
+    render(
+      <Lots
+        direction="purchase"
+        lots={lots}
+        actions={[action('edit_lots'), action('combine_lots'), action('remove_lots')]}
+        layout="mobile"
+        selected={[scrapLot.id]}
+        onSelectedChange={() => {}}
+      />
+    )
+    expect(screen.getAllByRole('checkbox')).toHaveLength(2)
+  })
+
   test('the confirm reason from actions[] becomes the remove dialog body', () => {
     render(
       <Lots
@@ -101,12 +115,12 @@ describe('Lots', () => {
     expect(screen.queryByRole('table')).toBeNull()
   })
 
-  test('Lots / Mobile: card rows with labelled fields, a checkbox per row, items count', () => {
+  test('Lots / Mobile: card rows with labelled fields, no checkbox until a selection action, items count', () => {
     const { unmount } = render(
       <Lots direction="purchase" lots={lots} actions={[]} layout="mobile" />
     )
     expect(screen.queryByRole('table')).toBeNull()
-    expect(screen.getAllByRole('checkbox')).toHaveLength(2)
+    expect(screen.queryAllByRole('checkbox')).toHaveLength(0)
     expect(screen.getByLabelText('Gross')).toBeTruthy()
     expect(screen.getByLabelText('Qty')).toBeTruthy()
     unmount()

@@ -10,7 +10,14 @@ import { LOCKS } from '#shared/testing/locks.ts'
 import { aSessionRow } from '#accounts/auth/tests/harness.ts'
 import * as authSessions from '#db/auth/sessions/repo.ts'
 import { STEP_UP_FRESH_SECONDS } from '#accounts/auth/rules.ts'
-import { aLedgerEntry, aUser, anOrder, paymentMethodId } from '#shared/testing/builders/index.ts'
+import {
+  aLedgerEntry,
+  aPayout,
+  aUser,
+  anOrder,
+  paymentMethodId,
+} from '#shared/testing/builders/index.ts'
+import * as payouts from '#transactions/payouts/service.ts'
 
 await mockSessions()
 const { default: app } = await import('#app')
@@ -314,6 +321,51 @@ test('a payout splits across methods only by an explicit PUT whose amounts sum t
         cleared.body.payout_methods.every((row: { amount: number | null }) => row.amount === null)
       )
     })
+  })
+})
+
+test('a split pays the balance plus one transfer method, whose amount and details the payout opens with', async () => {
+  await inOrders(async (c) => {
+    const user = await aUser(c)
+    const order = await anOrder(c, user, { direction: 'purchase' })
+      .withLots(1)
+      .withTotals({ total: 1000 })
+    const payout = await aPayout(c, user, { method: 'WIRE', order })
+    const ach = await paymentMethodId(c, 'ACH', 'purchase')
+    const wire = await paymentMethodId(c, 'WIRE', 'purchase')
+    const account = await paymentMethodId(c, 'DORADO_ACCOUNT', 'purchase')
+
+    await asAdmin(TEST_ACTOR, async () => {
+      const two = await request(app)
+        .put(`/api/orders/${order.id}/payout_methods`)
+        .send({
+          methods: [
+            { method_id: ach, amount: 500 },
+            { method_id: wire, amount: 500 },
+          ],
+        })
+      assert.equal(two.status, 422, two.text)
+      assert.match(two.text, /one transfer/)
+
+      const split = await request(app)
+        .put(`/api/orders/${order.id}/payout_methods`)
+        .send({
+          methods: [
+            { method_id: account, amount: 400 },
+            { method_id: ach, amount: 600 },
+          ],
+        })
+      assert.equal(split.status, 200, split.text)
+    })
+
+    const details = await c.query(`SELECT method_id FROM payments.details WHERE id = $1`, [
+      payout.id,
+    ])
+    assert.equal(details.rows[0].method_id, ach, 'the transfer details kept the old method')
+
+    const opened = await payouts.openPayout({ order_id: order.id, rail: 'ACH' })
+    assert.equal(Number(opened.amount), 600)
+    assert.equal(opened.details_id, payout.id)
   })
 })
 

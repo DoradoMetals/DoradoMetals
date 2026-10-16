@@ -21,3 +21,10 @@ export async function resolveReservation(
 ): Promise<LedgerEntry | undefined> {
   return await ledger.resolveReservation(order_id, type, tx)
 }
+
+export async function refundDebit(
+  order_id: string,
+  tx: Executor
+): Promise<LedgerEntry | undefined> {
+  return await ledger.refundDebit(order_id, tx)
+}

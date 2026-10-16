@@ -201,3 +201,39 @@ test("no admin-only field leaks to the order's own customer, on the view or the 
     { actor: TEST_ACTOR.id, lock: ORDER_LOCK }
   )
 })
+
+test('the customer reads no adopt, case or lot source facts, on the view or the lots read', async () => {
+  await inPinnedTransaction(
+    async (c: PoolClient) => {
+      const { victim, order } = await world(c)
+      const rep = await anAdmin(c, { name: 'The Rep' })
+
+      await as(victim, async () => {
+        const view = await request(app).get(`/api/orders/${order.id}`)
+        assert.equal(view.status, 200, view.text)
+        assert.ok(!('adopt' in view.body), 'the customer read the adopt facts')
+        assert.ok(!('cases' in view.body), 'the customer read the case facts')
+        assert.ok(view.body.lots.length > 0)
+        for (const lot of view.body.lots) {
+          assert.ok(!('source_reference' in lot), 'the customer read a lot source reference')
+        }
+
+        const lots = await request(app).get(`/api/orders/${order.id}/lots`)
+        assert.equal(lots.status, 200, lots.text)
+        assert.ok(lots.body.length > 0)
+        for (const lot of lots.body) {
+          assert.ok(!('source_reference' in lot), 'the lots read gave a source reference')
+        }
+      })
+
+      await asAdmin(rep, async () => {
+        const view = await request(app).get(`/api/orders/${order.id}`)
+        assert.ok('adopt' in view.body && 'cases' in view.body, 'an admin lost the facts')
+        assert.ok('source_reference' in view.body.lots[0], 'an admin lost the source reference')
+        const lots = await request(app).get(`/api/orders/${order.id}/lots`)
+        assert.ok('source_reference' in lots.body[0], 'an admin lost the lots source reference')
+      })
+    },
+    { actor: TEST_ACTOR.id, lock: ORDER_LOCK }
+  )
+})

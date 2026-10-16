@@ -28,7 +28,7 @@ export const Order = z.object({
 export type Order = z.infer<typeof Order>
 // generated:end
 import { OrderTotals } from './transactions.js'
-import { OrderLot, OrderLotView } from './lots.js'
+import { CustomerOrderLotView, OrderLot, OrderLotView } from './lots.js'
 import { Lot } from '../inventory/lots.js'
 import { Bullion } from '../products/bullion.js'
 import { Address } from '../places/addresses.js'
@@ -191,6 +191,11 @@ export type OrderViewFacts = z.infer<typeof OrderViewFacts>
 
 export const OrderView = OrderViewFacts.extend({ actions: OrderActions })
 export type OrderView = z.infer<typeof OrderView>
+
+export const CustomerOrderView = OrderView.omit({ adopt: true, cases: true }).extend({
+  lots: z.array(CustomerOrderLotView),
+})
+export type CustomerOrderView = z.infer<typeof CustomerOrderView>
 
 export const OrderPatch = Order.pick({
   notes: true,

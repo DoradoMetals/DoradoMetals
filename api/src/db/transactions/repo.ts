@@ -24,11 +24,15 @@ export async function resolveReservation(
   type: 'Debit' | 'Released',
   executor?: Executor
 ): Promise<LedgerEntry | undefined> {
-  const { rows } = await query<LedgerEntry>(
-    sql('resolve_reservation'),
-    [order_id, type],
-    executor
-  )
+  const { rows } = await query<LedgerEntry>(sql('resolve_reservation'), [order_id, type], executor)
+  return rows[0]
+}
+
+export async function refundDebit(
+  order_id: string,
+  executor?: Executor
+): Promise<LedgerEntry | undefined> {
+  const { rows } = await query<LedgerEntry>(sql('refund_debit'), [order_id], executor)
   return rows[0]
 }
 

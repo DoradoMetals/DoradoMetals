@@ -48,8 +48,6 @@ const BUY_SET = ['invoice', 'packing_list']
 
 const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
-const offers = (order: Order, name: string) => order.actions.some((a) => a.name === name)
-
 const lotName = (row: LotRow) => row.lot.product_name ?? row.lot.form ?? row.lot.metal_id
 
 const isRead = (id: string) => (response: Response) =>
@@ -192,8 +190,8 @@ for (const size of SIZES) {
     })
 
     test('the Cancel confirm opens and Keep order closes it', async ({ page }) => {
+      test.fixme(true, 'no fixture path creates a purchase order that offers cancel')
       const { order } = await openOrder(page, orderId)
-      test.skip(!offers(order, 'cancel'), 'the API does not offer cancel on this purchase order')
       await page.getByRole('button', { name: 'Cancel', exact: true }).click()
       const dialog = page.getByRole('dialog', { name: `Cancel ${order.number}?` })
       await expect(dialog).toBeVisible()

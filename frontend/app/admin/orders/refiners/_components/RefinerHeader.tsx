@@ -1,8 +1,11 @@
 'use client'
 
 import * as React from 'react'
-import { Button, EntityHeader, Select } from '@dorado/components'
+import NextLink from 'next/link'
+import { Breadcrumb, Button, EntityHeader, Select } from '@dorado/components'
 import type { Action, RefiningOrderRead } from '@dorado/contracts'
+
+import { protectedRoutes } from '@/shared/types/routes'
 
 import { OrderState } from '../../_components/OrderState'
 import { useAssignees, usePatchOrder } from '../_api'
@@ -88,6 +91,16 @@ export function RefinerHeader({
   return (
     <EntityHeader
       layout={layout}
+      breadcrumb={
+        <Breadcrumb
+          linkComponent={NextLink}
+          items={[
+            { label: 'Admin', href: protectedRoutes.admin.path },
+            { label: 'Orders', href: protectedRoutes.adminOrders.path },
+            { label: view.number },
+          ]}
+        />
+      }
       eyebrow={eyebrowFor(view.direction, view.state === 'Draft')}
       badge={<OrderState state={view.state} />}
       identity={

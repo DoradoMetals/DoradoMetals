@@ -91,7 +91,8 @@ export function RefinerDraft({ direction }: { direction: RefiningDirection }) {
         <RefinerSaveFailed
           stale={false}
           message={create.error.message}
-          onDismiss={() => create.reset()}
+          onReload={() => create.reset()}
+          onRetry={() => create.reset()}
         />
       )}
     </div>

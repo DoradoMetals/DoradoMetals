@@ -15,8 +15,16 @@ export type LotPhotosCardProps = {
   defaultOpen?: boolean
 }
 
-function LotPhotoRow({ lot, onOpen }: { lot: OrderLotView; onOpen: () => void }) {
-  const images = useLotPictures(lot.lot_id).data ?? []
+function LotPhotoRow({
+  lot,
+  open,
+  onOpen,
+}: {
+  lot: OrderLotView
+  open: boolean
+  onOpen: () => void
+}) {
+  const images = useLotPictures(lot.lot_id, open).data ?? []
   return (
     <div data-lot={lot.lot_id} className="flex items-center justify-between gap-md">
       <span className="flex min-w-0 flex-col gap-3xs">
@@ -42,6 +50,7 @@ export function LotPhotosCard({
   defaultOpen = true,
 }: LotPhotosCardProps) {
   const [viewing, setViewing] = React.useState<OrderLotView | null>(null)
+  const [open, setOpen] = React.useState(defaultOpen)
   return (
     <>
       <OrderSection
@@ -50,10 +59,11 @@ export function LotPhotosCard({
         content={lots.length === 0 ? 'empty' : 'loaded'}
         emptyTitle="No lots yet"
         emptyDescription="Photos show here once the order has lots."
-        defaultOpen={defaultOpen}
+        open={open}
+        onOpenChange={setOpen}
       >
         {lots.map((lot) => (
-          <LotPhotoRow key={lot.id} lot={lot} onOpen={() => setViewing(lot)} />
+          <LotPhotoRow key={lot.id} lot={lot} open={open} onOpen={() => setViewing(lot)} />
         ))}
       </OrderSection>
       {viewing && (

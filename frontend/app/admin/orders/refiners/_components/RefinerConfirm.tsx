@@ -91,6 +91,18 @@ export const refinerConfirmCopy: Record<RefinerConfirmActionName, Copy> = {
   },
 }
 
+export type PartialSettle = {
+  references: string[]
+  total: number
+  refiner: string | null
+  order: string
+}
+
+const joinList = (items: string[]): string =>
+  items.length < 2
+    ? items.join('')
+    : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`
+
 export type RefinerConfirmStepUp = {
   destination: string
   onVerify: (code: string) => void
@@ -102,6 +114,7 @@ export type RefinerConfirmProps = {
   action: Action & { name: RefinerConfirmActionName }
   reference: string
   body?: string
+  partial?: PartialSettle
   layout?: 'desktop' | 'mobile'
   pending?: boolean
   stepUp?: RefinerConfirmStepUp
@@ -117,6 +130,7 @@ export function RefinerConfirm({
   action,
   reference,
   body,
+  partial,
   layout = 'desktop',
   pending = false,
   stepUp,
@@ -136,7 +150,13 @@ export function RefinerConfirm({
     }
   }, [open])
 
-  const said = action.override ?? action.confirm
+  const settling = partial?.references.length ?? 0
+  const rest = (partial?.total ?? 0) - settling
+  const partialTitle = partial ? `Settle ${settling} of ${partial.total} lots now?` : null
+  const partialBody = partial
+    ? `${joinList(partial.references)} settle${settling === 1 ? 's' : ''} at ${partial.refiner ? `${partial.refiner}’s` : 'the refiner’s'} figures. The other ${rest} ${rest === 1 ? 'lot stays' : 'lots stay'} open and ${partial.order} stays open until ${rest === 1 ? 'it settles' : 'they settle'}.`
+    : null
+  const said = partial ? null : (action.override ?? action.confirm)
   const kind = stepUp ? 'step-up' : 'confirm'
   const blocked = pending || (kind === 'confirm' && override && reason.trim().length === 0)
 
@@ -175,10 +195,10 @@ export function RefinerConfirm({
           </>
         ) : (
           <>
-            <DialogTitle>{copy.title(reference)}</DialogTitle>
+            <DialogTitle>{partialTitle ?? copy.title(reference)}</DialogTitle>
             <DialogDescription>
               {said ? `${sentence(said)} ` : ''}
-              {body ?? copy.body}
+              {partialBody ?? body ?? copy.body}
             </DialogDescription>
             {override ? (
               <Textarea
@@ -204,7 +224,11 @@ export function RefinerConfirm({
                 : onConfirm(override ? { override_reason: reason.trim() } : {})
             }
           >
-            {stepUp ? 'Verify' : copy.confirmLabel}
+            {stepUp
+              ? 'Verify'
+              : partial
+                ? `Settle ${settling} ${settling === 1 ? 'lot' : 'lots'}`
+                : copy.confirmLabel}
           </Button>
         </DialogFooter>
       </DialogContent>

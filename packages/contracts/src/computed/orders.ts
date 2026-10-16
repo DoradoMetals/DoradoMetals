@@ -45,6 +45,7 @@ export const OrderPaymentFacts = z.object({
   received: z.number(),
   refunded: z.number(),
   refundable: z.number(),
+  credit: z.number(),
   charge_received: z.boolean(),
 })
 export type OrderPaymentFacts = z.infer<typeof OrderPaymentFacts>

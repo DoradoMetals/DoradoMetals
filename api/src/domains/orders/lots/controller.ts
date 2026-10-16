@@ -2,12 +2,14 @@ import { z } from 'zod/v4'
 import { asyncHandler } from '#shared/middleware/asyncHandler.ts'
 import { strictBody, uuidParam } from '#shared/http/validate.ts'
 import * as orders from '#orders/service.ts'
+import * as rules from '#orders/rules.ts'
 import { LotUnlinkBody, OrderLotEditBody, OrderLotLine, OrderLotPatch } from '@dorado/contracts'
 
 const CreateOrderLotBody = z.union([OrderLotLine, OrderLotPatch])
 
 export const getOrderLots = asyncHandler(async (req, res) => {
-  return res.json(await orders.lotsFor(uuidParam(req, 'id')))
+  const lots = await orders.lotsFor(uuidParam(req, 'id'))
+  return res.json(req.user?.role === 'admin' ? lots : rules.orderLotsForCustomer(lots))
 })
 
 export const createOrderLot = asyncHandler(async (req, res) => {

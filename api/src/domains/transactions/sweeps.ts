@@ -43,7 +43,9 @@ export async function cancelPendingSale(
   client: Executor
 ): Promise<AbandonedSweepResult> {
   await orders.update(order_id, { cancelled_at: new Date().toISOString() }, {}, client)
-  return { order_id, refunded: await credit.releaseReservation(order_id, client) }
+  const released = await credit.releaseReservation(order_id, client)
+  const returned = await credit.refundDebit(order_id, client)
+  return { order_id, refunded: released || returned }
 }
 
 export async function sweepAbandoned(ttl_hours: number): Promise<AbandonedSweepResult[]> {
