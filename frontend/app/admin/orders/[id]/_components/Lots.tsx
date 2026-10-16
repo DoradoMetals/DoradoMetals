@@ -152,10 +152,10 @@ export function Lots({
             {rows.map(row)}
           </div>
         ) : (
-          <Table bare aria-label="Lots" data-kind={kind}>
-            <TableHeader surface="card">
+          <Table bare aria-label="Lots" data-kind={kind} className="[&>table]:table-fixed">
+            <TableHeader surface="card" className="[&>tr]:h-auto">
               <TableRow className="h-auto">
-                <TableHead className="w-4 pb-xs">
+                <TableHead className="w-10 pb-xs">
                   <Checkbox
                     aria-label="Select all lots"
                     checked={allChecked}
@@ -165,24 +165,26 @@ export function Lots({
                     }
                   />
                 </TableHead>
-                <TableHead fill className="pb-xs">
-                  Item
-                </TableHead>
-                <TableHead className="pb-xs text-center">Qty</TableHead>
+                <TableHead className="pb-xs">Item</TableHead>
+                <TableHead className="w-14 pb-xs text-center">Qty</TableHead>
                 {kind === 'scrap' && (
                   <>
-                    <TableHead className="pb-xs text-center">{WEIGHT_LABELS.gross}</TableHead>
-                    <TableHead className="pb-xs text-center">{WEIGHT_LABELS.net}</TableHead>
-                    <TableHead className="pb-xs text-center">Purity</TableHead>
+                    <TableHead className="w-[118px] pb-xs text-center">
+                      {WEIGHT_LABELS.gross}
+                    </TableHead>
+                    <TableHead className="w-[118px] pb-xs text-center">
+                      {WEIGHT_LABELS.net}
+                    </TableHead>
+                    <TableHead className="w-[104px] pb-xs text-center">Purity</TableHead>
                   </>
                 )}
-                <TableHead className="pb-xs text-center">Premium</TableHead>
-                <TableHead numeric className="pb-xs">
+                <TableHead className="w-[104px] pb-xs text-center">Premium</TableHead>
+                <TableHead numeric className="w-[104px] pb-xs">
                   Price
                 </TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>{rows.map(row)}</TableBody>
+            <TableBody className="[&>tr]:h-auto">{rows.map(row)}</TableBody>
           </Table>
         )}
       </OrderSection>

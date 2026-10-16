@@ -224,4 +224,11 @@ describe('Lots', () => {
     expect(screen.getByLabelText('Premium')).toBeTruthy()
     expect(screen.queryByLabelText('Purity')).toBeNull()
   })
+
+  test('the desktop table is fixed-layout and its rows drop the forced control height', () => {
+    render(<Lots direction="purchase" lots={[scrapLot]} actions={[]} />)
+    const table = screen.getByRole('table', { name: 'Lots' })
+    expect(table.parentElement!.className).toContain('[&>table]:table-fixed')
+    expect(table.querySelector('tbody')!.className).toContain('[&>tr]:h-auto')
+  })
 })

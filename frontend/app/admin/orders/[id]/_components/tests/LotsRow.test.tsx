@@ -99,3 +99,10 @@ describe('LotsRow', () => {
     expect(onSelectedChange).toHaveBeenCalledWith(true)
   })
 })
+
+describe('LotsRow layout', () => {
+  test('every desktop input sits in a w-full min-w-0 wrapper', () => {
+    inTable(<LotsRow lot={scrapLot} kind="scrap" />)
+    expect(screen.getByRole('row').querySelectorAll('div.w-full.min-w-0')).toHaveLength(4)
+  })
+})
