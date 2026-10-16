@@ -61,7 +61,7 @@ export function SpotMarquee() {
           <TooltipProvider>
             <Tooltip content={showBid ? 'Show ask' : 'Show bid'}>
               <Button
-                variant="secondary"
+                variant="tertiary"
                 intent="neutral"
                 size="iconSm"
                 icon={ArrowLeftRight}

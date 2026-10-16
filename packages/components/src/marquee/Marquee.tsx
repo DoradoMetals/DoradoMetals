@@ -10,6 +10,7 @@ export type MarqueeProps = {
   duration?: number
   label?: string
   leading?: React.ReactNode
+  showBorders?: boolean
   className?: string
 }
 
@@ -23,6 +24,7 @@ export function Marquee({
   duration = 30,
   label,
   leading,
+  showBorders = true,
   className,
 }: MarqueeProps) {
   if (layout === 'desktop') {
@@ -30,9 +32,13 @@ export function Marquee({
       <section
         aria-label={label}
         data-layout="desktop"
-        className={cn('h-(--control-lg) w-full border-y border-border bg-card', className)}
+        className={cn(
+          'h-(--control-lg) w-full bg-card',
+          showBorders && 'border-y border-border',
+          className
+        )}
       >
-        <div className="mx-auto flex h-full w-full max-w-page items-center gap-xl overflow-hidden px-lg py-2xs-plus">
+        <div className="mx-auto flex h-full w-full max-w-page items-center gap-xl overflow-hidden px-lg py-sm">
           {leading}
           <div className="ml-auto flex items-center gap-xl">{children}</div>
         </div>
@@ -45,7 +51,8 @@ export function Marquee({
       aria-label={label}
       data-layout="mobile"
       className={cn(
-        'group flex h-(--control-lg) w-full items-center overflow-x-auto border-y border-border bg-card px-lg',
+        'group flex h-(--control-lg) w-full items-center overflow-x-auto bg-card px-lg',
+        showBorders && 'border-y border-border',
         'motion-safe:overflow-hidden',
         className
       )}
