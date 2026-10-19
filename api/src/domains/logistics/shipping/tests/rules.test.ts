@@ -307,3 +307,36 @@ test('Arrived is a stage of its own, mapped from the FedEx AR scan', () => {
     'the reached stages are not the two that were scanned'
   )
 })
+
+test('a delivered shipment with no tracking events derives its steps from its own timestamps', () => {
+  const timeline = trackingTimeline([], {
+    shipped_at: '2026-09-01T10:00:00Z',
+    delivered_at: '2026-09-04T15:00:00Z',
+    shipping_status: 'Delivered',
+  })
+  assert.deepEqual(
+    timeline.map((step) => step.reached),
+    [true, true, true, true, true],
+    'a delivered legacy shipment still reads Pending on every step'
+  )
+  assert.equal(timeline[0]!.scan_time, '2026-09-01T10:00:00Z')
+  assert.equal(timeline[4]!.scan_time, '2026-09-04T15:00:00Z')
+  assert.ok(
+    trackingTimeline([], {}).every((step) => !step.reached),
+    'a shipment with no facts has reached nothing'
+  )
+})
+
+test('a legacy Returned or Cancelled shipment reaches no step even with delivered_at set', () => {
+  for (const shipping_status of ['Returned', 'Cancelled']) {
+    const timeline = trackingTimeline([], {
+      shipped_at: '2026-09-01T10:00:00Z',
+      delivered_at: '2026-09-04T15:00:00Z',
+      shipping_status,
+    })
+    assert.ok(
+      timeline.every((step) => !step.reached),
+      shipping_status
+    )
+  }
+})

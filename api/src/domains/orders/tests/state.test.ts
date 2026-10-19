@@ -191,6 +191,20 @@ test('purchase: a partial payout stays Ready to Pay until payouts and credit rea
   )
 })
 
+test('purchase: a total with float residue and a payout of the same cents reads Completed', async () => {
+  await inPinnedTransaction(
+    async (c: PoolClient) => {
+      const user = await aUser(c)
+      const order = await anOrder(c, user, { direction: 'purchase' }).withLots(1).withFulfillment()
+      await markDelivered(c, order.id)
+      await finalizeOrder(c, order.id, '7085.990000000001' as unknown as number)
+      await sendPayout(c, order, 7085.99)
+      await assertState(order.id, 'Completed')
+    },
+    { actor: TEST_ACTOR.id, lock: LOCK }
+  )
+})
+
 test('purchase paid before the refiner settles reads Completed: settlement never gates completion (ruling 134)', async () => {
   await inPinnedTransaction(
     async (c: PoolClient) => {

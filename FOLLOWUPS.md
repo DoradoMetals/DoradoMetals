@@ -660,3 +660,7 @@ Detail in `docs/waves/auth-passwordless.md`.
 
 - Order search matches phone numbers as typed; normalise phone formatting (digits only) on both sides.
 - The list `q` uses substring `LIKE` on name, email and product name; add pg_trgm indexes if the Orders list gets slow.
+
+## Dollar amounts held to the cent (2026-10-19, migration 299)
+
+- Production: the backfill, then 299, lands cent-rounded totals (the legacy `exchange` totals carry float residue and stay as they are; `order_state.sql` also compares at cent precision). After that run `audit:precision --prod` should be re-run; it audits type changes, not residue, so confirm whether it goes green rather than assuming.
