@@ -158,6 +158,22 @@ describe('the orders screen', () => {
     expect(screen.getByRole('button', { name: 'Page 1' })).toBeTruthy()
   })
 
+  test('the debounced search is passed to the list as q', async () => {
+    const calls = stubApi(routes())
+    mount()
+    await screen.findByText('PO-2481')
+    fireEvent.change(screen.getByRole('textbox', { name: 'Search orders' }), {
+      target: { value: 'Earle' },
+    })
+    await waitFor(() =>
+      expect(
+        calls.some(
+          (c) => c.url.pathname.endsWith('/orders') && c.url.searchParams.get('q') === 'Earle'
+        )
+      ).toBe(true)
+    )
+  })
+
   test('Show maps to has_unassigned_lots and Assigned to to assigned_to_id', async () => {
     const calls = stubApi(routes())
     mount()

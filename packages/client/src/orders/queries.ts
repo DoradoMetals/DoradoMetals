@@ -57,6 +57,7 @@ export type OrderListFilters = {
   sort?: string | null
   limit?: number | null
   offset?: number | null
+  q?: string | null
 }
 
 export function useOrders(filters: OrderListFilters = {}, options: { enabled?: boolean } = {}) {
@@ -69,6 +70,7 @@ export function useOrders(filters: OrderListFilters = {}, options: { enabled?: b
     sort: filters.sort ?? null,
     limit: filters.limit ?? null,
     offset: filters.offset ?? null,
+    q: filters.q?.trim() || null,
   }
   return useQuery<OrderList>({
     queryKey: keys.orders.list(params),

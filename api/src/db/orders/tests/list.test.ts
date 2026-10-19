@@ -333,3 +333,52 @@ test('placed_at is the order, arrived_at is the handover, and neither is invente
     assert.equal(after.items[0]!.state, 'Awaiting Finalize', 'the arrival did not move the state')
   })
 })
+
+test('q filters the list by customer name, order number (prefix and zeros optional) and counts follow', async () => {
+  await inRollback(async (c: PoolClient) => {
+    const tag = `Zq${Date.now().toString(36)}`
+    const earle = await aUser(c, { name: `Earle ${tag}` })
+    const other = await aUser(c, { name: `Someone Else` })
+    const mine = await anOrder(c, earle, { direction: 'purchase' })
+      .withLines({ metal_id: 'Gold', content: 1, premium: 1 })
+      .withSpots({ bid: BID })
+    await anOrder(c, other, { direction: 'purchase' })
+      .withLines({ metal_id: 'Gold', content: 1, premium: 1 })
+      .withSpots({ bid: BID })
+
+    const byName = await orders.list({ q: `earle ${tag.toLowerCase()}` }, c)
+    assert.deepEqual(
+      byName.items.map((o) => o.id),
+      [mine.id]
+    )
+    assert.equal(byName.counts.orders, 1, 'the count does not follow q')
+
+    for (const typed of [`PO-${String(mine.number).padStart(6, '0')}`, `po-${mine.number}`]) {
+      const byNumber = await orders.list({ q: typed, user_id: earle.id }, c)
+      assert.deepEqual(
+        byNumber.items.map((o) => o.id),
+        [mine.id],
+        typed
+      )
+    }
+    const none = await orders.list({ q: `nobody-${tag}` }, c)
+    assert.equal(none.items.length, 0)
+  })
+})
+
+test('q finds the order holding a lot by its reference, with or without the Lot prefix', async () => {
+  await inRollback(async (c: PoolClient) => {
+    const owner = await aUser(c)
+    const order = await anOrder(c, owner, { direction: 'purchase' })
+      .withLots(2, { metal_id: 'Gold', pre_melt: 12, purity: 0.5, unit: 'g' })
+      .withSpots({ bid: BID })
+    for (const typed of [`${order.number}-B`, `lot ${order.number}-b`, `Lot ${order.number}-A`]) {
+      const found = await orders.list({ q: typed, user_id: owner.id }, c)
+      assert.deepEqual(
+        found.items.map((o) => o.id),
+        [order.id],
+        typed
+      )
+    }
+  })
+})

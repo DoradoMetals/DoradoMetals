@@ -8,6 +8,7 @@ import stripeClient from '#providers/stripe/stripe-client.ts'
 import * as sms from '#providers/twilio/index.ts'
 import { fillMissingRole, withoutAnonymousCustomers } from '#accounts/auth/anonymous.ts'
 import { advancedCookieOptions } from '#accounts/auth/cookies.ts'
+import { sessionLifetime } from '#accounts/auth/lifetime.ts'
 import * as rules from '#accounts/auth/rules.ts'
 import { adoptAnonymousCheckoutQuietly } from '#checkout/adopt.ts'
 import { sendSignInCode } from '#documents/emails/service.ts'
@@ -29,7 +30,7 @@ export const auth = betterAuth({
     additionalFields: {
       impersonatedBy: { type: 'string', required: false, defaultValue: null, input: false },
     },
-    cookieCache: { enabled: true, maxAge: 5 * 60 },
+    ...sessionLifetime,
   },
   account: { modelName: 'auth.account' },
   verification: { modelName: 'auth.verification' },

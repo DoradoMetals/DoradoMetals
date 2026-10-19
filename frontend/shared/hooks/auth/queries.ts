@@ -26,7 +26,8 @@ const clearClientState = () => {
 
 export const useGetSession = () => {
   const { user, session, error, isPending } = useUser()
-  return { user, session, error, isPending }
+  const retry = useCallback(() => auth.$store.notify('$sessionSignal'), [])
+  return { user, session, error, isPending, retry }
 }
 
 export const useUpdateUser = () =>

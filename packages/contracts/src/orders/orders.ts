@@ -151,6 +151,7 @@ export const OrderFilter = z
     sort: z.string().nullable(),
     limit: z.number().int().positive().nullable(),
     offset: z.number().int().nonnegative().nullable(),
+    q: z.string().nullable(),
   })
   .partial()
 export type OrderFilter = z.infer<typeof OrderFilter>
