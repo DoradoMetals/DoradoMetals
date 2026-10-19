@@ -3,7 +3,7 @@ import { fireEvent, render } from '@testing-library/react'
 import * as React from 'react'
 
 import { Attachment } from './Attachment'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 describe('Attachment', () => {
   it('renders filename and meta, and axe finds nothing', async () => {
@@ -12,7 +12,7 @@ describe('Attachment', () => {
     )
     expect(getByText('receipt.pdf')).toBeTruthy()
     expect(getByText('120 KB')).toBeTruthy()
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('remove is a real button, NAMED with the filename, and fires', () => {

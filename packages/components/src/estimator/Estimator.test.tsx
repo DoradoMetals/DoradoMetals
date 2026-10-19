@@ -3,7 +3,7 @@ import { fireEvent, render } from '@testing-library/react'
 import * as React from 'react'
 
 import { Estimator } from './Estimator'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 const base = {
   type: {
@@ -50,7 +50,7 @@ describe('Estimator', () => {
     expect(getByText('Purity')).toBeTruthy()
     expect(getByRole('radio', { name: 'Gold' }).getAttribute('aria-checked')).toBe('true')
     expect(getByText('$1,234.00')).toBeTruthy()
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('relabels through props and reports changes', () => {

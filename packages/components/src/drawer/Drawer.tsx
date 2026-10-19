@@ -37,6 +37,7 @@ export type DrawerProps = {
   size?: DrawerSize
   className?: string
   label?: string
+  'aria-describedby'?: string
 }
 
 export function Drawer({
@@ -48,6 +49,7 @@ export function Drawer({
   size,
   className,
   label,
+  'aria-describedby': describedBy,
 }: DrawerProps) {
   const shouldReduceMotion = useReducedMotion()
   const panelRef = useFocusTrap<HTMLDivElement>(open)
@@ -86,6 +88,7 @@ export function Drawer({
             aria-modal="true"
             aria-labelledby={titled ? titleId : undefined}
             aria-label={titled ? undefined : label ? `${label} details` : 'Details'}
+            aria-describedby={describedBy}
             initial={isBottom ? { y: '100%' } : { x: anchor === 'right' ? '100%' : '-100%' }}
             animate={isBottom ? { y: 0 } : { x: 0 }}
             exit={isBottom ? { y: '100%' } : { x: anchor === 'right' ? '100%' : '-100%' }}

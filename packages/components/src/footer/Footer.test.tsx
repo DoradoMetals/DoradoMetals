@@ -3,7 +3,7 @@ import { render } from '@testing-library/react'
 import * as React from 'react'
 
 import { Footer } from './Footer'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 function renderFooter(props: Partial<React.ComponentProps<typeof Footer>> = {}) {
   return render(
@@ -48,7 +48,7 @@ describe('Footer', () => {
     expect(getByText('Why Dorado?')).toBeTruthy()
     expect(getByText('Company')).toBeTruthy()
     expect(getByText('About Us')).toBeTruthy()
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('renders the tagline, cta and legal text', () => {

@@ -3,7 +3,7 @@ import { fireEvent, render } from '@testing-library/react'
 import * as React from 'react'
 
 import { Drawer, DrawerBody, DrawerFooter, DrawerHeader } from './Drawer'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 function openDrawer(props: Partial<React.ComponentProps<typeof Drawer>> = {}) {
   const setOpen = props.setOpen ?? vi.fn()
@@ -22,7 +22,7 @@ describe('Drawer', () => {
     expect(dialog).toBeTruthy()
     expect(dialog.getAttribute('aria-modal')).toBe('true')
     expect(dialog.getAttribute('aria-label')).toBe('Order PO-2189 details')
-    expect(await axeViolations(document.body)).toEqual([])
+    await expectNoAxeViolations(document.body)
   })
 
   it('falls back to a generic accessible name when no label is given', () => {
@@ -114,7 +114,7 @@ describe('Drawer', () => {
     expect(panel.className).toContain('bottom-0')
     const handle = panel.querySelector('[aria-hidden="true"]') as HTMLElement
     expect(handle).toBeTruthy()
-    expect(await axeViolations(document.body)).toEqual([])
+    await expectNoAxeViolations(document.body)
   })
 
   it('grab handle row is 36x4, padded 8 top / 2 bottom to a 14px row (127:32, 2026-10-09)', () => {
@@ -159,7 +159,7 @@ describe('Drawer', () => {
     expect(header.className).toContain('p-md')
     fireEvent.click(getByRole('button', { name: 'Close' }))
     expect(setOpen).toHaveBeenCalledWith(false)
-    expect(await axeViolations(document.body)).toEqual([])
+    await expectNoAxeViolations(document.body)
   })
 
   it('DrawerBody pads md with an xs gap; DrawerFooter right-aligns its actions over a top hairline', () => {

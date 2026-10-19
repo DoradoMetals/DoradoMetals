@@ -3,14 +3,14 @@ import { render } from '@testing-library/react'
 import * as React from 'react'
 
 import { ItemDetails } from './ItemDetails'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 describe('ItemDetails', () => {
   it('shows only the parts given, with a middot before each but the first', async () => {
     const { container } = render(<ItemDetails name="ELM-88435" weight="12.0 g" purity="33.0%" />)
     expect(container.querySelectorAll('[data-part]')).toHaveLength(3)
     expect(container.textContent).toBe('ELM-88435·' + '12.0 g·' + '33.0%')
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('starts the line at the first part present', () => {

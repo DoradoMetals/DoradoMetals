@@ -3,7 +3,7 @@ import { fireEvent, render } from '@testing-library/react'
 import * as React from 'react'
 
 import { DatePicker } from './DatePicker'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 const groups = [{ label: 'Morning', slots: [{ value: '09:00', label: '9:00 AM' }] }]
 
@@ -12,7 +12,7 @@ describe('DatePicker', () => {
     const { container } = render(<DatePicker mode="single" defaultMonth={new Date(2026, 7, 1)} />)
     expect(container.querySelector('[role="grid"]')).toBeTruthy()
     expect(container.querySelector('[role="radiogroup"]')).toBe(null)
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('the time addon joins INSIDE the same card and picking fires', () => {

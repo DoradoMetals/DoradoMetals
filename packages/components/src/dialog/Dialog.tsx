@@ -15,11 +15,14 @@ export function DialogContent({
   size = 'md',
   children,
   showClose = true,
+  onOpenAutoFocus,
+  onCloseAutoFocus,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   size?: 'sm' | 'md' | 'lg'
   showClose?: boolean
 }) {
+  const restoreRef = React.useRef<HTMLElement | null>(null)
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay
@@ -40,6 +43,19 @@ export function DialogContent({
           'motion-reduce:animate-none',
           className
         )}
+        onOpenAutoFocus={(event) => {
+          restoreRef.current = document.activeElement as HTMLElement | null
+          onOpenAutoFocus?.(event)
+        }}
+        onCloseAutoFocus={(event) => {
+          onCloseAutoFocus?.(event)
+          if (event.defaultPrevented) return
+          const restore = restoreRef.current
+          if (restore && restore !== document.body && document.contains(restore)) {
+            event.preventDefault()
+            restore.focus()
+          }
+        }}
         {...props}
       >
         {children}

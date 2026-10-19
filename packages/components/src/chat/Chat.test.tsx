@@ -5,7 +5,7 @@ import * as React from 'react'
 import { CallEvent } from './CallEvent'
 import { Chat, type ChatCall, type ChatMessage } from './Chat'
 import { Message } from './Message'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 const messages: ChatMessage[] = [
   { id: '1', direction: 'outbound', status: 'delivered', time: '2:14 PM', body: 'Order received.' },
@@ -93,7 +93,7 @@ describe('Chat', () => {
     )
     expect(getByRole('button', { name: 'Customer messages' })).toBeTruthy()
     expect(queryByText('(512) 555-0148')).toBeNull()
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('the Calls view is titled Customer calls', () => {
@@ -107,7 +107,7 @@ describe('Chat', () => {
     )
     expect(getByRole('status', { name: 'Loading messages' })).toBeTruthy()
     expect(getByRole('button', { name: 'Send' })).toBeTruthy()
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
     rerender(<Chat phone="(512) 555-0148" status="loading" view="calls" />)
     expect(getByRole('status', { name: 'Loading calls' })).toBeTruthy()
     expect(getByRole('button', { name: 'Call (512) 555-0148' })).toBeTruthy()
@@ -121,7 +121,7 @@ describe('Chat', () => {
     expect(getByText("Couldn't load messages")).toBeTruthy()
     fireEvent.click(getByRole('button', { name: 'Try again' }))
     expect(onRetry).toHaveBeenCalled()
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
     rerender(<Chat phone="(512) 555-0148" status="error" view="calls" onRetry={onRetry} />)
     expect(getByText("Couldn't load calls")).toBeTruthy()
   })

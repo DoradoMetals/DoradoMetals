@@ -9,6 +9,7 @@ import { Checkbox } from '../checkbox/Checkbox'
 import { cn } from '../cn'
 import { FieldLabel, fieldPanel, fieldTrigger } from '../field/Field'
 import { Spinner } from '../spinner/Spinner'
+import { rovingKeyDown } from '../hooks/roving'
 
 export type MultiselectItem = { value: string; label: React.ReactNode; disabled?: boolean }
 
@@ -44,10 +45,13 @@ export function Multiselect({
   const triggerRef = React.useRef<HTMLButtonElement>(null)
   const firstRef = React.useRef<HTMLButtonElement>(null)
   const [open, setOpen] = React.useState(false)
+  const [stop, setStop] = React.useState(0)
   const shown = open && !disabled && !loading
 
   React.useEffect(() => {
-    if (shown) firstRef.current?.focus()
+    if (!shown) return
+    setStop(0)
+    firstRef.current?.focus()
   }, [shown])
 
   const close = () => {
@@ -77,7 +81,10 @@ export function Multiselect({
       ref={rootRef}
       className={cn('relative flex w-full flex-col gap-3xs', className)}
       onKeyDown={(event) => {
-        if (event.key === 'Escape' && shown) close()
+        if (event.key === 'Escape' && shown) {
+          event.stopPropagation()
+          close()
+        }
       }}
     >
       {label != null && <FieldLabel htmlFor={id}>{label}</FieldLabel>}
@@ -87,6 +94,8 @@ export function Multiselect({
         type="button"
         aria-haspopup="true"
         aria-expanded={shown}
+        aria-controls={shown ? `${id}-panel` : undefined}
+        aria-busy={loading || undefined}
         disabled={disabled}
         onClick={() => setOpen(!open)}
         className={cn(fieldTrigger(), 'cursor-pointer text-left')}
@@ -112,14 +121,22 @@ export function Multiselect({
       </button>
       {shown && (
         <div
+          id={`${id}-panel`}
           role="group"
           aria-labelledby={id}
+          onKeyDown={rovingKeyDown('[role="checkbox"]', { orientation: 'vertical' })}
+          onFocus={(event) => {
+            const boxes = Array.from(event.currentTarget.querySelectorAll('[role="checkbox"]'))
+            const index = boxes.indexOf(event.target)
+            if (index !== -1) setStop(index)
+          }}
           className={cn(fieldPanel(), 'absolute left-0 top-full mt-3xs w-full gap-3xs')}
         >
           <div className="flex items-center justify-between px-xs py-2xs">
             <label className="flex cursor-pointer items-center gap-xs text-small font-medium text-foreground">
               <Checkbox
                 ref={firstRef}
+                tabIndex={stop === 0 ? 0 : -1}
                 aria-label="Select all"
                 checked={all ? true : some ? 'indeterminate' : false}
                 onCheckedChange={(next) =>
@@ -132,13 +149,14 @@ export function Multiselect({
               Clear
             </Button>
           </div>
-          {items.map((item) => (
+          {items.map((item, index) => (
             <label
               key={item.value}
               className="flex cursor-pointer items-center gap-xs px-xs py-2xs text-body text-foreground"
             >
               <Checkbox
                 aria-label={typeof item.label === 'string' ? item.label : item.value}
+                tabIndex={stop === index + 1 ? 0 : -1}
                 checked={chosen.has(item.value)}
                 disabled={item.disabled}
                 onCheckedChange={(next) => toggle(item.value, next === true)}

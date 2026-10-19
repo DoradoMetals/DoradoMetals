@@ -22,14 +22,19 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onCancel()}>
-      <DialogContent>
+      <DialogContent role="alertdialog">
         <DialogTitle>{title}</DialogTitle>
         <DialogDescription>{body}</DialogDescription>
         <DialogFooter>
           <Button variant="secondary" onClick={onCancel}>
             Cancel
           </Button>
-          <Button intent="danger" disabled={pending} onClick={onConfirm}>
+          <Button
+            intent="danger"
+            disabled={pending}
+            aria-busy={pending || undefined}
+            onClick={onConfirm}
+          >
             {confirmLabel}
           </Button>
         </DialogFooter>

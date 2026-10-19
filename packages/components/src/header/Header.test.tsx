@@ -4,7 +4,7 @@ import * as React from 'react'
 
 import { Header } from './Header'
 import { Link } from '../link/Link'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 function renderHeader(props: Partial<React.ComponentProps<typeof Header>> = {}) {
   return render(
@@ -33,7 +33,7 @@ describe('Header', () => {
     expect(getByRole('navigation', { name: 'Primary' })).toBeTruthy()
     expect(getByText('How it works')).toBeTruthy()
     expect(queryByLabelText('Open menu')).toBeNull()
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('the mobile menu affordance toggles aria-expanded and calls back', () => {
@@ -78,7 +78,7 @@ describe('Header', () => {
     expect(queryByRole('navigation', { name: 'Primary' })).toBeNull()
     const close = getByRole('button', { name: 'Close menu' })
     expect(close.getAttribute('aria-expanded')).toBe('true')
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 })
 

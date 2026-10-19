@@ -3,7 +3,7 @@ import { fireEvent, render } from '@testing-library/react'
 import * as React from 'react'
 
 import { Pagination, getPaginationItems } from './Pagination'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 describe('getPaginationItems', () => {
   it('windows to first, current±1, last, with an ellipsis between', () => {
@@ -32,7 +32,7 @@ describe('Pagination', () => {
     expect(getByRole('navigation', { name: 'Pagination' })).toBeTruthy()
     expect(getByRole('button', { name: 'Page 2' }).getAttribute('aria-current')).toBe('page')
     expect(getByRole('button', { name: 'Page 1' }).getAttribute('aria-current')).toBe(null)
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('clicking a page number reports that page', () => {

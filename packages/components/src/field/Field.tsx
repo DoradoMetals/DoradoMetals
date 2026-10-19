@@ -43,7 +43,15 @@ export function Field({ label, htmlFor, message, invalid, children, className }:
       <FieldLabel htmlFor={htmlFor} className={cn(invalid && 'text-destructive')}>
         {label}
       </FieldLabel>
-      {children}
+      {React.isValidElement<React.HTMLAttributes<HTMLElement>>(children)
+        ? React.cloneElement(children, {
+            'aria-describedby':
+              [children.props['aria-describedby'], message != null ? messageId : null]
+                .filter(Boolean)
+                .join(' ') || undefined,
+            'aria-invalid': invalid || children.props['aria-invalid'] || undefined,
+          })
+        : children}
       {message != null && (
         <p
           id={messageId}

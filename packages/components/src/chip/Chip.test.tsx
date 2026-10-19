@@ -3,13 +3,13 @@ import { fireEvent, render } from '@testing-library/react'
 import * as React from 'react'
 
 import { Chip } from './Chip'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 describe('Chip', () => {
   it('selection is aria-pressed, and axe finds nothing', async () => {
     const { getByRole, container } = render(<Chip label="Gold" selected />)
     expect(getByRole('button', { name: /Gold/ }).getAttribute('aria-pressed')).toBe('true')
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it("dismiss is separate from the chip's own press", () => {

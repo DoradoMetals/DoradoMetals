@@ -77,7 +77,7 @@ export function TabsTrigger({
       className={cn(
         'cursor-pointer text-small font-medium text-muted-foreground transition-colors',
         'hover:text-foreground',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background',
+        'focus-ring',
         'disabled:pointer-events-none disabled:opacity-50',
         variant === 'underline'
           ? 'px-sm pt-xs pb-xs-plus data-[state=active]:text-foreground'

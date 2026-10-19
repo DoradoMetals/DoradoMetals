@@ -10,12 +10,13 @@ interface ProgressProps extends React.ComponentPropsWithoutRef<typeof ProgressPr
 }
 
 const Progress = React.forwardRef<React.ComponentRef<typeof ProgressPrimitive.Root>, ProgressProps>(
-  ({ className, value, showValue = false, ...props }, ref) => {
+  ({ className, value, showValue = false, 'aria-label': ariaLabel, ...props }, ref) => {
     const clamped = Math.min(100, Math.max(0, value))
     const bar = (
       <ProgressPrimitive.Root
         ref={ref}
         value={clamped}
+        aria-label={ariaLabel ?? (props['aria-labelledby'] ? undefined : 'Progress')}
         className={cn(
           'relative h-2xs-plus w-full overflow-hidden rounded-full bg-muted',
           className

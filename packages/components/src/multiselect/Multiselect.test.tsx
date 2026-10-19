@@ -3,7 +3,7 @@ import { fireEvent, render } from '@testing-library/react'
 import * as React from 'react'
 
 import { Multiselect } from './Multiselect'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 const items = [
   { value: 'name', label: 'Name' },
@@ -32,7 +32,7 @@ describe('Multiselect (1183:127)', () => {
     const trigger = getByRole('button', { name: /Columns/ })
     expect(trigger.getAttribute('aria-expanded')).toBe('false')
     expect(getByText('2 selected').className).toContain('bg-surface-soft')
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('Open: a checkbox listbox with Select all and Clear (1183:67)', () => {

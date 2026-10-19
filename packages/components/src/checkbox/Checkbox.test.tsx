@@ -3,7 +3,7 @@ import { fireEvent, render } from '@testing-library/react'
 import * as React from 'react'
 
 import { Checkbox } from './Checkbox'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 describe('Checkbox', () => {
   it('is a real checkbox that toggles, and axe finds nothing', async () => {
@@ -15,7 +15,7 @@ describe('Checkbox', () => {
     expect(box.getAttribute('aria-checked')).toBe('false')
     fireEvent.click(box)
     expect(onCheckedChange).toHaveBeenCalledWith(true)
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('disabled is real', () => {

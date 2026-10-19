@@ -212,7 +212,12 @@ export function Chat({
             />
           </div>
         ) : isMessages ? (
-          <div className="flex w-full flex-col gap-sm p-sm">
+          <div
+            role="log"
+            aria-live="polite"
+            aria-label={VIEW_TITLE.messages}
+            className="flex w-full flex-col gap-sm p-sm"
+          >
             <span className="text-center text-micro text-muted-foreground">{dayLabel}</span>
             {messages.map((m) => (
               <Message key={m.id} direction={m.direction} status={m.status} time={m.time}>

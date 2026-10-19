@@ -66,7 +66,7 @@ export const RatingButton = ({
   let tabIndex = -1
 
   if (!readOnly) {
-    tabIndex = value === index + 1 ? 0 : -1
+    tabIndex = value === index + 1 || (value < 1 && index === 0) ? 0 : -1
   }
 
   const handleClick = useCallback(
@@ -92,10 +92,12 @@ export const RatingButton = ({
 
   return (
     <button
+      role="radio"
+      aria-checked={value === index + 1}
       aria-label={`${index + 1} star${index === 0 ? '' : 's'}`}
       className={cn(
         'text-primary transition-transform motion-reduce:transition-none',
-        'rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background',
+        'relative rounded-full hit-area focus-ring',
         'p-3xs',
         readOnly && 'cursor-default',
         className
@@ -174,6 +176,13 @@ export const Rating = ({
       let newValue = focusedStar !== null ? focusedStar : (value ?? 0)
 
       switch (event.key) {
+        case 'Home':
+          newValue = 1
+          break
+        case 'End':
+          newValue = total
+          break
+        case 'ArrowUp':
         case 'ArrowRight':
           if (event.shiftKey || event.metaKey) {
             newValue = total
@@ -181,6 +190,7 @@ export const Rating = ({
             newValue = Math.min(total, newValue + 1)
           }
           break
+        case 'ArrowDown':
         case 'ArrowLeft':
           if (event.shiftKey || event.metaKey) {
             newValue = 1
@@ -225,6 +235,7 @@ export const Rating = ({
         onMouseLeave={() => setHoverValue(null)}
         ref={containerRef}
         role="radiogroup"
+        aria-readonly={readOnly || undefined}
         {...props}
       >
         {Children.map(children, (child, index) => {

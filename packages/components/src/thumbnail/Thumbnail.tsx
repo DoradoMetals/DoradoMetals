@@ -32,9 +32,10 @@ export const Thumbnail = React.forwardRef<HTMLButtonElement, ThumbnailProps>(
     <button
       ref={ref}
       type="button"
+      aria-label={overflow == null && !alt ? 'Image' : undefined}
       className={cn(
         'group relative flex shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-sm bg-secondary outline-none',
-        'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background',
+        'focus-ring',
         thumbnailVariants({ size }),
         className
       )}

@@ -40,11 +40,8 @@ const QuantityStepper = React.forwardRef<HTMLDivElement, QuantityStepperProps>(
     return (
       <div
         ref={ref}
-        role="spinbutton"
+        role="group"
         aria-label={label ?? 'Quantity'}
-        aria-valuenow={value}
-        aria-valuemin={min}
-        aria-valuemax={max}
         className={cn(
           'inline-flex min-h-(--control-sm-plus) items-center overflow-hidden rounded-lg border border-border bg-card transition-colors focus-within:border-primary',
           disabled && 'pointer-events-none opacity-50',
@@ -64,6 +61,10 @@ const QuantityStepper = React.forwardRef<HTMLDivElement, QuantityStepperProps>(
           <Minus className="size-3.5" aria-hidden />
         </button>
         <input
+          role="spinbutton"
+          aria-valuenow={value}
+          aria-valuemin={min}
+          aria-valuemax={max}
           inputMode="numeric"
           pattern="[0-9]*"
           aria-label={label ? `${label} quantity` : 'Quantity'}
@@ -81,6 +82,14 @@ const QuantityStepper = React.forwardRef<HTMLDivElement, QuantityStepperProps>(
             if (e.key === 'ArrowDown') {
               e.preventDefault()
               step(-1)
+            }
+            if (e.key === 'Home') {
+              e.preventDefault()
+              if (value !== min) onChange(min)
+            }
+            if (e.key === 'End') {
+              e.preventDefault()
+              if (value !== max) onChange(max)
             }
           }}
           className="w-7 self-stretch cursor-text bg-transparent text-center text-small font-medium tabular-nums text-foreground outline-none disabled:text-foreground-disabled"

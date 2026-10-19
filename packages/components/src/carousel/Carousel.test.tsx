@@ -3,7 +3,7 @@ import { render, fireEvent } from '@testing-library/react'
 import * as React from 'react'
 
 import { Carousel } from './Carousel'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 function slides(n: number, onClick?: (i: number) => void) {
   return Array.from({ length: n }, (_, i) => (
@@ -23,7 +23,7 @@ describe('Carousel', () => {
     expect(getByRole('button', { name: 'Go to slide 2 of 3' }).getAttribute('aria-current')).toBe(
       null
     )
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('honours prefers-reduced-motion through CSS on the scroll container', () => {

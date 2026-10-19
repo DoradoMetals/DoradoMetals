@@ -46,7 +46,7 @@ export function Page({
 }: PageProps): ReactNode {
   return h(
     'html',
-    { lang: 'en' },
+    { lang: 'en', dir: 'ltr' },
     h(
       'head',
       null,

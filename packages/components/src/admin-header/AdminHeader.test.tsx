@@ -8,7 +8,7 @@ import { Button } from '../button/Button'
 import { Chip } from '../chip/Chip'
 import { Input } from '../input/Input'
 import { Select } from '../select/Select'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 const items = [{ value: 'gold', label: 'Gold' }]
 
@@ -59,7 +59,7 @@ describe('AdminHeader', () => {
     expect(getByRole('navigation', { name: 'Breadcrumb' })).toBeTruthy()
     expect(getByRole('button', { name: 'New lot' })).toBeTruthy()
     expect(getByRole('button', { name: 'Reset' })).toBeTruthy()
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('desktop puts the chips on the title line and pads the sides lg', () => {
@@ -79,7 +79,7 @@ describe('AdminHeader', () => {
     const head = title.parentElement?.parentElement as HTMLElement
     expect(head.className).toContain('px-md')
     expect(container.querySelector('.grid.grid-cols-2')).toBeTruthy()
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('every part is optional: a bare title renders no nav, toolbar or actions', () => {

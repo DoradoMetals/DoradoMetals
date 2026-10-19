@@ -60,6 +60,7 @@ export function Upload({
 }: UploadProps) {
   const [dragOver, setDragOver] = React.useState(false)
   const inputRef = React.useRef<HTMLInputElement>(null)
+  const describedId = React.useId()
 
   const count = fileCount ?? React.Children.count(attachments)
   const isFull = maxFiles != null && count >= maxFiles
@@ -97,7 +98,7 @@ export function Upload({
                 : isFull
                   ? 'border-border'
                   : 'border-border-strong hover:border-subtle',
-            'focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 ring-offset-background',
+            'has-focus-visible:outline-solid has-focus-visible:outline-(length:--stroke-heavy) has-focus-visible:outline-ring has-focus-visible:outline-offset-2',
             isBlocked && 'pointer-events-none'
           )}
           onDragOver={(e) => {
@@ -117,6 +118,10 @@ export function Upload({
             accept={accept}
             multiple={multiple}
             disabled={isBlocked}
+            aria-invalid={hasError || undefined}
+            aria-describedby={
+              (!dragOver && hasError) || (!dragOver && hint != null) ? describedId : undefined
+            }
             className="sr-only"
             onChange={(e) => {
               take(e.currentTarget.files)
@@ -152,10 +157,14 @@ export function Upload({
             </span>
           )}
           {!dragOver && hasError && (
-            <span className="text-micro text-destructive">{error.remedy}</span>
+            <span id={describedId} className="text-micro text-destructive">
+              {error.remedy}
+            </span>
           )}
           {!dragOver && !hasError && hint != null && (
-            <span className="text-micro text-placeholder">{hint}</span>
+            <span id={describedId} className="text-micro text-placeholder">
+              {hint}
+            </span>
           )}
         </label>
       </div>
@@ -176,7 +185,11 @@ export function Upload({
       </div>
       <div className="h-px w-full bg-border" />
       <div className="flex h-9.25 w-full shrink-0 items-center justify-between px-sm">
-        <span className={cn('text-micro', isFull ? 'text-foreground' : 'text-placeholder')}>
+        <span
+          role="status"
+          aria-live="polite"
+          className={cn('text-micro', isFull ? 'text-foreground' : 'text-placeholder')}
+        >
           {maxFiles != null ? `${count} of ${maxFiles}` : `${count} file${count === 1 ? '' : 's'}`}
         </span>
         {onClearAll != null && (

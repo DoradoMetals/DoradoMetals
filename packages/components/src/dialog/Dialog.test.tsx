@@ -3,7 +3,7 @@ import { fireEvent, render } from '@testing-library/react'
 import * as React from 'react'
 
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from './Dialog'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 function openDialog(onOpenChange = () => {}) {
   return render(
@@ -23,7 +23,7 @@ describe('Dialog', () => {
     expect(dialog).toBeTruthy()
     expect(dialog.getAttribute('aria-labelledby')).toBeTruthy()
     expect(dialog.getAttribute('aria-describedby')).toBeTruthy()
-    expect(await axeViolations(document.body)).toEqual([])
+    await expectNoAxeViolations(document.body)
   })
 
   it('open dialog adds no body padding', () => {

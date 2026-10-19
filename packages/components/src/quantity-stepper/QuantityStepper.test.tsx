@@ -3,7 +3,7 @@ import { fireEvent, render } from '@testing-library/react'
 import * as React from 'react'
 
 import { QuantityStepper } from './QuantityStepper'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 describe('QuantityStepper', () => {
   it('steps and clamps through the buttons, and axe finds nothing', async () => {
@@ -13,7 +13,7 @@ describe('QuantityStepper', () => {
     )
     fireEvent.click(getByLabelText('Increase quantity'))
     expect(onChange).toHaveBeenCalledWith(3)
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('at the floor the decrement DISABLES, never removes', () => {
@@ -26,7 +26,7 @@ describe('QuantityStepper', () => {
   it('typing commits on blur, clamped to max', () => {
     const onChange = vi.fn()
     const { getByRole } = render(<QuantityStepper value={2} onChange={onChange} min={1} max={9} />)
-    const input = getByRole('textbox') as HTMLInputElement
+    const input = getByRole('spinbutton') as HTMLInputElement
     fireEvent.change(input, { target: { value: '40' } })
     fireEvent.blur(input)
     expect(onChange).toHaveBeenCalledWith(9)
@@ -35,7 +35,7 @@ describe('QuantityStepper', () => {
   it('garbage reverts to the last real value rather than committing', () => {
     const onChange = vi.fn()
     const { getByRole } = render(<QuantityStepper value={2} onChange={onChange} />)
-    const input = getByRole('textbox') as HTMLInputElement
+    const input = getByRole('spinbutton') as HTMLInputElement
     fireEvent.change(input, { target: { value: '' } })
     fireEvent.blur(input)
     expect(onChange).not.toHaveBeenCalled()
@@ -45,18 +45,18 @@ describe('QuantityStepper', () => {
   it('arrow keys step from the input', () => {
     const onChange = vi.fn()
     const { getByRole } = render(<QuantityStepper value={2} onChange={onChange} max={9} />)
-    fireEvent.keyDown(getByRole('textbox'), { key: 'ArrowUp' })
+    fireEvent.keyDown(getByRole('spinbutton'), { key: 'ArrowUp' })
     expect(onChange).toHaveBeenCalledWith(3)
   })
 
   it('the default border is border/border (132:1016), not the field input token', () => {
     const { getByRole } = render(<QuantityStepper value={2} onChange={() => {}} />)
-    const group = getByRole('spinbutton')
+    const group = getByRole('group')
     expect(group.className).toContain('border-border')
     expect(group.className).not.toContain('border-input')
   })
 
-  it('the group carries spinbutton semantics with aria-valuenow (132:1016)', () => {
+  it('the input carries spinbutton semantics with aria-valuenow (132:1016)', () => {
     const { getByRole } = render(<QuantityStepper value={2} onChange={() => {}} min={1} max={9} />)
     const group = getByRole('spinbutton')
     expect(group.getAttribute('aria-valuenow')).toBe('2')
@@ -66,17 +66,17 @@ describe('QuantityStepper', () => {
 
   it("the value text uses the theme's small size token, not Tailwind's default text-sm", () => {
     const { getByRole } = render(<QuantityStepper value={2} onChange={() => {}} />)
-    const input = getByRole('textbox') as HTMLInputElement
+    const input = getByRole('spinbutton') as HTMLInputElement
     expect(input.className).toContain('text-small')
   })
 
   it('disabled is the normal chrome at 50%, not a muted fill (132:1016, 2026-10-10 convention)', () => {
     const { getByRole } = render(<QuantityStepper value={2} onChange={() => {}} disabled />)
-    const group = getByRole('spinbutton')
+    const group = getByRole('group')
     expect(group.className).toContain('opacity-50')
     expect(group.className).not.toContain('bg-muted')
     expect(group.className).toContain('bg-card')
-    const input = getByRole('textbox') as HTMLInputElement
+    const input = getByRole('spinbutton') as HTMLInputElement
     expect(input.disabled).toBe(true)
     expect(input.className).toContain('disabled:text-foreground-disabled')
   })

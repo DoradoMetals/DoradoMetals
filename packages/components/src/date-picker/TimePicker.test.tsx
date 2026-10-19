@@ -3,7 +3,7 @@ import { fireEvent, render } from '@testing-library/react'
 import * as React from 'react'
 
 import { TimePicker } from './TimePicker'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 const groups = [
   {
@@ -23,7 +23,7 @@ describe('TimePicker', () => {
     expect(container.querySelector('[role="radiogroup"]')).toBeTruthy()
     const chosen = container.querySelector('[aria-checked="true"]') as HTMLElement
     expect(chosen.textContent).toContain('9:00 AM')
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('unavailable stays visible but disabled - sold out is information', () => {

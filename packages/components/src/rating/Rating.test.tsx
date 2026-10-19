@@ -3,7 +3,7 @@ import { fireEvent, render } from '@testing-library/react'
 import * as React from 'react'
 
 import { Rating, RatingButton } from './Rating'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 function renderRating(props: Partial<React.ComponentProps<typeof Rating>> = {}) {
   return render(
@@ -21,7 +21,7 @@ describe('Rating', () => {
     const group = container.querySelector('[role="radiogroup"]')
     expect(group).toBeTruthy()
     expect(container.querySelectorAll('button')).toHaveLength(5)
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('clicking a star reports its 1-based value', () => {

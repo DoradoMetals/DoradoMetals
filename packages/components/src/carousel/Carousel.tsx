@@ -55,6 +55,22 @@ export function Carousel({
           aria-roledescription="carousel"
           tabIndex={0}
           {...handlers}
+          onKeyDown={(e) => {
+            if (e.target !== e.currentTarget) return
+            const next =
+              e.key === 'ArrowRight'
+                ? page + 1
+                : e.key === 'ArrowLeft'
+                  ? page - 1
+                  : e.key === 'Home'
+                    ? 0
+                    : e.key === 'End'
+                      ? count - 1
+                      : null
+            if (next == null) return
+            e.preventDefault()
+            goTo(next)
+          }}
           className={cn(
             'flex gap-sm overflow-x-auto snap-x snap-mandatory scroll-smooth motion-reduce:scroll-auto',
             'cursor-grab [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
@@ -64,6 +80,9 @@ export function Carousel({
           {slides.map((slide, i) => (
             <div
               key={i}
+              role="group"
+              aria-roledescription="slide"
+              aria-label={`${i + 1} of ${count}`}
               ref={(el) => {
                 slideRefs.current[i] = el
               }}
@@ -121,7 +140,7 @@ export function Carousel({
                 goTo(i)
               }}
               className={cn(
-                'shrink-0 rounded-full transition-all',
+                'shrink-0 rounded-full transition-all motion-reduce:transition-none focus-ring',
                 i === page ? 'size-2 bg-primary' : 'size-1.5 bg-border-strong'
               )}
             />

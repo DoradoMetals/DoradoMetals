@@ -3,7 +3,7 @@ import { fireEvent, render, within } from '@testing-library/react'
 import * as React from 'react'
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './Table'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 function renderTable(onSort = () => {}) {
   return render(
@@ -32,7 +32,7 @@ describe('Table', () => {
     expect(container.querySelector('table')).toBeTruthy()
     expect(container.querySelectorAll('th').length).toBe(2)
     expect(container.querySelector('th')?.getAttribute('scope')).toBe('col')
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('the sorted column says so on the th, and the button fires', () => {
@@ -215,7 +215,7 @@ describe('Table', () => {
     const row = container.querySelector('tbody tr')
     expect(row?.getAttribute('aria-selected')).toBe('true')
     expect(row?.getAttribute('data-state')).toBe('selected')
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('an unselected row carries no aria-selected', () => {

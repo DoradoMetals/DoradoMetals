@@ -3,7 +3,7 @@ import { render } from '@testing-library/react'
 import * as React from 'react'
 
 import { Marquee } from './Marquee'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 describe('Marquee', () => {
   it('renders children once for AT - the seam copy is aria-hidden', async () => {
@@ -15,7 +15,7 @@ describe('Marquee', () => {
     expect(getAllByText('Gold $2,411.20').length).toBe(2)
     const hidden = container.querySelector('[aria-hidden="true"]')
     expect(hidden?.textContent).toContain('Gold')
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('pauses on hover/focus and only animates motion-safe', () => {

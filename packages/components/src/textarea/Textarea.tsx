@@ -28,6 +28,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
       value,
       defaultValue,
       onChange,
+      'aria-describedby': describedBy,
       ...props
     },
     ref
@@ -35,6 +36,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
     const autoId = React.useId()
     const areaId = id ?? autoId
     const messageId = `${areaId}-message`
+    const countId = `${areaId}-count`
     const [count, setCount] = React.useState(String(value ?? defaultValue ?? '').length)
     React.useEffect(() => {
       if (value != null) setCount(String(value).length)
@@ -64,7 +66,11 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
             onChange?.(e)
           }}
           aria-invalid={invalid || undefined}
-          aria-describedby={message != null ? messageId : undefined}
+          aria-describedby={
+            [message != null ? messageId : null, showCount ? countId : null, describedBy]
+              .filter(Boolean)
+              .join(' ') || undefined
+          }
           className={cn(
             'min-h-24 w-full flex-1 resize-y rounded-lg border border-border bg-card px-sm py-xs text-field text-foreground outline-none transition-colors',
             'placeholder:text-placeholder focus-visible:border-primary',
@@ -87,6 +93,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
         )}
         {showCount && (
           <span
+            id={countId}
             className={cn(
               'text-micro w-full text-right',
               over ? 'text-destructive' : 'text-muted-foreground'

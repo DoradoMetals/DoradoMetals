@@ -3,7 +3,7 @@ import { render } from '@testing-library/react'
 import * as React from 'react'
 
 import { Link } from './Link'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 describe('Link', () => {
   it('is a real anchor, and axe finds nothing', async () => {
@@ -11,7 +11,7 @@ describe('Link', () => {
     const a = getByRole('link', { name: 'Live rates' }) as HTMLAnchorElement
     expect(a.tagName).toBe('A')
     expect(a.getAttribute('href')).toBe('/rates')
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('asChild lends the styling to a routing anchor', () => {

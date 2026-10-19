@@ -7,7 +7,7 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '../cn'
 
 const linkVariants = cva(
-  'cursor-pointer font-semibold decoration-1 underline-offset-4 hover:underline focus-visible:underline focus-visible:outline-none aria-disabled:pointer-events-none aria-disabled:cursor-not-allowed aria-disabled:opacity-50',
+  'cursor-pointer font-semibold decoration-1 underline-offset-4 hover:underline focus-visible:underline focus-ring aria-disabled:pointer-events-none aria-disabled:cursor-not-allowed aria-disabled:opacity-50',
   {
     variants: {
       intent: {

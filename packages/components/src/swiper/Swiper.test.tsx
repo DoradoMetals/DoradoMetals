@@ -3,7 +3,7 @@ import { render, fireEvent } from '@testing-library/react'
 import * as React from 'react'
 
 import { Swiper } from './Swiper'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 describe('Swiper', () => {
   it('is a labelled, keyboard-focusable scroll region with no pagination, and axe finds nothing', async () => {
@@ -17,7 +17,7 @@ describe('Swiper', () => {
     const region = getByRole('region', { name: 'Order statuses' })
     expect(region.getAttribute('tabindex')).toBe('0')
     expect(queryAllByRole('button')).toHaveLength(0)
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('honours prefers-reduced-motion through CSS on the scroll container', () => {

@@ -4,7 +4,7 @@ import * as React from 'react'
 
 import { DataTable, type DataTableColumn } from './DataTable'
 import { TableActions } from './TableActions'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 type Row = { id: string; item: string; purity: string; weight: number }
 
@@ -30,7 +30,7 @@ describe('DataTable', () => {
     const { container } = render(<DataTable columns={columns} data={data} label="Scrap" />)
     expect(container.querySelector('table')).toBeTruthy()
     expect(container.querySelectorAll('tbody tr').length).toBe(2)
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('zero rows renders the empty slot', () => {
@@ -262,7 +262,7 @@ describe('Table 1101:444 (ruling 157, refined 2026-10-19)', () => {
 describe('DataTable, 2026-10-19 Library', () => {
   it('axe finds nothing in the mobile list or with expand, resize and pinning on', async () => {
     const mobile = render(<DataTable columns={columns} data={data} label="Scrap" layout="mobile" />)
-    expect(await axeViolations(mobile.container)).toEqual([])
+    await expectNoAxeViolations(mobile.container)
     mobile.unmount()
     const rich = render(
       <DataTable
@@ -274,7 +274,7 @@ describe('DataTable, 2026-10-19 Library', () => {
         renderExpanded={(row) => <p>{row.item}</p>}
       />
     )
-    expect(await axeViolations(rich.container)).toEqual([])
+    await expectNoAxeViolations(rich.container)
   })
 
   it('the toolbar sits in its own row and a full-width divider follows it; no toolbar, no divider (1172:254)', () => {

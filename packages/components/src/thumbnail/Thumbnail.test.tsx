@@ -3,7 +3,7 @@ import { fireEvent, render } from '@testing-library/react'
 import * as React from 'react'
 
 import { Thumbnail } from './Thumbnail'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 describe('Thumbnail', () => {
   it('with a photo it renders the image and no placeholder glyph', () => {
@@ -27,7 +27,7 @@ describe('Thumbnail', () => {
     const { container, getByRole } = render(<Thumbnail aria-label="Open photo" onClick={onClick} />)
     fireEvent.click(getByRole('button', { name: 'Open photo' }))
     expect(onClick).toHaveBeenCalled()
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('SM 32 / MD 40 / LG 64 / XL 96 (698:29 Size variant)', () => {

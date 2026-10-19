@@ -3,7 +3,7 @@ import { render } from '@testing-library/react'
 import * as React from 'react'
 
 import { Text, type TextVariant } from './Text'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 const RAMP: Array<[TextVariant, string, string]> = [
   ['display', 'display', 'H1'],
@@ -91,6 +91,6 @@ describe('Text', () => {
     const el = getByText('Lot 14')
     expect(el.id).toBe('lede')
     expect(el.className.split(' ')).toContain('mt-md')
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 })

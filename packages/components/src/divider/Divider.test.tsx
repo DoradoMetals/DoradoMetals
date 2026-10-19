@@ -3,7 +3,7 @@ import { render } from '@testing-library/react'
 import * as React from 'react'
 
 import { Divider } from './Divider'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 describe('Divider', () => {
   it('renders a horizontal hairline by default, and axe finds nothing', async () => {
@@ -12,7 +12,7 @@ describe('Divider', () => {
     expect(rule.className).toMatch(/h-px/)
     expect(rule.className).toMatch(/w-full/)
     expect(rule.className).toMatch(/bg-border/)
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('is decorative by default, so it carries role=none rather than separator', () => {

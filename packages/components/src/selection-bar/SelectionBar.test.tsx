@@ -3,7 +3,7 @@ import { fireEvent, render } from '@testing-library/react'
 import * as React from 'react'
 
 import { SelectionBar } from './SelectionBar'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 describe('SelectionBar', () => {
   it('shows summary, totals and actions, and dismiss only with a handler', async () => {
@@ -21,7 +21,7 @@ describe('SelectionBar', () => {
     expect(getByText('Batch')).toBeTruthy()
     fireEvent.click(getByRole('button', { name: 'Clear selection' }))
     expect(onDismiss).toHaveBeenCalled()
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
     rerender(<SelectionBar summary="x" />)
     expect(queryByRole('button')).toBeNull()
   })

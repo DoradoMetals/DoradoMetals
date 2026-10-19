@@ -3,7 +3,7 @@ import { render } from '@testing-library/react'
 import * as React from 'react'
 
 import { Stepper } from './Stepper'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 describe('Stepper', () => {
   it('marks the current step for AT, and axe finds nothing', async () => {
@@ -11,7 +11,7 @@ describe('Stepper', () => {
     const current = container.querySelector('[aria-current="step"]') as HTMLElement
 
     expect(current.getAttribute('aria-label')).toBe('Step 2 of 3: Payment')
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('takes a bare count too', () => {

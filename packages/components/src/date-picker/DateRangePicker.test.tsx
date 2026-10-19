@@ -3,7 +3,7 @@ import { fireEvent, render, within } from '@testing-library/react'
 import * as React from 'react'
 
 import { DateRangePicker, type DateRange } from './DateRangePicker'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 const Y = new Date().getFullYear()
 const MONTH = new Date(Y, 9, 1)
@@ -33,7 +33,7 @@ describe('Date Picker (Library, 2026-10-19)', () => {
     const divider = trigger.querySelector('[data-part="divider"]') as HTMLElement
     expect(divider.className).toContain('bg-border-strong')
     expect(trigger.querySelector('svg.lucide-chevron-down')).toBeNull()
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('Filled (1208:633) shows the range with the year once at the end', () => {

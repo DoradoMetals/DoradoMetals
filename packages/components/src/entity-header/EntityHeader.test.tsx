@@ -7,7 +7,7 @@ import { Badge } from '../badge/Badge'
 import { Breadcrumb } from '../breadcrumb/Breadcrumb'
 import { Button } from '../button/Button'
 import { Select } from '../select/Select'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 function full(layout: 'desktop' | 'mobile') {
   return render(
@@ -42,7 +42,7 @@ describe('EntityHeader', () => {
     expect(eyebrow.parentElement?.textContent).toContain('Open')
     expect(getByText('Placed Oct 12').className).toContain('text-small')
     expect(getByText('Jane Doe · 3 items').getAttribute('data-emphasis')).toBe('subtle')
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('desktop puts actions beside the identity with no hairline; buttons hug their content', () => {
@@ -61,7 +61,7 @@ describe('EntityHeader', () => {
     expect(root.className).toContain('px-md')
     expect(root.querySelector(':scope > [role="none"]')).toBeTruthy()
     expect(root.querySelector(':scope > .justify-between')).toBeNull()
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('every part is optional; slots render in place of their text lines', () => {

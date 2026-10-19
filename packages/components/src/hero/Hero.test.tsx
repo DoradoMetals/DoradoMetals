@@ -3,7 +3,7 @@ import { render } from '@testing-library/react'
 import * as React from 'react'
 
 import { Hero, type HeroProps } from './Hero'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 const actions: Pick<HeroProps, 'primaryAction' | 'secondaryAction'> = {
   primaryAction: { href: '/sign-in', label: 'Get a Quote' },
@@ -16,10 +16,10 @@ describe('Hero', () => {
     expect(getByRole('heading', { level: 1 }).textContent).toBe(
       'Sell your precious metals without the guesswork'
     )
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
-  it('both CTAs are the CALLER\'s - no route is baked into the component', () => {
+  it("both CTAs are the CALLER's - no route is baked into the component", () => {
     const { getByRole } = render(
       <Hero
         sellerCount={2400}

@@ -3,7 +3,7 @@ import { fireEvent, render } from '@testing-library/react'
 import * as React from 'react'
 
 import { MaskedField } from './MaskedField'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 describe('MaskedField', () => {
   it('phone displays formatted, emits raw digits, and axe finds nothing', async () => {
@@ -16,7 +16,7 @@ describe('MaskedField', () => {
     expect(input.getAttribute('inputmode')).toBe('tel')
     fireEvent.change(input, { target: { value: '(555) 123-45678' } })
     expect(onValueChange).toHaveBeenCalledWith('5551234567')
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('card groups in fours and a full paste survives', () => {

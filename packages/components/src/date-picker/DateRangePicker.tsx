@@ -95,7 +95,10 @@ export function DateRangePicker({
       ref={rootRef}
       className={cn('relative flex w-full flex-col gap-3xs', className)}
       onKeyDown={(event) => {
-        if (event.key === 'Escape' && shown) close()
+        if (event.key === 'Escape' && shown) {
+          event.stopPropagation()
+          close()
+        }
       }}
     >
       {label != null && <FieldLabel htmlFor={id}>{label}</FieldLabel>}

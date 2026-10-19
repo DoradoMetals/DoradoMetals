@@ -11,7 +11,7 @@ import {
   MenuShortcut,
   MenuTrigger,
 } from './Menu'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 function openMenu() {
   return render(
@@ -39,7 +39,7 @@ describe('Menu', () => {
     expect(menu).toBeTruthy()
     const items = document.body.querySelectorAll('[role="menuitem"]')
     expect(items.length).toBe(2)
-    expect(await axeViolations(document.body)).toEqual([])
+    await expectNoAxeViolations(document.body)
   })
 
   it('danger intent carries destructive on the item', () => {

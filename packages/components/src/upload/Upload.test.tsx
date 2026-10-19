@@ -3,7 +3,7 @@ import { fireEvent, render } from '@testing-library/react'
 import * as React from 'react'
 
 import { Upload } from './Upload'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 describe('Upload', () => {
   it('holds a real file input, and axe finds nothing', async () => {
@@ -11,7 +11,7 @@ describe('Upload', () => {
     const input = container.querySelector('input[type="file"]') as HTMLInputElement
     expect(input).toBeTruthy()
     expect(input.getAttribute('accept')).toBe('image/*')
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('picking files calls onFiles', () => {

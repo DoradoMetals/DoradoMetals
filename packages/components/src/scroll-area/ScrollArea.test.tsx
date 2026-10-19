@@ -3,7 +3,7 @@ import { render } from '@testing-library/react'
 import * as React from 'react'
 
 import { ScrollArea } from './ScrollArea'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 describe('ScrollArea', () => {
   it('renders its children and a viewport, and axe finds nothing', async () => {
@@ -15,7 +15,7 @@ describe('ScrollArea', () => {
     )
     expect(getByText('9:00 AM')).toBeTruthy()
     expect(getByText('9:30 AM')).toBeTruthy()
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('the viewport takes focus so a keyboard can scroll it', () => {
@@ -26,7 +26,7 @@ describe('ScrollArea', () => {
     )
     const vp = container.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement
     expect(vp).toBeTruthy()
-    expect(vp.className).toContain('focus-visible:ring-2')
+    expect(vp.className).toContain('focus-ring')
   })
 
   it('horizontal orientation is opt-in', () => {
