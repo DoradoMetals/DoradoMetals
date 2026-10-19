@@ -26,6 +26,19 @@ describe('SelectionBar', () => {
     expect(queryByRole('button')).toBeNull()
   })
 
+  it('mobile puts the close button in the panel header, upper right, and it calls onDismiss', () => {
+    const onDismiss = vi.fn()
+    const { getByRole } = render(
+      <SelectionBar summary="2 orders selected" layout="mobile" onDismiss={onDismiss} />
+    )
+    const button = getByRole('button', { name: 'Clear selection' })
+    const header = button.parentElement as HTMLElement
+    expect(header.lastElementChild).toBe(button)
+    expect(getByRole('region').contains(button)).toBe(true)
+    fireEvent.click(button)
+    expect(onDismiss).toHaveBeenCalled()
+  })
+
   it('is fixed to the bottom on the raised surface with a top hairline', () => {
     const { getByRole } = render(<SelectionBar summary="x" />)
     const cls = getByRole('region').className

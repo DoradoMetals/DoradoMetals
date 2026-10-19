@@ -37,6 +37,17 @@ export function SelectionBar({
   ref,
   ...props
 }: SelectionBarProps) {
+  const dismiss = onDismiss ? (
+    <Button
+      variant="tertiary"
+      size="iconXs"
+      className="text-foreground"
+      aria-label={dismissLabel}
+      onClick={onDismiss}
+    >
+      <X aria-hidden />
+    </Button>
+  ) : null
   return (
     <div
       role="region"
@@ -51,22 +62,13 @@ export function SelectionBar({
       {...props}
     >
       <div className={innerVariants({ layout })}>
-        <div className="flex items-center gap-sm">
-          {onDismiss && (
-            <Button
-              variant="tertiary"
-              size="iconXs"
-              className="text-foreground"
-              aria-label={dismissLabel}
-              onClick={onDismiss}
-            >
-              <X aria-hidden />
-            </Button>
-          )}
+        <div className={cn('flex gap-sm', layout === 'mobile' ? 'items-start' : 'items-center')}>
+          {dismiss && layout === 'desktop' && dismiss}
           <div className="flex min-w-0 flex-1 flex-col gap-2xs">
             <p className="text-small text-foreground">{summary}</p>
             {totals != null && <p className="truncate text-micro text-subtle">{totals}</p>}
           </div>
+          {dismiss && layout === 'mobile' && dismiss}
         </div>
         {actions != null && (
           <div
