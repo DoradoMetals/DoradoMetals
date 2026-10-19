@@ -9,6 +9,7 @@ import {
 import type {
   SmsInbound,
   SmsMedia,
+  SmsMediaBytes,
   SmsSendResult,
   SmsStatusUpdate,
   TwilioForm,
@@ -64,6 +65,19 @@ export async function send(
     provider_sid: text(data.sid),
     status: text(data.status),
     error_code: blankToNull(text(data.error_code)),
+  }
+}
+
+export async function fetchMedia(url: string): Promise<SmsMediaBytes> {
+  const { account_sid, auth_token } = credentials()
+  const response = await axios.get<ArrayBuffer>(url, {
+    auth: { username: account_sid, password: auth_token },
+    responseType: 'arraybuffer',
+    maxRedirects: 5,
+  })
+  return {
+    bytes: Buffer.from(response.data),
+    content_type: text(response.headers['content-type']) || 'application/octet-stream',
   }
 }
 

@@ -19,3 +19,12 @@ export const PurityLabel = z.object({
 })
 export type PurityLabel = z.infer<typeof PurityLabel>
 // generated:end
+
+export const PurityLookup = PurityLabel.pick({
+  id: true,
+  metal_id: true,
+  label: true,
+  purity: true,
+  sort_order: true,
+})
+export type PurityLookup = z.infer<typeof PurityLookup>

@@ -1,6 +1,10 @@
 import * as funnel from '#db/leads/funnel/repo.ts'
-import type { LeadFunnel } from '@dorado/contracts'
+import type { LeadFunnel, LeadSummary, LeadSummaryWindow } from '@dorado/contracts'
 
 export async function get(): Promise<LeadFunnel> {
   return await funnel.get()
+}
+
+export async function summary(window: LeadSummaryWindow): Promise<LeadSummary> {
+  return await funnel.summary(window)
 }

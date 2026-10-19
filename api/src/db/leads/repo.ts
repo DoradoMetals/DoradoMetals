@@ -20,6 +20,7 @@ const RECORD_SMS_CONSENT_SQL = sql('record_sms_consent').replaceAll(
 )
 const CLEAR_SMS_CONSENT_SQL = sql('clear_sms_consent').replaceAll('/*__lead_stage__*/', LEAD_STAGE)
 const MARK_CONVERTED_SQL = sql('mark_converted').replaceAll('/*__lead_stage__*/', LEAD_STAGE)
+const RESTORE_SQL = sql('restore').replaceAll('/*__lead_stage__*/', LEAD_STAGE)
 
 export const PATCHABLE = columnsOf(LeadPatch)
 
@@ -38,7 +39,14 @@ export async function byPhone(phone: string, executor?: Executor): Promise<LeadV
 export async function list(filter: LeadFilter, executor?: Executor): Promise<LeadView[]> {
   const { rows } = await query<LeadView>(
     GET_ALL_SQL,
-    [filter.stage, filter.priority, filter.assigned_to, filter.source, filter.search],
+    [
+      filter.stage,
+      filter.priority,
+      filter.assigned_to,
+      filter.source,
+      filter.search,
+      filter.archived,
+    ],
     executor
   )
   return rows
@@ -82,6 +90,11 @@ export async function update(
 export async function remove(id: string, executor?: Executor): Promise<boolean> {
   const { rowCount } = await query(sql('delete'), [id], executor)
   return rowCount === 1
+}
+
+export async function restore(id: string, executor?: Executor): Promise<LeadView | undefined> {
+  const { rows } = await query<LeadView>(RESTORE_SQL, [id], executor)
+  return rows[0]
 }
 
 export async function recordSmsConsent(

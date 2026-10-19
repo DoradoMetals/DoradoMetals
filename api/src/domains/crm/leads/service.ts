@@ -8,6 +8,8 @@ import * as callsRepo from '#db/crm/calls/repo.ts'
 import * as assignmentsService from '#crm/assignments/service.ts'
 import * as usersService from '#accounts/users/service.ts'
 import * as smsService from '#crm/sms/service.ts'
+import * as estimateItems from '#db/leads/estimate-items/repo.ts'
+import * as checkoutService from '#checkout/service.ts'
 import * as rules from '#crm/leads/rules.ts'
 import type { AdminUser, LeadConvertBody, LeadFilter, LeadPatch, LeadView } from '@dorado/contracts'
 
@@ -72,9 +74,17 @@ export async function update(id: string, patch: LeadPatch): Promise<LeadView> {
   })
 }
 
-export async function remove(id: string): Promise<boolean> {
+export async function remove(id: string): Promise<void> {
+  const archived = await withTransaction((client) => leads.remove(id, client))
+  rules.assertArchivedNow(archived, id)
+}
+
+export async function restore(id: string): Promise<LeadView> {
   return withTransaction(async (client) => {
-    return await leads.remove(id, client)
+    rules.assertLead(await leads.getOne(id, client), id)
+    const row = await leads.restore(id, client)
+    rules.assertArchived(row, id)
+    return row
   })
 }
 
@@ -82,6 +92,7 @@ export async function convert(id: string, body: LeadConvertBody): Promise<AdminU
   const { user, welcome } = await withTransaction(async (tx) => {
     const lead = await leads.getOne(id, tx)
     rules.assertLead(lead, id)
+    rules.assertNotArchived(lead)
     rules.assertNotConverted(lead)
 
     const name = body.name ?? lead.name
@@ -105,6 +116,11 @@ export async function convert(id: string, body: LeadConvertBody): Promise<AdminU
       await callsRepo.attachToUser(phone_number, user.id, tx)
     }
     await notes.repointLeadToUser(id, user.id, tx)
+
+    if (body.carry_estimate !== false) {
+      const lines = await estimateItems.carryLines(id, tx)
+      if (lines.length) await checkoutService.replaceLots(user.id, 'purchase', lines, tx)
+    }
 
     const converted = await leads.markConverted(id, tx)
     rules.assertLead(converted, id)

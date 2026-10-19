@@ -38,16 +38,35 @@ test('update answers undefined for an id with no lead row', async () => {
   })
 })
 
-test('remove deletes a real lead and answers false the second time', async () => {
+test('remove archives a real lead - the row stays - and answers false the second time', async () => {
   await inRollback(async (c: PoolClient) => {
     const lead = await aLead(c)
 
     const removed = await leads.remove(lead.id, c)
     assert.equal(removed, true, 'remove reported no row changed')
-    assert.equal(await leads.getOne(lead.id, c), undefined)
+    const kept = await leads.getOne(lead.id, c)
+    assert.ok(kept, 'remove deleted the lead row; ruling 162 archives it')
+    assert.ok(kept.archived_at, 'remove did not stamp archived_at')
 
     const removedAgain = await leads.remove(lead.id, c)
-    assert.equal(removedAgain, false, 'remove reported a change for a lead already gone')
+    assert.equal(removedAgain, false, 'remove reported a change for a lead already archived')
+  })
+})
+
+test('list hides an archived lead unless archived is asked for', async () => {
+  await inRollback(async (c: PoolClient) => {
+    const tag = `archived-${randomUUID().slice(0, 8)}`
+    const lead = await aLead(c, { name: `${tag}-lead` })
+    await leads.remove(lead.id, c)
+
+    const live = await leads.list({ ...NO_FILTER, search: tag }, c)
+    assert.ok(!live.some((l) => l.id === lead.id), 'the default list shows an archived lead')
+
+    const archived = await leads.list({ ...NO_FILTER, search: tag, archived: true }, c)
+    assert.ok(
+      archived.some((l) => l.id === lead.id),
+      'archived: true did not show it'
+    )
   })
 })
 
@@ -112,7 +131,14 @@ test('the free-text notes column is no longer written on create - a note is a ro
   })
 })
 
-const NO_FILTER = { stage: null, priority: null, assigned_to: null, source: null, search: null }
+const NO_FILTER = {
+  stage: null,
+  priority: null,
+  assigned_to: null,
+  source: null,
+  search: null,
+  archived: false,
+}
 
 test('list filters by stage, priority and source', async () => {
   await inRollback(async (c: PoolClient) => {

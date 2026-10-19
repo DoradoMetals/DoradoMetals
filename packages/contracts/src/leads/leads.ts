@@ -33,6 +33,7 @@ export const Lead = z.object({
   'contacted_at': z.string().nullable(),
   'responded_at': z.string().nullable(),
   'converted_at': z.string().nullable(),
+  'archived_at': z.string().nullable(),
 })
 export type Lead = z.infer<typeof Lead>
 // generated:end
@@ -61,7 +62,9 @@ export const LeadPatch = Lead.pick({
   .extend({ sms_consent_method: SmsConsentMethod.nullable().optional() })
 export type LeadPatch = z.infer<typeof LeadPatch>
 
-export const LeadView = Lead.extend({ lead_stage: LeadStage })
+export const LeadView = Lead.omit({ created_by_id: true, updated_by_id: true }).extend({
+  lead_stage: LeadStage,
+})
 export type LeadView = z.infer<typeof LeadView>
 
 export const LeadConvertBody = z
@@ -71,6 +74,7 @@ export const LeadConvertBody = z
     email: Lead.shape.email,
   })
   .partial()
+  .extend({ carry_estimate: z.boolean().optional() })
   .strict()
 export type LeadConvertBody = z.infer<typeof LeadConvertBody>
 
@@ -80,5 +84,12 @@ export const LeadFilter = z.object({}).extend({
   assigned_to: z.string().nullable(),
   source: Lead.shape.source,
   search: z.string().nullable(),
+  archived: z.boolean(),
 })
 export type LeadFilter = z.infer<typeof LeadFilter>
+
+export const LeadArchivedQuery = z.enum(['true', 'false']).transform((v) => v === 'true')
+export type LeadArchivedQuery = z.infer<typeof LeadArchivedQuery>
+
+export const LeadRestoreBody = Lead.pick({}).strict()
+export type LeadRestoreBody = z.infer<typeof LeadRestoreBody>

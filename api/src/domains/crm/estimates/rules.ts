@@ -9,6 +9,10 @@ export function assertItem<T>(row: T | null | undefined, id: string): asserts ro
   if (!row) throw new NotFound(`no estimate item ${id}`)
 }
 
+export function assertItemImage(linked: boolean, item_id: string, image_id: string): void {
+  if (!linked) throw new NotFound(`no image ${image_id} on estimate item ${item_id}`)
+}
+
 export function assertOnePurity(purity_id: string | null, custom_purity: number | null): void {
   if ((purity_id === null) === (custom_purity === null)) {
     throw new Invalid(

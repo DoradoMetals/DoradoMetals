@@ -3,6 +3,7 @@ import * as twilio from '#providers/twilio/sms.ts'
 import type {
   SmsInbound,
   SmsMedia,
+  SmsMediaBytes,
   SmsProvider,
   SmsSendResult,
   SmsStatusUpdate,
@@ -12,6 +13,7 @@ import type {
 export type {
   SmsInbound,
   SmsMedia,
+  SmsMediaBytes,
   SmsProvider,
   SmsSendResult,
   SmsStatusUpdate,
@@ -28,6 +30,10 @@ function provider(): SmsProvider {
 
 export function send(to: string, body: string, media?: SmsMedia[]): Promise<SmsSendResult> {
   return provider().send(to, body, media)
+}
+
+export function fetchMedia(url: string): Promise<SmsMediaBytes> {
+  return provider().fetchMedia(url)
 }
 
 export function verifySignature(

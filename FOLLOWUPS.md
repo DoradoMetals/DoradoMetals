@@ -566,11 +566,10 @@ Detail in `docs/waves/auth-passwordless.md`.
   documents and uploads against a lead (media keys on orders today); four
   funnel metrics are new aggregates.
 
-- **Lead reads omit created_by_id / updated_by_id (leads-api lane,
-  2026-10-09).** `Lead`/`LeadView` declare both and `db/leads/repo.ts` omits
-  them via `ACTOR_IDS`; the omission is registered in `validate:wire` rather
-  than widened. `db/reviews/repo.ts` does the same. Decide whether the actor
-  ids belong on the wire (admin reads: yes) and widen both repos together.
+- **`db/reviews/repo.ts` omits created_by_id / updated_by_id** from its reads
+  while the contract declares them. Decide whether the actor ids belong on the
+  wire and close it. (Leads closed this in the leads-port lane: `LeadView` now
+  omits them, matching the read.)
 - **`exchange.leads.contact` holds an employee name on all 251 production
   rows**, not a contact preference. The later drop wave routes it to
   `assigned_to_id`, never to `contact_preference_id`. `source` is 100% NULL
@@ -673,11 +672,12 @@ Detail in `docs/waves/auth-passwordless.md`.
 
 ## Leads port (2026-10-19, after the People Figma asks land)
 
-- Ruling 161: MMS both ways on `/api/sms` (Twilio inbound MediaUrl to `media.images`, outbound mediaUrl); image bubbles in the thread.
-- Ruling 162: `leads.leads.archived_at` (migration), DELETE becomes archive, `POST /api/leads/:id/restore`, `archived` filter on the list; nothing deletes a lead row.
-- Images on estimate items (ruling 137): routes under `/api/leads/:id/estimate/items/:itemId/images`, the viewer.
-- Lookup reads: sources, estimate kinds, purities, weight units, contact preferences.
-- `carry_estimate` on `LeadConvertBody`.
-- Funnel endpoint extended to the four stat tiles (response rate by channel, conversion rate with history, median time to first contact against `crm.targets`, needs attention).
-- `@dorado/client` leads module rebuilt; `frontend/app/admin/leads` and `leads/[id]` per docs/waves/frontend-conventions.md.
-- Assignment reads depend on the roles lane (migrations 296-298).
+- [x] Ruling 161: MMS both ways on `/api/sms`: inbound bytes fetched with account auth after commit and stored in our bucket, linked once per position; outbound mediaUrl. Image bubbles in the thread are the frontend's.
+- [x] Ruling 162: `leads.leads.archived_at` (migration), DELETE becomes archive, `POST /api/leads/:id/restore`, `archived` filter on the list; nothing deletes a lead row.
+- [x] Images on estimate items (ruling 137): routes under `/api/leads/:id/estimate/items/:itemId/images`, the viewer.
+- [x] Lookup reads: sources, estimate kinds, purities, weight units, contact preferences.
+- [x] `carry_estimate` on `LeadConvertBody`.
+- [ ] Bullion estimate items carry as weight-based scrap lots on convert until estimate items carry a product (`carry_lines.sql`).
+- [x] Funnel endpoint extended to the four stat tiles (response rate by channel, conversion rate with history, median time to first contact against `crm.targets`, needs attention): `GET /api/leads/summary` (migrations 300-302, leads-port lane).
+- [ ] `@dorado/client` leads module rebuilt; `frontend/app/admin/leads` and `leads/[id]` per docs/waves/frontend-conventions.md.
+- [ ] Assignment reads depend on the roles lane (migrations 296-298).

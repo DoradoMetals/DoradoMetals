@@ -28,3 +28,9 @@ export const SmsMessage = z.object({
 })
 export type SmsMessage = z.infer<typeof SmsMessage>
 // generated:end
+import { SmsMessageImage } from './sms_message_images.js'
+
+export const SmsMessageView = SmsMessage.extend({
+  image_ids: z.array(SmsMessageImage.shape.image_id),
+})
+export type SmsMessageView = z.infer<typeof SmsMessageView>

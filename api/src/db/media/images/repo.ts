@@ -6,12 +6,13 @@ import type { Executor } from '#shared/db/executor.ts'
 const sql = sqlFrom(import.meta.dirname)
 
 export type NewImage = {
-  user_id: string
+  user_id: string | null
   bucket: string
   path: string
   filename: string
   mime_type?: string | null
   size_bytes?: number | null
+  checksum?: string | null
 }
 
 const values = (i: NewImage) => [
@@ -21,6 +22,7 @@ const values = (i: NewImage) => [
   i.filename,
   i.mime_type ?? null,
   i.size_bytes ?? null,
+  i.checksum ?? null,
 ]
 
 export async function getOne(id: string, executor?: Executor): Promise<Image | undefined> {

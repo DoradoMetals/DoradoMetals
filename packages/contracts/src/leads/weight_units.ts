@@ -18,3 +18,12 @@ export const EstimateUnit = z.object({
 })
 export type EstimateUnit = z.infer<typeof EstimateUnit>
 // generated:end
+
+export const WeightUnitLookup = EstimateUnit.pick({
+  id: true,
+  key: true,
+  label: true,
+  grams: true,
+  sort_order: true,
+})
+export type WeightUnitLookup = z.infer<typeof WeightUnitLookup>

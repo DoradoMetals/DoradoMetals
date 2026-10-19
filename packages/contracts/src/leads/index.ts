@@ -4,6 +4,7 @@
 // Every entity of the `leads` schema, one namespace each.
 export * from './contact_preferences.js'
 export * from './documents.js'
+export * from './estimate_item_images.js'
 export * from './estimate_items.js'
 export * from './estimate_kinds.js'
 export * from './leads.js'
