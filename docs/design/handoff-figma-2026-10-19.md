@@ -251,3 +251,86 @@ Detail and comment ids: per-file logs. Snapshots: tools/<file>/snapshots/*-2026-
 | Media | 2026-10-16T20:26:03.506Z |
 | Payments | 2026-10-16T20:25:19.185Z |
 | Pricing | 2026-10-14T21:56:04.754Z |
+
+## 8. Late evening (handoff)
+
+Detail per item: orders-, people-, library-, locations-comments-log.md (sections dated 2026-10-19 evening). Snapshots: tools/<file>/snapshots/*-2026-10-19.json.
+
+### 8.1 Changes since section 7
+
+**Orders: Create Order Drawer** (section Orders card 1271:27334)
+- Five frames:
+  - Shared 1293:25223: Create Order Steps 1279:19679 (four steps) and Decide Later Tile 1293:25224.
+  - Order 1293:25213: drawer 1293:25214, body 1293:25215, Lot Row 1280:20108, Lot Select Table 1284:31621 and its row and toolbar.
+  - Fulfillment 1293:25216: drawer 1293:25217, body 1293:25218, Method Tile 1282:20334.
+  - Money 1293:25219: drawer 1293:25220, body 1293:25221, Pricing Summary 1283:20052.
+  - Review 1293:25222: drawer 1287:38151, body 1287:33216, with Loading and Error.
+- Four steps (Jacob 1972428438). Step 1 Order holds the Kind, Party and Lots sections. Kind is four Radio Cards: Customer Purchase, Customer Sale, Refiner Purchase, Refiner Sale. No New customer button.
+- Decide later: no-lots orders may defer Fulfillment and Money.
+- Explanatory copy is in annotations, not on the canvas (59 notes).
+- Lot Row: the duplicate icon is copy-plus, with tooltip "Duplicate lot".
+- Un-clipped: every screen shows full height. Each body has one annotation: "Header and footer sticky; body scrolls". The Scrolled variants are deleted.
+- Premium is percent of spot ("Premium (% of spot)"):
+  - Scrap 75, bullion 98, customer sale 103.5.
+  - Estimates: scrap $408.97, bullion $23,645.44.
+  - Order estimate: purchase $24,054.41, sale $24,972.48.
+  - Pricing Summary purchase: Fine gold 10.226 t oz, Metal value $24,673.29, Payout total $24,054.41.
+- Lot Select Table Default is an instance of the refiner Lots table (desktop Lots / Refiner 338:10143, Selection=Some; mobile 1235:25741).
+  - Every column, including the source customer Order.
+  - Add, Combine and Remove are hidden.
+  - Empty keeps the Library empty state.
+- The old Create Purchase and Create Sale drawers and forms are deleted.
+
+**People**
+- Rule: drawers open no drawer and no dialog. Drawer Inline Add 547:10803 (Subject x Layout), plus State=Adding:
+  - Lists 547:10804, 547:11719, 547:12118, 547:12904.
+  - Drawers 547:10986, 547:11838, 547:12306, 547:13041.
+- Drawer List Toolbar 543:9009 (Customers, Leads, Orders):
+  - Icon buttons are 44 px (control/lg).
+  - Desktop sorts in the column heads; mobile uses a Sort select.
+- Employee drawer lists 518:12624 and 518:12442:
+  - Desktop is a selectable Desktop Table with Default, Selected, Empty, Loading and Adding.
+  - Mobile has Default, Empty, Loading and Adding.
+  - Row double borders are cleared.
+- Employee Activity 207:4723 is on the Library Table (Timeline Row). On desktop it replaced the Orders card in Left 78:2732. The mobile Orders card is removed.
+- Dana's Orders: drawer 549:13043, list 549:11781 (desktop Table; mobile Orders library Order Row). No Add.
+- Employee Performance, Orders (Profitability) tab: View orders (465:10180, 465:10185) opens Dana's Orders.
+- Black icon strokes are re-bound to text/muted: drawer search and timeline package.
+- Deleted (superseded): 425:5583, 416:6446, 440:9586, 447:6367. People 195:6553 annotation now points to Payments 60:1359.
+
+**Library** (all wait on publish)
+- Table 1101:444: axis In card renamed Bordered (True/False).
+- Table Header 1172:254: Toolbar divider, shown with Show toolbar.
+- Drawer 127:32: Body overflow vertical, not clipped.
+- Selection Bar 871:17 (mobile): x upper right, Subtle.
+- Marquee and Header Spots: surface/background.
+- Address Card page deleted.
+
+### 8.2 Rules learned
+- A drawer never opens a drawer or a dialog; adding happens inline in the drawer body.
+- Sticky header and footer go in an annotation; Figma shows the full screen.
+- Premium is percent of spot, as in the Pricing Rates table.
+- The drawer lots table mirrors the refiner order lots table, all columns.
+- combineAsVariants on variants taken from another set strips the property names ("=1 Order, …"). Check the names after every split.
+
+### 8.3 Queue, in order
+1. People 1972415714: Customers list on the Library Table. Admin Header filter slot; actions Assign to employee, Delete, Export.
+2. People 1972415943: Employees KPI proposal frame, marked PROPOSAL.
+3. Locations 1972391267: Map component, pinned NEW.
+4. Section 7.3 open threads.
+
+### 8.4 Waiting on Jacob
+- Mobile row selection in the employee drawers.
+- Mobile selection on the refiner Lots card.
+- Keep the refiner Money "Settlement comes later" alert?
+
+### 8.5 Publishes owed
+- **Library:** everything in 8.1 Library, plus the section 7.2 items.
+- **Orders:** Create Order drawer and parts, for the code lane.
+- **People:** no publish owed.
+
+### 8.6 Threads replied this evening, still unresolved (do not answer twice)
+- Orders 1972388843: Create Order thread. Answered.
+- People 1972454569 (orders drawer), 1972446135 (toolbar divider).
+- NEW pins (bot roots): People 1972441789 (toolbar), 1972461442 (Dana's Orders); Library 1972435063 (Selection Bar).
+- All other threads replied this evening are resolved.
