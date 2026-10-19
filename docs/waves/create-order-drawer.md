@@ -61,7 +61,7 @@ money).
    address, pickup). Refiner: send method and the refiner location. Each
    method is a radio tile with its fields below it. A "Decide later" tile is
    allowed when the order has no lots; the order screen then asks for it.
-3. **Money.** Scrollable. Purchase: the payout method (one by default, split
+3. **Transaction** (was Money; Jacob 1972495294). Scrollable. Purchase: the payout method (one by default, split
    is an explicit add, ruling 132) and the payout details select. Sale: the
    payment method and the recipient address. Refiner: nothing (settlement
    comes later, ruling 146). A card shows the locked spot, premiums and

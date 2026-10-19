@@ -759,6 +759,18 @@ file named at the top of this file.
   for a linked account. Source: Jacob, Orders comments 1972487641 and
   1972491245.
 
+- **161 — Messages carry pictures both ways.** *"they can send us pictures in
+  messages, if that's what you mean? and vice versa."* The SMS thread on a
+  lead or customer sends and receives MMS images; inbound media is stored in
+  `media.images` and shown as an image bubble, outbound attaches from the
+  compose row's paperclip. Source: Jacob, chat 2026-10-19.
+
+- **162 — A lead is never hard-deleted; Delete archives it.** *"sure, make it
+  soft with an archive."* Delete on a lead sets an archived timestamp; the
+  list hides archived leads unless the Archived filter is on, and an archived
+  lead can be restored. The data rule applies: no application statement
+  deletes a lead row. Source: Jacob, chat 2026-10-19.
+
 ## Numbering
 
 Every number from 1 to 157 has an entry, plus 26b and 26c. Two rulings carry the

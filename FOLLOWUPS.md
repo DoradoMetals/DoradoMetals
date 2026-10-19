@@ -670,3 +670,14 @@ Detail in `docs/waves/auth-passwordless.md`.
 - Ruling 158: optional `premium` on the admin lot shape (`AdminPurchaseCreate` / `AdminSaleCreate` lots), passed through to the lot at placement and to the pricing preview; absent means the rate. Customer checkout keeps no premium input.
 - Ruling 159: `RefiningOrderCreate` with direction `buy` takes no `lot_ids`; the refiner invoice import fills bullion later.
 - Ruling 160: Plaid Hosted Link for payouts. API: `POST /api/accounts/:id/bank-links` sends a Hosted Link (Plaid delivery by SMS or email, beta, needs the account manager; or our own Twilio/Resend send of the hosted_link_url), a webhook receiver that stores the provider token, bank, account name and mask, and a list of linked accounts per user. Sandbox cannot deliver by SMS or email. Retires the sealed bank columns and the reveal endpoint (see the Plaid line above).
+
+## Leads port (2026-10-19, after the People Figma asks land)
+
+- Ruling 161: MMS both ways on `/api/sms` (Twilio inbound MediaUrl to `media.images`, outbound mediaUrl); image bubbles in the thread.
+- Ruling 162: `leads.leads.archived_at` (migration), DELETE becomes archive, `POST /api/leads/:id/restore`, `archived` filter on the list; nothing deletes a lead row.
+- Images on estimate items (ruling 137): routes under `/api/leads/:id/estimate/items/:itemId/images`, the viewer.
+- Lookup reads: sources, estimate kinds, purities, weight units, contact preferences.
+- `carry_estimate` on `LeadConvertBody`.
+- Funnel endpoint extended to the four stat tiles (response rate by channel, conversion rate with history, median time to first contact against `crm.targets`, needs attention).
+- `@dorado/client` leads module rebuilt; `frontend/app/admin/leads` and `leads/[id]` per docs/waves/frontend-conventions.md.
+- Assignment reads depend on the roles lane (migrations 296-298).
