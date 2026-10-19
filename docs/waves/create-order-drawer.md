@@ -97,3 +97,16 @@ preview query; Playwright specs for the three kinds (ruling 130); tests first
   both are chosen at creation.
 - Refiner orders only select existing on-hand lots; lots typed from scratch
   belong to customer orders.
+
+## Decided by Jacob (Orders thread 1972467644, 2026-10-19)
+
+- A lot's premium is prefilled from the rate and an admin may override it
+  (ruling 158). The code lane adds an optional `premium` to the admin lot
+  shape on `AdminOrderCreate`; the pricing preview takes the override.
+- A Refiner Purchase selects no lots; its bullion arrives later from the
+  refiner invoice import (ruling 159). The Order step for Refiner Purchase
+  has no Lots section.
+- Fulfillment step: type first, then the details, reusing the order screens'
+  fulfillment components. Money step: Method, then Accounts (payout to,
+  payout from), then Details, with the pricing preview beside all three.
+  Review: one card per step with a headline value, built for a glance.

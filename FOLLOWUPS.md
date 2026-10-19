@@ -664,3 +664,8 @@ Detail in `docs/waves/auth-passwordless.md`.
 ## Dollar amounts held to the cent (2026-10-19, migration 299)
 
 - Production: the backfill, then 299, lands cent-rounded totals (the legacy `exchange` totals carry float residue and stay as they are; `order_state.sql` also compares at cent precision). After that run `audit:precision --prod` should be re-run; it audits type changes, not residue, so confirm whether it goes green rather than assuming.
+
+## Create Order drawer code lane (2026-10-19, after the Orders publish)
+
+- Ruling 158: optional `premium` on the admin lot shape (`AdminPurchaseCreate` / `AdminSaleCreate` lots), passed through to the lot at placement and to the pricing preview; absent means the rate. Customer checkout keeps no premium input.
+- Ruling 159: `RefiningOrderCreate` with direction `buy` takes no `lot_ids`; the refiner invoice import fills bullion later.

@@ -729,6 +729,22 @@ file named at the top of this file.
   (ruling 128) mirrors the same parts. Source: Jacob, Library comments
   1970305108 and 1972258176.
 
+- **158 — An admin may override a lot's premium at creation; the default is
+  the rate.** *"admin premium override needed, default is whatever the rate is
+  though."* The admin create body's lot shape gains an optional `premium`;
+  absent, pricing sets it from the rates as it does today, and re-tiering
+  still applies. The Create Order drawer shows the field prefilled from the
+  rate and editable. Customer checkout never sends a premium. Source: Jacob,
+  Orders comment 1972478464.
+
+- **159 — A Refiner Purchase selects no lots at creation.** *"I guess it
+  doesn't select anything there. Later on we can import refiner invoice to
+  fill in bullion."* A buy-direction refiner order is created with the
+  refiner, settlement type, location and assignee only; the bullion it brings
+  back is filled in later from the refiner invoice import. The on-hand lot
+  selection belongs to Refiner Sale alone. Source: Jacob, Orders comment
+  1972478464.
+
 ## Numbering
 
 Every number from 1 to 157 has an entry, plus 26b and 26c. Two rulings carry the
