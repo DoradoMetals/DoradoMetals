@@ -443,6 +443,12 @@ export function AuthForm(props: AuthFormProps) {
           {copy.submit}
         </Button>
       </div>
+      {state === 'sign-in' && (
+        <FooterRow prose="Prefer email?" label="Send the code there" href="/auth/sign-in/email" />
+      )}
+      {state === 'sign-in-email' && (
+        <FooterRow prose="Prefer a text?" label="Send the code there" href="/auth/sign-in" />
+      )}
       {(state === 'sign-in' || state === 'sign-in-email') && (
         <>
           <Alternatives
@@ -451,15 +457,6 @@ export function AuthForm(props: AuthFormProps) {
             googlePending={googlePending}
           />
           <FooterRow prose="New here?" label="Create an account" href="/auth/sign-up" />
-          {state === 'sign-in' ? (
-            <FooterRow
-              prose="Prefer email?"
-              label="Send the code there"
-              href="/auth/sign-in/email"
-            />
-          ) : (
-            <FooterRow prose="Prefer a text?" label="Send the code there" href="/auth/sign-in" />
-          )}
         </>
       )}
       {(state === 'change-email' || state === 'change-phone') && (

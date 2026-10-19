@@ -64,6 +64,30 @@ describe('sign in by email - the default', () => {
   })
 })
 
+describe('sign in layout (Figma 9:216, 18:630)', () => {
+  const precedes = (a: Node, b: Node) =>
+    Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
+
+  test.each([
+    ['sign-in', 'Prefer email?'],
+    ['sign-in-email', 'Prefer a text?'],
+  ] as const)(
+    '%s puts the channel switch above the divider, the sign-up link last',
+    (state, prose) => {
+      render(
+        <AuthForm state={state} value="" onValueChange={noop} onSubmit={noop} onGoogle={noop} />
+      )
+      const button = screen.getByRole('button', { name: 'Continue' })
+      const switcher = screen.getByText(prose)
+      const divider = screen.getByText('or continue with')
+      const signUp = screen.getByRole('link', { name: 'Create an account' })
+      expect(precedes(button, switcher)).toBe(true)
+      expect(precedes(switcher, divider)).toBe(true)
+      expect(precedes(divider, signUp)).toBe(true)
+    }
+  )
+})
+
 describe('sign in by phone', () => {
   test('is the same screen keyed to phone, offering email back', () => {
     render(
