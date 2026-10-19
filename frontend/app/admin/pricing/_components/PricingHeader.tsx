@@ -61,7 +61,7 @@ export function PricingHeader({
           onClick={() => router.push(entry.href)}
         />
       ))}
-      description={description}
+      totals={description}
       selects={selects}
       reset={reset}
       count={count}

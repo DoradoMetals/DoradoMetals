@@ -75,11 +75,10 @@ bugs that were expensive to find and are invisible in the CSS itself.
 
 - --- THE RAISED-SURFACE RADIUS (added 2026-09-03) ------------------------
   10px, and it had no step: the size scale runs 4/6/8/12 and the drawings
-  kept asking for the value between the last two. Three separate components
-  had each reached the same arbitrary `rounded-[10px]` independently - the
-  Menu popover, the Address Card and the Toast - and three call sites
-  agreeing on a number no token carries is the definition of a missing
-  token.
+  kept asking for the value between the last two. Separate components had
+  each reached the same arbitrary `rounded-[10px]` independently - the Menu
+  popover and the Toast among them - and call sites agreeing on a number no
+  token carries is the definition of a missing token.
   
     NAMED FOR WHAT IT MEANS, not for where it sits in the ramp. Inserting an
   `--radius-lg-plus` between lg and xl would be a size name nobody could

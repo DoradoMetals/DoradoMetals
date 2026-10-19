@@ -3,20 +3,31 @@
 import * as React from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import {
+  type Cell,
+  type Column,
   type ColumnDef,
   type ColumnFiltersState,
   type ColumnVisibilityState,
+  type ExpandedState,
   type PaginationState,
+  type Row,
   type RowData,
   type RowSelectionState,
   type SortingState,
   columnFilteringFeature,
+  columnGroupingFeature,
+  columnPinningFeature,
+  columnResizingFeature,
+  columnSizingFeature,
   columnVisibilityFeature,
   createColumnHelper,
+  createExpandedRowModel,
   createFilteredRowModel,
+  createGroupedRowModel,
   createPaginatedRowModel,
   createSortedRowModel,
   filterFn_includesString,
+  rowExpandingFeature,
   rowPaginationFeature,
   rowSelectionFeature,
   rowSortingFeature,
@@ -26,6 +37,7 @@ import {
   tableFeatures,
   useTable,
 } from '@tanstack/react-table'
+import { ChevronDown, ChevronRight } from '@dorado/icons'
 
 import { Checkbox } from '../checkbox/Checkbox'
 import { cn } from '../cn'
@@ -40,46 +52,75 @@ export type DataTableColumnMeta = {
   numeric?: boolean
   primary?: boolean
   fill?: boolean
+  hidden?: boolean
 }
 
-const features = tableFeatures({
-  rowSortingFeature,
-  sortedRowModel: createSortedRowModel(),
-  sortFns: { alphanumeric: sortFn_alphanumeric, basic: sortFn_basic, datetime: sortFn_datetime },
-  columnFilteringFeature,
-  filteredRowModel: createFilteredRowModel(),
-  filterFns: { includesString: filterFn_includesString },
-  rowSelectionFeature,
-  columnVisibilityFeature,
-  rowPaginationFeature,
-  paginatedRowModel: createPaginatedRowModel(),
-  columnMeta: {} as DataTableColumnMeta,
-})
+function makeFeatures<M extends DataTableColumnMeta>() {
+  return tableFeatures({
+    rowSortingFeature,
+    sortedRowModel: createSortedRowModel(),
+    sortFns: { alphanumeric: sortFn_alphanumeric, basic: sortFn_basic, datetime: sortFn_datetime },
+    columnFilteringFeature,
+    filteredRowModel: createFilteredRowModel(),
+    filterFns: { includesString: filterFn_includesString },
+    rowSelectionFeature,
+    columnVisibilityFeature,
+    rowPaginationFeature,
+    paginatedRowModel: createPaginatedRowModel(),
+    columnGroupingFeature,
+    groupedRowModel: createGroupedRowModel(),
+    rowExpandingFeature,
+    expandedRowModel: createExpandedRowModel(),
+    columnSizingFeature,
+    columnResizingFeature,
+    columnPinningFeature,
+    columnMeta: {} as M,
+  })
+}
 
-export type DataTableColumn<T extends RowData> = ColumnDef<typeof features, T>
+const features = makeFeatures<DataTableColumnMeta>()
+
+export type DataTableFeatures<M extends DataTableColumnMeta = DataTableColumnMeta> = ReturnType<
+  typeof makeFeatures<M>
+>
+
+export type DataTableColumn<
+  T extends RowData,
+  M extends DataTableColumnMeta = DataTableColumnMeta,
+> = ColumnDef<DataTableFeatures<M>, T>
+
+export const dataTableColumns = <
+  T extends RowData,
+  M extends DataTableColumnMeta = DataTableColumnMeta,
+>() => createColumnHelper<DataTableFeatures<M>, T>()
+
+export type DataTableCell<M extends DataTableColumnMeta = DataTableColumnMeta> = {
+  id: string
+  label: string | undefined
+  meta: M | undefined
+  content: React.ReactNode
+}
 
 const SELECT_COLUMN_ID = '__select'
+const EXPAND_COLUMN_ID = '__expand'
 
 export type DataTableActionsContext<T> = { selected: T[] }
 
-// Table 1101:444 (ruling 157, refined 2026-10-19). One table for every list.
-// Title row (title, selected count, actions slot) over a divider; one optional
-// toolbar slot; the body (column heads on the card surface, rows, and the
-// Empty, Loading and Error states inside it); the footer (Showing N of M,
-// pagination, page size) or, for Scrolling=Virtualized, a scrolling viewport
-// and no footer. Search, filters and sort controls are not part of the Table:
-// on a list screen they live in the Admin Header, in a card in the toolbar.
-export type DataTableProps<T extends RowData> = {
-  columns: DataTableColumn<T>[]
+export type DataTableProps<
+  T extends RowData,
+  M extends DataTableColumnMeta = DataTableColumnMeta,
+> = {
+  columns: DataTableColumn<T, M>[]
   data: T[]
   label: string
   getRowId?: (row: T, index: number) => string
   title?: React.ReactNode
-  /** The title row's actions slot. Default Table Actions (Delete only); null hides it. */
   actions?: React.ReactNode | ((context: DataTableActionsContext<T>) => React.ReactNode)
   onDelete?: (rows: T[]) => void
   toolbar?: React.ReactNode
-  inCard?: boolean
+  bordered?: boolean
+  layout?: 'desktop' | 'mobile'
+  mobileRow?: (row: T, cells: DataTableCell<M>[]) => React.ReactNode
   empty?: React.ReactNode
   loading?: boolean
   error?: React.ReactNode
@@ -89,13 +130,36 @@ export type DataTableProps<T extends RowData> = {
   onRowClick?: (row: T) => void
   pageSize?: number
   pageSizes?: number[]
+  page?: number
+  pageCount?: number
+  onPageChange?: (page: number) => void
   scrolling?: 'paginated' | 'virtualized'
+  renderExpanded?: (row: T) => React.ReactNode
+  grouping?: string[]
+  groupCount?: (count: number) => React.ReactNode
+  resizable?: boolean
+  pinned?: string[]
+  evenColumns?: boolean
 }
 
 const ROW_PX = 48
 const LOADING_ROWS = 4
 
-export function DataTable<T extends RowData>({
+function leafCount<R extends { subRows: R[] }>(row: R): number {
+  return row.subRows.reduce((sum, sub) => sum + (sub.subRows.length ? leafCount(sub) : 1), 0)
+}
+
+function PinShadow() {
+  return (
+    <span
+      aria-hidden
+      data-part="pin-shadow"
+      className="pointer-events-none absolute inset-y-0 -right-xs w-xs bg-linear-to-r from-(--floating-shadow) to-transparent"
+    />
+  )
+}
+
+export function DataTable<T extends RowData, M extends DataTableColumnMeta = DataTableColumnMeta>({
   columns,
   data,
   label,
@@ -104,7 +168,9 @@ export function DataTable<T extends RowData>({
   actions,
   onDelete,
   toolbar,
-  inCard = true,
+  bordered = true,
+  layout = 'desktop',
+  mobileRow,
   empty,
   loading = false,
   error,
@@ -114,71 +180,173 @@ export function DataTable<T extends RowData>({
   onRowClick,
   pageSize,
   pageSizes,
+  page,
+  pageCount,
+  onPageChange,
   scrolling = 'paginated',
-}: DataTableProps<T>) {
+  renderExpanded,
+  grouping,
+  groupCount = (count) => String(count),
+  resizable = false,
+  pinned,
+  evenColumns = false,
+}: DataTableProps<T, M>) {
+  type F = DataTableFeatures<M>
+  const mobile = layout === 'mobile'
   const virtualized = scrolling === 'virtualized'
-  const paged = !virtualized && pageSize != null
-  const helper = React.useMemo(() => createColumnHelper<typeof features, T>(), [])
+  const server = !virtualized && pageCount != null && onPageChange != null
+  const paged = !virtualized && !server && pageSize != null
+  const expandable = renderExpanded != null
+  const helper = React.useMemo(() => createColumnHelper<F, T>(), [])
+  const [details, setDetails] = React.useState<ReadonlySet<string>>(() => new Set())
+  const detailsRef = React.useRef(details)
+  detailsRef.current = details
+  const toggleDetail = React.useCallback((id: string) => {
+    setDetails((current) => {
+      const next = new Set(current)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
 
-  const tableColumns = React.useMemo<DataTableColumn<T>[]>(() => {
-    if (!selectable) return columns
-    return [
-      helper.display({
-        id: SELECT_COLUMN_ID,
-        enableHiding: false,
-        header: ({ table }) => (
-          <Checkbox
-            checked={
-              table.getIsAllRowsSelected()
-                ? true
-                : table.getIsSomeRowsSelected()
-                  ? 'indeterminate'
-                  : false
-            }
-            onCheckedChange={(value) => table.toggleAllRowsSelected(value === true)}
-            aria-label="Select all rows"
-          />
-        ),
-        cell: ({ row }) => (
-          <Checkbox
-            checked={row.getIsSelected()}
-            onCheckedChange={(value) => row.toggleSelected(value === true)}
-            aria-label="Select row"
-          />
-        ),
-      }),
-      ...columns,
-    ]
-  }, [columns, helper, selectable])
+  const tableColumns = React.useMemo<DataTableColumn<T, M>[]>(() => {
+    const lead: DataTableColumn<T, M>[] = []
+    if (selectable) {
+      lead.push(
+        helper.display({
+          id: SELECT_COLUMN_ID,
+          enableHiding: false,
+          enableResizing: false,
+          header: ({ table }) => (
+            <Checkbox
+              checked={
+                table.getIsAllRowsSelected()
+                  ? true
+                  : table.getIsSomeRowsSelected()
+                    ? 'indeterminate'
+                    : false
+              }
+              onCheckedChange={(value) => table.toggleAllRowsSelected(value === true)}
+              aria-label="Select all rows"
+            />
+          ),
+          cell: ({ row }) => (
+            <Checkbox
+              checked={row.getIsSelected()}
+              onCheckedChange={(value) => row.toggleSelected(value === true)}
+              aria-label="Select row"
+            />
+          ),
+        }) as DataTableColumn<T, M>
+      )
+    }
+    if (expandable) {
+      lead.push(
+        helper.display({
+          id: EXPAND_COLUMN_ID,
+          enableHiding: false,
+          enableResizing: false,
+          header: () => <span className="sr-only">Details</span>,
+          cell: ({ row }) => {
+            const open = detailsRef.current.has(row.id)
+            const Icon = open ? ChevronDown : ChevronRight
+            return (
+              <button
+                type="button"
+                aria-expanded={open}
+                aria-label={open ? 'Collapse row' : 'Expand row'}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  toggleDetail(row.id)
+                }}
+                className="inline-flex cursor-pointer items-center text-muted-foreground hover:text-foreground"
+              >
+                <Icon aria-hidden className="size-md" />
+              </button>
+            )
+          },
+        }) as DataTableColumn<T, M>
+      )
+    }
+    return lead.length ? [...lead, ...columns] : columns
+  }, [columns, helper, selectable, expandable, toggleDetail])
 
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({})
   const [columnVisibility, setColumnVisibility] = React.useState<ColumnVisibilityState>({})
-  const [pagination, setPagination] = React.useState<PaginationState>({
+  const groupingKey = (grouping ?? []).join('\u0000')
+  const [expanded, setExpanded] = React.useState<ExpandedState>(grouping?.length ? true : {})
+  const [expandedFor, setExpandedFor] = React.useState(groupingKey)
+  if (expandedFor !== groupingKey) {
+    setExpandedFor(groupingKey)
+    setExpanded(grouping?.length ? true : {})
+  }
+  const metaHidden = React.useMemo(() => {
+    const hidden: ColumnVisibilityState = {}
+    for (const column of columns) {
+      if (!column.meta?.hidden) continue
+      const id = column.id ?? ('accessorKey' in column ? String(column.accessorKey) : undefined)
+      if (id) hidden[id] = false
+    }
+    return hidden
+  }, [columns])
+  const [clientPage, setClientPage] = React.useState<PaginationState>({
     pageIndex: 0,
     pageSize: paged ? pageSize : Infinity,
   })
+  const pagination: PaginationState = server
+    ? { pageIndex: (page ?? 1) - 1, pageSize: Math.max(1, data.length) }
+    : clientPage
 
-  const table = useTable<typeof features, T>({
-    features,
+  const table = useTable<F, T>({
+    features: features as unknown as F,
     columns: tableColumns,
     data,
     getRowId,
     defaultColumn: { enableSorting: false, enableColumnFilter: false },
     sortDescFirst: false,
     enableRowSelection: selectable,
-    state: { sorting, columnFilters, rowSelection, columnVisibility, pagination },
+    enableColumnResizing: resizable,
+    columnResizeMode: 'onChange',
+    groupedColumnMode: false,
+    manualPagination: server,
+    pageCount: server ? pageCount : undefined,
+    autoResetPageIndex: false,
+    state: {
+      sorting,
+      columnFilters,
+      rowSelection,
+      columnVisibility: { ...columnVisibility, ...metaHidden },
+      pagination,
+      expanded,
+      grouping: grouping ?? [],
+      columnPinning: { start: pinned ?? [], end: [] },
+    },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onRowSelectionChange: setRowSelection,
     onColumnVisibilityChange: setColumnVisibility,
-    onPaginationChange: setPagination,
+    onExpandedChange: setExpanded,
+    onPaginationChange: (updater) => {
+      const next = typeof updater === 'function' ? updater(pagination) : updater
+      if (server) onPageChange?.(next.pageIndex + 1)
+      else setClientPage(next)
+    },
   })
 
   const rows = table.getRowModel().rows
   const selectedRows = table.getSelectedRowModel().rows.map((row) => row.original)
-  const columnCount = table.getAllLeafColumns().length
+  const columnCount = table.getVisibleLeafColumns().length
+  const lastPage = Math.max(0, table.getPageCount() - 1)
+
+  React.useEffect(() => {
+    if (server || clientPage.pageIndex <= lastPage) return
+    setClientPage((current) => ({ ...current, pageIndex: lastPage }))
+  }, [server, clientPage.pageIndex, lastPage])
+  const lastPinned = table.getStartVisibleLeafColumns().at(-1)?.id
+  const sized = resizable || (pinned?.length ?? 0) > 0
 
   React.useEffect(() => {
     if (!onRowSelectionChange) return
@@ -215,8 +383,120 @@ export function DataTable<T extends RowData>({
   const first = total === 0 ? 0 : pagination.pageIndex * pagination.pageSize + 1
   const last = Math.min(total, (pagination.pageIndex + 1) * pagination.pageSize)
 
-  const body = (
-    <Table aria-label={label} bare aria-busy={loading || undefined}>
+  const pinStyle = (column: Column<F, T, unknown>): React.CSSProperties | undefined => {
+    const style: React.CSSProperties = {}
+    if (sized) style.width = column.getSize()
+    else if (evenColumns) style.width = `${100 / Math.max(1, columnCount)}%`
+    if (column.getIsPinned() === 'start') style.insetInlineStart = `${column.getStart('start')}px`
+    return Object.keys(style).length ? style : undefined
+  }
+  const pinClass = (column: Column<F, T, unknown>) =>
+    column.getIsPinned() === 'start' &&
+    'sticky z-1 bg-(--table-fill) [tbody>tr:hover>&]:bg-highest [tr[data-state=selected]>&]:bg-surface-raised'
+  const pinEdge = (column: Column<F, T, unknown>) =>
+    column.id === lastPinned ? <PinShadow /> : null
+
+  const cellsOf = (row: Row<F, T>): DataTableCell<M>[] =>
+    row
+      .getVisibleCells()
+      .filter((cell) => !cell.column.id.startsWith('__'))
+      .map((cell: Cell<F, T, unknown>) => {
+        const header = cell.column.columnDef.header
+        return {
+          id: cell.column.id,
+          label: typeof header === 'string' ? header : undefined,
+          meta: cell.column.columnDef.meta,
+          content: <table.FlexRender cell={cell} />,
+        }
+      })
+
+  const rowHandlers = (row: Row<F, T>) =>
+    onRowClick
+      ? {
+          onClick: () => onRowClick(row.original),
+          onKeyDown: (event: React.KeyboardEvent<HTMLElement>) => {
+            if (event.target !== event.currentTarget) return
+            if (event.key !== 'Enter' && event.key !== ' ') return
+            event.preventDefault()
+            onRowClick(row.original)
+          },
+          tabIndex: 0,
+        }
+      : {}
+
+  const groupRow = (row: Row<F, T>) => {
+    const open = row.getIsExpanded()
+    const value = String(row.groupingValue ?? '')
+    const Icon = open ? ChevronDown : ChevronRight
+    return (
+      <TableRow
+        key={row.id}
+        data-part="group-row"
+        className="h-9 bg-surface-soft hover:bg-surface-soft"
+      >
+        <TableCell colSpan={columnCount}>
+          <span className="flex items-center gap-xs">
+            <button
+              type="button"
+              aria-expanded={open}
+              aria-label={`${open ? 'Collapse' : 'Expand'} ${value}`}
+              onClick={() => row.toggleExpanded()}
+              className="inline-flex cursor-pointer items-center text-muted-foreground hover:text-foreground"
+            >
+              <Icon aria-hidden className="size-md" />
+            </button>
+            <span className="font-medium text-foreground">{value}</span>
+            <span className="text-muted-foreground">{groupCount(leafCount(row))}</span>
+          </span>
+        </TableCell>
+      </TableRow>
+    )
+  }
+
+  const bodyRows = visible.map((row) => {
+    if (row.getIsGrouped()) return groupRow(row)
+    return (
+      <React.Fragment key={row.id}>
+        <TableRow
+          selected={selectable ? row.getIsSelected() : undefined}
+          interactive={onRowClick != null}
+          {...rowHandlers(row)}
+        >
+          {row.getVisibleCells().map((cell) => {
+            const meta = cell.column.columnDef.meta
+            return (
+              <TableCell
+                key={cell.id}
+                numeric={meta?.numeric}
+                primary={meta?.primary}
+                fill={meta?.fill}
+                className={cn(pinClass(cell.column))}
+                style={pinStyle(cell.column)}
+              >
+                <table.FlexRender cell={cell} />
+                {pinEdge(cell.column)}
+              </TableCell>
+            )
+          })}
+        </TableRow>
+        {expandable && details.has(row.id) && (
+          <TableRow data-part="expanded-row" className="hover:bg-transparent">
+            <TableCell colSpan={columnCount} className="py-sm whitespace-normal">
+              {renderExpanded(row.original)}
+            </TableCell>
+          </TableRow>
+        )}
+      </React.Fragment>
+    )
+  })
+
+  const desktop = (
+    <Table
+      aria-label={label}
+      bare
+      aria-busy={loading || undefined}
+      style={sized ? { width: table.getTotalSize(), tableLayout: 'fixed' } : undefined}
+    >
       <TableHeader className={cn(virtualized && 'sticky top-0 z-10')}>
         {table.getHeaderGroups().map((headerGroup) => (
           <TableRow key={headerGroup.id}>
@@ -224,6 +504,8 @@ export function DataTable<T extends RowData>({
               const canSort = header.column.getCanSort()
               const sortDirection = header.column.getIsSorted()
               const meta = header.column.columnDef.meta
+              const name = header.column.columnDef.header
+              const canResize = resizable && header.column.getCanResize()
               return (
                 <TableHead
                   key={header.id}
@@ -231,8 +513,20 @@ export function DataTable<T extends RowData>({
                   fill={meta?.fill}
                   sorted={canSort ? (sortDirection === false ? null : sortDirection) : undefined}
                   onSort={canSort ? () => header.column.toggleSorting() : undefined}
+                  className={cn(pinClass(header.column))}
+                  style={pinStyle(header.column)}
+                  resize={
+                    canResize
+                      ? {
+                          label: typeof name === 'string' ? name : header.column.id,
+                          onStart: (event) => header.getResizeHandler()(event),
+                          active: header.column.getIsResizing(),
+                        }
+                      : undefined
+                  }
                 >
                   {header.isPlaceholder ? null : <table.FlexRender header={header} />}
+                  {pinEdge(header.column)}
                 </TableHead>
               )
             })}
@@ -262,7 +556,9 @@ export function DataTable<T extends RowData>({
           </TableRow>
         ) : rows.length === 0 ? (
           <TableRow className="hover:bg-transparent">
-            <TableCell colSpan={columnCount}>{empty ?? 'No results.'}</TableCell>
+            <TableCell colSpan={columnCount} className="whitespace-normal">
+              {empty === undefined ? 'No results.' : empty}
+            </TableCell>
           </TableRow>
         ) : (
           <>
@@ -271,39 +567,7 @@ export function DataTable<T extends RowData>({
                 <td colSpan={columnCount} />
               </tr>
             )}
-            {visible.map((row) => (
-              <TableRow
-                key={row.id}
-                selected={selectable ? row.getIsSelected() : undefined}
-                onClick={onRowClick ? () => onRowClick(row.original) : undefined}
-                onKeyDown={
-                  onRowClick
-                    ? (event) => {
-                        if (event.target !== event.currentTarget) return
-                        if (event.key !== 'Enter' && event.key !== ' ') return
-                        event.preventDefault()
-                        onRowClick(row.original)
-                      }
-                    : undefined
-                }
-                tabIndex={onRowClick ? 0 : undefined}
-                interactive={onRowClick != null}
-              >
-                {row.getVisibleCells().map((cell) => {
-                  const meta = cell.column.columnDef.meta
-                  return (
-                    <TableCell
-                      key={cell.id}
-                      numeric={meta?.numeric}
-                      primary={meta?.primary}
-                      fill={meta?.fill}
-                    >
-                      <table.FlexRender cell={cell} />
-                    </TableCell>
-                  )
-                })}
-              </TableRow>
-            ))}
+            {bodyRows}
             {padBottom > 0 && (
               <tr aria-hidden style={{ height: padBottom }}>
                 <td colSpan={columnCount} />
@@ -315,11 +579,83 @@ export function DataTable<T extends RowData>({
     </Table>
   )
 
+  const defaultMobileRow = (cells: DataTableCell<M>[]) => {
+    const [head, ...rest] = cells
+    return (
+      <div className="flex flex-col gap-xs p-sm">
+        {head && (
+          <div className="truncate text-small font-medium text-foreground">{head.content}</div>
+        )}
+        {rest.map((cell) => (
+          <div key={cell.id} className="flex items-center justify-between gap-xs">
+            <span className="text-micro text-muted-foreground">{cell.label}</span>
+            <span
+              className={cn(
+                'text-right text-small',
+                cell.meta?.numeric && 'tabular-nums',
+                cell.meta?.primary ? 'font-medium text-foreground' : 'text-muted-foreground'
+              )}
+            >
+              {cell.content}
+            </span>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  const mobileList = loading ? (
+    <div role="status" aria-label={`Loading ${label}`} className="flex flex-col gap-md p-sm">
+      {Array.from({ length: LOADING_ROWS }, (_, index) => (
+        <Skeleton key={index} />
+      ))}
+    </div>
+  ) : error != null ? (
+    <div className="p-sm">
+      <Alert intent="danger" title={error} />
+    </div>
+  ) : rows.length === 0 ? (
+    <div className="p-sm">{empty === undefined ? 'No results.' : empty}</div>
+  ) : (
+    <ul role="list" aria-label={label} className="flex flex-col">
+      {visible
+        .filter((row) => !row.getIsGrouped())
+        .map((row, index) => {
+          const cells = cellsOf(row)
+          return (
+            <li
+              key={row.id}
+              data-state={selectable && row.getIsSelected() ? 'selected' : undefined}
+              className={cn(
+                'data-[state=selected]:bg-surface-raised',
+                onRowClick && 'cursor-pointer hover:bg-highest'
+              )}
+              {...rowHandlers(row)}
+            >
+              {index > 0 && (
+                <div aria-hidden data-part="row-divider" className="px-md">
+                  <div className="h-px w-full bg-border" />
+                </div>
+              )}
+              {mobileRow ? mobileRow(row.original, cells) : defaultMobileRow(cells)}
+            </li>
+          )
+        })}
+    </ul>
+  )
+
+  const content = mobile ? mobileList : desktop
+  const showFooter =
+    (paged || server) && !loading && error == null && total > 0 && (!server || (pageCount ?? 0) > 0)
+  const showCount = paged
+
   return (
     <div
       className={cn(
         'flex w-full flex-col',
-        inCard && 'overflow-hidden rounded-lg border border-border bg-card',
+        bordered
+          ? 'overflow-hidden rounded-lg border border-border bg-card [--table-fill:var(--color-card)]'
+          : '[--table-fill:var(--color-background)]',
         className
       )}
     >
@@ -335,43 +671,55 @@ export function DataTable<T extends RowData>({
           <div aria-hidden data-part="title-divider" className="h-px w-full bg-border" />
         </>
       )}
-      {toolbar}
+      {toolbar != null && (
+        <>
+          <div data-part="toolbar" className="px-md py-md">
+            {toolbar}
+          </div>
+          <div aria-hidden data-part="toolbar-divider" className="h-px w-full bg-border" />
+        </>
+      )}
       {virtualized ? (
         <div ref={viewportRef} data-part="viewport" className="min-h-0 flex-1 overflow-y-auto">
-          {body}
+          {content}
         </div>
       ) : (
-        body
+        content
       )}
-      {paged && !loading && error == null && total > 0 && (
-        // Two layouts, never stacked (Jacob 2026-10-19): wide, the count left
-        // and the pagination right; narrow, the pagination alone, centred.
+      {showFooter && (
         <div className="@container px-md py-sm">
-          <div className="flex flex-nowrap items-center justify-center gap-sm @xl:justify-between">
-            <div data-part="count" className="hidden items-center gap-md @xl:flex">
-              <p className="flex items-center gap-2xs whitespace-nowrap text-small">
-                <span className="text-muted-foreground">Showing</span>
-                <span className="text-foreground">{`${first}\u2013${last}`}</span>
-                <span className="text-muted-foreground">of</span>
-                <span className="text-foreground">{total}</span>
-              </p>
-              {pageSizes != null && pageSizes.length > 0 && (
-                <Select
-                  placeholder="Rows per page"
-                  items={pageSizes.map((size) => ({
-                    value: String(size),
-                    label: `${size} per page`,
-                  }))}
-                  value={String(pagination.pageSize)}
-                  onValueChange={(value) => table.setPageSize(Number(value))}
-                  className="w-37.5"
-                />
-              )}
-            </div>
+          <div
+            className={cn(
+              'flex flex-nowrap items-center justify-center gap-sm',
+              showCount && '@xl:justify-between'
+            )}
+          >
+            {showCount && (
+              <div data-part="count" className="hidden items-center gap-md @xl:flex">
+                <p className="flex items-center gap-2xs whitespace-nowrap text-small">
+                  <span className="text-muted-foreground">Showing</span>
+                  <span className="text-foreground">{`${first}–${last}`}</span>
+                  <span className="text-muted-foreground">of</span>
+                  <span className="text-foreground">{total}</span>
+                </p>
+                {pageSizes != null && pageSizes.length > 0 && (
+                  <Select
+                    placeholder="Rows per page"
+                    items={pageSizes.map((size) => ({
+                      value: String(size),
+                      label: `${size} per page`,
+                    }))}
+                    value={String(pagination.pageSize)}
+                    onValueChange={(value) => table.setPageSize(Number(value))}
+                    className="w-37.5"
+                  />
+                )}
+              </div>
+            )}
             <Pagination
               page={pagination.pageIndex + 1}
-              pageCount={Math.max(1, table.getPageCount())}
-              onPageChange={(page) => table.setPageIndex(page - 1)}
+              pageCount={Math.max(1, server ? (pageCount ?? 1) : table.getPageCount())}
+              onPageChange={(next) => table.setPageIndex(next - 1)}
             />
           </div>
         </div>

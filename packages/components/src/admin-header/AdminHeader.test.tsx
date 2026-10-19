@@ -17,7 +17,7 @@ function full(layout: 'desktop' | 'mobile') {
     <AdminHeader
       layout={layout}
       title="Inventory"
-      description="23 lots on hand"
+      totals="23 lots on hand"
       nav={<a href="/admin/orders">Orders</a>}
       breadcrumb={
         <Breadcrumb items={[{ label: 'Admin', href: '/admin' }, { label: 'Inventory' }]} />
@@ -165,4 +165,22 @@ describe('AdminHeader count, filter slot and mobile divider (730:8, 734:269)', (
     const { container } = full('desktop')
     expect(container.querySelector('[data-part="head-divider"]')).toBeNull()
   })
+
+  it.each(['desktop', 'mobile'] as const)(
+    'Totals is the muted line under the title, beside the always-on "N matching" count (%s, 730:8, 734:269)',
+    (layout) => {
+      const { getByText } = render(
+        <AdminHeader
+          layout={layout}
+          title="Orders"
+          totals="66 orders · 12 awaiting receipt"
+          count="12 matching"
+        />
+      )
+      const totals = getByText('66 orders · 12 awaiting receipt')
+      expect(totals.getAttribute('data-part')).toBe('totals')
+      expect(totals.className).toContain('text-muted-foreground')
+      expect(getByText('12 matching')).toBeTruthy()
+    }
+  )
 })

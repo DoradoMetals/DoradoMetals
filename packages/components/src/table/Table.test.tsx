@@ -326,4 +326,34 @@ describe('Table 1101:444, refined 2026-10-19', () => {
     expect(tbody.className).toContain('[&>tr:hover]:bg-highest')
     expect(row.className).toContain('data-[state=selected]:bg-surface-raised')
   })
+
+  it('a row rule is inset by the cell padding, never full width, on body and head rows (56:33, 1101:444)', () => {
+    const { container } = renderTable()
+    const bodyRow = container.querySelector('tbody tr') as HTMLElement
+    const headRow = container.querySelector('thead tr') as HTMLElement
+    for (const row of [bodyRow, headRow]) {
+      expect(row.className).not.toContain('border-b')
+      expect(row.getAttribute('data-rule')).toBe('inset')
+      expect(row.className).toContain('[&>*]:bg-no-repeat')
+      expect(row.className).toContain(
+        '[&>*:first-child]:bg-size-[calc(100%-var(--spacing-sm))_1px]'
+      )
+      expect(row.className).toContain('[&>*:last-child]:bg-size-[calc(100%-var(--spacing-sm))_1px]')
+    }
+  })
+
+  it('a borderless row draws no rule', () => {
+    const { container } = render(
+      <Table>
+        <TableBody>
+          <TableRow borderless>
+            <TableCell>Only</TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
+    )
+    const row = container.querySelector('tbody tr') as HTMLElement
+    expect(row.getAttribute('data-rule')).toBeNull()
+    expect(row.className).not.toContain('bg-no-repeat')
+  })
 })

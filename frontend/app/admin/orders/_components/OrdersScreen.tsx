@@ -345,7 +345,7 @@ export function OrdersScreen() {
             }}
           />
         ))}
-        description={totalsLine}
+        totals={totalsLine}
         search={<OrderSearch value={search} onValueChange={setSearch} q={q} mobile={mobile} />}
         selects={selects}
         reset={

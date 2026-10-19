@@ -219,4 +219,27 @@ describe('Drawer', () => {
     expect(footer.className).toContain('flex-col')
     expect(footer.className).toContain('sm:flex-row')
   })
+
+  it('the body is the only scroll region, between a fixed header and footer, in every size (127:32)', () => {
+    for (const size of ['sm', 'md', 'lg', 'full', undefined] as const) {
+      const { unmount } = render(
+        <Drawer open label="Scroll" setOpen={vi.fn()} size={size}>
+          <DrawerHeader title="Title" />
+          <DrawerBody>Body</DrawerBody>
+          <DrawerFooter>Footer</DrawerFooter>
+        </Drawer>
+      )
+      const panel = document.body.querySelector('[role="dialog"]') as HTMLElement
+      expect(panel.className).toContain('overflow-hidden')
+      expect(panel.className).not.toContain('overflow-y-auto')
+      const [header, body, footer] = Array.from(panel.children) as HTMLElement[]
+      expect(body!.className).toContain('overflow-y-auto')
+      expect(body!.className).toContain('min-h-0')
+      for (const fixed of [header!, footer!]) {
+        expect(fixed.className).toContain('shrink-0')
+        expect(fixed.className).not.toContain('overflow')
+      }
+      unmount()
+    }
+  })
 })

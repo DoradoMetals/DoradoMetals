@@ -39,9 +39,9 @@ export function SelectionBar({
 }: SelectionBarProps) {
   const dismiss = onDismiss ? (
     <Button
-      variant="tertiary"
-      size="iconXs"
-      className="text-foreground"
+      variant={layout === 'mobile' ? 'subtle' : 'tertiary'}
+      size={layout === 'mobile' ? 'iconInline' : 'iconXs'}
+      className={layout === 'mobile' ? undefined : 'text-foreground'}
       aria-label={dismissLabel}
       onClick={onDismiss}
     >

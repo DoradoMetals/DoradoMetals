@@ -52,6 +52,7 @@ export {
   TableRow,
   TableCell,
   type SortDirection,
+  type TableHeadResize,
   type TableRowProps,
   type TableRowIntent,
 } from './table/Table'
@@ -91,7 +92,6 @@ export {
 export { Progress } from './progress/Progress'
 export { QuantityStepper } from './quantity-stepper/QuantityStepper'
 export { cn, SEMANTIC_TEXT_SIZES } from './cn'
-export { AddressCard, type AddressCardProps } from './address-card/AddressCard'
 export {
   AreaChart,
   BarChart,
@@ -104,6 +104,9 @@ export {
 } from './chart/Chart'
 export {
   DataTable,
+  dataTableColumns,
+  type DataTableCell,
+  type DataTableFeatures,
   type DataTableProps,
   type DataTableColumn,
   type DataTableColumnMeta,
