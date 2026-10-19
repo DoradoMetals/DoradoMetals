@@ -34,7 +34,7 @@ export function Marquee({
         aria-label={label}
         data-layout="desktop"
         className={cn(
-          'h-(--control-lg) w-full bg-card',
+          'h-(--control-lg) w-full bg-background',
           showBorders && 'border-y border-border',
           className
         )}
@@ -52,7 +52,7 @@ export function Marquee({
       aria-label={label}
       data-layout="mobile"
       className={cn(
-        'group flex h-(--control-lg) w-full items-center overflow-x-auto bg-card px-lg',
+        'group flex h-(--control-lg) w-full items-center overflow-x-auto bg-background px-lg',
         showBorders && 'border-y border-border',
         'motion-safe:overflow-hidden',
         className

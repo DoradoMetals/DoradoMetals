@@ -54,7 +54,7 @@ describe('Marquee', () => {
       </Marquee>
     )
     expect(container.firstElementChild!.className).toContain('px-lg')
-    expect(container.firstElementChild!.className).toContain('bg-card')
+    expect(container.firstElementChild!.className).toContain('bg-background')
   })
 })
 
@@ -86,7 +86,7 @@ describe('Marquee at Layout=Desktop', () => {
     expect(container.querySelector('.motion-safe\\:animate-marquee')).toBeNull()
     const bar = container.firstElementChild as HTMLElement
     expect(bar.className).toContain('h-(--control-lg)')
-    expect(bar.className).toContain('bg-card')
+    expect(bar.className).toContain('bg-background')
     const row = bar.firstElementChild as HTMLElement
     expect(row.className).toContain('max-w-page')
     expect(row.className).toContain('px-lg')
