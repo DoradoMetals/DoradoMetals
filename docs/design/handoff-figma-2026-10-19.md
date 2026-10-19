@@ -151,3 +151,103 @@ Snapshots: tools/people/snapshots/leads-table-port-pre-2026-10-19.json and tools
 | Orders | 2026-10-16T19:39:30.678Z |
 | Payments | 2026-10-16T20:25:19.185Z |
 | Pricing | 2026-10-14T21:56:04.754Z |
+
+## 7. Evening 2026-10-19
+
+Detail and comment ids: per-file logs. Snapshots: tools/<file>/snapshots/*-2026-10-19.json.
+
+### 7.1 Changes since the morning
+
+**Library**
+- Table Actions 1186:1440: Import, Export, Delete (only Delete on). Assign, Convert, New removed. Header Actions slot takes any component.
+- Table Footer 1172:298: Wide 1172:255 (range left, pagination right), Narrow 1172:279 (centred pagination). No stacked layout.
+- Inset dividers: Table Row 56:33 (all variants) and Column heads in Table 1101:444. Mobile dividers wrapped in "Divider inset" frames (spacing/md).
+- Drawer 127:32: Panel is surface/card in all sizes.
+- Date Picker 1208:898, final form:
+  - Segment has the field's fill and a text/default icon.
+  - Divider before the field, no chevron, value left-aligned. Control and Field FILL.
+  - In range uses surface/highest. Tokens primary/soft and brand/soft are deleted.
+- Admin Header 730:8 and Mobile 734:269:
+  - Count always reads "N matching".
+  - Subtitle property is Totals, with an annotation.
+  - Mobile has Divider 1223:5552.
+- The Table description and the Tables in use 1179:9297 rows are updated.
+
+**People**
+- Leads actions 506:3566 is in the Leads table slot. Leads filters 503:3422 (mobile) is in the Admin Header / Mobile filter slot.
+- Mobile list headers are Library Admin Header / Mobile (511:3528, 511:10716, 511:11339, 511:12159). Breadcrumbs show the route only.
+- On the Library Table (Desktop layout, body rows swapped):
+  - Customer Orders 195:6190, with Customer Orders Actions 526:12225.
+  - Employee Orders 421:6605, with toolbar 515:11690.
+  - Timeline 198:6526.
+- Value 404:5011: chips, then Performance Stats, then the chart.
+- Drawers replace the drilldowns:
+  - Assigned Leads 519:13082 and Top Customers 519:13547 ("Dana's …"), with the Table title row hidden.
+  - Screens 424:7296 and 424:7991 are deleted.
+- Customer-screen triggers are ghost buttons and annotated:
+  - Adjust Credit · Drawer 513:7222, Mode Adjust or Set balance.
+  - Edit Details 513:12003 and Add Address 513:7405.
+
+**Orders**
+- Section "Orders card" 1271:27334:
+  - Order Row 1271:27335, Orders Card Actions 1271:27510.
+  - Orders card 1271:29638 (Desktop and Mobile, each Default, Empty and Loading).
+  - Create Purchase Order 1273:18930 and Create Sale Order 1273:19053 drawers.
+  - Their rework (1972388843) goes to the next worker.
+- Create Fulfillment · Drawer 1270:27868, per method, LG or Full.
+- Form dialogs offered for conversion:
+  - Match settlement lines, Adopt refiner assay, Address change, Payout override.
+  - Step-up stays a dialog.
+
+**Locations** (fPmV8BtXMi3XboyKNKUGP9, ninth file)
+- Address Row 4:15, Customer Addresses 4:638, Address Card 7:197, Add Address Form 5:435 and Drawer 5:639.
+
+**Auth**
+- Sign up 9:217 has the "SMS consent" row 167:1884 (unchecked, copy from AuthForm.tsx).
+
+### 7.2 Publishes Jacob owes
+- **Library:** brings all the Library changes to the other files and removes the stacked mobile footers. Then:
+  - Re-label Orders 1207:15065 and 1207:15238 from orders-table-heads-pre-publish-2026-10-16.json.
+  - Set "Created" on the Date Picker Label in Leads filters.
+- **Locations:** repoint People to it. Then delete the People originals (172:5875, 379:4923, 513:7357, 513:7405) and Library Address Card 163:32, with a snapshot first.
+- **Orders, as a library:** swap the People Orders cards to Orders card 1271:29638.
+
+### 7.3 Open threads
+- Library 1972296179: "Maybe just same color as the rest of the trigger." Done; no reply yet.
+- Locations 1972356487: "let me know when you're ready to publish." Answered "ready".
+- People 1972355662: "Let me know when you're ready to publish there." Answered.
+- People 1972375475: "Lets have all of those living in their own frame in the orders page please." Waits on the Orders publish.
+- Orders 1972362746: "drawers, not dialogs." Waits on his pick from the dialog list.
+- Orders 1972388843: Create Order drawer, for the next worker.
+- Earlier: People 1970296424, Upload removal, four superseded sets, Chart y-axis, Jacob's sketch, Orders 1235:25741.
+
+### 7.4 Calls to confirm
+- The form drawers use Drawer SM, as the existing People drawers do, not LG.
+- Credit 1972368937 is read as a Set balance mode.
+
+### 7.5 Lessons
+- **Stale colours:**
+  - Re-set paints by id path; findAll misses unmaterialised vectors.
+  - Reset fills that a swap carries over.
+- **Clones and swaps:**
+  - clone() drops property links.
+  - swapComponent keeps overrides and changes nested ids, so re-query after each swap.
+  - Children hidden by a boolean are not listed until the switch is on.
+- **Jacob works live** and reverts within minutes:
+  - Re-read the comments before each reply.
+  - Never move a high-water backwards; the loop advances it.
+- **Fresh render before every reply:** `figma-comments.mjs image <fileKey> <id> <out> 2`. Sample pixels when colours are close.
+- **Shared components:** check getInstancesAsync first. Hiding Customer Header button 1 also hid Edit on the employee headers.
+
+### 7.6 High-waters
+| File | High-water |
+|---|---|
+| Library | 2026-10-19T19:54:16.845Z |
+| People | 2026-10-19T19:53:34.311Z |
+| Orders | 2026-10-19T19:58:19.817Z |
+| Locations | 2026-10-19T19:55:59.581Z |
+| Auth | 2026-10-19T19:56:52.846Z |
+| Admin | 2026-10-16T21:51:39.611Z |
+| Media | 2026-10-16T20:26:03.506Z |
+| Payments | 2026-10-16T20:25:19.185Z |
+| Pricing | 2026-10-14T21:56:04.754Z |

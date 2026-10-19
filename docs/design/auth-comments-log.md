@@ -26,3 +26,6 @@
 - 1968933874 (pin 143:1655 @1119,1049, Step=08 marquee Bid/ask toggle) | Toggle hidden in all 27 Marquee instances (visibility override). Library: Marquee gained BOOLEAN Show price toggle#1139:16; toggle stays a Tertiary (ghost) Icon Button, arrow-left-right, per Jacob's later ask (the outline request was withdrawn). Replied.
 - 1968934575 (pin 10:148, Switch channel link) | Auth Form 9:221: Switch channel moved above Alternatives (the divider) in Form=Sign in 9:216 and Form=Sign in (email) 18:630. Replied.
 - High-water tools/auth/high-water.txt: 2026-10-16T03:57:22.061Z (already advanced by the combined loop).
+
+## 2026-10-19 (evening, replacement worker)
+- Code ask (A2P consent): Form=Sign up 9:217 gained row "SMS consent" 167:1884 (clone of Terms 8:1133) under Terms: Checkbox 167:1885 Selected=False, text copied from frontend/shared/ui/auth/AuthForm.tsx (auth-port lane): "I agree to receive text messages from Dorado Metals about my account and orders. Message and data rates may apply. Message frequency varies. Reply STOP to cancel, HELP for help." Both /auth/sign-up · Desktop 10:276 and · Mobile 10:366 instance the form, so both show it. NEW pin posted. Fresh render of 10:366 checked.

@@ -4,7 +4,7 @@ Every design worker (one per file) follows this. It lived in the session scratch
 
 ## Files
 
-Orders `ymmNlCDLVIfanpRQ7QHMIs` · People `5cEytffOkxIfqdRWFaTWpl` · Pricing `FdBKQiTCRJNS3uJeD1n5zd` · Inventory `ZgJF9JWNY6BwxmWABRZ6I7` · Media (emails + PDFs) `WkbKhVaAYmxKTsbmAQEwmk` · Auth `hZ5Ajr9Hn1h2Q2XFRa1NYY` · Admin (overview) `RAmZ5RfxfW3sE9oM4uuhor` · Library "Themes and Components" `8A73quhBLBqotJlX95jN9j` (read-only for file workers; asks are pinned there; only Jacob publishes).
+Orders `ymmNlCDLVIfanpRQ7QHMIs` · Locations (addresses) `fPmV8BtXMi3XboyKNKUGP9` · People `5cEytffOkxIfqdRWFaTWpl` · Pricing `FdBKQiTCRJNS3uJeD1n5zd` · Inventory `ZgJF9JWNY6BwxmWABRZ6I7` · Media (emails + PDFs) `WkbKhVaAYmxKTsbmAQEwmk` · Auth `hZ5Ajr9Hn1h2Q2XFRa1NYY` · Admin (overview) `RAmZ5RfxfW3sE9oM4uuhor` · Library "Themes and Components" `8A73quhBLBqotJlX95jN9j` (read-only for file workers; asks are pinned there; only Jacob publishes).
 
 ## Loop
 
@@ -47,6 +47,8 @@ pin. "Code-only" never appears in a lane report as a settled state.
 ## Payments file (2026-10-16)
 
 Payments `GPSOCeWTjc7pDsQBs4gFt4` is the eighth file. It holds the bank link component (Purpose: Payout | Payment) and the Payout Accounts screen moved from People. Tooling: `tools/payments/`; log: `docs/design/payments-comments-log.md`; polled by `tools/all/loop.sh`.
+
+Locations `fPmV8BtXMi3XboyKNKUGP9` is the ninth file (2026-10-19). Page Addresses holds Address Row, Customer Addresses and the Add Address form and drawer, moved out of People for reuse. Tooling: `tools/locations/`; log: `docs/design/locations-comments-log.md`.
 
 ## Verify with a fresh render before replying (2026-10-16)
 
