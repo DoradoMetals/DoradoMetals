@@ -708,19 +708,26 @@ file named at the top of this file.
   because the view carries its actions and the Entity Header renders only
   those. 2026-10-16. Source: Jacob, in session.
 
-- **157 — One Table in the Library, with every list part optional.** *"Go
-  look at all the pages where we have table structures. And then we need to
-  unify on a design that contains optional pagination, filtering, sorting,
-  the fucking works. In our global component library. The rows themselves
-  (at least for mobile) will be pass through children because that can
-  differ there. But desktop layouts we largely have the same thing going
-  on."* The Library Table carries the toolbar (search, filter chips and
-  selects, sort), sortable headers, the selection column and bar, row
-  actions, pagination, and its own Empty and Loading states, each switched
-  on per instance. Desktop rows are the standard cell row; the mobile row is
-  a children slot the feature fills. No screen draws its own table, and the
-  code Table in `@dorado/components` (ruling 128) mirrors the same parts.
-  2026-10-16. Source: Jacob, People comment 1970305108.
+- **157 — One Table in the Library: title row, body, footer, and one toolbar
+  slot.** *"Go look at all the pages where we have table structures. And then
+  we need to unify on a design that contains optional pagination, filtering,
+  sorting, the fucking works."* Refined on 2026-10-19: *"it's fine if all the
+  filtering just lives in the header. And we can handle the tables
+  individually... The only thing we can really do is the title/action
+  buttons, because all of our tables will need those specifically."* The
+  Library Table owns what every table shares: the title row (title, an
+  actions slot of icon buttons whose enabled state follows the selection, a
+  divider under it), the body (columns, selection, row actions, Empty and
+  Loading), and the footer (range "Showing N of M" and pagination, or a
+  virtualized scroll instead). Filtering, search and sort are page or feature
+  concerns: a list screen keeps them in the Admin Header's filter bar; a table
+  inside a card composes its own filter row in the Table's single optional
+  toolbar slot. Consistency comes from the shared controls (labelled Select,
+  Multiselect, Date Picker, Sort select, status chips, search), not from a
+  fixed header layout. Desktop rows are the standard cell row; the mobile row
+  is a children slot the feature fills. The code Table in `@dorado/components`
+  (ruling 128) mirrors the same parts. Source: Jacob, Library comments
+  1970305108 and 1972258176.
 
 ## Numbering
 
