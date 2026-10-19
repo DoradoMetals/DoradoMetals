@@ -91,6 +91,7 @@ export async function list(filter: OrderFilter, executor?: Executor): Promise<Or
       filter.has_unassigned_lots ?? null,
       filter.limit ?? null,
       filter.offset ?? null,
+      filter.q ?? null,
     ],
     executor
   )

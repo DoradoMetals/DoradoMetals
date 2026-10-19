@@ -67,6 +67,7 @@ export const listOrders = asyncHandler(async (req, res) => {
     sort: oneString(req.query.sort) ?? null,
     limit: countIn(req, 'limit'),
     offset: countIn(req, 'offset'),
+    q: oneString(req.query.q)?.trim() || null,
   })
   return res.json(isAdmin ? list : rules.orderListForCustomer(list))
 })

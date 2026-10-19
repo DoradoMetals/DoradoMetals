@@ -655,3 +655,8 @@ Detail in `docs/waves/auth-passwordless.md`.
 - `spots.spots` is not dropped: the exchange backfill still writes it; restate those backfills onto `spots.current` first, then drop under verify-before-drop.
 - Sources card: Kitco and LBMA rows exist on the design but `spots.sources` holds only nfusion; seed both rows disabled (they read "Never" until a client exists) so the card is honest. `last_error` is never written (the feed's failure path cannot catch under lint:one-catch); record the error text through the error handler path. Board needs a `market_open` fact for the "market closed" line (calendar rows exist). Candles are bid-only by ruling.
 - **Payout accounts link through a bank provider (Plaid or similar); no bank data is stored** (Jacob, People comment 1970239138 and Payments comments 1970257376, 2026-10-16). The Add Payout Account drawer is a provider link flow with no manual entry; the component lives in the Payments Figma file GPSOCeWTjc7pDsQBs4gFt4. API: a provider token exchange that keeps only the provider account token, bank name, account type and last four; routing and account numbers never reach the API, so the sealed `payments.details` columns and their reveal endpoint retire with that lane.
+
+## Orders list search leftovers (2026-10-19)
+
+- Order search matches phone numbers as typed; normalise phone formatting (digits only) on both sides.
+- The list `q` uses substring `LIKE` on name, email and product name; add pg_trgm indexes if the Orders list gets slow.

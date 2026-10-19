@@ -1,6 +1,7 @@
 -- The Orders list, one read: the page of cards, and the two counts under the
 -- filter bar. $1 direction, $2 user_id, $3 state[], $4 assigned_to_id,
--- $5 sort key, $6 unassigned, $7 has_unassigned_lots, $8 limit, $9 offset.
+-- $5 sort key, $6 unassigned, $7 has_unassigned_lots, $8 limit, $9 offset,
+-- $10 q (what the operator typed, or NULL).
 --
 -- The counts are measured over EVERY matching order and the items over one
 -- page of them, because `6 orders - 18 unassigned lots` is a statement about
@@ -52,6 +53,36 @@ matched AS (
      AND ($4::uuid IS NULL OR o.assigned_to_id = $4::uuid)
      AND ($6::boolean IS NOT TRUE OR o.assigned_to_id IS NULL)
      AND ($7::boolean IS NOT TRUE OR tally.unassigned_lots > 0)
+     AND ($10::text IS NULL OR btrim($10::text) = '' OR EXISTS (
+          SELECT 1
+            FROM (SELECT lower(btrim($10::text)) AS q,
+                         substring(
+                           regexp_replace(lower(btrim($10::text)), '^(po|so|lot)[- ]*', '')
+                           from '^0*([0-9]+)') AS n,
+                         substring(regexp_replace(lower(btrim($10::text)), '^lot[- ]*', '')
+                           from '^0*([0-9]+)-[a-z]$') AS lot_number,
+                         substring(lower(btrim($10::text)) from '-([a-z])$') AS lot_seat) typed
+           WHERE (typed.n IS NOT NULL AND o.number::text LIKE typed.n || '%')
+              OR EXISTS (SELECT 1 FROM auth.users cu
+                          WHERE cu.id = o.user_id
+                            AND (lower(cu.name) LIKE '%' || typed.q || '%'
+                              OR lower(cu.email) LIKE '%' || typed.q || '%'
+                              OR cu.phone_number LIKE '%' || typed.q || '%'))
+              OR (typed.lot_seat IS NOT NULL
+                  AND o.number::text = typed.lot_number
+                  AND (SELECT count(*)
+                         FROM orders.lots own
+                         JOIN orders.lots peer ON peer.order_id = own.order_id
+                          AND (peer.created_at, peer.id) <= (own.created_at, own.id)
+                        WHERE own.order_id = o.id
+                        GROUP BY own.id
+                       HAVING chr(64 + count(*)::int) = upper(typed.lot_seat)) IS NOT NULL)
+              OR EXISTS (SELECT 1
+                           FROM orders.lots sl
+                           JOIN inventory.lots sli ON sli.id = sl.lot_id
+                           JOIN products.bullion sb ON sb.id = sli.bullion_id
+                          WHERE sl.order_id = o.id
+                            AND lower(sb.name) LIKE '%' || typed.q || '%')))
 ),
 ranked AS (
   SELECT m.*,

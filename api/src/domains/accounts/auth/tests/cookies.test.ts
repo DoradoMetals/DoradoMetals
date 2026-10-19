@@ -42,3 +42,45 @@ test('falls back to FRONTEND_URL, and omits the key when both are unset', () => 
   )
   assert.equal('useSecureCookies' in advancedCookieOptions({ AUTH_COOKIE_DOMAIN: domain }), false)
 })
+
+test('with no AUTH_COOKIE_DOMAIN, hosts sharing a parent domain share the cookie', () => {
+  const o = advancedCookieOptions({
+    FRONTEND_URL: 'https://uat.doradometals.com',
+    BETTER_AUTH_URL: 'https://uat-api.doradometals.com',
+  })
+  assert.deepEqual(o.crossSubDomainCookies, { enabled: true, domain })
+  assert.equal(o.useSecureCookies, true)
+})
+
+test('one host, localhost and unrelated hosts stay host-scoped', () => {
+  assert.deepEqual(
+    advancedCookieOptions({
+      FRONTEND_URL: 'http://localhost:3010',
+      BETTER_AUTH_URL: 'http://localhost:5010',
+    }),
+    {}
+  )
+  assert.deepEqual(
+    advancedCookieOptions({ FRONTEND_URL: 'https://a.com', BETTER_AUTH_URL: 'https://b.com' }),
+    {}
+  )
+})
+
+test('a Railway pair derives no domain (public suffix)', () => {
+  assert.deepEqual(
+    advancedCookieOptions({
+      FRONTEND_URL: 'https://web-prod.up.railway.app',
+      BETTER_AUTH_URL: 'https://api-prod.up.railway.app',
+    }),
+    {}
+  )
+})
+
+test('an explicit AUTH_COOKIE_DOMAIN wins over the derived one', () => {
+  const o = advancedCookieOptions({
+    AUTH_COOKIE_DOMAIN: '.other.com',
+    FRONTEND_URL: 'https://uat.doradometals.com',
+    BETTER_AUTH_URL: 'https://uat-api.doradometals.com',
+  })
+  assert.deepEqual(o.crossSubDomainCookies, { enabled: true, domain: '.other.com' })
+})

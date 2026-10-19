@@ -32,12 +32,15 @@ import {
 import {
   actionLabel,
   BATCH_ACTION,
+  chooseShow,
+  chooseState,
   formatEstimate,
   formatFineOz,
   formatPurity,
   formatTotal,
   formatWeight,
   pluralize,
+  requestStates,
   sharedByAll,
 } from '../_lib'
 import { OrderCard } from './OrderCard'
@@ -53,10 +56,6 @@ import { OrdersEmpty, OrdersFailed, OrdersSkeleton } from './OrdersStates'
 import { SelectionActions } from './SelectionActions'
 
 const PAGE_SIZE = 24
-
-const IN_PROGRESS = OrderState.options.filter(
-  (value) => value !== 'Completed' && value !== 'Cancelled'
-)
 
 const DESCRIPTION =
   'Every purchase and sale, and the lots inside each one — what is still to place and what has settled.'
@@ -75,6 +74,16 @@ const DIRECTIONS: { value: Direction; label: string }[] = [
   { value: 'sale', label: 'Sales' },
 ]
 
+// The URL's state and show, made consistent: a closed-state chip widens Show.
+export function fromParams(params: { get(name: string): string | null }) {
+  const s = params.get('state')
+  const w = params.get('show')
+  const state: OrderFilterValue = s && STATE_VALUES.includes(s) ? (s as OrderFilterValue) : 'all'
+  const show = w && SHOW_VALUES.includes(w) ? w : 'in_progress'
+  const scope = { state, show }
+  return state === 'all' ? chooseShow(scope, show) : chooseState(scope, state)
+}
+
 export function OrdersScreen() {
   const router = useRouter()
   const mobile = !useMediaUp('lg')
@@ -85,14 +94,9 @@ export function OrdersScreen() {
   const [direction, setDirection] = React.useState<Direction>(() =>
     params.get('direction') === 'sale' ? 'sale' : 'purchase'
   )
-  const [state, setState] = React.useState<OrderFilterValue>(() => {
-    const value = params.get('state')
-    return value && STATE_VALUES.includes(value) ? (value as OrderFilterValue) : 'all'
-  })
-  const [show, setShow] = React.useState(() => {
-    const value = params.get('show')
-    return value && SHOW_VALUES.includes(value) ? value : 'in_progress'
-  })
+  const [initial] = React.useState(() => fromParams(params))
+  const [state, setState] = React.useState<OrderFilterValue>(initial.state)
+  const [show, setShow] = React.useState(initial.show)
   const [assignee, setAssignee] = React.useState('anyone')
   const [sort, setSort] = React.useState('')
   const [search, setSearch] = React.useState('')
@@ -123,12 +127,13 @@ export function OrdersScreen() {
 
   const list = useOrderList({
     direction,
-    state: state !== 'all' ? [state] : show === 'in_progress' ? IN_PROGRESS : null,
+    state: requestStates({ state, show }),
     assigned_to_id: assignee === 'anyone' ? null : assignee,
     has_unassigned_lots: show === 'unassigned' ? true : null,
     sort: sort === '' ? null : sort,
     limit: PAGE_SIZE,
     offset: (page - 1) * PAGE_SIZE,
+    q: q.trim() === '' ? null : q.trim(),
   })
   const batch = useBatchOrders()
 
@@ -272,7 +277,11 @@ export function OrdersScreen() {
         label="Show"
         items={SHOW_ITEMS}
         value={show}
-        onValueChange={change(setShow)}
+        onValueChange={change((value: string) => {
+          const next = chooseShow({ state, show }, value)
+          setShow(next.show)
+          setState(next.state)
+        })}
         className={mobile ? undefined : 'w-70'}
       />
       <Select
@@ -353,7 +362,11 @@ export function OrdersScreen() {
       <OrderFilterBar
         chips={filters}
         value={state}
-        onValueChange={change(setState)}
+        onValueChange={change((value: OrderFilterValue) => {
+          const next = chooseState({ state, show }, value)
+          setState(next.state)
+          setShow(next.show)
+        })}
         className={
           mobile ? 'flex-nowrap overflow-x-auto [&>*]:shrink-0 [&>*]:whitespace-nowrap' : undefined
         }
