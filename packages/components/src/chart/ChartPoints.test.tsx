@@ -10,6 +10,7 @@ vi.mock('react-chartjs-2', () => {
 })
 
 import { LineChart } from './Chart'
+import { expectNoAxeViolations } from '../test/axe'
 
 describe('LineChart points', () => {
   it('Show points reaches the rendered chart (1102:10)', () => {
@@ -30,5 +31,17 @@ describe('LineChart points', () => {
       />
     )
     expect(getByTestId('chart').getAttribute('data-points')).toBe('[0,0,4]')
+  })
+
+  it('the line chart with points passes axe', async () => {
+    const { container } = render(
+      <LineChart
+        labels={['a', 'b']}
+        series={[{ label: 'Gold', data: [1, 2] }]}
+        label="Gold"
+        points
+      />
+    )
+    await expectNoAxeViolations(container)
   })
 })

@@ -3,6 +3,7 @@ import { fireEvent, render, within } from '@testing-library/react'
 import * as React from 'react'
 
 import { UploadDrawer } from './UploadDrawer'
+import { expectNoAxeViolations } from '../test/axe'
 
 describe('Upload Drawer (1138:193)', () => {
   it('is the Drawer at SM, titled "Upload files", with the Upload card and Cancel / Upload', () => {
@@ -24,5 +25,12 @@ describe('Upload Drawer (1138:193)', () => {
       <UploadDrawer open setOpen={() => {}} onFiles={() => {}} onUpload={() => {}} />
     )
     expect((getByRole('button', { name: 'Upload' }) as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('the open drawer passes axe', async () => {
+    render(
+      <UploadDrawer open setOpen={() => {}} onFiles={() => {}} onUpload={() => {}} canUpload />
+    )
+    await expectNoAxeViolations(document.body)
   })
 })
