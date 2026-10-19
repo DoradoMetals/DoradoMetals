@@ -669,3 +669,4 @@ Detail in `docs/waves/auth-passwordless.md`.
 
 - Ruling 158: optional `premium` on the admin lot shape (`AdminPurchaseCreate` / `AdminSaleCreate` lots), passed through to the lot at placement and to the pricing preview; absent means the rate. Customer checkout keeps no premium input.
 - Ruling 159: `RefiningOrderCreate` with direction `buy` takes no `lot_ids`; the refiner invoice import fills bullion later.
+- Ruling 160: Plaid Hosted Link for payouts. API: `POST /api/accounts/:id/bank-links` sends a Hosted Link (Plaid delivery by SMS or email, beta, needs the account manager; or our own Twilio/Resend send of the hosted_link_url), a webhook receiver that stores the provider token, bank, account name and mask, and a list of linked accounts per user. Sandbox cannot deliver by SMS or email. Retires the sealed bank columns and the reveal endpoint (see the Plaid line above).

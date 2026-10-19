@@ -745,6 +745,20 @@ file named at the top of this file.
   selection belongs to Refiner Sale alone. Source: Jacob, Orders comment
   1972478464.
 
+- **160 — A customer's bank account is linked through Plaid; staff never
+  take the numbers.** *"will there be a way for us to collect account
+  information over the phone and confirm/save/store/link that with plaid api?"*
+  then *"lets add that here if they have no accounts listed or they want to do
+  a new account."* The customer completes a Plaid Hosted Link sent by SMS or
+  email, on the phone with us or alone; verification is Plaid's (Database
+  Auth, then micro-deposits). We keep the provider token, bank, account name
+  and last four, never routing or account numbers, and no screen has an
+  input for them. The Create Order drawer's Money step lists the linked
+  accounts, offers "Link a new account", and when there is none shows a Send
+  link block (SMS or Email, Pending until the webhook lands); Continue waits
+  for a linked account. Source: Jacob, Orders comments 1972487641 and
+  1972491245.
+
 ## Numbering
 
 Every number from 1 to 157 has an entry, plus 26b and 26c. Two rulings carry the

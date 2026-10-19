@@ -110,3 +110,11 @@ preview query; Playwright specs for the three kinds (ruling 130); tests first
   fulfillment components. Money step: Method, then Accounts (payout to,
   payout from), then Details, with the pricing preview beside all three.
   Review: one card per step with a headline value, built for a glance.
+- The drawer takes one payout method and no split ("no for the add payout
+  method. We're not doing that here."); a split is added on the order screen
+  (ruling 132 applies there). The pricing preview is not on the Money step;
+  it is the Money card of the Review step.
+- Bank accounts come from Plaid (ruling 160): Payout to lists the linked
+  accounts plus "Link a new account"; Details is read-only (status, bank,
+  account name, last four); with no account the step shows a Send link block
+  (SMS or Email) and Continue waits for the webhook.
