@@ -3,6 +3,7 @@ import { fireEvent, render } from '@testing-library/react'
 import * as React from 'react'
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './Tabs'
+import { expectNoAxeViolations } from '../test/axe'
 
 describe('Tabs accessibility', () => {
   it('arrow keys, Home and End move between tabs', async () => {
@@ -27,5 +28,19 @@ describe('Tabs accessibility', () => {
     fireEvent.keyDown(tab('Shipping'), { key: 'Home' })
     await vi.waitFor(() => expect(document.activeElement).toBe(tab('Items')))
     expect(tab('Items').className).toContain('focus-ring')
+  })
+
+  it('the tab list and its panel pass axe', async () => {
+    const { container } = render(
+      <Tabs defaultValue="a">
+        <TabsList aria-label="Order">
+          <TabsTrigger value="a">Items</TabsTrigger>
+          <TabsTrigger value="b">Payment</TabsTrigger>
+        </TabsList>
+        <TabsContent value="a">A</TabsContent>
+        <TabsContent value="b">B</TabsContent>
+      </Tabs>
+    )
+    await expectNoAxeViolations(container)
   })
 })

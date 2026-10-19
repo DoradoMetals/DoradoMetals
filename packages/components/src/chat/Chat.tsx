@@ -202,6 +202,7 @@ export function Chat({
         ) : isEmpty ? (
           <div className="flex flex-col justify-center px-sm">
             <EmptyState
+              level={4}
               icon={isMessages ? <Send aria-hidden /> : <Phone aria-hidden />}
               title={isMessages ? 'No messages yet' : 'No calls yet'}
               description={
