@@ -263,3 +263,6 @@ THE THREE TRAPS THIS SESSION ADDED TO THE LIST, all of which cost a run before t
 - 2026-10-19 evening (People 1972446135): Table Header 1172:254 both variants: "Toolbar divider" (clone of Divider) inserted after Toolbar, visibility bound to Show toolbar. Description extended. Waits on publish.
 - 2026-10-19 evening (Orders 1972450317): Drawer 127:32 all sizes: Body overflowDirection NONE -> VERTICAL (clip and FILL kept), annotated as the only scroll region between the fixed Header and Footer; description extended. Waits on publish.
 - 2026-10-19 evening (Orders 1972456769): Drawer 127:32 Body keeps overflow vertical (frontend note) but clipsContent off, so designs show full content; annotation and description updated. Waits on publish.
+
+## 2026-10-19 late (third worker)
+- Jacob (chat), ruling 161: Message 619:19 gained Content (Text existing; Image: Inbound 1263:5249, Outbound 1263:5258, Status=Delivered): the bubble's text hidden and a Thumbnail XL instance "Photo" at 220x160 inside; time and Delivered as text bubbles; description updated. Chat set below shifted 484. Snapshot tools/library/snapshots/message-pre-ruling161-2026-10-19.json. NEW pin 1972518909. Waits on publish; People lead thread samples follow.

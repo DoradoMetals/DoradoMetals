@@ -334,3 +334,30 @@ Detail per item: orders-, people-, library-, locations-comments-log.md (sections
 - People 1972454569 (orders drawer), 1972446135 (toolbar divider).
 - NEW pins (bot roots): People 1972441789 (toolbar), 1972461442 (Dana's Orders); Library 1972435063 (Selection Bar).
 - All other threads replied this evening are resolved.
+
+## 9. Night (third worker)
+
+Detail per item: orders-, people-, locations-, library-comments-log.md, sections "2026-10-19 late (third worker)".
+
+### 9.1 Done
+- Orders, Create Order: Fulfillment is type first, then details (Type axis plus Carrier pickup / Own label states). Transaction (renamed from Money) is Method then Accounts, with no Details block; the Send Link block covers no linked account. Review is attempt 3 and mirrors the order screen: stats, read-only Lots, Fulfillment and Payment Summary cards. Order step has the states Kind locked, Employee viewer, No lots and Conflict, and the Kind Refiner purchase. Sample numbers: $24,066.04, 10.232 t oz, $24,688.80.
+- Orders, order screen sets gained states: Lots Row Editable, Lots and Lots / Refiner Read-only, Fulfillment and Payment Summary.
+- People:
+  - Employee drawer tables match mobile.
+  - The lead Estimate is on the Library Table, with Estimate Actions.
+  - Add Item and Edit Contact are now drawers.
+  - Customers list is on the Library Table, with Customers actions and filters.
+  - PROPOSAL Employee KPIs frame added.
+  - Ruling 162 archive states drawn.
+- Locations: Map component (18:371), placed in the Add Address form.
+- Library: Message Content=Image (ruling 161).
+
+### 9.2 Rules learned
+- A text set through a drawer's nested path becomes an override that shadows later body edits.
+- clone() of a component drops instance names set after creation, and resetOverrides() clears them too. Find by main, not by name.
+- Hidden nested instance children are not addressable. Use resetOverrides and re-apply.
+
+### 9.3 Waiting on Jacob
+- People 1972415943: confirm Employees (the pin sits on empty Users canvas).
+- Library publish: Message image bubbles. Then add one inbound and one outbound sample in the lead thread (People 34:2496 Customer messages).
+- Orders publish, for the code lane.
