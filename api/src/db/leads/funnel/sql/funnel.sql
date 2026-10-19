@@ -19,11 +19,14 @@
 -- The email response rate leans on leads.leads.responded_at, because no
 -- inbound email is recorded anywhere: there is no media.emails row for a
 -- reply. Text and call rates are measured from real inbound rows.
+--
+-- An archived lead (ruling 162) counts nowhere.
 WITH base AS (
   SELECT l.id, l.converted_at, l.contacted_at, l.responded_at, l.assigned_to_id, l.created_at,
          nullif(right(regexp_replace(coalesce(l.phone, ''), '\D', '', 'g'), 10), '') AS digits,
          nullif(lower(trim(coalesce(l.email, ''))), '') AS email_key
     FROM leads.leads l
+   WHERE l.archived_at IS NULL
 ),
 touched AS (
   SELECT b.id, b.converted_at, b.contacted_at, b.responded_at, b.assigned_to_id,

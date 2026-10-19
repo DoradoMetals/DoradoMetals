@@ -82,7 +82,7 @@ test('the read serves what the table holds', async () => {
   )
 })
 
-test('update writes the row, and delete removes it', async () => {
+test('update writes the row, and delete archives it (ruling 162)', async () => {
   await inPinnedTransaction(
     async (client: PoolClient) => {
       await asAdmin(async () => {
@@ -97,10 +97,12 @@ test('update writes the row, and delete removes it', async () => {
 
         const del = await request(app).delete(`/api/leads/${created.id}`)
         assert.equal(del.status, 200)
-        const { rows: gone } = await client.query(`SELECT 1 FROM leads.leads WHERE id = $1`, [
-          created.id,
-        ])
-        assert.equal(gone.length, 0, 'leads.leads still holds the deleted lead')
+        const { rows: kept } = await client.query(
+          `SELECT archived_at FROM leads.leads WHERE id = $1`,
+          [created.id]
+        )
+        assert.equal(kept.length, 1, 'delete removed the lead row; ruling 162 archives it')
+        assert.ok(kept[0]?.archived_at, 'delete did not stamp archived_at')
       })
     },
     { actor: TEST_ACTOR.id }

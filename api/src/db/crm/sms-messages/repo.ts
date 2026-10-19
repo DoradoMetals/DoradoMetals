@@ -2,14 +2,14 @@ import type { PoolClient } from 'pg'
 import query from '#shared/db/query.ts'
 import { sqlFrom } from '#shared/db/sql.ts'
 import type { Executor } from '#shared/db/executor.ts'
-import type { SmsMessage } from '@dorado/contracts'
+import type { SmsMessage, SmsMessageView } from '@dorado/contracts'
 import type { SmsDeliveryStatus } from '@dorado/contracts'
 import type { SmsInbound, SmsMedia } from '#providers/twilio/index.ts'
 
 const sql = sqlFrom(import.meta.dirname)
 
-export async function getOne(id: string, executor?: Executor): Promise<SmsMessage | undefined> {
-  const { rows } = await query<SmsMessage>(sql('get_one'), [id], executor)
+export async function getOne(id: string, executor?: Executor): Promise<SmsMessageView | undefined> {
+  const { rows } = await query<SmsMessageView>(sql('get_one'), [id], executor)
   return rows[0]
 }
 
@@ -33,8 +33,8 @@ export async function conversation(
   user_id: string | null,
   number: string | null,
   executor?: Executor
-): Promise<SmsMessage[]> {
-  const { rows } = await query<SmsMessage>(sql('conversation'), [user_id, number], executor)
+): Promise<SmsMessageView[]> {
+  const { rows } = await query<SmsMessageView>(sql('conversation'), [user_id, number], executor)
   return rows
 }
 
@@ -45,7 +45,14 @@ export async function upsertInbound(
 ): Promise<SmsMessage> {
   const { rows } = await query<SmsMessage>(
     sql('upsert_inbound'),
-    [provider, input.provider_sid, input.from_number, input.to_number, input.body, JSON.stringify(input.media)],
+    [
+      provider,
+      input.provider_sid,
+      input.from_number,
+      input.to_number,
+      input.body,
+      JSON.stringify(input.media),
+    ],
     tx
   )
   return rows[0]

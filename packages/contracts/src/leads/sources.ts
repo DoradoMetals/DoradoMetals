@@ -17,3 +17,6 @@ export const LeadSource = z.object({
 })
 export type LeadSource = z.infer<typeof LeadSource>
 // generated:end
+
+export const LeadLookup = LeadSource.pick({ id: true, key: true, label: true, sort_order: true })
+export type LeadLookup = z.infer<typeof LeadLookup>

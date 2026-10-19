@@ -6,6 +6,7 @@ import { SmsMessage } from '../crm/sms_messages.js'
 import { FunnelTarget } from '../crm/targets.js'
 import { TimelineKind } from '../crm/timeline_kinds.js'
 import { User } from '../auth/users.js'
+import { Image } from '../media/images.js'
 
 export const SmsMedia = z.object({
   url: z.string(),
@@ -75,7 +76,10 @@ export const SmsSendBody = z
     lead_id: z.string().uuid().optional(),
     body: SmsMessage.shape.body.unwrap(),
   })
-  .extend({ media: z.array(SmsMedia).optional() })
+  .extend({
+    media: z.array(SmsMedia).optional(),
+    image_ids: z.array(Image.shape.id).optional(),
+  })
   .strict()
   .refine((v) => Boolean(v.user_id) !== Boolean(v.lead_id), {
     message: 'exactly one of user_id or lead_id is required',
@@ -154,6 +158,45 @@ export const LeadFunnel = z
     hours_to_first_contact_target: FunnelTarget.shape.value.nullable(),
   })
 export type LeadFunnel = z.infer<typeof LeadFunnel>
+
+export const LeadSummaryWindow = z
+  .object({
+    created_from: z.iso.date().optional(),
+    created_to: z.iso.date().optional(),
+  })
+  .strict()
+export type LeadSummaryWindow = z.infer<typeof LeadSummaryWindow>
+
+export const LeadConversionWeek = z.object({
+  week_start: z.iso.date(),
+  leads: z.number().int(),
+  converted: z.number().int(),
+  rate: z.number(),
+})
+export type LeadConversionWeek = z.infer<typeof LeadConversionWeek>
+
+export const LeadSummary = z.object({
+  totals: z.object({
+    count: z.number().int(),
+    unowned: z.number().int(),
+    median_hours_to_first_contact: z.number().nullable(),
+  }),
+  response_rate_by_channel: LeadResponseRates,
+  conversion: z.object({
+    rate: z.number(),
+    target: FunnelTarget.shape.value.nullable(),
+    history: z.array(LeadConversionWeek),
+  }),
+  first_contact: z.object({
+    median_hours: z.number().nullable(),
+    target_hours: FunnelTarget.shape.value.nullable(),
+  }),
+  needs_attention: z.object({
+    unassigned: z.number().int(),
+    not_contacted: z.number().int(),
+  }),
+})
+export type LeadSummary = z.infer<typeof LeadSummary>
 
 export const ActivitySubjectKind = z.enum(['customer', 'lead'])
 export type ActivitySubjectKind = z.infer<typeof ActivitySubjectKind>

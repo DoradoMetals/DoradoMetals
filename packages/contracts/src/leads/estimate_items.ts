@@ -33,3 +33,6 @@ export const EstimateItemPatch = EstimateItem.pick({
   .partial()
   .strict()
 export type EstimateItemPatch = z.infer<typeof EstimateItemPatch>
+
+export const EstimateItemView = EstimateItem.extend({ image_count: z.number().int() })
+export type EstimateItemView = z.infer<typeof EstimateItemView>

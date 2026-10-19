@@ -2,7 +2,12 @@ import query from '#shared/db/query.ts'
 import { buildUpdate } from '#shared/db/patch.ts'
 import { sqlFrom } from '#shared/db/sql.ts'
 import { columnsOf, returningOf } from '#shared/db/columns.ts'
-import { EstimateItem, EstimateItemPatch } from '@dorado/contracts'
+import {
+  CheckoutScrapLot,
+  EstimateItem,
+  EstimateItemPatch,
+  EstimateItemView,
+} from '@dorado/contracts'
 import type { Executor } from '#shared/db/executor.ts'
 
 const sql = sqlFrom(import.meta.dirname)
@@ -20,9 +25,17 @@ export async function getOne(
   return rows[0]
 }
 
-export async function forLead(lead_id: string, executor?: Executor): Promise<EstimateItem[]> {
-  const { rows } = await query<EstimateItem>(sql('get_all'), [lead_id], executor)
+export async function forLead(lead_id: string, executor?: Executor): Promise<EstimateItemView[]> {
+  const { rows } = await query<EstimateItemView>(sql('get_all'), [lead_id], executor)
   return rows
+}
+
+export async function carryLines(
+  lead_id: string,
+  executor?: Executor
+): Promise<CheckoutScrapLot[]> {
+  const { rows } = await query(sql('carry_lines'), [lead_id], executor)
+  return rows.map((row) => CheckoutScrapLot.parse(row))
 }
 
 export async function create(

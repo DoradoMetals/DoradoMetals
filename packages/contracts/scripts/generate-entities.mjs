@@ -208,6 +208,7 @@ const ENTITY = {
   'crm.notes': 'Note',
   'crm.sms_consent_events': 'SmsConsentEvent',
   'crm.sms_consent_kinds': 'SmsConsentKind',
+  'crm.sms_message_images': 'SmsMessageImage',
   'crm.sms_messages': 'SmsMessage',
   'crm.targets': 'FunnelTarget',
   'crm.timeline_kinds': 'TimelineKind',
@@ -221,6 +222,7 @@ const ENTITY = {
 
   'leads.contact_preferences': 'ContactPreference',
   'leads.documents': 'LeadDocument',
+  'leads.estimate_item_images': 'EstimateItemImage',
   'leads.estimate_items': 'EstimateItem',
   'leads.estimate_kinds': 'EstimateKind',
   'leads.leads': 'Lead',

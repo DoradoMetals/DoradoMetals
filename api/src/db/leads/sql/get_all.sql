@@ -3,7 +3,7 @@ SELECT id, name, phone, email, created_at, updated_at, last_contacted,
        notes, contact, priority,
        assigned_to_id, source, sms_consent_at, sms_consent_method,
        number, source_id, contact_preference_id,
-       contacted_at, responded_at, converted_at,
+       contacted_at, responded_at, converted_at, archived_at,
        /*__lead_stage__*/ AS lead_stage
   FROM leads.leads
  WHERE ($1::text IS NULL OR /*__lead_stage__*/ = $1)
@@ -16,4 +16,5 @@ SELECT id, name, phone, email, created_at, updated_at, last_contacted,
         OR name ILIKE '%' || $5 || '%'
         OR phone ILIKE '%' || $5 || '%'
         OR email ILIKE '%' || $5 || '%')
+   AND (archived_at IS NOT NULL) = $6::boolean
  ORDER BY created_at DESC, id DESC

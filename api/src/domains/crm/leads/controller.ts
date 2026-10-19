@@ -1,7 +1,13 @@
-import { LeadConvertBody, LeadPatch, LeadStage } from '@dorado/contracts'
+import {
+  LeadArchivedQuery,
+  LeadConvertBody,
+  LeadPatch,
+  LeadRestoreBody,
+  LeadStage,
+} from '@dorado/contracts'
 import { requiredParam } from '#shared/http/caller.ts'
 import { oneString } from '#shared/http/query.ts'
-import { parseStrict, strictBody } from '#shared/http/validate.ts'
+import { parseStrict, strictBody, uuidParam } from '#shared/http/validate.ts'
 import { asyncHandler } from '#shared/middleware/asyncHandler.ts'
 import * as service from '#crm/leads/service.ts'
 
@@ -14,6 +20,10 @@ export const getOne = asyncHandler(async (req, res) => {
 export const getAll = asyncHandler(async (req, res) => {
   const rawStage = oneString(req.query.stage)
   const stage = rawStage ? parseStrict(LeadStage, rawStage, 'leads stage filter') : null
+  const rawArchived = oneString(req.query.archived)
+  const archived = rawArchived
+    ? parseStrict(LeadArchivedQuery, rawArchived, 'leads archived filter')
+    : false
 
   const filter = {
     stage,
@@ -21,6 +31,7 @@ export const getAll = asyncHandler(async (req, res) => {
     assigned_to: oneString(req.query.assigned_to) ?? null,
     source: oneString(req.query.source) ?? null,
     search: oneString(req.query.q) ?? null,
+    archived,
   }
   return res.status(200).json(await service.list(filter))
 })
@@ -39,10 +50,14 @@ export const update = asyncHandler(async (req, res) => {
 })
 
 export const remove = asyncHandler(async (req, res) => {
-  const id = requiredParam(req.params.id, 'id')
-  const removed = await service.remove(id)
-  if (!removed) return res.status(404).json({ message: 'no such lead' })
-  return res.status(200).json({ message: 'Lead deleted' })
+  await service.remove(uuidParam(req, 'id'))
+  return res.status(200).json({ message: 'Lead archived' })
+})
+
+export const restore = asyncHandler(async (req, res) => {
+  const id = uuidParam(req, 'id')
+  strictBody(LeadRestoreBody, req.body)
+  return res.status(200).json(await service.restore(id))
 })
 
 export const convert = asyncHandler(async (req, res) => {

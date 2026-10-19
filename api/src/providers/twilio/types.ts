@@ -9,6 +9,11 @@ export type SmsMedia = {
   content_type: string
 }
 
+export type SmsMediaBytes = {
+  bytes: Buffer
+  content_type: string
+}
+
 export type SmsInbound = {
   provider_sid: string
   from_number: string
@@ -28,6 +33,7 @@ export type TwilioForm = Record<string, unknown>
 export type SmsProvider = {
   send(to: string, body: string, media?: SmsMedia[]): Promise<SmsSendResult>
   verifySignature(url: string, params: Record<string, string>, signature: string): boolean
+  fetchMedia(url: string): Promise<SmsMediaBytes>
   parseInbound(form: TwilioForm): SmsInbound
   parseStatus(form: TwilioForm): SmsStatusUpdate
 }

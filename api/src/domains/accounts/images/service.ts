@@ -1,10 +1,12 @@
-import { randomBytes } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
+import { isTestRun } from '#shared/testing/is-test-run.ts'
 import minio from '#providers/s3/minio.ts'
 import withTransaction from '#shared/db/withTransaction.ts'
 import * as images from '#db/media/images/repo.ts'
 import type { NewImage } from '#db/media/images/repo.ts'
 import * as rules from '#accounts/images/rules.ts'
 import type { Image } from '@dorado/contracts'
+import type { Executor } from '#shared/db/executor.ts'
 import { withDecisions } from '#shared/views.ts'
 
 const PUT_TTL_SECONDS = 60 * 5
@@ -59,6 +61,33 @@ export async function getUrl(image_id: string): Promise<string> {
   const img = await images.getOne(image_id)
   rules.assertImage(img, image_id)
   return await presign(img)
+}
+
+export async function putBytes(
+  user_id: string | null,
+  bytes: Buffer,
+  mime_type: string
+): Promise<NewImage> {
+  const checksum = createHash('sha256').update(bytes).digest('hex')
+  const image: NewImage = {
+    user_id,
+    bucket: process.env.S3_BUCKET as string,
+    path: `${user_id ?? 'inbound'}/`,
+    filename: checksum,
+    mime_type,
+    size_bytes: bytes.length,
+    checksum,
+  }
+  if (!isTestRun()) {
+    await minio.putObject(image.bucket, image.path + image.filename, bytes, bytes.length, {
+      'Content-Type': mime_type,
+    })
+  }
+  return image
+}
+
+export async function record(image: NewImage, tx: Executor): Promise<Image> {
+  return await images.create(image, tx)
 }
 
 export async function getUrlFor(

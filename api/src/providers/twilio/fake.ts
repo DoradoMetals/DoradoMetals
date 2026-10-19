@@ -1,4 +1,4 @@
-import type { SmsMedia, SmsSendResult } from '#providers/twilio/types.ts'
+import type { SmsMedia, SmsMediaBytes, SmsSendResult } from '#providers/twilio/types.ts'
 
 export { parseInbound, parseStatus } from '#providers/twilio/sms.ts'
 
@@ -15,6 +15,10 @@ const MAX_MESSAGES = 500
 const FALLBACK_FROM = '+15550100000'
 
 const messages: FakeMessage[] = []
+const fetched: string[] = []
+
+const JPEG_START = Buffer.from('ffd8ffe000104a46494600010100000100010000', 'hex')
+const JPEG_END = Buffer.from('ffd9', 'hex')
 let counter = 0
 
 const digits = (value: string): string => value.replace(/\D/g, '')
@@ -36,6 +40,19 @@ export async function send(
   messages.push(message)
   if (messages.length > MAX_MESSAGES) messages.splice(0, messages.length - MAX_MESSAGES)
   return { provider_sid: message.provider_sid, status: 'queued', error_code: null }
+}
+
+export async function fetchMedia(url: string): Promise<SmsMediaBytes> {
+  fetched.push(url)
+  if (fetched.length > MAX_MESSAGES) fetched.splice(0, fetched.length - MAX_MESSAGES)
+  return {
+    bytes: Buffer.concat([JPEG_START, Buffer.from(url), JPEG_END]),
+    content_type: 'image/jpeg',
+  }
+}
+
+export function fetchedMedia(): readonly string[] {
+  return fetched
 }
 
 export function lastMessageTo(number: string): FakeMessage | null {
@@ -63,6 +80,7 @@ export function byMessageId(provider_sid: string): FakeMessage | null {
 
 export function reset(): void {
   messages.length = 0
+  fetched.length = 0
   counter = 0
 }
 

@@ -1,4 +1,4 @@
-import { EstimateItemPatch } from '@dorado/contracts'
+import { EstimateItemImageAdd, EstimateItemPatch } from '@dorado/contracts'
 import { strictBody, uuidParam } from '#shared/http/validate.ts'
 import { asyncHandler } from '#shared/middleware/asyncHandler.ts'
 import * as service from '#crm/estimates/service.ts'
@@ -27,4 +27,22 @@ export const remove = asyncHandler(async (req, res) => {
   const removed = await service.remove(lead_id, id)
   if (!removed) return res.status(404).json({ message: 'no such estimate item' })
   return res.status(200).json({ message: 'Estimate item deleted' })
+})
+
+export const getImages = asyncHandler(async (req, res) => {
+  return res.status(200).json(await service.images(uuidParam(req, 'id'), uuidParam(req, 'itemId')))
+})
+
+export const addImage = asyncHandler(async (req, res) => {
+  const lead_id = uuidParam(req, 'id')
+  const item_id = uuidParam(req, 'itemId')
+  const { image_id } = strictBody(EstimateItemImageAdd, req.body)
+  return res.status(201).json(await service.addImage(lead_id, item_id, image_id))
+})
+
+export const removeImage = asyncHandler(async (req, res) => {
+  const lead_id = uuidParam(req, 'id')
+  const item_id = uuidParam(req, 'itemId')
+  const image_id = uuidParam(req, 'imageId')
+  return res.status(200).json(await service.removeImage(lead_id, item_id, image_id))
 })

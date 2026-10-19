@@ -293,16 +293,10 @@ const { rows: leadRows } = await pool.query(
 )
 const leadIds: string[] = leadRows.map((r) => r.id as string)
 const leadsService = await import('#crm/leads/service.ts')
-// The lead reads omit the two actor ids, exactly as db/leads/repo.ts's own
-// RETURNING does - the same shape of declared omission as OrderView.payout
-// above. The contract still DECLARES them, which is a real gap; it is recorded
-// in FOLLOWUPS rather than closed by widening an endpoint this lane did not own.
-add('GET /leads/:id', c.LeadView.omit({ created_by_id: true, updated_by_id: true }), () =>
-  Promise.all(leadIds.map((id) => leadsService.getOne(id)))
-)
+add('GET /leads/:id', c.LeadView, () => Promise.all(leadIds.map((id) => leadsService.getOne(id))))
 
 const leadEstimatesService = await import('#crm/estimates/service.ts')
-add('GET /leads/:id/estimate/items', c.EstimateItem, async () => {
+add('GET /leads/:id/estimate/items', c.EstimateItemView, async () => {
   const lists = await Promise.all(leadIds.map((id) => leadEstimatesService.forLead(id)))
   return lists.flat()
 })
