@@ -261,6 +261,13 @@ export function OrdersScreen() {
           summary={`${pluralize(item.lot_count, 'lot', 'lots')} · ${formatEstimate(item.estimated_value)} est.`}
           date={`${item.direction === 'sale' ? 'Placed' : 'Received'} ${formatStamp(item.direction === 'sale' ? item.placed_at : item.arrived_at)}`}
           selected={isSelected}
+          selectable
+          selectionActive={selected.length > 0}
+          onToggle={() =>
+            setSelected((now) =>
+              now.includes(item.id) ? now.filter((id) => id !== item.id) : [...now, item.id]
+            )
+          }
           onSelectedChange={(next) =>
             setSelected((now) => (next ? [...now, item.id] : now.filter((id) => id !== item.id)))
           }
@@ -358,7 +365,9 @@ export function OrdersScreen() {
           setShow(next.show)
         })}
         className={
-          mobile ? 'flex-nowrap overflow-x-auto [&>*]:shrink-0 [&>*]:whitespace-nowrap' : undefined
+          mobile
+            ? 'no-scrollbar flex-nowrap overflow-x-auto [&>*]:shrink-0 [&>*]:whitespace-nowrap'
+            : undefined
         }
       />
 
@@ -399,7 +408,7 @@ export function OrdersScreen() {
             layout={mobile ? 'mobile' : 'desktop'}
             summary={selectionSummary}
             totals={totals}
-            onDismiss={mobile ? undefined : clear}
+            onDismiss={clear}
             actions={[
               {
                 name: BATCH_ACTION,

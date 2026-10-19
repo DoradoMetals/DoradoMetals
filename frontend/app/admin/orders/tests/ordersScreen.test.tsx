@@ -172,6 +172,15 @@ describe('the orders screen', () => {
     expect(screen.getByRole('button', { name: 'Page 1' })).toBeTruthy()
   })
 
+  test('the mobile state-chip row scrolls without a visible scrollbar', async () => {
+    desktop(false)
+    stubApi(routes())
+    mount()
+    await screen.findByText('PO-2481')
+    const row = document.querySelector('.overflow-x-auto')
+    expect(row?.className).toContain('no-scrollbar')
+  })
+
   test('the debounced search is passed to the list as q', async () => {
     const calls = stubApi(routes())
     mount()

@@ -92,3 +92,65 @@ describe('OrderCard', () => {
     expect(onContextMenu).toHaveBeenCalled()
   })
 })
+
+describe('OrderCard height (Figma 673:20388, 332x372)', () => {
+  it('desktop holds the design min height and reserves the 28px more row', () => {
+    const { container } = card({ moreCount: 0 })
+    expect(container.querySelector('article')?.className).toContain('min-h-[372px]')
+    expect(container.querySelector('[data-part="more"]')?.className).toContain('h-7')
+  })
+
+  it('mobile has no min height and no empty more row', () => {
+    const { container } = card({ layout: 'mobile', moreCount: 0 })
+    expect(container.querySelector('article')?.className).not.toContain('min-h-[372px]')
+    expect(container.querySelector('[data-part="more"]')).toBeNull()
+  })
+})
+
+describe('OrderCard whole-card selection', () => {
+  it('with nothing selected a click on the card does not toggle (the link opens the order)', () => {
+    const onToggle = vi.fn()
+    const { container } = card({
+      href: '/o/1',
+      selectable: true,
+      onToggle,
+      onSelectedChange: () => {},
+    })
+    fireEvent.click(container.querySelector('article') as HTMLElement, { detail: 1 })
+    expect(onToggle).not.toHaveBeenCalled()
+  })
+
+  it('once a card is selected, a click anywhere toggles and does not follow the link', () => {
+    const onToggle = vi.fn()
+    const { container, getByText } = card({
+      href: '/o/1',
+      selectable: true,
+      selectionActive: true,
+      onToggle,
+      onSelectedChange: () => {},
+    })
+    const notPrevented = fireEvent.click(getByText('14K Gold'), { detail: 1 })
+    expect(onToggle).toHaveBeenCalledTimes(1)
+    expect(notPrevented).toBe(false)
+    // keyboard activation of the link still opens the order
+    fireEvent.click(container.querySelector('a') as HTMLElement, { detail: 0 })
+    expect(onToggle).toHaveBeenCalledTimes(1)
+  })
+
+  it('on mobile a long press starts the selection', () => {
+    vi.useFakeTimers()
+    const onToggle = vi.fn()
+    const { container } = card({
+      layout: 'mobile',
+      selectable: true,
+      onToggle,
+      onSelectedChange: () => {},
+    })
+    const article = container.querySelector('article') as HTMLElement
+    fireEvent.pointerDown(article, { pointerType: 'touch' })
+    vi.advanceTimersByTime(600)
+    expect(onToggle).toHaveBeenCalledTimes(1)
+    fireEvent.pointerUp(article)
+    vi.useRealTimers()
+  })
+})

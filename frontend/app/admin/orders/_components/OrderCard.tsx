@@ -30,8 +30,16 @@ export type OrderCardProps = Omit<React.HTMLAttributes<HTMLElement>, 'children' 
   selected?: boolean
   onSelectedChange?: (selected: boolean) => void
   selectLabel?: string
+  /** The card can be selected (defaults to having an onSelectedChange). */
+  selectable?: boolean
+  /** At least one card on the list is selected: a click toggles instead of opening. */
+  selectionActive?: boolean
+  /** Toggle this card; used for click-anywhere once active, and for long-press. */
+  onToggle?: () => void
   layout?: 'desktop' | 'mobile'
 }
+
+const LONG_PRESS_MS = 500
 
 function LotRow({ lot }: { lot: OrderCardLot }) {
   const placed = lot.position != null
@@ -91,10 +99,25 @@ export function OrderCard({
   selected = false,
   onSelectedChange,
   selectLabel = 'Select order',
+  selectable,
+  selectionActive = false,
+  onToggle,
   layout = 'desktop',
   className,
+  onClick,
+  onPointerDown,
+  onPointerUp,
+  onPointerLeave,
+  onPointerCancel,
   ...props
 }: OrderCardProps) {
+  const canSelect = (selectable ?? onSelectedChange != null) && onToggle != null
+  const press = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  const longPressed = React.useRef(false)
+  const stopPress = () => {
+    if (press.current != null) clearTimeout(press.current)
+    press.current = null
+  }
   const mobile = layout === 'mobile'
   const more = moreCount != null && moreCount > 0 ? (moreLabel ?? `+${moreCount} more`) : null
   return (
@@ -103,9 +126,47 @@ export function OrderCard({
       data-selected={selected ? '' : undefined}
       className={cn(
         'flex flex-col justify-between rounded-lg border bg-card',
+        // 673:20388 is 372 tall at 332 wide; the grid at the call site still stretches rows
+        !mobile && 'min-h-[372px]',
         selected ? 'border-(length:--stroke-emphasis) border-primary' : 'border-border',
         className
       )}
+      onClick={(event) => {
+        onClick?.(event)
+        if (!canSelect || event.defaultPrevented) return
+        const target = event.target as HTMLElement
+        if (longPressed.current) {
+          longPressed.current = false
+          event.preventDefault()
+          return
+        }
+        // a keyboard activation (detail 0) on the link still opens the order
+        const keyboard = event.detail === 0
+        if (!selectionActive || keyboard || target.closest('[role="checkbox"],button')) return
+        event.preventDefault()
+        onToggle()
+      }}
+      onPointerDown={(event) => {
+        onPointerDown?.(event)
+        if (!canSelect || !mobile || selectionActive || event.pointerType === 'mouse') return
+        longPressed.current = false
+        press.current = setTimeout(() => {
+          longPressed.current = true
+          onToggle()
+        }, LONG_PRESS_MS)
+      }}
+      onPointerUp={(event) => {
+        onPointerUp?.(event)
+        stopPress()
+      }}
+      onPointerLeave={(event) => {
+        onPointerLeave?.(event)
+        stopPress()
+      }}
+      onPointerCancel={(event) => {
+        onPointerCancel?.(event)
+        stopPress()
+      }}
       {...props}
     >
       <div className="flex flex-col">
@@ -131,24 +192,23 @@ export function OrderCard({
         <div className="flex items-center gap-xs px-sm pb-sm">
           <OrderState state={state} />
         </div>
-        {(lots.length > 0 || more != null) && (
-          <div className="flex flex-col gap-xs px-sm pt-sm">
-            <ul className="flex flex-col gap-xs">
-              {lots.map((lot) => (
-                <LotRow key={lot.id} lot={lot} />
-              ))}
-            </ul>
-            {more != null && (
-              <p
-                className={cn(
-                  'flex items-center text-small font-medium text-muted-foreground',
-                  mobile ? 'h-9 px-sm-plus' : 'justify-center pt-xs'
-                )}
-              >
-                {more}
-              </p>
+        {lots.length > 0 && (
+          <ul className="flex flex-col gap-xs px-sm pt-sm">
+            {lots.map((lot) => (
+              <LotRow key={lot.id} lot={lot} />
+            ))}
+          </ul>
+        )}
+        {(more != null || (!mobile && lots.length > 0)) && (
+          <p
+            data-part="more"
+            className={cn(
+              'flex items-center text-small font-medium text-muted-foreground',
+              mobile ? 'h-9 px-sm-plus' : 'h-7 justify-center pt-xs'
             )}
-          </div>
+          >
+            {more}
+          </p>
         )}
       </div>
       <footer className="flex items-center justify-between gap-sm p-sm">
