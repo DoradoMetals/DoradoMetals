@@ -1,6 +1,7 @@
 import { convertToPounds } from '#shared/utils/convertWeights.ts'
 import { Conflict, Invalid, NotFound } from '#shared/errors.ts'
 import type {
+  ShipmentRead,
   CarrierHandoff,
   CarrierRateQuote,
   CarrierServiceOption,
@@ -246,7 +247,35 @@ export const TRACKING_STAGES = [
   'Delivered',
 ] as const
 
-export function trackingTimeline(events: TrackingScan[]): TrackingStep[] {
+type OwnFacts = Partial<Pick<ShipmentRead, 'shipped_at' | 'delivered_at' | 'shipping_status'>>
+
+// A legacy shipment has no tracking events, only its own timestamps and status.
+// The steps up to the furthest known one are reached; Picked Up and Delivered
+// carry the shipment's own times.
+function ownTimeline(own: OwnFacts): TrackingStep[] {
+  const named = TRACKING_STAGES.findIndex((stage) => stage === own.shipping_status)
+  // a legacy Returned or Cancelled is not a stage of this ladder: reach nothing
+  if (own.shipping_status && named < 0) return []
+  const furthest = own.delivered_at
+    ? TRACKING_STAGES.length - 1
+    : own.shipped_at
+      ? Math.max(named, 0)
+      : named
+  if (furthest < 0) return []
+  return TRACKING_STAGES.map((stage, i) => ({
+    stage,
+    location: null,
+    scan_time:
+      stage === 'Picked Up' && i <= furthest
+        ? (own.shipped_at ?? null)
+        : stage === 'Delivered' && i <= furthest
+          ? (own.delivered_at ?? null)
+          : null,
+    reached: i <= furthest,
+  }))
+}
+
+export function trackingTimeline(events: TrackingScan[], own: OwnFacts = {}): TrackingStep[] {
   const seen = new Set<string>()
   const scanned: TrackingStep[] = []
   for (const e of events) {
@@ -267,6 +296,11 @@ export function trackingTimeline(events: TrackingScan[]): TrackingStep[] {
     const bt = b.scan_time ? new Date(b.scan_time).getTime() : 0
     return at - bt
   })
+
+  if (scanned.length === 0) {
+    const derived = ownTimeline(own)
+    if (derived.length) return derived
+  }
 
   const reachedStages = new Set(scanned.map((s) => s.stage))
   const ahead = TRACKING_STAGES.filter(
@@ -304,7 +338,7 @@ export function shipmentActions(view: ShipmentViewFacts, isAdmin: boolean): Ship
 }
 
 export function shipmentDecisions(view: ShipmentViewFacts, isAdmin: boolean): ShipmentDecisions {
-  const timeline = trackingTimeline(view.tracking)
+  const timeline = trackingTimeline(view.tracking, view.shipment)
   return {
     tracking_status: trackingStatus(view.shipment.shipping_status, timeline),
     timeline,

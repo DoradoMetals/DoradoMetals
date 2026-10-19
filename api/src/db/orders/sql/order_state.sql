@@ -11,6 +11,8 @@
 -- payouts and its credit together reach the transaction total, so one partial
 -- payout still reads Ready to Pay. That check comes before At Refiner:
 -- refiner settlement never gates a purchase's completion (ruling 134).
+-- Both sides of that comparison are rounded to the cent: legacy totals carry
+-- float residue (7085.990000000001) that is not money.
 CASE
   WHEN o.cancelled_at IS NOT NULL THEN 'Cancelled'
   WHEN o.direction = 'sale' THEN
@@ -55,12 +57,12 @@ CASE
       WHEN o.spots_locked
        AND EXISTS (SELECT 1 FROM orders.transactions tr
                     WHERE tr.order_id = o.id AND tr.total IS NOT NULL)
-       AND COALESCE((SELECT sum(t.amount) FROM payments.transfers t
+       AND round((COALESCE((SELECT sum(t.amount) FROM payments.transfers t
                       WHERE t.order_id = o.id AND t.kind = 'payout'
                         AND t.state IN ('Sent', 'Received')), 0)
          + COALESCE((SELECT sum(l.amount) FROM payments.ledger l
-                      WHERE l.order_id = o.id AND l.type = 'Credit'), 0)
-         >= (SELECT sum(tr.total) FROM orders.transactions tr WHERE tr.order_id = o.id)
+                      WHERE l.order_id = o.id AND l.type = 'Credit'), 0))::numeric, 2)
+         >= round((SELECT sum(tr.total) FROM orders.transactions tr WHERE tr.order_id = o.id)::numeric, 2)
       THEN 'Completed'
       WHEN EXISTS (SELECT 1 FROM orders.lots ol
                      JOIN inventory.lot_sources ls ON ls.source_lot_id = ol.lot_id
@@ -76,12 +78,12 @@ CASE
                 AND EXISTS (SELECT 1 FROM orders.transactions tr
                              WHERE tr.order_id = o.id AND tr.total IS NOT NULL))
       THEN 'Awaiting Finalize'
-      WHEN COALESCE((SELECT sum(t.amount) FROM payments.transfers t
+      WHEN round((COALESCE((SELECT sum(t.amount) FROM payments.transfers t
                       WHERE t.order_id = o.id AND t.kind = 'payout'
                         AND t.state IN ('Sent', 'Received')), 0)
          + COALESCE((SELECT sum(l.amount) FROM payments.ledger l
-                      WHERE l.order_id = o.id AND l.type = 'Credit'), 0)
-         < (SELECT sum(tr.total) FROM orders.transactions tr WHERE tr.order_id = o.id)
+                      WHERE l.order_id = o.id AND l.type = 'Credit'), 0))::numeric, 2)
+         < round((SELECT sum(tr.total) FROM orders.transactions tr WHERE tr.order_id = o.id)::numeric, 2)
       THEN 'Ready to Pay'
       ELSE 'Completed'
     END

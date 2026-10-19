@@ -147,7 +147,7 @@ const TABLES = [
   {
     name: 'payments.ledger',
     key: 'id',
-    cols: 'id, user_id, type, order_id, amount, occurred_at',
+    cols: 'id, user_id, type, order_id, round(t."amount", 2) AS amount, occurred_at',
     population: {
       sql: 'SELECT id FROM exchange.account_transactions',
       why: 'every balance movement since 118 writes payments.ledger and nothing else',
@@ -363,10 +363,15 @@ const TABLES = [
   {
     name: 'orders.transactions',
     key: 'order_id',
-    cols: `order_id, total, items, shipping, surcharge, sales_tax, funds,
-           refiner_fee, base_total, post_charges_amount, subject_to_charges_amount,
+    // dollar columns are compared at the cent: migration 299 rounds float residue
+    cols: `order_id, round(t."total", 2) AS total, round(t."items", 2) AS items,
+           round(t."shipping", 2) AS shipping, round(t."surcharge", 2) AS surcharge,
+           round(t."sales_tax", 2) AS sales_tax, round(t."funds", 2) AS funds,
+           round(t."refiner_fee", 2) AS refiner_fee, round(t."base_total", 2) AS base_total,
+           round(t."post_charges_amount", 2) AS post_charges_amount,
+           round(t."subject_to_charges_amount", 2) AS subject_to_charges_amount,
            used_funds, waive_shipping_fee, waive_payout_fee, shipping_paid,
-           shipping_fee_actual, pool_remediation, pool_oz_deducted,
+           round(t."shipping_fee_actual", 2) AS shipping_fee_actual, pool_remediation, pool_oz_deducted,
            created_by, updated_by, created_at, updated_at`,
     population: {
       sql: `SELECT id AS order_id FROM exchange.purchase_orders
