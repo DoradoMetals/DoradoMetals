@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { ArrowDownWideNarrow, ArrowUpDown, ArrowUpNarrowWide, Funnel } from '@dorado/icons'
+import { ArrowDownWideNarrow, ArrowUpNarrowWide, ChevronsUpDown, Funnel } from '@dorado/icons'
 import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '../cn'
 
@@ -21,30 +21,24 @@ export function Table({
   )
 }
 
+// Column heads sit on the card surface (1101:429, 2026-10-19), 40 tall.
 export function TableHeader({
   className,
-  surface = 'muted',
   ...props
-}: React.HTMLAttributes<HTMLTableSectionElement> & { surface?: 'muted' | 'card' }) {
+}: React.HTMLAttributes<HTMLTableSectionElement>) {
+  return <thead className={cn('[&>tr]:h-(--control-md) [&>tr]:bg-card', className)} {...props} />
+}
+
+export function TableBody({ className, ...props }: React.HTMLAttributes<HTMLTableSectionElement>) {
   return (
-    <thead
-      className={cn(
-        '[&>tr]:h-(--control-md)',
-        surface === 'card' ? '[&>tr]:bg-card' : '[&>tr]:bg-muted',
-        className
-      )}
+    <tbody
+      className={cn('[&>tr]:h-(--control-xl) [&>tr:hover]:bg-highest', className)}
       {...props}
     />
   )
 }
 
-export function TableBody({ className, ...props }: React.HTMLAttributes<HTMLTableSectionElement>) {
-  return (
-    <tbody className={cn('[&>tr]:h-(--control-xl) [&>tr:hover]:bg-accent', className)} {...props} />
-  )
-}
-
-const rowVariants = cva('transition-colors data-[state=selected]:bg-muted', {
+const rowVariants = cva('transition-colors data-[state=selected]:bg-surface-raised', {
   variants: {
     intent: {
       neutral: '',
@@ -115,8 +109,10 @@ export function TableHead({
   onFilter?: () => void
 }) {
   const sortable = onSort != null
+  // Table Sort 1171:109: at rest muted chevrons, the active sort in primary.
   const SortIcon =
-    sorted === 'asc' ? ArrowUpNarrowWide : sorted === 'desc' ? ArrowDownWideNarrow : ArrowUpDown
+    sorted === 'asc' ? ArrowUpNarrowWide : sorted === 'desc' ? ArrowDownWideNarrow : ChevronsUpDown
+  const sortTone = sorted === 'asc' || sorted === 'desc' ? 'text-primary' : 'text-muted-foreground'
 
   return (
     <th
@@ -146,7 +142,7 @@ export function TableHead({
             className="inline-flex cursor-pointer items-center gap-2xs hover:text-foreground"
           >
             {children}
-            <SortIcon aria-hidden className="size-sm" />
+            <SortIcon aria-hidden className={cn('size-sm', sortTone)} />
           </button>
         ) : (
           children

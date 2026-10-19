@@ -41,6 +41,7 @@ function full(layout: 'desktop' | 'mobile') {
           Reset
         </Button>
       }
+      count="48 matching"
     />
   )
 }
@@ -98,5 +99,70 @@ describe('AdminHeader', () => {
       />
     )
     expect(getByText('Showing').className).toContain('micro')
+  })
+})
+
+describe('AdminHeader count, filter slot and mobile divider (730:8, 734:269)', () => {
+  it('the count is always shown in the toolbar, muted micro, even with no Reset', () => {
+    const { getByText } = render(
+      <AdminHeader
+        title="Orders"
+        selects={<Select label="Metal" items={items} />}
+        count="48 matching"
+      />
+    )
+    const count = getByText('48 matching')
+    expect(count.className).toContain('micro')
+    expect(count.className).toContain('text-muted-foreground')
+  })
+
+  it('desktop stacks Reset over the count at the right of the filter row (731:174)', () => {
+    const { getByText, getByRole } = full('desktop')
+    const utility = getByText('48 matching').parentElement as HTMLElement
+    expect(utility.className).toContain('items-end')
+    expect(utility.firstElementChild?.contains(getByRole('button', { name: 'Reset' }))).toBe(true)
+  })
+
+  it('mobile puts the count left and Reset right on one line (734:899)', () => {
+    const { getByText, getByRole } = full('mobile')
+    const utility = getByText('48 matching').parentElement as HTMLElement
+    expect(utility.className).toContain('justify-between')
+    expect(utility.firstElementChild).toBe(getByText('48 matching'))
+    expect(utility.contains(getByRole('button', { name: 'Reset' }))).toBe(true)
+  })
+
+  it('the filter slot passes through after the selects (1210:6558)', () => {
+    const { getByText, getByTestId } = render(
+      <AdminHeader
+        title="Orders"
+        selects={<Select label="Metal" items={items} />}
+        filters={<div data-testid="slot">Extra</div>}
+        count="3 matching"
+      />
+    )
+    const slot = getByTestId('slot')
+    const metal = getByText('Metal')
+    expect(metal.compareDocumentPosition(slot) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('mobile draws a divider between the title block and the search (1223:5552)', () => {
+    const { container, getByRole } = full('mobile')
+    const divider = container.querySelector('[data-part="head-divider"]') as HTMLElement
+    expect(divider).toBeTruthy()
+    const chips = getByRole('button', { name: 'All' })
+    const search = getByRole('textbox', { name: 'Search' })
+    expect(chips.compareDocumentPosition(divider) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(divider.compareDocumentPosition(search) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('mobile chips wrap (795:61)', () => {
+    const { getByRole } = full('mobile')
+    const row = getByRole('button', { name: 'All' }).parentElement as HTMLElement
+    expect(row.className).toContain('flex-wrap')
+  })
+
+  it('desktop draws no head divider', () => {
+    const { container } = full('desktop')
+    expect(container.querySelector('[data-part="head-divider"]')).toBeNull()
   })
 })

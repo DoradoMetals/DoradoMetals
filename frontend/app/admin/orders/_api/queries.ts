@@ -10,13 +10,17 @@ import {
   useOrderDocuments,
   useOrders,
   useOrderSorts,
+  useOrderSummary,
   useRefiners,
   useSearch,
   useSelectionSummary,
   type OrderListFilters,
 } from '@dorado/client'
+import type { Direction } from '@dorado/contracts'
 
 export const useOrderList = (filters: OrderListFilters) => useOrders(filters)
+
+export const useListSummary = (direction: Direction) => useOrderSummary(direction)
 
 export const useSortOptions = () => useOrderSorts()
 

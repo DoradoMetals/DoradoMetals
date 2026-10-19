@@ -153,7 +153,7 @@ export function Lots({
           </div>
         ) : (
           <Table bare aria-label="Lots" data-kind={kind} className="[&>table]:table-fixed">
-            <TableHeader surface="card" className="[&>tr]:h-auto">
+            <TableHeader className="[&>tr]:h-auto">
               <TableRow className="h-auto">
                 <TableHead className="w-10 pb-xs">
                   <Checkbox

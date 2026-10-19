@@ -18,6 +18,7 @@ export {
 } from './button/Button'
 export { Link, linkVariants, type LinkProps } from './link/Link'
 export { Upload, type UploadProps, type UploadError } from './upload/Upload'
+export { UploadDrawer, type UploadDrawerProps } from './upload/UploadDrawer'
 export {
   fieldTrigger,
   fieldPanel,
@@ -27,6 +28,7 @@ export {
   type FieldProps,
 } from './field/Field'
 export { Select, type SelectProps, type SelectItemShape } from './select/Select'
+export { Multiselect, type MultiselectProps, type MultiselectItem } from './multiselect/Multiselect'
 export { Checkbox, type CheckboxProps } from './checkbox/Checkbox'
 export { Chip, type ChipProps } from './chip/Chip'
 export { Input, type InputProps } from './input/Input'
@@ -69,6 +71,12 @@ export { ConfirmDialog, type ConfirmDialogProps } from './dialog/ConfirmDialog'
 export { Calendar, type CalendarProps } from './date-picker/Calendar'
 export type { TimeGroup, TimeSlotShape } from './date-picker/TimePicker'
 export { DatePicker, type DatePickerProps, type DatePickerLayout } from './date-picker/DatePicker'
+export {
+  DateRangePicker,
+  formatRange,
+  type DateRange,
+  type DateRangePickerProps,
+} from './date-picker/DateRangePicker'
 export { Swiper, type SwiperProps } from './swiper/Swiper'
 export {
   Menu,
@@ -99,7 +107,9 @@ export {
   type DataTableProps,
   type DataTableColumn,
   type DataTableColumnMeta,
+  type DataTableActionsContext,
 } from './data-table/DataTable'
+export { TableActions, type TableActionsProps } from './data-table/TableActions'
 export { EmptyState, type EmptyStateProps } from './empty-state/EmptyState'
 export {
   Text,

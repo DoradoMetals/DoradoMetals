@@ -274,3 +274,56 @@ describe('Table', () => {
     expect(container.querySelector('tbody')!.className).toContain('[&>tr]:h-(--control-xl)')
   })
 })
+
+describe('Table 1101:444, refined 2026-10-19', () => {
+  const sortable = (sorted: 'asc' | 'desc' | null) =>
+    render(
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead sorted={sorted} onSort={() => {}}>
+              Date
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody />
+      </Table>
+    )
+
+  it('column heads sit on the card surface (1101:429), never the muted strip', () => {
+    const { container } = sortable(null)
+    const thead = container.querySelector('thead')!
+    expect(thead.className).toContain('[&>tr]:bg-card')
+    expect(thead.className).not.toContain('bg-muted')
+  })
+
+  it('at rest a sortable head shows muted chevrons-up-down (1171:96)', () => {
+    const { container } = sortable(null)
+    const icon = container.querySelector('svg.lucide-chevrons-up-down')
+    expect(icon).toBeTruthy()
+    expect(icon!.getAttribute('class')).toContain('text-muted-foreground')
+  })
+
+  it('the active sort is bright: arrow-up-narrow-wide / arrow-down-wide-narrow in primary (1171:101, 1171:106)', () => {
+    const asc = sortable('asc').container.querySelector('svg.lucide-arrow-up-narrow-wide')
+    expect(asc!.getAttribute('class')).toContain('text-primary')
+    const desc = sortable('desc').container.querySelector('svg.lucide-arrow-down-wide-narrow')
+    expect(desc!.getAttribute('class')).toContain('text-primary')
+  })
+
+  it('rows hover on surface highest and select on surface raised (56:22, 56:32)', () => {
+    const { container } = render(
+      <Table>
+        <TableBody>
+          <TableRow selected>
+            <TableCell>a</TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
+    )
+    const tbody = container.querySelector('tbody')!
+    const row = container.querySelector('tbody tr')!
+    expect(tbody.className).toContain('[&>tr:hover]:bg-highest')
+    expect(row.className).toContain('data-[state=selected]:bg-surface-raised')
+  })
+})

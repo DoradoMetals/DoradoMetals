@@ -27,6 +27,7 @@ import {
   useRefinerLocations,
   useRefinerOptions,
   useSelection,
+  useListSummary,
   useSortOptions,
 } from '../_api'
 import {
@@ -42,6 +43,7 @@ import {
   pluralize,
   requestStates,
   sharedByAll,
+  summaryLine,
 } from '../_lib'
 import { OrderCard } from './OrderCard'
 import { OrderContextMenu } from './OrderContextMenu'
@@ -56,9 +58,6 @@ import { OrdersEmpty, OrdersFailed, OrdersSkeleton } from './OrdersStates'
 import { SelectionActions } from './SelectionActions'
 
 const PAGE_SIZE = 24
-
-const DESCRIPTION =
-  'Every purchase and sale, and the lots inside each one — what is still to place and what has settled.'
 
 const SHOW_ITEMS = [
   { value: 'in_progress', label: 'In progress' },
@@ -180,9 +179,9 @@ export function OrdersScreen() {
     clear()
   }
 
-  const countLine = counts
-    ? `${pluralize(counts.orders, 'order', 'orders')} · ${pluralize(counts.unassigned_lots, 'unassigned lot', 'unassigned lots')}`
-    : undefined
+  const totalsData = useListSummary(direction).data
+  const totalsLine = totalsData ? summaryLine(direction, totalsData) : undefined
+  const matching = counts ? `${counts.orders} matching` : undefined
 
   const destinations = refiners.flatMap((refiner) => {
     const name = refiner.organization.name ?? 'Refiner'
@@ -339,24 +338,15 @@ export function OrdersScreen() {
             }}
           />
         ))}
-        description={mobile ? countLine : DESCRIPTION}
+        description={totalsLine}
         search={<OrderSearch value={search} onValueChange={setSearch} q={q} mobile={mobile} />}
         selects={selects}
         reset={
-          mobile ? (
-            <div className="flex w-full items-center justify-between gap-sm">
-              <p className="text-micro text-muted-foreground">{countLine}</p>
-              <Button variant="tertiary" size="sm" onClick={reset}>
-                Reset
-              </Button>
-            </div>
-          ) : (
-            <Button variant="tertiary" size="sm" onClick={reset}>
-              Reset
-            </Button>
-          )
+          <Button variant="tertiary" size="sm" onClick={reset}>
+            Reset
+          </Button>
         }
-        count={countLine}
+        count={matching}
       />
 
       <OrderFilterBar

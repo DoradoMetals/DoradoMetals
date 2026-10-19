@@ -5,7 +5,9 @@ import type {
   OrderActivity,
   OrderActivityPage,
   OrderFilter,
+  Direction,
   OrderList,
+  OrderListSummary,
   OrderRead,
   OrderSort,
   OrderView,
@@ -25,6 +27,13 @@ export async function list(filter: OrderFilter, executor?: Executor): Promise<Or
       withDecisions(item, { actions: rules.actionsFor(item.action_facts) })
     ),
   })
+}
+
+export async function summary(
+  direction: Direction | null,
+  executor?: Executor
+): Promise<OrderListSummary> {
+  return await ordersRepo.summary(direction, executor)
 }
 
 export async function search(q: string, executor?: Executor): Promise<SearchHit[]> {

@@ -24,6 +24,8 @@ export {
   ChevronLeft,
   ChevronRight,
   ChevronUp,
+  ChevronsUpDown,
+  CalendarArrowDown,
   ChevronsRight,
   Circle,
   CircleAlert,

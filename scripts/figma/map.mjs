@@ -319,6 +319,7 @@ export const DIR_TO_PAGE = {
   chart: 'Chart',
   'admin-header': 'Headers',
   'entity-header': 'Headers',
+  multiselect: 'Select',
 }
 
 // Component directories with no Figma drawing at all, and why.

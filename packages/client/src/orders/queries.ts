@@ -16,6 +16,7 @@ import type {
   OrderCancelBody,
   OrderDocument,
   OrderList,
+  OrderListSummary,
   OrderLotEditBody,
   OrderLotLine,
   OrderLotPatch,
@@ -76,6 +77,19 @@ export function useOrders(filters: OrderListFilters = {}, options: { enabled?: b
     queryKey: keys.orders.list(params),
     enabled: options.enabled ?? true,
     queryFn: () => apiRequest<OrderList>('GET', '/orders', undefined, params),
+  })
+}
+
+// The totals line under the Orders list title: the whole direction, never the
+// list filters.
+export function useOrderSummary(
+  direction: Direction | null = null,
+  options: { enabled?: boolean } = {}
+) {
+  return useQuery<OrderListSummary>({
+    queryKey: keys.orders.summary(direction),
+    enabled: options.enabled ?? true,
+    queryFn: () => apiRequest<OrderListSummary>('GET', '/orders/summary', undefined, { direction }),
   })
 }
 

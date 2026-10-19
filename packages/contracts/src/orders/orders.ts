@@ -130,6 +130,16 @@ export const OrderListCounts = z.object({}).extend({
 })
 export type OrderListCounts = z.infer<typeof OrderListCounts>
 
+// The totals line under the Orders list title: the whole direction, never the
+// filters. One row per state the orders are in, and the lots still unassigned.
+export const OrderStateCount = z.object({ state: OrderState }).extend({
+  count: OrderListCounts.shape.orders,
+})
+export type OrderStateCount = z.infer<typeof OrderStateCount>
+
+export const OrderListSummary = OrderListCounts.extend({ states: z.array(OrderStateCount) })
+export type OrderListSummary = z.infer<typeof OrderListSummary>
+
 export const OrderListFacts = z.object({ counts: OrderListCounts }).extend({
   items: z.array(OrderListItemFacts),
 })

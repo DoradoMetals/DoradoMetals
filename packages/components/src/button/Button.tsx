@@ -14,6 +14,9 @@ const buttonVariants = cva(
         secondary: 'bg-transparent',
 
         tertiary: 'bg-transparent',
+        // Icon Button Variant=Subtle (457:75): placeholder glyph at rest, the
+        // tertiary look on hover, no box. Neutral only.
+        subtle: 'bg-transparent border-0 text-placeholder hover:text-subtle',
       },
       intent: {
         neutral: '',
@@ -45,7 +48,7 @@ const buttonVariants = cva(
       { variant: 'tertiary', size: ['sm', 'default', 'lg'], className: 'min-h-0' },
       { variant: 'tertiary', size: ['xs', 'xl'], className: 'h-auto' },
       {
-        variant: 'tertiary',
+        variant: ['tertiary', 'subtle'],
         size: ['icon', 'iconSm', 'iconXs'],
         className: 'size-auto',
       },
@@ -78,7 +81,7 @@ const buttonVariants = cva(
   }
 )
 
-export type ButtonEmphasis = 'primary' | 'secondary' | 'tertiary'
+export type ButtonEmphasis = 'primary' | 'secondary' | 'tertiary' | 'subtle'
 export type ButtonIntent = 'neutral' | 'success' | 'danger' | 'warning' | 'info'
 
 const ICON_PX_BY_SIZE = {

@@ -7,7 +7,12 @@ import { keys } from '../keys'
 import { useAddLotImage, useLotImages, useRemoveLotImage } from '../lots'
 import { useSelectionSummary } from '../pricing'
 import { downloadRefiningDocument, refiningDocumentUrl } from '../refining'
-import { downloadOrderDocument, orderDocumentUrl, useOrderActivity } from './queries'
+import {
+  downloadOrderDocument,
+  orderDocumentUrl,
+  useOrderActivity,
+  useOrderSummary,
+} from './queries'
 
 const A = '00000000-0000-4000-8000-00000000000a'
 const B = '00000000-0000-4000-8000-00000000000b'
@@ -132,5 +137,21 @@ describe('document download', () => {
     expect(urlOf(fetchMock)).toBe(`/orders/${A}/documents/invoice`)
     await downloadRefiningDocument(A, 'invoice')
     expect(urlOf(fetchMock, 1)).toBe(`/refining/orders/${A}/documents/invoice`)
+  })
+})
+
+describe('useOrderSummary', () => {
+  it('asks for the direction totals and nothing the list filters by', async () => {
+    const fetchMock = respond({ orders: 3, unassigned_lots: 1, states: [] })
+    vi.stubGlobal('fetch', fetchMock)
+    const hook = renderHook(() => useOrderSummary('purchase'), {
+      wrapper: wrapperFor(newClient()),
+    })
+    await waitFor(() => expect(hook.result.current.isSuccess).toBe(true))
+    const url = new URL(urlOf(fetchMock), 'http://localhost')
+    expect(url.pathname.endsWith('/orders/summary')).toBe(true)
+    expect([...url.searchParams.keys()]).toEqual(['direction'])
+    expect(url.searchParams.get('direction')).toBe('purchase')
+    expect(keys.orders.summary('purchase')).toEqual(['orders', 'summary', 'purchase'])
   })
 })

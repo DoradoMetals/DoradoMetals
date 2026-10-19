@@ -55,24 +55,39 @@ describe('Drawer', () => {
     expect(overlay.className).toContain('bg-background/70')
   })
 
+  it('the default panel is the card surface in every size (Library 2026-10-19)', () => {
+    for (const size of ['sm', 'md', 'lg', 'full'] as const) {
+      const { unmount } = render(
+        <Drawer open label={size} setOpen={vi.fn()} size={size}>
+          <p>Drawer body</p>
+        </Drawer>
+      )
+      const panel = document.body.querySelector('[role="dialog"]') as HTMLElement
+      expect(panel.className).toContain('bg-card')
+      expect(panel.className).not.toContain('bg-highest')
+      unmount()
+    }
+  })
+
   it('the highest surface draws a single hairline on the attached edge, not a box border', () => {
-    openDrawer({ anchor: 'right' })
+    openDrawer({ anchor: 'right', surface: 'highest' })
     let panel = document.body.querySelector('[role="dialog"]') as HTMLElement
     expect(panel.className).toContain('border-l')
     expect(panel.className).not.toContain('border-r')
     expect(panel.className).not.toContain('border border-border')
 
-    openDrawer({ anchor: 'left' })
+    openDrawer({ anchor: 'left', surface: 'highest' })
     const panels = document.body.querySelectorAll('[role="dialog"]')
     panel = panels[panels.length - 1] as HTMLElement
     expect(panel.className).toContain('border-r')
   })
 
-  it('surface card fills without a border, and none paints nothing', () => {
-    openDrawer({ surface: 'card' })
+  it('surface card keeps the attached-edge hairline, and none paints nothing', () => {
+    openDrawer({ surface: 'card', anchor: 'right' })
     let panel = document.body.querySelector('[role="dialog"]') as HTMLElement
     expect(panel.className).toContain('bg-card')
-    expect(panel.className).not.toContain('border-border')
+    expect(panel.className).toContain('border-l')
+    expect(panel.className).not.toContain('border border-border')
 
     openDrawer({ surface: 'none' })
     const panels = document.body.querySelectorAll('[role="dialog"]')
@@ -85,7 +100,7 @@ describe('Drawer', () => {
   it('className merges onto the surface rather than replacing it', () => {
     openDrawer({ className: 'max-w-full' })
     const panel = document.body.querySelector('[role="dialog"]') as HTMLElement
-    expect(panel.className).toContain('bg-highest')
+    expect(panel.className).toContain('bg-card')
     expect(panel.className).toContain('max-w-full')
   })
 

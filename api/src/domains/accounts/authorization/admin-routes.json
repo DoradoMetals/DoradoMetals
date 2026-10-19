@@ -48,6 +48,7 @@
   "GET /api/orders/:orderId/dropoffs",
   "GET /api/orders/:orderId/pickups",
   "GET /api/orders/sorts",
+  "GET /api/orders/summary",
   "GET /api/payments/charges/:id",
   "GET /api/payments/details/:id",
   "GET /api/payments/details/:id/bank",

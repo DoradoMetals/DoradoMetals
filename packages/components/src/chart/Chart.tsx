@@ -63,15 +63,6 @@ const C = {
   },
 }
 
-function tokenLength(name: string, fallback: number): number {
-  if (typeof window === 'undefined') return fallback
-  const root = getComputedStyle(document.documentElement)
-  const v = root.getPropertyValue(name).trim()
-  const n = parseFloat(v)
-  if (Number.isNaN(n)) return fallback
-  return v.endsWith('rem') ? n * (parseFloat(root.fontSize) || 16) : n
-}
-
 export type ChartDomain = {
   x: number[]
   min: number
@@ -79,7 +70,11 @@ export type ChartDomain = {
   format?: (value: number) => string
 }
 
-function axisScales(yAxis: boolean, yFormat?: (value: number) => string, domain?: ChartDomain) {
+export function axisScales(
+  yAxis: boolean,
+  yFormat?: (value: number) => string,
+  domain?: ChartDomain
+) {
   return {
     x: {
       ...(domain ? { type: 'linear' as const, min: domain.min, max: domain.max } : {}),
@@ -102,8 +97,10 @@ function axisScales(yAxis: boolean, yFormat?: (value: number) => string, domain?
         ...(yFormat ? { callback: (value: string | number) => yFormat(Number(value)) } : {}),
       },
       border: { display: false },
+      // The y axis hugs its labels (57:60, 2026-10-16): chart.js measures the
+      // ticks; only a hidden axis is pinned to zero.
       afterFit: (scale: { width: number }) => {
-        scale.width = yAxis ? tokenLength('--chart-axis-y', 48) : 0
+        if (!yAxis) scale.width = 0
       },
     },
   }
@@ -172,7 +169,7 @@ function ChartCard({
 }) {
   if (!title) {
     return (
-      <div className={cn('relative flex w-full flex-col gap-md', className)}>
+      <div className={cn('relative flex h-full w-full flex-col gap-md', className)}>
         {range}
         {children}
       </div>
@@ -181,7 +178,7 @@ function ChartCard({
   return (
     <div
       className={cn(
-        'flex w-full flex-col gap-md rounded-lg border border-border bg-card p-md',
+        'flex h-full w-full flex-col gap-md rounded-lg border border-border bg-card p-md',
         className
       )}
     >
@@ -222,7 +219,7 @@ function LineSeriesChart({
       className={className}
       range={rangeSlot({ range, onRangeChange, rangeOptions })}
     >
-      <div className="relative h-50 w-full">
+      <div className="relative min-h-50 w-full flex-1">
         <Line
           aria-label={label}
           role="img"
@@ -275,7 +272,7 @@ export function BarChart({
       className={className}
       range={rangeSlot({ range, onRangeChange, rangeOptions })}
     >
-      <div className="relative h-50 w-full">
+      <div className="relative min-h-50 w-full flex-1">
         <Bar
           aria-label={label}
           role="img"

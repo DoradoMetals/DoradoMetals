@@ -13,6 +13,7 @@ import type {
   OrderActivityPage,
   OrderGuard,
   OrderListFacts,
+  OrderListSummary,
   OrderRead,
   OrderSort,
   OrderViewFacts,
@@ -26,6 +27,7 @@ import {
   OrderActivity as Activity,
   OrderGuard as Guard,
   OrderListFacts as List,
+  OrderListSummary as Summary,
   OrderSort as Sort,
   OrderViewFacts as Facts,
   OrderWrite as Write,
@@ -58,6 +60,9 @@ const LIST_SQL = sql('list')
       .replace('/*__order_case_facts__*/', CASE_FACTS)
       .replace('/*__order_payout_methods__*/', PAYOUT_METHODS)
   )
+const SUMMARY_SQL = sql('summary')
+  .replaceAll('/*__order_state__*/', ORDER_STATE)
+  .replaceAll('/*__lot_position__*/', LOT_POSITION)
 const VIEW_SQL = sql('view')
   .replace('/*__order_reference__*/', ORDER_REFERENCE)
   .replace('/*__order_state__*/', ORDER_STATE)
@@ -96,6 +101,14 @@ export async function list(filter: OrderFilter, executor?: Executor): Promise<Or
     executor
   )
   return List.parse(rows[0]?.view)
+}
+
+export async function summary(
+  direction: Direction | null,
+  executor?: Executor
+): Promise<OrderListSummary> {
+  const { rows } = await query<{ view: unknown }>(SUMMARY_SQL, [direction], executor)
+  return Summary.parse(rows[0]?.view)
 }
 
 export async function sorts(executor?: Executor): Promise<OrderSort[]> {
