@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render } from '@testing-library/react'
 import * as React from 'react'
 
-import { axisScales, BarChart, DonutChart, LineChart, Sparkline } from './Chart'
+import { axisScales, BarChart, DonutChart, LineChart, linePoints, Sparkline } from './Chart'
 
 describe('Charts', () => {
   it('every chart renders a canvas with role=img and a name', () => {
@@ -129,5 +129,15 @@ describe('Charts', () => {
     const plot = container.querySelector('canvas')!.parentElement!
     expect(plot.className).toContain('flex-1')
     expect(plot.className).toContain('min-h-50')
+  })
+
+  it('Show points draws a Chart Point on every value, ringed in the card, larger on hover (1102:10)', () => {
+    const on = linePoints({ points: true, primary: true, count: 3 })
+    expect(on.pointRadius).toEqual([4, 4, 4])
+    expect(on.pointBorderWidth).toBe(2)
+    expect(on.pointHoverRadius).toBe(6)
+    const off = linePoints({ points: false, primary: true, count: 3 })
+    expect(off.pointRadius).toEqual([0, 0, 4])
+    expect(linePoints({ points: false, primary: false, count: 3 }).pointRadius).toBe(0)
   })
 })

@@ -52,6 +52,9 @@ const C = {
   get muted() {
     return tokenColor('--color-muted', '#1e2024')
   },
+  get card() {
+    return tokenColor('--color-card', '#101114')
+  },
   get primary() {
     return tokenColor('--color-primary', '#fafafa')
   },
@@ -131,6 +134,33 @@ type AxisChartProps = ChartBaseProps & {
   range?: string
   onRangeChange?: (range: string) => void
   rangeOptions?: readonly string[]
+  points?: boolean
+}
+
+export function linePoints({
+  points,
+  primary,
+  count,
+}: {
+  points: boolean
+  primary: boolean
+  count: number
+}) {
+  if (points) {
+    return {
+      pointRadius: Array.from({ length: count }, () => 4),
+      pointHoverRadius: 6,
+      pointBorderWidth: 2,
+      pointHoverBorderWidth: 2,
+      pointBorderColor: C.card,
+    }
+  }
+  return {
+    pointRadius: primary
+      ? Array.from({ length: count }, (_, idx) => (idx === count - 1 ? 4 : 0))
+      : 0,
+    pointBorderWidth: 0,
+  }
 }
 
 function ChartRange({
@@ -211,8 +241,8 @@ function LineSeriesChart({
   range,
   onRangeChange,
   rangeOptions,
+  points = false,
 }: AxisChartProps & { area: boolean }) {
-  const last = (series[0]?.data.length ?? 1) - 1
   return (
     <ChartCard
       title={title}
@@ -235,9 +265,8 @@ function LineSeriesChart({
                 : 'transparent',
               fill: area,
               borderWidth: area ? 1.5 : 2,
-              pointRadius: i === 0 ? s.data.map((_, idx) => (idx === last ? 4 : 0)) : 0,
               pointBackgroundColor: i === 0 ? C.primary : C.mutedForeground,
-              pointBorderWidth: 0,
+              ...linePoints({ points, primary: i === 0, count: s.data.length }),
               tension: 0.25,
             })),
           }}

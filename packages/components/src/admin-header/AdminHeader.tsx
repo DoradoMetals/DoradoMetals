@@ -8,16 +8,14 @@ export type AdminHeaderProps = {
   nav?: React.ReactNode
   breadcrumb?: React.ReactNode
   chips?: React.ReactNode
-  description?: React.ReactNode
+  totals?: React.ReactNode
   search?: React.ReactNode
   action?: React.ReactNode
   radio?: React.ReactNode
   radioLabel?: React.ReactNode
   selects?: React.ReactNode
-  /** Passthrough filter slot after the selects (1210:6558): a Multiselect, a date range, anything. */
   filters?: React.ReactNode
   reset?: React.ReactNode
-  /** "N matching": rows under the current filters. Always shown with the toolbar. */
   count?: React.ReactNode
   className?: string
 }
@@ -28,7 +26,7 @@ export function AdminHeader({
   nav,
   breadcrumb,
   chips,
-  description,
+  totals,
   search,
   action,
   radio,
@@ -69,8 +67,10 @@ export function AdminHeader({
           {breadcrumb}
           <div className="flex flex-col gap-xs">
             <h1 className="stat-xs text-foreground">{title}</h1>
-            {description != null && (
-              <p className="text-small text-muted-foreground">{description}</p>
+            {totals != null && (
+              <p data-part="totals" className="text-small text-muted-foreground">
+                {totals}
+              </p>
             )}
           </div>
           {chips != null && <div className="flex flex-wrap gap-xs">{chips}</div>}
@@ -88,8 +88,10 @@ export function AdminHeader({
                 <h1 className="text-h2 text-foreground">{title}</h1>
                 {chips != null && <div className="flex gap-xs">{chips}</div>}
               </div>
-              {description != null && (
-                <p className="text-small text-muted-foreground">{description}</p>
+              {totals != null && (
+                <p data-part="totals" className="text-small text-muted-foreground">
+                  {totals}
+                </p>
               )}
             </div>
             {(breadcrumb != null || search != null || action != null) && (

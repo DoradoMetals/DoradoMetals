@@ -153,7 +153,7 @@ function MenuPanel({ pathname, onNavigate }: { pathname: string; onNavigate: () 
   const { mutate: signOut } = useSignOut()
 
   return (
-    <nav aria-label="Menu" className="flex flex-col gap-lg p-lg">
+    <nav aria-label="Menu" className="flex min-h-0 flex-1 flex-col gap-lg overflow-y-auto p-lg">
       {[...nav, ...admin, ...account].map((entry) => (
         <UILink key={entry.href} asChild variant="nav" active={pathname === entry.href}>
           <NextLink href={entry.href} onClick={onNavigate}>

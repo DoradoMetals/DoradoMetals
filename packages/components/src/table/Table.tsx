@@ -50,6 +50,14 @@ const rowVariants = cva('transition-colors data-[state=selected]:bg-surface-rais
   },
 })
 
+const insetRule = [
+  '[&>*]:bg-[linear-gradient(var(--color-border),var(--color-border))] [&>*]:bg-no-repeat',
+  '[&>*]:bg-size-[100%_1px] [&>*]:bg-position-[center_bottom]',
+  '[&>*:first-child]:bg-size-[calc(100%-var(--spacing-sm))_1px] [&>*:first-child]:bg-position-[right_bottom]',
+  '[&>*:last-child]:bg-size-[calc(100%-var(--spacing-sm))_1px] [&>*:last-child]:bg-position-[left_bottom]',
+  '[&>*:first-child:last-child]:bg-size-[calc(100%-2*var(--spacing-sm))_1px] [&>*:first-child:last-child]:bg-position-[center_bottom]',
+].join(' ')
+
 export type TableRowIntent = NonNullable<VariantProps<typeof rowVariants>['intent']>
 
 export type TableRowProps = React.HTMLAttributes<HTMLTableRowElement> & {
@@ -72,10 +80,11 @@ export function TableRow({
   return (
     <tr
       data-state={selected ? 'selected' : undefined}
+      data-rule={borderless ? undefined : 'inset'}
       aria-selected={selected || undefined}
       aria-disabled={disabled || undefined}
       className={cn(
-        borderless ? 'border-b-0' : 'border-b border-border',
+        !borderless && insetRule,
         rowVariants({ intent }),
         interactive && 'cursor-pointer',
         disabled && 'pointer-events-none opacity-50',
@@ -88,6 +97,12 @@ export function TableRow({
 
 export type SortDirection = 'asc' | 'desc' | null
 
+export type TableHeadResize = {
+  label: string
+  onStart: (event: React.MouseEvent<HTMLElement> | React.TouchEvent<HTMLElement>) => void
+  active?: boolean
+}
+
 export function TableHead({
   className,
   numeric,
@@ -97,6 +112,7 @@ export function TableHead({
   filter,
   filtered,
   onFilter,
+  resize,
   children,
   ...props
 }: React.ThHTMLAttributes<HTMLTableCellElement> & {
@@ -107,6 +123,7 @@ export function TableHead({
   filter?: React.ReactNode
   filtered?: boolean
   onFilter?: () => void
+  resize?: TableHeadResize
 }) {
   const sortable = onSort != null
   // Table Sort 1171:109: at rest muted chevrons, the active sort in primary.
@@ -130,6 +147,7 @@ export function TableHead({
         'px-2xs-plus align-middle text-micro font-medium text-muted-foreground first:pl-sm last:pr-sm',
         numeric ? 'text-right' : 'text-left',
         fill ? 'w-full' : 'whitespace-nowrap',
+        resize && 'group/head relative',
         className
       )}
       {...props}
@@ -160,6 +178,20 @@ export function TableHead({
         )}
         {filter}
       </span>
+      {resize && (
+        <span
+          role="separator"
+          aria-orientation="vertical"
+          aria-label={`Resize ${resize.label}`}
+          data-state={resize.active ? 'active' : undefined}
+          onMouseDown={resize.onStart}
+          onTouchStart={resize.onStart}
+          className={cn(
+            'absolute top-1/2 right-0 h-md w-0.5 -translate-y-1/2 cursor-col-resize touch-none bg-border-strong transition-opacity select-none',
+            resize.active ? 'opacity-100' : 'opacity-0 group-hover/head:opacity-100'
+          )}
+        />
+      )}
     </th>
   )
 }

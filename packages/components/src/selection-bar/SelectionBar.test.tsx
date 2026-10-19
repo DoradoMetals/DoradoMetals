@@ -34,6 +34,9 @@ describe('SelectionBar', () => {
     const button = getByRole('button', { name: 'Clear selection' })
     const header = button.parentElement as HTMLElement
     expect(header.lastElementChild).toBe(button)
+    expect(button.className).toContain('text-placeholder')
+    expect(button.className).toContain('size-4')
+    expect(button.className).not.toContain('text-foreground')
     expect(getByRole('region').contains(button)).toBe(true)
     fireEvent.click(button)
     expect(onDismiss).toHaveBeenCalled()

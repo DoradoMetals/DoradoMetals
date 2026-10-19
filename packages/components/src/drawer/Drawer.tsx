@@ -105,20 +105,20 @@ export function Drawer({
                 ? [
                     'fixed inset-x-0 bottom-0 max-h-[85vh]',
                     'rounded-t-xl',
-                    'overflow-y-auto',
+                    'overflow-hidden',
                     'flex flex-col',
                   ]
                 : size
                   ? [
                       'fixed inset-y-0 max-w-full',
-                      'overflow-y-auto',
+                      'overflow-hidden',
                       'flex flex-col',
                       SIZE_WIDTH[size],
                       anchor === 'right' ? 'right-0' : 'left-0',
                     ]
                   : [
                       'fixed top-23 bottom-0 sm:top-0',
-                      'overflow-y-auto',
+                      'overflow-hidden',
                       'flex flex-col',
                       'w-full sm:w-1/2 md:w-1/2 lg:w-2/5 xl:w-1/4',
                       'max-w-full sm:max-w-1/2 md:max-w-1/2 lg:max-w-2/5 xl:max-w-1/4',
