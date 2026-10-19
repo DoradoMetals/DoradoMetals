@@ -72,6 +72,14 @@ export const listOrders = asyncHandler(async (req, res) => {
   return res.json(isAdmin ? list : rules.orderListForCustomer(list))
 })
 
+export const getOrderSummary = asyncHandler(async (req, res) => {
+  const direction = oneString(req.query.direction) ?? null
+  if (direction !== null && direction !== 'purchase' && direction !== 'sale') {
+    refuseWith(400, `"direction" is "purchase" or "sale"`)
+  }
+  return res.json(await orderRead.summary(direction))
+})
+
 export const listOrderSorts = asyncHandler(async (_req, res) => {
   return res.json(await orderRead.sorts())
 })

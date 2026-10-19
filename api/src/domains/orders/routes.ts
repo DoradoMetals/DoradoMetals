@@ -11,6 +11,7 @@ import {
   getOrder,
   getOrderActivity,
   getOrderDocuments,
+  getOrderSummary,
   listOrderSorts,
   listOrders,
   patchOrder,
@@ -52,6 +53,7 @@ const router = express.Router()
 
 router.get('/', requireUser, listOrders)
 router.get('/sorts', requireAdmin, listOrderSorts)
+router.get('/summary', requireAdmin, getOrderSummary)
 router.post('/', requireUser, createOrder)
 router.post('/admin', requireAdmin, adminCreateOrder)
 

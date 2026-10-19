@@ -155,3 +155,28 @@ describe('rendered Button', () => {
     expect(container.querySelector('svg')?.getAttribute('stroke-width')).toBe('2')
   })
 })
+
+describe('Icon Button Variant=Subtle (457:75, 1155:2..1155:21)', () => {
+  it('is muted (placeholder) at rest and takes the tertiary look on hover, with no box', () => {
+    const { getByRole } = render(
+      <Button variant="subtle" size="iconSm" aria-label="Attach">
+        <svg />
+      </Button>
+    )
+    const button = getByRole('button', { name: 'Attach' })
+    expect(button.className).toContain('text-placeholder')
+    expect(button.className).toContain('hover:text-subtle')
+    expect(button.className).toContain('border-0')
+    expect(button.className).toContain('bg-transparent')
+    expect(button.className).toContain('size-auto')
+  })
+
+  it('keeps the icon swap: any glyph passes through', () => {
+    const { container } = render(
+      <Button variant="subtle" size="iconSm" aria-label="Attach">
+        <svg data-testid="glyph" className="lucide-paperclip" />
+      </Button>
+    )
+    expect(container.querySelector('svg.lucide-paperclip')).toBeTruthy()
+  })
+})

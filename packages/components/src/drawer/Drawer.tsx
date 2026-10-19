@@ -44,7 +44,7 @@ export function Drawer({
   setOpen,
   children,
   anchor = 'right',
-  surface = 'highest',
+  surface = 'card',
   size,
   className,
   label,
@@ -126,12 +126,14 @@ export function Drawer({
                     ],
               'z-[70] will-change-transform',
               '[scrollbar-width:thin] [scrollbar-color:var(--border-strong)_transparent]',
-              surface === 'highest' &&
+              // Default card surface (Library 2026-10-19); both fills keep the
+              // single hairline on the attached edge.
+              surface !== 'none' &&
                 cn(
-                  'bg-highest border-border',
+                  surface === 'highest' ? 'bg-highest' : 'bg-card',
+                  'border-border',
                   isBottom ? 'border-t' : anchor === 'right' ? 'border-l' : 'border-r'
                 ),
-              surface === 'card' && 'bg-card',
               className
             )}
           >

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render } from '@testing-library/react'
 import * as React from 'react'
 
-import { BarChart, DonutChart, LineChart, Sparkline } from './Chart'
+import { axisScales, BarChart, DonutChart, LineChart, Sparkline } from './Chart'
 
 describe('Charts', () => {
   it('every chart renders a canvas with role=img and a name', () => {
@@ -103,5 +103,31 @@ describe('Charts', () => {
   it('sparkline takes an explicit direction (884:4)', () => {
     const { container } = render(<Sparkline data={[1, 3, 2]} label="Trend" direction="down" />)
     expect(container.querySelector('canvas[role="img"]')).toBeTruthy()
+  })
+
+  it('the y axis hugs its labels: chart.js measures it, nothing pins 48 (57:60 Y axis 1036:2548)', () => {
+    const shown = { width: 31 }
+    axisScales(true).y.afterFit(shown)
+    expect(shown.width).toBe(31)
+    const hidden = { width: 31 }
+    axisScales(false).y.afterFit(hidden)
+    expect(hidden.width).toBe(0)
+  })
+
+  it('the plot fills its container: a caller-sized chart stretches (57:60 Body FILL)', () => {
+    const { container } = render(
+      <LineChart
+        labels={['a', 'b']}
+        series={[
+          { label: 'Gold', data: [1, 2] },
+          { label: 'Silver', data: [2, 1] },
+        ]}
+        label="G"
+        className="h-80"
+      />
+    )
+    const plot = container.querySelector('canvas')!.parentElement!
+    expect(plot.className).toContain('flex-1')
+    expect(plot.className).toContain('min-h-50')
   })
 })

@@ -47,6 +47,15 @@ function routes(over: Routes = {}): Routes {
       estimated_value: 15532.7,
       fine_oz: [{ metal_id: 'Gold', oz: 6.18 }],
     },
+    'GET /orders/summary': {
+      orders: 66,
+      unassigned_lots: 26,
+      states: [
+        { state: 'Awaiting Receipt', count: 12 },
+        { state: 'Ready to Pay', count: 4 },
+        { state: 'Completed', count: 50 },
+      ],
+    },
     'GET /orders': {
       counts: { orders: 2, unassigned_lots: 18 },
       items: [item(ID_A, 2481, ['assign_lots', 'cancel']), item(ID_B, 2488, ['cancel'])],
@@ -83,7 +92,12 @@ describe('the orders screen', () => {
     expect(screen.getByText('PO-2488')).toBeTruthy()
     expect(screen.getAllByText(/3 lots · \$18,420 est\./)).toHaveLength(2)
     expect(screen.getByRole('heading', { name: 'Orders & Lots' })).toBeTruthy()
-    expect(screen.getAllByText('2 orders · 18 unassigned lots').length).toBeGreaterThan(0)
+    expect(
+      await screen.findByText(
+        '66 orders · 12 awaiting receipt · 4 ready to pay · 26 unassigned lots'
+      )
+    ).toBeTruthy()
+    expect(screen.getByText('2 matching')).toBeTruthy()
     expect(screen.getAllByText(/Received Sep 2, \d{1,2}:\d{2} (AM|PM)/)).toHaveLength(2)
   })
 
@@ -143,7 +157,7 @@ describe('the orders screen', () => {
     )
     mount()
     await screen.findByText('PO-2481')
-    expect(screen.getAllByText('50 orders · 3 unassigned lots').length).toBeGreaterThan(0)
+    expect(screen.getByText('50 matching')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Page 2' }))
     await waitFor(() => {
       const last = calls.filter((c) => c.url.pathname.endsWith('/orders')).at(-1)!
@@ -254,6 +268,29 @@ describe('the orders screen', () => {
     fireEvent.click(screen.getAllByRole('checkbox')[0])
     const bar = await screen.findByRole('region', { name: 'Selection' })
     expect(within(bar).getByText('Send to')).toBeTruthy()
+  })
+
+  test('the totals line ignores the filters; the matching count follows them', async () => {
+    const calls = stubApi(
+      routes({
+        'GET /orders': (url: URL) =>
+          url.searchParams.get('state') === 'Awaiting Finalize'
+            ? { counts: { orders: 1, unassigned_lots: 0 }, items: [item(ID_A, 2481, [])] }
+            : {
+                counts: { orders: 2, unassigned_lots: 18 },
+                items: [item(ID_A, 2481, []), item(ID_B, 2488, [])],
+              },
+      })
+    )
+    mount()
+    expect(await screen.findByText('2 matching')).toBeTruthy()
+    fireEvent.click(screen.getByRole('radio', { name: 'Awaiting Finalize' }))
+    expect(await screen.findByText('1 matching')).toBeTruthy()
+    expect(
+      screen.getByText('66 orders · 12 awaiting receipt · 4 ready to pay · 26 unassigned lots')
+    ).toBeTruthy()
+    const summaries = calls.filter((c) => c.url.pathname.endsWith('/orders/summary'))
+    expect(summaries.every((c) => [...c.url.searchParams.keys()].join() === 'direction')).toBe(true)
   })
 
   test('an empty list says so', async () => {

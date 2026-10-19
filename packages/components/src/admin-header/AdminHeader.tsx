@@ -14,7 +14,10 @@ export type AdminHeaderProps = {
   radio?: React.ReactNode
   radioLabel?: React.ReactNode
   selects?: React.ReactNode
+  /** Passthrough filter slot after the selects (1210:6558): a Multiselect, a date range, anything. */
+  filters?: React.ReactNode
   reset?: React.ReactNode
+  /** "N matching": rows under the current filters. Always shown with the toolbar. */
   count?: React.ReactNode
   className?: string
 }
@@ -31,12 +34,15 @@ export function AdminHeader({
   radio,
   radioLabel,
   selects,
+  filters,
   reset,
   count,
   className,
 }: AdminHeaderProps) {
   const mobile = layout === 'mobile'
-  const toolbar = radio != null || selects != null || reset != null
+  const toolbar =
+    radio != null || selects != null || filters != null || reset != null || count != null
+  const countLine = <p className="micro text-muted-foreground">{count ?? '\u00a0'}</p>
 
   return (
     <section
@@ -68,6 +74,9 @@ export function AdminHeader({
             )}
           </div>
           {chips != null && <div className="flex flex-wrap gap-xs">{chips}</div>}
+          {(search != null || action != null) && (
+            <span aria-hidden data-part="head-divider" className="h-px w-full bg-border" />
+          )}
           {search != null && <div className="flex flex-col">{search}</div>}
           {action != null && <div className="flex flex-col">{action}</div>}
         </div>
@@ -102,7 +111,11 @@ export function AdminHeader({
             <span aria-hidden className="absolute inset-x-md top-0 h-px bg-border" />
             {radio != null && <div className="flex flex-col">{radio}</div>}
             {selects != null && <div className="grid grid-cols-2 gap-xs">{selects}</div>}
-            {reset != null && <div className="flex items-center justify-end gap-sm">{reset}</div>}
+            {filters != null && <div className="flex flex-col">{filters}</div>}
+            <div className="flex items-center justify-between gap-sm">
+              {countLine}
+              {reset}
+            </div>
           </div>
         ) : (
           <div className="relative px-lg py-md">
@@ -118,13 +131,12 @@ export function AdminHeader({
                   </div>
                 )}
                 {selects}
+                {filters}
               </div>
-              {reset != null && (
-                <div className="flex flex-col items-end gap-2xs">
-                  {reset}
-                  <p className="micro text-muted-foreground">{count ?? '\u00a0'}</p>
-                </div>
-              )}
+              <div className="flex flex-col items-end gap-2xs">
+                {reset != null && <div className="flex">{reset}</div>}
+                {countLine}
+              </div>
             </div>
           </div>
         ))}

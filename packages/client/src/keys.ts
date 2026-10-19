@@ -15,6 +15,7 @@ export const keys = {
     shipments: (id: string) => ['orders', 'shipments', id] as const,
     profit: (id: string) => ['orders', 'profit', id] as const,
     sorts: () => ['orders', 'sorts'] as const,
+    summary: (direction: string | null) => ['orders', 'summary', direction] as const,
     dropoffs: (id: string) => ['orders', 'dropoffs', id] as const,
     activity: (id: string, page: { limit?: number | null; before?: string | null } = {}) =>
       ['orders', 'activity', id, page.limit ?? null, page.before ?? null] as const,

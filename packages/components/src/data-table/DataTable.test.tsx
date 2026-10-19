@@ -3,6 +3,7 @@ import { fireEvent, render } from '@testing-library/react'
 import * as React from 'react'
 
 import { DataTable, type DataTableColumn } from './DataTable'
+import { TableActions } from './TableActions'
 import { axeViolations } from '../test/axe'
 
 type Row = { id: string; item: string; purity: string; weight: number }
@@ -85,24 +86,15 @@ describe('DataTable', () => {
     expect(rowCheckboxes[1]!.getAttribute('aria-checked')).toBe('false')
   })
 
-  it('a searchable table renders an Input that drives the global filter', () => {
-    const { container, getByRole } = render(
+  it('renders the actions slot without knowing what is inside it', () => {
+    const { getByRole } = render(
       <DataTable
         columns={columns}
         data={data}
         label="Scrap"
-        searchable
-        searchPlaceholder="Search"
+        title="Scrap"
+        actions={<button>New</button>}
       />
-    )
-    const search = getByRole('searchbox', { name: /search table/i })
-    fireEvent.change(search, { target: { value: 'silver' } })
-    expect(itemCells(container)).toEqual(['Silver ring'])
-  })
-
-  it('renders the actions slot without knowing what is inside it', () => {
-    const { getByRole } = render(
-      <DataTable columns={columns} data={data} label="Scrap" actions={<button>New</button>} />
     )
     expect(getByRole('button', { name: 'New' })).toBeTruthy()
   })
@@ -128,5 +120,206 @@ describe('DataTable', () => {
     const { getAllByRole } = render(<DataTable label="Scrap" columns={columns} data={data} />)
     const bodyRows = getAllByRole('row').filter((r) => r.querySelector('td'))
     expect(bodyRows[0].getAttribute('tabindex')).toBeNull()
+  })
+})
+
+const many: Row[] = Array.from({ length: 25 }, (_, i) => ({
+  id: String(i + 1),
+  item: `Lot ${i + 1}`,
+  purity: '14 Karat',
+  weight: i + 1,
+}))
+
+describe('Table 1101:444 (ruling 157, refined 2026-10-19)', () => {
+  it('title row: title, actions slot on the right, divider under it (1172:254)', () => {
+    const { getByRole, container } = render(
+      <DataTable columns={columns} data={data} label="Scrap" title="Customers" />
+    )
+    const title = getByRole('heading', { name: 'Customers' })
+    const row = title.parentElement as HTMLElement
+    expect(row.className).toContain('px-md')
+    expect(row.className).toContain('py-sm')
+    expect(container.querySelector('[data-part="title-divider"]')).toBeTruthy()
+  })
+
+  it('default actions are Table Actions: only Delete, disabled until a row is selected (1186:1440)', () => {
+    const deleted: Row[][] = []
+    const { getByRole, queryByRole, getAllByRole } = render(
+      <DataTable
+        columns={columns}
+        data={data}
+        label="Scrap"
+        title="Scrap"
+        selectable
+        onDelete={(rows) => deleted.push(rows)}
+      />
+    )
+    expect(queryByRole('button', { name: 'Import' })).toBeNull()
+    expect(queryByRole('button', { name: 'Export' })).toBeNull()
+    const del = getByRole('button', { name: 'Delete' }) as HTMLButtonElement
+    expect(del.disabled).toBe(true)
+    fireEvent.click(getAllByRole('checkbox', { name: 'Select row' })[0]!)
+    expect(del.disabled).toBe(false)
+    fireEvent.click(del)
+    expect(deleted[0]!.map((r) => r.item)).toEqual(['Gold chain'])
+  })
+
+  it('the title row shows the selected count after the title', () => {
+    const { getAllByRole, getByText } = render(
+      <DataTable columns={columns} data={data} label="Scrap" title="Scrap" selectable />
+    )
+    fireEvent.click(getAllByRole('checkbox', { name: 'Select row' })[1]!)
+    expect(getByText('1 selected').className).toContain('text-muted-foreground')
+  })
+
+  it('a feature passes its own actions; a function receives the selected rows', () => {
+    const { getByRole } = render(
+      <DataTable
+        columns={columns}
+        data={data}
+        label="Scrap"
+        title="Scrap"
+        selectable
+        actions={({ selected }) => <button>Assign {selected.length}</button>}
+      />
+    )
+    expect(getByRole('button', { name: 'Assign 0' })).toBeTruthy()
+  })
+
+  it('one optional toolbar slot sits under the divider', () => {
+    const { getByTestId, container } = render(
+      <DataTable
+        columns={columns}
+        data={data}
+        label="Scrap"
+        title="Scrap"
+        toolbar={<div data-testid="toolbar">filters</div>}
+      />
+    )
+    const divider = container.querySelector('[data-part="title-divider"]')!
+    expect(
+      divider.compareDocumentPosition(getByTestId('toolbar')) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
+  })
+
+  it('footer reads "Showing 1–10 of 25", numbers bright and words muted, with pagination (1172:298)', () => {
+    const { getByText, getByRole } = render(
+      <DataTable columns={columns} data={many} label="Lots" pageSize={10} />
+    )
+    expect(getByText('Showing').className).toContain('text-muted-foreground')
+    expect(getByText('1–10').className).toContain('text-foreground')
+    expect(getByText('of').className).toContain('text-muted-foreground')
+    expect(getByText('25').className).toContain('text-foreground')
+    fireEvent.click(getByRole('button', { name: 'Page 3' }))
+    expect(getByText('21–25')).toBeTruthy()
+  })
+
+  it('page size is a select in the footer when sizes are given (1187:145)', () => {
+    const { getByRole } = render(
+      <DataTable columns={columns} data={many} label="Lots" pageSize={10} pageSizes={[10, 25]} />
+    )
+    expect(getByRole('combobox', { name: 'Rows per page' })).toBeTruthy()
+  })
+
+  it('Loading draws skeleton rows inside the table and says so', () => {
+    const { getByRole, container } = render(
+      <DataTable columns={columns} data={[]} label="Scrap" loading />
+    )
+    expect(getByRole('status', { name: 'Loading Scrap' })).toBeTruthy()
+    expect(container.querySelectorAll('tbody tr').length).toBeGreaterThan(1)
+  })
+
+  it('Error renders inside the table body', () => {
+    const { getByText, container } = render(
+      <DataTable columns={columns} data={[]} label="Scrap" error="Couldn't load" />
+    )
+    expect(container.querySelector('tbody')!.textContent).toContain("Couldn't load")
+    expect(getByText("Couldn't load")).toBeTruthy()
+  })
+
+  it('in card draws the card; out of card is bare', () => {
+    const inCard = render(<DataTable columns={columns} data={data} label="A" />)
+    expect((inCard.container.firstElementChild as HTMLElement).className).toContain('bg-card')
+    inCard.unmount()
+    const bare = render(<DataTable columns={columns} data={data} label="A" inCard={false} />)
+    expect((bare.container.firstElementChild as HTMLElement).className).not.toContain('bg-card')
+  })
+
+  it('Scrolling=Virtualized scrolls in a fixed viewport and has no footer (1176:6886)', () => {
+    const { container, queryByRole } = render(
+      <DataTable columns={columns} data={many} label="Lots" scrolling="virtualized" pageSize={10} />
+    )
+    const viewport = container.querySelector('[data-part="viewport"]') as HTMLElement
+    expect(viewport.className).toContain('overflow-y-auto')
+    expect(queryByRole('navigation', { name: 'Pagination' })).toBeNull()
+  })
+})
+
+describe('TableActions', () => {
+  it('Import and Export are enabled whatever the selection; each sits behind its switch', () => {
+    const { getByRole } = render(
+      <TableActions showImport showExport selected={false} onDelete={() => {}} />
+    )
+    expect((getByRole('button', { name: 'Import' }) as HTMLButtonElement).disabled).toBe(false)
+    expect((getByRole('button', { name: 'Export' }) as HTMLButtonElement).disabled).toBe(false)
+    expect((getByRole('button', { name: 'Delete' }) as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('Delete is Secondary Danger', () => {
+    const { getByRole } = render(<TableActions selected onDelete={() => {}} />)
+    expect(getByRole('button', { name: 'Delete' }).className).toContain('border-destructive')
+  })
+
+  describe('TableActions Delete', () => {
+    it('renders Delete only when onDelete is given', () => {
+      const without = render(<TableActions selected />)
+      expect(without.queryByRole('button', { name: 'Delete' })).toBeNull()
+      without.unmount()
+      const withDelete = render(<TableActions selected onDelete={() => {}} />)
+      expect(withDelete.getByRole('button', { name: 'Delete' })).toBeTruthy()
+    })
+
+    it('the default title-row actions show no Delete when the table has no onDelete', () => {
+      const { queryByRole } = render(
+        <DataTable columns={columns} data={data} label="Scrap" title="Scrap" selectable />
+      )
+      expect(queryByRole('button', { name: 'Delete' })).toBeNull()
+    })
+  })
+})
+
+describe('Table Footer layouts (Jacob 2026-10-19: never stacked)', () => {
+  it('the footer is a size container whose row never wraps', () => {
+    const { getByRole } = render(
+      <DataTable columns={columns} data={many} label="Lots" pageSize={10} />
+    )
+    const nav = getByRole('navigation', { name: 'Pagination' })
+    const row = nav.parentElement as HTMLElement
+    expect((row.parentElement as HTMLElement).className).toContain('@container')
+    expect(row.className).toContain('flex-nowrap')
+    expect(row.className).not.toContain('flex-wrap ')
+    expect(row.className).not.toContain('flex-col')
+  })
+
+  it('narrow: only the pagination, centred; the count is hidden', () => {
+    const { getByRole, getByText } = render(
+      <DataTable columns={columns} data={many} label="Lots" pageSize={10} />
+    )
+    const row = getByRole('navigation', { name: 'Pagination' }).parentElement as HTMLElement
+    expect(row.className).toContain('justify-center')
+    const count = getByText('Showing').closest('[data-part="count"]') as HTMLElement
+    expect(count.className).toContain('hidden')
+  })
+
+  it('wide: the count on the left and the pagination on the right', () => {
+    const { getByRole, getByText } = render(
+      <DataTable columns={columns} data={many} label="Lots" pageSize={10} />
+    )
+    const row = getByRole('navigation', { name: 'Pagination' }).parentElement as HTMLElement
+    expect(row.className).toContain('@xl:justify-between')
+    const count = getByText('Showing').closest('[data-part="count"]') as HTMLElement
+    expect(count.className).toContain('@xl:flex')
+    expect(row.firstElementChild).toBe(count)
+    expect(row.lastElementChild).toBe(getByRole('navigation', { name: 'Pagination' }))
   })
 })

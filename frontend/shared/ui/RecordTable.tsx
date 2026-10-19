@@ -130,7 +130,7 @@ export function RecordTable<T extends RowData>({
     <div className="flex flex-col">
       <Table bare aria-label={label}>
         {layout === 'table' && (
-          <TableHeader surface="card">
+          <TableHeader>
             {table.getHeaderGroups().map((group) => (
               <TableRow key={group.id}>
                 {group.headers

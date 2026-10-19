@@ -65,7 +65,7 @@ export function SpotMarquee() {
       leading={
         desktop ? (
           <TooltipProvider>
-            <Tooltip content={showBid ? 'Show ask' : 'Show bid'}>
+            <Tooltip label={showBid ? 'Show ask' : 'Show bid'}>
               <Button
                 variant="tertiary"
                 intent="neutral"
