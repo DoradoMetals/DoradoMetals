@@ -3,7 +3,7 @@ import { render } from '@testing-library/react'
 import * as React from 'react'
 
 import { Card, CardSlot } from './Card'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 describe('Card', () => {
   it('wears the chassis tokens and renders its children', async () => {
@@ -14,7 +14,7 @@ describe('Card', () => {
     expect(card.className).toContain('p-sm')
     expect(card.className).toContain('rounded-lg')
     expect(card.className).toContain('extra')
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('CardSlot defaults to the word Content and takes a replacement', () => {

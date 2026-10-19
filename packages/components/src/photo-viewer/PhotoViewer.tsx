@@ -84,6 +84,18 @@ export function PhotoViewer({
       aria-label="Photo viewer"
       data-layout={layout}
       className={cn(viewerVariants({ layout }), className)}
+      onKeyDown={(e) => {
+        if (e.key === 'ArrowRight' && index < photos.length - 1) {
+          e.preventDefault()
+          onIndexChange(index + 1)
+        } else if (e.key === 'ArrowLeft' && index > 0) {
+          e.preventDefault()
+          onIndexChange(index - 1)
+        } else if (e.key === 'Escape' && onClose) {
+          e.preventDefault()
+          onClose()
+        }
+      }}
       {...props}
     >
       <div className="flex items-center gap-xs">
@@ -106,7 +118,11 @@ export function PhotoViewer({
         </Button>
         <div className={photoVariants({ layout })}>
           {current?.src != null ? (
-            <img src={current.src} alt={current.alt ?? ''} className="size-full object-contain" />
+            <img
+              src={current.src}
+              alt={current.alt || `Photo ${index + 1} of ${photos.length}`}
+              className="size-full object-contain"
+            />
           ) : (
             <ImageIcon aria-hidden className="size-lg text-muted-foreground" />
           )}
@@ -121,7 +137,11 @@ export function PhotoViewer({
           <ChevronRight aria-hidden />
         </Button>
       </div>
-      {count != null && <p className="text-center text-small text-muted-foreground">{count}</p>}
+      {count != null && (
+        <p aria-live="polite" className="text-center text-small text-muted-foreground">
+          {count}
+        </p>
+      )}
       <div className="flex items-center justify-center gap-xs">
         {photos.map((photo, i) => (
           <Thumbnail

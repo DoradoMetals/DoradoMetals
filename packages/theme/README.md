@@ -689,3 +689,18 @@ step but `stat` runs at a 1.15 ratio and -0.02em; `stat` keeps its own 1.1 and
 -0.024em. `typography.css` carries a `.stat-*` utility for each, all with
 `font-variant-numeric: tabular-nums`, because a figure that shifts its digits
 on every update was the original defect.
+
+## Accessibility utilities in `base.css` (2026-10-19)
+
+- `focus-ring` is the one focus indicator: a `--stroke-heavy` outline in
+  `--ring` (Figma `focus/ring`) on `:focus-visible`, offset 2px. An outline,
+  not a box-shadow ring, so it survives forced-colors mode and is not hidden by
+  a white ring offset. Fields keep the border focus Figma draws.
+- `hit-area` grows the touch target to 44px with an invisible `::after`, only
+  under `pointer: coarse`. The drawn box does not change. The host needs a
+  position (`relative`) and must not clip its overflow.
+- `prefers-reduced-motion: reduce` cuts every animation and transition to
+  0.01ms and turns off smooth scroll.
+- Contrast pairs under 4.5:1 (text) or 3:1 (UI) are listed in
+  `packages/components/src/test/theme-a11y.test.ts` as `KNOWN_SHORT`; a new
+  failing pair, or a fixed one, breaks that test.

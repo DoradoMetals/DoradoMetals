@@ -3,7 +3,7 @@ import { fireEvent, render } from '@testing-library/react'
 import * as React from 'react'
 
 import { Accordion } from './Accordion'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 describe('Accordion', () => {
   it('expands on click with the aria wiring, and axe finds nothing', async () => {
@@ -17,7 +17,7 @@ describe('Accordion', () => {
     fireEvent.click(trigger)
     expect(trigger.getAttribute('aria-expanded')).toBe('true')
     expect(trigger.getAttribute('aria-controls')).toBeTruthy()
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('UNMOUNTED - collapsed means gone, not hidden', () => {

@@ -57,12 +57,12 @@ describe('Charts', () => {
         onRangeChange={onRangeChange}
       />
     )
-    const group = getByRole('group', { name: 'Range' })
+    const group = getByRole('radiogroup', { name: 'Range' })
     expect(group.className).toContain('gap-xs')
     const chips = group.querySelectorAll('button')
     expect([...chips].map((c) => c.textContent)).toEqual(['1D', '1W', '1M', '1Y'])
-    expect(chips[3].getAttribute('aria-pressed')).toBe('true')
-    expect(chips[0].getAttribute('aria-pressed')).toBe('false')
+    expect(chips[3].getAttribute('aria-checked')).toBe('true')
+    expect(chips[0].getAttribute('aria-checked')).toBe('false')
     fireEvent.click(chips[1])
     expect(onRangeChange).toHaveBeenCalledWith('1W')
   })
@@ -78,9 +78,9 @@ describe('Charts', () => {
         rangeOptions={['1Y', '5Y']}
       />
     )
-    expect(getByRole('group', { name: 'Range' }).querySelectorAll('button').length).toBe(2)
+    expect(getByRole('radiogroup', { name: 'Range' }).querySelectorAll('button').length).toBe(2)
     rerender(<BarChart labels={['a']} series={[{ label: 'Vol', data: [3] }]} label="Volume" />)
-    expect(queryByRole('group', { name: 'Range' })).toBeNull()
+    expect(queryByRole('radiogroup', { name: 'Range' })).toBeNull()
   })
 
   it('yAxis renders without error on line and bar (57:60/57:36 Show y axis)', () => {

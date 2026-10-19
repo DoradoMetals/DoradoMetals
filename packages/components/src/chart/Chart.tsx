@@ -16,6 +16,7 @@ import { Bar, Doughnut, Line } from 'react-chartjs-2'
 
 import { Chip } from '../chip/Chip'
 import { cn } from '../cn'
+import { rovingIndex, rovingKeyDown } from '../hooks/roving'
 
 ChartJS.register(
   ArcElement,
@@ -172,13 +173,25 @@ function ChartRange({
   onChange: (range: string) => void
   options: readonly string[]
 }) {
+  const stop = rovingIndex(
+    [...options],
+    (o) => o === value,
+    () => true
+  )
   return (
-    <div role="group" aria-label="Range" className="flex w-full flex-wrap items-center gap-xs">
-      {options.map((option) => (
+    <div
+      role="radiogroup"
+      aria-label="Range"
+      onKeyDown={rovingKeyDown('[role="radio"]', { select: true, orientation: 'horizontal' })}
+      className="flex w-full flex-wrap items-center gap-xs"
+    >
+      {options.map((option, index) => (
         <Chip
           key={option}
+          role="radio"
           label={option}
           selected={option === value}
+          tabIndex={index === stop ? 0 : -1}
           onClick={() => onChange(option)}
         />
       ))}

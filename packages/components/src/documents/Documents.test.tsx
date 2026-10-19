@@ -3,7 +3,7 @@ import { fireEvent, render } from '@testing-library/react'
 import * as React from 'react'
 
 import { DOCUMENT_NAMES, Documents, formatBytes, type DocumentRow } from './Documents'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 const documents: DocumentRow[] = [
   { id: '1', name: 'Invoice', meta: 'PDF · 48 KB · Sep 1, 2026', state: 'available' },
@@ -17,7 +17,7 @@ describe('Documents', () => {
     expect(getByText('Documents')).toBeTruthy()
     expect(getByText('3 documents')).toBeTruthy()
     expect(getByText('Invoice')).toBeTruthy()
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it("singular count reads '1 document'", () => {
@@ -167,7 +167,7 @@ describe('Documents', () => {
     expect(getByText('None yet')).toBeTruthy()
     expect(getByText('No documents yet')).toBeTruthy()
     expect(container.querySelector('ul')).toBeNull()
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('the title row is the library Accordion (549:63): leading chevron, count as trailing amount', () => {
@@ -202,7 +202,7 @@ describe('Documents', () => {
     )
     expect(getByRole('status', { name: 'Loading documents' })).toBeTruthy()
     expect(queryByText('None yet')).toBeNull()
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('error shows the alert and Try again fires onRetry', async () => {
@@ -213,7 +213,7 @@ describe('Documents', () => {
     expect(getByText("Couldn't load documents")).toBeTruthy()
     fireEvent.click(getByRole('button', { name: 'Try again' }))
     expect(onRetry).toHaveBeenCalled()
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('empty body names the shipment manifest', () => {

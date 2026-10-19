@@ -4,7 +4,7 @@ import * as React from 'react'
 import { Package } from '@dorado/icons'
 
 import { EmptyState } from './EmptyState'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 describe('EmptyState', () => {
   it('renders title, body and action, and axe finds nothing', async () => {
@@ -15,7 +15,7 @@ describe('EmptyState', () => {
     )
     expect(getByText('No orders yet')).toBeTruthy()
     expect(getByText('Browse')).toBeTruthy()
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('the icon is decoration and optional', () => {
@@ -54,7 +54,7 @@ describe('EmptyState', () => {
       <EmptyState icon={<Package />} title="You have nothing to sell yet!" badge={0} />
     )
     expect(getByText('0')).toBeTruthy()
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
 
     rerender(<EmptyState title="You have nothing to sell yet!" badge={0} />)
     expect(queryByText('0')).toBe(null)

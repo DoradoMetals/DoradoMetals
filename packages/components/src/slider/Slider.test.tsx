@@ -3,7 +3,7 @@ import { fireEvent, render } from '@testing-library/react'
 import * as React from 'react'
 
 import { Slider } from './Slider'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 describe('Slider', () => {
   it('exposes value through slider role, and axe finds nothing', async () => {
@@ -13,7 +13,7 @@ describe('Slider', () => {
     const thumb = container.querySelector('[role="slider"]') as HTMLElement
     expect(thumb.getAttribute('aria-valuenow')).toBe('40')
     expect(thumb.getAttribute('aria-valuemax')).toBe('100')
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('arrow keys step the value', () => {

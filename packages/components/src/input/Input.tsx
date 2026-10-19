@@ -36,6 +36,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
       readOnly,
       type,
       inputMode,
+      'aria-describedby': describedBy,
       ...props
     },
     ref
@@ -81,7 +82,10 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             disabled={disabled}
             readOnly={readOnly}
             aria-invalid={invalid || undefined}
-            aria-describedby={message != null ? messageId : undefined}
+            aria-describedby={
+              [message != null ? messageId : null, describedBy].filter(Boolean).join(' ') ||
+              undefined
+            }
             type={type}
             inputMode={inputMode ?? (isNumber ? 'decimal' : undefined)}
             className={cn(

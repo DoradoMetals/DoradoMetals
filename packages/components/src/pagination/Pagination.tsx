@@ -48,6 +48,7 @@ export function Pagination({ page, pageCount, onPageChange, className }: Paginat
         type="button"
         variant="tertiary"
         size="iconSm"
+        hitArea={false}
         className="size-(--control-sm) text-muted-foreground"
         aria-label="Previous page"
         disabled={atStart}
@@ -73,7 +74,7 @@ export function Pagination({ page, pageCount, onPageChange, className }: Paginat
             onClick={() => onPageChange(item)}
             className={cn(
               'flex min-h-(--control-sm) min-w-(--control-sm) cursor-pointer items-center justify-center rounded-lg text-small font-medium transition-colors',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background',
+              'focus-ring',
               item === current
                 ? 'bg-primary text-primary-foreground'
                 : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
@@ -87,6 +88,7 @@ export function Pagination({ page, pageCount, onPageChange, className }: Paginat
         type="button"
         variant="tertiary"
         size="iconSm"
+        hitArea={false}
         className="size-(--control-sm) text-muted-foreground"
         aria-label="Next page"
         disabled={atEnd}

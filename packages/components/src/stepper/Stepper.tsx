@@ -14,7 +14,10 @@ export function Stepper({ steps, current, className }: StepperProps) {
   const n = labels.length
 
   return (
-    <ol className={cn('flex w-full items-center gap-xs', className)}>
+    <ol
+      aria-label={`Step ${Math.min(current + 1, n)} of ${n}`}
+      className={cn('flex w-full items-center gap-xs', className)}
+    >
       {labels.map((label, i) => {
         const state = i < current ? 'complete' : i === current ? 'current' : 'upcoming'
         return (

@@ -18,6 +18,8 @@ export type SelectProps = {
   name?: string
   disabled?: boolean
   invalid?: boolean
+  required?: boolean
+  message?: React.ReactNode
   className?: string
 }
 
@@ -31,9 +33,12 @@ export function Select({
   name,
   disabled,
   invalid,
+  required,
+  message,
   className,
 }: SelectProps) {
   const id = React.useId()
+  const messageId = `${id}-message`
   return (
     <div className={cn('flex w-full flex-col gap-3xs', className)}>
       {label != null && (
@@ -47,11 +52,14 @@ export function Select({
         defaultValue={defaultValue}
         name={name}
         disabled={disabled}
+        required={required}
       >
         <SelectPrimitive.Trigger
           id={id}
           aria-label={label == null ? placeholder : undefined}
           aria-invalid={invalid || undefined}
+          aria-required={required || undefined}
+          aria-describedby={message != null ? messageId : undefined}
           className={cn(fieldTrigger(), 'justify-between [&>span]:truncate')}
         >
           <SelectPrimitive.Value
@@ -88,6 +96,14 @@ export function Select({
           </SelectPrimitive.Content>
         </SelectPrimitive.Portal>
       </SelectPrimitive.Root>
+      {message != null && (
+        <p
+          id={messageId}
+          className={cn('text-micro', invalid ? 'text-destructive' : 'text-muted-foreground')}
+        >
+          {message}
+        </p>
+      )}
     </div>
   )
 }

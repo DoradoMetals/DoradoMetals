@@ -3,13 +3,13 @@ import { render } from '@testing-library/react'
 import * as React from 'react'
 
 import { Textarea } from './Textarea'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 describe('Textarea', () => {
   it('label reaches the textarea, and axe finds nothing', async () => {
     const { getByLabelText, container } = render(<Textarea label="Notes" />)
     expect(getByLabelText('Notes').tagName).toBe('TEXTAREA')
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('disabled is the normal chrome at 50% (2026-09-05 convention)', () => {

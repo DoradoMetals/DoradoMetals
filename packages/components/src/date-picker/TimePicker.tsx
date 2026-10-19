@@ -2,6 +2,7 @@
 
 import * as React from 'react'
 import { cn } from '../cn'
+import { rovingIndex, rovingKeyDown } from '../hooks/roving'
 
 export type TimeSlotShape = { value: string; label: string; available?: boolean }
 export type TimeGroup = { label: string; slots: TimeSlotShape[] }
@@ -25,10 +26,21 @@ export function TimePicker({
   columns = 2,
   className,
 }: TimePickerProps) {
+  const groupId = React.useId()
+  const slots = groups.flatMap((g) => g.slots)
+  const stop =
+    slots[
+      rovingIndex(
+        slots,
+        (s) => s.value === value,
+        (s) => s.available !== false
+      )
+    ]?.value
   return (
     <div
       role="radiogroup"
       aria-label={typeof heading === 'string' ? heading : 'Appointment time'}
+      onKeyDown={rovingKeyDown('[role="radio"]', { select: true })}
       className={cn(
         'flex w-full flex-col',
         bare ? 'gap-0' : 'gap-md rounded-lg border border-border bg-card p-md',
@@ -48,13 +60,17 @@ export function TimePicker({
       {groups.map((group, gi) => (
         <div
           key={group.label}
+          role="group"
+          aria-labelledby={`${groupId}-${gi}`}
           className={cn(
             'flex flex-col gap-xs',
             bare && 'px-md py-sm',
             bare && gi > 0 && 'border-t border-border'
           )}
         >
-          <span className="text-micro font-medium text-muted-foreground">{group.label}</span>
+          <span id={`${groupId}-${gi}`} className="text-micro font-medium text-muted-foreground">
+            {group.label}
+          </span>
           <div className={cn('grid gap-xs', columns === 3 ? 'grid-cols-3' : 'grid-cols-2')}>
             {group.slots.map((slot) => {
               const available = slot.available !== false
@@ -65,11 +81,12 @@ export function TimePicker({
                   type="button"
                   role="radio"
                   aria-checked={selected}
+                  tabIndex={slot.value === stop ? 0 : -1}
                   disabled={!available}
                   onClick={() => onValueChange(slot.value)}
                   className={cn(
                     'flex min-h-(--control-md) cursor-pointer items-center justify-center rounded-lg px-sm text-small font-medium transition-colors',
-                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background',
+                    'focus-ring',
                     selected
                       ? 'bg-primary text-primary-foreground'
                       : available

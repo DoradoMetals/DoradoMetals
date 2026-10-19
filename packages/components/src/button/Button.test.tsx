@@ -5,7 +5,7 @@ import * as React from 'react'
 import { ArrowLeft } from '@dorado/icons'
 import { Button, buttonVariants } from './Button'
 import { cn } from '../cn'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 const rendered = (props: Parameters<typeof buttonVariants>[0]) =>
   cn(buttonVariants(props)).split(' ')
@@ -64,7 +64,7 @@ describe('rendered Button', () => {
     const { getByRole, container } = render(<Button>Save changes</Button>)
     const btn = getByRole('button', { name: 'Save changes' }) as HTMLButtonElement
     expect(btn.tagName).toBe('BUTTON')
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('disabled is the attribute, not a class costume', () => {

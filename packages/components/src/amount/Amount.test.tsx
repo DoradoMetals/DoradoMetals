@@ -3,7 +3,7 @@ import { render } from '@testing-library/react'
 import * as React from 'react'
 
 import { Amount, type AmountTag } from './Amount'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 const TAG_RAMP: Array<[AmountTag, string]> = [
   ['display', 'display'],
@@ -22,7 +22,7 @@ describe('Amount', () => {
     const { container } = render(<Amount value={2411.2} />)
     const el = container.firstElementChild!
     expect(el.textContent).toContain('$2,411.20')
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('accepts a format override for non-currency figures', () => {

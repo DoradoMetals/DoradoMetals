@@ -3,7 +3,7 @@ import { render } from '@testing-library/react'
 import * as React from 'react'
 
 import { Calendar } from './Calendar'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 describe('Calendar', () => {
   it('renders a grid with labelled prev/next, and axe finds nothing', async () => {
@@ -13,7 +13,7 @@ describe('Calendar', () => {
     const next = container.querySelector('button[aria-label*="ext"]')
     expect(prev).toBeTruthy()
     expect(next).toBeTruthy()
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('a selected day carries aria-selected', () => {

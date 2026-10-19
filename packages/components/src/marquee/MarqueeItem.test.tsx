@@ -3,7 +3,7 @@ import { render } from '@testing-library/react'
 import * as React from 'react'
 
 import { MarqueeItem } from './MarqueeItem'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 describe('MarqueeItem', () => {
   it('renders label, value and delta', () => {
@@ -76,6 +76,6 @@ describe('MarqueeItem', () => {
     const { container } = render(
       <MarqueeItem label="Gold" value="$2,411.20" delta="+12.34" trend="up" />
     )
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 })

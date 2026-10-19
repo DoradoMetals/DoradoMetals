@@ -2,6 +2,7 @@
 
 import * as React from 'react'
 import { cn } from '../cn'
+import { useDebounce } from '../hooks/useDebounce'
 import { fieldOption, fieldPanel, fieldTrigger, FieldLabel } from '../field/Field'
 
 export type AutocompleteItem = {
@@ -49,7 +50,12 @@ export function Autocomplete({
 
   React.useEffect(() => setActive(0), [items])
 
-  const showPanel = open && !disabled && (items.length > 0 || (empty != null && value.length > 0))
+  const announcement =
+    open && !disabled && value.trim().length > 0 ? `${items.length} matching` : ''
+  const settled = useDebounce(announcement, 300)
+
+  const showList = open && !disabled && items.length > 0
+  const showEmpty = open && !disabled && items.length === 0 && empty != null && value.length > 0
 
   const select = (item: AutocompleteItem) => {
     onSelect(item)
@@ -68,17 +74,29 @@ export function Autocomplete({
       setActive((i) => Math.max(i - 1, 0))
       return
     }
-    if (e.key === 'Enter' && showPanel && items[active]) {
+    if ((e.key === 'Home' || e.key === 'End') && showList) {
+      e.preventDefault()
+      setActive(e.key === 'Home' ? 0 : items.length - 1)
+      return
+    }
+    if (e.key === 'Enter' && showList && items[active]) {
       e.preventDefault()
       select(items[active])
       return
     }
-    if (e.key === 'Escape') setOpen(false)
+    if (e.key === 'Escape' && (showList || showEmpty)) {
+      e.stopPropagation()
+      setOpen(false)
+    }
   }
 
   return (
     <div className={cn('relative flex w-full flex-col gap-3xs', className)}>
-      {label != null && <FieldLabel htmlFor={id}>{label}</FieldLabel>}
+      {label != null && (
+        <FieldLabel id={`${id}-label`} htmlFor={id}>
+          {label}
+        </FieldLabel>
+      )}
       <div data-disabled={disabled || undefined} className={fieldTrigger()}>
         {leading != null && (
           <span className="flex size-4 shrink-0 items-center justify-center text-muted-foreground [&>svg]:size-4">
@@ -88,10 +106,10 @@ export function Autocomplete({
         <input
           id={id}
           role="combobox"
-          aria-expanded={showPanel}
-          aria-controls={listId}
+          aria-expanded={showList}
+          aria-controls={showList ? listId : undefined}
           aria-activedescendant={
-            showPanel && items[active] ? `${id}-opt-${items[active].id}` : undefined
+            showList && items[active] ? `${id}-opt-${items[active].id}` : undefined
           }
           aria-autocomplete="list"
           autoComplete="off"
@@ -123,35 +141,40 @@ export function Autocomplete({
           </span>
         )}
       </div>
-      {showPanel && (
+      {showList && (
         <ul
           id={listId}
           role="listbox"
+          aria-labelledby={label != null ? `${id}-label` : undefined}
           className={cn(fieldPanel(), 'absolute top-full mt-2xs w-full')}
         >
-          {items.length === 0 ? (
-            <li className="flex min-h-(--control-sm-plus) items-center px-sm text-field text-muted-foreground">
-              {empty}
+          {items.map((item, idx) => (
+            <li
+              key={item.id}
+              id={`${id}-opt-${item.id}`}
+              role="option"
+              aria-selected={idx === active}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => select(item)}
+              onMouseEnter={() => setActive(idx)}
+              data-highlighted={idx === active || undefined}
+              className={fieldOption()}
+            >
+              {item.label ?? item.textValue}
             </li>
-          ) : (
-            items.map((item, idx) => (
-              <li
-                key={item.id}
-                id={`${id}-opt-${item.id}`}
-                role="option"
-                aria-selected={idx === active}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => select(item)}
-                onMouseEnter={() => setActive(idx)}
-                data-highlighted={idx === active || undefined}
-                className={fieldOption()}
-              >
-                {item.label ?? item.textValue}
-              </li>
-            ))
-          )}
+          ))}
         </ul>
       )}
+      {showEmpty && (
+        <div className={cn(fieldPanel(), 'absolute top-full mt-2xs w-full')}>
+          <p className="flex min-h-(--control-sm-plus) items-center px-sm text-field text-muted-foreground">
+            {empty}
+          </p>
+        </div>
+      )}
+      <span role="status" aria-live="polite" className="sr-only">
+        {settled === announcement ? settled : ''}
+      </span>
     </div>
   )
 }

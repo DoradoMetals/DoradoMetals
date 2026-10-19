@@ -260,7 +260,7 @@ export function DataTable<T extends RowData, M extends DataTableColumnMeta = Dat
                   event.stopPropagation()
                   toggleDetail(row.id)
                 }}
-                className="inline-flex cursor-pointer items-center text-muted-foreground hover:text-foreground"
+                className="inline-flex cursor-pointer items-center rounded-sm text-muted-foreground hover:text-foreground focus-ring"
               >
                 <Icon aria-hidden className="size-md" />
               </button>
@@ -441,7 +441,7 @@ export function DataTable<T extends RowData, M extends DataTableColumnMeta = Dat
               aria-expanded={open}
               aria-label={`${open ? 'Collapse' : 'Expand'} ${value}`}
               onClick={() => row.toggleExpanded()}
-              className="inline-flex cursor-pointer items-center text-muted-foreground hover:text-foreground"
+              className="inline-flex cursor-pointer items-center rounded-sm text-muted-foreground hover:text-foreground focus-ring"
             >
               <Icon aria-hidden className="size-md" />
             </button>
@@ -628,7 +628,7 @@ export function DataTable<T extends RowData, M extends DataTableColumnMeta = Dat
               data-state={selectable && row.getIsSelected() ? 'selected' : undefined}
               className={cn(
                 'data-[state=selected]:bg-surface-raised',
-                onRowClick && 'cursor-pointer hover:bg-highest'
+                onRowClick && 'cursor-pointer hover:bg-highest focus-ring'
               )}
               {...rowHandlers(row)}
             >
@@ -663,8 +663,14 @@ export function DataTable<T extends RowData, M extends DataTableColumnMeta = Dat
         <>
           <div className="flex items-center gap-xs px-md py-sm">
             <h2 className="text-body font-medium text-foreground">{title}</h2>
-            {selectable && selectedRows.length > 0 && (
-              <p className="text-small text-muted-foreground">{selectedRows.length} selected</p>
+            {selectable && (
+              <p
+                aria-live="polite"
+                data-part="selected-count"
+                className="text-small text-muted-foreground"
+              >
+                {selectedRows.length > 0 ? `${selectedRows.length} selected` : ''}
+              </p>
             )}
             {slot != null && <div className="ml-auto flex items-center">{slot}</div>}
           </div>
@@ -696,7 +702,10 @@ export function DataTable<T extends RowData, M extends DataTableColumnMeta = Dat
           >
             {showCount && (
               <div data-part="count" className="hidden items-center gap-md @xl:flex">
-                <p className="flex items-center gap-2xs whitespace-nowrap text-small">
+                <p
+                  aria-live="polite"
+                  className="flex items-center gap-2xs whitespace-nowrap text-small"
+                >
                   <span className="text-muted-foreground">Showing</span>
                   <span className="text-foreground">{`${first}–${last}`}</span>
                   <span className="text-muted-foreground">of</span>

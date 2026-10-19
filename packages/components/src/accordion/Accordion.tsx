@@ -70,7 +70,7 @@ export function Accordion({
     >
       <AccordionPrimitive.Item value="it">
         <div className="flex items-center gap-xs">
-          <AccordionPrimitive.Header asChild>
+          <AccordionPrimitive.Header className="m-0 flex min-w-0 flex-1">
             <AccordionPrimitive.Trigger asChild>
               <Button
                 variant="tertiary"

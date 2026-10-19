@@ -29,10 +29,7 @@ const ScrollArea = React.forwardRef<
       {...props}
     >
       <ScrollAreaPrimitive.Viewport
-        className={cn(
-          'size-full rounded-[inherit]',
-          'outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background'
-        )}
+        className={cn('size-full rounded-[inherit]', 'outline-none focus-ring')}
       >
         {children}
       </ScrollAreaPrimitive.Viewport>

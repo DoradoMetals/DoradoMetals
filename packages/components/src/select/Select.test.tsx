@@ -3,7 +3,7 @@ import { fireEvent, render } from '@testing-library/react'
 import * as React from 'react'
 
 import { Select } from './Select'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 const items = [
   { value: 'ach', label: 'ACH transfer' },
@@ -14,7 +14,7 @@ describe('Select', () => {
   it('is a labelled combobox, and axe finds nothing', async () => {
     const { getByRole, container } = render(<Select label="Payout method" items={items} />)
     expect(getByRole('combobox', { name: /Payout method/ })).toBeTruthy()
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('invalid rides the aria attribute the chassis styles', () => {

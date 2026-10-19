@@ -23,7 +23,7 @@ export function Swiper({ children, label, className, slideClassName }: SwiperPro
       tabIndex={0}
       {...handlers}
       className={cn(
-        'flex gap-3 overflow-x-auto px-4 scroll-smooth motion-reduce:scroll-auto',
+        'flex gap-3 overflow-x-auto px-4 scroll-smooth motion-reduce:scroll-auto focus-ring',
         'cursor-grab [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
         dragging && 'cursor-grabbing select-none',
         className

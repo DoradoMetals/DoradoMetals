@@ -3,14 +3,14 @@ import { render } from '@testing-library/react'
 import * as React from 'react'
 
 import { Progress } from './Progress'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 describe('Progress', () => {
   it('reports its value to assistive tech, and axe finds nothing', async () => {
     const { container } = render(<Progress value={66} aria-label="Upload progress" />)
     const bar = container.querySelector('[role="progressbar"]') as HTMLElement
     expect(bar.getAttribute('aria-valuenow')).toBe('66')
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('the rail is the sanctioned pill and the indicator moves by transform', () => {

@@ -3,7 +3,7 @@ import { fireEvent, render } from '@testing-library/react'
 import * as React from 'react'
 
 import { Popover } from './Popover'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 describe('Popover', () => {
   it('opens its panel from the trigger and closes on Escape', async () => {
@@ -22,7 +22,7 @@ describe('Popover', () => {
     fireEvent.click(trigger)
     expect(getByText('panel body')).toBeTruthy()
     expect(trigger.getAttribute('aria-expanded')).toBe('true')
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
     fireEvent.keyDown(trigger, { key: 'Escape' })
     expect(queryByText('panel body')).toBeNull()
     expect(onOpenChange).toHaveBeenLastCalledWith(false)

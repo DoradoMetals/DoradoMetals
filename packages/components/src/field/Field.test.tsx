@@ -3,7 +3,7 @@ import { render } from '@testing-library/react'
 import * as React from 'react'
 
 import { FieldLabel, fieldOption, fieldPanel, fieldTrigger } from './Field'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 describe('Field chassis', () => {
   it('trigger wears the card border language and the invalid hook', () => {
@@ -50,6 +50,6 @@ describe('Field chassis', () => {
       </label>
     )
     expect(getByText('Amount')).toBeTruthy()
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 })

@@ -49,6 +49,8 @@ export function Popover({
 }: PopoverProps) {
   const id = React.useId()
   const rootRef = React.useRef<HTMLDivElement>(null)
+  const triggerRef = React.useRef<HTMLButtonElement>(null)
+  const panelId = `${id}-panel`
   const [openState, setOpenState] = React.useState(defaultOpen)
   const open = (openProp ?? openState) && state !== 'disabled'
 
@@ -76,7 +78,11 @@ export function Popover({
       ref={rootRef}
       className={cn('relative flex w-full flex-col gap-3xs', className)}
       onKeyDown={(event) => {
-        if (event.key === 'Escape' && open) setOpen(false)
+        if (event.key === 'Escape' && open) {
+          event.stopPropagation()
+          setOpen(false)
+          triggerRef.current?.focus()
+        }
       }}
       {...props}
     >
@@ -86,10 +92,12 @@ export function Popover({
         </FieldLabel>
       )}
       <button
+        ref={triggerRef}
         id={id}
         type="button"
         aria-haspopup="dialog"
         aria-expanded={open}
+        aria-controls={open && panel != null ? panelId : undefined}
         aria-invalid={state === 'error' || undefined}
         disabled={state === 'disabled'}
         onClick={() => setOpen(!open)}
@@ -115,6 +123,7 @@ export function Popover({
       </button>
       {open && panel != null && (
         <div
+          id={panelId}
           role="dialog"
           aria-labelledby={id}
           className={cn(fieldPanel(), 'absolute left-0 top-full mt-3xs w-full')}

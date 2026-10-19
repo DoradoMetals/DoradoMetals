@@ -3,7 +3,7 @@ import { fireEvent, render, within } from '@testing-library/react'
 import * as React from 'react'
 
 import { Breadcrumb } from './Breadcrumb'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 const items = [
   { label: 'Home', href: '/' },
@@ -22,7 +22,7 @@ describe('Breadcrumb', () => {
     const current = within(nav).getByText('Orders')
     expect(current.tagName).toBe('SPAN')
     expect(current.getAttribute('aria-current')).toBe('page')
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('crumbs wear the Link quiet state at Small/Regular; current is Small/Medium foreground', () => {

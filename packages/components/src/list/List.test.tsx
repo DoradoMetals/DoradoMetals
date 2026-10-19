@@ -3,7 +3,7 @@ import { render } from '@testing-library/react'
 import * as React from 'react'
 
 import { List, ListItem } from './List'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 describe('List', () => {
   it('is a real list of items, and axe finds nothing', async () => {
@@ -15,7 +15,7 @@ describe('List', () => {
     )
     expect(container.querySelector('ul')).toBeTruthy()
     expect(getAllByRole('listitem').length).toBe(2)
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('markers are decoration, hidden from the tree', () => {

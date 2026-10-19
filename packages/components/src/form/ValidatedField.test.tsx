@@ -4,7 +4,7 @@ import * as React from 'react'
 import { useForm, type UseFormReturn } from 'react-hook-form'
 
 import { ValidatedField } from './ValidatedField'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 type Values = { email: string }
 
@@ -36,7 +36,7 @@ describe('ValidatedField', () => {
     const formRef: React.MutableRefObject<UseFormReturn<Values> | null> = { current: null }
     const { getByLabelText, container } = render(<EmailHarness formRef={formRef} />)
     expect(getByLabelText('Email')).toBeTruthy()
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('an error paints the field only once it has been touched', () => {
@@ -64,6 +64,6 @@ describe('ValidatedField', () => {
     fireEvent.click(toggle)
     expect(input.type).toBe('text')
     expect(getByRole('button', { name: 'Hide password' }).getAttribute('aria-pressed')).toBe('true')
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 })

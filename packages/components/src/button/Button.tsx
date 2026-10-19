@@ -6,7 +6,7 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '../cn'
 
 const buttonVariants = cva(
-  'cursor-pointer inline-flex items-center justify-center whitespace-nowrap rounded-lg border border-transparent font-medium ring-offset-background transition-[color,background-color,border-color,opacity] hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0',
+  'relative cursor-pointer inline-flex items-center justify-center whitespace-nowrap rounded-lg border border-transparent font-medium transition-[color,background-color,border-color,opacity] hover:opacity-85 focus-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0',
   {
     variants: {
       variant: {
@@ -105,6 +105,7 @@ export interface ButtonProps
   variant?: ButtonEmphasis
   intent?: ButtonIntent
   asChild?: boolean
+  hitArea?: boolean
 
   type?: 'button' | 'submit' | 'reset'
 }
@@ -136,6 +137,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps & ButtonIconProps
       iconSize,
       iconStrokeWidth,
       asChild = false,
+      hitArea = true,
       ...props
     },
     ref
@@ -144,7 +146,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps & ButtonIconProps
     const strokeWidth = iconStrokeWidth ?? strokeWidthFor(ICON_PX_BY_SIZE[size ?? 'default'])
     return (
       <Comp
-        className={cn(buttonVariants({ variant, intent, size, className }))}
+        className={cn(hitArea && 'hit-area', buttonVariants({ variant, intent, size, className }))}
         ref={ref}
         {...props}
       >

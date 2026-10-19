@@ -3,7 +3,7 @@ import { fireEvent, render } from '@testing-library/react'
 import * as React from 'react'
 
 import { Autocomplete } from './Autocomplete'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 function FakeIcon({ className }: { className?: string }) {
   return (
@@ -40,7 +40,7 @@ describe('Autocomplete', () => {
     expect(input.getAttribute('aria-expanded')).toBe('true')
     expect(getByRole('listbox')).toBeTruthy()
     expect(container.querySelectorAll('[role="option"]').length).toBe(2)
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('arrows move aria-activedescendant, Enter selects', () => {

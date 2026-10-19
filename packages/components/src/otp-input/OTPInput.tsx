@@ -51,6 +51,7 @@ export function OTPInput({
     return () => clearInterval(t)
   }, [resendIn])
   const inputRef = React.useRef<HTMLInputElement>(null)
+  const descriptionId = `${React.useId()}-description`
   const [focused, setFocused] = React.useState(false)
   const digits = value.slice(0, length).split('')
   const activeIndex = Math.min(digits.length, length - 1)
@@ -92,7 +93,9 @@ export function OTPInput({
         <span className="flex flex-col gap-2xs">
           {title != null && <span className="text-h5 text-foreground">{title}</span>}
           {description != null && (
-            <span className="text-small text-muted-foreground">{description}</span>
+            <span id={descriptionId} className="text-small text-muted-foreground">
+              {description}
+            </span>
           )}
         </span>
       )}
@@ -107,6 +110,7 @@ export function OTPInput({
           onKeyDown={toEnd}
           disabled={disabled}
           aria-label={label}
+          aria-describedby={description != null ? descriptionId : undefined}
           aria-invalid={invalid || undefined}
           autoComplete="one-time-code"
           inputMode="numeric"
@@ -153,18 +157,10 @@ export function OTPInput({
           {secondsLeft > 0 ? (
             <span className="font-medium text-foreground">{`Resend in ${secondsLeft}s`}</span>
           ) : (
-            <Link
-              role="button"
-              tabIndex={0}
-              onClick={() => onResend?.()}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault()
-                  onResend?.()
-                }
-              }}
-            >
-              Resend code
+            <Link asChild>
+              <button type="button" onClick={() => onResend?.()}>
+                Resend code
+              </button>
             </Link>
           )}
         </span>

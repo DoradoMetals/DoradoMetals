@@ -60,7 +60,7 @@ export function Breadcrumb({ items, depth = 'full', linkComponent, className }: 
             <Menu>
               <MenuTrigger
                 aria-label="Show hidden crumbs"
-                className="cursor-pointer rounded-sm text-small text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="cursor-pointer rounded-sm text-small text-muted-foreground hover:text-foreground focus-ring"
               >
                 …
               </MenuTrigger>

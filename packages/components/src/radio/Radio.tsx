@@ -17,10 +17,10 @@ export function Radio({ className, ...props }: RadioProps) {
   return (
     <RadioGroupPrimitive.Item
       className={cn(
-        'group peer flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-full border border-border bg-card outline-none transition-colors',
+        'group peer relative flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-full border border-border bg-card outline-none transition-colors',
         'data-[state=unchecked]:hover:border-border-strong data-[state=unchecked]:hover:bg-accent',
         'data-[state=checked]:border-primary data-[state=checked]:bg-primary data-[state=checked]:hover:opacity-85',
-        'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background',
+        'hit-area focus-ring',
         'aria-invalid:border-destructive',
         'disabled:cursor-not-allowed disabled:opacity-50',
         'disabled:data-[state=checked]:border-border-strong disabled:data-[state=checked]:bg-border-strong',
@@ -38,7 +38,7 @@ export const radioOptionVariants = cva(
     'group relative flex cursor-pointer select-none rounded-lg border border-border bg-card text-left outline-none transition-colors',
     'hover:border-border-strong hover:bg-accent',
     'data-[state=checked]:border-(length:--stroke-emphasis) data-[state=checked]:border-primary data-[state=checked]:hover:bg-accent',
-    'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background',
+    'focus-ring',
     'disabled:cursor-not-allowed disabled:opacity-50'
   ),
   {

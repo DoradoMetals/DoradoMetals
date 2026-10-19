@@ -3,13 +3,13 @@ import { render } from '@testing-library/react'
 import * as React from 'react'
 
 import { Badge } from './Badge'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 describe('Badge', () => {
   it('renders its text, and axe finds nothing', async () => {
     const { container, getByText } = render(<Badge intent="success">Paid</Badge>)
     expect(getByText('Paid')).toBeTruthy()
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('the leading icon slot renders before the text', () => {

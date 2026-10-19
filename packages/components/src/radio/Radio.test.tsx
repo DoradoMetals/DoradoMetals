@@ -3,7 +3,7 @@ import { fireEvent, render } from '@testing-library/react'
 import * as React from 'react'
 
 import { Radio, RadioGroup, RadioOption } from './Radio'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 describe('Radio', () => {
   it('is a real radio group that selects on click, and axe finds nothing', async () => {
@@ -19,7 +19,7 @@ describe('Radio', () => {
     expect(radios[0].getAttribute('aria-checked')).toBe('false')
     fireEvent.click(getByRole('radio', { name: '18 Karat' }))
     expect(onValueChange).toHaveBeenCalledWith('18k')
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('disabled is real', () => {
@@ -87,7 +87,7 @@ describe('RadioOption', () => {
     fireEvent.click(getByText('Ounces'))
     expect(onValueChange).toHaveBeenCalledWith('ounces')
     expect(getByRole('radio', { name: 'Ounces' }).getAttribute('aria-checked')).toBe('true')
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('card shows its indicator by default; tile, chip and segment do not', () => {
@@ -196,6 +196,6 @@ describe('RadioOption', () => {
     fireEvent.click(getByText('List'))
     expect(onValueChange).toHaveBeenCalledWith('list')
     expect(getByRole('radio', { name: 'List' }).getAttribute('aria-checked')).toBe('true')
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 })

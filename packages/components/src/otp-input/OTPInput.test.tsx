@@ -3,7 +3,7 @@ import { fireEvent, render } from '@testing-library/react'
 import * as React from 'react'
 
 import { OTPInput } from './OTPInput'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 describe('OTPInput', () => {
   it('one real input with one-time-code, and axe finds nothing', async () => {
@@ -13,7 +13,7 @@ describe('OTPInput', () => {
     const inputs = container.querySelectorAll('input')
     expect(inputs.length).toBe(1)
     expect(inputs[0].getAttribute('autocomplete')).toBe('one-time-code')
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('typing fills and onComplete fires exactly at full length', () => {

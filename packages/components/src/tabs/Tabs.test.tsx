@@ -3,7 +3,7 @@ import { fireEvent, render } from '@testing-library/react'
 import * as React from 'react'
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './Tabs'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 function renderTabs() {
   return render(
@@ -25,7 +25,7 @@ describe('Tabs', () => {
     const active = getByRole('tab', { name: 'Buy' })
     expect(active.getAttribute('aria-selected')).toBe('true')
     expect(getByRole('tabpanel').textContent).toBe('Buy panel')
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('clicking switches the panel', () => {

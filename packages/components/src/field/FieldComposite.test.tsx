@@ -3,7 +3,7 @@ import { render } from '@testing-library/react'
 import * as React from 'react'
 
 import { Field } from './Field'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 describe('Field wraps a control that is not a library component', () => {
   it('the label points at the control and axe finds nothing', async () => {
@@ -15,7 +15,7 @@ describe('Field wraps a control that is not a library component', () => {
       </Field>
     )
     expect((getByLabelText('Refiner') as HTMLSelectElement).id).toBe('refiner')
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('htmlFor is optional, for controls with nothing labellable inside', () => {

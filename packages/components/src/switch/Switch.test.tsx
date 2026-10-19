@@ -3,7 +3,7 @@ import { fireEvent, render } from '@testing-library/react'
 import * as React from 'react'
 
 import { Switch } from './Switch'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 describe('Switch', () => {
   it('is a real switch that toggles, and axe finds nothing', async () => {
@@ -15,7 +15,7 @@ describe('Switch', () => {
     expect(sw.getAttribute('aria-checked')).toBe('false')
     fireEvent.click(sw)
     expect(onCheckedChange).toHaveBeenCalledWith(true)
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('unchecked hover escalates to border-strong and accent, same as checkbox/radio (17:14, 2026-10-10)', () => {

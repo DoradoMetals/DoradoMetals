@@ -16,12 +16,12 @@ export function Switch({ className, label, id, ...props }: SwitchProps) {
     <SwitchPrimitive.Root
       id={switchId}
       className={cn(
-        'group peer inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border border-transparent transition-colors',
+        'group peer relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border border-transparent transition-colors',
         'data-[state=unchecked]:bg-muted data-[state=unchecked]:border-border',
         'data-[state=unchecked]:hover:bg-accent data-[state=unchecked]:hover:border-border-strong',
         'data-[state=checked]:bg-primary data-[state=checked]:hover:opacity-85',
         'disabled:data-[state=checked]:bg-border-strong',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background',
+        'hit-area focus-ring',
         'disabled:cursor-not-allowed disabled:opacity-50',
         className
       )}

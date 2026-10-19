@@ -4,7 +4,7 @@ import * as React from 'react'
 
 import { Banner } from './Banner'
 import { Button } from '../button/Button'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 describe('Banner', () => {
   it('is a labelled section with eyebrow, title, description and action, and axe finds nothing', async () => {
@@ -22,7 +22,7 @@ describe('Banner', () => {
     expect(getByText('Get a quote in minutes')).toBeTruthy()
     expect(getByText('Ship insured, get paid the day we receive it.')).toBeTruthy()
     expect(getByRole('button', { name: 'Start a quote' })).toBeTruthy()
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('eyebrow and description are optional', () => {

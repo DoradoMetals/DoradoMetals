@@ -3,7 +3,7 @@ import { render } from '@testing-library/react'
 import * as React from 'react'
 
 import { Tracker, type TrackerStepData } from './Tracker'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 const steps: TrackerStepData[] = [
   { label: 'Picked Up', location: 'AUSTIN, TX', timestamp: 'Sep 1, 4:12 PM', state: 'complete' },
@@ -20,7 +20,7 @@ describe('Tracker', () => {
     expect(getByText('7948 1234 5678')).toBeTruthy()
     expect(getByText('ETA')).toBeTruthy()
     expect(getByText('Picked Up')).toBeTruthy()
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('marks the current scan for AT with aria-current', () => {
@@ -112,7 +112,7 @@ describe('Tracker', () => {
       expect(stages[stages.length - 1].className).not.toContain('flex-1')
       expect(stages[1].className).toContain('flex-1')
       expect(stages[1].className).toContain('items-center')
-      expect(await axeViolations(container)).toEqual([])
+      await expectNoAxeViolations(container)
     })
 
     it('the first stage has no left connector, the last has no right connector', () => {

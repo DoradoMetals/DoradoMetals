@@ -3,7 +3,7 @@ import { render } from '@testing-library/react'
 import * as React from 'react'
 
 import { Input } from './Input'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 function FakeIcon({ className }: { className?: string }) {
   return (
@@ -17,7 +17,7 @@ describe('Input', () => {
   it('label reaches the input, and axe finds nothing', async () => {
     const { getByLabelText, container } = render(<Input label="Order note" />)
     expect(getByLabelText('Order note')).toBeTruthy()
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('invalid rides aria-invalid and the message renders', () => {

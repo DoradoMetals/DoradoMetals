@@ -86,7 +86,7 @@ export function TableRow({
       className={cn(
         !borderless && insetRule,
         rowVariants({ intent }),
-        interactive && 'cursor-pointer',
+        interactive && 'cursor-pointer focus-ring',
         disabled && 'pointer-events-none opacity-50',
         className
       )}
@@ -133,7 +133,7 @@ export function TableHead({
 
   return (
     <th
-      scope="col"
+      scope={props.scope ?? 'col'}
       aria-sort={
         sortable
           ? sorted === 'asc'
@@ -157,7 +157,7 @@ export function TableHead({
           <button
             type="button"
             onClick={onSort}
-            className="inline-flex cursor-pointer items-center gap-2xs hover:text-foreground"
+            className="inline-flex cursor-pointer items-center gap-2xs rounded-sm hover:text-foreground focus-ring"
           >
             {children}
             <SortIcon aria-hidden className={cn('size-sm', sortTone)} />
@@ -171,7 +171,7 @@ export function TableHead({
             onClick={onFilter}
             aria-pressed={filtered ?? false}
             aria-label="Filter"
-            className="inline-flex cursor-pointer items-center text-muted-foreground hover:text-foreground aria-pressed:text-foreground"
+            className="inline-flex cursor-pointer items-center rounded-sm text-muted-foreground hover:text-foreground aria-pressed:text-foreground focus-ring"
           >
             <Funnel aria-hidden className="size-sm" />
           </button>

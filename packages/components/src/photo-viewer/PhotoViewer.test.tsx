@@ -3,7 +3,7 @@ import { fireEvent, render } from '@testing-library/react'
 import * as React from 'react'
 
 import { PhotoViewer } from './PhotoViewer'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 const photos = [{ alt: 'one' }, { alt: 'two' }, { alt: 'three' }]
 
@@ -25,7 +25,7 @@ describe('PhotoViewer', () => {
     expect(root.className).toContain('gap-md')
     expect(getByText('2 of 3')).toBeTruthy()
     expect(getByText('IMG.jpg').className).toContain('text-subtle')
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('arrows step and disable at the ends; thumbnails select', () => {

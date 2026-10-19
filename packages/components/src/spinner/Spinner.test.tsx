@@ -3,7 +3,7 @@ import { render } from '@testing-library/react'
 import * as React from 'react'
 
 import { Spinner } from './Spinner'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 describe('Spinner', () => {
   it('is a named status, wheel is decoration, and axe finds nothing', async () => {
@@ -12,6 +12,6 @@ describe('Spinner', () => {
     expect(status).toBeTruthy()
     expect(status.textContent).toContain('Loading rates')
     expect(container.querySelector('[aria-hidden]')).toBeTruthy()
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 })

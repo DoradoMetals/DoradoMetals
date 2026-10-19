@@ -3,7 +3,7 @@ import { fireEvent, render } from '@testing-library/react'
 import * as React from 'react'
 
 import { SliderField } from './SliderField'
-import { axeViolations } from '../test/axe'
+import { expectNoAxeViolations } from '../test/axe'
 
 describe('SliderField', () => {
   it('slider and input both carry the label, and axe finds nothing', async () => {
@@ -13,7 +13,7 @@ describe('SliderField', () => {
     const thumb = container.querySelector('[role="slider"]') as HTMLElement
     expect(thumb.getAttribute('aria-valuenow')).toBe('92')
     expect(container.querySelector('input')).toBeTruthy()
-    expect(await axeViolations(container)).toEqual([])
+    await expectNoAxeViolations(container)
   })
 
   it('typing in the box moves the value', () => {

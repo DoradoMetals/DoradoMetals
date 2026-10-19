@@ -41,8 +41,8 @@ export function Slider({
           aria-label={ariaLabel}
           aria-labelledby={ariaLabelledby}
           className={cn(
-            'block size-4 cursor-grab rounded-full bg-primary data-[disabled]:bg-border-strong',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background'
+            'relative block size-4 cursor-grab rounded-full bg-primary data-[disabled]:bg-border-strong',
+            'hit-area focus-ring'
           )}
         />
       </SliderPrimitive.Root>
