@@ -104,3 +104,14 @@ Ruling 172 (2026-10-20): a component page is a feature named for the thing
 Dialogs, Drawers); its sets are the parts that compose it (Card, Tabs,
 Tooltip, Stats, Chart, Row, Drawer, Dialog, Form), one code file each under
 the feature folder.
+
+Deletion rule (2026-10-20, after the Inventory lot screens were lost in a
+restructure): a worker deletes a node only when it is on a written deletion
+list saved under tools/<file>/snapshots before the pass, each entry carrying
+the proof (an empty section with zero children, or a component with zero
+instances in every file). A screen frame is never deletable by a worker; a
+section that holds screens is never "empty". After every structural pass the
+orchestrator runs the version-history loss audit (scratchpad audit.mjs:
+last pre-pass version versus current, every FRAME, SECTION, COMPONENT and
+COMPONENT_SET to depth 3) and reconciles every missing id against the
+deletion lists before the pass is accepted.
