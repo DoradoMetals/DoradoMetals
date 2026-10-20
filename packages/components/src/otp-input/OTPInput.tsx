@@ -134,7 +134,7 @@ export function OTPInput({
                         invalid
                           ? 'border border-destructive text-destructive'
                           : isActive
-                            ? 'border-(length:--stroke-emphasis) border-border-strong'
+                            ? 'border border-primary'
                             : 'border border-border'
                       )
                 )}

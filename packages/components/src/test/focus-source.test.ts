@@ -22,4 +22,70 @@ describe('focus visibility across the library', () => {
     })
     expect(offenders).toEqual([])
   })
+
+  it('field components show focus with the border and never with the ring', () => {
+    const fields = [
+      'field/Field.tsx',
+      'input/Input.tsx',
+      'textarea/Textarea.tsx',
+      'select/Select.tsx',
+      'multiselect/Multiselect.tsx',
+      'autocomplete/Autocomplete.tsx',
+      'date-picker/DatePicker.tsx',
+      'date-picker/DateRangePicker.tsx',
+      'masked-field/MaskedField.tsx',
+      'otp-input/OTPInput.tsx',
+      'admin-header/AdminHeader.tsx',
+      'quantity-stepper/QuantityStepper.tsx',
+      'slider-field/SliderField.tsx',
+    ]
+    for (const file of fields) {
+      expect(readFileSync(join(SRC, file), 'utf8'), file).not.toMatch(/focus-ring/)
+    }
+    const border = [
+      'field/Field.tsx',
+      'textarea/Textarea.tsx',
+      'date-picker/DateRangePicker.tsx',
+      'quantity-stepper/QuantityStepper.tsx',
+      'slider-field/SliderField.tsx',
+      'otp-input/OTPInput.tsx',
+    ]
+    for (const file of border) {
+      expect(readFileSync(join(SRC, file), 'utf8'), file).toMatch(
+        /(focus-visible|focus-within):border-primary|border-primary/
+      )
+    }
+  })
+
+  it('borderless controls keep the ring', () => {
+    for (const file of [
+      'button/Button.tsx',
+      'chip/Chip.tsx',
+      'checkbox/Checkbox.tsx',
+      'radio/Radio.tsx',
+      'switch/Switch.tsx',
+      'tabs/Tabs.tsx',
+    ]) {
+      expect(readFileSync(join(SRC, file), 'utf8'), file).toMatch(/focus-ring/)
+    }
+  })
+
+  it('no global stylesheet puts a focus outline on elements; the ring is opt-in through focus-ring', () => {
+    const themeDir = join(SRC, '..', '..', 'theme')
+    const css = readdirSync(themeDir).filter((name) => name.endsWith('.css'))
+    expect(css.length).toBeGreaterThan(0)
+    const offenders = css.flatMap((name) => {
+      const text = readFileSync(join(themeDir, name), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+      const stripped = text.replace(/@utility\s+[\w-]+\s*\{(?:[^{}]|\{[^{}]*\})*\}/g, '')
+      return [...stripped.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+        .filter(
+          ([, selector, body]) =>
+            /:focus(-visible|-within)?\b/.test(selector) && /outline|box-shadow/.test(body)
+        )
+        .map(([, selector]) => `${name} ${selector.trim()}`)
+    })
+    expect(offenders).toEqual([])
+    const base = readFileSync(join(themeDir, 'base.css'), 'utf8')
+    expect(base.match(/@utility focus-ring/g)).toHaveLength(1)
+  })
 })
