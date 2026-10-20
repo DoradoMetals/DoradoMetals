@@ -420,3 +420,9 @@ Fourth worker. Detail: people-, library-, orders-comments-log.md, "night (fourth
    - The Refiner conflict alert stays inline on the Order step.
 4. **After the Library publish.** In every drawer variant, set Custom footer=true, Show buttons=false and Footer content = the matching footer variant. Remove the alert from the Review Error body. Grow the drawers so they are not clipped.
 5. Render one desktop and one mobile footer at 2x. Post one reply on 1972785617 that covers all three threads and states the Skip rule. Reply on 1972786247. Log it.
+
+Jacob, at the pause (ruling 164): the Drawer footer is a generic buttons
+slot, not a named Skip slot. The Create Order footer (Cancel tertiary at the
+far left; Back, Skip, Continue at the right; the error row above) is placed
+into that slot by the Orders file, so the footer work does not wait on a
+Library property, only on the publish if the slot itself is new.

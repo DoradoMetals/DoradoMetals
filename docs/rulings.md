@@ -783,6 +783,14 @@ file named at the top of this file.
   checkout keeps its own required fields. Source: Jacob, Orders comments
   1972785617, 1972785727, 1972786092, 1972786247, 1972786692, 1972786834.
 
+- **164 — The Drawer footer is a slot, not a set of named buttons.** *"I
+  don't think drawer needs a specific 'Skip' button slot. Just need to be
+  able to put whatever buttons in the drawer that I want."* The Library
+  Drawer's footer takes whatever buttons a feature places in it (left and
+  right groups); Skip, Cancel, Back and Continue are the Create Order
+  drawer's own content, not Drawer properties. The code Drawer matches: a
+  footer children slot. Source: Jacob, chat 2026-10-20 (at the pause).
+
 ## Numbering
 
 Every number from 1 to 157 has an entry, plus 26b and 26c. Two rulings carry the
