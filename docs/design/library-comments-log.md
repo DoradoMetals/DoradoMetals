@@ -266,3 +266,22 @@ THE THREE TRAPS THIS SESSION ADDED TO THE LIST, all of which cost a run before t
 
 ## 2026-10-19 late (third worker)
 - Jacob (chat), ruling 161: Message 619:19 gained Content (Text existing; Image: Inbound 1263:5249, Outbound 1263:5258, Status=Delivered): the bubble's text hidden and a Thumbnail XL instance "Photo" at 220x160 inside; time and Delivered as text bubbles; description updated. Chat set below shifted 484. Snapshot tools/library/snapshots/message-pre-ruling161-2026-10-19.json. NEW pin 1972518909. Waits on publish; People lead thread samples follow.
+
+## 2026-10-19 night (fourth worker): four code-side asks (relayed by the orchestrator)
+Snapshot (REST, depth 1): tools/library/snapshots/focus-drawer-pre-2026-10-19.json (Button 25:510, Icon Button 457:75, Input 26:391, Select 38:75, Multiselect 1183:127, Checkbox 15:16, Radio 15:27, Switch 17:14, Chip 32:121, Tab 39:23, Drawer 127:32). Every batch was tripwired on the page COMPONENT count. Variant property names were checked after each add.
+- (1) Focus state. Each State=Default variant was cloned to State=Focus, with property references re-linked. Each clone got a "Focus ring" layer: an absolute rectangle 4 px outside the control, no fill, an INSIDE stroke bound to focus/ring, weight stroke/heavy (2), constraints STRETCH. Ring radius = control radius + 4, bound to tokens (4 -> radius/base, 8 -> radius/xl, full -> radius/full). Tab is radius 0, so its ring is square. The variant clip is off. Counts:
+  - Added: Button +45 (new Focus block below the grid; Button — usage 479:155 moved to y2224), Icon Button +21, Checkbox +2 (1266:9, 1266:11), Radio +2, Switch +2, Chip +2, Tab +1 (1266:5562), Multiselect +1 (1266:5567, ring on Trigger).
+  - Ring added to the existing Focus variants (the 1 px primary border is kept): Input 26:84, 26:99, 26:114, 26:270, 26:285, 26:300; Select 38:32, 38:60.
+  - Not done: Radio Tile, Radio Chip and Radio Card (not named in the ask). Textarea also has no ring yet.
+  - NEW pin 1972584602. Jacob to approve the look.
+- (2) Contrast PROPOSAL frame 1269:2 on Foundations (x800). It shows each pair today (live variables) beside a candidate hex, with ratios:
+  - text/placeholder #787c87 -> #888b95: 4.51 to 5.32 on popover, highest, muted and secondary.
+  - text/danger on secondary: 4.33 -> #ed576a, 4.51.
+  - Danger button: A, fill #c94556 at 4.50; B, label #0d0e11 at 5.45. Note in the frame: text/danger shares status/destructive's hex, so split them before darkening the fill.
+  - border/default, border/strong and border/input -> about #6c6e72 to #6c6e75: 3.0 to 3.9 on every surface. Note in the frame: decorative dividers are exempt under 1.4.11.
+  - No variable changed. NEW pin 1972584612.
+- (3) Drawer Size=Full 1058:28: close x 1058:33 is now visible and wired to Show close#1056:6, with an annotation. NEW pin 1972584617.
+- (4) Empty State 127:49: the glyph instance 184:106 in Action=None now has mainComponent bound to Icon#184:7 (Action=With 184:100 was already wired). The glyph is unchanged in render. NEW pin 1972584622.
+- Summary comment for Jacob on READ ME 979:3: 1972584681. There is no single Library main thread, so it was posted as a root. Fresh 2x renders of all sets, 1269:2, 1058:28 and 127:49 checked.
+- After the publish: People mobile drawers use Show close=true, so their x will appear. The New lead and Assign Empty State instance can drop its direct glyph swap.
+- (1, follow-up) Focus state finished on the rest (orchestrator relay): Radio Tile 31:59 +6, Radio Chip 31:78 +2, Radio Card 99:119 +6 (State=Focus, new column to the right, ring as above, both constraints STRETCH; property names checked; tripwires matched; no overlaps). Textarea 37:63: ring added to the existing Focus variants 37:14 and 37:44 (on Box, vertical STRETCH so it follows a taller field). Fresh 2x renders checked. Reply in 1972584681.
