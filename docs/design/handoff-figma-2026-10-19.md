@@ -561,3 +561,47 @@ Seventh worker. Detail: every <file>-comments-log.md, "2026-10-20 (seventh worke
   - Every page is tidied from the origin (rows, 200 px gap, wrap at 8000; TEXT within 400 px stays with its node). The scratch tidy script is not kept, so re-derive it from the logs.
   - Sections and wrapper frames are deleted. Lists are in tools/<file>/snapshots/ruling171-wrappers-to-delete-2026-10-20.json. Full REST trees from before the change are beside them.
 - **Not done:** merging the Desktop/Mobile twin sets into one set with a Layout axis (ruling 169). They are named "Mobile row", "Mobile card" and so on for now. Orders "Photos / Lot photos" kept its name.
+
+## 14. Pause (2026-10-20 evening)
+
+Seventh worker, paused on Jacob's word. Detail: each <file>-comments-log.md, "2026-10-20 (seventh worker)".
+
+### 14.1 Lot screens rebuild (Inventory)
+- Section 1:2779 "CURRENT · Lot screens" was lost on 2026-10-09, between version 2408194016944016515 (03:40Z, present) and 2408221582579581614 (04:28Z, absent). Today's work did not cause it.
+- The source is saved at tools/inventory/snapshots/lot-screens-1-2779-2408194016944016515.json.
+- 20 of 24 screens and all 24 labels are rebuilt on Lots 0:1, below the list screen. They are built from live components, with every override re-applied, and carry new ids (158:501, 159:941..159:4002, 160:4057..160:8217). Root comment 1974407767.
+- Not rebuilt: "Lock ounces open" desktop and mobile, because component 1:808/1:838 is gone and the dialog must be built as frames from the snapshot; and "Lot 2493-A — Refiner lot" desktop and mobile.
+- The builder scripts are in scratch, so regenerate them from the snapshot: instance by lid or key, apply cp/sk, then nested overrides by "I<id>;<suffix>".
+- Live-Library differences: the Header now has the ticker, and the Entity Header shows its own breadcrumb and a second actions row.
+
+### 14.2 Ruling 171 / 172 state
+- Ruling 171 dividers (one Components divider per screen group), set renames and tidy are done in all 10 files.
+- Ruling 172 feature pages are done in People, Orders and Pricing.
+- Still to do: Inventory, Media and Fulfillment. Then run the 172 check on Admin, Auth, Payments and Locations; they are probably already feature pages, so only confirm.
+- Twin merges (Layout variant) are done in People, Orders and Pricing. Inventory twins are not merged yet: Header/Mobile header, Refiner/Mobile refiner, Lineage Card/Mobile card, Rows Row/Mobile card, Table Row/Mobile card, Movement row/Mobile movement card.
+- Rule: every table feature keeps a Row set with Desktop and Mobile variants. People Leads and Customers Rows are restored (635:6774, 635:7125). Check the other files' table Rows before any stale-set deletion.
+- Stale check per file: People is done (deleted the Leads List, two Head rows and two desktop rows; the two desktop rows were then restored from the Library rows). Orders candidates, not deleted: Filter rail 619:4639 and Lot select mobile row 1284:19906.
+
+### 14.3 Waits on Jacob
+- Publishes:
+  - Library: focus rings (ruling 170), image bubbles, Paperwork Row text buttons, Drawer cleanups, Download.
+  - Orders.
+  - Inventory and Fulfillment (first publish).
+  - People and Pricing, for the merged Layout sets.
+- People:
+  - Users Table 206:7207 has no instances; keep it or delete it?
+  - Five orphan Mobile header/filters sets (200:6550, 203:6725, 202:3680, 203:4039, 202:4256).
+  - Ban: keep or remove?
+  - Customer KPI cards one at a time (thread 1974185750), then Top 10, Activity, and the Map last.
+- Inventory: Lot Images 143:13136 vs Lot Photos 1:3940.
+- Orders: Status chips placement (second Admin Header row or replacing the Show select).
+- Earlier: the Library Table input cell (1974245513) and the Selection Bar card-or-bar choice (1974232661).
+
+### 14.4 Threads
+- No relayed thread is unanswered.
+- Pending Jacob replies: 1974185750, 1974245513, 1974232661, and this evening's page-map replies in each file.
+
+### 14.5 Exact next step
+1. Inventory: rebuild the 4 missing lot screens. Lock ounces becomes frames from the snapshot. Refiner lot needs the Details overrides (4) and Worth overrides (12) from the snapshot.
+2. Inventory ruling 172: Rows/Table/Select become Lots table (Row with Desktop+Mobile, Head, Toolbar), Lot select, and so on. Then the twin merges, tidy, reply on 1974368387, and log.
+3. Media and Fulfillment ruling 172, then the Admin, Auth, Payments and Locations check, each with a reply and a log entry.
