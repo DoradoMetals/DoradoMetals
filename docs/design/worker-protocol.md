@@ -92,7 +92,8 @@ feature" in the page-structure rule above.
 Ruling 171 (2026-10-20): pages are the navigation. Every feature file gets a
 divider page "──── Screens ────", one page per screen group, then per screen
 group and in the same order a divider page "──── Components (Group) ────"
-followed by that group's component pages (never one divider per file); sets are
+followed by that group's component pages, named for the part alone, never
+repeating the group ("New", not "New lead"; never one divider per file); sets are
 direct children of their page (169). The worker creates pages with the plugin
 API (as the Library's pages were made), moves nodes, never recreates, and
 checks node counts before and after each file.
