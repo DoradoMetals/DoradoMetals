@@ -809,6 +809,15 @@ file named at the top of this file.
   (function name to icon), and components take the function, not a glyph.
   Source: Jacob, People comment 1974078779.
 
+- **167 — A drawer closes by swipe, outside click and Escape unless it is
+  non-dismissible; its close button is optional.** *"mobile drawer should
+  have slide to close, should also close when clicked outside. Also with
+  escape. But we also need a non-dismissible prop for when drawer can only
+  be closed via explicit control. X close button should also be optional
+  (default present)."* The Library Drawer documents the behaviours; the code
+  Drawer has `dismissible` (default true) and `showClose` (default true).
+  Source: Jacob, Library comment 1974117920.
+
 ## Numbering
 
 Every number from 1 to 157 has an entry, plus 26b and 26c. Two rulings carry the

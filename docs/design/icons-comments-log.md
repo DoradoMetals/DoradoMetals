@@ -1,0 +1,14 @@
+# Icons file comments log (qxJf2XlhEFwy4uGHaH0L0n)
+
+Pages: Lucide Icons 7:2 (1748 components), Action Icons Docs 36:2 (Jacob's page for the registry), Brand Logos 21:2.
+
+## 2026-10-20 (fifth worker)
+- People 1974078779 / 1974093129 (in 1972415714) and Jacob direct: the function-to-icon registry (ruling 166) lives only here. Table "Action icons" 39:28 on page 36:2: title (Heading/H4), rule line, Head row and 43 rows (Function, Icon = instance from 7:2 with stroke bound to the colour rule, Lucide name, Colour rule, Used in). Tokens imported from the Library: Small/Regular, Small/Semibold, Heading/H4; text/default, text/muted, status/destructive, status/success, surface/card, border/default; spacing xs/sm/md/lg, radius/base, stroke/hairline. Seeded from a survey of every Icon Button and leading-icon Button (top-level instances) in Library, Orders, People, Pricing, Admin, Payments, Locations, Media, Auth. Conflicts found: one. Pricing Remove range 281:1898, 338:5249 Neutral -> Danger (matches Delete / Remove). Assign = clipboard-list (Jacob accepted). Rows marked Proposed are not drawn in any file. A stray text node 39:29 my script left on the page was removed. Fresh 2x render checked. Root comment 1974101121; People reply 1974101165.
+- 1974106897 + 1974106971 (pin 39:28 @73,266 and @137,388, "We should just pick a word here since they are the same thing"): relayed; synonym rows merge to one word and one glyph, renamed across the feature files.
+- 1974108189 + 1974108464 (in the two "pick a word" threads, "Or just add a slash like Delete / Remove"): merged rows are labelled with both words joined by a slash; no renames in the feature files.
+- 1974108722 (pin 39:28 @134,879, "Just add a slash like Send / Resend"): relayed; Send and Resend merge to one row.
+- 1974109745 (pin 39:28 @104,2279, "lets show trend down row too"): relayed; Trend down row added beside Trend up, directional pairs completed.
+- 1974106897 (pin 39:28 @73,266) + 1974108189 ("add a slash like Delete / Remove"): rows Delete and Remove merged into "Delete / Remove" (trash-2, Danger); Used in combined. Feature-file labels unchanged (Jacob). Reply posted.
+- 1974106971 (pin @137,388) + 1974108464 ("Export / Download"): rows merged into "Export / Download" (download, Success outline for table data; Paperwork Row document download stays default). Reply posted.
+- 1974108722 (pin @134,879, "Send / Resend"): rows merged into "Send / Resend" (send). Reply posted.
+- 1974109745 (pin @104,2279, "show trend down row too"): "Trend up / down" split into Trend up (trending-up, Success for rising) and Trend down (trending-down, Danger for falling; instance swapped to 7:2 trending-down). Directional pairs checked: Expand/Collapse, Back / Previous and Next, Lock/Unlock, Trend up/down each one row per direction. Rule line updated (slash rule, trend colours, pairs). Table now Head + 41 rows. Fresh 2x render checked. Reply posted.
