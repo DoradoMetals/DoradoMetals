@@ -361,3 +361,62 @@ Detail per item: orders-, people-, locations-, library-comments-log.md, sections
 - People 1972415943: confirm Employees (the pin sits on empty Users canvas).
 - Library publish: Message image bubbles. Then add one inbound and one outbound sample in the lead thread (People 34:2496 Customer messages).
 - Orders publish, for the code lane.
+
+## 10. Pause (2026-10-20)
+
+Fourth worker. Detail: people-, library-, orders-comments-log.md, "night (fourth worker)".
+### 10.1 Landed since section 9
+- **People, Leads port gaps** (snapshot leads-page-pre-new-lead-assign-2026-10-19.json).
+  - New lead drawer, frame 571:4150: New Lead Form 571:4396 and New Lead · Drawer 571:5146. Pin 1972578115.
+  - Assign picker, frame 572:4710: Assignee Row 572:4721, Assign Picker 572:4820, Assign Leads · Drawer 572:21813. Pin 1972578122.
+  - Location field: Contact info 573:5036 / 573:5049 and Edit Contact Form 573:5060. Pin 1972578932.
+  - Documents card 216:5285 unchanged. Reply 1972579070 on 1972288177.
+- **Library** (snapshot focus-drawer-pre-2026-10-19.json).
+  - State=Focus (Focus ring layer, focus/ring, stroke/heavy, 2 px offset) on: Button, Icon Button, Checkbox, Radio, Radio Tile, Radio Chip, Radio Card, Switch, Chip, Tab, Multiselect.
+  - Ring added to the existing Focus variants of Input, Select and Textarea.
+  - Contrast PROPOSAL frame 1269:2 on Foundations. No variable changed.
+  - Drawer Size=Full: close button 1058:33 shown, bound to Show close.
+  - Empty State 127:49: Icon property wired to the glyph.
+  - Pins 1972584602/612/617/622. Summary 1972584681 on READ ME 979:3, reply 1972585665.
+- **Orders.**
+  - Lot Row 1280:20108: all 8 variants on surface/card, radius/base, border/default hairline. Reply 1972784726.
+  - Review header: Stats replaced by a Library Card with Content = Review Header 1337:42997 (Kind x Layout), in all 10 body variants of 1287:33216. Review drawers 1287:38151 grown. Reply 1972794685.
+  - Send Link 1319:36307 (Transaction Accounts block), both states: surface/card, radius/base. Reply 1972795499.
+  - **Footer work: NOT started.** No Orders or Library node was changed for it.
+
+### 10.2 Threads
+- Answered: People 1972288177 (reply 1972579070). Orders 1972781861, 1972784712, 1972785113.
+- Unanswered (Orders): 1972785617 "Cancel far left" (+1972785790 "tertiary").
+  - 1972785727 "skip button next to continue, secondary", with Jacob's replies 1972786092, 1972786692 and 1972786834.
+  - 1972786247 "Errors above the buttons in the footer".
+
+### 10.3 Waits on Jacob
+- **Publishes:**
+  - Library: focus states, Drawer Full close, Empty State icon wiring, plus the earlier items in 8.5.
+  - Orders: the Create Order changes, for the code lane.
+- **People:**
+  - Keep the lead Location, or drop the header city line?
+  - Documents card: four fixed kinds, or uploaded PDFs?
+- **Library:**
+  - Approve the focus ring look.
+  - Pick a contrast candidate per row in 1269:2.
+- **Skip rule** (given by Jacob in 1972786692/834; needs only the drawing): Order step enabled once Kind and Party are set, Disabled before; enabled on Fulfillment and Transaction; absent on Review.
+
+### 10.4 Exact next step (footer, Orders 1972785617 / 1972785727 / 1972786247)
+1. **The problem.** The Create Order drawers (Order 1293:25214, Fulfillment 1293:25217, Transaction 1293:25220, Review 1287:38151; 78 variants) use the remote Library Drawer. Its Footer (SM 127:15, MD 1056:2570, LG 1056:2581, Full 1058:36) holds two fixed Buttons, and an instance cannot take new children.
+2. **Library Drawer change.** Snapshot first. In each Footer:
+   - Add a "Footer content" INSTANCE_SWAP slot (default: a placeholder Slot like 818:2), FILL width, visible through a new BOOLEAN "Custom footer" (default false).
+   - Bind both Buttons' visible to a new BOOLEAN "Show buttons" (default true).
+   - Existing instances stay unchanged. Pin NEW and ask Jacob to publish.
+3. **Orders: build the local set "Create Order Footer"** in Shared 1293:25223, with Step x Layout x State:
+   - Desktop: Cancel Tertiary at the far left (SPACE_BETWEEN). At the right: Back (not on Order), Skip Secondary, then Continue Primary ("Create order" on Review).
+   - Mobile: stacked FILL buttons in this order: Continue, Skip, Back, Cancel (Tertiary).
+   - States:
+     - Order: Default, Skip disabled (party empty; Continue Disabled too), Continue disabled (Conflict), Error.
+     - Fulfillment: Default, Error.
+     - Transaction: Default, Continue disabled (No accounts), Error.
+     - Review: Default, Loading (all Disabled, "Creating…"), Error. Review has no Skip.
+   - Error variants: a Danger Alert row (FILL) above the buttons. Move the Review Error alert text there.
+   - The Refiner conflict alert stays inline on the Order step.
+4. **After the Library publish.** In every drawer variant, set Custom footer=true, Show buttons=false and Footer content = the matching footer variant. Remove the alert from the Review Error body. Grow the drawers so they are not clipped.
+5. Render one desktop and one mobile footer at 2x. Post one reply on 1972785617 that covers all three threads and states the Skip rule. Reply on 1972786247. Log it.

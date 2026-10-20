@@ -394,3 +394,11 @@ Note: Jacob's four `Party=Customer` instances carry NO badge at all, so they fol
 - 1972786092 (in 1972785727, "Skip button should be allowed wherever it possible... I am guessing we will need lots"): confirms Skip on Fulfillment and Transaction, disabled on the Order step, absent on Review.
 - 1972786247 (pin 1293:25213 @975,1138, "Errors should show up above the buttons in the footer"): relayed; footer gains an error row above the buttons; drawer code lane told.
 - 1972786692 + 1972786834 (in 1972785727, "only order type/customer/employee required from the admin standpoint; maybe all of it skippable"): ruling 163; Skip enabled on the Order step once kind and party are set.
+- 1972784712 (pin 1293:25222 @3484,276, Review stats row: "single header card"). The pin hit a Stat in Stats of Create Order Body · Review. Snapshot: tools/orders/snapshots/review-stats-pre-header-card-2026-10-19.json.
+  - New content set Review Header 1337:42997 in the Review frame, Kind (Customer purchase / Customer sale / Refiner) x Layout:
+    - Left (Party): order type in Small/Regular text/muted. Name row: name in Stat/Small, then "Assigned to Jacob Johnson" in Small/Regular muted. The mobile row wraps.
+    - Right (Total): "Estimated payout / charge / settlement" in Small/Regular muted, over the value in Stat/Default ($24,066.04 / $24,972.48 / After assay). Desktop is SPACE_BETWEEN with the right column end-aligned; mobile stacks.
+  - Each of the 10 body variants (all Kinds, Desktop/Mobile, Default/Loading/Error): Stats frame replaced by a Library Card instance ("Header card", FILL) with Content = the matching Review Header variant. Loading and Error use Customer purchase. The lots line is gone.
+  - The Review drawers 1287:38151 grew by the body delta (desktop +26, mobile +51) so the full screen shows.
+  - Fresh 2x renders of 1287:36847 and 1287:37487 checked. Reply posted.
+- 1972785113 (pin 1293:25219 @9032,661, "card background"): hit Send Link 1319:36307 (State=Pending, in Section · Accounts, Transaction Link sent variant 1319:47099). Snapshot tools/orders/snapshots/send-link-pre-card-bg-2026-10-19.json. Both variants (Ready 1319:36198, Pending 1319:36251): fill surface/raised -> surface/card, radius radius/md -> radius/base; border/default hairline kept. 16 instances, none with a literal fill. Fresh 2x render of 1319:47099 checked. Reply posted.
