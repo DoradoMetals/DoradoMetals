@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom'
 import type { ReactNode } from 'react'
 import * as React from 'react'
 import { createContext, useContext, useEffect, useId, useRef, useState } from 'react'
-import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
+import { motion, AnimatePresence, useMotionValue, useReducedMotion } from 'framer-motion'
 import { X } from '@dorado/icons'
 import { cn } from '../cn'
 import { Button, type ButtonProps } from '../button/Button'
@@ -192,6 +192,8 @@ export function Drawer({
   useKeyboardInset(open, panelRef)
 
   const swipe = useRef<Swipe | null>(null)
+  const slideX = useMotionValue(0)
+  const slideY = useMotionValue(0)
   const sign = anchor === 'left' ? -1 : 1
   const coord = (e: { clientX: number; clientY: number }) =>
     (isBottom ? e.clientY : e.clientX) * sign
@@ -201,6 +203,8 @@ export function Drawer({
   const settle = (el: HTMLElement) => {
     el.style.transition = shouldReduceMotion ? '' : SPRING_BACK
     el.style.transform = ''
+    slideX.jump(0)
+    slideY.jump(0)
   }
 
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -211,6 +215,8 @@ export function Drawer({
     if (!handle && !isBottom) return
     if (!handle && target.closest?.(FIELDS)) return
     if (target.closest?.('button, a') && !target.closest?.('[data-drawer-grabber]')) return
+    slideX.stop()
+    slideY.stop()
     swipe.current = { id: e.pointerId, start: coord(e), travel: 0, at: e.timeStamp, speed: 0 }
     panel.style.transition = ''
     const move = (ev: PointerEvent) => {
@@ -221,6 +227,10 @@ export function Drawer({
       active.speed = (travel - active.travel) / elapsed
       active.travel = travel
       active.at = ev.timeStamp
+      slideX.stop()
+      slideY.stop()
+      if (isBottom) slideY.jump(travel)
+      else slideX.jump(travel * sign)
       panel.style.transform = translate(travel)
     }
     const end = (ev: PointerEvent) => {
@@ -270,6 +280,12 @@ export function Drawer({
             ref={panelRef}
             onFocusCapture={panelRef.onFocusCapture}
             onPointerDown={onPointerDown}
+            style={isBottom ? { y: slideY } : { x: slideX }}
+            onAnimationStart={() => {
+              if (!swipe.current) return
+              slideX.stop()
+              slideY.stop()
+            }}
             role="dialog"
             aria-modal="true"
             aria-labelledby={titled ? titleId : undefined}

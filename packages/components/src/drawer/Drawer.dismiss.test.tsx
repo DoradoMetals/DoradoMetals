@@ -96,7 +96,7 @@ describe('ruling 167: dismissing the Drawer', () => {
 
     await drag(user, grabber, 160)
     expect(onOpenChange).not.toHaveBeenCalled()
-    expect(panel().style.transform).toBe('')
+    expect(['', 'none']).toContain(panel().style.transform)
 
     await drag(user, grabber, 260)
     expect(onOpenChange).toHaveBeenCalledWith(false)
@@ -105,6 +105,7 @@ describe('ruling 167: dismissing the Drawer', () => {
   it('the panel follows the finger while dragging', async () => {
     const { user } = setup(<Harness />)
     widen(panel())
+    await pause(400)
     const header = panel().querySelector('[data-drawer-header]') as HTMLElement
     await user.pointer({
       keys: '[MouseLeft>]',
@@ -118,6 +119,30 @@ describe('ruling 167: dismissing the Drawer', () => {
       target: header,
       coords: { clientX: 150, clientY: 20 },
     })
+  })
+
+  it('a drag that starts during the enter animation owns the transform and still closes', async () => {
+    const onOpenChange = vi.fn()
+    const { user } = setup(<Harness onOpenChange={onOpenChange} />)
+    widen(panel())
+    const header = panel().querySelector('[data-drawer-header]') as HTMLElement
+    await user.pointer({
+      keys: '[MouseLeft>]',
+      target: header,
+      coords: { clientX: 100, clientY: 20 },
+    })
+    await user.pointer({ target: header, coords: { clientX: 150, clientY: 20 } })
+    expect(panel().style.transform).toBe('translateX(50px)')
+    await pause(400)
+    expect(panel().style.transform).toBe('translateX(50px)')
+    await user.pointer({ target: header, coords: { clientX: 250, clientY: 20 } })
+    expect(panel().style.transform).toBe('translateX(150px)')
+    await user.pointer({
+      keys: '[/MouseLeft]',
+      target: header,
+      coords: { clientX: 250, clientY: 20 },
+    })
+    await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false))
   })
 
   it('a fast fling from the header closes it below the distance threshold', async () => {
@@ -205,7 +230,7 @@ describe('ruling 167: dismissing the Drawer', () => {
       'swipe',
     ])
     expect(onOpenChange).not.toHaveBeenCalled()
-    await waitFor(() => expect(panel().style.transform).toBe(''))
+    await waitFor(() => expect(['', 'none']).toContain(panel().style.transform))
 
     confirmClose.mockImplementation(async () => true)
     fireEvent.keyDown(document, { key: 'Escape' })
