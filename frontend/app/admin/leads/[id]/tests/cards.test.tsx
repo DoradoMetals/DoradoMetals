@@ -507,6 +507,79 @@ describe('the Contact info card', () => {
     }
   })
 
+  test('shows the Location read-only as City, ST', async () => {
+    stubApi(leadRoutes({ [`GET /leads/${LEAD_A}`]: { ...dwight, city: 'Austin', state: 'TX' } }))
+    mountLead()
+    await ready()
+    const contact = card('contact')
+    const box = within(contact).getByLabelText('Location') as HTMLInputElement
+    expect(box.value).toBe('Austin, TX')
+    expect(box.hasAttribute('readonly')).toBe(true)
+  })
+
+  test('shows a state alone in the Location', async () => {
+    stubApi(leadRoutes({ [`GET /leads/${LEAD_A}`]: { ...dwight, state: 'TX' } }))
+    mountLead()
+    await ready()
+    const box = within(card('contact')).getByLabelText('Location') as HTMLInputElement
+    expect(box.value).toBe('TX')
+  })
+
+  test('the card has no axe violations with and without a location', async () => {
+    stubApi(leadRoutes({ [`GET /leads/${LEAD_A}`]: { ...dwight, city: 'Austin', state: 'TX' } }))
+    const first = mountLead()
+    await ready()
+    await expectNoAxeViolations(card('contact'))
+    first.unmount()
+    stubApi(leadRoutes())
+    mountLead()
+    await ready()
+    await expectNoAxeViolations(card('contact'))
+  })
+
+  test('shows an empty Location when none is set', async () => {
+    stubApi(leadRoutes())
+    mountLead()
+    await ready()
+    const box = within(card('contact')).getByLabelText('Location') as HTMLInputElement
+    expect(box.value).toBe('')
+  })
+
+  test('the drawer edits City and State and Save patches both', async () => {
+    const user = userEvent.setup()
+    const calls = stubApi(leadRoutes())
+    mountLead()
+    await ready()
+    await user.click(within(card('contact')).getByRole('button', { name: 'Edit' }))
+    const drawer = await screen.findByRole('dialog')
+    await user.type(within(drawer).getByLabelText('City'), 'Austin')
+    await user.type(within(drawer).getByLabelText('State'), 'tx')
+    await expectNoAxeViolations(drawer)
+    await user.click(within(drawer).getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      const patch = callsTo(calls, 'PATCH', `/leads/${LEAD_A}`).at(-1)
+      expect(patch?.body).toMatchObject({ city: 'Austin', state: 'TX' })
+    })
+  })
+
+  test('clearing City and State patches them to null', async () => {
+    const user = userEvent.setup()
+    const calls = stubApi(
+      leadRoutes({ [`GET /leads/${LEAD_A}`]: { ...dwight, city: 'Austin', state: 'TX' } })
+    )
+    mountLead()
+    await ready()
+    await user.click(within(card('contact')).getByRole('button', { name: 'Edit' }))
+    const drawer = await screen.findByRole('dialog')
+    await user.clear(within(drawer).getByLabelText('City'))
+    await user.clear(within(drawer).getByLabelText('State'))
+    await user.click(within(drawer).getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      const patch = callsTo(calls, 'PATCH', `/leads/${LEAD_A}`).at(-1)
+      expect(patch?.body).toEqual({ city: null, state: null })
+    })
+  })
+
   test('without consent it says so', async () => {
     stubApi(
       leadRoutes({

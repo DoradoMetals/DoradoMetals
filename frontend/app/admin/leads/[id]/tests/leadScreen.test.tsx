@@ -16,7 +16,7 @@ import {
   pending,
   stubApi,
 } from '../../tests/fixtures'
-import { archivedDwight, card, findCard, leadRoutes, mountLead } from './screenFixtures'
+import { archivedDwight, card, dwight, findCard, leadRoutes, mountLead } from './screenFixtures'
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
@@ -100,9 +100,43 @@ describe('the lead header', () => {
     expect(within(crumbs).getByText('Dwight Okafor')).toBeTruthy()
   })
 
-  test.todo(
-    'shows the city beside the number once the lead read carries one (LeadView has no city)'
-  )
+  test('prints the city line beside the number when the lead has a city', async () => {
+    stubApi(leadRoutes({ [`GET /leads/${LEAD_A}`]: { ...dwight, city: 'Austin', state: 'TX' } }))
+    mountLead()
+    await screen.findByRole('heading', { name: 'Dwight Okafor', level: 1 })
+    expect(within(header()).getByText(/LEAD-4471\s+·\s+Austin, TX/)).toBeTruthy()
+  })
+
+  test('prints no city line when only a state is set', async () => {
+    stubApi(leadRoutes({ [`GET /leads/${LEAD_A}`]: { ...dwight, state: 'TX' } }))
+    mountLead()
+    await screen.findByRole('heading', { name: 'Dwight Okafor', level: 1 })
+    const h = within(header())
+    expect(h.getByText('LEAD-4471')).toBeTruthy()
+    expect(h.queryByText(/·/)).toBeNull()
+    expect(h.queryByText(/TX/)).toBeNull()
+  })
+
+  test('the header has no axe violations with and without a location', async () => {
+    stubApi(leadRoutes({ [`GET /leads/${LEAD_A}`]: { ...dwight, city: 'Austin', state: 'TX' } }))
+    const first = mountLead()
+    await screen.findByRole('heading', { name: 'Dwight Okafor', level: 1 })
+    await expectNoAxeViolations(header())
+    first.unmount()
+    stubApi(leadRoutes())
+    mountLead()
+    await screen.findByRole('heading', { name: 'Dwight Okafor', level: 1 })
+    await expectNoAxeViolations(header())
+  })
+
+  test('prints no city line when the lead has no location', async () => {
+    stubApi(leadRoutes())
+    mountLead()
+    await screen.findByRole('heading', { name: 'Dwight Okafor', level: 1 })
+    const h = within(header())
+    expect(h.getByText('LEAD-4471')).toBeTruthy()
+    expect(h.queryByText(/·/)).toBeNull()
+  })
 
   test('choosing an assignee patches the lead', async () => {
     const calls = stubApi(leadRoutes())

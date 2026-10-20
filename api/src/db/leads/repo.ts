@@ -107,6 +107,8 @@ export async function create(row: LeadPatch, executor?: Executor): Promise<LeadV
       row.source_id,
       row.contact_preference_id,
       row.notes,
+      row.city,
+      row.state,
     ],
     executor
   )

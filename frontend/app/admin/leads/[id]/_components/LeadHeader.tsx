@@ -15,7 +15,7 @@ import type { LeadView } from '@dorado/contracts'
 
 import { protectedRoutes } from '@/shared/types/routes'
 
-import { BADGE_INTENT, formatShortDate, leadBadge } from '../../_lib'
+import { BADGE_INTENT, formatLocation, formatShortDate, leadBadge } from '../../_lib'
 
 const NOBODY = 'nobody'
 
@@ -42,6 +42,7 @@ export function LeadHeader({
 }: LeadHeaderProps) {
   const badge = leadBadge(lead)
   const archived = badge === 'Archived'
+  const location = lead.city?.trim() ? formatLocation(lead) : ''
   return (
     <div data-testid="lead-header">
       <EntityHeader
@@ -67,7 +68,7 @@ export function LeadHeader({
             {lead.name}
           </Text>
         }
-        reference={lead.number}
+        reference={location ? `${lead.number}  ·  ${location}` : lead.number}
         meta={`Created ${formatShortDate(lead.created_at)}`}
         assignedTo={
           <Select

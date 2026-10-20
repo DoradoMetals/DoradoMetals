@@ -21,6 +21,13 @@ const hundredths = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 })
 
 export const DASH = '—'
 
+export function formatLocation(lead: { city: string | null; state: string | null }): string {
+  const city = lead.city?.trim()
+  const state = lead.state?.trim()
+  if (city && state) return `${city}, ${state}`
+  return city || state || ''
+}
+
 export function formatHours(hours: number | null | undefined): string {
   if (hours == null) return DASH
   const minutes = Math.round(hours * 60)

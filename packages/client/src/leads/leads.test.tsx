@@ -293,6 +293,22 @@ describe('lead writes', () => {
       `/leads/${LEAD}`,
       { assigned_to_id: USER },
     ],
+    [
+      'patch carrying a location',
+      () => usePatchLead(LEAD),
+      { city: 'Austin', state: 'TX' },
+      'PATCH',
+      `/leads/${LEAD}`,
+      { city: 'Austin', state: 'TX' },
+    ],
+    [
+      'patch clearing a location',
+      () => usePatchLead(LEAD),
+      { city: null, state: null },
+      'PATCH',
+      `/leads/${LEAD}`,
+      { city: null, state: null },
+    ],
     ['archive', () => useArchiveLead(), LEAD, 'DELETE', `/leads/${LEAD}`, undefined],
     ['restore', () => useRestoreLead(), LEAD, 'POST', `/leads/${LEAD}/restore`, {}],
     [
