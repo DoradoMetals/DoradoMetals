@@ -901,8 +901,11 @@ file named at the top of this file.
   "Cards", "Dialogs", "Drawers" pages): the page is Performance, Assigned
   work, Top customers, Configuration, Ban ...; its sets are Card (the
   composed whole), Tabs, Tooltip, Stats, Chart, Row, Drawer, Dialog, Form,
-  each a code file under `__features__/Performance/`. Applies to every
-  feature file. Source: Jacob, chat 2026-10-20.
+  each a code file under `__features__/Performance/`. Every table feature
+  keeps a Row set with Desktop and Mobile variants even when the screen
+  instances the Library Table in place: the code reads that pair as its
+  column config and its mobile row slot. Applies to every feature file.
+  Source: Jacob, chat 2026-10-20.
 
 ## Numbering
 
