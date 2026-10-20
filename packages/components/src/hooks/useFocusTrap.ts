@@ -35,8 +35,31 @@ function focusable(root: HTMLElement): HTMLElement[] {
   )
 }
 
-export function useFocusTrap<T extends HTMLElement>(active: boolean) {
+export type FocusTrapRef<T extends HTMLElement> = React.RefObject<T | null> & {
+  onFocusCapture: (event: React.FocusEvent) => void
+}
+
+export type FocusTrapOptions = {
+  initialFocus?: () => HTMLElement | null
+}
+
+export function useFocusTrap<T extends HTMLElement>(
+  active: boolean,
+  options: FocusTrapOptions = {}
+): FocusTrapRef<T> {
+  const initialFocus = React.useRef(options.initialFocus)
+  initialFocus.current = options.initialFocus
   const ref = React.useRef<T | null>(null)
+  const layered = React.useRef<EventTarget | null>(null)
+  const trap = React.useMemo(
+    () =>
+      Object.assign(ref, {
+        onFocusCapture: (event: React.FocusEvent) => {
+          layered.current = event.target
+        },
+      }),
+    []
+  )
 
   React.useEffect(() => {
     if (!active) return
@@ -45,7 +68,8 @@ export function useFocusTrap<T extends HTMLElement>(active: boolean) {
 
     const restoreTo = document.activeElement as HTMLElement | null
 
-    const first = focusable(root)[0] ?? root
+    const chosen = initialFocus.current?.() ?? null
+    const first = chosen && root.contains(chosen) ? chosen : (focusable(root)[0] ?? root)
     if (!root.hasAttribute('tabindex') && first === root) root.setAttribute('tabindex', '-1')
     first.focus({ preventScroll: true })
 
@@ -70,7 +94,9 @@ export function useFocusTrap<T extends HTMLElement>(active: boolean) {
     }
 
     const onFocusIn = (e: FocusEvent) => {
-      if (root.contains(e.target as Node)) return
+      const owned = layered.current === e.target
+      layered.current = null
+      if (owned || root.contains(e.target as Node)) return
       const items = focusable(root)
       ;(items[0] ?? root).focus({ preventScroll: true })
     }
@@ -85,5 +111,5 @@ export function useFocusTrap<T extends HTMLElement>(active: boolean) {
     }
   }, [active])
 
-  return ref
+  return trap
 }

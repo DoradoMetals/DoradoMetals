@@ -1,4 +1,4 @@
-import { test, afterAll } from 'vitest'
+import { test, afterAll, beforeAll } from 'vitest'
 import assert from 'node:assert/strict'
 import request from 'supertest'
 import pool from '#pool'
@@ -34,6 +34,15 @@ const anOwnedOrderWithFulfillment = async (c: PoolClient) => {
 afterAll(async () => {
   restoreSessions()
   await pool.end()
+})
+
+const baseline = { pickups: 0, directs: 0 }
+
+beforeAll(async () => {
+  const [{ n }] = await outside(`SELECT count(*)::int AS n FROM fulfillments.pickups`)
+  const [{ d }] = await outside(`SELECT count(*)::int AS d FROM fulfillments.directs`)
+  baseline.pickups = n
+  baseline.directs = d
 })
 
 test('the method menu is refused to anonymous and filtered by direction', async () => {
@@ -123,6 +132,6 @@ test('a customer cannot reach any of the admin fulfillment routes', async () => 
 test('nothing this file did survived the transaction', async () => {
   const [{ n }] = await outside(`SELECT count(*)::int AS n FROM fulfillments.pickups`)
   const [{ d }] = await outside(`SELECT count(*)::int AS d FROM fulfillments.directs`)
-  assert.equal(n, 0, 'a pickup was booked in dev')
-  assert.equal(d, 0, 'an appointment was booked in dev')
+  assert.equal(n, baseline.pickups, 'a pickup was booked in dev')
+  assert.equal(d, baseline.directs, 'an appointment was booked in dev')
 })

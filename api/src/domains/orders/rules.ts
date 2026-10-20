@@ -925,22 +925,21 @@ export function assertRepairable(intent: PaymentIntentFacts, cents: number): voi
 
 export class OrderUndecided extends Invalid {}
 
-// An order created with lots chooses its fulfillment and its money at
-// creation; with no lots both may be left for the order screen.
+// Ruling 163: an admin order needs only its kind, its party and its
+// assignee. A purchase with lots may leave fulfillment and payout for the
+// order screen. A sale with lots is placed as a checkout is, so it still
+// names its fulfillment, payment method and recipient address.
 export function assertDecided(order: AdminOrderCreate): void {
-  if (order.lots.length === 0) return
-  if (!order.fulfillment) {
-    throw new OrderUndecided('an order with lots chooses its fulfillment at creation')
-  }
-  if (order.direction === 'purchase' && !order.payout) {
-    throw new OrderUndecided('a purchase with lots chooses its payout at creation')
-  }
-  if (order.direction === 'sale' && (!order.payment_method_id || !order.recipient_address_id)) {
+  if (order.lots.length === 0 || order.direction === 'purchase') return
+  if (!order.fulfillment || !order.payment_method_id || !order.recipient_address_id) {
     throw new OrderUndecided(
-      'a sale with lots chooses its payment method and recipient address at creation'
+      'a sale with lots chooses its fulfillment, payment method and recipient address at creation'
     )
   }
 }
+
+export const placesAsCheckout = (order: AdminOrderCreate): boolean =>
+  order.lots.length > 0 && !!order.fulfillment && (order.direction === 'sale' || !!order.payout)
 
 export function assertPayoutAccountNamed(payout: AdminPayout): void {
   if (isBankMethod(payout.method) && !payout.bank_link_id) {

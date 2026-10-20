@@ -11,15 +11,17 @@ import {
   useResendBankLink,
   useSendBankLink,
 } from '@dorado/client'
+import { Send } from '@dorado/icons'
 import type { AdminPayout, BankLinkChannel, LinkedAccount } from '@dorado/contracts'
 
-import { hasLots, isRefiner, type DrawerState } from '../../_lib/createOrder'
+import { laterAllowed, isRefiner, type DrawerState } from '../../_lib/createOrder'
 import {
   BANK_METHODS,
   PAYOUT_LABEL,
   accountLabel,
   addressLabel,
   formatPhone,
+  formatTime,
 } from '../../_lib/createOrderView'
 import { Chip, Section, Tile } from './parts'
 
@@ -89,7 +91,7 @@ function PurchasePayout({
   const methods = (usePaymentMethods('purchase').data ?? []).filter((method) => method.enabled)
   const customer = useAdminUser(state.customer_id).data
   const accounts = useLinkedAccounts(state.customer_id).data ?? []
-  const lots = hasLots(state)
+  const lots = !laterAllowed(state)
   const payout = state.payout === LATER || state.payout === null ? null : state.payout
   const selected = state.payout === LATER ? LATER : (payout?.method ?? '')
   const bank = payout !== null && BANK_METHODS.includes(payout.method)
@@ -121,7 +123,7 @@ function PurchasePayout({
   const chosen = payout?.bank_link_id
     ? accounts.find((link) => link.id === payout.bank_link_id)
     : undefined
-  const pending = accounts.find((link) => link.status === 'pending')
+  const pending = accounts.find((link) => link.status === 'pending' || link.status === 'errored')
   const showSend = bank && (linking || verified.length === 0)
 
   return (
@@ -146,7 +148,7 @@ function PurchasePayout({
             disabled={lots}
             description={
               lots
-                ? 'Set it on the order screen once lots are added.'
+                ? 'A sale with lots chooses it now.'
                 : 'The order screen asks for it before anything is paid.'
             }
           />
@@ -257,60 +259,63 @@ function SendLink({
   const send = useSendBankLink(userId)
   const resend = useResendBankLink(userId)
   const to = channel === 'sms' ? formatPhone(phone) : (email ?? '')
+  const failed = pending?.status === 'errored'
   const sentVia = pending?.channel === 'email' ? 'email' : 'SMS'
   const sentTo = pending?.channel === 'email' ? pending?.sent_to : formatPhone(pending?.sent_to)
 
+  const sentAt = pending?.sent_at ? ` ${formatTime(pending.sent_at)}` : ''
+  const shownTo = pending ? (sentTo ?? '') : to
+
   return (
-    <Card className="gap-sm">
-      <div className="flex items-center justify-between gap-sm">
-        <div className="flex flex-col gap-3xs">
-          <Text variant="small-medium">No linked bank account</Text>
-          <Text variant="micro" className="text-muted-foreground">
-            The customer completes the link on their phone.
-          </Text>
-        </div>
+    <Card className="gap-sm p-md">
+      <div className="flex items-center justify-between gap-2xs">
+        <h4 className="text-h6 text-foreground">No linked bank account</h4>
         {pending && (
-          <Badge variant="soft" intent="warning">
-            Pending
+          <Badge variant="soft" intent={failed ? 'danger' : 'warning'}>
+            {failed ? 'Could not send' : 'Pending'}
           </Badge>
         )}
       </div>
-      {pending ? (
-        <div className="flex flex-wrap items-center justify-between gap-sm">
-          <Text variant="micro" className="text-muted-foreground">
-            {`Sent by ${sentVia} to ${sentTo ?? ''}`}
-          </Text>
+      <Text variant="small" className="text-muted-foreground">
+        {failed
+          ? `Could not send by ${sentVia}. Resend to try again.`
+          : pending
+            ? `Sent by ${sentVia}${sentAt}. The customer completes the link on their phone.`
+            : 'The customer completes the link on their phone.'}
+      </Text>
+      <div className="flex flex-col gap-3xs">
+        <Text variant="small" className="text-muted-foreground">
+          Send by
+        </Text>
+        <RadioGroup
+          value={pending ? (pending.channel === 'email' ? 'email' : 'sms') : channel}
+          onValueChange={(value) => setChannel(value as BankLinkChannel)}
+          className="flex gap-2xs"
+        >
+          <Chip value="sms" label="SMS" />
+          <Chip value="email" label="Email" />
+        </RadioGroup>
+      </div>
+      <Input label="To" value={shownTo} readOnly />
+      <div>
+        {pending ? (
           <Button
             variant="secondary"
-            size="sm"
             disabled={resend.isPending}
             onClick={() => resend.mutate(pending.id)}
           >
             Resend
           </Button>
-        </div>
-      ) : (
-        <>
-          <RadioGroup
-            value={channel}
-            onValueChange={(value) => setChannel(value as BankLinkChannel)}
-            className="flex gap-xs"
+        ) : (
+          <Button
+            disabled={send.isPending || !to}
+            onClick={() => send.mutate({ channel }, { onSuccess: (link) => onSent(link.id) })}
           >
-            <Chip value="sms" label="SMS" />
-            <Chip value="email" label="Email" />
-          </RadioGroup>
-          <Input label="To" value={to} readOnly />
-          <div className="flex justify-end">
-            <Button
-              size="sm"
-              disabled={send.isPending || !to}
-              onClick={() => send.mutate({ channel }, { onSuccess: (link) => onSent(link.id) })}
-            >
-              Send link
-            </Button>
-          </div>
-        </>
-      )}
+            <Send aria-hidden />
+            Send link
+          </Button>
+        )}
+      </div>
     </Card>
   )
 }

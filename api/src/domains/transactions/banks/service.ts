@@ -46,7 +46,8 @@ async function linkedView(id: string): Promise<LinkedAccount> {
 
 // Ruling 160: the row is written Pending and committed first, then Plaid is
 // asked for the Hosted Link after the commit, and the link token it returns is
-// recorded so the SESSION_FINISHED webhook can find the row.
+// recorded so the SESSION_FINISHED webhook can find the row. A refused send
+// marks the row Errored, which the drawer shows as "Could not send" with Resend.
 export async function sendHostedLink(
   user_id: string,
   channel: BankLinkChannel
@@ -97,13 +98,19 @@ async function deliver(
   const hosted = await attempt('plaid.createHostedLink', () =>
     plaid.data().createHostedLink(user_id, channel, sent_to)
   )
-  if (!hosted) return
+  if (!hosted) {
+    await withTransaction(async (tx) => {
+      assertWritten(link_id, await bankLinks.update(link_id, { status: 'errored' }, tx))
+    })
+    return
+  }
   await withTransaction(async (tx) => {
     assertWritten(
       link_id,
       await bankLinks.update(
         link_id,
         {
+          status: 'pending',
           plaid_link_token: hosted.link_token,
           sent_via: channel,
           sent_to,
@@ -121,7 +128,7 @@ async function deliver(
 export async function applyPlaidEvent(event: PlaidEvent): Promise<void> {
   if (rules.isSessionFinished(event)) {
     const link = await bankLinks.findByProvider({ plaid_link_token: event.link_token })
-    if (link) await complete(link, event.public_token as string)
+    if (link && !rules.isVerified(link)) await complete(link, event.public_token as string)
     return
   }
   if (rules.isAutomaticallyVerified(event)) {

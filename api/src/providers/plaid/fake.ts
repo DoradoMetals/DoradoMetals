@@ -23,18 +23,26 @@ type Hosted = {
   link_token: string
 }
 const hosted: Hosted[] = []
+const RUN = `${process.pid.toString(36)}${Date.now().toString(36)}`
 let sequence = 0
 
 const next = (prefix: string): string => {
   sequence += 1
-  return `${prefix}-${String(sequence).padStart(6, '0')}`
+  return `${prefix}-${RUN}-${String(sequence).padStart(6, '0')}`
 }
 
 export function recorded(): Call[] {
   return calls.slice()
 }
 
+let refuseHosted = 0
+
+export function refuseNextHostedLink(): void {
+  refuseHosted += 1
+}
+
 export function reset(): void {
+  refuseHosted = 0
   calls.length = 0
   pages.length = 0
   tokens.clear()
@@ -121,6 +129,10 @@ export const createHostedLink: PlaidData['createHostedLink'] = async (
   to
 ) => {
   calls.push({ what: 'createHostedLink', detail: `${client_user_id}:${channel}` })
+  if (refuseHosted > 0) {
+    refuseHosted -= 1
+    throw new Error('INVALID_FIELD: the fake refused the Hosted Link')
+  }
   const link_token = next('link-sandbox')
   hosted.push({ client_user_id, channel, to, link_token })
   return { link_token, hosted_link_url: `https://hosted.plaid.test/${link_token}` }

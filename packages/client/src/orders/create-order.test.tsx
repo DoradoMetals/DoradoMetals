@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { keys } from '../keys'
 import { useCreateAdminOrder } from './index'
 import { useOrderPreview } from '../pricing'
-import { useAttachRefiningFulfillment, useCreateRefiningOrder } from '../refining'
+import { useCreateRefiningOrder } from '../refining'
 import { useLinkedAccounts, useResendBankLink, useSendBankLink } from '../payments'
 import { useFulfillmentMethods, useRefinerFulfillmentMethods } from '../fulfillments'
 import { useOnHandLots } from '../lots'
@@ -126,40 +126,6 @@ describe('the refiner order create', () => {
     expect(spy).toHaveBeenCalledWith({ queryKey: keys.refining.all() })
     expect(spy).toHaveBeenCalledWith({ queryKey: keys.orders.all() })
   })
-
-  it('attaches the drop-off to the new refiner order: create the fulfillment, then patch its choices', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(new Response(JSON.stringify({ fulfillment: { id: FULFILLMENT } })))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ fulfillment: { id: FULFILLMENT } })))
-    vi.stubGlobal('fetch', fetchMock)
-    const client = newClient()
-    const spy = vi.spyOn(client, 'invalidateQueries')
-    const { result } = renderHook(() => useAttachRefiningFulfillment(), {
-      wrapper: wrapperFor(client),
-    })
-    const choices = {
-      dropoff: {
-        refiner_id: REFINER,
-        start_time: '2026-06-18T18:00:00.000Z',
-        end_time: '2026-06-18T20:00:00.000Z',
-      },
-    }
-    await act(async () => {
-      await result.current.mutateAsync({ refining_order_id: ORDER, method_id: METHOD, choices })
-    })
-    expect(callOf(fetchMock, 0)).toEqual({
-      url: '/fulfillments',
-      method: 'POST',
-      body: { refining_order_id: ORDER, method_id: METHOD },
-    })
-    expect(callOf(fetchMock, 1)).toEqual({
-      url: `/fulfillments/${FULFILLMENT}`,
-      method: 'PATCH',
-      body: choices,
-    })
-    expect(spy).toHaveBeenCalledWith({ queryKey: keys.refining.all() })
-  })
 })
 
 describe('linked bank accounts (ruling 160)', () => {
@@ -188,6 +154,22 @@ describe('linked bank accounts (ruling 160)', () => {
       await vi.advanceTimersByTimeAsync(10_000)
     })
     await waitFor(() => expect(result.current.data?.[0]?.status).toBe('verified'))
+    const calls = fetchMock.mock.calls.length
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30_000)
+    })
+    expect(fetchMock.mock.calls.length).toBe(calls)
+    vi.useRealTimers()
+  })
+
+  it('stops polling once a link is Errored', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const fetchMock = respond([{ id: LINK, status: 'errored' }])
+    vi.stubGlobal('fetch', fetchMock)
+    const { result } = renderHook(() => useLinkedAccounts(USER), {
+      wrapper: wrapperFor(newClient()),
+    })
+    await waitFor(() => expect(result.current.data?.[0]?.status).toBe('errored'))
     const calls = fetchMock.mock.calls.length
     await act(async () => {
       await vi.advanceTimersByTimeAsync(30_000)

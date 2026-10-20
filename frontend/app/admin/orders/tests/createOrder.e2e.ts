@@ -84,16 +84,29 @@ for (const size of SIZES) {
       test.setTimeout(120_000)
       const customer = await e2eCustomer(page)
       const product = await goldProduct(page)
-      const drawer = await openDrawer(page)
+      let drawer = await openDrawer(page)
 
-      if (size.name === 'mobile')
+      if (size.name === 'mobile') {
+        const pill = drawer.locator('[data-drawer-grabber-hit]')
+        await expect(page.getByRole('dialog')).toHaveCSS('transform', 'none')
+        const box = await pill.boundingBox()
+        expect(box, 'the grabber sits on the left border').toBeTruthy()
+        const x = Math.max(box!.x + box!.width * 0.75, 1)
+        const y = box!.y + box!.height / 2
+        await page.mouse.move(x, y)
+        await page.mouse.down()
+        await page.mouse.move(x + size.width / 2, y, { steps: 8 })
+        await page.mouse.up()
+        await expect(page.getByRole('dialog')).toHaveCount(0)
+        drawer = await openDrawer(page)
         await expect(drawer.getByText('Step 1 of 4 · Order')).toBeVisible()
+      }
       await expect(drawer.getByRole('radio', { name: /Customer Purchase/ })).toBeChecked()
       await chooseCustomer(page, customer.name)
 
       const previewed = page.waitForResponse(isCall('POST', /\/pricing\/preview$/))
       await drawer.getByRole('button', { name: /Add lot/ }).click()
-      await drawer.getByRole('radio', { name: 'Bullion' }).first().click()
+      await drawer.getByRole('radio', { name: 'Bullion', exact: true }).first().click()
       await drawer.getByRole('combobox', { name: 'Product' }).fill(product.name.slice(0, 8))
       await page.getByRole('option', { name: product.name }).first().click()
       await drawer.getByRole('textbox', { name: 'Quantity' }).fill('1')
@@ -104,7 +117,7 @@ for (const size of SIZES) {
 
       await drawer.getByRole('button', { name: 'Continue' }).click()
       await expect(drawer.getByText('How does the metal come in?')).toBeVisible()
-      await expect(drawer.getByRole('radio', { name: /Decide later/ })).toBeDisabled()
+      await expect(drawer.getByRole('radio', { name: /Decide later/ })).toBeEnabled()
       await drawer.getByRole('radio', { name: /Dorado pickup/ }).click()
       await chooseFirst(page, 'Pickup address')
       await chooseFirst(page, 'Bring to')
@@ -140,7 +153,7 @@ for (const size of SIZES) {
       await drawer.getByRole('button', { name: 'Continue' }).click()
 
       await expect(drawer.getByRole('heading', { name: 'Review' })).toBeVisible()
-      await expect(drawer.getByText('Payout total')).toBeVisible()
+      await expect(drawer.getByText('Estimated payout')).toBeVisible()
       await expect(drawer.getByText(customer.name)).toBeVisible()
       const created = page.waitForResponse(isCall('POST', /\/orders\/admin$/))
       await drawer.getByRole('button', { name: 'Create order' }).click()
@@ -187,7 +200,7 @@ test.describe('the Create Order drawer for a customer sale', () => {
     await chooseFirst(page, 'Billing address')
     await drawer.getByRole('button', { name: 'Continue' }).click()
 
-    await expect(drawer.getByText('Charge total')).toBeVisible()
+    await expect(drawer.getByText('Estimated charge')).toBeVisible()
     await expect(drawer.getByText('Lock at placement')).toBeVisible()
     const created = page.waitForResponse(isCall('POST', /\/orders\/admin$/))
     await drawer.getByRole('button', { name: 'Create order' }).click()
@@ -236,7 +249,7 @@ test.describe('the Create Order drawer for a Refiner Sale', () => {
     await page.getByRole('option', { name: free.organization.name }).click()
     await chooseFirst(page, 'Settlement type')
     await chooseFirst(page, 'Location')
-    await expect(drawer.getByText('On-hand lots')).toBeVisible({ timeout: 30_000 })
+    await expect(drawer.getByText('On-hand lots', { exact: true })).toBeVisible({ timeout: 30_000 })
     const boxes = drawer.getByRole('checkbox')
     const selectable = (await boxes.count()) > 1
     if (selectable) {
@@ -278,4 +291,47 @@ test.describe('the Create Order drawer for a Refiner Sale', () => {
     })
     await api(page, 'POST', `/refining/orders/${order.id}/cancel`, {})
   })
+})
+
+test('a refusal floats the Danger alert above the footer without resizing the footer or the body', async ({
+  page,
+}) => {
+  test.setTimeout(90_000)
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  const customer = await e2eCustomer(page)
+  const drawer = await openDrawer(page)
+  await chooseCustomer(page, customer.name)
+  for (let step = 0; step < 3; step += 1) {
+    await drawer.getByRole('button', { name: 'Skip' }).click()
+  }
+  await expect(drawer.getByRole('heading', { name: 'Review' })).toBeVisible()
+  await expect(drawer.getByRole('button', { name: 'Skip' })).toHaveCount(0)
+
+  const footer = drawer
+    .getByRole('button', { name: 'Cancel' })
+    .locator('xpath=ancestor::div[contains(@class,"mt-auto")][1]')
+  const body = drawer.getByRole('heading', { name: 'Review' }).locator('xpath=..')
+  const footerBefore = await footer.boundingBox()
+  const bodyBefore = await body.boundingBox()
+
+  await page.route(/\/api\/orders\/admin$/, (route) =>
+    route.request().method() === 'POST'
+      ? route.fulfill({
+          status: 422,
+          contentType: 'application/json',
+          body: JSON.stringify({ error: { message: 'Refused for the footer test.' } }),
+        })
+      : route.continue()
+  )
+  await drawer.getByRole('button', { name: 'Create order' }).click()
+  const alert = drawer.getByRole('alert')
+  await expect(alert).toContainText('Refused for the footer test.')
+
+  const footerAfter = await footer.boundingBox()
+  const bodyAfter = await body.boundingBox()
+  expect(footerAfter?.height).toBe(footerBefore?.height)
+  expect(footerAfter?.y).toBe(footerBefore?.y)
+  expect(bodyAfter?.height).toBe(bodyBefore?.height)
+  const box = await alert.boundingBox()
+  expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(footerAfter?.y ?? 0)
 })

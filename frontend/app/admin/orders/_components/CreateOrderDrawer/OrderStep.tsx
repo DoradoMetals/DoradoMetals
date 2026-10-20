@@ -104,7 +104,16 @@ function CustomerField({
   const hits = useSearch(query ?? '', { enabled: query !== null }).data ?? []
   const items = hits
     .filter((hit) => hit.kind === 'customer')
-    .map((hit) => ({ id: hit.id, textValue: hit.title }))
+    .map((hit) => ({
+      id: hit.id,
+      textValue: hit.reference,
+      label: (
+        <span className="flex flex-col">
+          <span>{hit.reference}</span>
+          <span className="text-micro text-muted-foreground">{hit.title}</span>
+        </span>
+      ),
+    }))
 
   return (
     <Autocomplete

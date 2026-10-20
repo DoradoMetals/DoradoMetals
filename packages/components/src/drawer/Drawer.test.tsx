@@ -39,7 +39,7 @@ describe('Drawer', () => {
 
   it('clicking the scrim closes it', () => {
     const { setOpen } = openDrawer()
-    const overlay = document.body.querySelector('[aria-hidden="true"]') as HTMLElement
+    const overlay = document.body.querySelector('[data-drawer-scrim]') as HTMLElement
     fireEvent.click(overlay)
     expect(setOpen).toHaveBeenCalledWith(false)
   })
@@ -51,7 +51,7 @@ describe('Drawer', () => {
 
   it('carries the scrim over the page ground', () => {
     openDrawer()
-    const overlay = document.body.querySelector('[aria-hidden="true"]') as HTMLElement
+    const overlay = document.body.querySelector('[data-drawer-scrim]') as HTMLElement
     expect(overlay.className).toContain('bg-background/70')
   })
 
@@ -117,12 +117,11 @@ describe('Drawer', () => {
     await expectNoAxeViolations(document.body)
   })
 
-  it('grab handle row is 36x4, padded 8 top / 2 bottom to a 14px row (127:32, 2026-10-09)', () => {
+  it('the bottom sheet grabber is a 36x4 bar in a 44px hit row (ruling 167)', () => {
     openDrawer({ anchor: 'bottom' })
     const panel = document.body.querySelector('[role="dialog"]') as HTMLElement
-    const row = panel.querySelector('[aria-hidden="true"]') as HTMLElement
-    expect(row.className).toContain('pt-xs')
-    expect(row.className).toContain('pb-3xs')
+    const row = panel.querySelector('[data-drawer-grabber]') as HTMLElement
+    expect(row.className).toContain('h-11')
     const bar = row.firstElementChild as HTMLElement
     expect(bar.className).toContain('h-2xs')
     expect(bar.className).toContain('w-9')
@@ -203,7 +202,7 @@ describe('Drawer', () => {
 
   it('the scrim blurs the page behind', () => {
     openDrawer()
-    const overlay = document.body.querySelector('[aria-hidden="true"]') as HTMLElement
+    const overlay = document.body.querySelector('[data-drawer-scrim]') as HTMLElement
     expect(overlay.className).toContain('backdrop-blur-sm')
   })
 
@@ -230,9 +229,11 @@ describe('Drawer', () => {
         </Drawer>
       )
       const panel = document.body.querySelector('[role="dialog"]') as HTMLElement
-      expect(panel.className).toContain('overflow-hidden')
+      expect(panel.className).toContain('overflow-visible')
       expect(panel.className).not.toContain('overflow-y-auto')
-      const [header, body, footer] = Array.from(panel.children) as HTMLElement[]
+      const [header, body, footer] = Array.from(panel.children).filter(
+        (child) => !child.hasAttribute('data-drawer-grabber')
+      ) as HTMLElement[]
       expect(body!.className).toContain('overflow-y-auto')
       expect(body!.className).toContain('min-h-0')
       for (const fixed of [header!, footer!]) {

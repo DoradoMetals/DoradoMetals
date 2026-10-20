@@ -48,6 +48,15 @@ export const PURITIES = [
   { value: '0.999', label: 'Fine · 99.9%' },
 ]
 
+export const PURITY_NAME: Record<string, string> = {
+  '0.417': '10 Karat',
+  '0.583': '14 Karat',
+  '0.75': '18 Karat',
+  '0.916': '22 Karat',
+  '0.925': 'Sterling',
+  '0.999': 'Fine',
+}
+
 export const SETTLEMENT_TYPES = [
   { value: 'pooled', label: 'Pooled' },
   { value: 'paid', label: 'Paid' },
@@ -72,6 +81,10 @@ export const HANDOFF_LABEL: Record<string, string> = {
 const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })
 
 export const formatMoney = (value: number): string => money.format(value)
+
+const clock = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' })
+
+export const formatTime = (iso: string): string => clock.format(new Date(iso))
 
 export const formatOz = (oz: number): string => `${oz.toFixed(3)} t oz fine`
 

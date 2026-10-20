@@ -1,3 +1,4 @@
+import { isStaff } from '#shared/middleware/authMiddleware.ts'
 import {
   BankLinkSendBody,
   ExchangeLinkBody,
@@ -27,7 +28,7 @@ export const listBankLinks = asyncHandler(async (req, res) => {
 
 export const listCustomerBankLinks = asyncHandler(async (req, res) => {
   const user_id = uuidParam(req, 'id')
-  banks.assertMayRead(user_id, callerId(req), req.user?.role === 'admin')
+  banks.assertMayRead(user_id, callerId(req), isStaff(req))
   return res.json(await banks.linkedAccounts(user_id))
 })
 

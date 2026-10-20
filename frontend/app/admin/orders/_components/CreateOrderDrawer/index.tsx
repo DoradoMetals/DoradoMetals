@@ -7,6 +7,8 @@ import {
   Drawer,
   DrawerBody,
   DrawerFooter,
+  DrawerFooterAlert,
+  DrawerPrimary,
   DrawerHeader,
   Stepper,
   Text,
@@ -14,8 +16,6 @@ import {
   useMediaUp,
 } from '@dorado/components'
 import {
-  useAddRefiningNote,
-  useAttachRefiningFulfillment,
   useCreateAdminOrder,
   useCreateRefiningOrder,
   useLinkedAccounts,
@@ -27,6 +27,7 @@ import {
   emptyDrawerState,
   hasLots,
   isRefiner,
+  laterAllowed,
   rowsComplete,
   toCreateRequest,
   toPreviewBody,
@@ -100,8 +101,6 @@ export function CreateOrderDrawer({
 
   const createOrder = useCreateAdminOrder()
   const createRefining = useCreateRefiningOrder()
-  const attachFulfillment = useAttachRefiningFulfillment()
-  const addNote = useAddRefiningNote()
 
   const lots = hasLots(state)
 
@@ -111,7 +110,7 @@ export function CreateOrderDrawer({
       return !!state.customer_id && rowsComplete(state.lots)
     }
     if (step === 1) {
-      if (state.fulfillment === 'later') return !lots
+      if (state.fulfillment === 'later') return laterAllowed(state)
       return state.fulfillment !== null || !lots
     }
     if (step === 2) {
@@ -119,7 +118,8 @@ export function CreateOrderDrawer({
       if (state.kind === 'customer_sale') {
         return !lots || (!!state.payment_method_id && !!state.recipient_address_id)
       }
-      if (state.payout === 'later' || state.payout === null) return !lots
+      if (state.payout === 'later') return true
+      if (state.payout === null) return !lots
       if (!BANK_METHODS.includes(state.payout.method)) return true
       const account = linked?.find(
         (link) => link.id === (state.payout as { bank_link_id?: string }).bank_link_id
@@ -141,16 +141,6 @@ export function CreateOrderDrawer({
         onCreated({ kind: state.kind, id: view.order.id })
       } else {
         const made = await createRefining.mutateAsync(request.body)
-        if (request.fulfillment) {
-          await attachFulfillment.mutateAsync({
-            refining_order_id: made.id,
-            method_id: request.fulfillment.method_id,
-            choices: request.fulfillment.choices,
-          })
-        }
-        if (state.notes.trim()) {
-          await addNote.mutateAsync({ refining_order_id: made.id, body: state.notes.trim() })
-        }
         onCreated({ kind: state.kind, id: made.id })
       }
       onOpenChange(false)
@@ -162,13 +152,31 @@ export function CreateOrderDrawer({
   }
 
   const last = step === STEPS.length - 1
+  const partySet = isRefiner(state.kind) ? !!state.refiner_id && !openSale : !!state.customer_id
+  const skippable = step === 0 ? partySet : step === 1 || step === 2 ? laterAllowed(state) : false
+
+  function skip() {
+    if (step === 0) update({ lots: [], lot_ids: [] })
+    if (step === 1) update({ fulfillment: 'later' })
+    if (step === 2 && state.kind === 'customer_purchase') update({ payout: 'later' })
+    if (step === 2 && state.kind === 'customer_sale') {
+      update({ payment_method_id: null, recipient_address_id: null })
+    }
+    setStep((s) => s + 1)
+  }
+
   const primary = last ? (
-    <Button key="primary" onClick={create} disabled={creating}>
+    <DrawerPrimary key="primary" onClick={create} busyLabel="Creating the order">
       {creating ? 'Creating…' : 'Create order'}
-    </Button>
+    </DrawerPrimary>
   ) : (
     <Button key="primary" onClick={() => setStep((s) => s + 1)} disabled={!ready}>
       Continue
+    </Button>
+  )
+  const skipButton = last ? null : (
+    <Button key="skip" variant="secondary" onClick={skip} disabled={!skippable}>
+      Skip
     </Button>
   )
   const back =
@@ -183,13 +191,24 @@ export function CreateOrderDrawer({
       </Button>
     ) : null
   const cancel = (
-    <Button key="cancel" variant="secondary" onClick={close}>
+    <Button key="cancel" variant="tertiary" onClick={close} disabled={creating}>
       Cancel
     </Button>
   )
+  const alert = failure ? (
+    <Alert intent="danger" title="Could not create the order">
+      {failure}
+    </Alert>
+  ) : null
 
   return (
-    <Drawer open={open} setOpen={onOpenChange} size={mobile ? 'full' : 'lg'} label="New order">
+    <Drawer
+      open={open}
+      setOpen={onOpenChange}
+      size={mobile ? 'full' : 'lg'}
+      label="New order"
+      busy={creating}
+    >
       <DrawerHeader title="New order" />
       <div className="flex shrink-0 flex-col gap-2xs border-b border-border px-md py-sm">
         <Stepper steps={[...STEPS]} current={step} />
@@ -233,29 +252,28 @@ export function CreateOrderDrawer({
             viewer={viewer}
             preview={preview}
             onEdit={setStep}
-            failure={
-              failure ? (
-                <Alert intent="danger" title="Could not create the order">
-                  {failure}
-                </Alert>
-              ) : null
-            }
+            mobile={mobile}
           />
         )}
       </DrawerBody>
-      {mobile ? (
-        <div className="flex shrink-0 flex-col gap-xs border-t border-border p-md">
-          {primary}
-          {back}
-          {cancel}
-        </div>
-      ) : (
-        <DrawerFooter>
-          {back && <div className="mr-auto">{back}</div>}
-          {cancel}
-          {primary}
-        </DrawerFooter>
-      )}
+      <DrawerFooter className="relative flex-col items-stretch sm:flex-col sm:items-stretch sm:justify-start">
+        {alert && <DrawerFooterAlert>{alert}</DrawerFooterAlert>}
+        {mobile ? (
+          <div className="flex flex-col gap-xs">
+            {primary}
+            {skipButton}
+            {back}
+            {cancel}
+          </div>
+        ) : (
+          <div className="flex items-center gap-xs">
+            <div className="mr-auto">{cancel}</div>
+            {back}
+            {skipButton}
+            {primary}
+          </div>
+        )}
+      </DrawerFooter>
     </Drawer>
   )
 }

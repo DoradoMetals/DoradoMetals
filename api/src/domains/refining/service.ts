@@ -10,6 +10,7 @@ import * as refiningDocuments from '#db/refining/documents/repo.ts'
 
 import * as rules from '#refining/rules.ts'
 import * as fulfillmentService from '#logistics/fulfillments/service.ts'
+import * as notesService from '#crm/notes/service.ts'
 import withTransaction from '#shared/db/withTransaction.ts'
 import { withDecisions } from '#shared/views.ts'
 import type { Executor } from '#shared/db/executor.ts'
@@ -77,6 +78,7 @@ export async function create(body: RefiningOrderCreate): Promise<RefiningOrderRe
       )
       await fulfillmentService.patchChoices(made.fulfillment.id, fulfillment.choices, tx)
     }
+    if (body.notes) await notesService.createIn({ body: body.notes, refining_order_id: row.id }, tx)
     return row
   })
   return await view(created.id)

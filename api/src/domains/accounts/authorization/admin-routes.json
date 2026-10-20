@@ -132,6 +132,8 @@
   "PATCH /api/spots/settings",
   "PATCH /api/spots/sources/:id",
   "PATCH /api/users/:id",
+  "POST /api/accounts/:id/bank-links",
+  "POST /api/accounts/:id/bank-links/:linkId/resend",
   "POST /api/calls/presence",
   "POST /api/calls/token",
   "POST /api/carrier_services/create",
@@ -209,6 +211,7 @@
   "POST /api/spots/refresh",
   "POST /api/stripe/cancel_payment_intent",
   "POST /api/users/:id/credit",
+  "POST /api/webhooks/plaid/fake",
   "PUT /api/orders/:id/payout_methods",
   "PUT /api/orders/:id/spots"
 ]

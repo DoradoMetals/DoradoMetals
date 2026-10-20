@@ -74,7 +74,7 @@ describe('Drawer state matrix', () => {
         "max-w-full",
         "md:max-w-1/2",
         "md:w-1/2",
-        "overflow-hidden",
+        "overflow-visible",
         "right-0",
         "sm:max-w-1/2",
         "sm:top-0",

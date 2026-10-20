@@ -131,6 +131,23 @@ test('an admin sends a Hosted Link by SMS and a pending link is recorded', async
   })
 })
 
+test('a Hosted Link Plaid refuses leaves the row Errored, and a resend makes it Pending again', async () => {
+  await inLinks(async (c) => {
+    const customer = await aUser(c, { phone_number: PHONE })
+    plaidFake.refuseNextHostedLink()
+    const res = await send(customer.id, 'sms')
+    assert.equal(res.status, 201, res.text)
+    const link = LinkedAccount.parse(res.body)
+    assert.equal(link.status, 'errored')
+
+    const again = await as(admin, () =>
+      request(app).post(`/api/accounts/${customer.id}/bank-links/${link.id}/resend`).send({})
+    )
+    assert.equal(again.status, 200, again.text)
+    assert.equal(LinkedAccount.parse(again.body).status, 'pending')
+  })
+})
+
 test('an email send goes to the email on file', async () => {
   await inLinks(async (c) => {
     const customer = await aUser(c)
@@ -203,6 +220,13 @@ test('the webhook stores the provider token, bank, account name and mask and mar
     assert.ok(
       plaidFake.recorded().some((call) => call.what === 'exchangePublicToken'),
       'the public token was never exchanged for a provider token'
+    )
+    const replay = await deliver(finished(link_token, 'public-hosted-1'))
+    assert.equal(replay.status, 200, replay.text)
+    assert.equal(
+      plaidFake.recorded().filter((call) => call.what === 'exchangePublicToken').length,
+      1,
+      'a repeated SESSION_FINISHED exchanged the public token again'
     )
     const access = plaidFake
       .recorded()

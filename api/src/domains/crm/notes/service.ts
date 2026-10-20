@@ -1,3 +1,4 @@
+import type { Executor } from '#shared/db/executor.ts'
 import withTransaction from '#shared/db/withTransaction.ts'
 import * as notes from '#db/crm/notes/repo.ts'
 import * as rules from '#crm/notes/rules.ts'
@@ -10,6 +11,10 @@ export async function forSubject(subject: NoteSubject): Promise<NoteView[]> {
 
 export async function create(body: NoteCreateBody): Promise<NoteView> {
   return withTransaction(async (tx) => await notes.create(body, tx))
+}
+
+export async function createIn(body: NoteCreateBody, tx: Executor): Promise<NoteView> {
+  return await notes.create(body, tx)
 }
 
 export async function update(id: string, patch: NotePatch): Promise<NoteView> {

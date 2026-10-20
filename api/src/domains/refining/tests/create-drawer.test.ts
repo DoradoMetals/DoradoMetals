@@ -130,3 +130,20 @@ test('the open-sale conflict is a named class extending Conflict', () => {
       /2493/.test((err as Error).message)
   )
 })
+
+test('the note rides on the one create body and lands as a crm note on the refiner order', async () => {
+  await inRefining(async (c) => {
+    await asAdmin(TEST_ACTOR, async () => {
+      const refiner_id = await freshRefiner(c)
+      const res = await create({ refiner_id, direction: 'buy', notes: '  Bring the bars back  ' })
+      assert.equal(res.status, 201, res.text)
+      const { rows } = await c.query(`SELECT body FROM crm.notes WHERE refining_order_id = $1`, [
+        res.body.id,
+      ])
+      assert.deepEqual(
+        rows.map((row) => row.body),
+        ['Bring the bars back']
+      )
+    })
+  })
+})

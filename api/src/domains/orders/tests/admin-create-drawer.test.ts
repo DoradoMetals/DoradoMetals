@@ -20,6 +20,7 @@ import * as moovFake from '#providers/moov/fake.ts'
 import * as plaidFake from '#providers/plaid/fake.ts'
 import * as banks from '#transactions/banks/service.ts'
 import * as pricing from '#pricing/index.ts'
+import { retierPremiums } from '#orders/service.ts'
 import { closeBrowser } from '#documents/pdfs/render/puppeteer.ts'
 import { AdminLot, AdminOrderCreate, AdminPayout } from '@dorado/contracts'
 
@@ -276,29 +277,72 @@ test('an order with no lots may leave fulfillment and payout for later', async (
   })
 })
 
-test('an order with lots must choose its fulfillment and payout at creation', async () => {
+test('a purchase with lots may leave fulfillment and payout for the order screen (ruling 163)', async () => {
   await inOrders(async (c) => {
     const customer = await aUser(c)
-    const address = await anAddress(c, customer)
-    const method_id = await fulfillmentMethodId(c, 'PICKUP', 'purchase')
-
-    const noFulfillment = await placeAsAdmin({
+    const placed = await placeAsAdmin({
       direction: 'purchase',
       user_id: customer.id,
-      lots: [{ ...scrap }],
-      payout: { method: 'ECHECK' },
+      lots: [{ ...scrap }, { ...scrap, premium: 0.8 }],
     })
-    assert.equal(noFulfillment.status, 422, noFulfillment.text)
-    assert.match(noFulfillment.body?.error?.message ?? '', /fulfillment/)
+    assert.equal(placed.status, 201, placed.text)
+    assert.equal(placed.body.order.user_id, customer.id)
+    assert.equal(placed.body.lots.length, 2, 'the lots are linked to the bare order')
+    assert.equal(placed.body.fulfillment ?? null, null, 'no fulfillment was chosen')
+    const premiums = (placed.body.lots as { lot: { premium: number | null } }[]).map(
+      (row) => row.lot.premium
+    )
+    assert.ok(premiums.includes(0.8), 'the premium override rides onto its lot')
 
-    const noPayout = await placeAsAdmin({
+    await retierPremiums(placed.body.order.id, c)
+    const kept = await c.query(
+      `SELECT li.premium, li.premium_override
+         FROM orders.lots ol JOIN inventory.lots li ON li.id = ol.lot_id
+        WHERE ol.order_id = $1 AND li.premium_override`,
+      [placed.body.order.id]
+    )
+    assert.equal(kept.rows.length, 1, 'the override is flagged as one')
+    assert.equal(Number(kept.rows[0].premium), 0.8, 'a retier keeps the admin override')
+
+    const { rows } = await c.query(
+      `SELECT count(*)::int AS n FROM orders.lots WHERE order_id = $1`,
+      [placed.body.order.id]
+    )
+    assert.equal(rows[0].n, 2)
+  })
+})
+
+test('a failing stamp rolls the whole order back, so a retry cannot double it', async () => {
+  await inOrders(async (c) => {
+    const customer = await aUser(c)
+    const failed = await placeAsAdmin({
       direction: 'purchase',
       user_id: customer.id,
+      assigned_to_id: '00000000-0000-4000-8000-00000000dead',
+      notes: 'stamped in the same transaction',
       lots: [{ ...scrap }],
-      fulfillment: { method_id, choices: pickupChoices(address.id) },
     })
-    assert.equal(noPayout.status, 422, noPayout.text)
-    assert.match(noPayout.body?.error?.message ?? '', /payout/)
+    assert.ok(failed.status >= 400, failed.text)
+    const { rows } = await c.query(
+      `SELECT count(*)::int AS n FROM orders.orders WHERE user_id = $1`,
+      [customer.id]
+    )
+    assert.equal(rows[0].n, 0, 'the order was committed without its stamp')
+  })
+})
+
+test('a sale with lots still names its fulfillment and payment at creation', async () => {
+  await inOrders(async (c) => {
+    const customer = await aUser(c)
+    const undecided = await placeAsAdmin({
+      direction: 'sale',
+      user_id: customer.id,
+      lots: [
+        { bullion_id: (await aProduct(c, { metal_id: 'Gold', content: 0.001 })).id, quantity: 1 },
+      ],
+    })
+    assert.equal(undecided.status, 422, undecided.text)
+    assert.match(undecided.body?.error?.message ?? '', /sale with lots/)
   })
 })
 

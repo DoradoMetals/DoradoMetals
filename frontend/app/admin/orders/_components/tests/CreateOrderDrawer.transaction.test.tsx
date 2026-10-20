@@ -49,7 +49,7 @@ async function toTransaction(initial: Partial<DrawerState>, routes: Routes = {})
 }
 
 describe('Transaction for a customer purchase', () => {
-  test('asks how we pay them with ACH, eCheck, Wire, Dorado balance and a disabled Decide later', async () => {
+  test('asks how we pay them with ACH, eCheck, Wire, Dorado balance and an open Decide later', async () => {
     const { dialog } = await toTransaction(purchaseState({ fulfillment: pickup }))
     expect(await within(dialog).findByText('How do we pay them?')).toBeTruthy()
     for (const name of ['ACH', 'eCheck', 'Wire', 'Dorado balance']) {
@@ -57,7 +57,7 @@ describe('Transaction for a customer purchase', () => {
     }
     const later = within(dialog).getByRole('radio', { name: /Decide later/ })
     expect(later.hasAttribute('disabled') || later.getAttribute('aria-disabled') === 'true').toBe(
-      true
+      false
     )
   })
 
@@ -74,6 +74,8 @@ describe('Transaction for a customer purchase', () => {
 
     fireEvent.keyDown(payoutTo, { key: 'Enter' })
     expect(await screen.findByRole('option', { name: 'Link a new account' })).toBeTruthy()
+    fireEvent.keyDown(await screen.findByRole('listbox'), { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('listbox')).toBeNull())
     expect(continueButton(dialog).hasAttribute('disabled')).toBe(false)
   })
 
@@ -146,6 +148,22 @@ describe('Transaction for a customer purchase', () => {
     })
     expect(within(dialog).getByText('Verified')).toBeTruthy()
   }, 20_000)
+
+  test('a link Plaid refused shows Could not send with Resend, and Continue stays closed', async () => {
+    const { dialog } = await toTransaction(
+      purchaseState({ customer_id: IDS.bare, fulfillment: pickup }),
+      {
+        [`GET /accounts/${IDS.bare}/bank-links`]: [
+          { ...PENDING, user_id: IDS.bare, status: 'errored' },
+        ],
+      }
+    )
+    fireEvent.click(await within(dialog).findByRole('radio', { name: /ACH/ }))
+    expect(await within(dialog).findByText('Could not send')).toBeTruthy()
+    expect(within(dialog).getByText(/^Could not send by SMS/)).toBeTruthy()
+    expect(within(dialog).getByRole('button', { name: 'Resend' })).toBeTruthy()
+    expect(continueButton(dialog).hasAttribute('disabled')).toBe(true)
+  })
 
   test('Email sends to the email on file', async () => {
     const { dialog, hits } = await toTransaction(

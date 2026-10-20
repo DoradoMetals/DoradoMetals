@@ -58,20 +58,32 @@ const created = (hits: ReturnType<typeof stubDrawerApi>, path: string) =>
   hits.find((hit) => hit.method === 'POST' && hit.path === path)
 
 describe('Review for a customer purchase', () => {
-  test('headlines the payout total, lot count, fine content and the customer, all from the preview', async () => {
+  test('the header card names the kind, the customer and the assignee, and headlines the estimated payout from the preview', async () => {
     const { dialog } = await toReview(purchase())
-    expect(within(dialog).getByText('Payout total')).toBeTruthy()
+    expect(within(dialog).getByText('Estimated payout')).toBeTruthy()
     expect(await within(dialog).findByText('$24,066.04')).toBeTruthy()
-    expect(within(dialog).getByText('2 lots')).toBeTruthy()
-    expect(within(dialog).getByText('Lots · 10.232 t oz fine · Gold')).toBeTruthy()
-    expect(within(dialog).getByText('Customer purchase · Jacob Johnson')).toBeTruthy()
-    expect(within(dialog).getByText('Marguerite Whitfield')).toBeTruthy()
+    expect(within(dialog).getByText('Customer purchase')).toBeTruthy()
+    expect(await within(dialog).findByText('Marguerite Whitfield')).toBeTruthy()
+    expect(await within(dialog).findByText('Assigned to Jacob Johnson')).toBeTruthy()
+    expect(within(dialog).queryByText(/t oz fine/)).toBeNull()
+    const header = dialog.querySelector('[data-review-header]') as HTMLElement
+    expect(header.className.split(' ')).toContain('border-0')
+    const party = within(header).getByText('Marguerite Whitfield')
+    const kind = within(header).getByText('Customer purchase')
+    const assigned = within(header).getByText('Assigned to Jacob Johnson')
+    expect(party.parentElement).toBe(kind.parentElement)
+    expect(assigned.parentElement).toBe(party.parentElement)
+    const order = Array.from(party.parentElement!.children)
+    expect(order.indexOf(kind)).toBeLessThan(order.indexOf(party))
+    expect(order.indexOf(party)).toBeLessThan(order.indexOf(assigned))
   })
 
   test('lists the lots with the preview estimate per row and the premium as a percent', async () => {
     const { dialog } = await toReview(purchase())
     expect(await within(dialog).findByText('$420.60')).toBeTruthy()
     expect(within(dialog).getByText('$23,645.44')).toBeTruthy()
+    expect(within(dialog).getByText('14 Karat Gold')).toBeTruthy()
+    expect(within(dialog).getByText('58.3%')).toBeTruthy()
     expect(within(dialog).getByText('75%')).toBeTruthy()
     expect(within(dialog).getByText('98%')).toBeTruthy()
     expect(within(dialog).getByText('1 oz Gold American Eagle')).toBeTruthy()
@@ -80,9 +92,29 @@ describe('Review for a customer purchase', () => {
   test('the Transaction card shows the method, payout account and the locked spot from the preview', async () => {
     const { dialog } = await toReview(purchase())
     expect(await within(dialog).findByText('Chase · Marguerite Whitfield · ···· 4417')).toBeTruthy()
-    expect(within(dialog).getByText(/\$2,412\.80 \/ t oz/)).toBeTruthy()
+    const spot = within(dialog).getByText(/\$2,412\.80 \/ t oz/)
+    expect(spot.previousElementSibling?.textContent).toBe('Spot locked')
     expect(within(dialog).getByText('Shipment')).toBeTruthy()
     expect(within(dialog).getByText('Carrier drop-off')).toBeTruthy()
+  })
+
+  test('the Fulfillment card shows Service, From and To', async () => {
+    const { dialog } = await toReview(purchase({ ship_to_location_id: IDS.keller }))
+    const card = within(dialog)
+      .getByRole('button', { name: 'Edit fulfillment' })
+      .closest('[data-orientation], div')!.parentElement!.parentElement as HTMLElement
+    expect(await within(dialog).findByText('FedEx Express Saver · Medium')).toBeTruthy()
+    expect(await within(dialog).findByText('412 Oak Hollow Dr, Austin, TX')).toBeTruthy()
+    expect(await within(dialog).findByText('Keller office')).toBeTruthy()
+    for (const label of ['Service', 'From', 'To']) {
+      expect(within(card).getByText(label)).toBeTruthy()
+    }
+  })
+
+  test('the Transaction card shows the Premium by lot form', async () => {
+    const { dialog } = await toReview(purchase())
+    const value = await within(dialog).findByText('75% scrap · 98% bullion')
+    expect(value.previousElementSibling?.textContent).toBe('Premium')
   })
 
   test('each card has an Edit link back to its step', async () => {
@@ -131,8 +163,10 @@ describe('Review for a customer purchase', () => {
         }),
     })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Create order' }))
-    const creating = await within(dialog).findByRole('button', { name: 'Creating…' })
+    const creating = await within(dialog).findByRole('button', { name: /Creating…/ })
     expect(creating.hasAttribute('disabled')).toBe(true)
+    expect(creating.getAttribute('aria-busy')).toBe('true')
+    expect(dialog.querySelector('[aria-busy="true"].overflow-y-auto')).toBeTruthy()
     expect(within(dialog).getByRole('button', { name: 'Back' }).hasAttribute('disabled')).toBe(true)
     release({ status: 201, body: { order: { id: IDS.created } } })
   })
@@ -184,7 +218,7 @@ describe('Review for a customer sale', () => {
       payment_method_id: IDS.saleWire,
       recipient_address_id: IDS.home,
     })
-    expect(within(dialog).getByText('Charge total')).toBeTruthy()
+    expect(within(dialog).getByText('Estimated charge')).toBeTruthy()
     expect((await within(dialog).findAllByText('$24,972.48')).length).toBeGreaterThan(0)
     expect(within(dialog).getByText('$412.90')).toBeTruthy()
     expect(within(dialog).getByText('$24,559.58')).toBeTruthy()
@@ -233,18 +267,26 @@ describe('Review for a Refiner Sale', () => {
     fulfillment: dropoff,
   } as Partial<DrawerState>
 
-  test('headlines settlement after assay, the lots and the refiner', async () => {
+  test('the header card headlines settlement after assay and the refiner; the lots table lists the lots', async () => {
     const { dialog } = await toReview(refinerSale)
+    expect(within(dialog).getByText('Estimated settlement')).toBeTruthy()
     expect(within(dialog).getByText('After assay')).toBeTruthy()
-    expect(within(dialog).getByText('2 lots')).toBeTruthy()
-    expect(await within(dialog).findByText('Lots · 3.950 t oz fine · Gold')).toBeTruthy()
-    expect(within(dialog).getByText('Refiner sale · Jacob Johnson')).toBeTruthy()
-    expect(within(dialog).getByText('Asahi Refining')).toBeTruthy()
-    expect(within(dialog).getByText('$5,102.40')).toBeTruthy()
+    expect(within(dialog).getByText('Refiner sale')).toBeTruthy()
+    expect(await within(dialog).findByText('Assigned to Jacob Johnson')).toBeTruthy()
+    const header = dialog.querySelector('[data-review-header]') as HTMLElement
+    expect(await within(header).findByText('Asahi Refining')).toBeTruthy()
+    expect(await within(dialog).findByText('$5,102.40')).toBeTruthy()
+    const to = within(dialog).getByText('To')
+    expect(to.nextElementSibling?.textContent).toBe('Asahi Refining')
+    expect(within(dialog).getByText('From').nextElementSibling?.textContent).toBe('Keller office')
+    expect(within(dialog).getByText('Lot 2481-A')).toBeTruthy()
   })
 
-  test('Create posts RefiningOrderCreate with the lot ids, then attaches the drop-off', async () => {
+  test('Create posts one RefiningOrderCreate carrying the lot ids, the drop-off and the note', async () => {
     const { dialog, hits, onCreated } = await toReview(refinerSale)
+    fireEvent.change(within(dialog).getByRole('textbox', { name: 'Notes' }), {
+      target: { value: 'Ships Friday' },
+    })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Create order' }))
     await waitFor(() => expect(created(hits, '/refining/orders')).toBeTruthy())
     const body = created(hits, '/refining/orders')!.body
@@ -255,24 +297,14 @@ describe('Review for a Refiner Sale', () => {
       location_id: IDS.austin,
       assigned_to_id: IDS.owner,
       lot_ids: [IDS.lotA, IDS.lotB],
+      fulfillment: dropoff,
+      notes: 'Ships Friday',
     })
     expect(RefiningOrderCreate.safeParse(body).success).toBe(true)
     await waitFor(() =>
-      expect(created(hits, '/fulfillments')?.body).toEqual({
-        refining_order_id: IDS.created,
-        method_id: IDS.dropoff,
-      })
-    )
-    await waitFor(() =>
-      expect(
-        hits.find(
-          (hit) => hit.method === 'PATCH' && hit.path === `/fulfillments/${IDS.fulfillment}`
-        )?.body
-      ).toEqual(dropoff.choices)
-    )
-    await waitFor(() =>
       expect(onCreated).toHaveBeenCalledWith({ kind: 'refiner_sale', id: IDS.created })
     )
+    expect(writes(hits)).toHaveLength(1)
   })
 
   test('a 409 from a second open sale lands in the drawer alert', async () => {

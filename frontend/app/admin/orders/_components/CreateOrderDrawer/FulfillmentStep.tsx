@@ -22,7 +22,7 @@ import type {
   OrderPreview,
 } from '@dorado/contracts'
 
-import { directionOf, hasLots, isRefiner, type DrawerState } from '../../_lib/createOrder'
+import { directionOf, laterAllowed, isRefiner, type DrawerState } from '../../_lib/createOrder'
 import {
   HANDOFF_LABEL,
   PICKUP_WINDOWS,
@@ -82,7 +82,7 @@ export function FulfillmentStep({
   const customerMethods = useFulfillmentMethods(direction, { enabled: !refiner }).data
   const refinerMethods = useRefinerFulfillmentMethods({ enabled: refiner }).data
   const methods = (refiner ? refinerMethods : customerMethods) ?? []
-  const lots = hasLots(state)
+  const lots = !laterAllowed(state)
   const current =
     state.fulfillment === LATER || state.fulfillment === null ? null : state.fulfillment
   const method = current ? methods.find((m) => m.id === current.method_id) : undefined
@@ -131,7 +131,7 @@ export function FulfillmentStep({
             disabled={lots}
             description={
               lots
-                ? 'Set it on the order screen once lots are added.'
+                ? 'A sale with lots chooses it now.'
                 : 'The order screen asks for it before anything moves.'
             }
           />
@@ -146,6 +146,7 @@ export function FulfillmentStep({
           preview={preview}
           onMethod={(method_id) => update({ fulfillment: { method_id, choices: current.choices } })}
           onChange={(shipment) => setChoices({ shipment })}
+          onShipTo={(ship_to_location_id) => update({ ship_to_location_id })}
         />
       )}
       {current && method?.category === 'PICKUP' && (
@@ -242,6 +243,7 @@ function ShipmentDetails({
   preview,
   onMethod,
   onChange,
+  onShipTo,
 }: {
   state: DrawerState
   methods: FulfillmentMethodRead[]
@@ -250,13 +252,13 @@ function ShipmentDetails({
   preview: OrderPreview | null
   onMethod: (method_id: string) => void
   onChange: (choices: FulfillmentShipmentChoices) => void
+  onShipTo: (location_id: string) => void
 }) {
   const sale = directionOf(state.kind) === 'sale'
   const services = (useCarrierServices().data ?? []).map((s) => ({ value: s.id, label: s.name }))
   const packages = (usePackages().data ?? []).map((p) => ({ value: p.id, label: p.label }))
   const addresses = useAddressItems(state.customer_id)
   const offices = useLocationItems()
-  const [shipTo, setShipTo] = React.useState<string | undefined>(undefined)
   const set = (patch: FulfillmentShipmentChoices) => onChange({ ...choices, ...patch })
   const ownLabel = method.type === 'OWN LABEL'
   const courier = method.type === 'CARRIER PICKUP'
@@ -304,8 +306,8 @@ function ShipmentDetails({
             label="Ship to"
             placeholder="Choose an office"
             items={offices}
-            value={shipTo}
-            onValueChange={setShipTo}
+            value={state.ship_to_location_id ?? undefined}
+            onValueChange={onShipTo}
           />
           <Select
             label="Ship from"

@@ -38,6 +38,8 @@ export function assertOwnedLink(link: BankLink | undefined, user_id: string, id:
   return link
 }
 
+export const isVerified = (link: BankLink): boolean => link.status === 'verified'
+
 export function assertResendable(link: BankLink): void {
   if (link.status === 'verified') {
     throw new LinkAlreadyVerified(`bank link ${link.id} is already verified; nothing to resend`)

@@ -39,12 +39,13 @@ export type DrawerState = {
   payout: AdminPayout | Later | null
   payment_method_id: string | null
   recipient_address_id: string | null
+  ship_to_location_id: string | null
   notes: string
 }
 
 export type CreateRequest =
   | { endpoint: 'orders'; body: AdminOrderCreate }
-  | { endpoint: 'refining'; body: RefiningOrderCreate; fulfillment: AdminOrderFulfillment | null }
+  | { endpoint: 'refining'; body: RefiningOrderCreate }
 
 export const ORDER_KINDS: OrderKind[] = [
   'customer_purchase',
@@ -73,6 +74,7 @@ export function emptyDrawerState(kind: OrderKind = 'customer_purchase'): DrawerS
     payout: null,
     payment_method_id: null,
     recipient_address_id: null,
+    ship_to_location_id: null,
     notes: '',
   }
 }
@@ -145,6 +147,9 @@ export const hasLots = (state: DrawerState): boolean =>
       ? false
       : state.lots.length > 0
 
+export const laterAllowed = (state: DrawerState): boolean =>
+  !(state.kind === 'customer_sale' && hasLots(state))
+
 export function toPreviewBody(state: DrawerState): OrderPreviewBody | null {
   if (state.kind === 'refiner_purchase') return null
   if (state.kind === 'refiner_sale') return { kind: 'refiner_sale', lot_ids: state.lot_ids }
@@ -152,9 +157,13 @@ export function toPreviewBody(state: DrawerState): OrderPreviewBody | null {
   return { kind: state.kind, user_id: state.customer_id, lots: completeLots(state.lots) }
 }
 
-function chosen<T extends object>(value: T | Later | null, lots: boolean, what: string): T | null {
+function chosen<T extends object>(
+  value: T | Later | null,
+  required: boolean,
+  what: string
+): T | null {
   if (value === 'later' || value === null) {
-    if (lots) throw new Error(`Choose the ${what} before creating an order with lots.`)
+    if (required) throw new Error(`Choose the ${what} before creating a sale with lots.`)
     return null
   }
   return value
@@ -163,12 +172,13 @@ function chosen<T extends object>(value: T | Later | null, lots: boolean, what: 
 export function toCreateRequest(state: DrawerState): CreateRequest {
   const assignee = state.assigned_to_id ? { assigned_to_id: state.assigned_to_id } : {}
   const notes = state.notes.trim() ? { notes: state.notes.trim() } : {}
-  const lots = hasLots(state)
+  const required = !laterAllowed(state)
 
   if (isRefiner(state.kind)) {
     if (!state.refiner_id) throw new Error('Choose the refiner.')
     const lotIds =
       state.kind === 'refiner_sale' && state.lot_ids.length > 0 ? { lot_ids: state.lot_ids } : {}
+    const fulfillment = chosen(state.fulfillment, required, 'fulfillment')
     return {
       endpoint: 'refining',
       body: {
@@ -180,13 +190,14 @@ export function toCreateRequest(state: DrawerState): CreateRequest {
         ...(state.location_id ? { location_id: state.location_id } : {}),
         ...assignee,
         ...lotIds,
+        ...(fulfillment ? { fulfillment } : {}),
+        ...notes,
       },
-      fulfillment: chosen(state.fulfillment, lots, 'fulfillment'),
     }
   }
 
   if (!state.customer_id) throw new Error('Choose the customer.')
-  const fulfillment = chosen(state.fulfillment, lots, 'fulfillment')
+  const fulfillment = chosen(state.fulfillment, required, 'fulfillment')
   const base = {
     user_id: state.customer_id,
     ...assignee,
@@ -195,14 +206,14 @@ export function toCreateRequest(state: DrawerState): CreateRequest {
   }
 
   if (state.kind === 'customer_purchase') {
-    const payout = chosen(state.payout, lots, 'payout (Transaction step)')
+    const payout = chosen(state.payout, false, 'payout (Transaction step)')
     return {
       endpoint: 'orders',
       body: { direction: 'purchase', ...base, ...(payout ? { payout } : {}), ...notes },
     }
   }
 
-  if (lots && (!state.payment_method_id || !state.recipient_address_id)) {
+  if (required && (!state.payment_method_id || !state.recipient_address_id)) {
     throw new Error('Choose the payment method and billing address (Transaction step).')
   }
   return {

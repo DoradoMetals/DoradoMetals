@@ -2,12 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type {
-  FulfillmentCreateBody,
-  FulfillmentPatchBody,
-  FulfillmentView,
   Lot,
-  NoteCreateBody,
-  NoteView,
   OrderDocument,
   PaymentView,
   RefinerView,
@@ -142,26 +137,6 @@ export function useCreateRefiningOrder() {
   )
 }
 
-export function useAttachRefiningFulfillment() {
-  return useRefiningWrite(
-    async (input: {
-      refining_order_id: string
-      method_id: FulfillmentCreateBody['method_id']
-      choices: FulfillmentPatchBody
-    }) => {
-      const made = await apiRequest<FulfillmentView>('POST', '/fulfillments', {
-        refining_order_id: input.refining_order_id,
-        method_id: input.method_id,
-      })
-      return await apiRequest<FulfillmentView>(
-        'PATCH',
-        `/fulfillments/${made.fulfillment.id}`,
-        input.choices
-      )
-    }
-  )
-}
-
 export function useBatchRefiningOrders() {
   return useRefiningWrite((body: RefiningBatch) =>
     apiRequest<RefiningBatchResult>('POST', '/refining/orders/batch', body)
@@ -229,8 +204,4 @@ export const refiningDocumentUrl = (id: string, kind: string): string =>
 
 export function downloadRefiningDocument(id: string, kind: string): Promise<Blob> {
   return apiRequestBlob('GET', `/refining/orders/${id}/documents/${kind}`)
-}
-
-export function useAddRefiningNote() {
-  return useRefiningWrite((body: NoteCreateBody) => apiRequest<NoteView>('POST', '/notes', body))
 }

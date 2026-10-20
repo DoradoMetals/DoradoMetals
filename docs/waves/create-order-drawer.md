@@ -118,3 +118,12 @@ preview query; Playwright specs for the three kinds (ruling 130); tests first
   accounts plus "Link a new account"; Details is read-only (status, bank,
   account name, last four); with no account the step shows a Send link block
   (SMS or Email) and Continue waits for the webhook.
+
+## Testing
+
+Two local databases, both copies of the `test` template. The lane's unit,
+repo and http suites run on `test_create_order_drawer` (`TEST_DATABASE_URL`),
+inside rolled-back transactions. The Playwright specs commit real rows, so
+they run against `test_create_order_drawer_e2e`: the local API is started with
+`DATABASE_URL` pointed at that database, and the seed runs there. A suite never
+sees a committed e2e row. When the lane adds a migration, apply it to both.

@@ -136,9 +136,18 @@ describe('toCreateRequest for a customer purchase', () => {
     expect(AdminOrderCreate.safeParse(request.body).success).toBe(true)
   })
 
-  test('Decide later is refused once the order has lots', () => {
-    expect(() => toCreateRequest(purchase({ fulfillment: 'later' }))).toThrow(/fulfillment/i)
-    expect(() => toCreateRequest(purchase({ payout: 'later' }))).toThrow(/payout|transaction/i)
+  test('a purchase with lots may leave fulfillment and payout for later (ruling 163)', () => {
+    const request = toCreateRequest(purchase({ fulfillment: 'later', payout: 'later' }))
+    expect(request.body).not.toHaveProperty('fulfillment')
+    expect(request.body).not.toHaveProperty('payout')
+    expect((request.body as { lots: unknown[] }).lots).toHaveLength(2)
+    expect(AdminOrderCreate.safeParse(request.body).success).toBe(true)
+  })
+
+  test('a sale with lots still chooses its fulfillment', () => {
+    expect(() =>
+      toCreateRequest(purchase({ kind: 'customer_sale', fulfillment: 'later' }))
+    ).toThrow(/fulfillment/i)
   })
 
   test('an unchosen assignee is left to auto-assign', () => {
@@ -204,8 +213,8 @@ describe('toCreateRequest for refiner orders', () => {
       ...over,
     }) as DrawerState
 
-  test('a Refiner Sale is RefiningOrderCreate with the selected lot ids, then its drop-off', () => {
-    const request = toCreateRequest(refiner('refiner_sale'))
+  test('a Refiner Sale is one RefiningOrderCreate with the lot ids, the drop-off and the note', () => {
+    const request = toCreateRequest(refiner('refiner_sale', { notes: '  Ships Friday  ' }))
     expect(request.endpoint).toBe('refining')
     expect(request.body).toEqual({
       refiner_id: REFINER,
@@ -214,20 +223,21 @@ describe('toCreateRequest for refiner orders', () => {
       location_id: LOCATION,
       assigned_to_id: EMPLOYEE,
       lot_ids: [LOT_A, LOT_B],
-    })
-    expect(RefiningOrderCreate.safeParse(request.body).success).toBe(true)
-    expect(request.endpoint === 'refining' && request.fulfillment).toEqual({
-      method_id: DROPOFF,
-      choices: {
-        dropoff: {
-          refiner_id: REFINER,
-          location_id: LOCATION,
-          driver_employee_id: EMPLOYEE,
-          start_time: '2026-06-18T18:00:00.000Z',
-          end_time: '2026-06-18T20:00:00.000Z',
+      fulfillment: {
+        method_id: DROPOFF,
+        choices: {
+          dropoff: {
+            refiner_id: REFINER,
+            location_id: LOCATION,
+            driver_employee_id: EMPLOYEE,
+            start_time: '2026-06-18T18:00:00.000Z',
+            end_time: '2026-06-18T20:00:00.000Z',
+          },
         },
       },
+      notes: 'Ships Friday',
     })
+    expect(RefiningOrderCreate.safeParse(request.body).success).toBe(true)
   })
 
   test('a Refiner Sale with nothing selected omits lot_ids', () => {
@@ -236,7 +246,7 @@ describe('toCreateRequest for refiner orders', () => {
   })
 
   test('a Refiner Purchase never sends lot ids (ruling 159)', () => {
-    const request = toCreateRequest(refiner('refiner_purchase'))
+    const request = toCreateRequest(refiner('refiner_purchase', { fulfillment: 'later' }))
     expect(request.body).toEqual({
       refiner_id: REFINER,
       direction: 'buy',
@@ -248,7 +258,7 @@ describe('toCreateRequest for refiner orders', () => {
 
   test('a refiner order with Decide later attaches no fulfillment', () => {
     const request = toCreateRequest(refiner('refiner_sale', { lot_ids: [], fulfillment: 'later' }))
-    expect(request.endpoint === 'refining' && request.fulfillment).toBeNull()
+    expect(request.body).not.toHaveProperty('fulfillment')
   })
 })
 

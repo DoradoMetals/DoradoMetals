@@ -6,7 +6,12 @@ import type { PlaidVerificationKey } from '#providers/plaid/types.ts'
 
 const { publicKey, privateKey } = crypto.generateKeyPairSync('ec', { namedCurve: 'P-256' })
 
-const jwk = publicKey.export({ format: 'jwk' }) as { kty: string; crv: string; x: string; y: string }
+const jwk = publicKey.export({ format: 'jwk' }) as {
+  kty: string
+  crv: string
+  x: string
+  y: string
+}
 
 const KEY: PlaidVerificationKey = {
   kty: jwk.kty,
@@ -18,8 +23,7 @@ const KEY: PlaidVerificationKey = {
   use: 'sig',
 }
 
-const b64 = (value: unknown): string =>
-  Buffer.from(JSON.stringify(value)).toString('base64url')
+const b64 = (value: unknown): string => Buffer.from(JSON.stringify(value)).toString('base64url')
 
 function token(body: string, issuedAt: number, kid = 'plaid-key-1'): string {
   const header = b64({ alg: 'ES256', kid, typ: 'JWT' })
@@ -27,11 +31,10 @@ function token(body: string, issuedAt: number, kid = 'plaid-key-1'): string {
     iat: issuedAt,
     request_body_sha256: crypto.createHash('sha256').update(body, 'utf8').digest('hex'),
   })
-  const signature = crypto.sign(
-    'sha256',
-    Buffer.from(`${header}.${payload}`),
-    { key: privateKey, dsaEncoding: 'ieee-p1363' }
-  )
+  const signature = crypto.sign('sha256', Buffer.from(`${header}.${payload}`), {
+    key: privateKey,
+    dsaEncoding: 'ieee-p1363',
+  })
   return `${header}.${payload}.${signature.toString('base64url')}`
 }
 

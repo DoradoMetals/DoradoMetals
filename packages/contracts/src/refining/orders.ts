@@ -4,6 +4,7 @@
 //
 // Postgres table: refining.orders
 import { z } from 'zod/v4'
+import { Note } from '../crm/notes.js'
 import { RefiningDirection, SettlementType } from './enums.js'
 
 export const RefiningOrder = z.object({
@@ -50,6 +51,7 @@ export const RefiningOrderCreate = RefiningOrder.pick({
       .object({ method_id: FulfillmentMethod.shape.id, choices: FulfillmentPatchBody })
       .strict()
       .optional(),
+    notes: Note.shape.body.trim().min(1).optional(),
   })
   .partial({ settlement_type: true, location_id: true, assigned_to_id: true })
   .strict()

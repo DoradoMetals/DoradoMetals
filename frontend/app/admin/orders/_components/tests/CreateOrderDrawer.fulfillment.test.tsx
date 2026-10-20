@@ -44,11 +44,19 @@ describe('Fulfillment for a customer purchase', () => {
     ).toBeTruthy()
   })
 
-  test('Decide later is disabled when the order has lots', async () => {
+  test('Decide later stays open for a purchase with lots (ruling 163)', async () => {
     const { dialog } = await toFulfillment()
     const later = await within(dialog).findByRole('radio', { name: /Decide later/ })
+    expect(isDisabled(later)).toBe(false)
+  })
+
+  test('Decide later is disabled for a sale with lots', async () => {
+    const { dialog } = await toFulfillment(
+      purchaseState({ kind: 'customer_sale', lots: purchaseState().lots!.slice(1) })
+    )
+    const later = await within(dialog).findByRole('radio', { name: /Decide later/ })
     expect(isDisabled(later)).toBe(true)
-    expect(within(dialog).getByText('Set it on the order screen once lots are added.')).toBeTruthy()
+    expect(within(dialog).getByText('A sale with lots chooses it now.')).toBeTruthy()
   })
 
   test('Decide later is open when the order has no lots, and hides every detail field', async () => {

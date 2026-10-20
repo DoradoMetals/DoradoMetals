@@ -253,7 +253,14 @@ export function defaultRoutes(over: Routes = {}): Routes {
   return {
     'GET /search': (url: URL) =>
       (url.searchParams.get('q') ?? '').toLowerCase().startsWith('mar')
-        ? [{ kind: 'customer', id: IDS.customer, reference: 'C-1', title: 'Marguerite Whitfield' }]
+        ? [
+            {
+              kind: 'customer',
+              id: IDS.customer,
+              reference: 'Marguerite Whitfield',
+              title: 'marguerite@whitfield.me',
+            },
+          ]
         : [],
     [`GET /users/${IDS.customer}`]: CUSTOMER,
     [`GET /users/${IDS.bare}`]: { ...CUSTOMER, id: IDS.bare, name: 'Ada Bare', phone_number: null },
@@ -276,12 +283,15 @@ export function defaultRoutes(over: Routes = {}): Routes {
     'GET /fulfillments/methods/refiner': REFINER_METHODS,
     'GET /addresses': [
       {
-        id: IDS.home,
-        label: '412 Oak Hollow Dr, Austin, TX 78745',
-        line_1: '412 Oak Hollow Dr',
-        city: 'Austin',
-        state: 'TX',
-        postal_code: '78745',
+        address: {
+          id: IDS.home,
+          line_1: '412 Oak Hollow Dr',
+          city: 'Austin',
+          state: 'TX',
+          postal_code: '78745',
+        },
+        user_address: { user_id: IDS.customer, address_id: IDS.home },
+        locked: false,
       },
     ],
     'GET /locations': [
