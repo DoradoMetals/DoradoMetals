@@ -827,6 +827,19 @@ file named at the top of this file.
   aria-current on the stepper; 44 px targets. Source: Jacob, Library comment
   1974117920 and reply 1974124886.
 
+- **168 — Lot components live in the Lots design file; features compose
+  them.** *"Possibly all the other item stuff we have should be moved to
+  lots file as feature level components there ... Yeah go for it."* An
+  entity file exists only for an entity that crosses features (Lots,
+  Locations). The Lots file holds Lot Row (desktop and mobile), the Lots
+  table and its mobile card row, Add Lot · Drawer, the lot status badge, lot
+  images (attach, count, viewer) and the lot summary chips; a component moves
+  there the moment a second feature instances it, never before. Feature
+  files keep compositions and feature-only states: the Create Order drawer's
+  Lots section, the lead's Estimate card. The code mirrors it: shared lot
+  components under `frontend/shared/`, the `inventory` domain owning the
+  reads. Source: Jacob, Library comment 1974145221 and chat 2026-10-20.
+
 ## Numbering
 
 Every number from 1 to 157 has an entry, plus 26b and 26c. Two rulings carry the

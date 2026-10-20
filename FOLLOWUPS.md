@@ -698,3 +698,6 @@ State on disk when everything stopped:
 - Ruling 165: `leads.leads.city`/`state` nullable (migration 308), on LeadPatch and LeadView, Contact info card, Edit contact drawer, the header city line when set; area-code guess later.
 - One Admin Add Item drawer (People 1974073372): once the Library component lands, fold the lead AddItemDrawer and the order screen add-lot onto one frontend component; the Create Order drawer keeps its inline Lot Row.
 - Ruling 166: `@dorado/icons` gains an action map (function name to icon) mirroring the Figma Action icons page; TableActions, SelectionBar and the feature action bars take the function name. Next library sync.
+- Contrast tokens approved (Library 1974113069): after the worker applies the six variable values and Jacob publishes, run `figma:tokens` in a small lane, confirm the contrast test lists no failing pair, gate.
+- Table Header toolbar divider inset to the card padding (People 1974141307); sync to `packages/components` DataTable in the next library pass.
+- Ruling 168: lot components to the Lots design file; code: fold LotRowCard (orders), the lead Estimate item row and AddItemDrawer, and the order lots tables onto shared lot components under `frontend/shared/`, reads from the `inventory` domain. Next lane after the drawer merges.
