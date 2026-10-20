@@ -683,3 +683,14 @@ Detail in `docs/waves/auth-passwordless.md`.
 - [x] Funnel endpoint extended to the four stat tiles (response rate by channel, conversion rate with history, median time to first contact against `crm.targets`, needs attention): `GET /api/leads/summary` (migrations 300-302, leads-port lane).
 - [ ] `@dorado/client` leads module rebuilt; `frontend/app/admin/leads` and `leads/[id]` per docs/waves/frontend-conventions.md.
 - [ ] Assignment reads depend on the roles lane (migrations 296-298).
+
+## Paused 2026-10-20 (Jacob: "lets pause all work, save on disk")
+
+State on disk when everything stopped:
+
+- **dev** is at `8b970ee9` on GitHub (gate 34 green): library pass, accessibility pass, testing pass, Leads API and screens, migrations 300-303 on dev, genesis 002-303. Docs after that commit (rulings 163-164, drawer decisions, handoff section 10) are in main's `dev` but not pushed; they ride the next gate.
+- **Lane `create-order-drawer`** (worktree /home/jtj60/dorado-lanes/create-order-drawer, branch at `e439583f`, a WIP commit): migrations 304-307 applied to its own test database only, never to dev; API and client complete; the drawer frontend mid-edit; the four `CreateOrderDrawer.*.test.tsx` files hang on a Drawer focus-trap loop against a Radix portal; design changes from the last comments still to apply (footer per rulings 163-164, Review header card, card fills). Next: fix the focus loop, apply the design changes, full suites, Playwright, review, merge, apply 304-307 to dev, genesis 002-307, gate.
+- **Lane `roles`** (branch `roles`, reviewed to MERGE) still waits on Jacob's go for migrations 296-298 on dev; it must rebase over dev (list.sql params, 'admin' fixtures, the leads assign endpoint re-pointed to crm/assignments).
+- **Figma**: handoff `docs/design/handoff-figma-2026-10-19.md` section 10. Unanswered Orders threads 1972785617, 1972785727, 1972786247 (the footer; design not started). Waits on Jacob: Library and Orders publishes; lead location (People 1972579070); document kinds; focus look and contrast picks (Library 1972584681); the Skip rule is confirmed (ruling 163).
+- **Poll** is stopped; restart with `/home/jtj60/dorado-lanes/tools/all/loop.sh`.
+- Scratch test databases on the local cluster: `test_library_sync_2`, `test_leads_port`, `test_leads_port_e2e`, `test_create_order_drawer` (disposable; drop only with Jacob's ok).
