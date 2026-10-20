@@ -83,8 +83,8 @@ Every feature file page is laid out the same way, with no parent "Screens" or
 - Fulfillment design file ZpDvIz5JbIgIkZXbGYWfwY (tools/fulfillment; added to the loop 2026-10-20): fulfillment components live here (ruling 168).
 
 Ruling 169 (2026-10-20): components do not get frames; only screens do. A
-component set sits bare on its page, named as the code component file is
-named, with every state a variant; never two components for one thing. A
+component set is a direct child of its page, inside no frame and no
+section, named as the code component file is named, with every state a variant; never two components for one thing. A
 screen is a frame; its states come from the variants of the components on
 it, not from more screens. This supersedes "one frame per component
 feature" in the page-structure rule above.
