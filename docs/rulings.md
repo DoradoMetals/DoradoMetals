@@ -891,6 +891,19 @@ file named at the top of this file.
   Details/Drawer.tsx`, `Accordion.tsx`, `Line.tsx`, `Form.tsx`). Applies to
   every file in Brand Refresh, People first. Source: Jacob, chat 2026-10-20.
 
+- **172 — A component page is a feature, named for the thing; its sets are
+  the parts that compose it.** *"Shouldn't this component be called
+  performance? And then we would have like: Card, Tabs, Tooltip, Stats,
+  Charts, that all come together to make up the Performance/Card.tsx
+  component? So in the code the Performance would be the folder name, and
+  then the components. Please apply what I'm asking about here everywhere
+  else."* Pages are never grouped by part type (no "Charts", "Rows", "Lists",
+  "Cards", "Dialogs", "Drawers" pages): the page is Performance, Assigned
+  work, Top customers, Configuration, Ban ...; its sets are Card (the
+  composed whole), Tabs, Tooltip, Stats, Chart, Row, Drawer, Dialog, Form,
+  each a code file under `__features__/Performance/`. Applies to every
+  feature file. Source: Jacob, chat 2026-10-20.
+
 ## Numbering
 
 Every number from 1 to 157 has an entry, plus 26b and 26c. Two rulings carry the

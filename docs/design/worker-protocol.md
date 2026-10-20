@@ -98,3 +98,9 @@ is named for its part alone ("Row", "Picker", "Drawer" on the Assign page); sets
 direct children of their page (169). The worker creates pages with the plugin
 API (as the Library's pages were made), moves nodes, never recreates, and
 checks node counts before and after each file.
+
+Ruling 172 (2026-10-20): a component page is a feature named for the thing
+(Performance, Assigned work, Ban), never a part type (Charts, Rows, Cards,
+Dialogs, Drawers); its sets are the parts that compose it (Card, Tabs,
+Tooltip, Stats, Chart, Row, Drawer, Dialog, Form), one code file each under
+the feature folder.
