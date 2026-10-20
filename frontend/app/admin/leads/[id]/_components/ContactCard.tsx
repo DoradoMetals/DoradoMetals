@@ -7,7 +7,7 @@ import type { LeadView } from '@dorado/contracts'
 import { formatStamp } from '@/shared/utils/formatStamp'
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 
-import { DASH, formatConsent } from '../../_lib'
+import { DASH, formatConsent, formatLocation } from '../../_lib'
 import { LeadSection } from './LeadSection'
 
 export type ContactCardProps = {
@@ -29,6 +29,7 @@ export function ContactCard({ lead, preference, onEdit }: ContactCardProps) {
     >
       <Input label="Phone" readOnly value={lead.phone ? formatPhoneNumber(lead.phone) : DASH} />
       <Input label="Email" readOnly value={lead.email ?? DASH} />
+      <Input label="Location" readOnly value={formatLocation(lead)} />
       <Input label="Preference" readOnly value={preference ?? DASH} />
       <Input label="Last contacted" readOnly value={formatStamp(lead.last_contacted)} />
       <Input label="Texts" readOnly value={formatConsent(lead)} />

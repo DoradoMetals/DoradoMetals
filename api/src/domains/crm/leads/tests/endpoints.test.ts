@@ -179,3 +179,36 @@ test('deleting an id that names nothing is 404, not a success', async () => {
     { actor: TEST_ACTOR.id }
   )
 })
+
+test('a lead takes a location on create and patch, and clears it', async () => {
+  await inPinnedTransaction(
+    async () => {
+      await asAdmin(async () => {
+        const bare = await request(app).post('/api/leads').send(NEW_LEAD)
+        assert.equal(bare.status, 201)
+        assert.equal(bare.body.city, null)
+        assert.equal(bare.body.state, null)
+
+        const set = await request(app)
+          .patch(`/api/leads/${bare.body.id}`)
+          .send({ city: 'Austin', state: 'TX' })
+        assert.equal(set.status, 200, JSON.stringify(set.body))
+        assert.equal(set.body.city, 'Austin')
+        assert.equal(set.body.state, 'TX')
+
+        const cleared = await request(app)
+          .patch(`/api/leads/${bare.body.id}`)
+          .send({ city: null, state: null })
+        assert.equal(cleared.body.city, null)
+        assert.equal(cleared.body.state, null)
+
+        const placed = await request(app)
+          .post('/api/leads')
+          .send({ name: 'Placed', phone: '5550002222', city: 'Reno', state: 'NV' })
+        assert.equal(placed.status, 201, JSON.stringify(placed.body))
+        assert.equal(placed.body.city, 'Reno')
+      })
+    },
+    { actor: TEST_ACTOR.id }
+  )
+})

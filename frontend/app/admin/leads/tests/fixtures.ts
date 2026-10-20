@@ -78,6 +78,8 @@ export function lead(id: string, over: Partial<LeadView> = {}): LeadView {
     created_by: null,
     updated_by: null,
     notes: null,
+    city: null,
+    state: null,
     contact: null,
     priority: 'High',
     assigned_to_id: null,

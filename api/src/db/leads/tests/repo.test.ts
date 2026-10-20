@@ -236,3 +236,30 @@ test('a lead carries a source row and a contact preference row', async () => {
     assert.equal(moved?.contact_preference_id, null, 'the preference did not clear')
   })
 })
+
+test('update sets and clears a lead location, and the view returns it', async () => {
+  await inRollback(async (c: PoolClient) => {
+    const lead = await aLead(c)
+    assert.equal(lead.city ?? null, null)
+
+    const set = await leads.update(lead.id, { city: 'Austin', state: 'TX' }, c)
+    assert.equal(set?.city, 'Austin')
+    assert.equal(set?.state, 'TX')
+    assert.equal((await leads.getOne(lead.id, c))?.city, 'Austin')
+
+    const cleared = await leads.update(lead.id, { city: null, state: null }, c)
+    assert.equal(cleared?.city, null)
+    assert.equal(cleared?.state, null)
+  })
+})
+
+test('create carries a location when given and works without one', async () => {
+  await inRollback(async (c: PoolClient) => {
+    const bare = await leads.create({ name: 'No Place' }, c)
+    assert.equal(bare.city, null)
+    assert.equal(bare.state, null)
+    const placed = await leads.create({ name: 'Placed', city: 'Reno', state: 'NV' }, c)
+    assert.equal(placed.city, 'Reno')
+    assert.equal(placed.state, 'NV')
+  })
+})

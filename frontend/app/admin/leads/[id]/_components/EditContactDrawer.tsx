@@ -37,6 +37,8 @@ export function EditContactDrawer({
   const [name, setName] = React.useState(lead.name)
   const [phone, setPhone] = React.useState(lead.phone ?? '')
   const [email, setEmail] = React.useState(lead.email ?? '')
+  const [city, setCity] = React.useState(lead.city ?? '')
+  const [state, setState] = React.useState(lead.state ?? '')
   const [preference, setPreference] = React.useState(lead.contact_preference_id ?? NONE)
 
   React.useEffect(() => {
@@ -44,6 +46,8 @@ export function EditContactDrawer({
     setName(lead.name)
     setPhone(lead.phone ?? '')
     setEmail(lead.email ?? '')
+    setCity(lead.city ?? '')
+    setState(lead.state ?? '')
     setPreference(lead.contact_preference_id ?? NONE)
   }, [open, lead])
 
@@ -54,6 +58,10 @@ export function EditContactDrawer({
     if (nextPhone !== lead.phone) patch.phone = nextPhone
     const nextEmail = email.trim() || null
     if (nextEmail !== lead.email) patch.email = nextEmail
+    const nextCity = city.trim() || null
+    if (nextCity !== lead.city) patch.city = nextCity
+    const nextState = state.trim().toUpperCase() || null
+    if (nextState !== lead.state) patch.state = nextState
     const nextPreference = preference === NONE ? null : preference
     if (nextPreference !== lead.contact_preference_id) patch.contact_preference_id = nextPreference
     if (Object.keys(patch).length === 0) {
@@ -85,6 +93,14 @@ export function EditContactDrawer({
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+          />
+          <Input label="City" value={city} onChange={(e) => setCity(e.target.value)} />
+          <Input
+            label="State"
+            value={state}
+            maxLength={2}
+            autoCapitalize="characters"
+            onChange={(e) => setState(e.target.value)}
           />
           <Select
             label="Preference"

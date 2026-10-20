@@ -34,6 +34,8 @@ export const Lead = z.object({
   'responded_at': z.string().nullable(),
   'converted_at': z.string().nullable(),
   'archived_at': z.string().nullable(),
+  'city': z.string().nullable(),
+  'state': z.string().nullable(),
 })
 export type Lead = z.infer<typeof Lead>
 // generated:end
@@ -52,6 +54,8 @@ export const LeadPatch = Lead.pick({
   responded: true,
   contact: true,
   notes: true,
+  city: true,
+  state: true,
   priority: true,
   source: true,
   source_id: true,
