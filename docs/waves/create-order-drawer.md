@@ -118,3 +118,30 @@ preview query; Playwright specs for the three kinds (ruling 130); tests first
   accounts plus "Link a new account"; Details is read-only (status, bank,
   account name, last four); with no account the step shows a Send link block
   (SMS or Email) and Continue waits for the webhook.
+
+## Decided (orchestrator, code lane, 2026-10-20)
+
+The test agent found eight places where the design and the contracts
+disagree. Decisions:
+
+- The admin payout takes `bank_link_id` and `method`, never routing or
+  account numbers (ruling 160). eCheck carries the email on file; Dorado
+  balance carries nothing.
+- An admin order may be created with no lots and no fulfillment or payout
+  ("Decide later"); with lots both are required.
+- `RefiningOrderCreate` takes an optional `fulfillment` so the drawer makes
+  one call; `crm.notes` gains `refining_order_id` for the refiner Review's
+  notes.
+- "Payout from" is a `payments.funding_sources` lookup (rows, ruling 116),
+  default "Dorado operating", recorded on the payout transfer; no numbers.
+- No assignee chosen means `assigned_to_id` is omitted; auto-assign arrives
+  with the roles lane.
+- Four kind tiles, as the design.
+- Premium is typed as a percent and sent as a fraction; the parse lives in
+  `_lib/createOrder.ts`.
+- The 409 for a second open refiner sale names the open order by its
+  formatted reference.
+- Plaid: `payments.bank_links` grows provider, status, bank name, account
+  name, mask and a sealed token; Hosted Link send, the session-finished and
+  auto-verified webhooks, list and resend; the fake webhook route exists only
+  outside production.
