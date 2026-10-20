@@ -426,3 +426,68 @@ slot, not a named Skip slot. The Create Order footer (Cancel tertiary at the
 far left; Back, Skip, Continue at the right; the error row above) is placed
 into that slot by the Orders file, so the footer work does not wait on a
 Library property, only on the publish if the slot itself is new.
+
+## 11. Afternoon 2026-10-20
+
+Fifth worker. Detail per item: orders-, people-, library-, locations-, icons-comments-log.md, sections "2026-10-20".
+
+### 11.1 Done
+- **Create Order footer.** Set Create Order Footer 1342:43231 in Shared 1293:25223: Step x Layout x State, plus Show error.
+  - Cancel Tertiary on the left. Back, Skip (Secondary) and Continue on the right. Create order on Review.
+  - The error row is an absolute Danger Alert above the footer edge, so it changes no layout.
+  - Placed into the published Drawer footer slot on all 78 screens (1293:25214, 1293:25217, 1293:25220, 1287:38151).
+  - Order Conflict uses Skip disabled. No accounts and Link sent use Continue disabled.
+  - The Review Error body alerts are removed. Each drawer Footer has clip off.
+- **Review header.** Review Header 1337:42997: Assigned to is on its own line under the name. The 10 Header card borders are cleared.
+- **Library Drawer 127:32.**
+  - Footer slot: Custom footer, Show buttons, Footer content.
+  - New properties: Dismissible, Show grabber, Confirm close.
+  - BEHAVIOUR notes (ruling 167).
+  - Full variant: Grabber (a vertical bar on the left edge, vertically centred, 44 px hit area; drag it toward the right edge to close, per 1974129368), plus a Safe area inset bound to the new token spacing/safe-area-bottom (34).
+- **Library Slot 818:2.** No fill; the dashed outline stays.
+- **Library Add Item.** New page 1286:5617 holds three sets:
+  - Add Item Form 1286:5950: Scrap or Bullion, Premium, Upload images.
+  - Add Item Footer 1286:6028.
+  - Add Item · Drawer 1286:7201: Default, Saving, Error.
+  - It will open from the People lead Add Item and the Orders Lots card + button (170:2260 and 170:2421 are annotated). The Create Order Lot Row stays inline.
+- **Other Library changes.**
+  - Upload Drop target is FILL.
+  - Icon Button has Intent=Success: 36 variants. Table Actions Export uses it.
+  - Message Image time text is bound to the Time property.
+- **People.**
+  - Add Item Form 559:19505: the Attach button is now a Library Upload 578:21776 with the label "Upload images" 584:5163.
+  - Assign uses clipboard-list on 17 buttons.
+  - Location is split into City and State (588:5203). Contact Info and Lead Header have a No location state.
+  - Image bubbles are in the lead thread 34:2541.
+  - The Leads filters Date Picker label reads "Created".
+- **Orders.** Activity 1207:15065 and Refunds 1207:15238 have their head labels back.
+- **Locations.** Map 18:371 is a placeholder reading "Google Maps".
+- **Pricing.** Remove range is Danger.
+- **Icons file qxJf2XlhEFwy4uGHaH0L0n.**
+  - Page 36:2, table "Action icons" 39:28: Head row and 41 rows.
+  - Synonyms share one row with a slash (Delete / Remove, Export / Download, Send / Resend).
+  - Trend up and Trend down are separate rows.
+  - Root comment 1974101121.
+
+### 11.2 Contrast (Library 1972584612)
+- **Applied** on Jacob's word (1974128235), in Color (Dark):
+  - text/placeholder #888b95
+  - text/danger #ed576a (its own value now, not an alias)
+  - status/destructive-foreground #0d0e11
+- Borders and inputs are unchanged (decorative).
+- 1269:2 and the preview 1299:7356 are both marked APPLIED.
+- Other files get the change on the next publish.
+
+### 11.3 Waits on Jacob's next Library publish
+- **Icon Button Intent=Success.** Then set it on People 506:3523, 506:3543, 563:4054, 564:8176, 564:8181 and Orders 1271:27480, 1271:27496.
+- **Add Item · Drawer.** Then replace People 559:19655 with instances, and wire the Orders Lots + button.
+- **Small fixes:** the contrast variables, Upload FILL, Drawer footer clip, Grabber, Safe area, Dismissible, Message time binding, Slot without fill.
+
+### 11.4 Open
+- **People 1974097388 (customers page ideas).** Ideas are listed. Waiting for Jacob to say which to draw.
+- **Known defect:** the Lot Row mobile Loading skeleton bar overflows the card edge. Not fixed.
+- **People employee drawer Icon Buttons.** They keep an explicit 44 px height, because Size=LG is 40.
+- **No thread is unanswered** of those relayed to this worker.
+
+### 11.5 Exact next step
+Wait for the relays. After the next publish, clear the list in 11.3, render each change fresh at 2x, and reply on the threads named in the logs.
