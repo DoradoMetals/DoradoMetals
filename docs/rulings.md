@@ -861,6 +861,14 @@ file named at the top of this file.
   component feature" line of the page-structure rule. Source: Jacob, chat
   2026-10-20.
 
+- **170 — A field shows focus with its border; the ring is for controls with
+  no border of their own.** *"the focus ring with the highlighted border
+  looks a little dumb, no?"* Input, Select, Multiselect, Textarea,
+  Autocomplete and search fields show focus as the 1 px primary border only,
+  as Figma drew them; Button, Icon Button, Chip, Checkbox, Radio, Switch and
+  Tab keep the 2 px focus ring. Never both on one control. Source: Jacob,
+  chat 2026-10-20.
+
 ## Numbering
 
 Every number from 1 to 157 has an entry, plus 26b and 26c. Two rulings carry the
