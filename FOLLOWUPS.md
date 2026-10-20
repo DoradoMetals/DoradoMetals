@@ -685,6 +685,14 @@ Detail in `docs/waves/auth-passwordless.md`.
 - [ ] `@dorado/client` leads module rebuilt; `frontend/app/admin/leads` and `leads/[id]` per docs/waves/frontend-conventions.md.
 - [ ] Assignment reads depend on the roles lane (migrations 296-298).
 
+## Paused 2026-10-20 night
+
+- dev on GitHub = `24bdc4e3` (gate 36). No code lane running. Scratch test databases as listed below.
+- Figma: handoff section 14 of `docs/design/handoff-figma-2026-10-19.md`. Rulings 169-172 reshaped every feature file (pages are the navigation; components bare on their page; feature pages with part-named sets). Twin merges done for People, Orders, Pricing; the ruling 172 pass done for People and Orders; remaining: Pricing, Inventory, Media, Fulfillment, and the check on Admin, Auth, Payments, Locations. Row Desktop+Mobile restores done for Leads and Customers.
+- **Loss audit** (`docs/design/audit-2026-10-20.md`): the Inventory file lost its drilldown and state screens and several sets on 2026-10-09 (03:40Z to 05:01Z); 20 of 24 lot screens rebuilt today from version 2408194016995968892's predecessor 2408194016944016515; 4 lot screens plus the Pool and On hand drilldowns, the Lots state screens and the lost sets wait on Jacob's say on resume. No other file shows an unexplained loss. The worker protocol now has the deletion rule and the audit step. Audit scripts: `/home/jtj60/dorado-lanes/tools/{audit,children,history}.mjs`.
+- Waits on Jacob: publishes (Library, Orders, Inventory, Fulfillment); Users Table and the five orphan mobile sets; Lot Images vs Lot Photos; status chips placement; Ban; the customer KPI cards and map; the roles "go".
+- Poll stopped; restart with `/home/jtj60/dorado-lanes/tools/all/loop.sh`.
+
 ## State 2026-10-20 evening (the pause is over)
 
 - dev on GitHub = `b6a114f7` (gate 35): library, accessibility and testing passes; Leads port with the optional location; Create Order drawer with Plaid links, premium override, Skip (163), Drawer behaviours (167); migrations 304-308 on dev, genesis 002-308.
