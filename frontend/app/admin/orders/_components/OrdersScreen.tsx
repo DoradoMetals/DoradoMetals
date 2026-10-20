@@ -56,6 +56,7 @@ import {
 import { OrderSearch } from './OrderSearch'
 import { OrdersEmpty, OrdersFailed, OrdersSkeleton } from './OrdersStates'
 import { SelectionActions } from './SelectionActions'
+import { NewOrderButton } from './CreateOrderDrawer/NewOrderButton'
 
 const PAGE_SIZE = 24
 
@@ -318,6 +319,7 @@ export function OrdersScreen() {
       <AdminHeader
         title="Orders & Lots"
         layout={mobile ? 'mobile' : 'desktop'}
+        action={<NewOrderButton layout={mobile ? 'mobile' : 'desktop'} />}
         nav={<AdminTabs active="orders" />}
         breadcrumb={
           mobile ? undefined : (

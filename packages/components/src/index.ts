@@ -188,6 +188,11 @@ export {
   DrawerHeader,
   DrawerBody,
   DrawerFooter,
+  DrawerFooterAlert,
+  DrawerPrimary,
+  type DrawerDismissal,
+  type DrawerFooterAlertProps,
+  type DrawerPrimaryProps,
   type DrawerProps,
   type DrawerSize,
   type DrawerHeaderProps,
@@ -195,7 +200,7 @@ export {
   type DrawerFooterProps,
 } from './drawer/Drawer'
 export { Rating, RatingButton, type RatingProps, type RatingButtonProps } from './rating/Rating'
-export { useFocusTrap } from './hooks/useFocusTrap'
+export { useFocusTrap, type FocusTrapOptions, type FocusTrapRef } from './hooks/useFocusTrap'
 export { Amount, type AmountProps, type AmountTag } from './amount/Amount'
 export { Carousel, type CarouselProps } from './carousel/Carousel'
 export { useDebounce } from './hooks/useDebounce'

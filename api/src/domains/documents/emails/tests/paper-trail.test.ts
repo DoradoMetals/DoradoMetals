@@ -70,7 +70,9 @@ test('a successful send leaves a sent row pointing at its stored document', asyn
               p.kind AS pdf_kind, p.checksum, p.size_bytes
          FROM media.emails e
          LEFT JOIN media.pdfs p ON p.id = e.pdf_id
-        WHERE e.kind = 'purchase_order_created'`
+        WHERE e.kind = 'purchase_order_created' AND e.to_address = $1
+          AND e.xmin = pg_current_xact_id()::xid`,
+      [email]
     )
     assert.equal(rows.length, 1, 'one send, one row')
     const r = rows[0]
@@ -94,7 +96,9 @@ test('a failed send throws AND leaves a failed row carrying the error', async ()
 
     const { rows } = await c.query(
       `SELECT status, error, to_address, provider_message_id
-         FROM media.emails WHERE kind = 'purchase_order_created'`
+         FROM media.emails
+        WHERE kind = 'purchase_order_created' AND to_address = $1 AND xmin = pg_current_xact_id()::xid`,
+      [email]
     )
     assert.equal(rows.length, 1, 'a customer who never got their confirmation left no trace')
     assert.equal(rows[0].status, 'failed')
@@ -127,14 +131,22 @@ test('a record for an order the new schema does not know keeps everything but th
 
 test('without a transaction, a test-run send records nothing', async () => {
   const { order, email, user } = anOrderWithAUser()
+  const count = () =>
+    inOrders(async (c: PoolClient) => {
+      const res = await c.query(
+        `SELECT count(*)::int AS n FROM media.emails
+          WHERE kind = 'purchase_order_created' AND to_address = $1`,
+        [email]
+      )
+      return res.rows[0].n as number
+    })
+  const before = await count()
   await emails.sendOrderReceived(order.order.id, recorder())
-  const rows = await inOrders(async (c: PoolClient) => {
-    const res = await c.query(
-      `SELECT count(*)::int AS n FROM media.emails WHERE kind = 'purchase_order_created'`
-    )
-    return res.rows
-  })
-  assert.equal(rows[0].n, 0, 'an executor-less test send committed a real row - the guard rotted')
+  assert.equal(
+    await count(),
+    before,
+    'an executor-less test send committed a real row - the guard rotted'
+  )
 })
 
 test('a sign-up mail leaves an account_created row with its user', async () => {

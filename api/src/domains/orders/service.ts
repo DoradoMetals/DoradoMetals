@@ -38,6 +38,7 @@ import * as sweeps from '#transactions/sweeps.ts'
 import * as shippingOperations from '#logistics/shipping/operations/service.ts'
 import type { Executor } from '#shared/db/executor.ts'
 import type {
+  AdminLot,
   LotSplitPart,
   OrderCancelBody,
   OverrideBody,
@@ -112,6 +113,27 @@ export async function addLot(order_id: string, input: OrderLotPatch): Promise<Or
   const written = (await orderLots.viewFor(order_id)).find((row) => row.id === id)
   rules.assertLot(written, id)
   return written
+}
+
+export async function linkAdminLots(
+  order_id: string,
+  lots: AdminLot[],
+  tx: Executor
+): Promise<void> {
+  const overrides: { id: string; premium: number }[] = []
+  for (const declared of lots) {
+    const lot =
+      'bullion_id' in declared && declared.bullion_id
+        ? await mintFromCatalogue(declared.bullion_id, declared.quantity ?? null, tx)
+        : await lotsRepo.create(rules.declaredLot(declared as OrderLotPatch), tx)
+    await orderLots.link(order_id, lot.id, tx)
+    if (declared.premium !== undefined) overrides.push({ id: lot.id, premium: declared.premium })
+  }
+  await orderSpotsService.coverMetals(order_id, 'lot added', tx)
+  await retierPremiums(order_id, tx)
+  for (const { id, premium } of overrides) {
+    await lotsRepo.update(id, { premium, premium_override: true }, tx)
+  }
 }
 
 async function mintFromCatalogue(bullion_id: string, quantity: number | null, tx: Executor) {

@@ -16,6 +16,7 @@ import type { Executor } from '#shared/db/executor.ts'
 import type {
   Direction,
   FulfillmentCategory,
+  FulfillmentMethodRead,
   FulfillmentPatchBody,
   FulfillmentStatus,
   FulfillmentStep,
@@ -104,9 +105,10 @@ async function createFulfillment(
 export async function createDraft(
   method_id: string,
   direction: Direction,
-  executor?: Executor
+  executor?: Executor,
+  include_hidden = false
 ): Promise<FulfillmentView> {
-  await methodService.assertOffered(method_id, direction, executor)
+  await methodService.assertOffered(method_id, direction, executor, include_hidden)
   const method = await methodService.getOne(method_id, executor)
   rules.assertMethod(method, method_id)
 
@@ -445,4 +447,8 @@ export async function createForRefiningOrder(
   rules.assertComposed(made, refining_order_id)
   await ensureDetail(made.id, method.category, 'purchase', executor)
   return await recompose(made.id, executor)
+}
+
+export function buysLabel(method: FulfillmentMethodRead): boolean {
+  return rules.buysLabel(method)
 }

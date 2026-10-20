@@ -161,9 +161,12 @@ SELECT to_jsonb(o)
                  'bank_name', d.bank_name,
                  'account_type', d.account_type,
                  'account_last4', d.last_four,
-                 'routing_last4', d.routing_last_four,
                  'email_to', d.email_to,
                  'cost', t.payout_fee)
+               -- A payout to a linked account (ruling 160) has no routing
+               -- number at all, so the wire carries no routing field for it.
+               || CASE WHEN d.routing_last_four IS NULL THEN '{}'::jsonb
+                       ELSE jsonb_build_object('routing_last4', d.routing_last_four) END
           FROM orders.transactions t
           JOIN payments.details d ON d.id = t.payout_details_id
           LEFT JOIN payments.methods m ON m.id = d.method_id

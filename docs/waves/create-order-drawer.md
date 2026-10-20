@@ -128,7 +128,8 @@ disagree. Decisions:
   account numbers (ruling 160). eCheck carries the email on file; Dorado
   balance carries nothing.
 - An admin order may be created with no lots and no fulfillment or payout
-  ("Decide later"); with lots both are required.
+  ("Decide later"); a purchase with lots may skip both (ruling 163); a sale
+  with lots keeps its payment (ruling 131).
 - `RefiningOrderCreate` takes an optional `fulfillment` so the drawer makes
   one call; `crm.notes` gains `refining_order_id` for the refiner Review's
   notes.
@@ -145,3 +146,12 @@ disagree. Decisions:
   name, mask and a sealed token; Hosted Link send, the session-finished and
   auto-verified webhooks, list and resend; the fake webhook route exists only
   outside production.
+
+## Testing
+
+Two local databases, both copies of the `test` template. The lane's unit,
+repo and http suites run on `test_create_order_drawer` (`TEST_DATABASE_URL`),
+inside rolled-back transactions. The Playwright specs commit real rows, so
+they run against `test_create_order_drawer_e2e`: the local API is started with
+`DATABASE_URL` pointed at that database, and the seed runs there. A suite never
+sees a committed e2e row. When the lane adds a migration, apply it to both.

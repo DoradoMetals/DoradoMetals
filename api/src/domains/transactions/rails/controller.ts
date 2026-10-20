@@ -6,6 +6,7 @@ import * as moov from '#providers/moov/index.ts'
 import * as plaid from '#providers/plaid/index.ts'
 import * as rails from '#transactions/rails/service.ts'
 import * as matching from '#transactions/inbound/service.ts'
+import * as banks from '#transactions/banks/service.ts'
 
 export const getPaymentView = asyncHandler(async (req, res) => {
   return res.json(await rails.paymentView(uuidParam(req, 'orderId')))
@@ -41,6 +42,11 @@ export const handlePlaidWebhook = asyncHandler(async (req, res) => {
   const signed = await plaid.verify(oneString(req.headers[plaid.VERIFICATION_HEADER]), raw)
   if (!signed) return refuseWith(401, 'plaid webhook signature did not verify')
 
+  const event = plaid.eventFrom(raw)
+  if (event && banks.isBankEvent(event)) {
+    await banks.applyPlaidEvent(event)
+    return res.json({ received: true })
+  }
   await matching.syncFeed()
   return res.json({ received: true })
 })

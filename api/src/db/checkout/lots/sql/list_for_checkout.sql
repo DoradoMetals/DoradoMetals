@@ -6,7 +6,7 @@ SELECT li.id, li.bullion_id, li.metal_id, li.unit, li.quantity, li.pre_melt,
        li.declared_unit, li.declared_quantity, li.declared_pre_melt, li.declared_post_melt,
        li.declared_purity, li.declared_content,
        to_char(li.assayed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS assayed_at,
-       li.premium, li.sales_tax_rate,
+       li.premium, li.premium_override, li.sales_tax_rate,
        to_char(li.confirmed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS confirmed_at,
        to_char(li.settled_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS settled_at,
        li.settled_spot, li.source::text AS source, li.line_reference

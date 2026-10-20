@@ -35,4 +35,15 @@ describe('Stepper', () => {
     expect(check.getAttribute('class')).toMatch(/size-sm-plus/)
     expect(check.getAttribute('stroke-width')).toBe(String((2 * 14) / 24))
   })
+
+  it('announces the current step through a polite live region as it changes', () => {
+    const { container, rerender } = render(<Stepper steps={['Order', 'Review']} current={0} />)
+    const live = container.querySelector('[aria-live="polite"]') as HTMLElement
+    expect(live.textContent).toBe('Step 1 of 2: Order')
+    rerender(<Stepper steps={['Order', 'Review']} current={1} />)
+    expect(live.textContent).toBe('Step 2 of 2: Review')
+    expect(container.querySelector('[aria-current="step"]')!.getAttribute('aria-label')).toBe(
+      'Step 2 of 2: Review'
+    )
+  })
 })

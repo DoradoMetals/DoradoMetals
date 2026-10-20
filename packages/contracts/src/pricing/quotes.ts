@@ -3,7 +3,7 @@ import { Direction } from '../orders/enums.js'
 import { Bullion } from '../products/bullion.js'
 import { Checkout } from '../checkout/checkouts.js'
 import { Lot } from '../inventory/lots.js'
-import { Order } from '../orders/orders.js'
+import { AdminLot, Order } from '../orders/orders.js'
 import { OrderLot } from '../orders/lots.js'
 import { OrderSpot } from '../orders/spots.js'
 import { Metal } from '../metals/metals.js'
@@ -249,3 +249,62 @@ export const SelectionQuery = z
   .object({ order_ids: z.array(Order.shape.id).min(1).max(500) })
   .strict()
 export type SelectionQuery = z.infer<typeof SelectionQuery>
+
+// The Create Order drawer's estimate (ruling 158): the drawer's lot inputs, or
+// the selected on-hand lots, priced at the live spot without writing a row. A
+// Refiner Purchase has nothing to price (ruling 159), so it is not a kind.
+export const OrderPreviewKind = z.enum(['customer_purchase', 'customer_sale', 'refiner_sale'])
+export type OrderPreviewKind = z.infer<typeof OrderPreviewKind>
+
+export const OrderPreviewBody = z.discriminatedUnion('kind', [
+  z
+    .object({
+      kind: OrderPreviewKind.extract(['customer_purchase']),
+      user_id: Order.shape.user_id.unwrap(),
+    })
+    .extend({ lots: z.array(AdminLot) })
+    .strict(),
+  z
+    .object({
+      kind: OrderPreviewKind.extract(['customer_sale']),
+      user_id: Order.shape.user_id.unwrap(),
+    })
+    .extend({ lots: z.array(AdminLot) })
+    .strict(),
+  z
+    .object({ kind: OrderPreviewKind.extract(['refiner_sale']) })
+    .extend({ lot_ids: z.array(Lot.shape.id) })
+    .strict(),
+])
+export type OrderPreviewBody = z.infer<typeof OrderPreviewBody>
+
+export const OrderPreviewSpot = z.object({ metal_id: Metal.shape.id, spot: z.number() })
+export type OrderPreviewSpot = z.infer<typeof OrderPreviewSpot>
+
+export const OrderPreviewLine = z.object({
+  position: z.number().int(),
+  lot_id: Lot.shape.id.nullable(),
+  metal_id: Metal.shape.id,
+  spot: z.number(),
+  fine_oz: z.number(),
+  metal_value: z.number(),
+  premium: z.number(),
+  total: z.number(),
+})
+export type OrderPreviewLine = z.infer<typeof OrderPreviewLine>
+
+export const OrderPreviewFine = z.object({ metal_id: Metal.shape.id, oz: z.number() })
+export type OrderPreviewFine = z.infer<typeof OrderPreviewFine>
+
+export const OrderPreview = z.object({
+  kind: OrderPreviewKind,
+  spots_at: z.string().nullable(),
+  spots: z.array(OrderPreviewSpot),
+  lines: z.array(OrderPreviewLine),
+  fine_oz: z.array(OrderPreviewFine),
+  metal_value: z.number(),
+  total: z.number(),
+  credit_applied: z.number(),
+  total_due: z.number(),
+})
+export type OrderPreview = z.infer<typeof OrderPreview>

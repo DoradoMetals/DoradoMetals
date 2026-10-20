@@ -10,10 +10,11 @@ import type { Direction, FulfillmentCreateBody, FulfillmentView } from '@dorado/
 async function methodFor(
   { method_id, handoff_code }: Omit<FulfillmentCreateBody, 'checkout_id'>,
   direction: Direction,
-  executor?: Executor
+  executor?: Executor,
+  include_hidden = false
 ): Promise<string> {
   if (method_id) {
-    await methodService.assertOffered(method_id, direction, executor)
+    await methodService.assertOffered(method_id, direction, executor, include_hidden)
     return method_id
   }
   if (!handoff_code) {
@@ -43,7 +44,7 @@ export async function createForCheckout(
   rules.assertOwnedDraft(row.user_id, is_admin ? row.user_id : caller_id, checkout_id)
 
   const direction = row.direction
-  const method_id = await methodFor(body, direction, tx)
+  const method_id = await methodFor(body, direction, tx, is_admin)
 
   if (row.fulfillment_id) {
     return await withDefaultAddress(
@@ -52,7 +53,7 @@ export async function createForCheckout(
       tx
     )
   }
-  const draft = await fulfillmentService.createDraft(method_id, direction, tx)
+  const draft = await fulfillmentService.createDraft(method_id, direction, tx, is_admin)
   await checkoutService.attachFulfillment(row.id, draft.fulfillment.id, tx)
   return await withDefaultAddress(draft, row.user_id, tx)
 }

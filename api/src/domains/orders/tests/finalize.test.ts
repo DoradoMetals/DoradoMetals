@@ -163,7 +163,7 @@ test("a clean finalize prices the order from the database's own rows", async () 
             [order.id]
           )
         ).rows[0]
-        assert.equal(
+        assert.deepEqual(
           row.cancelled_at,
           before.cancelled_at,
           'finalize moved an unrelated fact - pipelines must not write facts beside their own'

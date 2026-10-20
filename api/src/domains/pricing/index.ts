@@ -11,6 +11,7 @@ export {
   priceOrder,
   priceProduct,
   priceRefiningOrder,
+  previewOrder,
   profitBreakdown,
   refundCents,
   selectionSummary,

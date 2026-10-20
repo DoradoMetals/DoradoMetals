@@ -1,5 +1,6 @@
 import {
   Direction,
+  OrderPreviewBody,
   OrderQuoteBody,
   ProductQuoteBody,
   RefiningQuoteBody,
@@ -50,4 +51,9 @@ export const selectionSummary = asyncHandler(async (req, res) => {
     'pricing/selection query'
   )
   res.status(200).json(await pricing.selectionSummary(order_ids))
+})
+
+export const orderPreview = asyncHandler(async (req, res) => {
+  const body = parseStrict(OrderPreviewBody, req.body, 'pricing/preview body')
+  res.status(200).json(await pricing.previewOrder(body))
 })

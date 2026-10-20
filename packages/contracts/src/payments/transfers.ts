@@ -30,6 +30,7 @@ export const Transfer = z.object({
   'updated_by_id': z.string().uuid().nullable(),
   'refining_order_id': z.string().uuid().nullable(),
   'override_reason': z.string().nullable(),
+  'funding_source_id': z.string().uuid().nullable(),
 })
 export type Transfer = z.infer<typeof Transfer>
 // generated:end
@@ -62,7 +63,7 @@ export const TransferWrite = Transfer.pick({
   reference: true,
   idempotency_key: true,
   override_reason: true,
-})
+}).extend({ funding_source_id: Transfer.shape.funding_source_id.optional() })
 export type TransferWrite = z.infer<typeof TransferWrite>
 
 export const TransferPatch = Transfer.pick({

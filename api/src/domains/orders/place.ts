@@ -18,6 +18,8 @@ import * as emailService from '#documents/emails/service.ts'
 import * as taxService from '#pricing/sales-tax/service.ts'
 import * as paymentsService from '#transactions/service.ts'
 import * as credit from '#transactions/credit/service.ts'
+import * as banks from '#transactions/banks/service.ts'
+import * as funding from '#transactions/funding/service.ts'
 import * as sweeps from '#transactions/sweeps.ts'
 import * as stripeProvider from '#providers/stripe/stripe.ts'
 import * as orderRead from '#orders/read.ts'
@@ -25,12 +27,13 @@ import * as rules from '#orders/rules.ts'
 import * as orderSpotsService from '#orders/spots/service.ts'
 import * as shippingLabels from '#logistics/shipping/labels.ts'
 import * as pricing from '#pricing/index.ts'
-import { retierPremiums } from '#orders/service.ts'
+import { linkAdminLots, retierPremiums } from '#orders/service.ts'
 
 import withTransaction from '#shared/db/withTransaction.ts'
 import { attempt } from '#shared/attempt.ts'
 import type {
   AdminOrderCreate,
+  AdminPayout,
   Checkout,
   Lot,
   OrderLot,
@@ -44,7 +47,11 @@ export const LIVE = {
   confirm: (order_id: string) => emailService.sendOrderPlacedConfirmation(order_id),
 }
 
-export async function place(checkout_id: string, world: typeof LIVE = LIVE): Promise<OrderView> {
+export async function place(
+  checkout_id: string,
+  world: typeof LIVE = LIVE,
+  stamp?: (order_id: string, tx: PoolClient) => Promise<void>
+): Promise<OrderView> {
   const checkout = await checkoutService.getRowById(checkout_id)
   rules.assertCheckout(checkout, checkout_id)
   await checkoutService.assertRealAccount(checkout.user_id, 'place an order')
@@ -53,35 +60,64 @@ export async function place(checkout_id: string, world: typeof LIVE = LIVE): Pro
 
   const order_id =
     checkout.direction === 'sale'
-      ? await placeSale(checkout, cart, world)
-      : await placePurchase(checkout, cart, world)
+      ? await placeSale(checkout, cart, world, stamp)
+      : await placePurchase(checkout, cart, world, stamp)
 
   const order = await orderRead.view(order_id)
   rules.assertPlacedOrder(order, order_id)
   return order
 }
 
+// The Create Order drawer's one call. An order with its lots, fulfillment and
+// money is placed exactly as a checkout is; any other order is written bare
+// with whatever was chosen, its lots linked, and the order screen asks for
+// the rest (ruling 163).
 export async function placeForAdmin(
   order: AdminOrderCreate,
   world: typeof LIVE = LIVE
 ): Promise<OrderView> {
-  return await place(await withTransaction((tx) => buildFor(order, tx)), world)
+  rules.assertDecided(order)
+  const payout = order.direction === 'purchase' ? order.payout : undefined
+  if (payout) await assertPayable(order.user_id, payout)
+
+  const stamp = (order_id: string, tx: PoolClient) => stampAdminChoices(order_id, order, payout, tx)
+  const order_id = rules.placesAsCheckout(order)
+    ? (await place(await withTransaction((tx) => buildFor(order, tx)), world, stamp)).order.id
+    : await withTransaction(async (tx) => {
+        const id = await writeBare(order, tx)
+        await stamp(id, tx)
+        return id
+      })
+  const view = await orderRead.view(order_id)
+  rules.assertPlacedOrder(view, order_id)
+  return view
+}
+
+async function assertPayable(user_id: string, payout: AdminPayout): Promise<void> {
+  rules.assertPayoutAccountNamed(payout)
+  if (payout.bank_link_id) await banks.payoutAccount(user_id, payout.bank_link_id)
+  if (payout.funding_source_id) await funding.assertKnown(payout.funding_source_id)
 }
 
 async function buildFor(order: AdminOrderCreate, tx: PoolClient): Promise<string> {
   const row = await checkoutService.getRowFor(order.user_id, order.direction, tx)
   await checkoutService.replaceLots(order.user_id, order.direction, order.lots, tx)
 
+  const fulfillment = rules.requireChosen(order.fulfillment, 'fulfillment')
   const draft = await fulfillmentDrafts.createForCheckout(
-    { checkout_id: row.id, method_id: order.fulfillment.method_id },
+    { checkout_id: row.id, method_id: fulfillment.method_id },
     order.user_id,
     true,
     tx
   )
-  await fulfillmentService.patchChoices(draft.fulfillment.id, order.fulfillment.choices, tx)
+  await fulfillmentService.patchChoices(draft.fulfillment.id, fulfillment.choices, tx)
 
   if (order.direction === 'purchase') {
-    await checkoutService.saveCheckoutPayout(order.user_id, 'purchase', order.payout, tx)
+    await checkoutService.saveLinkedPayout(
+      order.user_id,
+      rules.requireChosen(order.payout, 'payout'),
+      tx
+    )
   } else {
     await checkoutService.patchCheckout(
       order.user_id,
@@ -94,6 +130,70 @@ async function buildFor(order: AdminOrderCreate, tx: PoolClient): Promise<string
     )
   }
   return row.id
+}
+
+async function writeBare(order: AdminOrderCreate, tx: PoolClient): Promise<string> {
+  const checkout = await checkoutService.getRowFor(order.user_id, order.direction, tx)
+  const created = await ordersRepo.createForCheckout(checkout.id, tx)
+  rules.assertPlacedOrder(created, checkout.id)
+  if (order.lots.length > 0) await linkAdminLots(created.id, order.lots, tx)
+
+  if (order.fulfillment) {
+    const made = await fulfillmentService.createForOrder(
+      created.id,
+      order.fulfillment.method_id,
+      tx
+    )
+    await fulfillmentService.patchChoices(made.fulfillment.id, order.fulfillment.choices, tx)
+  }
+  if (order.direction === 'purchase' && order.payout) {
+    const saved = await checkoutService.saveLinkedPayout(order.user_id, order.payout, tx)
+    await orderTransactions.create(
+      { order_id: created.id, used_funds: false, payout_details_id: saved.payment_details_id },
+      tx
+    )
+    await clearChoices(saved, tx)
+  }
+  if (order.direction === 'sale' && order.recipient_address_id) {
+    const address_id = await addressService.snapshot(order.recipient_address_id, tx)
+    if (address_id) {
+      await orderAddresses.create(
+        { order_id: created.id, address_id, source_address_id: order.recipient_address_id },
+        tx
+      )
+    }
+  }
+  return created.id
+}
+
+async function stampAdminChoices(
+  order_id: string,
+  order: AdminOrderCreate,
+  payout: AdminPayout | undefined,
+  tx: PoolClient
+): Promise<void> {
+  rules.assertWrittenOrder(
+    await ordersRepo.update(
+      order_id,
+      {
+        ...(order.notes !== undefined ? { notes: order.notes } : {}),
+        ...(order.assigned_to_id !== undefined ? { assigned_to_id: order.assigned_to_id } : {}),
+      },
+      {},
+      tx
+    ),
+    order_id
+  )
+  if (!payout) return
+  await orderTransactions.update(
+    order_id,
+    {
+      payout_bank_link_id: payout.bank_link_id ?? null,
+      payout_funding_source_id: payout.funding_source_id ?? null,
+    },
+    {},
+    tx
+  )
 }
 
 async function writeOrder(
@@ -139,14 +239,18 @@ async function snapshotAddress(
   await orderAddresses.create({ order_id, address_id, source_address_id }, tx)
 }
 
-async function placePurchase(checkout: Checkout, cart: Lot[], world: typeof LIVE): Promise<string> {
+async function placePurchase(
+  checkout: Checkout,
+  cart: Lot[],
+  world: typeof LIVE,
+  stamp?: (order_id: string, tx: PoolClient) => Promise<void>
+): Promise<string> {
   const draft = rules.requireFreeFulfillmentDraft(
     await fulfillmentService.getById(checkout.fulfillment_id!)
   )
-  const shipment_id =
-    draft.method.category === 'SHIPMENT'
-      ? await fulfillmentService.shipmentIdOf(draft.fulfillment.id)
-      : null
+  const shipment_id = fulfillmentService.buysLabel(draft.method)
+    ? await fulfillmentService.shipmentIdOf(draft.fulfillment.id)
+    : null
 
   const payout_fee = rules.payoutFeeOf(
     await paymentMethods.listFor('purchase'),
@@ -165,6 +269,7 @@ async function placePurchase(checkout: Checkout, cart: Lot[], world: typeof LIVE
       order_id
     )
     await orderSpotsService.applyLock(order_id, true, tx)
+    if (stamp) await stamp(order_id, tx)
 
     if (shipment_id) {
       await shippingLabels.sealForPlacement(shipment_id, checkout.id, draft.method.type, tx)
@@ -182,7 +287,12 @@ async function placePurchase(checkout: Checkout, cart: Lot[], world: typeof LIVE
   return placed.order_id
 }
 
-async function placeSale(checkout: Checkout, cart: Lot[], world: typeof LIVE): Promise<string> {
+async function placeSale(
+  checkout: Checkout,
+  cart: Lot[],
+  world: typeof LIVE,
+  stamp?: (order_id: string, tx: PoolClient) => Promise<void>
+): Promise<string> {
   const address = rules.requireAddress(
     await placeAddresses.getOne(checkout.recipient_address_id!),
     'delivery'
@@ -207,6 +317,7 @@ async function placeSale(checkout: Checkout, cart: Lot[], world: typeof LIVE): P
       (order, client) => orderLots.createSold(order, checkout.id, lines, client),
       tx
     )
+    if (stamp) await stamp(id, tx)
     await orderSpotsService.applyLock(id, true, tx)
     await orderTransactions.create(
       {

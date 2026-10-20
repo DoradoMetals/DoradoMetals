@@ -34,6 +34,8 @@ export const OrderTotals = z.object({
   'shipping_service': z.string().nullable(),
   'payout_fee': z.number().nullable(),
   'payout_details_id': z.string().uuid().nullable(),
+  'payout_bank_link_id': z.string().uuid().nullable(),
+  'payout_funding_source_id': z.string().uuid().nullable(),
 })
 export type OrderTotals = z.infer<typeof OrderTotals>
 // generated:end
@@ -61,6 +63,8 @@ export const OrderTotalsWrite = OrderTotals.pick({
   payout_fee: true,
   waive_payout_fee: true,
   payout_details_id: true,
+  payout_bank_link_id: true,
+  payout_funding_source_id: true,
 }).partial()
 export type OrderTotalsWrite = z.infer<typeof OrderTotalsWrite>
 

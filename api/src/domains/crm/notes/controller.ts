@@ -9,6 +9,7 @@ export const getAll = asyncHandler(async (req, res) => {
     user_id: oneString(req.query.user_id) ?? null,
     lead_id: oneString(req.query.lead_id) ?? null,
     order_id: oneString(req.query.order_id) ?? null,
+    refining_order_id: oneString(req.query.refining_order_id) ?? null,
   }
   return res.status(200).json(await service.forSubject(subject))
 })

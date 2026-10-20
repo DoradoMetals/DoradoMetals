@@ -1,8 +1,11 @@
 import { Conflict, Invalid, NotFound, StaleWrite } from '#shared/errors.ts'
 import { WeightUnit } from '@dorado/contracts'
 import { isSettled } from '#transactions/rules.ts'
+import { isBankMethod } from '#transactions/details/rules.ts'
 
 import type {
+  AdminOrderCreate,
+  AdminPayout,
   CustomerOrderLotView,
   CustomerOrderView,
   Action,
@@ -918,4 +921,39 @@ export function assertRepairable(intent: PaymentIntentFacts, cents: number): voi
         `order totals now - contact support with that reference`
     )
   }
+}
+
+export class OrderUndecided extends Invalid {}
+
+// Ruling 163: an admin order needs only its kind, its party and its
+// assignee. A purchase with lots may leave fulfillment and payout for the
+// order screen. A sale with lots is placed as a checkout is, so it still
+// names its fulfillment, payment method and recipient address.
+export function assertDecided(order: AdminOrderCreate): void {
+  if (order.lots.length === 0 || order.direction === 'purchase') return
+  if (!order.fulfillment || !order.payment_method_id || !order.recipient_address_id) {
+    throw new OrderUndecided(
+      'a sale with lots chooses its fulfillment, payment method and recipient address at creation'
+    )
+  }
+}
+
+export const placesAsCheckout = (order: AdminOrderCreate): boolean =>
+  order.lots.length > 0 && !!order.fulfillment && (order.direction === 'sale' || !!order.payout)
+
+export function assertPayoutAccountNamed(payout: AdminPayout): void {
+  if (isBankMethod(payout.method) && !payout.bank_link_id) {
+    throw new Invalid(`an ${payout.method} payout names a linked bank account (bank_link_id)`)
+  }
+}
+
+export function requireChosen<T>(value: T | null | undefined, what: string): T {
+  if (value === null || value === undefined) {
+    throw new OrderUndecided(`the order's ${what} is not chosen`)
+  }
+  return value
+}
+
+export function assertWrittenOrder(written: boolean, order_id: string): void {
+  if (!written) throw new Conflict(`order ${order_id} changed under this request`)
 }

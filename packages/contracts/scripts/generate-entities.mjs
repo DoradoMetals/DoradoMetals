@@ -253,6 +253,7 @@ const ENTITY = {
   'payments.attempts': 'PaymentAttempt',
   'payments.bank_links': 'BankLink',
   'payments.feed_cursors': 'FeedCursor',
+  'payments.funding_sources': 'FundingSource',
   'payments.inbound_transactions': 'InboundTransaction',
   'payments.details': 'PaymentDetails',
   'payments.intents': 'PaymentIntent',

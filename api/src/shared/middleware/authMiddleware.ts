@@ -64,6 +64,11 @@ const requireRole = (minimumRole: Role): RequestHandler => {
   }
 }
 
+export const isStaff = (req: Pick<Request, 'user'>): boolean => {
+  const role = req.user?.role
+  return !!role && role in roleLevels && roleLevels[role as Role] >= roleLevels.admin
+}
+
 export const requireUser = requireRole('user')
 export const requireVerifiedUser = requireRole('verified_user')
 export const requireAdmin = requireRole('admin')

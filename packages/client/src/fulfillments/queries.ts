@@ -34,6 +34,14 @@ export function useFulfillmentMethods(direction: Direction, options: { enabled?:
   })
 }
 
+export function useRefinerFulfillmentMethods(options: { enabled?: boolean } = {}) {
+  return useQuery<FulfillmentMethodRead[]>({
+    queryKey: keys.fulfillments.refinerMethods(),
+    enabled: options.enabled ?? true,
+    queryFn: () => apiRequest<FulfillmentMethodRead[]>('GET', '/fulfillments/methods/refiner'),
+  })
+}
+
 function useFulfillmentWrite<TVariables, TResult>(
   orderId: string,
   run: (variables: TVariables) => Promise<TResult>

@@ -5,9 +5,14 @@ import type { Direction, FulfillmentCategory, FulfillmentMethodRead } from '@dor
 
 export async function listAvailable(
   direction: Direction,
-  executor?: Executor
+  executor?: Executor,
+  include_hidden = false
 ): Promise<FulfillmentMethodRead[]> {
-  return await methods.getAvailable(direction, executor)
+  return await methods.getAvailable(direction, executor, include_hidden)
+}
+
+export async function listRefiner(executor?: Executor): Promise<FulfillmentMethodRead[]> {
+  return await methods.getRefiner(executor)
 }
 
 export async function listAll(executor?: Executor): Promise<FulfillmentMethodRead[]> {
@@ -40,7 +45,12 @@ export async function dropoffMethodId(executor?: Executor): Promise<string> {
 export async function assertOffered(
   method_id: string,
   direction: Direction,
-  executor?: Executor
+  executor?: Executor,
+  include_hidden = false
 ): Promise<void> {
-  rules.assertOffered(await methods.getAvailable(direction, executor), method_id, direction)
+  rules.assertOffered(
+    await methods.getAvailable(direction, executor, include_hidden),
+    method_id,
+    direction
+  )
 }

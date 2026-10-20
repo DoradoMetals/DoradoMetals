@@ -4,6 +4,7 @@
 //
 // Postgres table: refining.orders
 import { z } from 'zod/v4'
+import { Note } from '../crm/notes.js'
 import { RefiningDirection, SettlementType } from './enums.js'
 
 export const RefiningOrder = z.object({
@@ -32,6 +33,8 @@ export type RefiningOrder = z.infer<typeof RefiningOrder>
 // generated:end
 
 import { Lot } from '../inventory/lots.js'
+import { FulfillmentMethod } from '../fulfillments/methods.js'
+import { FulfillmentPatchBody } from '../fulfillments/fulfillments.js'
 import { OrderState } from '../computed/orders.js'
 import { RefiningLot, RefiningLotPatch } from './lots.js'
 
@@ -42,10 +45,22 @@ export const RefiningOrderCreate = RefiningOrder.pick({
   location_id: true,
   assigned_to_id: true,
 })
-  .extend({ lot_ids: z.array(Lot.shape.id).min(1).optional() })
+  .extend({
+    lot_ids: z.array(Lot.shape.id).min(1).optional(),
+    fulfillment: z
+      .object({ method_id: FulfillmentMethod.shape.id, choices: FulfillmentPatchBody })
+      .strict()
+      .optional(),
+    notes: Note.shape.body.trim().min(1).optional(),
+  })
   .partial({ settlement_type: true, location_id: true, assigned_to_id: true })
   .strict()
 export type RefiningOrderCreate = z.infer<typeof RefiningOrderCreate>
+
+// The one open sell order of a refiner, with the reference a person reads
+// (RS-2493), formatted in SQL as the list formats it.
+export const OpenRefinerSale = RefiningOrder.extend({ reference: z.string() })
+export type OpenRefinerSale = z.infer<typeof OpenRefinerSale>
 
 export const RefiningOrderPatch = RefiningOrder.pick({
   refiner_id: true,

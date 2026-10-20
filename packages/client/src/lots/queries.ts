@@ -27,6 +27,22 @@ export function useStockLotSearch(q: string, options: { enabled?: boolean } = {}
   })
 }
 
+export function useOnHandLots(
+  filter: { metal_id: string | null; q: string },
+  options: { enabled?: boolean } = {}
+) {
+  return useQuery<InventoryLotView[]>({
+    queryKey: keys.lots.onHand(filter),
+    enabled: options.enabled ?? true,
+    queryFn: () =>
+      apiRequest<InventoryLotView[]>('GET', '/lots', undefined, {
+        position: 'on hand',
+        metal_id: filter.metal_id,
+        q: filter.q,
+      }),
+  })
+}
+
 export function useLotImages(lotId: string, options: { enabled?: boolean } = {}) {
   return useQuery<LotImageView[]>({
     queryKey: keys.lots.images(lotId),

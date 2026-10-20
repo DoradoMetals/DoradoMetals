@@ -45,11 +45,13 @@ lines AS (
          li.pre_melt,
          b.id AS product_id,
          b.type AS product_type,
-         b.ask_premium,
+         CASE WHEN li.premium_override THEN li.premium ELSE b.ask_premium END AS ask_premium,
          b.legal_tender,
          b.domestic_tender,
          s.ask AS resolved_ask,
-         COALESCE(li.content, 0) * (COALESCE(s.ask, 0) * COALESCE(b.ask_premium, 0)) AS unit_ask
+         COALESCE(li.content, 0) * (COALESCE(s.ask, 0)
+           * COALESCE(CASE WHEN li.premium_override THEN li.premium ELSE b.ask_premium END, 0))
+           AS unit_ask
     FROM checkout.lots cl
     JOIN inventory.lots li ON li.id = cl.lot_id
     JOIN checkout ON checkout.id = cl.checkout_id

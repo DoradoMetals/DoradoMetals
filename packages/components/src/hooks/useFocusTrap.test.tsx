@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { render, fireEvent } from '@testing-library/react'
 import * as React from 'react'
+import { createPortal } from 'react-dom'
 
 import { useFocusTrap } from './useFocusTrap'
 
@@ -58,5 +59,25 @@ describe('useFocusTrap', () => {
     expect(document.activeElement).toBe(getByText('first'))
     rerender(<Trapped active={false} />)
     expect(document.activeElement).toBe(before)
+  })
+
+  it('focus moving into a portal rendered from inside the trap is left alone', () => {
+    function Layered() {
+      const ref = useFocusTrap<HTMLDivElement>(true)
+      return (
+        <>
+          <button>outside</button>
+          <div ref={ref} onFocusCapture={ref.onFocusCapture}>
+            <button>inside</button>
+            {createPortal(<button>layer</button>, document.body)}
+          </div>
+        </>
+      )
+    }
+    const { getByText } = render(<Layered />)
+    getByText('layer').focus()
+    expect(document.activeElement).toBe(getByText('layer'))
+    getByText('outside').focus()
+    expect(document.activeElement).toBe(getByText('inside'))
   })
 })

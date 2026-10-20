@@ -53,6 +53,20 @@ export async function getSealed(
   return rows[0]
 }
 
+export async function linkedPayout(
+  user_id: string,
+  method: string,
+  bank_link_id: string | null,
+  executor?: Executor
+): Promise<PaymentDetailsWrite | undefined> {
+  const { rows } = await query<PaymentDetailsWrite>(
+    sql('linked_payout'),
+    [user_id, method, bank_link_id],
+    executor
+  )
+  return rows[0]
+}
+
 export async function create(
   user_id: string,
   values: PaymentDetailsWrite,

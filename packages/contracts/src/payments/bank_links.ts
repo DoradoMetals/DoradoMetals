@@ -10,7 +10,7 @@ export const BankLink = z.object({
   'id': z.string().uuid(),
   'user_id': z.string().uuid(),
   'provider': z.string(),
-  'moov_account_id': z.string(),
+  'moov_account_id': z.string().nullable(),
   'moov_bank_account_id': z.string().nullable(),
   'payment_method_id': z.string().nullable(),
   'rail': Rail.nullable(),
@@ -24,6 +24,16 @@ export const BankLink = z.object({
   'updated_at': z.string(),
   'created_by_id': z.string().uuid().nullable(),
   'updated_by_id': z.string().uuid().nullable(),
+  'account_name': z.string().nullable(),
+  'provider_token_encrypted': z.string().nullable(),
+  'encryption_key_id': z.string().nullable(),
+  'plaid_link_token': z.string().nullable(),
+  'plaid_item_id': z.string().nullable(),
+  'plaid_account_id': z.string().nullable(),
+  'sent_via': z.string().nullable(),
+  'sent_to': z.string().nullable(),
+  'sent_at': z.string().nullable(),
+  'verified_at': z.string().nullable(),
 })
 export type BankLink = z.infer<typeof BankLink>
 // generated:end
@@ -51,5 +61,51 @@ export const BankLinkPatch = BankLink.pick({
   last_four: true,
   status: true,
   failure_reason: true,
+  account_name: true,
+  provider: true,
+  linked_by: true,
+  provider_token_encrypted: true,
+  encryption_key_id: true,
+  plaid_link_token: true,
+  plaid_item_id: true,
+  plaid_account_id: true,
+  sent_via: true,
+  sent_to: true,
+  sent_at: true,
+  verified_at: true,
 }).partial()
 export type BankLinkPatch = z.infer<typeof BankLinkPatch>
+
+// Ruling 160: a Hosted Link goes by SMS or email to the destination on the
+// customer record; the body names the channel only.
+export const BankLinkChannel = z.enum(['sms', 'email'])
+export type BankLinkChannel = z.infer<typeof BankLinkChannel>
+
+export const BankLinkSendBody = z.object({ channel: BankLinkChannel }).strict()
+export type BankLinkSendBody = z.infer<typeof BankLinkSendBody>
+
+// What a screen may know of a linked account: the bank, the account name, the
+// last four and how the link went. Never a number and never a provider token.
+export const LinkedAccount = BankLink.pick({
+  id: true,
+  user_id: true,
+  status: true,
+  bank_name: true,
+  account_name: true,
+  last_four: true,
+  sent_to: true,
+  sent_at: true,
+  verified_at: true,
+  created_at: true,
+}).extend({ channel: BankLink.shape.sent_via })
+export type LinkedAccount = z.infer<typeof LinkedAccount>
+
+export const FakeLinkBody = z.object({ link_id: BankLink.shape.id }).strict()
+export type FakeLinkBody = z.infer<typeof FakeLinkBody>
+
+export const BankLinkProviderMatch = BankLink.pick({
+  plaid_link_token: true,
+  plaid_item_id: true,
+  plaid_account_id: true,
+}).partial()
+export type BankLinkProviderMatch = z.infer<typeof BankLinkProviderMatch>

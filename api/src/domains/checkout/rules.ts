@@ -163,3 +163,7 @@ export function assertVisitorRowGone(
     throw new Error(`checkout ${visitor_id} survived the merge onto ${survivor_id}`)
   }
 }
+
+export function assertLotWritten<T>(row: T | null | undefined, lot_id: string): asserts row is T {
+  if (!row) throw new NotFound(`lot ${lot_id} was not written`)
+}

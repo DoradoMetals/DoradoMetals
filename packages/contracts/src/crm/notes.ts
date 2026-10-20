@@ -15,6 +15,7 @@ export const Note = z.object({
   'created_by_id': z.string().uuid().nullable(),
   'updated_by_id': z.string().uuid().nullable(),
   'order_id': z.string().uuid().nullable(),
+  'refining_order_id': z.string().uuid().nullable(),
 })
 export type Note = z.infer<typeof Note>
 // generated:end
@@ -24,11 +25,13 @@ export const NoteCreateBody = Note.pick({ body: true })
     user_id: Note.shape.user_id.unwrap().optional(),
     lead_id: Note.shape.lead_id.unwrap().optional(),
     order_id: Note.shape.order_id.unwrap().optional(),
+    refining_order_id: Note.shape.refining_order_id.unwrap().optional(),
   })
   .strict()
-  .refine((v) => [v.user_id, v.lead_id, v.order_id].filter(Boolean).length === 1, {
-    message: 'exactly one of user_id, lead_id or order_id is required',
-  })
+  .refine(
+    (v) => [v.user_id, v.lead_id, v.order_id, v.refining_order_id].filter(Boolean).length === 1,
+    { message: 'exactly one of user_id, lead_id, order_id or refining_order_id is required' }
+  )
 export type NoteCreateBody = z.infer<typeof NoteCreateBody>
 
 export const OrderNoteCreateBody = Note.pick({ body: true }).strict()
@@ -41,6 +44,7 @@ export const NoteSubject = z.object({
   user_id: Note.shape.user_id,
   lead_id: Note.shape.lead_id,
   order_id: Note.shape.order_id.optional(),
+  refining_order_id: Note.shape.refining_order_id.optional(),
 })
 export type NoteSubject = z.infer<typeof NoteSubject>
 

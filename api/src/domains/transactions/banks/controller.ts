@@ -1,5 +1,8 @@
+import { isStaff } from '#shared/middleware/authMiddleware.ts'
 import {
+  BankLinkSendBody,
   ExchangeLinkBody,
+  FakeLinkBody,
   LinkTokenBody,
   MicroDepositsBody,
   VaultedLinkBody,
@@ -20,7 +23,27 @@ function subjectOf(req: Parameters<typeof callerId>[0]): string {
 }
 
 export const listBankLinks = asyncHandler(async (req, res) => {
-  return res.json(await banks.listLinks(callerId(req)))
+  return res.json(await banks.linkedAccounts(callerId(req)))
+})
+
+export const listCustomerBankLinks = asyncHandler(async (req, res) => {
+  const user_id = uuidParam(req, 'id')
+  banks.assertMayRead(user_id, callerId(req), isStaff(req))
+  return res.json(await banks.linkedAccounts(user_id))
+})
+
+export const sendBankLink = asyncHandler(async (req, res) => {
+  const { channel } = parseStrict(BankLinkSendBody, req.body, 'accounts/bank-links body')
+  return res.status(201).json(await banks.sendHostedLink(uuidParam(req, 'id'), channel))
+})
+
+export const resendBankLink = asyncHandler(async (req, res) => {
+  return res.json(await banks.resendHostedLink(uuidParam(req, 'id'), uuidParam(req, 'linkId')))
+})
+
+export const completeFakeLink = asyncHandler(async (req, res) => {
+  const { link_id } = parseStrict(FakeLinkBody, req.body, 'webhooks/plaid/fake body')
+  return res.json(await banks.completeWithFake(link_id))
 })
 
 export const createLinkToken = asyncHandler(async (req, res) => {
@@ -46,7 +69,5 @@ export const recordVaultedLink = asyncHandler(async (req, res) => {
   const body = parseStrict(VaultedLinkBody, req.body, 'payments/banks vaulted body')
   return res
     .status(201)
-    .json(
-      await banks.recordVaultedLink(body.user_id, body.moov_account_id, body.payment_method_id)
-    )
+    .json(await banks.recordVaultedLink(body.user_id, body.moov_account_id, body.payment_method_id))
 })

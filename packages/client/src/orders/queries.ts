@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type {
+  AdminOrderCreate,
   Address,
   AdoptAssayBody,
   AdoptAssayProposal,
@@ -392,4 +393,12 @@ export function useResolveDispute(id: string) {
     ({ dispute_id, ...body }: { dispute_id: string } & PurityDisputeResolveBody) =>
       apiRequest<PurityDispute>('PATCH', `/orders/disputes/${dispute_id}`, body)
   )
+}
+
+export function useCreateAdminOrder() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: (body: AdminOrderCreate) => apiRequest<OrderView>('POST', '/orders/admin', body),
+    onSettled: () => client.invalidateQueries({ queryKey: keys.orders.all() }),
+  })
 }

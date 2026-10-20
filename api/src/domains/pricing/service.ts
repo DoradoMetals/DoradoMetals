@@ -6,6 +6,8 @@ import type { Executor } from '#shared/db/executor.ts'
 import type {
   CheckoutQuote,
   InventoryMetal,
+  OrderPreview,
+  OrderPreviewBody,
   OrderPricing,
   PriceSide,
   ProductQuote,
@@ -89,4 +91,11 @@ export function payoutSplitGapCents(amounts: readonly number[], total: number): 
 
 export function refundCents(amount: number): number {
   return Math.round(Number(amount) * 100)
+}
+
+export async function previewOrder(
+  body: OrderPreviewBody,
+  executor?: Executor
+): Promise<OrderPreview> {
+  return await pricing.orderPreview(body, executor)
 }

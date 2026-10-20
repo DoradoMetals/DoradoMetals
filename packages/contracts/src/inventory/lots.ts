@@ -36,6 +36,7 @@ export const Lot = z.object({
   'settled_spot': z.number().nullable(),
   'source': LotSourceChoice.nullable(),
   'line_reference': z.string().nullable(),
+  'premium_override': z.boolean(),
 })
 export type Lot = z.infer<typeof Lot>
 // generated:end
@@ -52,6 +53,7 @@ export const LotPatch = Lot.pick({
   purity: true,
   image_id: true,
   premium: true,
+  premium_override: true,
   sales_tax_rate: true,
   confirmed_at: true,
   settled_at: true,

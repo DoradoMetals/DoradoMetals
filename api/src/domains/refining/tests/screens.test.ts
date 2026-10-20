@@ -11,6 +11,7 @@ import { aUser, anOrder, anUnknownId } from '#shared/testing/builders/index.ts'
 
 await mockSessions()
 const { default: app } = await import('#app')
+const refiningLots = await import('#db/refining/lots/repo.ts')
 
 afterAll(async () => {
   restoreSessions()
@@ -58,7 +59,7 @@ test('a batch creates the order and assigns its lots in one call', async () => {
       const stranger = await request(app)
         .post('/api/refining/orders')
         .send({ refiner_id: await refinerId(c), direction: 'buy', lot_ids: [anUnknownId()] })
-      assert.equal(stranger.status, 404, stranger.text)
+      assert.equal(stranger.status, 422, stranger.text)
       const { rows } = await c.query(
         `SELECT count(*)::int n FROM refining.orders WHERE direction = 'buy' AND sent_at IS NULL`
       )
@@ -276,11 +277,12 @@ test('a refiner order has a Payment card of its own, and a payout can be opened 
     await asAdmin(TEST_ACTOR, async () => {
       const made = await request(app)
         .post('/api/refining/orders')
-        .send({
-          refiner_id: await refinerId(c),
-          direction: 'buy',
-          lot_ids: order.lots.map((lot) => lot.lot_id),
-        })
+        .send({ refiner_id: await refinerId(c), direction: 'buy' })
+      await refiningLots.assign(
+        made.body.id,
+        order.lots.map((lot) => lot.lot_id),
+        c
+      )
       await request(app).patch(`/api/refining/orders/${made.body.id}`).send({ fee: 25 })
 
       const empty = await request(app).get(`/api/refining/orders/${made.body.id}/payment`)

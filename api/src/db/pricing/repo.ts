@@ -1,12 +1,13 @@
 import query from '#shared/db/query.ts'
 import { expression, sqlFrom } from '#shared/db/sql.ts'
 import type { Executor } from '#shared/db/executor.ts'
-import type { LeadSortDirection } from '@dorado/contracts'
+import type { LeadSortDirection, OrderPreviewBody } from '@dorado/contracts'
 import {
   CheckoutQuote,
   Direction,
   LeadEstimate,
   LeadEstimateTotal,
+  OrderPreview,
   OrderPricing,
   ProductQuote,
   PriceSide,
@@ -137,4 +138,21 @@ export async function selection(
 ): Promise<SelectionSummary> {
   const { rows } = await query<{ selection: unknown }>(SELECTION_SQL, [order_ids], executor)
   return SelectionSummary.parse(rows[0]?.selection)
+}
+
+export async function orderPreview(
+  body: OrderPreviewBody,
+  executor?: Executor
+): Promise<OrderPreview> {
+  const { rows } = await query<{ preview: unknown }>(
+    sql('order_preview'),
+    [
+      body.kind,
+      'user_id' in body ? body.user_id : null,
+      'lots' in body ? JSON.stringify(body.lots) : null,
+      'lot_ids' in body ? body.lot_ids : null,
+    ],
+    executor
+  )
+  return OrderPreview.parse(rows[0]?.preview)
 }
