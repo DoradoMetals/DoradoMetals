@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, within } from '@testing-library/react'
+import * as React from 'react'
 
 import { DataTable, type DataTableColumn } from './DataTable'
 import { TableActions } from './TableActions'
