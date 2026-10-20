@@ -685,23 +685,10 @@ Detail in `docs/waves/auth-passwordless.md`.
 - [ ] `@dorado/client` leads module rebuilt; `frontend/app/admin/leads` and `leads/[id]` per docs/waves/frontend-conventions.md.
 - [ ] Assignment reads depend on the roles lane (migrations 296-298).
 
-## Paused 2026-10-20 (Jacob: "lets pause all work, save on disk")
+## State 2026-10-20 evening (the pause is over)
 
-State on disk when everything stopped:
-
-- **dev** is at `8b970ee9` on GitHub (gate 34 green): library pass, accessibility pass, testing pass, Leads API and screens, migrations 300-303 on dev, genesis 002-303. Docs after that commit (rulings 163-164, drawer decisions, handoff section 10) are in main's `dev` but not pushed; they ride the next gate.
-- **Lane `create-order-drawer`** (worktree /home/jtj60/dorado-lanes/create-order-drawer, branch at `e439583f`, a WIP commit): migrations 304-307 applied to its own test database only, never to dev; API and client complete; the drawer frontend mid-edit; the four `CreateOrderDrawer.*.test.tsx` files hang on a Drawer focus-trap loop against a Radix portal; design changes from the last comments still to apply (footer per rulings 163-164, Review header card, card fills). Next: fix the focus loop, apply the design changes, full suites, Playwright, review, merge, apply 304-307 to dev, genesis 002-307, gate.
-- **Lane `roles`** (branch `roles`, reviewed to MERGE) still waits on Jacob's go for migrations 296-298 on dev; it must rebase over dev (list.sql params, 'admin' fixtures, the leads assign endpoint re-pointed to crm/assignments).
-- **Figma**: handoff `docs/design/handoff-figma-2026-10-19.md` section 10. Unanswered Orders threads 1972785617, 1972785727, 1972786247 (the footer; design not started). Waits on Jacob: Library and Orders publishes; lead location (People 1972579070); document kinds; focus look and contrast picks (Library 1972584681); the Skip rule is confirmed (ruling 163).
-- **Poll** is stopped; restart with `/home/jtj60/dorado-lanes/tools/all/loop.sh`.
-- Scratch test databases on the local cluster: `test_library_sync_2`, `test_leads_port`, `test_leads_port_e2e`, `test_create_order_drawer` (disposable; drop only with Jacob's ok).
-- Export/download table icon buttons: Outline variant, success colour (People 1974064406); sync to `packages/components` TableActions in the next library pass.
-- Ruling 165: `leads.leads.city`/`state` nullable (migration 308), on LeadPatch and LeadView, Contact info card, Edit contact drawer, the header city line when set; area-code guess later.
-- One Admin Add Item drawer (People 1974073372): once the Library component lands, fold the lead AddItemDrawer and the order screen add-lot onto one frontend component; the Create Order drawer keeps its inline Lot Row.
-- Ruling 166: `@dorado/icons` gains an action map (function name to icon) mirroring the Figma Action icons page; TableActions, SelectionBar and the feature action bars take the function name. Next library sync.
-- Contrast tokens approved (Library 1974113069): after the worker applies the six variable values and Jacob publishes, run `figma:tokens` in a small lane, confirm the contrast test lists no failing pair, gate.
-- Table Header toolbar divider removed entirely (People 1974171112); remove it from `packages/components` DataTable in the next library pass.
-- Ruling 168: lot components to the Lots design file; code: fold LotRowCard (orders), the lead Estimate item row and AddItemDrawer, and the order lots tables onto shared lot components under `frontend/shared/`, reads from the `inventory` domain. Next lane after the drawer merges.
-- Ruling 168 (Fulfillment): code mirror after the Figma move: shared fulfillment components under `frontend/shared/`, logistics-owned reads; the drawer FulfillmentStep and the order screen compose them.
-- Customers list actionable tiles (People 1974173926): a customers summary endpoint (not contacted, unassigned, lapsed 90 days, no SMS consent, top customers this month; idle credit and missing payout account belong to the payments page) when the Customers screen is ported.
-- Customer source attribution (People 1974185750): a source on the customer captured at signup (lead, referral code, UTM, walk-in) before the Sources KPI can show; profit per customer from settlement less payout.
+- dev on GitHub = `b6a114f7` (gate 35): library, accessibility and testing passes; Leads port with the optional location; Create Order drawer with Plaid links, premium override, Skip (163), Drawer behaviours (167); migrations 304-308 on dev, genesis 002-308.
+- Lane `roles` still waits on Jacob's go for 296-298; it must rebase over dev (list.sql params, 'admin' fixtures, the leads assign and bank-link role checks now use `isStaff`).
+- Figma: handoff `docs/design/handoff-figma-2026-10-19.md` section 12. Waits on Jacob: Inventory and Fulfillment first publish (then instance re-point and deleting the Orders originals), Library publish (focus-ring fix), Lot Images vs Lot Photos, status chips placement, Ban.
+- Next library sync (code follows Figma): toolbar divider removed; export and download icon buttons Outline success; the action icon map (166); contrast tokens via `figma:tokens` after the Library publish; lot and fulfillment components under `frontend/shared/` (168); Table Header changes.
+- Scratch test databases on the local cluster: `test_library_sync_2`, `test_leads_port`, `test_leads_port_e2e`, `test_leads_location`, `test_create_order_drawer`, `test_create_order_drawer_e2e` (disposable; drop only with Jacob's ok).
