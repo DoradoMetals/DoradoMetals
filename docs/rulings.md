@@ -853,7 +853,7 @@ file named at the top of this file.
   different states... don't use different components, use variants that the
   code will handle. Only screens get frames. State should generally live in
   component variants. We shouldn't need 5 high level screens to showcase
-  screen state differences."* A component set sits bare on its page, named
+  screen state differences."* A component set is a direct child of its page, in no frame and no section, named
   as the code file is, with every state a variant; a screen is a frame, and
   a screen's states are the variants of the components on it, not more
   screens. Jacob will restructure the other files the way Orders is now;
