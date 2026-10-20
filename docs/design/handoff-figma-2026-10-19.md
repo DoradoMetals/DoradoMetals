@@ -491,3 +491,61 @@ Fifth worker. Detail per item: orders-, people-, library-, locations-, icons-com
 
 ### 11.5 Exact next step
 Wait for the relays. After the next publish, clear the list in 11.3, render each change fresh at 2x, and reply on the threads named in the logs.
+
+## 12. Evening 2026-10-20
+
+Sixth worker. Detail per item: orders-, people-, library-, inventory-, fulfillment-, icons-, payments-comments-log.md, "2026-10-20 (sixth worker)".
+
+### 12.1 Rules learned
+- **169:** components never have a parent frame or section; each set sits on its page root; one Figma component per code component; states are variants, never sibling components; only screens are frames. Desktop/Mobile pairs merge with a Layout axis.
+- **164:** the Drawer footer is a slot. The Create Order footer and the Add Lot estimate sit in it.
+- **Cross-file move:** the plugin cannot copy nodes between files. Import the published set, then createInstance, detachInstance and createComponentFromNode, then combineAsVariants, then re-add properties by name and re-bind them by index path, then swap nested instances. An UNPUBLISHED set fails to import, and a CHANGED set imports stale.
+- **Publish block:** a property bound to no layer makes the file unpublishable ("Invalid assets ... Unused properties"). Scan every set before handing over. Behaviour-only flags go in the description.
+- **Drift check:** render at a past version with REST /images?version=. The helper is scratch fv.mjs; it loads the token like figma-comments.mjs and never prints it.
+
+### 12.2 Done
+- **Orders page split:**
+  - Create Order Drawer page 1367:70802 holds, at the root: Create Order Drawer 1371:53635 and Create Order Body 1371:53636 (78 variants each; Step x Kind x Type(None/..) x Method(None/..) x Layout x State), Method Tile 1371:53637 (Kind Fulfillment/Payout/Any x Method x Selected x State; 376 instances), Steps, Footer, Review Header, Send Link, Pricing Summary, Lot Row, Lot Select Table/Toolbar/Row.
+  - Admin (Components) 1367:70795 holds 66 components. 16 pairs are merged: 1371:53638..53653 (Spots, Lots, Lots / Adding Lot, Lots / Refiner, Payment, Totals, Fulfillment, Create Fulfillment, Shipment, Return Shipment, Pickup, Appointment, Drop-off, Linked Fulfillment, Settlement · proposed, Profit Breakdown · proposed).
+  - Left separate (their non-variant props or axes differ): Lots Row, Charges, Activity, Order Card · proposed.
+  - Refiner screens are on Admin - Refiner. Nodes went 50917 -> 50878 (only wrappers, sections and emptied sets); COMPONENT stays 641.
+- **Filter bars:** Filter Bar (proposal A) and Filter Bar · proposed are deleted. The chips became Order Status Chips 1369:53747, placed under the header (1370:199, 1370:389). They are clipped in the fixed 320 Admin Header filter slot.
+- **Orders drift fixes:**
+  - Selection bars 620:5758, 620:6163, 635:13849, 673:20394 have the card look back (overrides).
+  - New order Primary button on 5 Orders list headers.
+  - Mobile breadcrumb on 917:13005.
+- **Library:**
+  - Drawer: Dismissible and Confirm close deleted (they were unbound and blocked the publish).
+  - Grabber 1302:328 is a plain 3 px bar on the 1 px border at x -21.5, 44 hit area, pill 1311:2 removed.
+  - Table Header toolbar divider deleted.
+  - Focus ring fix: Input, Select and Textarea wrap Box in a "Field" frame (all 54 variants) and the ring hugs the box.
+  - Paperwork Row Download 548:13 is Tertiary.
+  - Not yet published: the focus ring and Download fixes.
+- **Inventory (ZgJF9JWNY6BwxmWABRZ6I7), all components at page root:**
+  - Add Lot Form 143:8719, Add Lot Footer 143:8993 (read-only Estimate on the left, TEXT prop Estimate), Add Lot · Drawer 143:11069, Lot Images 143:13136.
+  - Lot Row 149:4575, Lots Row 149:5566, Lots 149:9503, Lot Select Row 149:10987, Lot Select Toolbar 149:11069, Lot Select Table 149:13289.
+- **Fulfillment (ZpDvIz5JbIgIkZXbGYWfwY), page Components:** Method Tile 8:703, Shipment 8:3346, Return Shipment 8:4750, Pickup 8:5807, Appointment 8:6632, Drop-off 8:7443, Create Fulfillment 8:12005, Create Fulfillment · Drawer 8:17650, Fulfillment 8:20289, Linked Fulfillment 8:20954, Void label · confirm 8:21202.
+- **People:**
+  - Customer Header 172:5920 is reverted to Assigned to + Ban. The Archived variant, the actions menu and Customer State Archived are removed; the registry rows are reverted.
+  - Edit Contact Form is set 599:18265 (Layout; mobile City+State on one row).
+  - Timeline 198:6526 is an accordion (Open axis: 604:21734, 604:21921).
+  - Customers list: Customer Tile 603:21158 and Top Customers Tile 603:21207 (draft for Top 10). Customer Tiles 603:21354 = Unassigned Customers 612:22414 (row 612:22167, based on Activity Item 6:37) + the Missing SMS consent tile.
+- **Orders card 1271:29638** is an accordion (Open axis; 1363:44504, 1363:45643). The People customer Delete-hidden override must be redone after the publish.
+
+### 12.3 Waits on Jacob
+- **Publishes:** first publish of Inventory and Fulfillment; then re-point the Orders and People instances and delete the Orders originals (snapshot first). Library publish (focus ring, Download, Drawer cleanups). Orders publish (accordion card, merges, New order).
+- **Decisions:**
+  - Lot Images 143:13136 vs the older Lot Photos 1:3940.
+  - Order Status Chips: a full-width second filter row in the Admin Header, or replace the Show select.
+  - Ban stays? (asked on 1974097388).
+  - Input cell type in the Library Table Row before swapping the order Lots table (1974245513).
+  - Library Selection Bar: card or viewport bar.
+- **Method Tile split:** the Orders merged Method Tile 1371:53637 has its Fulfillment variants in the Fulfillment file; after the publish, split Payout back out or re-point.
+
+### 12.4 Open threads
+- None unanswered among those relayed. Pending Jacob replies: 1974185750 (KPI order), 1974245513 (table), 1974232661 (bar).
+
+### 12.5 Exact next step
+1. Customer KPI cards, one at a time on 1974185750: Not yet contacted, New customers (new vs returning), Average orders + profit (period select), Customers by source + conversion.
+2. Then Top 10 by settled value, then Activity, then the Map last.
+3. After the Inventory and Fulfillment publish: re-point the instances, snapshot, delete the Orders originals, and move the remaining People components to page root (ruling 169).
