@@ -52,7 +52,7 @@ export function SliderField({
       <span
         className={cn(
           'flex min-h-(--control-md) w-21 shrink-0 items-center gap-xs rounded-lg border border-border bg-card px-sm',
-          'focus-within:border-(length:--stroke-emphasis) focus-within:border-border-strong',
+          'focus-within:border-primary',
           disabled && 'pointer-events-none bg-muted'
         )}
       >
