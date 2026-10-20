@@ -771,6 +771,18 @@ file named at the top of this file.
   lead can be restored. The data rule applies: no application statement
   deletes a lead row. Source: Jacob, chat 2026-10-19.
 
+- **163 — An admin order needs only its kind, its party and its assignee;
+  everything else can wait.** *"Skip button should be allowed wherever it
+  possible... order type/customer/employee... Ideally nothing else from the
+  admin standpoint. That will be different from the customer standpoint,
+  when a ton of stuff will absolutely be required."* The Create Order drawer
+  footer carries Cancel (tertiary, far left), Back, Skip (secondary) and
+  Continue; Skip stands for Decide later and is enabled on the Order step
+  once kind and party are set (no lots), on Fulfillment and on Transaction,
+  and absent on Review. Errors show in the footer above the buttons. Customer
+  checkout keeps its own required fields. Source: Jacob, Orders comments
+  1972785617, 1972785727, 1972786092, 1972786247, 1972786692, 1972786834.
+
 ## Numbering
 
 Every number from 1 to 157 has an entry, plus 26b and 26c. Two rulings carry the
