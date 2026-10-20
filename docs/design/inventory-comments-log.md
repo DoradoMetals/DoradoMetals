@@ -755,3 +755,8 @@ and `Heading/H2` 28px, so 18/SemiBold has no home.
 
 A first count of the new hug/fill rule, taken before the stop, is not reported here because
 the surface it would cover is about to change under a restore.
+
+## 2026-10-20 (sixth worker) - ruling 168 lot move: survey, blocked on publishes
+- Inventory pages: Lots 0:1 (sections 1:3260 kept lot screens, 17:12922 COMPONENTS · Lots, 28:12468 CURRENT · Inventory › Lots), Pool 1:2488, On Hand 1:2489. Existing lot components to reuse: Lots Row 20:10607 (State Default/Selected), Lots Card / Mobile 27:12893 and Lot Card / Mobile 1:3551 (Position Incoming/On hand/At refiner/Pooled/Sold = the lot status), Lot Row 1:4034, Lot Photos 1:3940 (Filled/Empty), Lot Reference 70:12208, Lot Actions 70:12217, Totals 17:10601. None published.
+- To move: Orders Lot Row 1280:20108, Lot Select Table 1284:31621, Lot Select Row / Mobile 1284:19906, Lot Select Toolbar 1284:19957 (UNPUBLISHED); Lots Row 152:548, Lots Row / Mobile 158:1175, Lots 170:2260 / 170:2421, Lots / Refiner 338:10143 / 1235:25741 (CHANGED); Lot photos 1209:15264 (CURRENT); Library Add Item Form 1286:5950, Footer 1286:6028, Drawer 1286:7201 (UNPUBLISHED) -> Add Lot · Drawer.
+- Blocker: the plugin API cannot copy nodes across files; a component crosses only by import of a published version. Sequence: Jacob publishes Library and Orders -> worker imports, detaches and re-componentises in Inventory (nested Library links kept), merges with the existing Inventory equivalents -> Jacob publishes Inventory -> worker swaps Orders/People instances and removes the Orders originals after snapshot. Reply on Library 1974145221 (1974158746).
