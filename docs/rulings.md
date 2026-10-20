@@ -881,7 +881,10 @@ file named at the top of this file.
   Entity Header, Details, Ban ...), components grouped where it makes sense
   (corrected the same day: one Components divider per screen group, never
   one per file; and a page under a group never repeats the group's name:
-  "New", not "New lead"; "Header", not "Lead header"); on every page
+  "New", not "New lead"; "Header", not "Lead header"; and a component set
+  is named for its part alone, "Row", "Picker", "Drawer" on the Assign page,
+  the page and the group giving the rest, as a code file is named by its
+  path); on every page
   the sets are direct children with no parent frame (169). The code mirrors
   it: a feature folder per group with one file per component, short file
   names that mean something by their path (`admin/customers/__features__/
