@@ -80,3 +80,4 @@ Every feature file page is laid out the same way, with no parent "Screens" or
   page with a fresh REST render after a restructure.
 - Icons design file qxJf2XlhEFwy4uGHaH0L0n (tools/icons; added to the loop 2026-10-20): the Action icons page 36:2 is the function-to-icon registry (ruling 166).
 - Inventory design file ZgJF9JWNY6BwxmWABRZ6I7 (tools/inventory; added to the loop 2026-10-20): the lots file of ruling 168; lot components live here.
+- Fulfillment design file ZpDvIz5JbIgIkZXbGYWfwY (tools/fulfillment; added to the loop 2026-10-20): fulfillment components live here (ruling 168).

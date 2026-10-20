@@ -838,7 +838,13 @@ file named at the top of this file.
   files keep compositions and feature-only states: the Create Order drawer's
   Lots section, the lead's Estimate card. The code mirrors it: shared lot
   components under `frontend/shared/`, the `inventory` domain owning the
-  reads. Source: Jacob, Library comment 1974145221 and chat 2026-10-20.
+  reads. Extended the same day to Fulfillment: the Fulfillment design file
+  holds the Create Fulfillment form and its per-type detail blocks, the
+  Method Tile and chips, the fulfillment cards and their summary states, the
+  tracking timeline and the status badge; Orders and Refining compose them
+  (the drawer's Fulfillment step, the order screen's fulfillment section).
+  Entity files: Inventory (lots), Fulfillment, Locations (addresses). Source:
+  Jacob, Library comment 1974145221 and chat 2026-10-20.
 
 ## Numbering
 

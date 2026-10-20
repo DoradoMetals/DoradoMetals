@@ -701,3 +701,4 @@ State on disk when everything stopped:
 - Contrast tokens approved (Library 1974113069): after the worker applies the six variable values and Jacob publishes, run `figma:tokens` in a small lane, confirm the contrast test lists no failing pair, gate.
 - Table Header toolbar divider inset to the card padding (People 1974141307); sync to `packages/components` DataTable in the next library pass.
 - Ruling 168: lot components to the Lots design file; code: fold LotRowCard (orders), the lead Estimate item row and AddItemDrawer, and the order lots tables onto shared lot components under `frontend/shared/`, reads from the `inventory` domain. Next lane after the drawer merges.
+- Ruling 168 (Fulfillment): code mirror after the Figma move: shared fulfillment components under `frontend/shared/`, logistics-owned reads; the drawer FulfillmentStep and the order screen compose them.
