@@ -799,6 +799,16 @@ file named at the top of this file.
   guess from the phone's area code is a later nicety, never a requirement.
   Source: Jacob, People comment 1974066458.
 
+- **166 — One function-to-icon registry, in Figma and in code.** *"I think
+  we need to have a list of functions and their associated icon living
+  somewhere globally. So it's fully unified ... documented and viewable in
+  Figma."* An "Action icons" page in the Library lists every admin function
+  with its glyph, its colour rule (danger for Delete, success outline for
+  Export and Download) and where it is used; every icon button in every file
+  instances that glyph. `@dorado/icons` mirrors the same table as one map
+  (function name to icon), and components take the function, not a glyph.
+  Source: Jacob, People comment 1974078779.
+
 ## Numbering
 
 Every number from 1 to 157 has an entry, plus 26b and 26c. Two rulings carry the

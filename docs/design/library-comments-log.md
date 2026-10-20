@@ -288,3 +288,4 @@ Snapshot (REST, depth 1): tools/library/snapshots/focus-drawer-pre-2026-10-19.js
 
 ## 2026-10-20 (fifth worker)
 - Ruling 164 (Drawer footer is a slot). Snapshot tools/library/snapshots/drawer-footer-pre-slot-2026-10-20.json. Drawer 127:32 gained Custom footer#1277:0 (BOOLEAN, false), Show buttons#1277:5 (BOOLEAN, true; bound to both Buttons' visible in all four Footers) and Footer content#1277:10 (INSTANCE_SWAP, default Slot 818:2). Each Footer (127:15, 1056:2570, 1056:2581, 1058:36) has a Footer content instance at index 0, FILL, visible bound to Custom footer (1277:71/73/75/77). Delta +4, set count unchanged. Existing instances unchanged. NEW pin 1974063291. Waits on publish.
+- Orders 1974075942 follow-up: Drawer 127:32 Footers (127:15, 1056:2570, 1056:2581, 1058:36) clipsContent true -> false, so a feature's floating footer alert can overlay the body. Waits on publish.
