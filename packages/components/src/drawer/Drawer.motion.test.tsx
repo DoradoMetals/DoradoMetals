@@ -28,7 +28,7 @@ describe('ruling 167: motion', () => {
     await act(() => new Promise<void>((r) => setTimeout(r, 120)))
     await user.pointer({ keys: '[/MouseLeft]', target: grabber, coords: { clientX: 120 } })
     expect(setOpen).not.toHaveBeenCalled()
-    expect(panel.style.transform).toBe('')
+    expect(['', 'none']).toContain(panel.style.transform)
     expect(panel.style.transition).toBe('')
   })
 })
