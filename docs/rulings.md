@@ -869,6 +869,21 @@ file named at the top of this file.
   Tab keep the 2 px focus ring. Never both on one control. Source: Jacob,
   chat 2026-10-20.
 
+- **171 — Pages are the navigation: one page per screen group, one page per
+  component group, in every design file.** *"I want to use pages to
+  navigate the designs, not scrolling around within them. Similar to
+  themes/components global lib. So each component is gonna be a page."* Each
+  feature file has a divider page "──── Screens ────" followed by one page
+  per screen group (People: Customers with the list and the entity screen,
+  Employees, Inbox, Leads), then a divider page "──── Components (Feature)
+  ────" followed by one page per component group (Credit, Entity Header,
+  Details, Ban ...), components grouped where it makes sense; on every page
+  the sets are direct children with no parent frame (169). The code mirrors
+  it: a feature folder per group with one file per component, short file
+  names that mean something by their path (`admin/customers/__features__/
+  Details/Drawer.tsx`, `Accordion.tsx`, `Line.tsx`, `Form.tsx`). Applies to
+  every file in Brand Refresh, People first. Source: Jacob, chat 2026-10-20.
+
 ## Numbering
 
 Every number from 1 to 157 has an entry, plus 26b and 26c. Two rulings carry the

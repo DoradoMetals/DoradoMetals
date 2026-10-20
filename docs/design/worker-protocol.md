@@ -88,3 +88,10 @@ section, named as the code component file is named, with every state a variant; 
 screen is a frame; its states come from the variants of the components on
 it, not from more screens. This supersedes "one frame per component
 feature" in the page-structure rule above.
+
+Ruling 171 (2026-10-20): pages are the navigation. Every feature file gets a
+divider page "──── Screens ────", one page per screen group, a divider page
+"──── Components (Feature) ────", and one page per component group; sets are
+direct children of their page (169). The worker creates pages with the plugin
+API (as the Library's pages were made), moves nodes, never recreates, and
+checks node counts before and after each file.
