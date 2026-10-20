@@ -1,5 +1,10 @@
 import { Invalid, NotFound } from '#shared/errors.ts'
-import type { CheckoutPayoutForm, PaymentDetailsPatch, PaymentDetailsView } from '@dorado/contracts'
+import type {
+  CheckoutPayoutForm,
+  PaymentDetailsPatch,
+  PaymentDetailsView,
+  PaymentDetailsWrite,
+} from '@dorado/contracts'
 
 const BANK_METHODS = new Set(['ACH', 'WIRE'])
 const EMAIL_METHODS = new Set(['ECHECK', 'DORADO_ACCOUNT'])
@@ -81,4 +86,12 @@ export function assertWaivable(payout_id: string, written: boolean): void {
   if (!written) {
     throw new Invalid(`payout ${payout_id} is not on a purchase order, so its fee cannot be waived`)
   }
+}
+
+export function assertLinkedPayout(
+  method: string,
+  row: PaymentDetailsWrite | undefined
+): PaymentDetailsWrite {
+  if (!row) throw new Invalid(`no such payout method: ${method}`)
+  return row
 }

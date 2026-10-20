@@ -3,7 +3,13 @@ import { buildUpdate } from '#shared/db/patch.ts'
 import { sqlFrom } from '#shared/db/sql.ts'
 import { columnsOf } from '#shared/db/columns.ts'
 import { BankLinkPatch } from '@dorado/contracts'
-import type { BankLink, BankLinkPatch as Patch, BankLinkWrite } from '@dorado/contracts'
+import type {
+  BankLink,
+  BankLinkPatch as Patch,
+  BankLinkProviderMatch,
+  BankLinkWrite,
+  LinkedAccount,
+} from '@dorado/contracts'
 import type { Executor } from '#shared/db/executor.ts'
 
 const sql = sqlFrom(import.meta.dirname)
@@ -39,6 +45,31 @@ export async function getOne(id: string, executor?: Executor): Promise<BankLink 
 export async function listForUser(user_id: string, executor?: Executor): Promise<BankLink[]> {
   const { rows } = await query<BankLink>(sql('list_for_user'), [user_id], executor)
   return rows
+}
+
+export async function linkedFor(user_id: string, executor?: Executor): Promise<LinkedAccount[]> {
+  const { rows } = await query<LinkedAccount>(sql('linked_for'), [user_id], executor)
+  return rows
+}
+
+export async function linkedOne(
+  id: string,
+  executor?: Executor
+): Promise<LinkedAccount | undefined> {
+  const { rows } = await query<LinkedAccount>(sql('linked_one'), [id], executor)
+  return rows[0]
+}
+
+export async function findByProvider(
+  match: BankLinkProviderMatch,
+  executor?: Executor
+): Promise<BankLink | undefined> {
+  const { rows } = await query<BankLink>(
+    sql('find_by_provider'),
+    [match.plaid_link_token ?? null, match.plaid_item_id ?? null, match.plaid_account_id ?? null],
+    executor
+  )
+  return rows[0]
 }
 
 export async function findAccount(

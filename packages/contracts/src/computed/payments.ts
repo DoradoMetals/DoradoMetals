@@ -83,7 +83,7 @@ export type MicroDepositsBody = z.infer<typeof MicroDepositsBody>
 export const VaultedLinkBody = z
   .object({
     user_id: User.shape.id,
-    moov_account_id: BankLink.shape.moov_account_id,
+    moov_account_id: BankLink.shape.moov_account_id.unwrap(),
     payment_method_id: z.string().min(1),
   })
   .strict()

@@ -2,7 +2,10 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type {
+  BankLinkSendBody,
   ConfirmMatchBody,
+  FundingSource,
+  LinkedAccount,
   Direction,
   InboundTransaction,
   MatchCandidate,
@@ -124,4 +127,47 @@ export function useConfirmMatch(orderId: string) {
     ({ inbound_id, order_id }: { inbound_id: string } & ConfirmMatchBody) =>
       apiRequest<InboundTransaction>('POST', `/payments/inbound/${inbound_id}/match`, { order_id })
   )
+}
+
+const PENDING_POLL_MS = 5_000
+
+export function useLinkedAccounts(userId: string | null, options: { enabled?: boolean } = {}) {
+  return useQuery<LinkedAccount[]>({
+    queryKey: keys.accounts.bankLinks(userId ?? ''),
+    enabled: (options.enabled ?? true) && !!userId,
+    queryFn: () => apiRequest<LinkedAccount[]>('GET', `/accounts/${userId}/bank-links`),
+    refetchInterval: (query) =>
+      query.state.data?.some((link) => link.status === 'pending') ? PENDING_POLL_MS : false,
+  })
+}
+
+function useBankLinkWrite<TVariables>(
+  userId: string | null,
+  run: (variables: TVariables) => Promise<LinkedAccount>
+) {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: run,
+    onSettled: () => client.invalidateQueries({ queryKey: keys.accounts.bankLinks(userId ?? '') }),
+  })
+}
+
+export function useSendBankLink(userId: string | null) {
+  return useBankLinkWrite(userId, (body: BankLinkSendBody) =>
+    apiRequest<LinkedAccount>('POST', `/accounts/${userId}/bank-links`, body)
+  )
+}
+
+export function useResendBankLink(userId: string | null) {
+  return useBankLinkWrite(userId, (linkId: string) =>
+    apiRequest<LinkedAccount>('POST', `/accounts/${userId}/bank-links/${linkId}/resend`, {})
+  )
+}
+
+export function useFundingSources(options: { enabled?: boolean } = {}) {
+  return useQuery<FundingSource[]>({
+    queryKey: keys.payments.fundingSources(),
+    enabled: options.enabled ?? true,
+    queryFn: () => apiRequest<FundingSource[]>('GET', '/payments/funding-sources'),
+  })
 }

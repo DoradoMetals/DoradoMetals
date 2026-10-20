@@ -27,7 +27,11 @@ import payoutRoutes from '#transactions/payouts/routes.ts'
 import chargeRoutes from '#transactions/charges/routes.ts'
 import inboundRoutes from '#transactions/inbound/routes.ts'
 import bankLinkRoutes from '#transactions/banks/routes.ts'
+import accountBankLinks from '#transactions/banks/account-routes.ts'
+import fakePlaidWebhook from '#transactions/banks/fake-routes.ts'
+import * as plaid from '#providers/plaid/index.ts'
 import paymentViewRoutes from '#transactions/rails/routes.ts'
+import fundingSourceRoutes from '#transactions/funding/routes.ts'
 import supplierRoutes from '#refining/refiners/routes.ts'
 import refiningRoutes from '#refining/routes.ts'
 import carriersRoutes from '#logistics/shipping/carriers/routes.ts'
@@ -123,7 +127,10 @@ app.use('/api/payments/payouts', payoutRoutes)
 app.use('/api/payments/charges', chargeRoutes)
 app.use('/api/payments/inbound', inboundRoutes)
 app.use('/api/payments/banks', bankLinkRoutes)
+app.use('/api/accounts', accountBankLinks)
+if (plaid.fakeCompletionAllowed()) app.use('/api/webhooks/plaid/fake', fakePlaidWebhook)
 app.use('/api/payments/view', paymentViewRoutes)
+app.use('/api/payments/funding-sources', fundingSourceRoutes)
 app.use('/api/suppliers', supplierRoutes)
 app.use('/api/refining', refiningRoutes)
 app.use('/api/users', userRoutes)

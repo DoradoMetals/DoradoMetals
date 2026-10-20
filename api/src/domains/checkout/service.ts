@@ -10,8 +10,9 @@ import * as rules from '#checkout/rules.ts'
 import * as pricing from '#pricing/index.ts'
 import { withDecisions } from '#shared/views.ts'
 import type {
+  AdminLot,
+  AdminPayout,
   Checkout,
-  CheckoutLotPatch,
   CheckoutPayoutForm,
   CheckoutView,
   CheckoutWrite,
@@ -141,6 +142,32 @@ export async function saveCheckoutPayout(
   return await viewOf(row.id, tx)
 }
 
+// A payout to an account the business already knows (ruling 160): a linked
+// bank account, the email on file for an eCheck, or the Dorado balance. No
+// number is taken, so nothing is sealed.
+export async function saveLinkedPayout(
+  user_id: string,
+  payout: AdminPayout,
+  tx: Executor
+): Promise<CheckoutView> {
+  await assertRealAccount(user_id, 'save a payout account')
+  const row = await ensure(user_id, 'purchase', tx)
+  const saved = await paymentDetailsService.saveLinkedPayout(
+    user_id,
+    row.payment_details_id,
+    payout,
+    tx
+  )
+  rules.assertSession(
+    await checkouts.update(
+      row.id,
+      { payment_details_id: saved.id, payment_method_id: saved.method_id },
+      tx
+    )
+  )
+  return await viewOf(row.id, tx)
+}
+
 export async function listLots(
   user_id: string,
   direction: Direction,
@@ -154,13 +181,14 @@ export async function listLots(
 export async function replaceLots(
   user_id: string,
   direction: Direction,
-  lines: CheckoutLotPatch[],
+  lines: AdminLot[],
   tx: Executor
 ): Promise<Lot[]> {
   const session = await ensure(user_id, direction, tx)
   await checkoutLots.removeFor(session.id, tx)
 
   for (const line of lines) {
+    let lot_id: string
     if ('bullion_id' in line) {
       const lot = await lots.createFromProduct(
         line.bullion_id,
@@ -169,12 +197,18 @@ export async function replaceLots(
         tx
       )
       rules.assertProductAvailable(lot, line.bullion_id, direction)
-      await checkoutLots.link(session.id, lot.id, tx)
+      lot_id = lot.id
     } else {
       rules.assertCatalogueLine(direction)
-      const lot = await lots.create(rules.scrapLot(line), tx)
-      await checkoutLots.link(session.id, lot.id, tx)
+      lot_id = (await lots.create(rules.scrapLot(line), tx)).id
     }
+    if (line.premium !== undefined) {
+      rules.assertLotWritten(
+        await lots.update(lot_id, { premium: line.premium, premium_override: true }, tx),
+        lot_id
+      )
+    }
+    await checkoutLots.link(session.id, lot_id, tx)
   }
   return await checkoutLots.listFor(session.id, tx)
 }

@@ -49,12 +49,14 @@ export const keys = {
     all: () => ['payments'] as const,
     view: (orderId: string) => ['payments', 'view', orderId] as const,
     payTo: (userId: string) => ['payments', 'pay_to', userId] as const,
+    fundingSources: () => ['payments', 'funding_sources'] as const,
     candidates: (orderId: string) => ['payments', 'candidates', orderId] as const,
     methods: (direction: string) => ['payments', 'methods', direction] as const,
   },
   fulfillments: {
     all: () => ['fulfillments'] as const,
     methods: (direction: string) => ['fulfillments', 'methods', direction] as const,
+    refinerMethods: () => ['fulfillments', 'methods', 'refiner'] as const,
   },
   shipping: {
     all: () => ['shipping'] as const,
@@ -96,10 +98,21 @@ export const keys = {
     search: (q: string, unassigned: boolean) => ['lots', 'search', q, unassigned] as const,
     images: (lotId: string) => ['lots', 'images', lotId] as const,
     stock: (q: string) => ['lots', 'stock', q] as const,
+    onHand: (filter: { metal_id: string | null; q: string }) =>
+      ['lots', 'on_hand', filter] as const,
   },
   pricing: {
     all: () => ['pricing'] as const,
     selection: (orderIds: readonly string[]) => ['pricing', 'selection', orderIds] as const,
+    preview: (body: unknown) => ['pricing', 'preview', body] as const,
+  },
+  accounts: {
+    all: () => ['accounts'] as const,
+    bankLinks: (userId: string) => ['accounts', 'bank_links', userId] as const,
+  },
+  products: {
+    all: () => ['products'] as const,
+    admin: () => ['products', 'admin'] as const,
   },
   places: {
     all: () => ['places'] as const,

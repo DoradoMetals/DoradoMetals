@@ -38,7 +38,9 @@ import { ShipmentPickup } from '../shipping/pickups.js'
 import { OrderViewPayout } from '../payments/details.js'
 import { User } from '../auth/users.js'
 import { Checkout, CheckoutPayoutForm } from '../checkout/checkouts.js'
-import { CheckoutLotPatch } from '../checkout/lots.js'
+import { CheckoutBullionLot, CheckoutScrapLot } from '../checkout/lots.js'
+import { BankLink } from '../payments/bank_links.js'
+import { FundingSource } from '../payments/funding_sources.js'
 import { FulfillmentMethod } from '../fulfillments/methods.js'
 import { FulfillmentPatchBody } from '../fulfillments/fulfillments.js'
 import { CarrierService } from '../shipping/services.js'
@@ -234,25 +236,50 @@ export const AdminOrderFulfillment = z
   .strict()
 export type AdminOrderFulfillment = z.infer<typeof AdminOrderFulfillment>
 
-export const AdminPurchaseCreate = z
-  .object({
-    direction: Direction.extract(['purchase']),
-    user_id: User.shape.id,
-    lots: z.array(CheckoutLotPatch),
-    fulfillment: AdminOrderFulfillment,
-    payout: CheckoutPayoutForm,
+// Ruling 158: an admin lot is the checkout lot plus an optional premium, a
+// fraction of spot. Absent, pricing sets it from the rates. A price is never sent.
+const AdminPremium = { premium: Lot.shape.premium.unwrap().nonnegative().optional() }
+
+export const AdminLot = z.union([
+  CheckoutBullionLot.extend(AdminPremium).strict(),
+  CheckoutScrapLot.extend(AdminPremium).strict(),
+])
+export type AdminLot = z.infer<typeof AdminLot>
+
+// Ruling 160: a bank payout names a linked account by id, never numbers. An
+// eCheck goes to the email on file and a Dorado balance payout needs nothing.
+export const AdminPayout = z
+  .object({ method: CheckoutPayoutForm.shape.method })
+  .extend({
+    bank_link_id: BankLink.shape.id.optional(),
+    funding_source_id: FundingSource.shape.id.optional(),
   })
+  .strict()
+export type AdminPayout = z.infer<typeof AdminPayout>
+
+// An order with no lots may leave fulfillment and the money for later; with
+// lots both are required, which the orders rules enforce by name.
+const AdminCreateCommon = {
+  user_id: User.shape.id,
+  lots: z.array(AdminLot),
+  fulfillment: AdminOrderFulfillment.optional(),
+  assigned_to_id: Order.shape.assigned_to_id.unwrap().optional(),
+  notes: Order.shape.notes.unwrap().trim().min(1).optional(),
+}
+
+export const AdminPurchaseCreate = z
+  .object({ direction: Direction.extract(['purchase']) })
+  .extend(AdminCreateCommon)
+  .extend({ payout: AdminPayout.optional() })
   .strict()
 export type AdminPurchaseCreate = z.infer<typeof AdminPurchaseCreate>
 
 export const AdminSaleCreate = z
-  .object({
-    direction: Direction.extract(['sale']),
-    user_id: User.shape.id,
-    lots: z.array(CheckoutLotPatch),
-    fulfillment: AdminOrderFulfillment,
-    payment_method_id: Checkout.shape.payment_method_id.unwrap(),
-    recipient_address_id: Checkout.shape.recipient_address_id.unwrap(),
+  .object({ direction: Direction.extract(['sale']) })
+  .extend(AdminCreateCommon)
+  .extend({
+    payment_method_id: Checkout.shape.payment_method_id.unwrap().optional(),
+    recipient_address_id: Checkout.shape.recipient_address_id.unwrap().optional(),
   })
   .strict()
 export type AdminSaleCreate = z.infer<typeof AdminSaleCreate>

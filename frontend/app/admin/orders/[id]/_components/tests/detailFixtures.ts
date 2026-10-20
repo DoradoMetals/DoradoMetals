@@ -47,6 +47,7 @@ const baseLot: Lot = {
   assayed_at: null,
   declared_content: null,
   premium: null,
+  premium_override: false,
   sales_tax_rate: null,
   confirmed_at: null,
   settled_at: null,

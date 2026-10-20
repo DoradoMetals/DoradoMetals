@@ -9,6 +9,7 @@ import * as pdfs from '#db/media/pdfs/repo.ts'
 import * as refiningDocuments from '#db/refining/documents/repo.ts'
 
 import * as rules from '#refining/rules.ts'
+import * as fulfillmentService from '#logistics/fulfillments/service.ts'
 import withTransaction from '#shared/db/withTransaction.ts'
 import { withDecisions } from '#shared/views.ts'
 import type { Executor } from '#shared/db/executor.ts'
@@ -53,6 +54,7 @@ export async function view(id: string, executor?: Executor): Promise<RefiningOrd
 export async function create(body: RefiningOrderCreate): Promise<RefiningOrderRead> {
   const refiner = await refiners.viewOne(body.refiner_id)
   rules.assertRefiner(refiner, body.refiner_id)
+  rules.assertBuyTakesNoLots(body.direction, body.lot_ids)
   if (body.direction === 'sell') {
     rules.assertNoOpenSellOrder(await refiningOrders.findOpenSell(body.refiner_id))
   }
@@ -60,11 +62,21 @@ export async function create(body: RefiningOrderCreate): Promise<RefiningOrderRe
   if (lot_ids.length > 0) {
     rules.assertLotsExist(await lots.getByIds(lot_ids), lot_ids)
     rules.assertUnassigned(await refiningLots.alreadyBatched(lot_ids), lot_ids)
+    rules.assertOnHandNamed(rules.notSendable(await lots.positionsOf(lot_ids)))
   }
 
+  const fulfillment = body.fulfillment
   const created = await withTransaction(async (tx) => {
     const row = await refiningOrders.create(body, tx)
     if (lot_ids.length > 0) await refiningLots.assign(row.id, lot_ids, tx)
+    if (fulfillment) {
+      const made = await fulfillmentService.createForRefiningOrder(
+        row.id,
+        fulfillment.method_id,
+        tx
+      )
+      await fulfillmentService.patchChoices(made.fulfillment.id, fulfillment.choices, tx)
+    }
     return row
   })
   return await view(created.id)

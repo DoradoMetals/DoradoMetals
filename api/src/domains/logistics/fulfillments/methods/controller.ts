@@ -5,7 +5,12 @@ import * as methodService from '#logistics/fulfillments/methods/service.ts'
 
 export const getMethods = asyncHandler(async (req, res) => {
   const direction = parseStrict(Direction, req.query.direction, 'direction')
-  return res.status(200).json(await methodService.listAvailable(direction))
+  const staff = req.user?.role === 'admin'
+  return res.status(200).json(await methodService.listAvailable(direction, undefined, staff))
+})
+
+export const getRefinerMethods = asyncHandler(async (_req, res) => {
+  return res.status(200).json(await methodService.listRefiner())
 })
 
 export const getAllMethods = asyncHandler(async (_req, res) => {

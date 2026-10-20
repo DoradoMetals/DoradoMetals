@@ -1,4 +1,4 @@
-import { test, afterAll } from 'vitest'
+import { test, afterAll, beforeEach } from 'vitest'
 import assert from 'node:assert/strict'
 import type { PoolClient } from 'pg'
 import request from 'supertest'
@@ -17,9 +17,19 @@ import {
   saleServiceId,
 } from '#shared/testing/builders/index.ts'
 import { closeBrowser } from '#documents/pdfs/render/puppeteer.ts'
+import * as moovFake from '#providers/moov/fake.ts'
+import * as plaidFake from '#providers/plaid/fake.ts'
+import * as banks from '#transactions/banks/service.ts'
+
+process.env.MOOV_ACCOUNT_ID = 'acct_platform'
 
 await mockSessions()
 const { default: app } = await import('#app')
+
+beforeEach(() => {
+  moovFake.reset()
+  plaidFake.reset()
+})
 
 afterAll(async () => {
   restoreSessions()
@@ -30,14 +40,17 @@ afterAll(async () => {
 const admin = { ...TEST_ACTOR, role: 'admin' }
 const LOCK = [LOCKS.ORDERS, LOCKS.ADDRESSES, LOCKS.USERS, LOCKS.FULFILLMENTS]
 
-const payout = {
-  method: 'ACH',
-  account_holder_name: 'Admin Entered Holder',
-  bank_name: 'Test Bank',
-  account_type: 'Checking',
-  routing_number: '021000021',
-  account_number: '000123456789',
+// Ruling 160: the admin payout names a linked, verified bank account by id.
+async function achTo(user_id: string) {
+  const link = await banks.linkFromPlaid(user_id, {
+    public_token: 'public-sandbox-admin-create',
+    account_id: 'plaid-acct-admin-create',
+    rail: 'ACH',
+  })
+  return { link, payout: { method: 'ACH', bank_link_id: link.id } }
 }
+
+const echeck = { method: 'ECHECK' }
 
 test("an admin places a customer's SALE end to end, paid by the non-card CREDIT method", async () => {
   await inPinnedTransaction(
@@ -90,6 +103,7 @@ test("an admin places a customer's PURCHASE end to end, payout account and all",
       const product = await aProduct(c, { metal_id: 'Gold' })
 
       const method_id = await fulfillmentMethodId(c, 'PICKUP', 'purchase')
+      const { link, payout } = await achTo(customer.id)
       const placed = await as(admin, () =>
         request(app)
           .post('/api/orders/admin')
@@ -115,9 +129,14 @@ test("an admin places a customer's PURCHASE end to end, payout account and all",
       assert.equal(placed.body.order.user_id, customer.id)
       assert.equal(placed.body.state, 'Awaiting Receipt')
       assert.equal(placed.body.lots.length, 1)
-      assert.equal(placed.body.payout?.account_last4, '6789', 'the payout account was not attached')
+      assert.equal(
+        placed.body.payout?.account_last4,
+        link.last_four,
+        'the payout account was not attached'
+      )
       assert.equal(placed.body.payout?.method, 'ACH')
       assert.ok(placed.body.totals, 'the purchase wrote no totals row')
+      assert.equal(placed.body.totals.payout_bank_link_id, link.id)
 
       const { rows } = await query<{ routing_number: string | null; sealed: string | null }>(
         `SELECT d.routing_number, d.routing_number_encrypted AS sealed
@@ -126,7 +145,7 @@ test("an admin places a customer's PURCHASE end to end, payout account and all",
         c
       )
       assert.equal(rows[0]?.routing_number, null, 'the admin path wrote a plaintext routing number')
-      assert.ok(rows[0]?.sealed?.startsWith('v1.'), 'the admin path sealed nothing')
+      assert.equal(rows[0]?.sealed, null, 'a linked-account payout sealed bank numbers')
     },
     { actor: TEST_ACTOR.id, lock: LOCK }
   )
@@ -151,7 +170,7 @@ test('the admin body must carry every fact placement needs, and says which is mi
               method_id,
               choices: { pickup: { pickup_address_id: address.id } },
             },
-            payout,
+            payout: echeck,
           })
       )
       assert.equal(unscheduled.status, 422, unscheduled.text)
@@ -165,7 +184,7 @@ test('the admin body must carry every fact placement needs, and says which is mi
             user_id: customer.id,
             lots: [],
             fulfillment: { method_id, choices: { pickup: {} } },
-            payout,
+            payout: echeck,
             recipient_address_id: address.id,
           })
       )

@@ -15,6 +15,7 @@ import type {
   RefiningLot,
   RefiningLotPatch,
   RefiningLotView,
+  OpenRefinerSale,
   RefiningOrder,
   RefiningOrderActions,
   RefiningOrderPatch,
@@ -192,10 +193,27 @@ export function assertSuppliable(lot_ids: string[], order_id: string): void {
   }
 }
 
-export function assertNoOpenSellOrder(open: RefiningOrder | undefined): void {
+export class RefinerSaleOpen extends Conflict {}
+
+export class RefinerPurchaseTakesNoLots extends Invalid {}
+
+export function assertNoOpenSellOrder(open: OpenRefinerSale | undefined): void {
   if (open) {
-    throw new Conflict(
-      `refiner order ${open.number} is already open for this refiner - add the lots to it`
+    throw new RefinerSaleOpen(
+      `refiner order ${open.reference ?? open.number} is already open for this refiner - ` +
+        `add the lots to it`
+    )
+  }
+}
+
+export function assertBuyTakesNoLots(
+  direction: RefiningOrder['direction'],
+  lot_ids: readonly string[] | undefined
+): void {
+  if (direction === 'buy' && (lot_ids?.length ?? 0) > 0) {
+    throw new RefinerPurchaseTakesNoLots(
+      'a refiner purchase (buy) takes no lots at creation; its bullion arrives from the ' +
+        'refiner invoice'
     )
   }
 }
@@ -312,6 +330,12 @@ export function assertPooledHasNoSpot(order: RefiningOrder, lots: RefiningSettle
         `lot ${spoken.lot_id} cannot name its own`
     )
   }
+}
+
+const SENDABLE = ['on hand', 'incoming']
+
+export function notSendable(positions: LotPosition[]): LotPosition[] {
+  return positions.filter((row) => !SENDABLE.includes(row.position))
 }
 
 export function assertOnHandNamed(skipped: LotPosition[]): void {

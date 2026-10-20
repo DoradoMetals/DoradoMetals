@@ -1,8 +1,11 @@
 import { Conflict, Invalid, NotFound, StaleWrite } from '#shared/errors.ts'
 import { WeightUnit } from '@dorado/contracts'
 import { isSettled } from '#transactions/rules.ts'
+import { isBankMethod } from '#transactions/details/rules.ts'
 
 import type {
+  AdminOrderCreate,
+  AdminPayout,
   CustomerOrderLotView,
   CustomerOrderView,
   Action,
@@ -918,4 +921,40 @@ export function assertRepairable(intent: PaymentIntentFacts, cents: number): voi
         `order totals now - contact support with that reference`
     )
   }
+}
+
+export class OrderUndecided extends Invalid {}
+
+// An order created with lots chooses its fulfillment and its money at
+// creation; with no lots both may be left for the order screen.
+export function assertDecided(order: AdminOrderCreate): void {
+  if (order.lots.length === 0) return
+  if (!order.fulfillment) {
+    throw new OrderUndecided('an order with lots chooses its fulfillment at creation')
+  }
+  if (order.direction === 'purchase' && !order.payout) {
+    throw new OrderUndecided('a purchase with lots chooses its payout at creation')
+  }
+  if (order.direction === 'sale' && (!order.payment_method_id || !order.recipient_address_id)) {
+    throw new OrderUndecided(
+      'a sale with lots chooses its payment method and recipient address at creation'
+    )
+  }
+}
+
+export function assertPayoutAccountNamed(payout: AdminPayout): void {
+  if (isBankMethod(payout.method) && !payout.bank_link_id) {
+    throw new Invalid(`an ${payout.method} payout names a linked bank account (bank_link_id)`)
+  }
+}
+
+export function requireChosen<T>(value: T | null | undefined, what: string): T {
+  if (value === null || value === undefined) {
+    throw new OrderUndecided(`the order's ${what} is not chosen`)
+  }
+  return value
+}
+
+export function assertWrittenOrder(written: boolean, order_id: string): void {
+  if (!written) throw new Conflict(`order ${order_id} changed under this request`)
 }

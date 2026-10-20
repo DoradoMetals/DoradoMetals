@@ -123,7 +123,7 @@ export const OrderViewPayout = PaymentDetails.pick({
   method: PaymentMethod.shape.type.nullable(),
   account_holder_name: PaymentDetails.shape.account_holder,
   account_last4: PaymentDetails.shape.last_four,
-  routing_last4: PaymentDetails.shape.routing_last_four,
+  routing_last4: PaymentDetails.shape.routing_last_four.optional(),
   cost: OrderTotals.shape.payout_fee,
 })
 export type OrderViewPayout = z.infer<typeof OrderViewPayout>

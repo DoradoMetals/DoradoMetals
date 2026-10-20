@@ -43,6 +43,7 @@ export const note = (over: Partial<NoteView> = {}): NoteView => ({
   id: `${RID}3`,
   user_id: null,
   lead_id: null,
+  refining_order_id: null,
   order_id: ORDER_ID,
   body: 'Customer asked for the payout before Friday. eCheck is fine.',
   created_at: '2026-10-02T19:14:00Z',

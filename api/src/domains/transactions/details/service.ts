@@ -5,6 +5,7 @@ import {
   assertNamesAField,
   assertPayableForm,
   assertPayout,
+  assertLinkedPayout,
   assertResolvedMethod,
   assertWaivable,
   assertWritablePayout,
@@ -18,6 +19,7 @@ import { payoutKeyFromEnv } from '#shared/crypto/payoutKey.ts'
 import { withDecisions } from '#shared/views.ts'
 import type { Executor } from '#shared/db/executor.ts'
 import type {
+  AdminPayout,
   CheckoutPayoutForm,
   PaymentDetailsBank,
   PaymentDetailsPatch,
@@ -59,6 +61,20 @@ export async function saveCheckoutPayout(
   }
 
   return assertWrittenDetails(id, await details.update(id, sealed, tx))
+}
+
+export async function saveLinkedPayout(
+  user_id: string,
+  existing_id: string | null,
+  payout: AdminPayout,
+  tx: Executor
+): Promise<PaymentDetailsView> {
+  const row = assertLinkedPayout(
+    payout.method,
+    await details.linkedPayout(user_id, payout.method, payout.bank_link_id ?? null, tx)
+  )
+  const id = existing_id ?? (await details.create(user_id, row, tx)).id
+  return assertWrittenDetails(id, await details.update(id, row, tx))
 }
 
 export async function decryptFor(

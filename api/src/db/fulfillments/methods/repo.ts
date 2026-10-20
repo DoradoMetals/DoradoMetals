@@ -9,9 +9,19 @@ const sql = sqlFrom(import.meta.dirname)
 
 export async function getAvailable(
   direction: string,
-  executor?: Executor
+  executor?: Executor,
+  include_hidden = false
 ): Promise<FulfillmentMethodRead[]> {
-  const { rows } = await query<FulfillmentMethodRead>(sql('get_available'), [direction], executor)
+  const { rows } = await query<FulfillmentMethodRead>(
+    sql('get_available'),
+    [direction, include_hidden],
+    executor
+  )
+  return rows
+}
+
+export async function getRefiner(executor?: Executor): Promise<FulfillmentMethodRead[]> {
+  const { rows } = await query<FulfillmentMethodRead>(sql('get_refiner'), [], executor)
   return rows
 }
 
@@ -20,9 +30,7 @@ export async function getAll(executor?: Executor): Promise<FulfillmentMethodRead
   return rows
 }
 
-export async function getDropoff(
-  executor?: Executor
-): Promise<FulfillmentMethodRead | undefined> {
+export async function getDropoff(executor?: Executor): Promise<FulfillmentMethodRead | undefined> {
   const { rows } = await query<FulfillmentMethodRead>(sql('get_dropoff'), [], executor)
   return rows[0]
 }

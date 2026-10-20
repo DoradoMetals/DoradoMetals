@@ -17,6 +17,7 @@ process.env.MOOV_WALLET_PAYMENT_METHOD_ID = 'pm_wallet'
 
 await mockSessions()
 const { default: app } = await import('#app')
+const refiningLots = await import('#db/refining/lots/repo.ts')
 
 beforeEach(() => moovFake.reset())
 afterAll(async () => {
@@ -68,14 +69,17 @@ test('a refiner buy order offers send_payment - confirmed before settlement, ove
     )
 
     await asAdmin(TEST_ACTOR, async () => {
-      const made = await request(app)
+      const bare = await request(app)
         .post('/api/refining/orders')
-        .send({
-          refiner_id: await refinerId(c),
-          direction: 'buy',
-          lot_ids: order.lots.map((lot) => lot.lot_id),
-        })
-      assert.equal(made.status, 201, made.text)
+        .send({ refiner_id: await refinerId(c), direction: 'buy' })
+      assert.equal(bare.status, 201, bare.text)
+      await refiningLots.assign(
+        bare.body.id,
+        order.lots.map((lot) => lot.lot_id),
+        c
+      )
+      const made = await request(app).get(`/api/refining/orders/${bare.body.id}`)
+      assert.equal(made.status, 200, made.text)
       assert.equal(made.body.payment.direction, 'buy')
       assert.equal(made.body.payment.state, null, 'no payout has been opened yet')
 

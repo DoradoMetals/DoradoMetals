@@ -24,7 +24,7 @@ export async function getOne(id: string, executor?: Executor): Promise<NoteView 
 export async function forSubject(subject: NoteSubject, executor?: Executor): Promise<NoteView[]> {
   const { rows } = await query<NoteView>(
     GET_ALL_SQL,
-    [subject.user_id, subject.lead_id, subject.order_id ?? null],
+    [subject.user_id, subject.lead_id, subject.order_id ?? null, subject.refining_order_id ?? null],
     executor
   )
   return rows
@@ -33,7 +33,13 @@ export async function forSubject(subject: NoteSubject, executor?: Executor): Pro
 export async function create(row: NoteCreateBody, executor?: Executor): Promise<NoteView> {
   const { rows } = await query<NoteView>(
     CREATE_SQL,
-    [row.user_id ?? null, row.lead_id ?? null, row.order_id ?? null, row.body],
+    [
+      row.user_id ?? null,
+      row.lead_id ?? null,
+      row.order_id ?? null,
+      row.refining_order_id ?? null,
+      row.body,
+    ],
     executor
   )
   return rows[0]!

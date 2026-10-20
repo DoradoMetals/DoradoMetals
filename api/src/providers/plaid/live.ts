@@ -2,6 +2,7 @@ import { requiredEnv } from '#shared/env/required.ts'
 import type {
   PlaidData,
   PlaidFeedTransaction,
+  PlaidLinkedAccount,
   PlaidVerificationKey,
 } from '#providers/plaid/types.ts'
 import {
@@ -12,6 +13,8 @@ import {
   PLAID_PROCESSOR_TOKEN_CREATE_PATH,
   PLAID_TRANSACTIONS_SYNC_PATH,
   PLAID_WEBHOOK_VERIFICATION_KEY_PATH,
+  PLAID_ACCOUNTS_GET_PATH,
+  PLAID_INSTITUTION_GET_PATH,
   PLAID_CLIENT_ID_HEADER,
   PLAID_SECRET_HEADER,
 } from '#providers/plaid/constants.ts'
@@ -96,10 +99,56 @@ export const verificationKey: PlaidData['verificationKey'] = async (key_id) => {
   return raw.key
 }
 
+// Hosted Link (ruling 160): Plaid delivers the link by SMS or email. Delivery
+// is a beta on Plaid's side and sandbox cannot deliver; the returned URL is
+// what our own send would carry instead.
+export const createHostedLink: PlaidData['createHostedLink'] = async (
+  client_user_id,
+  channel,
+  to
+) =>
+  await ask(PLAID_LINK_TOKEN_CREATE_PATH, {
+    user:
+      channel === 'sms'
+        ? { client_user_id, phone_number: to }
+        : { client_user_id, email_address: to },
+    client_name: 'Dorado Metals Exchange',
+    products: ['auth'],
+    country_codes: ['US'],
+    language: 'en',
+    webhook: process.env.PLAID_WEBHOOK_URL,
+    hosted_link: { delivery_method: channel, completion_redirect_uri: process.env.FRONTEND_URL },
+  })
+
+export const accounts: PlaidData['accounts'] = async (access_token) => {
+  const raw = await ask<{
+    accounts?: PlaidLinkedAccount[]
+    item?: { institution_id?: string | null }
+  }>(PLAID_ACCOUNTS_GET_PATH, { access_token })
+  const institution_id = raw.item?.institution_id ?? null
+  const institution = institution_id
+    ? await ask<{ institution?: { name?: string } }>(PLAID_INSTITUTION_GET_PATH, {
+        institution_id,
+        country_codes: ['US'],
+      })
+    : null
+  return {
+    institution_name: institution?.institution?.name ?? null,
+    accounts: (raw.accounts ?? []).map((a) => ({
+      account_id: a.account_id,
+      name: a.name,
+      mask: a.mask ?? null,
+      verification_status: a.verification_status ?? null,
+    })),
+  }
+}
+
 export const data: PlaidData = {
   createLinkToken,
   exchangePublicToken,
   createProcessorToken,
   syncTransactions,
   verificationKey,
+  createHostedLink,
+  accounts,
 }

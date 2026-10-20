@@ -123,6 +123,14 @@ export function requiresCourierSlot(
   return handoffFor(handoffs, method.type)?.requires_schedule === true
 }
 
+// Own label (admin only): the customer ships under a label of their own, so
+// no service or package is chosen and no label is bought.
+const OWN_LABEL = 'OWN LABEL'
+
+export function buysLabel(method: FulfillmentMethodRead): boolean {
+  return method.category === 'SHIPMENT' && method.type !== OWN_LABEL
+}
+
 export function missingFor(
   view: FulfillmentViewFacts,
   handoffs: CarrierHandoff[]
@@ -136,6 +144,7 @@ export function missingFor(
       return missing
     }
     if (!parcel?.shipper_address_id) missing.push('shipper_address_id')
+    if (!buysLabel(method)) return missing
     if (!parcel?.package_id) missing.push('package_id')
     if (!parcel?.carrier_service_id) missing.push('carrier_service_id')
     if (requiresCourierSlot(method, handoffs)) {
@@ -233,8 +242,6 @@ export function assertDefault<T>(
 ): asserts row is T {
   if (!row) throw new NotFound(`no default ${category} method for a ${direction}`)
 }
-
-
 
 export function assertDropoff<T>(row: T | null | undefined, id: string): asserts row is T {
   if (!row) {

@@ -73,6 +73,7 @@ export function lot(n: number, over: LotOver = {}): RefiningLotView {
       assayed_at: null,
       declared_content: null,
       premium: 0.92,
+      premium_override: false,
       sales_tax_rate: null,
       confirmed_at: null,
       settled_at: null,

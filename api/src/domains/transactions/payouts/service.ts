@@ -79,7 +79,8 @@ export async function openPayout(
         amount: body.amount ?? owed,
         counterparty_user_id: order?.user_id ?? null,
         details_id: body.details_id ?? order?.totals?.payout_details_id ?? null,
-        bank_link_id: body.bank_link_id ?? null,
+        bank_link_id: body.bank_link_id ?? order?.totals?.payout_bank_link_id ?? null,
+        funding_source_id: order?.totals?.payout_funding_source_id ?? null,
         provider: null,
         provider_ref: null,
         reference: referenceFor(order?.direction ?? null, order?.number ?? 0),
@@ -232,12 +233,14 @@ export async function patchPayout(transfer_id: string, changes: PayoutPatch): Pr
 
 export async function payTo(user_id: string): Promise<PayTo[]> {
   const links = await bankLinks.listForUser(user_id)
-  const missing = links.filter((link) => link.payment_method_id === null)
+  const missing = links.filter(
+    (link) => link.payment_method_id === null && link.moov_account_id !== null
+  )
   if (missing.length === 0) return links.map(payToOf)
 
   const account = missing[0] as BankLink
   const offered = await attempt('moov.paymentMethods', async () =>
-    moov.rails().paymentMethods(account.moov_account_id)
+    moov.rails().paymentMethods(account.moov_account_id as string)
   )
   if (!offered || offered.length === 0) return links.map(payToOf)
 

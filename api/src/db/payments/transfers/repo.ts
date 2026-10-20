@@ -44,6 +44,7 @@ export async function create(
       row.reference ?? null,
       row.idempotency_key ?? null,
       row.override_reason ?? null,
+      row.funding_source_id ?? null,
     ],
     executor
   )

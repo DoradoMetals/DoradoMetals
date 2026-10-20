@@ -18,6 +18,8 @@ import * as emailService from '#documents/emails/service.ts'
 import * as taxService from '#pricing/sales-tax/service.ts'
 import * as paymentsService from '#transactions/service.ts'
 import * as credit from '#transactions/credit/service.ts'
+import * as banks from '#transactions/banks/service.ts'
+import * as funding from '#transactions/funding/service.ts'
 import * as sweeps from '#transactions/sweeps.ts'
 import * as stripeProvider from '#providers/stripe/stripe.ts'
 import * as orderRead from '#orders/read.ts'
@@ -31,6 +33,7 @@ import withTransaction from '#shared/db/withTransaction.ts'
 import { attempt } from '#shared/attempt.ts'
 import type {
   AdminOrderCreate,
+  AdminPayout,
   Checkout,
   Lot,
   OrderLot,
@@ -61,27 +64,54 @@ export async function place(checkout_id: string, world: typeof LIVE = LIVE): Pro
   return order
 }
 
+// The Create Order drawer's one call. An order with lots chooses its
+// fulfillment and its money now and is placed exactly as a checkout is; an
+// order with no lots may leave either for later (the order screen asks), and
+// is written bare with whatever was chosen.
 export async function placeForAdmin(
   order: AdminOrderCreate,
   world: typeof LIVE = LIVE
 ): Promise<OrderView> {
-  return await place(await withTransaction((tx) => buildFor(order, tx)), world)
+  rules.assertDecided(order)
+  const payout = order.direction === 'purchase' ? order.payout : undefined
+  if (payout) await assertPayable(order.user_id, payout)
+
+  const order_id =
+    order.lots.length === 0
+      ? await withTransaction((tx) => writeBare(order, tx))
+      : (await place(await withTransaction((tx) => buildFor(order, tx)), world)).order.id
+
+  await withTransaction((tx) => stampAdminChoices(order_id, order, payout, tx))
+  const view = await orderRead.view(order_id)
+  rules.assertPlacedOrder(view, order_id)
+  return view
+}
+
+async function assertPayable(user_id: string, payout: AdminPayout): Promise<void> {
+  rules.assertPayoutAccountNamed(payout)
+  if (payout.bank_link_id) await banks.payoutAccount(user_id, payout.bank_link_id)
+  if (payout.funding_source_id) await funding.assertKnown(payout.funding_source_id)
 }
 
 async function buildFor(order: AdminOrderCreate, tx: PoolClient): Promise<string> {
   const row = await checkoutService.getRowFor(order.user_id, order.direction, tx)
   await checkoutService.replaceLots(order.user_id, order.direction, order.lots, tx)
 
+  const fulfillment = rules.requireChosen(order.fulfillment, 'fulfillment')
   const draft = await fulfillmentDrafts.createForCheckout(
-    { checkout_id: row.id, method_id: order.fulfillment.method_id },
+    { checkout_id: row.id, method_id: fulfillment.method_id },
     order.user_id,
     true,
     tx
   )
-  await fulfillmentService.patchChoices(draft.fulfillment.id, order.fulfillment.choices, tx)
+  await fulfillmentService.patchChoices(draft.fulfillment.id, fulfillment.choices, tx)
 
   if (order.direction === 'purchase') {
-    await checkoutService.saveCheckoutPayout(order.user_id, 'purchase', order.payout, tx)
+    await checkoutService.saveLinkedPayout(
+      order.user_id,
+      rules.requireChosen(order.payout, 'payout'),
+      tx
+    )
   } else {
     await checkoutService.patchCheckout(
       order.user_id,
@@ -94,6 +124,69 @@ async function buildFor(order: AdminOrderCreate, tx: PoolClient): Promise<string
     )
   }
   return row.id
+}
+
+async function writeBare(order: AdminOrderCreate, tx: PoolClient): Promise<string> {
+  const checkout = await checkoutService.getRowFor(order.user_id, order.direction, tx)
+  const created = await ordersRepo.createForCheckout(checkout.id, tx)
+  rules.assertPlacedOrder(created, checkout.id)
+
+  if (order.fulfillment) {
+    const made = await fulfillmentService.createForOrder(
+      created.id,
+      order.fulfillment.method_id,
+      tx
+    )
+    await fulfillmentService.patchChoices(made.fulfillment.id, order.fulfillment.choices, tx)
+  }
+  if (order.direction === 'purchase' && order.payout) {
+    const saved = await checkoutService.saveLinkedPayout(order.user_id, order.payout, tx)
+    await orderTransactions.create(
+      { order_id: created.id, used_funds: false, payout_details_id: saved.payment_details_id },
+      tx
+    )
+    await clearChoices(saved, tx)
+  }
+  if (order.direction === 'sale' && order.recipient_address_id) {
+    const address_id = await addressService.snapshot(order.recipient_address_id, tx)
+    if (address_id) {
+      await orderAddresses.create(
+        { order_id: created.id, address_id, source_address_id: order.recipient_address_id },
+        tx
+      )
+    }
+  }
+  return created.id
+}
+
+async function stampAdminChoices(
+  order_id: string,
+  order: AdminOrderCreate,
+  payout: AdminPayout | undefined,
+  tx: PoolClient
+): Promise<void> {
+  rules.assertWrittenOrder(
+    await ordersRepo.update(
+      order_id,
+      {
+        ...(order.notes !== undefined ? { notes: order.notes } : {}),
+        ...(order.assigned_to_id !== undefined ? { assigned_to_id: order.assigned_to_id } : {}),
+      },
+      {},
+      tx
+    ),
+    order_id
+  )
+  if (!payout) return
+  await orderTransactions.update(
+    order_id,
+    {
+      payout_bank_link_id: payout.bank_link_id ?? null,
+      payout_funding_source_id: payout.funding_source_id ?? null,
+    },
+    {},
+    tx
+  )
 }
 
 async function writeOrder(
@@ -143,10 +236,9 @@ async function placePurchase(checkout: Checkout, cart: Lot[], world: typeof LIVE
   const draft = rules.requireFreeFulfillmentDraft(
     await fulfillmentService.getById(checkout.fulfillment_id!)
   )
-  const shipment_id =
-    draft.method.category === 'SHIPMENT'
-      ? await fulfillmentService.shipmentIdOf(draft.fulfillment.id)
-      : null
+  const shipment_id = fulfillmentService.buysLabel(draft.method)
+    ? await fulfillmentService.shipmentIdOf(draft.fulfillment.id)
+    : null
 
   const payout_fee = rules.payoutFeeOf(
     await paymentMethods.listFor('purchase'),

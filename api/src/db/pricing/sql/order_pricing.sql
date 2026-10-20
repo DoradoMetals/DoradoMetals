@@ -10,6 +10,7 @@ lines AS (
          COALESCE(li.content, 0) AS content,
          li.quantity,
          li.premium AS stored_premium,
+         li.premium_override,
          -- PRICE IS NEVER STORED (ruling 120). Every line prices off the
          -- order's own frozen spot for that metal - bid for a purchase, ask
          -- for a sale - and off the live feed while the order is unlocked. A
@@ -53,6 +54,7 @@ by_metal AS (
 tiered AS (
   SELECT l.*,
          CASE WHEN ord.direction <> 'purchase' THEN NULL
+              WHEN l.premium_override THEN NULL
               WHEN l.bullion_id IS NULL THEN band.scrap_pct
               ELSE band.bullion_pct END AS retier_premium
     FROM lines l

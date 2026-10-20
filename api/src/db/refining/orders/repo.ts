@@ -11,7 +11,7 @@ import {
   RefiningOrderView,
   RefiningSpot,
 } from '@dorado/contracts'
-import type { RefiningOrderFilter } from '@dorado/contracts'
+import type { OpenRefinerSale, RefiningOrderFilter } from '@dorado/contracts'
 import type { Executor } from '#shared/db/executor.ts'
 
 const sql = sqlFrom(import.meta.dirname)
@@ -35,8 +35,8 @@ export async function getOne(id: string, executor?: Executor): Promise<RefiningO
 export async function findOpenSell(
   refiner_id: string,
   executor?: Executor
-): Promise<RefiningOrder | undefined> {
-  const { rows } = await query<RefiningOrder>(sql('find_open_sell'), [refiner_id], executor)
+): Promise<OpenRefinerSale | undefined> {
+  const { rows } = await query<OpenRefinerSale>(sql('find_open_sell'), [refiner_id], executor)
   return rows[0]
 }
 

@@ -5,6 +5,7 @@ let nextRequestId = 0
 
 export const httpLogger = pinoHttp({
   logger,
+  autoLogging: logger.level !== 'silent',
   genReqId: (req) => (req.headers['x-request-id'] as string) ?? String(++nextRequestId),
   customLogLevel: (_req, res, err) => {
     if (err || res.statusCode >= 500) return 'error'
