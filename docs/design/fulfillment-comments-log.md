@@ -12,3 +12,6 @@
 - Not found as components in Orders: handoff/booking chips, a tracking timeline (it is the Library Tracker inside the cards) and a fulfillment status badge (Library Badge).
 - Open: Orders now holds a merged Method Tile 1371:53637 (Fulfillment + Payout + Any). After the publish, its Fulfillment variants re-point to this file and the Payout variants stay in Orders.
 - Fresh renders of 8:3346 and 8:12005 checked. Reply 1974253763.
+
+## 2026-10-20 (seventh worker)
+- Ruling 171 (pages are the navigation, with the fix-pass rules): snapshot tools/fulfillment/snapshots/fulfillment-full-tree-pre-ruling171-2026-10-20.json (version 2412546567478673842); renames ruling171-set-renames-2026-10-20.txt. No screens, so one divider "──── Components (Fulfillment) ────" 11:5329. Pages: Create 0:1 (was "Components"; Drawer 8:17650, Form 8:12005, Method tile 8:703), Methods 11:5330 (Shipment 8:3346, Return shipment 8:4750, Pickup 8:5807, Appointment 8:6632, Drop-off 8:7443), Cards 11:5331 (Card 8:20289, Linked card 8:20954, Void label confirm 8:21202). 7 sets renamed. No sections existed; nothing deleted. Positions packed from the origin, 200 px gap. REST diff: 7314 -> 7314, no ids missing or new; COMPONENT 116 and SET 11 unchanged; 2100 instances, 0 unresolved; property names unchanged. Fresh 2x renders checked: pages 0:1 and 11:5331. Root comment 1974369910 on 8:17650.

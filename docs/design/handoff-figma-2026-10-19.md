@@ -549,3 +549,15 @@ Sixth worker. Detail per item: orders-, people-, library-, inventory-, fulfillme
 1. Customer KPI cards, one at a time on 1974185750: Not yet contacted, New customers (new vs returning), Average orders + profit (period select), Customers by source + conversion.
 2. Then Top 10 by settled value, then Activity, then the Map last.
 3. After the Inventory and Fulfillment publish: re-point the instances, snapshot, delete the Orders originals, and move the remaining People components to page root (ruling 169).
+
+## 13. Night 2026-10-20
+
+Seventh worker. Detail: every <file>-comments-log.md, "2026-10-20 (seventh worker)".
+- **Ruling 170:** the field focus ring is gone from Input, Select, Multiselect and Textarea. Select and Multiselect Focus now use the primary border. Waits on the Library publish (comment 1974308929).
+- **Ruling 171 in all ten feature files:** pages are the navigation.
+  - "──── Screens ────", then the screen pages.
+  - Then one "──── Components (<screen group>) ────" divider per screen group, with that group's component pages under it. A file with no screens (Locations, Fulfillment) has one Components divider.
+  - Page names and set names never repeat the group's name. The old-to-new set renames are in tools/<file>/snapshots/ruling171-set-renames-2026-10-20.txt and in each file's page-map comment.
+  - Every page is tidied from the origin (rows, 200 px gap, wrap at 8000; TEXT within 400 px stays with its node). The scratch tidy script is not kept, so re-derive it from the logs.
+  - Sections and wrapper frames are deleted. Lists are in tools/<file>/snapshots/ruling171-wrappers-to-delete-2026-10-20.json. Full REST trees from before the change are beside them.
+- **Not done:** merging the Desktop/Mobile twin sets into one set with a Layout axis (ruling 169). They are named "Mobile row", "Mobile card" and so on for now. Orders "Photos / Lot photos" kept its name.
