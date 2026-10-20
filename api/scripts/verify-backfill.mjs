@@ -463,6 +463,11 @@ const TABLES = [
 ]
 
 const NOT_REBUILT = {
+  'payments.funding_sources':
+    'the accounts we pay out from, a lookup seeded by 306 with "Dorado ' +
+    'operating" (ruling 116, the Create Order drawer\'s "Payout from"). ' +
+    'exchange recorded no funding source: every legacy payout went out of the ' +
+    'one operating account without naming it.',
   'refiners.orders':
     'created and seeded by 093/094/096 from the ledger; invariant pinned by refiner-edits.test.ts',
   'refining.orders':
