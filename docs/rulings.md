@@ -875,9 +875,12 @@ file named at the top of this file.
   themes/components global lib. So each component is gonna be a page."* Each
   feature file has a divider page "──── Screens ────" followed by one page
   per screen group (People: Customers with the list and the entity screen,
-  Employees, Inbox, Leads), then a divider page "──── Components (Feature)
-  ────" followed by one page per component group (Credit, Entity Header,
-  Details, Ban ...), components grouped where it makes sense; on every page
+  Employees, Inbox, Leads), then, per screen group and in the same order, a
+  divider page "──── Components (Customers) ────", "──── Components
+  (Leads) ────" ... each followed by that group's component pages (Credit,
+  Entity Header, Details, Ban ...), components grouped where it makes sense
+  (corrected the same day: one Components divider per screen group, never
+  one per file); on every page
   the sets are direct children with no parent frame (169). The code mirrors
   it: a feature folder per group with one file per component, short file
   names that mean something by their path (`admin/customers/__features__/
