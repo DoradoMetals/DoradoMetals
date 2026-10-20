@@ -46,7 +46,7 @@ async function aLeadWithEstimate(c: PoolClient) {
     metal_id: 'Silver',
     weight: 20,
     unit_id: await estimateUnitId(c, 'g'),
-    purity_id: await purityLabelId(c, 'Silver', '.925'),
+    purity_id: await purityLabelId(c, 'Silver', 'Sterling'),
   })
   return lead
 }

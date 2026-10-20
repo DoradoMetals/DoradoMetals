@@ -52,6 +52,11 @@ export async function storedKinds(
   return rows
 }
 
+export async function getOne(id: string, executor?: Executor): Promise<PdfRow | null> {
+  const { rows } = await query<PdfRow>(sql('get_one'), [id], executor)
+  return rows[0] ?? null
+}
+
 export async function create(row: NewPdf, executor?: Executor): Promise<{ id: string }> {
   const { rows } = await query<{ id: string }>(
     sql('create'),

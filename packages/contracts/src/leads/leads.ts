@@ -51,6 +51,7 @@ export const LeadPatch = Lead.pick({
   contacted: true,
   responded: true,
   contact: true,
+  notes: true,
   priority: true,
   source: true,
   source_id: true,
@@ -78,13 +79,25 @@ export const LeadConvertBody = z
   .strict()
 export type LeadConvertBody = z.infer<typeof LeadConvertBody>
 
+export const LeadSort = z.enum(['name', 'estimated_value', 'created'])
+export type LeadSort = z.infer<typeof LeadSort>
+
+export const LeadSortDirection = z.enum(['asc', 'desc'])
+export type LeadSortDirection = z.infer<typeof LeadSortDirection>
+
 export const LeadFilter = z.object({}).extend({
   stage: LeadStage.nullable(),
   priority: Lead.shape.priority.nullable(),
   assigned_to: z.string().nullable(),
-  source: Lead.shape.source,
+  source_id: Lead.shape.source_id,
   search: z.string().nullable(),
   archived: z.boolean(),
+  created_from: z.iso.date().nullable(),
+  created_to: z.iso.date().nullable(),
+  sort: LeadSort,
+  direction: LeadSortDirection,
+  page: z.number().int().positive().nullable(),
+  page_size: z.number().int().positive().nullable(),
 })
 export type LeadFilter = z.infer<typeof LeadFilter>
 
@@ -93,3 +106,37 @@ export type LeadArchivedQuery = z.infer<typeof LeadArchivedQuery>
 
 export const LeadRestoreBody = Lead.pick({}).strict()
 export type LeadRestoreBody = z.infer<typeof LeadRestoreBody>
+
+export const LeadListQuery = z
+  .object({})
+  .extend({
+    stage: LeadStage.optional(),
+    priority: Lead.shape.priority.optional(),
+    assigned_to: z.string().optional(),
+    source_id: Lead.shape.source_id.unwrap().optional(),
+    q: z.string().optional(),
+    archived: LeadArchivedQuery.optional(),
+    created_from: z.iso.date().optional(),
+    created_to: z.iso.date().optional(),
+    sort: LeadSort.optional(),
+    direction: LeadSortDirection.optional(),
+    page: z.coerce.number().int().positive().optional(),
+    page_size: z.coerce.number().int().positive().max(500).optional(),
+  })
+  .strict()
+export type LeadListQuery = z.infer<typeof LeadListQuery>
+
+export const LeadPage = z.object({}).extend({
+  rows: z.array(LeadView),
+  total: z.number().int(),
+})
+export type LeadPage = z.infer<typeof LeadPage>
+
+export const LeadAssignBody = z
+  .object({})
+  .extend({
+    lead_ids: z.array(Lead.shape.id).min(1).max(500),
+    assigned_to_id: Lead.shape.assigned_to_id,
+  })
+  .strict()
+export type LeadAssignBody = z.infer<typeof LeadAssignBody>

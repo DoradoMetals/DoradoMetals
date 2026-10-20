@@ -101,20 +101,20 @@ test('the list hides an archived lead by default and shows it with archived=true
 
       const plain = await request(app).get('/api/leads').query({ q: tag })
       assert.equal(plain.status, 200, plain.text)
-      const plainIds = plain.body.map((l: { id: string }) => l.id)
+      const plainIds = plain.body.rows.map((l: { id: string }) => l.id)
       assert.ok(plainIds.includes(kept.id), 'the live lead left the default list')
       assert.ok(!plainIds.includes(gone.id), 'the archived lead is in the default list')
 
       const off = await request(app).get('/api/leads').query({ q: tag, archived: 'false' })
       assert.equal(off.status, 200, off.text)
-      assert.ok(!off.body.some((l: { id: string }) => l.id === gone.id))
+      assert.ok(!off.body.rows.some((l: { id: string }) => l.id === gone.id))
 
       const archived = await request(app).get('/api/leads').query({ q: tag, archived: 'true' })
       assert.equal(archived.status, 200, archived.text)
-      const archivedIds = archived.body.map((l: { id: string }) => l.id)
+      const archivedIds = archived.body.rows.map((l: { id: string }) => l.id)
       assert.ok(archivedIds.includes(gone.id), 'archived=true did not show the archived lead')
       assert.ok(!archivedIds.includes(kept.id), 'archived=true showed a live lead')
-      for (const row of archived.body) {
+      for (const row of archived.body.rows) {
         assert.ok(LeadView.parse(row).archived_at, 'archived=true answered a live lead')
       }
     })
@@ -147,7 +147,7 @@ test('POST /:id/restore clears archived_at and puts the lead back in the default
       assert.equal(await archivedAt(c, lead.id), null, 'restore left archived_at set')
       const listed = await request(app).get('/api/leads').query({ q: tag })
       assert.ok(
-        listed.body.some((l: { id: string }) => l.id === lead.id),
+        listed.body.rows.some((l: { id: string }) => l.id === lead.id),
         'the restored lead is not back in the default list'
       )
     })

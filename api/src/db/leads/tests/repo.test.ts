@@ -59,10 +59,10 @@ test('list hides an archived lead unless archived is asked for', async () => {
     const lead = await aLead(c, { name: `${tag}-lead` })
     await leads.remove(lead.id, c)
 
-    const live = await leads.list({ ...NO_FILTER, search: tag }, c)
+    const live = (await leads.list({ ...NO_FILTER, search: tag }, null, c)).rows
     assert.ok(!live.some((l) => l.id === lead.id), 'the default list shows an archived lead')
 
-    const archived = await leads.list({ ...NO_FILTER, search: tag, archived: true }, c)
+    const archived = (await leads.list({ ...NO_FILTER, search: tag, archived: true }, null, c)).rows
     assert.ok(
       archived.some((l) => l.id === lead.id),
       'archived: true did not show it'
@@ -135,9 +135,15 @@ const NO_FILTER = {
   stage: null,
   priority: null,
   assigned_to: null,
-  source: null,
+  source_id: null,
   search: null,
   archived: false,
+  created_from: null,
+  created_to: null,
+  sort: 'created' as const,
+  direction: 'desc' as const,
+  page: null,
+  page_size: null,
 }
 
 test('list filters by stage, priority and source', async () => {
@@ -147,11 +153,11 @@ test('list filters by stage, priority and source', async () => {
     await leads.update(responded.id, { responded: true }, c)
     const untouched = await aLead(c, { name: `${tag}-new`, priority: 'Low' })
 
-    const byStage = await leads.list({ ...NO_FILTER, stage: 'Responded' }, c)
+    const byStage = (await leads.list({ ...NO_FILTER, stage: 'Responded' }, null, c)).rows
     assert.ok(byStage.some((l) => l.id === responded.id))
     assert.ok(!byStage.some((l) => l.id === untouched.id))
 
-    const byPriority = await leads.list({ ...NO_FILTER, priority: 'Low' }, c)
+    const byPriority = (await leads.list({ ...NO_FILTER, priority: 'Low' }, null, c)).rows
     assert.ok(byPriority.some((l) => l.id === untouched.id))
     assert.ok(!byPriority.some((l) => l.id === responded.id))
   })
@@ -162,10 +168,10 @@ test('search matches name, phone or email', async () => {
     const tag = `search-${randomUUID().slice(0, 8)}`
     const lead = await aLead(c, { name: `${tag}-name` })
 
-    const found = await leads.list({ ...NO_FILTER, search: tag }, c)
+    const found = (await leads.list({ ...NO_FILTER, search: tag }, null, c)).rows
     assert.ok(found.some((l) => l.id === lead.id))
 
-    const missed = await leads.list({ ...NO_FILTER, search: randomUUID() }, c)
+    const missed = (await leads.list({ ...NO_FILTER, search: randomUUID() }, null, c)).rows
     assert.ok(!missed.some((l) => l.id === lead.id))
   })
 })
@@ -176,11 +182,11 @@ test('assigned_to filters to one owner, and "unassigned" to none', async () => {
     const owned = await aLead(c, { assigned_to_id: owner })
     const unowned = await aLead(c)
 
-    const forOwner = await leads.list({ ...NO_FILTER, assigned_to: owner }, c)
+    const forOwner = (await leads.list({ ...NO_FILTER, assigned_to: owner }, null, c)).rows
     assert.ok(forOwner.some((l) => l.id === owned.id))
     assert.ok(!forOwner.some((l) => l.id === unowned.id))
 
-    const unassigned = await leads.list({ ...NO_FILTER, assigned_to: 'unassigned' }, c)
+    const unassigned = (await leads.list({ ...NO_FILTER, assigned_to: 'unassigned' }, null, c)).rows
     assert.ok(unassigned.some((l) => l.id === unowned.id))
     assert.ok(!unassigned.some((l) => l.id === owned.id))
   })

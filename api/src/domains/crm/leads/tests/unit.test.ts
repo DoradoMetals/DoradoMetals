@@ -43,8 +43,8 @@ test('no read projects the columns exchange has no equivalent for', () => {
   }
 })
 
-test('the list read is deterministically ordered', () => {
-  assert.match(body('get_all'), /ORDER BY\s+created_at DESC,\s*id DESC/i)
+test('the list read is deterministically ordered, the id breaking every tie', () => {
+  assert.match(body('get_all'), /m\.created_at DESC,\s*m\.id DESC/i)
 })
 
 test('no statement in this feature joins another table', () => {

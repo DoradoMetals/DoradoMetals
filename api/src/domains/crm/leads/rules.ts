@@ -34,3 +34,9 @@ export function assignmentMoved(lead: LeadView, patch: LeadPatch): boolean {
   if (!('assigned_to_id' in patch)) return false
   return (patch.assigned_to_id ?? null) !== lead.assigned_to_id
 }
+
+export function assertPhoneFree(existing: LeadView | null | undefined): void {
+  if (existing) {
+    throw new Conflict('A lead with this phone number already exists.')
+  }
+}

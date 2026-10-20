@@ -83,10 +83,10 @@ test('an admin gets the list in the shape the table reads', async () => {
       await asAdmin(async () => {
         const res = await request(app).get('/api/leads')
         assert.equal(res.status, 200)
-        assert.ok(Array.isArray(res.body), 'the leads table expects an array')
-        assert.ok(res.body.length > 0, 'dev has leads and none came back')
+        assert.ok(Array.isArray(res.body.rows), 'the leads table expects an array of rows')
+        assert.ok(res.body.rows.length > 0, 'dev has leads and none came back')
 
-        const lead = res.body[0]
+        const lead = res.body.rows[0]
         for (const field of ['id', 'name', 'email', 'phone', 'created_at']) {
           assert.ok(field in lead, `the response is missing ${field}`)
         }
@@ -111,7 +111,7 @@ test('creating a lead round-trips and appears in the list', async () => {
 
         const back = await request(app).get('/api/leads')
         assert.ok(
-          back.body.some((l: { id: string; name: string }) => l.name === lead.name),
+          back.body.rows.some((l: { id: string; name: string }) => l.name === lead.name),
           'the lead created a moment ago is not in the list'
         )
       })
@@ -125,15 +125,17 @@ test('updating a lead changes it and leaves the others alone', async () => {
     async () => {
       await asAdmin(async () => {
         const before = await request(app).get('/api/leads')
-        const target = before.body[0]
-        const others = before.body.length
+        const target = before.body.rows[0]
+        const others = before.body.rows.length
 
         const res = await request(app).patch(`/api/leads/${target.id}`).send({ priority: 'urgent' })
         assert.equal(res.status, 200, JSON.stringify(res.body))
 
         const after = await request(app).get('/api/leads')
-        assert.equal(after.body.length, others, 'an update changed how many leads exist')
-        const updated = after.body.find((l: { id: string; name: string }) => l.id === target.id)
+        assert.equal(after.body.rows.length, others, 'an update changed how many leads exist')
+        const updated = after.body.rows.find(
+          (l: { id: string; name: string }) => l.id === target.id
+        )
         assert.equal(updated.priority, 'urgent')
       })
     },
@@ -161,7 +163,7 @@ test('deleting removes exactly one lead, and only for an admin', async () => {
       await asAdmin(async () => {
         const before = await request(app).get('/api/leads')
         assert.ok(
-          before.body.some((l: { id: string; name: string }) => l.id === id),
+          before.body.rows.some((l: { id: string; name: string }) => l.id === id),
           'the non-admin delete went through'
         )
 
@@ -169,9 +171,13 @@ test('deleting removes exactly one lead, and only for an admin', async () => {
         assert.equal(res.status, 200, JSON.stringify(res.body))
 
         const after = await request(app).get('/api/leads')
-        assert.equal(after.body.length, before.body.length - 1, 'delete removed the wrong number')
+        assert.equal(
+          after.body.rows.length,
+          before.body.rows.length - 1,
+          'delete removed the wrong number'
+        )
         assert.ok(
-          !after.body.some((l: { id: string; name: string }) => l.id === id),
+          !after.body.rows.some((l: { id: string; name: string }) => l.id === id),
           'the lead is still there'
         )
       })

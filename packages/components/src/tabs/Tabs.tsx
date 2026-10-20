@@ -88,3 +88,82 @@ export function TabsTrigger({
     />
   )
 }
+
+export type TabsNavItem = {
+  value: string
+  label: React.ReactNode
+  href?: string
+  disabled?: boolean
+}
+
+export type TabsNavProps = {
+  items: TabsNavItem[]
+  current?: string
+  linkComponent?: React.ElementType
+  'aria-label': string
+  className?: string
+}
+
+export function TabsNav({
+  items,
+  current,
+  linkComponent: LinkComponent = 'a',
+  'aria-label': label,
+  className,
+}: TabsNavProps) {
+  const listRef = React.useRef<HTMLUListElement>(null)
+  const [indicator, setIndicator] = React.useState<{ left: number; width: number } | null>(null)
+
+  React.useLayoutEffect(() => {
+    const list = listRef.current
+    const active = list?.querySelector<HTMLElement>('[aria-current="page"]')
+    if (!list || !active) {
+      setIndicator(null)
+      return
+    }
+    const measure = () => {
+      const listRect = list.getBoundingClientRect()
+      const rect = active.getBoundingClientRect()
+      setIndicator({ left: rect.left - listRect.left, width: rect.width })
+    }
+    measure()
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(measure)
+    observer.observe(list)
+    return () => observer.disconnect()
+  }, [current, items])
+
+  const look = cn(
+    'inline-flex cursor-pointer px-sm pt-xs pb-xs-plus text-small font-medium text-muted-foreground transition-colors',
+    'hover:text-foreground focus-ring'
+  )
+
+  return (
+    <nav aria-label={label} data-part="tabs-nav" className={cn('flex flex-col gap-xs', className)}>
+      <ul ref={listRef} className="relative flex items-center gap-2xs border-b border-border">
+        {items.map((item) => (
+          <li key={item.value} data-part="tab" className="flex">
+            {item.disabled || !item.href ? (
+              <span className={cn(look, 'pointer-events-none opacity-50')}>{item.label}</span>
+            ) : (
+              <LinkComponent
+                href={item.href}
+                aria-current={item.value === current ? 'page' : undefined}
+                className={cn(look, 'aria-[current=page]:text-foreground')}
+              >
+                {item.label}
+              </LinkComponent>
+            )}
+          </li>
+        ))}
+        {indicator && (
+          <span
+            aria-hidden
+            className="pointer-events-none absolute bottom-0 h-0.5 bg-primary transition-[left,width] duration-150 motion-reduce:transition-none"
+            style={{ left: indicator.left, width: indicator.width }}
+          />
+        )}
+      </ul>
+    </nav>
+  )
+}

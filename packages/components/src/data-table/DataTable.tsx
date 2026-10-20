@@ -101,6 +101,7 @@ export type DataTableCell<M extends DataTableColumnMeta = DataTableColumnMeta> =
   content: React.ReactNode
 }
 
+const NO_IDS: string[] = []
 const SELECT_COLUMN_ID = '__select'
 const EXPAND_COLUMN_ID = '__expand'
 
@@ -127,6 +128,9 @@ export type DataTableProps<
   className?: string
   selectable?: boolean
   onRowSelectionChange?: (rows: T[]) => void
+  sorting?: SortingState
+  onSortingChange?: (sorting: SortingState) => void
+  total?: number
   onRowClick?: (row: T) => void
   pageSize?: number
   pageSizes?: number[]
@@ -177,6 +181,9 @@ export function DataTable<T extends RowData, M extends DataTableColumnMeta = Dat
   className,
   selectable = false,
   onRowSelectionChange,
+  sorting: controlledSorting,
+  onSortingChange,
+  total: serverTotal,
   onRowClick,
   pageSize,
   pageSizes,
@@ -272,7 +279,14 @@ export function DataTable<T extends RowData, M extends DataTableColumnMeta = Dat
     return lead.length ? [...lead, ...columns] : columns
   }, [columns, helper, selectable, expandable, toggleDetail])
 
-  const [sorting, setSorting] = React.useState<SortingState>([])
+  const [innerSorting, setInnerSorting] = React.useState<SortingState>([])
+  const manualSorting = controlledSorting !== undefined
+  const sorting = controlledSorting ?? innerSorting
+  const setSorting = (updater: SortingState | ((old: SortingState) => SortingState)) => {
+    const next = typeof updater === 'function' ? updater(sorting) : updater
+    if (manualSorting) onSortingChange?.(next)
+    else setInnerSorting(next)
+  }
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({})
   const [columnVisibility, setColumnVisibility] = React.useState<ColumnVisibilityState>({})
@@ -296,9 +310,26 @@ export function DataTable<T extends RowData, M extends DataTableColumnMeta = Dat
     pageIndex: 0,
     pageSize: paged ? pageSize : Infinity,
   })
-  const pagination: PaginationState = server
-    ? { pageIndex: (page ?? 1) - 1, pageSize: Math.max(1, data.length) }
-    : clientPage
+  const serverPageIndex = (page ?? 1) - 1
+  const serverPageSize = Math.max(1, data.length)
+  const serverPagination = React.useMemo<PaginationState>(
+    () => ({ pageIndex: serverPageIndex, pageSize: serverPageSize }),
+    [serverPageIndex, serverPageSize]
+  )
+  const pagination: PaginationState = server ? serverPagination : clientPage
+  const groupingState = React.useMemo(
+    () => (groupingKey ? groupingKey.split('\u0000') : NO_IDS),
+    [groupingKey]
+  )
+  const pinnedKey = (pinned ?? []).join('\u0000')
+  const pinningState = React.useMemo(
+    () => ({ start: pinnedKey ? pinnedKey.split('\u0000') : NO_IDS, end: NO_IDS }),
+    [pinnedKey]
+  )
+  const visibilityState = React.useMemo(
+    () => ({ ...columnVisibility, ...metaHidden }),
+    [columnVisibility, metaHidden]
+  )
 
   const table = useTable<F, T>({
     features: features as unknown as F,
@@ -307,6 +338,8 @@ export function DataTable<T extends RowData, M extends DataTableColumnMeta = Dat
     getRowId,
     defaultColumn: { enableSorting: false, enableColumnFilter: false },
     sortDescFirst: false,
+    manualSorting,
+    enableSortingRemoval: !manualSorting,
     enableRowSelection: selectable,
     enableColumnResizing: resizable,
     columnResizeMode: 'onChange',
@@ -314,15 +347,16 @@ export function DataTable<T extends RowData, M extends DataTableColumnMeta = Dat
     manualPagination: server,
     pageCount: server ? pageCount : undefined,
     autoResetPageIndex: false,
+    autoResetExpanded: false,
     state: {
       sorting,
       columnFilters,
       rowSelection,
-      columnVisibility: { ...columnVisibility, ...metaHidden },
+      columnVisibility: visibilityState,
       pagination,
       expanded,
-      grouping: grouping ?? [],
-      columnPinning: { start: pinned ?? [], end: [] },
+      grouping: groupingState,
+      columnPinning: pinningState,
     },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
@@ -348,10 +382,17 @@ export function DataTable<T extends RowData, M extends DataTableColumnMeta = Dat
   const lastPinned = table.getStartVisibleLeafColumns().at(-1)?.id
   const sized = resizable || (pinned?.length ?? 0) > 0
 
+  const selectionChange = React.useRef(onRowSelectionChange)
+  selectionChange.current = onRowSelectionChange
+  const selectedNow = React.useRef(selectedRows)
+  selectedNow.current = selectedRows
+  const selectedKey = table
+    .getSelectedRowModel()
+    .rows.map((row) => row.id)
+    .join('\u0000')
   React.useEffect(() => {
-    if (!onRowSelectionChange) return
-    onRowSelectionChange(selectedRows)
-  }, [rowSelection, data, onRowSelectionChange])
+    selectionChange.current?.(selectedNow.current)
+  }, [selectedKey])
 
   const viewportRef = React.useRef<HTMLDivElement>(null)
   const virtualizer = useVirtualizer({
@@ -379,9 +420,13 @@ export function DataTable<T extends RowData, M extends DataTableColumnMeta = Dat
       actions
     )
 
-  const total = data.length
-  const first = total === 0 ? 0 : pagination.pageIndex * pagination.pageSize + 1
-  const last = Math.min(total, (pagination.pageIndex + 1) * pagination.pageSize)
+  const counted = server && serverTotal != null
+  const total = counted ? serverTotal : data.length
+  const rangeSize = counted ? (pageSize ?? data.length) : pagination.pageSize
+  const first = data.length === 0 ? 0 : pagination.pageIndex * rangeSize + 1
+  const last = counted
+    ? Math.min(total, pagination.pageIndex * rangeSize + data.length)
+    : Math.min(total, (pagination.pageIndex + 1) * pagination.pageSize)
 
   const pinStyle = (column: Column<F, T, unknown>): React.CSSProperties | undefined => {
     const style: React.CSSProperties = {}
@@ -637,7 +682,25 @@ export function DataTable<T extends RowData, M extends DataTableColumnMeta = Dat
                   <div className="h-px w-full bg-border" />
                 </div>
               )}
-              {mobileRow ? mobileRow(row.original, cells) : defaultMobileRow(cells)}
+              {selectable ? (
+                <div className="flex items-start gap-xs pl-md">
+                  <div className="pt-sm">
+                    <Checkbox
+                      checked={row.getIsSelected()}
+                      onCheckedChange={(value) => row.toggleSelected(value === true)}
+                      onClick={(event) => event.stopPropagation()}
+                      aria-label="Select row"
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    {mobileRow ? mobileRow(row.original, cells) : defaultMobileRow(cells)}
+                  </div>
+                </div>
+              ) : mobileRow ? (
+                mobileRow(row.original, cells)
+              ) : (
+                defaultMobileRow(cells)
+              )}
             </li>
           )
         })}
@@ -647,7 +710,7 @@ export function DataTable<T extends RowData, M extends DataTableColumnMeta = Dat
   const content = mobile ? mobileList : desktop
   const showFooter =
     (paged || server) && !loading && error == null && total > 0 && (!server || (pageCount ?? 0) > 0)
-  const showCount = paged
+  const showCount = paged || counted
 
   return (
     <div

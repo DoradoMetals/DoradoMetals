@@ -1,4 +1,5 @@
 import { Invalid, NotFound } from '#shared/errors.ts'
+import type { LeadDocumentChannel, LeadView } from '@dorado/contracts'
 
 export const MAX_DOCUMENTS_PER_LEAD = 3
 
@@ -22,4 +23,20 @@ export function assertRoom(held: number): void {
 
 export function assertUnlinked(unlinked: boolean, pdf_id: string): void {
   if (!unlinked) throw new NotFound(`no document ${pdf_id} on this lead`)
+}
+
+export function assertDocument<T>(row: T | null | undefined, pdf_id: string): asserts row is T {
+  if (!row) throw new NotFound(`no document ${pdf_id} on this lead`)
+}
+
+export function channelFor(lead: LeadView, preference: string | null): LeadDocumentChannel {
+  if (preference === 'email' && lead.email) return 'email'
+  if (preference === 'text' && lead.phone) return 'sms'
+  if (lead.phone) return 'sms'
+  if (lead.email) return 'email'
+  throw new Invalid(`lead ${lead.id} has neither a phone nor an email to send to`)
+}
+
+export function documentText(name: string, url: string): string {
+  return `Dorado Metals: your ${name} is ready. Download it here: ${url}`
 }

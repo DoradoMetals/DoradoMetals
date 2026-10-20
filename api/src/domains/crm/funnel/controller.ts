@@ -11,3 +11,7 @@ export const summary = asyncHandler(async (req, res) => {
   const window = parseStrict(LeadSummaryWindow, req.query, 'leads summary window')
   return res.status(200).json(await service.summary(window))
 })
+
+export const assignees = asyncHandler(async (_req, res) => {
+  return res.status(200).json(await service.assignees())
+})

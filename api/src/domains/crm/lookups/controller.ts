@@ -20,3 +20,7 @@ export const weightUnits = asyncHandler(async (_req, res) => {
 export const purities = asyncHandler(async (_req, res) => {
   return res.status(200).json(await service.purities())
 })
+
+export const documentKinds = asyncHandler(async (_req, res) => {
+  return res.status(200).json(await service.leadDocumentKinds())
+})

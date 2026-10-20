@@ -2,7 +2,7 @@ import query from '#shared/db/query.ts'
 import { buildUpdate } from '#shared/db/patch.ts'
 import { expression, sqlFrom } from '#shared/db/sql.ts'
 import { columnsOf, returningOf, ACTOR_IDS } from '#shared/db/columns.ts'
-import { Lead, LeadPatch } from '@dorado/contracts'
+import { Lead, LeadPage, LeadPatch } from '@dorado/contracts'
 import type { LeadFilter, LeadView, SmsConsentMethod } from '@dorado/contracts'
 import type { Executor } from '#shared/db/executor.ts'
 
@@ -11,7 +11,14 @@ const sql = sqlFrom(import.meta.dirname)
 export const LEAD_STAGE = expression(sql('lead_stage'))
 
 const GET_ONE_SQL = sql('get_one').replaceAll('/*__lead_stage__*/', LEAD_STAGE)
-const GET_ALL_SQL = sql('get_all').replaceAll('/*__lead_stage__*/', LEAD_STAGE)
+const LEAD_FILTER = expression(sql('filter')).replaceAll('/*__lead_stage__*/', LEAD_STAGE)
+const filtered = (name: string) =>
+  sql(name)
+    .replaceAll('/*__lead_filter__*/', LEAD_FILTER)
+    .replaceAll('/*__lead_stage__*/', LEAD_STAGE)
+const GET_ALL_SQL = filtered('get_all')
+const MATCHING_IDS_SQL = filtered('matching_ids')
+const EXPORT_SQL = filtered('export')
 const CREATE_SQL = sql('create').replaceAll('/*__lead_stage__*/', LEAD_STAGE)
 const BY_PHONE_SQL = sql('by_phone').replaceAll('/*__lead_stage__*/', LEAD_STAGE)
 const RECORD_SMS_CONSENT_SQL = sql('record_sms_consent').replaceAll(
@@ -36,20 +43,55 @@ export async function byPhone(phone: string, executor?: Executor): Promise<LeadV
   return rows[0]
 }
 
-export async function list(filter: LeadFilter, executor?: Executor): Promise<LeadView[]> {
-  const { rows } = await query<LeadView>(
+function filterValues(filter: LeadFilter) {
+  return [
+    filter.stage,
+    filter.priority,
+    filter.assigned_to,
+    filter.source_id,
+    filter.search,
+    filter.archived,
+    filter.created_from,
+    filter.created_to,
+  ]
+}
+
+export async function lockPhone(phone: string, executor?: Executor): Promise<void> {
+  await query(sql('lock_phone'), [phone], executor)
+}
+
+export async function list(
+  filter: LeadFilter,
+  ordered_ids: readonly string[] | null,
+  executor?: Executor
+): Promise<LeadPage> {
+  const { rows } = await query<{ page: unknown }>(
     GET_ALL_SQL,
     [
-      filter.stage,
-      filter.priority,
-      filter.assigned_to,
-      filter.source,
-      filter.search,
-      filter.archived,
+      ...filterValues(filter),
+      filter.sort,
+      filter.direction,
+      filter.page,
+      filter.page_size,
+      ordered_ids,
     ],
     executor
   )
-  return rows
+  return LeadPage.parse(rows[0]?.page)
+}
+
+export async function matchingIds(filter: LeadFilter, executor?: Executor): Promise<string[]> {
+  const { rows } = await query<{ ids: string[] }>(MATCHING_IDS_SQL, filterValues(filter), executor)
+  return rows[0]?.ids ?? []
+}
+
+export async function exportCsv(filter: LeadFilter, executor?: Executor): Promise<string> {
+  const { rows } = await query<{ csv: string }>(
+    EXPORT_SQL,
+    [...filterValues(filter), filter.sort, filter.direction],
+    executor
+  )
+  return rows[0]?.csv ?? ''
 }
 
 export async function create(row: LeadPatch, executor?: Executor): Promise<LeadView> {
@@ -64,6 +106,7 @@ export async function create(row: LeadPatch, executor?: Executor): Promise<LeadV
       row.assigned_to_id,
       row.source_id,
       row.contact_preference_id,
+      row.notes,
     ],
     executor
   )

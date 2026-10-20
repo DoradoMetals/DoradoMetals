@@ -103,6 +103,7 @@
     "@types/topojson-client": "^3.1.5",
     "@types/topojson-specification": "^1.0.5",
     "@vitest/coverage-v8": "^4.1.11",
+    "axe-core": "^4.13.0",
     "baseline-browser-mapping": "^2.11.20",
     "eslint": "^9.39.5",
     "eslint-config-next": "16.3.4",

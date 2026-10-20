@@ -21,7 +21,7 @@ import assert from 'node:assert/strict'
 import type { PoolClient } from 'pg'
 import request from 'supertest'
 import pool from '#pool'
-import { SmsMessageView, SmsSendBody } from '@dorado/contracts'
+import { SmsMessageView, SmsSendBody, SmsThreadMessage } from '@dorado/contracts'
 import * as fake from '#providers/twilio/fake.ts'
 import { mockSessions, restoreSessions, asAdmin } from '#shared/testing/session.ts'
 import { TEST_ACTOR } from '#shared/testing/actor.ts'
@@ -278,6 +278,31 @@ test('a message with no pictures reads image_ids as an empty list, never null', 
       const res = await request(app).post('/api/sms').send({ lead_id: lead.id, body: 'plain' })
       assert.equal(res.status, 201, res.text)
       assert.deepEqual(SmsMessageView.parse(res.body).image_ids, [])
+    })
+  })
+})
+
+test('the thread read carries each message images as id and a signed url', async () => {
+  await inCrm(async (c) => {
+    const lead = await aLead(c, { phone: aPhone() })
+    const photo = await anImage(c, 'thread-photo.jpg')
+    await asAdmin(TEST_ACTOR, async () => {
+      const sent = await request(app)
+        .post('/api/sms')
+        .send({ lead_id: lead.id, body: 'look', image_ids: [photo.id] })
+      assert.equal(sent.status, 201, sent.text)
+      const thread = await request(app).get('/api/sms').query({ number: lead.phone })
+      assert.equal(thread.status, 200, thread.text)
+      const rows = thread.body.map((row: unknown) => SmsThreadMessage.parse(row))
+      const mine = rows.find((row: SmsThreadMessage) => row.id === sent.body.id)
+      assert.ok(mine, 'the sent message is not in the thread')
+      assert.deepEqual(
+        Array.from(mine.images, (image: { id: string }) => image.id),
+        [photo.id]
+      )
+      assert.match(mine.images[0].url, /thread-photo\.jpg/)
+      const plain = rows.find((row: SmsThreadMessage) => row.image_ids.length === 0)
+      if (plain) assert.deepEqual(plain.images, [])
     })
   })
 })

@@ -37,7 +37,7 @@ test('a lead is created, appears in the admin list, and is deleted', async () =>
     const all = await asAdmin(admin, () => request(app).get('/api/leads'))
     assert.equal(all.status, 200)
     assert.ok(
-      all.body.some((l: { id: string; name: string }) => l.id === leadId && l.name === name),
+      all.body.rows.some((l: { id: string; name: string }) => l.id === leadId && l.name === name),
       'the created lead never appeared in the admin list'
     )
 
@@ -50,7 +50,7 @@ test('a lead is created, appears in the admin list, and is deleted', async () =>
 
     const afterDelete = await asAdmin(admin, () => request(app).get('/api/leads'))
     assert.ok(
-      !afterDelete.body.some((l: { id: string }) => l.id === leadId),
+      !afterDelete.body.rows.some((l: { id: string }) => l.id === leadId),
       'the deleted lead is still in the admin list'
     )
 

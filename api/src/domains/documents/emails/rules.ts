@@ -1,3 +1,4 @@
+import { Invalid } from '#shared/errors.ts'
 import type { Delivery, ResendEventOutcome } from '#providers/resend/index.ts'
 import type { EmailOutcome } from '#documents/emails/record.ts'
 import type { Direction, EmailKind, MailerRow } from '@dorado/contracts'
@@ -21,6 +22,10 @@ export function assertDelivered(
   delivery: Delivery
 ): asserts delivery is { sent: true; result: unknown } {
   if (!delivery.sent) throw new Error(delivery.error)
+}
+
+export function assertAddressee<T>(mail: T | null | undefined, lead_id: string): asserts mail is T {
+  if (!mail) throw new Invalid(`lead ${lead_id} has no email to send to`)
 }
 
 export function orderLabel(direction: Direction, number: number): string {

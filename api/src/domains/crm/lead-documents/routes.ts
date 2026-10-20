@@ -12,5 +12,7 @@ router.post(
   controller.add
 )
 router.delete('/:id/documents/:pdfId', requireAdmin, controller.remove)
+router.get('/:id/documents/:pdfId/url', requireAdmin, controller.url)
+router.post('/:id/documents/:pdfId/send', requireAdmin, controller.send)
 
 export default router

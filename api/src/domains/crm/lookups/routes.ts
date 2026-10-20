@@ -9,5 +9,6 @@ router.get('/estimate-kinds', requireAdmin, controller.estimateKinds)
 router.get('/contact-preferences', requireAdmin, controller.contactPreferences)
 router.get('/weight-units', requireAdmin, controller.weightUnits)
 router.get('/purities', requireAdmin, controller.purities)
+router.get('/document-kinds', requireAdmin, controller.documentKinds)
 
 export default router

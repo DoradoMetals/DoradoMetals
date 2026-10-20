@@ -1,6 +1,6 @@
 import query from '#shared/db/query.ts'
 import { sqlFrom } from '#shared/db/sql.ts'
-import { LeadFunnel, LeadSummary } from '@dorado/contracts'
+import { LeadAssignee, LeadFunnel, LeadSummary } from '@dorado/contracts'
 import type { LeadSummaryWindow } from '@dorado/contracts'
 import type { Executor } from '#shared/db/executor.ts'
 
@@ -21,4 +21,9 @@ export async function summary(
     executor
   )
   return LeadSummary.parse(rows[0]?.summary)
+}
+
+export async function assignees(executor?: Executor): Promise<LeadAssignee[]> {
+  const { rows } = await query(sql('assignees'), [], executor)
+  return rows.map((row) => LeadAssignee.parse(row))
 }

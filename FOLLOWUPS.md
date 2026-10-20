@@ -180,6 +180,8 @@ Twelve questions, each with a recommendation already written into the doc:
 
 ## 6. Other queued work
 
+- **A partial unique index on live lead phones** (`leads.leads (phone) WHERE archived_at IS NULL`), after a production count of duplicate live phones and with phone normalisation (one stored form, so `+15125550307` and `5125550307` match). Until then the create path serialises on `pg_advisory_xact_lock(hashtext(phone))` and refuses a phone a live lead holds, matching exact text (leads-port lane, 2026-10-19).
+- **The lead Documents card's named kinds** (Rates Sheet, Quote Guide, Sell Form, Assay Results) wait on Jacob: `named_kinds.sql` lists the rate sheet only, the one kind that exists today (leads-port lane, 2026-10-19).
 - **Drop the `created_by` / `updated_by` TEXT columns** once the `audit_stamp`
   trigger reliably fills the `*_id` columns. Some readers still display the
   text.

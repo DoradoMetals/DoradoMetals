@@ -1,12 +1,13 @@
 import {
-  LeadArchivedQuery,
+  LeadAssignBody,
   LeadConvertBody,
+  LeadListQuery,
   LeadPatch,
   LeadRestoreBody,
-  LeadStage,
 } from '@dorado/contracts'
+import type { LeadFilter } from '@dorado/contracts'
+import type { Request } from 'express'
 import { requiredParam } from '#shared/http/caller.ts'
-import { oneString } from '#shared/http/query.ts'
 import { parseStrict, strictBody, uuidParam } from '#shared/http/validate.ts'
 import { asyncHandler } from '#shared/middleware/asyncHandler.ts'
 import * as service from '#crm/leads/service.ts'
@@ -17,23 +18,36 @@ export const getOne = asyncHandler(async (req, res) => {
   return res.status(200).json(lead)
 })
 
-export const getAll = asyncHandler(async (req, res) => {
-  const rawStage = oneString(req.query.stage)
-  const stage = rawStage ? parseStrict(LeadStage, rawStage, 'leads stage filter') : null
-  const rawArchived = oneString(req.query.archived)
-  const archived = rawArchived
-    ? parseStrict(LeadArchivedQuery, rawArchived, 'leads archived filter')
-    : false
-
-  const filter = {
-    stage,
-    priority: oneString(req.query.priority) ?? null,
-    assigned_to: oneString(req.query.assigned_to) ?? null,
-    source: oneString(req.query.source) ?? null,
-    search: oneString(req.query.q) ?? null,
-    archived,
+function filterOf(req: Request): LeadFilter {
+  const q = parseStrict(LeadListQuery, req.query, 'leads list query')
+  return {
+    stage: q.stage ?? null,
+    priority: q.priority ?? null,
+    assigned_to: q.assigned_to ?? null,
+    source_id: q.source_id ?? null,
+    search: q.q ?? null,
+    archived: q.archived ?? false,
+    created_from: q.created_from ?? null,
+    created_to: q.created_to ?? null,
+    sort: q.sort ?? 'created',
+    direction: q.direction ?? (q.sort === 'name' ? 'asc' : 'desc'),
+    page: q.page ?? null,
+    page_size: q.page_size ?? null,
   }
-  return res.status(200).json(await service.list(filter))
+}
+
+export const getAll = asyncHandler(async (req, res) => {
+  return res.status(200).json(await service.list(filterOf(req)))
+})
+
+export const exportCsv = asyncHandler(async (req, res) => {
+  const csv = await service.exportCsv(filterOf(req))
+  res.setHeader('Content-Disposition', 'attachment; filename="leads.csv"')
+  return res.status(200).type('text/csv').send(csv)
+})
+
+export const assign = asyncHandler(async (req, res) => {
+  return res.status(200).json(await service.assign(strictBody(LeadAssignBody, req.body)))
 })
 
 export const create = asyncHandler(async (req, res) => {

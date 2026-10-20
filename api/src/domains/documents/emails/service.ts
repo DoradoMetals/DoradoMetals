@@ -13,6 +13,7 @@ import * as pickupComplete from '#documents/emails/templates/pickup-complete.ts'
 import * as appointmentBooked from '#documents/emails/templates/appointment-booked.ts'
 import * as appointmentTomorrow from '#documents/emails/templates/appointment-tomorrow.ts'
 import * as documentSent from '#documents/emails/templates/document-sent.ts'
+import * as leadDocumentSent from '#documents/emails/templates/lead-document-sent.ts'
 import * as signInCode from '#documents/emails/templates/sign-in-code.ts'
 import * as accountCreated from '#documents/emails/templates/account-created.ts'
 import * as detailsChanged from '#documents/emails/templates/details-changed.ts'
@@ -151,6 +152,32 @@ export async function sendDocument(
     pdf_id,
     transport,
     executor
+  )
+}
+
+export async function sendLeadDocument(
+  lead_id: string,
+  label: string,
+  bytes: Uint8Array,
+  pdf_id: string,
+  transport?: Transport
+): Promise<void> {
+  const mail = await mailers.leadAddressee(lead_id)
+  rules.assertAddressee(mail, lead_id)
+  await post(
+    'document_sent',
+    mail,
+    leadDocumentSent.subject(label),
+    leadDocumentSent.render(mail, label),
+    [
+      {
+        filename: `${label.toLowerCase().replace(/\s+/g, '_')}.pdf`,
+        content: bytes,
+        contentType: 'application/pdf',
+      },
+    ],
+    pdf_id,
+    transport
   )
 }
 

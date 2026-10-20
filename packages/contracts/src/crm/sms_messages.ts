@@ -29,8 +29,15 @@ export const SmsMessage = z.object({
 export type SmsMessage = z.infer<typeof SmsMessage>
 // generated:end
 import { SmsMessageImage } from './sms_message_images.js'
+import { Image } from '../media/images.js'
 
 export const SmsMessageView = SmsMessage.extend({
   image_ids: z.array(SmsMessageImage.shape.image_id),
 })
 export type SmsMessageView = z.infer<typeof SmsMessageView>
+
+export const SignedImage = Image.pick({ id: true }).extend({ url: z.string() })
+export type SignedImage = z.infer<typeof SignedImage>
+
+export const SmsThreadMessage = SmsMessageView.extend({ images: z.array(SignedImage) })
+export type SmsThreadMessage = z.infer<typeof SmsThreadMessage>

@@ -5,7 +5,8 @@ import withTransaction from '#shared/db/withTransaction.ts'
 import * as images from '#db/media/images/repo.ts'
 import type { NewImage } from '#db/media/images/repo.ts'
 import * as rules from '#accounts/images/rules.ts'
-import type { Image } from '@dorado/contracts'
+import { Image as ImageRow } from '@dorado/contracts'
+import type { Image, SignedImage } from '@dorado/contracts'
 import type { Executor } from '#shared/db/executor.ts'
 import { withDecisions } from '#shared/views.ts'
 
@@ -61,6 +62,16 @@ export async function getUrl(image_id: string): Promise<string> {
   const img = await images.getOne(image_id)
   rules.assertImage(img, image_id)
   return await presign(img)
+}
+
+export async function signed(image_ids: readonly string[]): Promise<SignedImage[]> {
+  return await Promise.all(
+    image_ids.map(async (image_id) => {
+      const img = await images.getOne(image_id)
+      rules.assertImage(img, image_id)
+      return withDecisions(ImageRow.pick({ id: true }).parse(img), { url: await presign(img) })
+    })
+  )
 }
 
 export async function putBytes(
