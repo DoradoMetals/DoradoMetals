@@ -791,6 +791,14 @@ file named at the top of this file.
   drawer's own content, not Drawer properties. The code Drawer matches: a
   footer children slot. Source: Jacob, chat 2026-10-20 (at the pause).
 
+- **165 — A lead may carry a location; nothing requires it.** *"Keep it. But
+  it shouldn't be required by the API or anything. Maybe we can grab from
+  phone number area code or other sources, idk."* `leads.leads` gains
+  nullable `city` and `state`; the Contact info card and the Edit contact
+  drawer show them; the lead header prints the city line only when set. A
+  guess from the phone's area code is a later nicety, never a requirement.
+  Source: Jacob, People comment 1974066458.
+
 ## Numbering
 
 Every number from 1 to 157 has an entry, plus 26b and 26c. Two rulings carry the

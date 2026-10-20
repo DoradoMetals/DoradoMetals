@@ -694,3 +694,5 @@ State on disk when everything stopped:
 - **Figma**: handoff `docs/design/handoff-figma-2026-10-19.md` section 10. Unanswered Orders threads 1972785617, 1972785727, 1972786247 (the footer; design not started). Waits on Jacob: Library and Orders publishes; lead location (People 1972579070); document kinds; focus look and contrast picks (Library 1972584681); the Skip rule is confirmed (ruling 163).
 - **Poll** is stopped; restart with `/home/jtj60/dorado-lanes/tools/all/loop.sh`.
 - Scratch test databases on the local cluster: `test_library_sync_2`, `test_leads_port`, `test_leads_port_e2e`, `test_create_order_drawer` (disposable; drop only with Jacob's ok).
+- Export/download table icon buttons: Outline variant, success colour (People 1974064406); sync to `packages/components` TableActions in the next library pass.
+- Ruling 165: `leads.leads.city`/`state` nullable (migration 308), on LeadPatch and LeadView, Contact info card, Edit contact drawer, the header city line when set; area-code guess later.
