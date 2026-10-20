@@ -816,7 +816,16 @@ file named at the top of this file.
   be closed via explicit control. X close button should also be optional
   (default present)."* The Library Drawer documents the behaviours; the code
   Drawer has `dismissible` (default true) and `showClose` (default true).
-  Source: Jacob, Library comment 1974117920.
+  Extended on *"Think of what all else we'll need for accessibility and
+  ux"*: focus to the title on open, trapped, returned to the trigger; nested
+  layers close first on Escape; dialog semantics with the page behind inert
+  and scroll-locked without layout shift; a visible grabber and safe-area
+  insets on mobile, the footer above the on-screen keyboard; only the body
+  scrolls, a hairline under the header once scrolled; a confirm-close option
+  for unsaved changes; slide and scrim at 200 ms, instant under reduced
+  motion; saving state with aria-busy and a footer alert that takes focus;
+  aria-current on the stepper; 44 px targets. Source: Jacob, Library comment
+  1974117920 and reply 1974124886.
 
 ## Numbering
 
