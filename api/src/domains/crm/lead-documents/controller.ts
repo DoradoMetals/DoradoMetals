@@ -1,6 +1,8 @@
 import { uuidParam } from '#shared/http/validate.ts'
 import { firstFile } from '#shared/http/multipart.ts'
 import { asyncHandler } from '#shared/middleware/asyncHandler.ts'
+import { LeadDocumentSendBody } from '@dorado/contracts'
+import { strictBody } from '#shared/http/validate.ts'
 import * as service from '#crm/lead-documents/service.ts'
 
 export const getAll = asyncHandler(async (req, res) => {
@@ -18,4 +20,15 @@ export const remove = asyncHandler(async (req, res) => {
   const lead_id = uuidParam(req, 'id')
   const pdf_id = uuidParam(req, 'pdfId')
   return res.status(200).json(await service.remove(lead_id, pdf_id))
+})
+
+export const url = asyncHandler(async (req, res) => {
+  return res.status(200).json(await service.url(uuidParam(req, 'id'), uuidParam(req, 'pdfId')))
+})
+
+export const send = asyncHandler(async (req, res) => {
+  const lead_id = uuidParam(req, 'id')
+  const pdf_id = uuidParam(req, 'pdfId')
+  strictBody(LeadDocumentSendBody, req.body ?? {})
+  return res.status(200).json(await service.send(lead_id, pdf_id))
 })

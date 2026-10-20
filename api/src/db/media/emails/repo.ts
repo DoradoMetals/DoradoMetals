@@ -3,6 +3,7 @@ import { sqlFrom } from '#shared/db/sql.ts'
 import type { Email } from '@dorado/contracts'
 import type {
   DocumentSentMail,
+  MailerAddressee,
   OrderReceivedMail,
   PayoutSentMail,
   ScheduleMail,
@@ -10,6 +11,7 @@ import type {
 } from '@dorado/contracts'
 import {
   DocumentSentMail as DocumentSent,
+  MailerAddressee as Addressee,
   OrderReceivedMail as OrderReceived,
   PayoutSentMail as PayoutSent,
   ScheduleMail as Schedule,
@@ -158,6 +160,14 @@ export async function appointmentTomorrow(
 ): Promise<ScheduleMail | null> {
   const row = await contentOf('content_appointment_tomorrow', order_id, executor)
   return row === undefined ? null : Schedule.parse(row)
+}
+
+export async function leadAddressee(
+  lead_id: string,
+  executor?: Executor
+): Promise<MailerAddressee | null> {
+  const { rows } = await query<{ content: unknown }>(sql('lead_addressee'), [lead_id], executor)
+  return rows[0] ? Addressee.parse(rows[0].content) : null
 }
 
 export async function documentSent(

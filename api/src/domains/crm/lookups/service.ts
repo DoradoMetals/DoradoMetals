@@ -3,7 +3,13 @@ import * as estimateKinds from '#db/leads/estimate-kinds/repo.ts'
 import * as contactPreferences from '#db/leads/contact-preferences/repo.ts'
 import * as weightUnits from '#db/leads/weight-units/repo.ts'
 import * as purityLabels from '#db/metals/purity-labels/repo.ts'
-import type { LeadLookup, PurityLookup, WeightUnitLookup } from '@dorado/contracts'
+import * as leadDocuments from '#db/leads/documents/repo.ts'
+import type {
+  LeadDocumentKind,
+  LeadLookup,
+  PurityLookup,
+  WeightUnitLookup,
+} from '@dorado/contracts'
 
 export async function leadSources(): Promise<LeadLookup[]> {
   return await sources.list()
@@ -23,4 +29,8 @@ export async function leadWeightUnits(): Promise<WeightUnitLookup[]> {
 
 export async function purities(): Promise<PurityLookup[]> {
   return await purityLabels.lookup()
+}
+
+export async function leadDocumentKinds(): Promise<LeadDocumentKind[]> {
+  return await leadDocuments.namedKinds()
 }

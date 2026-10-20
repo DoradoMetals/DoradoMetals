@@ -21,6 +21,10 @@ export const DOCUMENT_NAMES = [
   'Appointment Instructions',
   'Assay Results',
   'Rate Sheet',
+  'Rates Sheet',
+  'Quote Guide',
+  'Sell Form',
+  'Lead Document',
 ] as const
 
 export type DocumentName = (typeof DOCUMENT_NAMES)[number]

@@ -25,7 +25,7 @@ describe('Documents', () => {
     expect(getByText('1 document')).toBeTruthy()
   })
 
-  it('the ten canonical names are the union, in the Media file order', () => {
+  it('the canonical names are the union, in the Media file order, then the People lead documents', () => {
     expect([...DOCUMENT_NAMES]).toEqual([
       'Invoice',
       'Shipment Manifest',
@@ -37,6 +37,10 @@ describe('Documents', () => {
       'Appointment Instructions',
       'Assay Results',
       'Rate Sheet',
+      'Rates Sheet',
+      'Quote Guide',
+      'Sell Form',
+      'Lead Document',
     ])
   })
 

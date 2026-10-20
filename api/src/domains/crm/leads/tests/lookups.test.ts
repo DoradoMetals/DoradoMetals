@@ -21,7 +21,7 @@ import assert from 'node:assert/strict'
 import type { PoolClient } from 'pg'
 import request from 'supertest'
 import pool from '#pool'
-import { LeadLookup, PurityLookup, WeightUnitLookup } from '@dorado/contracts'
+import { LeadDocumentKind, LeadLookup, PurityLookup, WeightUnitLookup } from '@dorado/contracts'
 import { mockSessions, restoreSessions, as, asAdmin } from '#shared/testing/session.ts'
 import { TEST_ACTOR, TEST_CUSTOMER } from '#shared/testing/actor.ts'
 import { inPinnedTransaction } from '#shared/testing/pinned-pool.ts'
@@ -97,6 +97,11 @@ test('/api/leads/weight-units answers leads.weight_units in sort_order, each wit
       const troy = rows.find((r: WeightUnitLookup) => r.key === 'troy_oz')
       assert.equal(troy?.grams, 31.1034768, 'grams arrived as something other than a number')
       assert.equal(typeof troy?.label, 'string')
+      assert.deepEqual(
+        Object.fromEntries(rows.map((r: WeightUnitLookup) => [r.key, r.label])),
+        { troy_oz: 'Troy Oz', g: 'Grams', dwt: 'DWT', lb: 'LBs' },
+        'migration 303 gives the units the design labels'
+      )
     })
   })
 })
@@ -117,7 +122,9 @@ test('/api/leads/purities answers every purity label with its fine fraction, by 
       )
       const k14 = rows.find((r: PurityLookup) => r.metal_id === 'Gold' && r.label === '14K')
       assert.equal(k14?.purity, 0.5833, 'the fine fraction is missing or not a number')
-      const sterling = rows.find((r: PurityLookup) => r.metal_id === 'Silver' && r.label === '.925')
+      const sterling = rows.find(
+        (r: PurityLookup) => r.metal_id === 'Silver' && r.label === 'Sterling'
+      )
       assert.equal(sterling?.purity, 0.925)
     })
   })
@@ -147,6 +154,17 @@ test('the lookups are staff-only', async () => {
       for (const path of ['/api/leads/sources', '/api/leads/purities']) {
         assert.equal((await request(app).get(path)).status, 403, path)
       }
+    })
+  })
+})
+
+test('/api/leads/document-kinds answers the named document kinds with the names the list uses', async () => {
+  await inLeads(async () => {
+    await asAdmin(TEST_ACTOR, async () => {
+      const res = await request(app).get('/api/leads/document-kinds')
+      assert.equal(res.status, 200, res.text)
+      const rows = res.body.map((r: unknown) => LeadDocumentKind.parse(r))
+      assert.deepEqual(rows, [{ kind: 'rate_sheet', name: 'Rates Sheet' }])
     })
   })
 })

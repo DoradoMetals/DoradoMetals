@@ -37,7 +37,7 @@ import assert from 'node:assert/strict'
 import type { PoolClient } from 'pg'
 import request from 'supertest'
 import pool from '#pool'
-import { LeadSummary } from '@dorado/contracts'
+import { LeadAssignee, LeadSummary } from '@dorado/contracts'
 import { mockSessions, restoreSessions, as, asAdmin } from '#shared/testing/session.ts'
 import { TEST_ACTOR, TEST_CUSTOMER } from '#shared/testing/actor.ts'
 import { inPinnedTransaction } from '#shared/testing/pinned-pool.ts'
@@ -209,7 +209,64 @@ test('needs attention: open leads unassigned, and open leads not contacted', asy
   await inLeads(async (c) => {
     await seedJanuary(c)
     const s = await readSummary()
-    assert.deepEqual(s.needs_attention, { unassigned: 2, not_contacted: 1 })
+    assert.deepEqual(s.needs_attention, { unassigned: 2, not_contacted: 1, both: 1, total: 2 })
+  })
+})
+
+test('the status chip counts: new, contacted, converted, archived and all', async () => {
+  await inLeads(async (c) => {
+    await seedJanuary(c)
+    const s = await readSummary()
+    assert.deepEqual(s.counts_by_status, {
+      new: 1,
+      contacted: 2,
+      converted: 1,
+      archived: 1,
+      all: 4,
+    })
+  })
+})
+
+test('the overall response rate: leads reached on any channel that answered', async () => {
+  await inLeads(async (c) => {
+    await seedJanuary(c)
+    const s = await readSummary()
+    assert.equal(s.response_rate, 0.6667, 'A texted back and C called back, of A, B and C')
+  })
+})
+
+test('the deltas compare the window with the one of the same length before it', async () => {
+  await inLeads(async (c) => {
+    await seedJanuary(c)
+    const f = await aSeededLead(c, {
+      created_at: '2000-12-20T10:00:00Z',
+      contacted_after_hours: 8,
+      converted_at: '2000-12-22T10:00:00Z',
+      assigned: true,
+    })
+    await aSeededLead(c, { created_at: '2000-12-21T10:00:00Z' })
+    await aText(c, f.phone, 'outbound')
+    const s = await readSummary()
+    assert.deepEqual(s.deltas, {
+      response_rate_pts: 66.67,
+      conversion_rate_pts: -25,
+      median_first_contact_minutes: -240,
+      needs_attention: 1,
+    })
+  })
+})
+
+test('with no earlier leads, or no window start, the deltas are null', async () => {
+  await inLeads(async (c) => {
+    await seedJanuary(c)
+    const nulls = {
+      response_rate_pts: null,
+      conversion_rate_pts: null,
+      median_first_contact_minutes: null,
+      needs_attention: null,
+    }
+    assert.deepEqual((await readSummary()).deltas, nulls)
+    assert.deepEqual((await readSummary({ created_to: '2001-01-15' })).deltas, nulls)
   })
 })
 
@@ -242,7 +299,7 @@ test('a window with no leads answers zeros and null medians, not an error', asyn
   await inLeads(async () => {
     const s = await readSummary({ created_from: '1990-01-01', created_to: '1990-01-08' })
     assert.deepEqual(s.totals, { count: 0, unowned: 0, median_hours_to_first_contact: null })
-    assert.deepEqual(s.needs_attention, { unassigned: 0, not_contacted: 0 })
+    assert.deepEqual(s.needs_attention, { unassigned: 0, not_contacted: 0, both: 0, total: 0 })
     assert.equal(s.conversion.rate, 0)
     assert.deepEqual(s.conversion.history, [])
     assert.equal(s.first_contact.median_hours, null)
@@ -272,6 +329,46 @@ test('`summary` is never read as a lead id, and a customer cannot read it', asyn
   await inLeads(async () => {
     await as({ ...TEST_CUSTOMER, role: 'user' }, async () => {
       assert.equal((await request(app).get('/api/leads/summary')).status, 403)
+    })
+  })
+})
+
+test('the assignees read counts each employee open leads, converted and archived left out', async () => {
+  await inLeads(async (c) => {
+    await c.query(
+      `INSERT INTO auth.employees (user_id, role, enabled) VALUES ($1, 'agent', true)
+       ON CONFLICT DO NOTHING`,
+      [TEST_ACTOR.id]
+    )
+    await c.query('UPDATE auth.employees SET enabled = true WHERE user_id = $1', [TEST_ACTOR.id])
+    const before = await asAdmin(TEST_ACTOR, async () => {
+      const res = await request(app).get('/api/leads/assignees')
+      assert.equal(res.status, 200, res.text)
+      return res.body.map((row: unknown) => LeadAssignee.parse(row))
+    })
+    const mine = before.find((row: LeadAssignee) => row.user_id === TEST_ACTOR.id)
+    assert.ok(mine, 'the test actor is not offered as an assignee')
+    await aSeededLead(c, { created_at: '2001-01-01T10:00:00Z', assigned: true })
+    await aSeededLead(c, {
+      created_at: '2001-01-01T10:00:00Z',
+      assigned: true,
+      converted_at: '2001-01-02T10:00:00Z',
+    })
+    const after = await asAdmin(TEST_ACTOR, async () => {
+      const res = await request(app).get('/api/leads/assignees')
+      return res.body.map((row: unknown) => LeadAssignee.parse(row))
+    })
+    assert.equal(
+      after.find((row: LeadAssignee) => row.user_id === TEST_ACTOR.id)!.open,
+      mine.open + 1
+    )
+  })
+})
+
+test('a customer cannot read the assignees', async () => {
+  await inLeads(async () => {
+    await as({ ...TEST_CUSTOMER, role: 'user' }, async () => {
+      assert.equal((await request(app).get('/api/leads/assignees')).status, 403)
     })
   })
 })

@@ -40,7 +40,15 @@ export { Tooltip, TooltipProvider, type TooltipProps } from './tooltip/Tooltip'
 export { Stat, type StatProps } from './stat/Stat'
 export { Stepper, type StepperProps } from './stepper/Stepper'
 export { OTPInput, type OTPInputProps } from './otp-input/OTPInput'
-export { Tabs, TabsList, TabsTrigger, TabsContent } from './tabs/Tabs'
+export {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+  TabsNav,
+  type TabsNavItem,
+  type TabsNavProps,
+} from './tabs/Tabs'
 export { Slider, type SliderProps } from './slider/Slider'
 export { SliderField, type SliderFieldProps } from './slider-field/SliderField'
 export { List, ListItem, type ListProps } from './list/List'

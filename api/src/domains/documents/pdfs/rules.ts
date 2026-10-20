@@ -73,3 +73,7 @@ export function assertUpload(bytes: Uint8Array | null | undefined): asserts byte
 export function assertQuotable(direction: string | null, order_id: string): void {
   if (direction !== 'purchase') throw new NotFound(`no quote estimate for sales order ${order_id}`)
 }
+
+export function assertStoredPdf<T>(row: T | null | undefined, pdf_id: string): asserts row is T {
+  if (!row) throw new NotFound(`no pdf ${pdf_id}`)
+}

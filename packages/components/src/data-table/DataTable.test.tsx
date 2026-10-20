@@ -612,3 +612,87 @@ describe('Table Footer layouts (Jacob 2026-10-19: never stacked)', () => {
     expect(row.lastElementChild).toBe(getByRole('navigation', { name: 'Pagination' }))
   })
 })
+
+describe('DataTable, leads port', () => {
+  it('a parent with state, an inline callback and data rebuilt every render settles', () => {
+    let renders = 0
+    function Parent() {
+      const [picked, setPicked] = React.useState<Row[]>([])
+      renders += 1
+      return (
+        <>
+          <p data-testid="picked">{picked.length}</p>
+          <DataTable
+            columns={columns}
+            data={data.map((row) => ({ ...row }))}
+            getRowId={(row) => row.id}
+            label="Scrap"
+            selectable
+            onRowSelectionChange={(rows) => setPicked(rows)}
+          />
+        </>
+      )
+    }
+    const { getAllByRole, getByTestId } = render(<Parent />)
+    const settled = renders
+    expect(settled).toBeLessThan(10)
+    fireEvent.click(getAllByRole('checkbox', { name: 'Select row' })[0]!)
+    expect(getByTestId('picked').textContent).toBe('1')
+    expect(renders - settled).toBeLessThan(10)
+  })
+
+  it('controlled sorting reports the change and never reorders the server rows', () => {
+    const onSortingChange = vi.fn()
+    const { container, getByRole } = render(
+      <DataTable
+        columns={columns}
+        data={data}
+        label="Scrap"
+        sorting={[{ id: 'weight', desc: true }]}
+        onSortingChange={onSortingChange}
+      />
+    )
+    expect(container.querySelector('th[aria-sort="descending"]')).toBeTruthy()
+    fireEvent.click(getByRole('button', { name: /weight/i }))
+    expect(onSortingChange).toHaveBeenCalledWith([{ id: 'weight', desc: false }])
+    expect(itemCells(container)).toEqual(['Gold chain', 'Silver ring'])
+  })
+
+  it('server paging with a total shows the range of the page and the total', () => {
+    const { container } = render(
+      <DataTable
+        columns={columns}
+        data={data}
+        label="Scrap"
+        page={2}
+        pageCount={3}
+        total={6}
+        onPageChange={() => {}}
+      />
+    )
+    expect(container.querySelector('[data-part="count"]')?.textContent).toMatch(
+      /Showing\s*3–4\s*of\s*6/
+    )
+  })
+})
+
+describe('DataTable, mobile selection', () => {
+  it('a selectable mobile list draws a checkbox per row that selects it', () => {
+    const { getAllByRole, getByTestId } = render(
+      <DataTable
+        columns={columns}
+        data={data}
+        label="Scrap"
+        title="Scrap"
+        layout="mobile"
+        selectable
+        getRowId={(row) => row.id}
+        actions={({ selected }) => <span data-testid="n">{selected.length}</span>}
+      />
+    )
+    const boxes = getAllByRole('checkbox', { name: 'Select row' })
+    expect(boxes).toHaveLength(2)
+    fireEvent.click(boxes[1]!)
+    expect(getByTestId('n').textContent).toBe('1')
+  })
+})

@@ -10,8 +10,17 @@ import * as usersService from '#accounts/users/service.ts'
 import * as smsService from '#crm/sms/service.ts'
 import * as estimateItems from '#db/leads/estimate-items/repo.ts'
 import * as checkoutService from '#checkout/service.ts'
+import * as pricing from '#pricing/index.ts'
 import * as rules from '#crm/leads/rules.ts'
-import type { AdminUser, LeadConvertBody, LeadFilter, LeadPatch, LeadView } from '@dorado/contracts'
+import type {
+  AdminUser,
+  LeadAssignBody,
+  LeadConvertBody,
+  LeadFilter,
+  LeadPage,
+  LeadPatch,
+  LeadView,
+} from '@dorado/contracts'
 
 export async function getOne(id: string): Promise<LeadView> {
   const row = await leads.getOne(id)
@@ -19,12 +28,42 @@ export async function getOne(id: string): Promise<LeadView> {
   return row
 }
 
-export async function list(filter: LeadFilter): Promise<LeadView[]> {
-  return await leads.list(filter)
+export async function list(filter: LeadFilter): Promise<LeadPage> {
+  if (filter.sort !== 'estimated_value') return await leads.list(filter, null)
+  const ranked = await pricing.leadEstimateRank(await leads.matchingIds(filter), filter.direction)
+  return await leads.list(filter, ranked)
+}
+
+export async function exportCsv(filter: LeadFilter): Promise<string> {
+  return await leads.exportCsv(filter)
+}
+
+export async function assign(body: LeadAssignBody): Promise<LeadView[]> {
+  return withTransaction(async (client) => {
+    const written: LeadView[] = []
+    for (const id of body.lead_ids) {
+      const before = await leads.getOne(id, client)
+      rules.assertLead(before, id)
+      const row = await leads.update(id, { assigned_to_id: body.assigned_to_id }, client)
+      rules.assertLead(row, id)
+      if (rules.assignmentMoved(before, { assigned_to_id: body.assigned_to_id })) {
+        await assignmentsService.record(
+          { user_id: null, lead_id: id, assigned_to_id: body.assigned_to_id },
+          client
+        )
+      }
+      written.push(row)
+    }
+    return written
+  })
 }
 
 export async function create(lead: LeadPatch): Promise<LeadView> {
   return withTransaction(async (client) => {
+    if (lead.phone) {
+      await leads.lockPhone(lead.phone, client)
+      rules.assertPhoneFree(await leads.byPhone(lead.phone, client))
+    }
     const row = await leads.create(lead, client)
     if (row.assigned_to_id) {
       await assignmentsService.record(

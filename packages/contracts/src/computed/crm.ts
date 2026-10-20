@@ -1,5 +1,5 @@
 import { z } from 'zod/v4'
-import { Employee } from '../auth/employees.js'
+import { Employee, EmployeeSummary } from '../auth/employees.js'
 import { Call } from '../crm/calls.js'
 import { CallState, SmsDeliveryStatus, SmsDirection } from '../crm/enums.js'
 import { SmsMessage } from '../crm/sms_messages.js'
@@ -194,9 +194,28 @@ export const LeadSummary = z.object({
   needs_attention: z.object({
     unassigned: z.number().int(),
     not_contacted: z.number().int(),
+    both: z.number().int(),
+    total: z.number().int(),
+  }),
+  counts_by_status: z.object({
+    new: z.number().int(),
+    contacted: z.number().int(),
+    converted: z.number().int(),
+    archived: z.number().int(),
+    all: z.number().int(),
+  }),
+  response_rate: z.number(),
+  deltas: z.object({
+    response_rate_pts: z.number().nullable(),
+    conversion_rate_pts: z.number().nullable(),
+    median_first_contact_minutes: z.number().nullable(),
+    needs_attention: z.number().int().nullable(),
   }),
 })
 export type LeadSummary = z.infer<typeof LeadSummary>
+
+export const LeadAssignee = EmployeeSummary.extend({ open: z.number().int() })
+export type LeadAssignee = z.infer<typeof LeadAssignee>
 
 export const ActivitySubjectKind = z.enum(['customer', 'lead'])
 export type ActivitySubjectKind = z.infer<typeof ActivitySubjectKind>

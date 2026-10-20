@@ -1,6 +1,7 @@
 import query from '#shared/db/query.ts'
 import { expression, sqlFrom } from '#shared/db/sql.ts'
 import type { Executor } from '#shared/db/executor.ts'
+import type { LeadSortDirection } from '@dorado/contracts'
 import {
   CheckoutQuote,
   Direction,
@@ -106,6 +107,19 @@ export async function leadEstimateTotals(
 ): Promise<LeadEstimateTotal[]> {
   const { rows } = await query(sql('lead_estimate_totals'), [lead_ids], executor)
   return rows.map((row) => LeadEstimateTotal.parse(row))
+}
+
+export async function leadEstimateRank(
+  lead_ids: readonly string[],
+  direction: LeadSortDirection,
+  executor?: Executor
+): Promise<string[]> {
+  const text = sql('lead_estimate_rank').replace(
+    '/*__lead_estimate_totals__*/',
+    expression(sql('lead_estimate_totals'))
+  )
+  const { rows } = await query<{ lead_ids: string[] }>(text, [lead_ids, direction], executor)
+  return rows[0]?.lead_ids ?? []
 }
 
 export async function ratePay(

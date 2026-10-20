@@ -53,7 +53,9 @@ export function AdminHeader({
             className={cn(
               'relative flex items-center gap-2xs',
               '[&_[role=tablist]]:border-b-0 [&_[role=tab]:first-child]:pl-0',
-              mobile && '[&_[role=tab]:last-of-type]:pr-0'
+              '[&_[data-part=tabs-nav]_ul]:border-b-0 [&_[data-part=tab]:first-child>*]:pl-0',
+              mobile && '[&_[role=tab]:last-of-type]:pr-0',
+              mobile && '[&_[data-part=tab]:last-of-type>*]:pr-0'
             )}
           >
             {nav}

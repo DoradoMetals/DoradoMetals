@@ -16,6 +16,7 @@ import type {
   SmsMessage,
   SmsMessageView,
   SmsSendBody,
+  SmsThreadMessage,
 } from '@dorado/contracts'
 import type { SmsInbound, SmsStatusUpdate } from '#providers/twilio/index.ts'
 
@@ -167,8 +168,13 @@ export async function sendConsentWelcome(phone_number: string): Promise<SmsMessa
 export async function conversation(
   user_id: string | null,
   number: string | null
-): Promise<SmsMessageView[]> {
-  return smsRepo.conversation(user_id, number)
+): Promise<SmsThreadMessage[]> {
+  const rows = await smsRepo.conversation(user_id, number)
+  return await Promise.all(
+    rows.map(async (row) =>
+      withDecisions(row, { images: await imageService.signed(row.image_ids) })
+    )
+  )
 }
 
 export async function getOne(id: string): Promise<SmsMessageView> {

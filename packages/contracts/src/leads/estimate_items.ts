@@ -34,5 +34,9 @@ export const EstimateItemPatch = EstimateItem.pick({
   .strict()
 export type EstimateItemPatch = z.infer<typeof EstimateItemPatch>
 
-export const EstimateItemView = EstimateItem.extend({ image_count: z.number().int() })
+export const EstimateItemView = EstimateItem.extend({
+  image_count: z.number().int(),
+  grams: EstimateItem.shape.weight,
+  total_grams: EstimateItem.shape.weight,
+})
 export type EstimateItemView = z.infer<typeof EstimateItemView>

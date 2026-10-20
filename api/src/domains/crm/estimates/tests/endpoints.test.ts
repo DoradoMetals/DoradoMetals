@@ -229,3 +229,23 @@ test('a lead id that is not a uuid is 400', async () => {
     { actor: TEST_ACTOR.id }
   )
 })
+
+test('the item list carries each item in grams and the estimate total in grams, from SQL', async () => {
+  await inPinnedTransaction(
+    async (c: PoolClient) => {
+      const lead = await aLead(c)
+      await anEstimateItem(c, lead.id, { weight: 12, unit_id: await estimateUnitId(c, 'g') })
+      await anEstimateItem(c, lead.id, { weight: 2, unit_id: await estimateUnitId(c, 'dwt') })
+      await asAdmin(async () => {
+        const res = await request(app).get(`/api/leads/${lead.id}/estimate/items`)
+        assert.equal(res.status, 200, res.text)
+        assert.deepEqual(
+          res.body.map((row: { grams: number }) => row.grams).sort((a: number, b: number) => a - b),
+          [3.11034768, 12]
+        )
+        for (const row of res.body) assert.equal(row.total_grams, 15.11034768)
+      })
+    },
+    { actor: TEST_ACTOR.id }
+  )
+})

@@ -28,5 +28,18 @@ export const LeadDocumentView = LeadDocument.omit({
   size_bytes: Pdf.shape.size_bytes,
   checksum: Pdf.shape.checksum,
   uploaded_at: Pdf.shape.created_at,
+  name: z.string(),
 })
 export type LeadDocumentView = z.infer<typeof LeadDocumentView>
+
+export const LeadDocumentChannel = z.enum(['sms', 'email'])
+export type LeadDocumentChannel = z.infer<typeof LeadDocumentChannel>
+
+export const LeadDocumentSent = z.object({}).extend({ channel: LeadDocumentChannel })
+export type LeadDocumentSent = z.infer<typeof LeadDocumentSent>
+
+export const LeadDocumentSendBody = LeadDocument.pick({}).strict()
+export type LeadDocumentSendBody = z.infer<typeof LeadDocumentSendBody>
+
+export const LeadDocumentKind = LeadDocumentView.pick({ kind: true, name: true })
+export type LeadDocumentKind = z.infer<typeof LeadDocumentKind>

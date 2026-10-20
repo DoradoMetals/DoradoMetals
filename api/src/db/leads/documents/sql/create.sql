@@ -8,6 +8,7 @@ WITH link AS (
 SELECT link.id, link.lead_id, link.pdf_id,
        to_char(link.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS created_at,
        p.kind, p.path, p.size_bytes, p.checksum,
-       to_char(p.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS uploaded_at
+       to_char(p.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS uploaded_at,
+       /*__document_name__*/ AS name
   FROM link
   JOIN media.pdfs p ON p.id = link.pdf_id
