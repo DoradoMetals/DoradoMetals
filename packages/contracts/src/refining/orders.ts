@@ -4,7 +4,6 @@
 //
 // Postgres table: refining.orders
 import { z } from 'zod/v4'
-import { Note } from '../crm/notes.js'
 import { RefiningDirection, SettlementType } from './enums.js'
 
 export const RefiningOrder = z.object({
@@ -31,6 +30,7 @@ export const RefiningOrder = z.object({
 })
 export type RefiningOrder = z.infer<typeof RefiningOrder>
 // generated:end
+import { Note } from '../crm/notes.js'
 
 import { Lot } from '../inventory/lots.js'
 import { FulfillmentMethod } from '../fulfillments/methods.js'
