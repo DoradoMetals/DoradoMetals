@@ -3,6 +3,7 @@ import { fireEvent, render } from '@testing-library/react'
 import * as React from 'react'
 
 import { DataTable, type DataTableColumn } from './DataTable'
+import { expectNoAxeViolations } from '../test/axe'
 
 type Row = { id: string; item: string; weight: number }
 
@@ -52,5 +53,12 @@ describe('DataTable accessibility', () => {
     const rows = getAllByRole('row').filter((r) => r.getAttribute('tabindex') === '0')
     expect(rows.length).toBe(2)
     for (const row of rows) expect(row.className).toContain('focus-ring')
+  })
+
+  it('the paged, selectable table with a title passes axe', async () => {
+    const { container } = render(
+      <DataTable columns={columns} data={many} label="Lots" title="Lots" selectable pageSize={10} />
+    )
+    await expectNoAxeViolations(container)
   })
 })

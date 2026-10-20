@@ -59,4 +59,10 @@ describe('EmptyState', () => {
     rerender(<EmptyState title="You have nothing to sell yet!" badge={0} />)
     expect(queryByText('0')).toBe(null)
   })
+
+  it('level changes only the heading element and keeps the H5 type', () => {
+    const { getByRole } = render(<EmptyState title="No calls yet" level={4} />)
+    const title = getByRole('heading', { level: 4, name: 'No calls yet' })
+    expect(title.className).toBe('text-h5')
+  })
 })

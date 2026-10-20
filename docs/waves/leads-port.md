@@ -110,3 +110,27 @@ reviewer reads the diff.
   design shows one icon. Default: the lead's contact preference.
 - The purities list for the Add item drawer (karats plus Sterling and .999)
   needs a source table or a constant in pricing; decide in the lane.
+
+## Decided (orchestrator, phase two, 2026-10-19)
+
+The test agent found eleven places where the design shows what no endpoint
+returned. Decisions:
+
+- Status chip counts, the Archived count, the overall response rate, the
+  deltas against the previous window and needs-attention as unassigned,
+  not contacted, both and total all come from `GET /api/leads/summary`.
+- `GET /api/leads` pages and sorts server-side, takes a created window and
+  `source_id`, and returns `{rows, total}`.
+- The estimate items list returns `total_grams` in SQL.
+- `LeadPatch` takes `notes`.
+- Documents: signed download URL and a send action by contact preference;
+  the four named kinds (Rates Sheet, Quote Guide, Sell Form, Assay Results)
+  wait on Jacob.
+- Migration 303 renames lookup labels to the design's words (Troy Oz, Grams,
+  DWT, LBs, Sterling).
+- `POST /api/leads/assign` and `GET /api/leads/export` (CSV in SQL).
+- The thread read carries `images: [{id, url}]` per message.
+- The lead header's city line is omitted until Jacob says whether a lead
+  carries a location.
+- The New lead drawer and the Assign picker had no design; the Figma worker
+  draws them under the Leads list section, and the code follows.

@@ -3,6 +3,7 @@ import { fireEvent, render } from '@testing-library/react'
 import * as React from 'react'
 
 import { axisScales, BarChart, DonutChart, LineChart, linePoints, Sparkline } from './Chart'
+import { expectNoAxeViolations } from '../test/axe'
 
 describe('Charts', () => {
   it('every chart renders a canvas with role=img and a name', () => {
@@ -139,5 +140,22 @@ describe('Charts', () => {
     const off = linePoints({ points: false, primary: true, count: 3 })
     expect(off.pointRadius).toEqual([0, 0, 4])
     expect(linePoints({ points: false, primary: false, count: 3 }).pointRadius).toBe(0)
+  })
+
+  it('every chart kind passes axe', async () => {
+    const { container } = render(
+      <div>
+        <LineChart
+          labels={['a', 'b']}
+          series={[{ label: 'Gold', data: [1, 2] }]}
+          label="Gold price"
+          title="Gold"
+        />
+        <BarChart labels={['a']} series={[{ label: 'Vol', data: [3] }]} label="Volume" />
+        <DonutChart labels={['Au', 'Ag']} data={[60, 40]} label="Mix" />
+        <Sparkline data={[1, 3, 2]} label="Trend" />
+      </div>
+    )
+    await expectNoAxeViolations(container)
   })
 })

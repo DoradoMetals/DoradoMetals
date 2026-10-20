@@ -3,6 +3,7 @@ import { act, fireEvent, render } from '@testing-library/react'
 import * as React from 'react'
 
 import { Tooltip, TooltipProvider } from './Tooltip'
+import { expectNoAxeViolations } from '../test/axe'
 
 describe('Tooltip', () => {
   it('opens on focus - keyboard users get the hint too', async () => {
@@ -82,5 +83,19 @@ describe('Tooltip', () => {
     const button = getByRole('button', { name: 'Bare' })
     expect(button.hasAttribute('data-state')).toBe(false)
     expect(container.firstElementChild).toBe(button)
+  })
+
+  it('the open tooltip passes axe', async () => {
+    const { getByRole } = render(
+      <TooltipProvider>
+        <Tooltip label="Live spot, refreshed each minute">
+          <button>Spot price</button>
+        </Tooltip>
+      </TooltipProvider>
+    )
+    await act(async () => {
+      fireEvent.focus(getByRole('button'))
+    })
+    await expectNoAxeViolations(document.body)
   })
 })

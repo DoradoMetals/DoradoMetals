@@ -8,6 +8,7 @@ export type EmptyStateProps = {
   icon?: React.ReactNode
   badge?: React.ReactNode
   title: React.ReactNode
+  level?: 2 | 3 | 4 | 5 | 6
   description?: React.ReactNode
   children?: React.ReactNode
   action?: React.ReactNode
@@ -18,6 +19,7 @@ export function EmptyState({
   icon,
   badge,
   title,
+  level = 5,
   description,
   children,
   action,
@@ -38,7 +40,11 @@ export function EmptyState({
         </div>
       )}
       <span className="flex max-w-sm flex-col gap-2xs">
-        <h5>{title}</h5>
+        {React.createElement(
+          `h${level}`,
+          { className: level === 5 ? undefined : 'text-h5' },
+          title
+        )}
         {description != null && <small>{description}</small>}
         {children != null && <small>{children}</small>}
       </span>

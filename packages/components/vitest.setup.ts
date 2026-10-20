@@ -74,3 +74,8 @@ if (typeof HTMLCanvasElement !== 'undefined') {
     return new Proxy({}, absorb) as unknown as CanvasRenderingContext2D
   } as typeof HTMLCanvasElement.prototype.getContext
 }
+
+import { failOnConsoleNoise, watchConsole } from './src/test/console'
+import { beforeEach } from 'vitest'
+beforeEach(watchConsole)
+afterEach(failOnConsoleNoise)
