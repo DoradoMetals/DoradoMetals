@@ -12,3 +12,6 @@ Pages: Lucide Icons 7:2 (1748 components), Action Icons Docs 36:2 (Jacob's page 
 - 1974106971 (pin @137,388) + 1974108464 ("Export / Download"): rows merged into "Export / Download" (download, Success outline for table data; Paperwork Row document download stays default). Reply posted.
 - 1974108722 (pin @134,879, "Send / Resend"): rows merged into "Send / Resend" (send). Reply posted.
 - 1974109745 (pin @104,2279, "show trend down row too"): "Trend up / down" split into Trend up (trending-up, Success for rising) and Trend down (trending-down, Danger for falling; instance swapped to 7:2 trending-down). Directional pairs checked: Expand/Collapse, Back / Previous and Next, Lock/Unlock, Trend up/down each one row per direction. Rule line updated (slash rule, trend colours, pairs). Table now Head + 41 rows. Fresh 2x render checked. Reply posted.
+
+## 2026-10-20 (sixth worker)
+- People 1974097388 (customer actions): rows added after Archive in 39:32: Adjust credit wallet 45:43, Link bank account landmark 45:55, Request SMS consent message-square-check 45:67, Add note sticky-note 45:79, Ban ban Danger 45:91. Used in updated: New / Add, Text, More / Row actions, Edit, Restore, Archive (Customer Header and Customer Actions Menu). Table now Head + 46 rows. Fresh 2x render checked.

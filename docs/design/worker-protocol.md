@@ -79,3 +79,4 @@ Every feature file page is laid out the same way, with no parent "Screens" or
 - Move nodes, never recreate them; ids and instance links stay. Verify the
   page with a fresh REST render after a restructure.
 - Icons design file qxJf2XlhEFwy4uGHaH0L0n (tools/icons; added to the loop 2026-10-20): the Action icons page 36:2 is the function-to-icon registry (ruling 166).
+- Inventory design file ZgJF9JWNY6BwxmWABRZ6I7 (tools/inventory; added to the loop 2026-10-20): the lots file of ruling 168; lot components live here.

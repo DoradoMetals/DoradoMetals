@@ -827,7 +827,7 @@ file named at the top of this file.
   aria-current on the stepper; 44 px targets. Source: Jacob, Library comment
   1974117920 and reply 1974124886.
 
-- **168 — Lot components live in the Lots design file; features compose
+- **168 — Lot components live in the Inventory design file; features compose
   them.** *"Possibly all the other item stuff we have should be moved to
   lots file as feature level components there ... Yeah go for it."* An
   entity file exists only for an entity that crosses features (Lots,
