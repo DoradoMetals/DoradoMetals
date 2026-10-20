@@ -846,6 +846,21 @@ file named at the top of this file.
   Entity files: Inventory (lots), Fulfillment, Locations (addresses). Source:
   Jacob, Library comment 1974145221 and chat 2026-10-20.
 
+- **169 — Components do not get frames; only screens do. One Figma
+  component per code component file, with its states as variants.** *"We're
+  aiming for figma components and code component files to match. So if we
+  have multiple components that are doing the same thing and we want to show
+  different states... don't use different components, use variants that the
+  code will handle. Only screens get frames. State should generally live in
+  component variants. We shouldn't need 5 high level screens to showcase
+  screen state differences."* A component set sits bare on its page, named
+  as the code file is, with every state a variant; a screen is a frame, and
+  a screen's states are the variants of the components on it, not more
+  screens. Jacob will restructure the other files the way Orders is now;
+  this rule applies to all new work from today. Supersedes the "one frame per
+  component feature" line of the page-structure rule. Source: Jacob, chat
+  2026-10-20.
+
 ## Numbering
 
 Every number from 1 to 157 has an entry, plus 26b and 26c. Two rulings carry the
