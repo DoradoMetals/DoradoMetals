@@ -20,7 +20,7 @@ const MenuContent = React.forwardRef<
       ref={ref}
       sideOffset={sideOffset}
       className={cn(
-        'z-50 flex min-w-56 flex-col gap-3xs rounded-surface border border-border bg-popover p-xs text-popover-foreground',
+        'z-100 flex min-w-56 flex-col gap-3xs rounded-surface border border-border bg-popover p-xs text-popover-foreground',
         'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
         'data-[state=closed]:animate-out data-[state=closed]:fade-out-0',
         'motion-reduce:animate-none',

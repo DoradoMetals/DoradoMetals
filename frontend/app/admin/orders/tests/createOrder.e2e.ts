@@ -106,6 +106,21 @@ for (const size of SIZES) {
 
       const previewed = page.waitForResponse(isCall('POST', /\/pricing\/preview$/))
       await drawer.getByRole('button', { name: /Add lot/ }).click()
+      await drawer.getByRole('radio', { name: 'Scrap', exact: true }).first().click()
+      const metal = drawer.getByRole('combobox', { name: 'Metal' }).first()
+      await metal.click()
+      const gold = page.getByRole('option', { name: 'Gold' })
+      await expect(gold).toBeVisible()
+      const onTop = await gold.evaluate((option) => {
+        const layer = option.closest('[data-radix-popper-content-wrapper]')
+        const panel = document.querySelector('[role="dialog"]')
+        const z = (el: Element | null) => Number(el ? getComputedStyle(el).zIndex : 0) || 0
+        return z(layer) > z(panel)
+      })
+      expect(onTop, 'the Metal listbox paints above the drawer').toBe(true)
+      await gold.click()
+      await expect(metal).toContainText('Gold')
+      await expect(drawer).toBeVisible()
       await drawer.getByRole('radio', { name: 'Bullion', exact: true }).first().click()
       await drawer.getByRole('combobox', { name: 'Product' }).fill(product.name.slice(0, 8))
       await page.getByRole('option', { name: product.name }).first().click()
