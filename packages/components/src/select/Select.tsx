@@ -76,7 +76,7 @@ export function Select({
           <SelectPrimitive.Content
             position="popper"
             sideOffset={4}
-            className={cn(fieldPanel(), 'w-[var(--radix-select-trigger-width)]')}
+            className={cn(fieldPanel(), 'z-100 w-[var(--radix-select-trigger-width)]')}
           >
             <SelectPrimitive.Viewport className="flex flex-col gap-xs">
               {items.map((item) => (

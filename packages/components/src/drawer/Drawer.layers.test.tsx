@@ -53,3 +53,26 @@ describe('Drawer with a nested Radix layer', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
   })
 })
+
+describe('Drawer with a Select opened by pointer', () => {
+  it('opens the listbox outside the inert sweep, picks an option and keeps the Drawer open', async () => {
+    const onValueChange = vi.fn()
+    const { user } = setup(<Harness onValueChange={onValueChange} />)
+    await user.click(screen.getByRole('combobox', { name: 'Metal' }))
+    const listbox = await screen.findByRole('listbox')
+    expect(listbox.closest('[inert]')).toBeNull()
+    expect(listbox.closest('[aria-hidden="true"]')).toBeNull()
+    await user.click(screen.getByRole('option', { name: 'Gold' }))
+    expect(onValueChange).toHaveBeenCalledWith('gold')
+    expect(screen.getByRole('dialog')).toBeTruthy()
+    expect(screen.getByRole('combobox', { name: 'Metal' }).textContent).toContain('Gold')
+  })
+
+  it('stacks the listbox above the Drawer panel, so it is not painted behind it', async () => {
+    const { user } = setup(<Harness onValueChange={vi.fn()} />)
+    await user.click(screen.getByRole('combobox', { name: 'Metal' }))
+    const listbox = await screen.findByRole('listbox')
+    const z = (el: Element) => Number(/(?:^|\s)z-\[?(\d+)\]?(?:\s|$)/.exec(el.className)?.[1] ?? 0)
+    expect(z(listbox)).toBeGreaterThan(z(screen.getByRole('dialog', { hidden: true })))
+  })
+})

@@ -33,7 +33,7 @@ export function Tooltip({
           side={side}
           sideOffset={6}
           className={cn(
-            'z-50 flex flex-col gap-xs rounded-sm border border-border bg-highest px-sm py-xs text-foreground',
+            'z-100 flex flex-col gap-xs rounded-sm border border-border bg-highest px-sm py-xs text-foreground',
             'data-[state=delayed-open]:animate-in motion-reduce:animate-none'
           )}
         >
